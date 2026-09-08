@@ -1,0 +1,102 @@
+{
+  "currentID": {
+    "value": 9001
+  },
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIMetadataState": [
+      {
+        "Key": {
+          "value": 1
+        },
+        "Value": {
+          "playerFactionName": "Fixture Resistance",
+          "gameTimeString": "1/1/2030 12:00:00 AM",
+          "difficulty": "Normal",
+          "playedWithMods": false,
+          "ID": {
+            "value": 1
+          },
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIMetadataState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TITimeState": [
+      {
+        "Key": {
+          "value": 2
+        },
+        "Value": {
+          "currentTime": "2030-01-01T00:00:00",
+          "ID": {
+            "value": 2
+          },
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TITimeState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {
+          "value": 3
+        },
+        "Value": {
+          "displayName": "Fixture Resistance",
+          "factionName": "FixtureCouncil",
+          "ID": {
+            "value": 3
+          },
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TINationState": [
+      {
+        "Key": {
+          "value": 4
+        },
+        "Value": {
+          "displayName": "Fixture Nation",
+          "nationName": "FixtureNation",
+          "ID": {
+            "value": 4
+          },
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIHabState": [
+      {
+        "Key": {
+          "value": 5
+        },
+        "Value": {
+          "displayName": "Fixture Habitat",
+          "ID": {
+            "value": 5
+          },
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIHabState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TISpaceShipState": [
+      {
+        "Key": {
+          "value": 6
+        },
+        "Value": {
+          "displayName": "Fixture Ship",
+          "ID": {
+            "value": 6
+          },
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TISpaceShipState"
+        }
+      }
+    ]
+  }
+}

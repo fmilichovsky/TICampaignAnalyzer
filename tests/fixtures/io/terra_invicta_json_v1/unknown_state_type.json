@@ -1,0 +1,18 @@
+{
+  "currentID": {
+    "value": 17
+  },
+  "gamestates": {
+    "Example.ModOrFutureState": [
+      {
+        "Key": {
+          "value": 17
+        },
+        "Value": {
+          "syntheticField": "unknown state data",
+          "$type": "Example.ModOrFutureState"
+        }
+      }
+    ]
+  }
+}
