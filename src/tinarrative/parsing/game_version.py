@@ -2,7 +2,6 @@
 
 from .raw_save import RawSave
 
-
 SUPPORTED_SAVE_FORMATS = frozenset({"terra_invicta_json_v1"})
 """Documented envelope identifiers, not Terra Invicta release numbers."""
 
@@ -25,7 +24,8 @@ def require_supported_format(format_identifier: str) -> str:
     if format_identifier not in SUPPORTED_SAVE_FORMATS:
         known = ", ".join(sorted(SUPPORTED_SAVE_FORMATS))
         raise UnsupportedSaveFormatError(
-            f"Unsupported save format {format_identifier!r}; supported formats: {known}."
+            f"Unsupported save format {format_identifier!r}; "
+            f"supported formats: {known}."
         )
     return format_identifier
 

@@ -104,13 +104,22 @@ def verify_manifest(manifest_path: Path) -> list[str]:
                 f"Fixture format documentation does not exist for {entry['path']}: "
                 f"{entry['format_documentation']}"
             )
-        elif entry["format_assumption"] not in documentation_path.read_text(encoding="utf-8"):
+        elif entry["format_assumption"] not in documentation_path.read_text(
+            encoding="utf-8"
+        ):
             errors.append(
-                f"Fixture format documentation does not name {entry['format_assumption']!r}: "
+                f"Fixture format documentation does not name "
+                f"{entry['format_assumption']!r}: "
                 f"{entry['path']}"
             )
-        if not isinstance(entry["version_assumption"], str) or not entry["version_assumption"]:
-            errors.append(f"Fixture version assumption must be a non-empty string: {entry['path']}")
+        if (
+            not isinstance(entry["version_assumption"], str)
+            or not entry["version_assumption"]
+        ):
+            errors.append(
+                f"Fixture version assumption must be a "
+                f"non-empty string: {entry['path']}"
+            )
 
         try:
             json.loads(raw)
