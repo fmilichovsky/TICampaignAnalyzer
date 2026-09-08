@@ -1,0 +1,31 @@
+# Terra Invicta game-data notes
+
+This is an evidence log for the save formats handled by `tinarrative`. It is deliberately not a general specification of Terra Invicta saves. A claim is an **observed fact** only when it was checked against the private source saves on the stated capture date. Everything else is labelled a **hypothesis**.
+
+## Supported format identifiers
+
+| Identifier | Status | Notes |
+| --- | --- | --- |
+| `terra_invicta_json_v1` | Supported envelope | [Observed format and limits](terra_invicta_json_v1.md) |
+
+There are no supported Terra Invicta *game build* identifiers yet. The sampled saves do not include a top-level `game_version` field, so their game-build version is unknown. `detect_game_version` reports a serialized value when one exists; it does not establish compatibility. Call `require_supported_game_version` before treating an explicit value as supported: it raises `UnsupportedGameVersionError` for every explicit value until a documented build is added to the supported list.
+
+`require_supported_format` raises `UnsupportedSaveFormatError` for an unknown format identifier. These errors include the unsupported identifier and list the known identifiers, rather than silently selecting a parser.
+
+## Checked-in fixture mapping
+
+All fixtures in `tests/fixtures/io/terra_invicta_json_v1/` declare `format_assumption: "terra_invicta_json_v1"` and `format_documentation: "docs/game-data-notes/terra_invicta_json_v1.md"` in their manifest. That identifier points to [the v1 observations](terra_invicta_json_v1.md). `version_assumption` records whether the fixture exercises the envelope or a synthetic detector edge case; it is not a claim about a real game build.
+
+Original saves remain private and are never copied into this repository. The fixture manifest is the authoritative, reviewable connection between a synthetic fixture and a format assumption.
+
+For implementation-facing findings, start with [containers and references](containers-and-references.md), then use the [domain field map](domain-field-map.md) to choose the normalizer and diff work for a particular architectural domain.
+
+[Snapshot-diff observations](diff-observations.md) records which ID-keyed maps and fields changed across one real interval, without preserving any campaign values.
+
+The [state-type inventory](state-type-inventory.md) is the complete observed envelope key set and should be used for parser routing—not as a rejection list for additional future state types.
+
+[Chronology and duplicate snapshots](chronology-and-deduplication.md) defines the observed ordering and byte-level deduplication behavior needed before producing a campaign sequence.
+
+[Campaign grouping](campaign-grouping.md) describes the evidence-based
+heuristic for partitioning a mixed directory into campaign chains when no
+explicit campaign identifier is serialized.

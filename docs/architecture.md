@@ -757,6 +757,15 @@ Documents/My Games/TerraInvicta/saves/
 The application discovers saves, orders them, processes new snapshots,
 and produces/updates campaign history.
 
+Before ordering, discovery must partition files into campaign chains. The
+serialized format currently has no observed campaign identifier, so this step
+uses a documented continuity profile: internal game timestamp, the non-AI
+player's faction reference, readable player-faction metadata, scenario
+metadata, and stable world-anchor overlap. Byte-identical saves are aliases of
+one snapshot. A conflict or missing continuity evidence must produce separate
+or unclassified chains, not an invented chronology. See
+[`game-data-notes/campaign-grouping.md`](game-data-notes/campaign-grouping.md).
+
 ## Mode D --- Incremental/watch-oriented analysis
 
 Future capability:
