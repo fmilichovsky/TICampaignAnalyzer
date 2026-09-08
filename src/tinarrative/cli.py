@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from typing import cast
 
 EXIT_SUCCESS = 0
 EXIT_USAGE_ERROR = 2
@@ -50,7 +51,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not hasattr(args, "handler"):
         parser.print_help()
         return EXIT_SUCCESS
-    return args.handler()
+    handler = cast(Callable[[], int], args.handler)
+    return handler()
 
 
 if __name__ == "__main__":

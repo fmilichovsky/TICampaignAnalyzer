@@ -8,4 +8,6 @@ from ..model.snapshot import SaveSnapshot
 
 
 class Analyzer(Protocol):
-    def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]: ...
+    def analyze(
+        self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff
+    ) -> list[Event]: ...
