@@ -8,9 +8,17 @@ narrative presentation.
 
 ```powershell
 python -m pip install -e .
-python -m unittest discover -s tests
 tinarrative --help
 ```
+
+## Testing
+
+```powershell
+python -m pip install -e ".[test]"
+python -m pytest
+```
+
+See [the testing guide](docs/testing.md) for test and fixture conventions.
 
 ## Package layout
 
