@@ -1,0 +1,7 @@
+{
+  "kind": "raw_save",
+  "synthetic": true,
+  "source": "generated",
+  "game_version": null,
+  "purpose": "Verify raw save loading and fixture lookup."
+}
