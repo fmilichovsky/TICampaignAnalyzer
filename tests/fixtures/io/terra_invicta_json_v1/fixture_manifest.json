@@ -13,6 +13,9 @@
       "kind": "synthetic_representative_save_shape",
       "json_valid": true,
       "expected_loader_outcome": "returns_exact_raw_bytes",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Observed JSON envelope; source game build is not serialized.",
       "sha256": "c01379f493338b6016b04432a805ad1fbeb43918dee6de7b6d208a0534590911",
       "purpose": "Exercise raw loading of a complete valid Terra Invicta-shaped JSON document."
     },
@@ -21,6 +24,9 @@
       "kind": "synthetic_unknown_state_fragment",
       "json_valid": true,
       "expected_loader_outcome": "returns_exact_raw_bytes",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Observed JSON envelope; unknown state types remain uninterpreted.",
       "sha256": "be080ea86e20ecc429b536e62dada015c54277b6a8bc9b47dcbfeba52c70f1e2",
       "purpose": "Preserve an unknown typed state as raw bytes until a future parser owns that behavior."
     },
@@ -29,6 +35,9 @@
       "kind": "synthetic_malformed_fragment",
       "json_valid": false,
       "expected_loader_outcome": "returns_exact_raw_bytes",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Observed JSON envelope; deliberately malformed decoder-boundary case.",
       "sha256": "60339ebba358a8dc00a988756babf204a0bf07bd8ad0c90741e103816fe96cd0",
       "purpose": "Keep malformed JSON coverage at the raw-loader boundary without adding decoding logic."
     },
@@ -37,6 +46,9 @@
       "kind": "synthetic_parser_fragment",
       "json_valid": true,
       "expected_loader_outcome": "returns_exact_raw_bytes",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Synthetic explicit-version detector case; not a supported game build.",
       "sha256": "09c7c819838adc621c26c543d267b3f03728a3171babf7f96a29c8ba5c29d1d9",
       "purpose": "Assert the existing detector preserves a string game_version value."
     },
@@ -45,6 +57,9 @@
       "kind": "synthetic_parser_fragment",
       "json_valid": true,
       "expected_loader_outcome": "returns_exact_raw_bytes",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Synthetic numeric-version detector case; not a supported game build.",
       "sha256": "ec074b1682da8fcce00fa99475cb764f5085c524ce89a7d95bdeec9ccbc3e0ce",
       "purpose": "Assert the existing detector stringifies a numeric game_version value."
     },
@@ -53,6 +68,9 @@
       "kind": "synthetic_parser_fragment",
       "json_valid": true,
       "expected_loader_outcome": "returns_exact_raw_bytes",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Observed missing top-level game-version behavior.",
       "sha256": "5bf31c5f8bfe268571bfca7212ff093fcfd67589b66243332993c492d871bd88",
       "purpose": "Assert current missing-version and missing-date defaults."
     }

@@ -8,7 +8,7 @@
 
 ## MVP
 
-- [ ] Document representative save-file structures.
+- [x] Document representative save-file structures.
 - [ ] Normalize a minimal save snapshot.
 - [ ] Produce a deterministic single-save diff.
 - [ ] Render objective changes as Markdown.

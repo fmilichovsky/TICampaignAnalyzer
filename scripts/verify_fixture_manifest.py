@@ -13,6 +13,9 @@ REQUIRED_FIXTURE_FIELDS = {
     "kind",
     "json_valid",
     "expected_loader_outcome",
+    "format_assumption",
+    "format_documentation",
+    "version_assumption",
     "sha256",
     "purpose",
 }
@@ -28,6 +31,8 @@ REQUIRED_MANIFEST_FIELDS = {
     "fixtures",
 }
 EXPECTED_LOADER_OUTCOME = "returns_exact_raw_bytes"
+SUPPORTED_FORMAT_ASSUMPTIONS = {"terra_invicta_json_v1"}
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def verify_manifest(manifest_path: Path) -> list[str]:
@@ -88,6 +93,24 @@ def verify_manifest(manifest_path: Path) -> list[str]:
             errors.append(f"Fixture hash does not match manifest: {entry['path']}")
         if entry["expected_loader_outcome"] != EXPECTED_LOADER_OUTCOME:
             errors.append(f"Unexpected loader outcome declaration: {entry['path']}")
+        if entry["format_assumption"] not in SUPPORTED_FORMAT_ASSUMPTIONS:
+            errors.append(
+                f"Unsupported format assumption for {entry['path']}: "
+                f"{entry['format_assumption']!r}"
+            )
+        documentation_path = REPOSITORY_ROOT / entry["format_documentation"]
+        if not documentation_path.is_file():
+            errors.append(
+                f"Fixture format documentation does not exist for {entry['path']}: "
+                f"{entry['format_documentation']}"
+            )
+        elif entry["format_assumption"] not in documentation_path.read_text(encoding="utf-8"):
+            errors.append(
+                f"Fixture format documentation does not name {entry['format_assumption']!r}: "
+                f"{entry['path']}"
+            )
+        if not isinstance(entry["version_assumption"], str) or not entry["version_assumption"]:
+            errors.append(f"Fixture version assumption must be a non-empty string: {entry['path']}")
 
         try:
             json.loads(raw)

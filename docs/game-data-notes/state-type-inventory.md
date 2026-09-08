@@ -1,0 +1,105 @@
+# Observed `gamestates` type inventory
+
+This inventory lists the 76 exact `gamestates` keys shared by the three
+representative private saves inspected on 2026-09-08. It is an observation of
+one envelope family, not an allowlist for future saves. Preserve unknown keys
+as raw data and add a documented parser only when their structure is mapped.
+
+## Core and Earth-state collections
+
+```text
+PavonisInteractive.TerraInvicta.TIMetadataState
+PavonisInteractive.TerraInvicta.TITimeState
+PavonisInteractive.TerraInvicta.TIFactionState
+PavonisInteractive.TerraInvicta.TIPlayerState
+PavonisInteractive.TerraInvicta.TIEffectsState
+PavonisInteractive.TerraInvicta.TIGlobalResearchState
+PavonisInteractive.TerraInvicta.TIGlobalValuesState
+PavonisInteractive.TerraInvicta.TINationState
+PavonisInteractive.TerraInvicta.TIControlPoint
+PavonisInteractive.TerraInvicta.TIRegionState
+PavonisInteractive.TerraInvicta.TIRegionAlienActivityState
+PavonisInteractive.TerraInvicta.TIRegionAlienFacilityState
+PavonisInteractive.TerraInvicta.TIRegionUFOCrashdownState
+PavonisInteractive.TerraInvicta.TIRegionUFOLandingState
+PavonisInteractive.TerraInvicta.TIRegionXenoformingState
+PavonisInteractive.TerraInvicta.TIArmyState
+PavonisInteractive.TerraInvicta.TIMegafaunaArmyState
+PavonisInteractive.TerraInvicta.TICouncilorState
+PavonisInteractive.TerraInvicta.TIOrgState
+PavonisInteractive.TerraInvicta.TIFederationState
+PavonisInteractive.TerraInvicta.TIWarState
+PavonisInteractive.TerraInvicta.TILaunchFacilityState
+PavonisInteractive.TerraInvicta.TIMissionControlFacilityState
+PavonisInteractive.TerraInvicta.TISpaceDefensesFacilityState
+PavonisInteractive.TerraInvicta.TIMissionState
+PavonisInteractive.TerraInvicta.TIMissionPhaseState
+PavonisInteractive.TerraInvicta.TITimeEvent
+PavonisInteractive.TerraInvicta.TINotificationQueueState
+PavonisInteractive.TerraInvicta.TIPromptQueueState
+TIHistoricalData
+```
+
+## Space and habitat collections
+
+```text
+PavonisInteractive.TerraInvicta.TISpaceBodyState
+PavonisInteractive.TerraInvicta.TILagrangePointState
+PavonisInteractive.TerraInvicta.TIOrbitState
+PavonisInteractive.TerraInvicta.TIAdHocOrbitState
+PavonisInteractive.TerraInvicta.TISectorState
+PavonisInteractive.TerraInvicta.TIHabSiteState
+PavonisInteractive.TerraInvicta.TIHabState
+PavonisInteractive.TerraInvicta.TIHabModuleState
+PavonisInteractive.TerraInvicta.TISpaceFleetState
+PavonisInteractive.TerraInvicta.TISpaceShipState
+PavonisInteractive.TerraInvicta.TIOfficerState
+PavonisInteractive.TerraInvicta.TISpaceCombatState
+PavonisInteractive.TerraInvicta.TISpaceCombatProjectileState
+```
+
+## Faction-goal collections
+
+```text
+PavonisInteractive.TerraInvicta.FactionGoal_AssembleFleet
+PavonisInteractive.TerraInvicta.FactionGoal_AttackWithFleet
+PavonisInteractive.TerraInvicta.FactionGoal_BuildFullBase
+PavonisInteractive.TerraInvicta.FactionGoal_BuildFullStation
+PavonisInteractive.TerraInvicta.FactionGoal_BuildMiningBase
+PavonisInteractive.TerraInvicta.FactionGoal_BuildRefuellingStation
+PavonisInteractive.TerraInvicta.FactionGoal_CaptureHab
+PavonisInteractive.TerraInvicta.FactionGoal_CaptureNation_Clean
+PavonisInteractive.TerraInvicta.FactionGoal_CaptureNation_Dirty
+PavonisInteractive.TerraInvicta.FactionGoal_DefendWithFleet
+PavonisInteractive.TerraInvicta.FactionGoal_DevelopNation
+PavonisInteractive.TerraInvicta.FactionGoal_ExpandNation
+PavonisInteractive.TerraInvicta.FactionGoal_FoundBase
+PavonisInteractive.TerraInvicta.FactionGoal_FoundMaxStation
+PavonisInteractive.TerraInvicta.FactionGoal_FoundPlatform
+PavonisInteractive.TerraInvicta.FactionGoal_FoundSurveillanceStation
+PavonisInteractive.TerraInvicta.FactionGoal_InvadeEarth
+PavonisInteractive.TerraInvicta.FactionGoal_JoinFleet
+PavonisInteractive.TerraInvicta.FactionGoal_MilitarizeNation
+PavonisInteractive.TerraInvicta.FactionGoal_NeutralizeNation
+PavonisInteractive.TerraInvicta.FactionGoal_NonAggressionPact
+PavonisInteractive.TerraInvicta.FactionGoal_ProspectSites
+PavonisInteractive.TerraInvicta.FactionGoal_RefitFleet
+PavonisInteractive.TerraInvicta.FactionGoal_RepairFleet
+PavonisInteractive.TerraInvicta.FactionGoal_ResupplyFleet
+PavonisInteractive.TerraInvicta.FactionGoal_SecureEarthSpace
+PavonisInteractive.TerraInvicta.FactionGoal_SendFleet
+PavonisInteractive.TerraInvicta.FactionGoal_SpaceifyNation
+PavonisInteractive.TerraInvicta.FactionGoal_SurveilEarth
+PavonisInteractive.TerraInvicta.FactionGoal_TransportCouncilorsWithFleet
+PavonisInteractive.TerraInvicta.FactionGoal_TruceWithFaction
+PavonisInteractive.TerraInvicta.FactionGoal_Victory
+PavonisInteractive.TerraInvicta.FactionGoal_WarOnFaction
+```
+
+## Interpretation boundary
+
+The name of a state type is enough to route it to a future parser; it is not
+enough to assert gameplay meaning. In particular, `FactionGoal_*` collections
+may describe AI planning rather than completed campaign events, and empty
+combat/war maps do not prove that no combat or war occurred outside the saved
+instant.
