@@ -1,0 +1,1 @@
+"""Objective snapshot comparison."""

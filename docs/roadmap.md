@@ -1,0 +1,20 @@
+# Roadmap
+
+## Foundation
+
+- [x] Establish the installable Python package and CLI entry point.
+- [x] Separate loading, parsing, model, diff, analysis, reconstruction,
+  narrative, and rendering responsibilities.
+
+## MVP
+
+- [ ] Document representative save-file structures.
+- [ ] Normalize a minimal save snapshot.
+- [ ] Produce a deterministic single-save diff.
+- [ ] Render objective changes as Markdown.
+
+## Campaign history
+
+- [ ] Add domain analyzers and rule-based reconstruction.
+- [ ] Aggregate events across an ordered save sequence.
+- [ ] Add fixture-driven parser, diff, and renderer coverage.

@@ -1,0 +1,1 @@
+"""Faction-state analyzers."""
