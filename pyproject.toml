@@ -21,8 +21,16 @@ classifiers = [
 [project.scripts]
 tinarrative = "tinarrative.cli:main"
 
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = ["--strict-markers", "-m", "not real_save", "-p", "no:cacheprovider"]
+markers = [
+  "fixture: test reads a checked-in fixture",
+  "real_save: test uses a sanitized real Terra Invicta save; excluded from the default suite",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tinarrative"]
