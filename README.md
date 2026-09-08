@@ -7,9 +7,15 @@ narrative presentation.
 ## Development
 
 ```powershell
+python -m pip install -e .
+tinarrative --help
+```
+
+## Testing
+
+```powershell
 python -m pip install -e ".[test]"
 python -m pytest
-tinarrative --help
 ```
 
 See [the testing guide](docs/testing.md) for test and fixture conventions.
