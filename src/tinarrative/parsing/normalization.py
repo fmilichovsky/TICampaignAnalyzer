@@ -1,7 +1,7 @@
 """Convert decoded saves into stable model objects."""
 
-from .raw_save import RawSave
 from ..model.snapshot import SaveSnapshot
+from .raw_save import RawSave
 
 
 def normalize(raw_save: RawSave, *, source: str) -> SaveSnapshot:

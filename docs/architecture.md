@@ -433,8 +433,7 @@ class Analyzer(Protocol):
         before: SaveSnapshot,
         after: SaveSnapshot,
         diff: StateDiff,
-    ) -> list[AtomicEvent]:
-        ...
+    ) -> list[AtomicEvent]: ...
 ```
 
 Potential analyzer families:

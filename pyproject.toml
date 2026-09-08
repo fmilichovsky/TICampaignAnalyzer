@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.25"]
+requires = ["hatchling==1.28.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -22,7 +22,26 @@ classifiers = [
 tinarrative = "tinarrative.cli:main"
 
 [project.optional-dependencies]
-test = ["pytest>=8.0"]
+test = ["pytest==9.1.1"]
+dev = [
+  "mypy==2.3.1",
+  "pytest==9.1.1",
+  "ruff==0.16.6",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src"]
+strict = true
+warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
