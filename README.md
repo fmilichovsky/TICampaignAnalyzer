@@ -18,7 +18,7 @@ make check
 ```
 
 `make check` is the baseline quality gate and runs formatting, linting, strict
-type checking, and tests. It uses Python 3.11 in CI; development-tool versions
+type checking, and tests. It uses Python in CI; development-tool versions
 are pinned in `pyproject.toml` so a clean checkout resolves the same tools.
 
 Individual targets are `make format`, `make lint`, `make typecheck`, and

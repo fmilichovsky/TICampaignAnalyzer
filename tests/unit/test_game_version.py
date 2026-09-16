@@ -17,15 +17,11 @@ def test_missing_game_version_is_the_documented_observed_case() -> None:
     assert require_supported_game_version({}) is None
 
 
-@pytest.mark.parametrize(
-    "raw_save", [{"game_version": "future-build"}, {"game_version": 42}]
-)
+@pytest.mark.parametrize("raw_save", [{"game_version": "future-build"}, {"game_version": 42}])
 def test_explicit_unsupported_game_versions_fail_clearly(
     raw_save: dict[str, object],
 ) -> None:
-    with pytest.raises(
-        UnsupportedGameVersionError, match="Unsupported Terra Invicta game version"
-    ):
+    with pytest.raises(UnsupportedGameVersionError, match="Unsupported Terra Invicta game version"):
         require_supported_game_version(raw_save)
 
 

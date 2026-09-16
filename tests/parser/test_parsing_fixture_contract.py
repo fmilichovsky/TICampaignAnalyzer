@@ -24,20 +24,12 @@ def read_fragment(fixture_name: str) -> dict[str, object]:
         ("absent_game_version.json", None),
     ],
 )
-def test_detect_game_version_keeps_its_current_minimal_contract(
-    fixture_name: str, expected: str | None
-) -> None:
+def test_detect_game_version_keeps_its_current_minimal_contract(fixture_name: str, expected: str | None) -> None:
     assert detect_game_version(read_fragment(fixture_name)) == expected
 
 
 @pytest.mark.fixture
 def test_normalize_uses_current_date_and_missing_date_defaults() -> None:
-    assert (
-        normalize(read_fragment("known_game_version.json"), source="fixture.json").date
-        == "2030-01-01"
-    )
-    assert (
-        normalize(read_fragment("absent_game_version.json"), source="fixture.json").date
-        == "2030-01-03"
-    )
+    assert normalize(read_fragment("known_game_version.json"), source="fixture.json").date == "2030-01-01"
+    assert normalize(read_fragment("absent_game_version.json"), source="fixture.json").date == "2030-01-03"
     assert normalize({}, source="fixture.json").date == "unknown"

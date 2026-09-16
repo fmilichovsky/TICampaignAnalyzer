@@ -29,9 +29,7 @@ def test_load_save_preserves_each_realistic_fixture_as_raw_bytes(
 
 @pytest.mark.fixture
 def test_representative_fixture_has_the_observed_top_level_save_shape() -> None:
-    fixture = json.loads(
-        fixture_path(*FIXTURE_PARTS, "representative_campaign.json").read_text()
-    )
+    fixture = json.loads(fixture_path(*FIXTURE_PARTS, "representative_campaign.json").read_text())
 
     assert set(fixture) == {"currentID", "gamestates"}
     assert fixture["currentID"]["value"] == 9001
@@ -47,9 +45,7 @@ def test_representative_fixture_has_the_observed_top_level_save_shape() -> None:
 
 @pytest.mark.fixture
 def test_unknown_state_fixture_remains_a_valid_uninterpreted_save_shape() -> None:
-    fixture = json.loads(
-        fixture_path(*FIXTURE_PARTS, "unknown_state_type.json").read_text()
-    )
+    fixture = json.loads(fixture_path(*FIXTURE_PARTS, "unknown_state_type.json").read_text())
 
     assert "Example.ModOrFutureState" in fixture["gamestates"]
 

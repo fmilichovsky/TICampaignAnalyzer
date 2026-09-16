@@ -23,10 +23,7 @@ def require_supported_format(format_identifier: str) -> str:
     """Return a documented format identifier or fail without guessing."""
     if format_identifier not in SUPPORTED_SAVE_FORMATS:
         known = ", ".join(sorted(SUPPORTED_SAVE_FORMATS))
-        raise UnsupportedSaveFormatError(
-            f"Unsupported save format {format_identifier!r}; "
-            f"supported formats: {known}."
-        )
+        raise UnsupportedSaveFormatError(f"Unsupported save format {format_identifier!r}; supported formats: {known}.")
     return format_identifier
 
 
@@ -35,7 +32,6 @@ def require_supported_game_version(raw_save: RawSave) -> str | None:
     version = detect_game_version(raw_save)
     if version is not None:
         raise UnsupportedGameVersionError(
-            f"Unsupported Terra Invicta game version {version!r}; "
-            "no explicit game build is documented as supported."
+            f"Unsupported Terra Invicta game version {version!r}; no explicit game build is documented as supported."
         )
     return None
