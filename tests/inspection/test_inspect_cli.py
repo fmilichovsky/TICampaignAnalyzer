@@ -11,6 +11,7 @@ from tinarrative.cli import (
     EXIT_PATH_NOT_FOUND,
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED_INPUT,
+    EXIT_USAGE_ERROR,
     main,
 )
 
@@ -146,6 +147,14 @@ def test_render_limits_are_applied_to_selected_paths(
         "PavonisInteractive.TerraInvicta.TITimeState": "[...]",
         "...": "(+4 keys)",
     }
+
+
+def test_inspect_without_a_save_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as result:
+        main(["inspect"])
+
+    assert result.value.code == EXIT_USAGE_ERROR
+    assert capsys.readouterr().out == ""
 
 
 def test_unreadable_save_is_an_input_error_without_a_report(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
