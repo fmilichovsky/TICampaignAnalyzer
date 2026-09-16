@@ -1,0 +1,16 @@
+tinarrative inspect report
+file: absent_game_version.json
+  size_bytes: 27
+  sha256: 5bf31c5f8bfe268571bfca7212ff093fcfd67589b66243332993c492d871bd88
+  leading_bytes: 7b 0a 20 20 22 64 61 74
+  utf8_bom: no
+  line_endings: lf
+  decoded_chars: 27
+decode: ok (json)
+root: object (1 key)
+top-level keys:
+  date: string (10 chars)
+selected paths: none
+diagnostics:
+  missing_key: top-level key 'currentID' from the documented envelope is absent
+  missing_key: top-level key 'gamestates' from the documented envelope is absent

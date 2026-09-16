@@ -3,7 +3,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 
 import tinarrative
-from tinarrative.cli import EXIT_NOT_IMPLEMENTED, EXIT_SUCCESS, main
+from tinarrative.cli import EXIT_NOT_IMPLEMENTED, EXIT_SUCCESS, EXIT_USAGE_ERROR, main
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.model.snapshot import SaveSnapshot
 
@@ -16,9 +16,14 @@ class ProjectSkeletonTests(unittest.TestCase):
         self.assertEqual(main([]), EXIT_SUCCESS)
 
     def test_placeholder_commands_have_stable_exit_codes(self) -> None:
-        for command in ("inspect", "parse", "diff"):
+        for command in ("parse", "diff"):
             with self.subTest(command=command), redirect_stderr(StringIO()):
                 self.assertEqual(main([command]), EXIT_NOT_IMPLEMENTED)
+
+    def test_inspect_without_a_save_is_a_usage_error(self) -> None:
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as result:
+            main(["inspect"])
+        self.assertEqual(result.exception.code, EXIT_USAGE_ERROR)
 
     def test_subcommand_help_does_not_need_a_save_file(self) -> None:
         for command in ("inspect", "parse", "diff"):

@@ -11,6 +11,18 @@ python -m pip install -e .
 tinarrative --help
 ```
 
+## Commands
+
+- [`tinarrative inspect <save>`](docs/commands/inspect.md): report one save's
+  raw serialized structure without interpreting it.
+- [`tinarrative parse <save>`](docs/commands/parse.md): normalize a save into a
+  campaign snapshot (not implemented yet).
+- [`tinarrative diff <before> <after>`](docs/commands/diff.md): compare two
+  snapshots (not implemented yet).
+
+Each page documents the command's options, output, and exit codes. See the
+[command index](docs/commands/README.md) for the shared exit-code conventions.
+
 ## Testing
 
 ```powershell
@@ -29,6 +41,7 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 ## Package layout
 
 - `io`: discover and load save files.
+- `inspection`: describe one save's raw serialized structure without interpreting it.
 - `parsing`: decode version-specific save data and normalize it.
 - `model`: stable snapshots, changes, events, and provenance types.
 - `diff`: derive literal state transitions.

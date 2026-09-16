@@ -1,0 +1,19 @@
+tinarrative inspect report
+file: unknown_state_type.json
+  size_bytes: 295
+  sha256: be080ea86e20ecc429b536e62dada015c54277b6a8bc9b47dcbfeba52c70f1e2
+  leading_bytes: 7b 0a 20 20 22 63 75 72
+  utf8_bom: no
+  line_endings: lf
+  decoded_chars: 295
+decode: ok (json)
+root: object (2 keys)
+top-level keys:
+  currentID: object (1 key)
+  gamestates: object (1 key)
+currentID keys:
+  value: number
+gamestates keys:
+  Example.ModOrFutureState: array (1 item)
+selected paths: none
+diagnostics: none

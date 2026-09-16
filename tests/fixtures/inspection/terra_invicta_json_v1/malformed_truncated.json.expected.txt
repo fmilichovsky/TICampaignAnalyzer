@@ -1,0 +1,15 @@
+tinarrative inspect report
+file: malformed_truncated.json
+  size_bytes: 183
+  sha256: 60339ebba358a8dc00a988756babf204a0bf07bd8ad0c90741e103816fe96cd0
+  leading_bytes: 7b 0a 20 20 22 63 75 72
+  utf8_bom: no
+  line_endings: lf
+  decoded_chars: n/a
+decode: failed
+root: n/a
+top-level keys: n/a
+selected paths: none
+diagnostics:
+  json_decode_error: Expecting ',' delimiter: line 6 column 1 (char 183)
+    context: 'finished fixture"}}\n'
