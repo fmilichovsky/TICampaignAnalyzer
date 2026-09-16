@@ -1,0 +1,24 @@
+tinarrative inspect report
+file: representative_campaign.json
+  size_bytes: 2366
+  sha256: c01379f493338b6016b04432a805ad1fbeb43918dee6de7b6d208a0534590911
+  leading_bytes: 7b 0a 20 20 22 63 75 72
+  utf8_bom: no
+  line_endings: lf
+  decoded_chars: 2366
+decode: ok (json)
+root: object (2 keys)
+top-level keys:
+  currentID: object (1 key)
+  gamestates: object (6 keys)
+currentID keys:
+  value: number
+gamestates keys:
+  PavonisInteractive.TerraInvicta.TIMetadataState: array (1 item)
+  PavonisInteractive.TerraInvicta.TITimeState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIFactionState: array (1 item)
+  PavonisInteractive.TerraInvicta.TINationState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIHabState: array (1 item)
+  PavonisInteractive.TerraInvicta.TISpaceShipState: array (1 item)
+selected paths: none
+diagnostics: none

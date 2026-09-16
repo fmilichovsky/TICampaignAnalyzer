@@ -70,6 +70,25 @@ The representative document is complete as a JSON save envelope, not as a
 game-loadable campaign. It is deliberately small and only preserves selected
 wrapper and state-type shapes needed by tests.
 
+## Expected `inspect` reports
+
+`tests/fixtures/inspection/<fixture-set>/<fixture-name>.expected.txt` holds the
+exact text that `tinarrative inspect` must print for the fixture of the same
+name under `tests/fixtures/io/<fixture-set>/`. These files live outside the
+manifest-governed directory on purpose; a test checks that every expected
+report maps to an existing fixture.
+
+When the report format changes deliberately, regenerate a golden by running
+the command on the fixture, review the diff line by line, and commit both
+together:
+
+```powershell
+tinarrative inspect tests/fixtures/io/terra_invicta_json_v1/representative_campaign.json > tests/fixtures/inspection/terra_invicta_json_v1/representative_campaign.json.expected.txt
+```
+
+Real saves must never be added here. The opt-in `real_save` test reads the
+save location from the `TINARRATIVE_REAL_SAVE` environment variable instead.
+
 ### Deriving a safe structural fixture
 
 1. Inspect a real save locally; never copy it into the repository or a shared

@@ -1,0 +1,15 @@
+tinarrative inspect report
+file: minimal_save.save
+  size_bytes: 37
+  sha256: 0f4ddf0bbe80c0ba2bde3250ebee62cf4ee51f3ef80294ada8edf5e224903e87
+  leading_bytes: 73 79 6e 74 68 65 74 69
+  utf8_bom: no
+  line_endings: lf
+  decoded_chars: n/a
+decode: failed
+root: n/a
+top-level keys: n/a
+selected paths: none
+diagnostics:
+  json_decode_error: Expecting value: line 1 column 1 (char 0)
+    context: 'synthetic Terra Invi'
