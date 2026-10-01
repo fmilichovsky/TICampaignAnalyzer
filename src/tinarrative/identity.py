@@ -38,7 +38,7 @@ ENTITY_DOMAINS: tuple[EntityDomain, ...] = (
         ("TICouncilorState",),
         _NUMERIC_ID,
         "in-save-id",
-        "Value.templateName (pregenerated councilors only; hypothesis)",
+        None,
     ),
     EntityDomain(
         "army",
@@ -73,14 +73,14 @@ ENTITY_DOMAINS: tuple[EntityDomain, ...] = (
         ),
         _NUMERIC_ID,
         "in-save-id",
-        "Value.templateName (space bodies; hypothesis)",
+        "Value.templateName (space bodies)",
     ),
     EntityDomain(
         "organization",
         ("TIOrgState",),
         _NUMERIC_ID,
         "in-save-id",
-        "Value.templateName (hypothesis)",
+        None,
     ),
     EntityDomain(
         "technology",

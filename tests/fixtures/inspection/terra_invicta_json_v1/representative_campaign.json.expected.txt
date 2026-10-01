@@ -38,7 +38,7 @@ identity:
     TIRegionState: absent
   councilor: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
-    secondary_key: Value.templateName (pregenerated councilors only; hypothesis)
+    secondary_key: none
     TICouncilorState: absent
   army: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
@@ -55,7 +55,7 @@ identity:
     TISpaceShipState: 1 entries, ids 6..6, key==id 1, mismatch 0, missing 0, duplicate 0
   space object: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
-    secondary_key: Value.templateName (space bodies; hypothesis)
+    secondary_key: Value.templateName (space bodies)
     TISpaceBodyState: absent
     TILagrangePointState: absent
     TIOrbitState: absent
@@ -64,7 +64,7 @@ identity:
     TIHabState: 1 entries, ids 5..5, key==id 1, mismatch 0, missing 0, duplicate 0
   organization: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
-    secondary_key: Value.templateName (hypothesis)
+    secondary_key: none
     TIOrgState: absent
   technology: confidence=name-key
     id_source: gamestates/TIGlobalResearchState[0].Value.finishedTechsNames[], techProgress[].techTemplateName

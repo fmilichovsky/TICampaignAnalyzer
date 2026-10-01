@@ -19,9 +19,10 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
   3734..4557, factions 4815..4822); objects created during play (councilors,
   ships, fleets, habs, orgs, armies, ad hoc orbits) are interleaved up to
   `currentID`.
-- Factions, nations, regions and space bodies carry a `Value.templateName` that
-  looks like a content key (e.g. a nation or region template); councilors
-  carry one such as a `pregenC<n>` style name for at least some entries.
+- Factions, nations, regions and space bodies carry a unique `Value.templateName`
+  (content key). Councilor and organization `templateName` values are **not**
+  unique (generated pools such as `randomizedCouncilor1`, `Random*`), so they are
+  not a secondary key.
 - Technologies have no state objects. Finished techs are strings in
   `TIGlobalResearchState.finishedTechsNames`; progress is
   `techProgress[].techTemplateName` with per-faction contributions keyed by
@@ -34,12 +35,12 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | faction | `TIFactionState` | numeric ID | `in-save-id` | `templateName` |
 | nation | `TINationState` | numeric ID | `in-save-id` | `templateName` |
 | region | `TIRegionState` | numeric ID | `in-save-id` | `templateName` |
-| councilor | `TICouncilorState` | numeric ID | `in-save-id` | `templateName` (pregenerated only) |
+| councilor | `TICouncilorState` | numeric ID | `in-save-id` none |
 | army | `TIArmyState`, `TIMegafaunaArmyState` | numeric ID | `in-save-id` | none |
 | fleet | `TISpaceFleetState` | numeric ID | `in-save-id` | none |
 | ship | `TISpaceShipState` | numeric ID | `in-save-id` | none |
-| space object | space body, Lagrange point, orbit, ad hoc orbit, hab site, hab | numeric ID | `in-save-id` | `templateName` (bodies) |
-| organization | `TIOrgState` | numeric ID | `in-save-id` | `templateName` |
+| space object | space body, Lagrange point, orbit, ad hoc orbit, hab site, hab | numeric ID | `in-save-id` | `templateName` (space bodies) |
+| organization | `TIOrgState` | numeric ID | `in-save-id` | none |
 | technology | `TIGlobalResearchState` | template name string | `name-key` | none |
 
 Because the counter is global, `(numeric ID)` alone is unique within a save; a
@@ -54,13 +55,40 @@ Confidence levels:
 - A `heuristic` level is reserved for matching rules (e.g. by attributes) and is
   not used yet.
 
-## Unresolved (hypotheses; documented here only, not printed by `inspect`)
+## Cross-save observations
 
-- Cross-snapshot stability of every numeric ID: requires comparing two saves of
-  one campaign.
-- Whether councilors, armies, fleets and ships keep their IDs across death,
-  recruitment, merge, split or refit.
-- Whether ad hoc orbits are transient (five observed with high IDs).
-- Whether IDs are ever reused after an object is destroyed. No inspected
-  entry in the domain types had `exists` false, so destruction is unobserved.
+Five saves of one campaign, in-game 2045-08-01, 2045-11-01, 2045-11-22,
+2046-02-22 and 2046-10-08 (observed 2026-10-01, aggregates only):
+
+- **Stable (observed):** 15,147 IDs are present in both the first and last save.
+  None changed state type. Factions (8), nations (295), regions (363) and space
+  bodies (373) kept the same IDs and `templateName`s. The 19 armies persisted.
+  Finished techs stayed 148 and each save's set contained the previous one.
+- **No ID reuse (observed):** every ID added between consecutive saves is above
+  the previous save's `currentID`; no ID reappeared after disappearing; `currentID`
+  rose monotonically (296902 -> 321998).
+- **Objects vanish, not flagged:** removed objects are absent from the next save;
+  none was kept with `exists` false.
+- **Fleets:** 21 fleets disappeared between first and last save; 49 of their
+  ships live on in other fleets with their ship IDs unchanged (fleet merge/rename
+  keeps ship identity; the fleet ID is not carried over), 42 ships also vanished.
+  84 persisted ships changed fleet.
+- **Councilors/orgs:** disappearing councilors (61) and orgs (87) were almost
+  entirely unaffiliated generated pool entries (58 of 61 councilors had no
+  faction; all 87 orgs were `Random*`); named orgs and faction councilors
+  persisted, and no persisted councilor changed faction.
+- **Hab modules** were the only persisted objects whose `templateName` changed
+  (empty -> assigned, i.e. construction).
+
+## Unresolved
+
+- Whether the 3 removed faction councilors died, were lost, or were otherwise
+  removed: not determinable from the ID alone.
+- Ship refit: no persisted ship changed `lastRefitDate`, so refit behaviour is
+  unobserved.
+- Army merge/split: not observed (no army removed except a megafauna army, whose
+  replacement has a new ID).
+- Ad hoc orbits: 1 of 5 disappeared and 1 appeared; likely transient, not proven.
+- Whether fleet IDs identify a "fleet" across merges: they do not (merged
+  fleets vanish), so fleet identity is the ID's lifetime only.
 - Per-faction research ownership beyond `factionContributions`.
