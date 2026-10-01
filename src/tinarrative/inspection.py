@@ -14,6 +14,8 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from typing import Any, Literal
 
+from tinarrative.identity import IdentityReport, analyze_identity
+
 Status = Literal["ok", "path_not_found", "unsupported_input"]
 LineEndings = Literal["lf", "crlf", "mixed", "none"]
 
@@ -82,6 +84,7 @@ class InspectReport:
     second_level: dict[str, tuple[KeySummary, ...]]
     paths: tuple[PathResult, ...]
     diagnostics: tuple[Diagnostic, ...]
+    identity: IdentityReport | None = None
 
 
 @dataclass(frozen=True)
@@ -316,6 +319,7 @@ def inspect_bytes(
         )
 
     root = decoded.value
+    identity: IdentityReport | None = None
     top_level: tuple[KeySummary, ...] = ()
     second_level: dict[str, tuple[KeySummary, ...]] = {}
     if isinstance(root, dict):
@@ -329,6 +333,9 @@ def inspect_bytes(
                         f"top-level key {key!r} from the documented envelope is absent",
                     )
                 )
+        identity = analyze_identity(root)
+        if identity is not None:
+            diagnostics.extend(_identity_diagnostics(identity))
     else:
         diagnostics.append(
             Diagnostic(
@@ -366,7 +373,60 @@ def inspect_bytes(
         second_level=second_level,
         paths=tuple(results),
         diagnostics=tuple(diagnostics),
+        identity=identity,
     )
+
+
+def _identity_diagnostics(identity: IdentityReport) -> list[Diagnostic]:
+    findings: list[Diagnostic] = []
+    for domain in identity.domains:
+        for item in domain.types:
+            for code, count, what in (
+                ("id_key_mismatch", item.id_mismatches, "entries whose Key.value differs from Value.ID.value"),
+                ("id_missing", item.id_missing, "entries without an integer Key.value or Value.ID.value"),
+                ("id_duplicate", item.id_duplicates, "repeated Key.value entries"),
+            ):
+                if count:
+                    findings.append(Diagnostic(code, f"{item.state_type}: {count} {what}"))
+    if identity.ids_shared_across_types:
+        findings.append(
+            Diagnostic(
+                "id_shared_across_types",
+                f"{identity.ids_shared_across_types} IDs occur in more than one state type",
+            )
+        )
+    if identity.current_id is not None and identity.max_observed_id is not None:
+        if identity.current_id < identity.max_observed_id:
+            findings.append(
+                Diagnostic(
+                    "current_id_behind",
+                    f"currentID {identity.current_id} is below the largest observed ID {identity.max_observed_id}",
+                )
+            )
+    return findings
+
+
+def _render_identity(lines: list[str], identity: IdentityReport) -> None:
+    lines.append("identity:")
+    shared = identity.ids_shared_across_types
+    lines.append(f"  ids: {identity.total_ids} distinct, {shared} shared across state types")
+    lines.append(f"  max_observed_id: {'n/a' if identity.max_observed_id is None else identity.max_observed_id}")
+    lines.append(f"  currentID: {'n/a' if identity.current_id is None else identity.current_id}")
+    for item in identity.domains:
+        domain = item.domain
+        lines.append(f"  {domain.domain}: confidence={domain.confidence}")
+        lines.append(f"    id_source: {domain.id_source}")
+        lines.append(f"    secondary_key: {domain.secondary_key or 'none'}")
+        for observed in item.types:
+            if not observed.present:
+                lines.append(f"    {observed.state_type}: absent")
+                continue
+            id_range = "none" if observed.min_id is None else f"{observed.min_id}..{observed.max_id}"
+            lines.append(
+                f"    {observed.state_type}: {observed.entries} entries, ids {id_range}, "
+                f"key==id {observed.id_matches}, mismatch {observed.id_mismatches}, "
+                f"missing {observed.id_missing}, duplicate {observed.id_duplicates}"
+            )
 
 
 def _plural(count: int, noun: str) -> str:
@@ -421,6 +481,9 @@ def render_text(report: InspectReport) -> str:
         else:
             lines.append(f"root: {root_type}")
             lines.append(f"top-level keys: n/a (root is {root_type})")
+
+    if report.identity is not None:
+        _render_identity(lines, report.identity)
 
     if report.paths:
         lines.append("selected paths:")

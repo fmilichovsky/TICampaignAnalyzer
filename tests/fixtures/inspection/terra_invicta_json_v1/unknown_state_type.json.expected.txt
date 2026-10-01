@@ -15,5 +15,55 @@ currentID keys:
   value: number
 gamestates keys:
   Example.ModOrFutureState: array (1 item)
+identity:
+  ids: 1 distinct, 0 shared across state types
+  max_observed_id: 17
+  currentID: 17
+  faction: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TIFactionState: absent
+  nation: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TINationState: absent
+  region: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TIRegionState: absent
+  councilor: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TICouncilorState: absent
+  army: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIArmyState: absent
+    TIMegafaunaArmyState: absent
+  fleet: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TISpaceFleetState: absent
+  ship: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TISpaceShipState: absent
+  space object: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName (space bodies)
+    TISpaceBodyState: absent
+    TILagrangePointState: absent
+    TIOrbitState: absent
+    TIAdHocOrbitState: absent
+    TIHabSiteState: absent
+    TIHabState: absent
+  organization: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIOrgState: absent
+  technology: confidence=name-key
+    id_source: gamestates/TIGlobalResearchState[0].Value.finishedTechsNames[], techProgress[].techTemplateName
+    secondary_key: none
+    TIGlobalResearchState: absent
 selected paths: none
 diagnostics: none

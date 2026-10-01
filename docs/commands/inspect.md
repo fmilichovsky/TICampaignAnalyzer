@@ -43,11 +43,20 @@ same input and options. It contains no timestamps and no absolute paths.
    that object's keys the same way. On a documented save this shows every
    `gamestates` container with its item count, including empty ones as
    `object (0 keys)`.
-5. **Selected paths**: for each `--path`, the target's type and length followed
+5. **Identity**: for every entity domain in the
+   [entity-identity strategy](../game-data-notes/entity-identity.md), the ID
+   source, confidence (`in-save-id` or `name-key`), secondary key, and a census
+   of each state type (entries, ID range, `Key.value == Value.ID.value` matches,
+   mismatches, missing and duplicate IDs). Global lines give the distinct ID
+   count, IDs shared across state types, the largest observed ID, and
+   `currentID`.
+   Omitted when the root or `gamestates` is not an object. In `--format json`
+   this is the `identity` field.
+6. **Selected paths**: for each `--path`, the target's type and length followed
    by a bounded JSON rendering. Hidden content is always marked:
    `"...(+21 keys)"`, `"...(+3 items)"`, `"...(+92 chars)"`, and `"{...}"` or
    `"[...]"` beyond `--max-depth`. Empty containers are shown as `{}` or `[]`.
-6. **Diagnostics**: stable codes with a message, or `none`.
+7. **Diagnostics**: stable codes with a message, or `none`.
 
 Types use JSON vocabulary: `object`, `array`, `string`, `number`, `boolean`,
 `null`. Non-ASCII characters are escaped in both formats so output is stable on
@@ -90,6 +99,9 @@ diagnostics: none
 | `json_decode_error` | The text is not valid JSON. | Decode fails; line, column, character offset, and surrounding context are reported. |
 | `root_not_object` | Valid JSON whose root is not an object. | Reported; the root type is still shown and paths still resolve. |
 | `missing_key` | A key documented in the envelope (`currentID`, `gamestates`) is absent. | Reported as a finding only. |
+| `id_key_mismatch`, `id_missing`, `id_duplicate` | A state type has entries whose `Key.value` differs from `Value.ID.value`, lacks an integer ID, or repeats a key. | Reported as a finding only. |
+| `id_shared_across_types` | An ID occurs in more than one state type. | Reported as a finding only. |
+| `current_id_behind` | `currentID` is below the largest observed ID. | Reported as a finding only. |
 | `pointer_syntax` | A `--path` is neither empty nor starts with `/`. | Reported; exit code 6. |
 | `pointer_not_found` | A `--path` step is a missing key, an out-of-range or non-decimal index, or descends into a scalar. | Reported with the deepest resolved prefix; exit code 6. |
 
