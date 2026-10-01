@@ -418,6 +418,8 @@ game entity can be identified.
 
 Where the game does not provide stable IDs, the project should use
 carefully designed identity heuristics and record identity uncertainty.
+The current per-domain strategy is in
+[entity identity](game-data-notes/entity-identity.md).
 
 ------------------------------------------------------------------------
 

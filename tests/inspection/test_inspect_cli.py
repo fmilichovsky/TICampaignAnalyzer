@@ -120,6 +120,8 @@ def test_json_format_is_machine_readable(capsys: pytest.CaptureFixture[str]) -> 
     ]
     assert len(report["second_level"]["gamestates"]) == 6
     assert report["diagnostics"] == []
+    domains = {entry["domain"]["domain"] for entry in report["identity"]["domains"]}
+    assert {"faction", "technology", "organization"} <= domains
 
 
 @pytest.mark.fixture
