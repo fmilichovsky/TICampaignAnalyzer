@@ -6,8 +6,8 @@ narrative presentation.
 
 ## Development
 
-```powershell
-python -m pip install -e .
+```sh
+python -m pip install -e ".[dev]"
 tinarrative --help
 ```
 
@@ -15,22 +15,20 @@ tinarrative --help
 
 - [`tinarrative inspect <save>`](docs/commands/inspect.md): report one save's
   raw serialized structure without interpreting it.
-- [`tinarrative parse <save>`](docs/commands/parse.md): normalize a save into a
-  campaign snapshot (not implemented yet).
-- [`tinarrative diff <before> <after>`](docs/commands/diff.md): compare two
-  snapshots (not implemented yet).
+- `tinarrative parse <save>` and `tinarrative diff <before> <after>` are
+  registered but not implemented yet.
 
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.
 
 ## Testing
 
-```powershell
+```sh
 make check
 ```
 
 `make check` is the baseline quality gate and runs formatting, linting, strict
-type checking, and tests. It uses Python in CI; development-tool versions
+type checking, and tests; CI runs the same target. Development-tool versions
 are pinned in `pyproject.toml` so a clean checkout resolves the same tools.
 
 Individual targets are `make format`, `make lint`, `make typecheck`, and
@@ -41,7 +39,10 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 ## Package layout
 
 - `io`: discover and load save files.
-- `inspection`: describe one save's raw serialized structure without interpreting it.
+- `inspection`: describe one save's raw serialized structure without
+  normalizing it.
+- `identity`: per-domain entity-identity strategy table and the ID census that
+  `inspection` reports.
 - `parsing`: decode version-specific save data and normalize it.
 - `model`: stable snapshots, changes, events, and provenance types.
 - `diff`: derive literal state transitions.

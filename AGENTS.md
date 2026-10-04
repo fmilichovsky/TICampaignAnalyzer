@@ -20,10 +20,11 @@ touching the model or pipeline.
   [README.md](README.md#package-layout).
 - `src/tinarrative/cli.py` — argparse entry point; stable exit codes are
   defined at the top of the file.
-- `src/tinarrative/inspection.py` — `tinarrative inspect`: raw, semantics-free
-  structural report of one save. It must not import from `parsing`.
-- `tests/` — mirrors the package layout. Fixtures live in `tests/fixtures/`.
-- `docs/commands/` — one page per CLI subcommand (options, output, exit codes).
+- `src/tinarrative/inspection.py` — `tinarrative inspect`: raw structural
+  report of one save, plus the ID census from `src/tinarrative/identity.py`.
+  It does not normalize anything and must not import from `parsing`.
+- `tests/` — loosely mirrors the package layout. Fixtures live in `tests/fixtures/`.
+- `docs/commands/` — one page per implemented CLI subcommand (options, output, exit codes).
   Update the matching page when a command's behavior changes.
 - `docs/game-data-notes/` — evidence log of the observed save format. Start at
   its [README](docs/game-data-notes/README.md).

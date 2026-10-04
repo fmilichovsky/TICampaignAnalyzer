@@ -2,16 +2,16 @@
 
 Run the normal test suite locally with:
 
-```powershell
+```sh
 python -m pip install -e ".[test]"
 python -m pytest
 ```
 
 Pytest discovers files named `test_*.py` below `tests/` and test functions or
 `unittest.TestCase` methods whose names begin with `test_`. The same command is
-run in CI. Tests marked `real_save` are excluded by default; use
-`python -m pytest -m real_save` only when the optional, sanitized real-save
-fixtures are present and you intentionally want to run those tests.
+run in CI. Tests marked `real_save` are excluded by default; they read a
+private save from the `TINARRATIVE_REAL_SAVE` environment variable and run with
+`python -m pytest -m real_save`.
 
 ## Fixture layout and naming
 
@@ -22,7 +22,7 @@ implementation detail. A raw save fixture, for example, is named
 Expected rendered output may use `*.expected.md`; structured expected data may
 use `*.expected.json`.
 
-Tests must locate fixture files through `tests.fixture_path`, never through a
+Tests must locate fixture files through `tests.fixtures.fixture_path`, never through a
 current-working-directory-relative path. This keeps local, CI, and IDE runs
 equivalent:
 
@@ -62,7 +62,7 @@ changing either field.
 
 Validate the set after every edit:
 
-```powershell
+```sh
 python scripts/verify_fixture_manifest.py tests/fixtures/io/terra_invicta_json_v1/fixture_manifest.json
 ```
 
@@ -82,7 +82,7 @@ When the report format changes deliberately, regenerate a golden by running
 the command on the fixture, review the diff line by line, and commit both
 together:
 
-```powershell
+```sh
 tinarrative inspect tests/fixtures/io/terra_invicta_json_v1/representative_campaign.json > tests/fixtures/inspection/terra_invicta_json_v1/representative_campaign.json.expected.txt
 ```
 
@@ -110,9 +110,6 @@ Prefer the smallest synthetic fixture that makes a test meaningful. Synthetic
 fixtures, including hand-authored structural derivatives of a real save, are
 checked in and run by default. They must not contain original campaign data.
 
-Real complete saves are reserved for integration coverage of format details
-that cannot be represented faithfully in a small fixture. Commit one only when
-redistribution is explicitly permitted; document provenance, game version,
-privacy review, and licensing; tag its tests `@pytest.mark.real_save`; and keep
-it outside the default suite. Never commit unsanitized saves or saves whose
-redistribution status is unclear.
+Real saves are never committed, sanitized or not. Tests that need one are
+tagged `@pytest.mark.real_save`, stay outside the default suite, and locate the
+save through `TINARRATIVE_REAL_SAVE`.

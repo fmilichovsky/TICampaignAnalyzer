@@ -211,8 +211,9 @@ The snippets above are conceptual; the implemented types differ as follows:
 -   `Evidence` keeps before/after values plus a `SourceLocation` for each side
     (save ID, state type, map ID, path; `TINationState:123` is the provenance key).
 -   `StateDiff` and `StateChange` live in `model.changes`; `diff.state_diff`
-    re-exports them. Singular states (space, diplomacy, economy, research) are
-    not modelled yet.
+    re-exports them. Fleets, ships and space objects have an `EntityDomain`
+    but no `SaveSnapshot` collection yet, and singular states (space, diplomacy,
+    economy, research) are not modelled either.
 
 ------------------------------------------------------------------------
 
@@ -673,6 +674,8 @@ terra-invicta-narrative/
 ├── src/
 │   └── tinarrative/
 │       ├── cli.py
+│       ├── inspection.py      # raw structural report (`tinarrative inspect`)
+│       ├── identity.py        # entity-identity table and ID census
 │       │
 │       ├── io/
 │       │   ├── save_loader.py
