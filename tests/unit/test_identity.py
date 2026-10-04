@@ -4,6 +4,7 @@ import pytest
 
 from tinarrative.identity import ENTITY_DOMAINS, STATE_PREFIX, analyze_identity
 from tinarrative.inspection import inspect_bytes, render_text
+from tinarrative.model.entities import EntityDomain
 
 FACTION = STATE_PREFIX + "TIFactionState"
 NATION = STATE_PREFIX + "TINationState"
@@ -16,7 +17,7 @@ def pair(key: object, inner: object) -> dict[str, object]:
 def census(gamestates: dict[str, object], current_id: object = 100) -> dict[str, object]:
     report = analyze_identity({"currentID": {"value": current_id}, "gamestates": gamestates})
     assert report is not None
-    domain = next(item for item in report.domains if item.domain.domain == "faction")
+    domain = next(item for item in report.domains if item.domain.domain is EntityDomain.FACTION)
     return {"type": domain.types[0], "report": report}
 
 
@@ -63,7 +64,8 @@ def test_ids_shared_across_types_and_current_id() -> None:
 
 
 def test_every_documented_domain_is_present() -> None:
-    assert {domain.domain for domain in ENTITY_DOMAINS} == {
+    assert {domain.domain for domain in ENTITY_DOMAINS} == set(EntityDomain)
+    assert {domain.domain.value for domain in ENTITY_DOMAINS} == {
         "faction",
         "nation",
         "region",

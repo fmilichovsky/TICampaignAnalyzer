@@ -9,8 +9,11 @@ from tinarrative.cli import EXIT_NOT_IMPLEMENTED, EXIT_SUCCESS, main
 
 
 class CliSkeletonTests(unittest.TestCase):
-    def test_package_imports(self) -> None:
-        self.assertEqual(tinarrative.__version__, "0.1.0")
+    def test_version_flag_reports_the_package_version(self) -> None:
+        with redirect_stdout(StringIO()) as out, self.assertRaises(SystemExit) as result:
+            main(["--version"])
+        self.assertEqual(result.exception.code, EXIT_SUCCESS)
+        self.assertEqual(out.getvalue().strip(), f"tinarrative {tinarrative.__version__}")
 
     def test_cli_runs_without_arguments(self) -> None:
         self.assertEqual(main([]), EXIT_SUCCESS)

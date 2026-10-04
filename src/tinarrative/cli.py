@@ -9,6 +9,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
+from . import __version__
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_loader import load_save
 
@@ -25,7 +26,7 @@ EXIT_PATH_NOT_FOUND = 6
 Handler = Callable[[argparse.Namespace], int]
 
 
-def _not_implemented(command: str, args: argparse.Namespace) -> int:
+def _not_implemented(command: str, _args: argparse.Namespace) -> int:
     """Report a pipeline stage that has not been implemented yet."""
     print(
         f"tinarrative {command} is not implemented yet.",
@@ -131,7 +132,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="tinarrative",
         description="Reconstruct Terra Invicta campaign history from save files.",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     subcommands = parser.add_subparsers(
         dest="command",

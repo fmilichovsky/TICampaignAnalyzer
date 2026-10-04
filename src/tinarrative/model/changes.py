@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .entities import EntityId
-from .evidence import Evidence
+from .evidence import Evidence, SourceLocation
 from .snapshot import SaveSnapshot
 from .values import Observed, to_jsonable
 
@@ -31,20 +31,13 @@ class StateChange:
             "field": self.field,
             "before": to_jsonable(self.before),
             "after": to_jsonable(self.after),
-            "before_location": _location(self.evidence.before_location),
-            "after_location": _location(self.evidence.after_location),
+            "before_location": _location_dict(self.evidence.before_location),
+            "after_location": _location_dict(self.evidence.after_location),
         }
 
 
-def _location(location: Any) -> dict[str, Any] | None:
-    if location is None:
-        return None
-    return {
-        "save_id": location.save_id,
-        "state_type": location.state_type,
-        "map_id": location.map_id,
-        "path": location.path,
-    }
+def _location_dict(location: SourceLocation | None) -> dict[str, Any] | None:
+    return location.to_dict() if location else None
 
 
 @dataclass(frozen=True)

@@ -98,3 +98,11 @@ def test_missing_field_differs_from_known_empty() -> None:
     assert json.loads(json.dumps(data)) == data
     assert data["campaign"]["difficulty"] == {"unknown": "missing"}
     assert data["nations"][0]["fields"] == {"allies": [], "at_war": False}
+
+
+def test_snapshot_serialization_keeps_state_provenance() -> None:
+    location = SourceLocation("a.save", "TINationState", 7, "/gamestates/x/0")
+    snapshot = SaveSnapshot(source="a.save", date="d", nations=(EntityState(_ref("7"), location=location),))
+    entry = snapshot.to_dict()["nations"][0]
+    assert entry["state_type"] == "TINationState"
+    assert entry["location"] == location.to_dict()
