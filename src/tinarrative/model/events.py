@@ -1,11 +1,13 @@
 """Structured events; prose is intentionally not part of this model."""
 
-from dataclasses import dataclass, field
+from __future__ import annotations
+
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
 
 from .entities import EntityRef
 from .evidence import Evidence
+from .values import FieldValue
 
 
 class EventStatus(StrEnum):
@@ -26,6 +28,6 @@ class Event:
     event_type: str
     status: EventStatus
     confidence: Confidence
-    sources: list[Evidence] = field(default_factory=list)
-    entities: list[EntityRef] = field(default_factory=list)
-    attributes: dict[str, Any] = field(default_factory=dict)
+    sources: tuple[Evidence, ...] = ()
+    entities: tuple[EntityRef, ...] = ()
+    attributes: tuple[tuple[str, FieldValue], ...] = ()

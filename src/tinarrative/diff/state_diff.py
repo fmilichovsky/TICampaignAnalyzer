@@ -1,16 +1,9 @@
-"""Diff result types and the future snapshot comparison entry point."""
+"""Diff entry point; result types live in the model layer."""
 
-from dataclasses import dataclass, field
-
-from ..model.changes import StateChange
+from ..model.changes import StateChange, StateDiff
 from ..model.snapshot import SaveSnapshot
 
-
-@dataclass(frozen=True)
-class StateDiff:
-    before: SaveSnapshot
-    after: SaveSnapshot
-    changes: list[StateChange] = field(default_factory=list)
+__all__ = ["StateChange", "StateDiff", "diff_states"]
 
 
 def diff_states(before: SaveSnapshot, after: SaveSnapshot) -> StateDiff:

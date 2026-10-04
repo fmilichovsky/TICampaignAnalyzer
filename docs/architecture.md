@@ -195,6 +195,25 @@ Examples:
 The diff layer should remain relatively literal. It is not yet trying to
 explain *why* something changed.
 
+### Implemented contract (`src/tinarrative/model/`)
+
+The snippets above are conceptual; the implemented types differ as follows:
+
+-   All model types are frozen dataclasses holding tuples, sorted
+    deterministically on construction (collections by `EntityId`, changes by
+    domain/entity/field). Each has a JSON-friendly `to_dict()`.
+-   `EntityId(domain, key)` is domain-qualified; `EntityRef` adds the
+    `IdentityConfidence` (`in-save-id`, `name-key`, reserved `heuristic`) and
+    source state type, so differently-established identities never compare equal.
+-   `Observed = FieldValue | Unknown`: a field absent from the save is
+    `Unknown(reason)`, never `False`, zero or empty. `None` and `()` are known
+    values.
+-   `Evidence` keeps before/after values plus a `SourceLocation` for each side
+    (save ID, state type, map ID, path; `TINationState:123` is the provenance key).
+-   `StateDiff` and `StateChange` live in `model.changes`; `diff.state_diff`
+    re-exports them. Singular states (space, diplomacy, economy, research) are
+    not modelled yet.
+
 ------------------------------------------------------------------------
 
 # 5. Event Model

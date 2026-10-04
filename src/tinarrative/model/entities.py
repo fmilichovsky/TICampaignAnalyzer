@@ -1,10 +1,48 @@
-"""References to logical game entities."""
+"""Stable entity identity and references."""
+
+from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 
-@dataclass(frozen=True)
+class EntityDomain(StrEnum):
+    FACTION = "faction"
+    NATION = "nation"
+    REGION = "region"
+    COUNCILOR = "councilor"
+    ARMY = "army"
+    FLEET = "fleet"
+    SHIP = "ship"
+    SPACE_OBJECT = "space object"
+    ORGANIZATION = "organization"
+    TECHNOLOGY = "technology"
+
+
+class IdentityConfidence(StrEnum):
+    """How an identity was established (not analyzer confidence; see ``events.Confidence``)."""
+
+    IN_SAVE_ID = "in-save-id"
+    NAME_KEY = "name-key"
+    HEURISTIC = "heuristic"  # reserved; no matching rules exist yet
+
+
+@dataclass(frozen=True, order=True)
+class EntityId:
+    """Domain-qualified key: a numeric map ID (as text) or a template-name key."""
+
+    domain: EntityDomain
+    key: str
+
+    def __str__(self) -> str:
+        return f"{self.domain.value}:{self.key}"
+
+
+@dataclass(frozen=True, order=True)
 class EntityRef:
-    kind: str
-    id: str
+    """An entity identity plus how it was observed, so differing confidence never matches silently."""
+
+    entity_id: EntityId
+    confidence: IdentityConfidence
+    state_type: str | None = None
     name: str | None = None
