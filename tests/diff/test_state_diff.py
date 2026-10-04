@@ -11,7 +11,7 @@ class DiffStatesTests(unittest.TestCase):
         result = diff_states(before, after)
         self.assertEqual(result.before, before)
         self.assertEqual(result.after, after)
-        self.assertEqual(result.changes, [])
+        self.assertEqual(result.changes, ())
 
 
 if __name__ == "__main__":
