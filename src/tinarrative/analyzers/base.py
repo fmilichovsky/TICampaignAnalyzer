@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from ..diff.state_diff import StateDiff
+from ..model.changes import StateDiff
 from ..model.events import Event
 from ..model.snapshot import SaveSnapshot
 

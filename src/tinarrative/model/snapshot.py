@@ -36,6 +36,10 @@ class CampaignMetadata:
     played_with_mods: Observed = field(default_factory=Unknown)
 
 
+STATE_COLLECTIONS = ("factions", "nations", "regions", "councilors", "armies", "organizations", "technologies")
+"""Every ``SaveSnapshot`` field holding entity states; extend this when adding a domain."""
+
+
 def _sorted_states(states: tuple[EntityState, ...]) -> tuple[EntityState, ...]:
     return tuple(sorted(states, key=lambda state: state.ref.entity_id))
 
@@ -58,7 +62,7 @@ class SaveSnapshot:
     raw_metadata: tuple[tuple[str, FieldValue], ...] = ()
 
     def __post_init__(self) -> None:
-        for name in ("factions", "nations", "regions", "councilors", "armies", "organizations", "technologies"):
+        for name in STATE_COLLECTIONS:
             object.__setattr__(self, name, _sorted_states(getattr(self, name)))
         object.__setattr__(self, "raw_metadata", tuple(sorted(self.raw_metadata, key=lambda item: item[0])))
 
@@ -68,6 +72,8 @@ class SaveSnapshot:
                 {
                     "id": str(state.ref.entity_id),
                     "confidence": state.ref.confidence.value,
+                    "state_type": state.ref.state_type,
+                    "location": state.location.to_dict() if state.location else None,
                     "fields": {name: to_jsonable(value) for name, value in state.fields},
                 }
                 for state in items
@@ -84,12 +90,6 @@ class SaveSnapshot:
                 "difficulty": to_jsonable(self.campaign.difficulty),
                 "played_with_mods": to_jsonable(self.campaign.played_with_mods),
             },
-            "factions": states(self.factions),
-            "nations": states(self.nations),
-            "regions": states(self.regions),
-            "councilors": states(self.councilors),
-            "armies": states(self.armies),
-            "organizations": states(self.organizations),
-            "technologies": states(self.technologies),
+            **{name: states(getattr(self, name)) for name in STATE_COLLECTIONS},
             "raw_metadata": {key: to_jsonable(value) for key, value in self.raw_metadata},
         }

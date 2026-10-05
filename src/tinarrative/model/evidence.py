@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from .values import Observed
 
@@ -13,6 +14,9 @@ class SourceLocation:
     state_type: str | None = None
     map_id: int | None = None
     path: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"save_id": self.save_id, "state_type": self.state_type, "map_id": self.map_id, "path": self.path}
 
     @property
     def provenance_key(self) -> str | None:
