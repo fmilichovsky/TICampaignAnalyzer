@@ -11,7 +11,9 @@ from typing import cast
 
 from . import __version__
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
-from .io.save_loader import load_save
+from .io.save_loader import load_raw_save, load_save
+from .parsing.errors import SaveLoadError
+from .parsing.normalization import normalize
 
 EXIT_SUCCESS = 0
 EXIT_USAGE_ERROR = 2
@@ -19,7 +21,8 @@ EXIT_NOT_IMPLEMENTED = 3
 EXIT_INPUT_ERROR = 4
 """The save path could not be read (missing, unreadable, or a directory)."""
 EXIT_UNSUPPORTED_INPUT = 5
-"""Bytes were read but could not be decoded as UTF-8 JSON; a report is printed."""
+"""Bytes were read but are not decodable JSON (``inspect``, report printed) or not a
+supported save: malformed, wrong shape, or unsupported format/version (``parse``)."""
 EXIT_PATH_NOT_FOUND = 6
 """At least one ``--path`` did not resolve; the full report is still printed."""
 
@@ -70,6 +73,47 @@ def _run_inspect(args: argparse.Namespace) -> int:
     if report.status == "path_not_found":
         return EXIT_PATH_NOT_FOUND
     return EXIT_SUCCESS
+
+
+def _run_parse(args: argparse.Namespace) -> int:
+    """Load and validate one save, then summarize it; failures never raise a traceback."""
+    save_path = cast(Path, args.save)
+    try:
+        raw = load_raw_save(save_path)
+    except OSError as error:
+        reason = error.strerror or str(error)
+        print(f"tinarrative parse: cannot read {save_path}: {reason}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    except SaveLoadError as error:
+        print(f"tinarrative parse: {save_path}: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+
+    snapshot = normalize(raw)
+    print(f"source: {snapshot.source}")
+    print(f"format: {raw.format}")
+    print(f"game version: {raw.game_version or 'not serialized'}")
+    print(f"size: {raw.size_bytes} bytes")
+    print(f"top-level keys: {', '.join(raw.root)}")
+    print(f"state types: {len(raw.root['gamestates'])}")
+    return EXIT_SUCCESS
+
+
+def _add_parse_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "Load and validate a save file as a supported raw save."
+    parser = subcommands.add_parser(
+        "parse",
+        help=summary,
+        description=(
+            f"{summary} Currently reports the validated envelope; normalized campaign "
+            "snapshot output is not implemented yet."
+        ),
+        epilog=(
+            "Exit codes: 0 success; 2 usage error; 4 file cannot be read; "
+            "5 malformed data or unsupported shape, format, or game version."
+        ),
+    )
+    parser.add_argument("save", type=Path, help="Path to a single save file.")
+    parser.set_defaults(handler=_run_parse)
 
 
 def _add_inspect_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -141,12 +185,10 @@ def build_parser() -> argparse.ArgumentParser:
         description="Use 'tinarrative COMMAND --help' for command-specific help.",
     )
     _add_inspect_parser(subcommands)
-    for command, summary in (
-        ("parse", "Parse a save file into a normalized campaign snapshot."),
-        ("diff", "Compare two campaign snapshots and report state changes."),
-    ):
-        subcommand = subcommands.add_parser(command, help=summary, description=summary)
-        subcommand.set_defaults(handler=functools.partial(_not_implemented, command))
+    _add_parse_parser(subcommands)
+    diff_summary = "Compare two campaign snapshots and report state changes."
+    diff_parser = subcommands.add_parser("diff", help=diff_summary, description=diff_summary)
+    diff_parser.set_defaults(handler=functools.partial(_not_implemented, "diff"))
     return parser
 
 

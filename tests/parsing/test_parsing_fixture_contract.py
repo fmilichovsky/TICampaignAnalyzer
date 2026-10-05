@@ -7,6 +7,7 @@ import pytest
 from tests.fixtures import fixture_path
 from tinarrative.parsing.game_version import detect_game_version
 from tinarrative.parsing.normalization import normalize
+from tinarrative.parsing.raw_save import RawSave
 
 FIXTURE_PARTS = ("io", "terra_invicta_json_v1")
 
@@ -29,7 +30,7 @@ def test_detect_game_version_keeps_its_current_minimal_contract(fixture_name: st
 
 
 @pytest.mark.fixture
-def test_normalize_uses_current_date_and_missing_date_defaults() -> None:
-    assert normalize(read_fragment("known_game_version.json"), source="fixture.json").date == "2030-01-01"
-    assert normalize(read_fragment("absent_game_version.json"), source="fixture.json").date == "2030-01-03"
-    assert normalize({}, source="fixture.json").date == "unknown"
+def test_normalize_carries_source_and_version_from_the_raw_save() -> None:
+    raw = RawSave(source="fixture.json", format="terra_invicta_json_v1", game_version="x", root={}, size_bytes=2)
+    snapshot = normalize(raw)
+    assert (snapshot.source, snapshot.game_version, snapshot.date) == ("fixture.json", "x", "unknown")

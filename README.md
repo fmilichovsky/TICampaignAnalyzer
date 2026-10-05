@@ -15,8 +15,9 @@ tinarrative --help
 
 - [`tinarrative inspect <save>`](docs/commands/inspect.md): report one save's
   raw serialized structure without interpreting it.
-- `tinarrative parse <save>` and `tinarrative diff <before> <after>` are
-  registered but not implemented yet.
+- [`tinarrative parse <save>`](docs/commands/parse.md): load and validate one
+  save as a supported raw save and print an envelope summary.
+- `tinarrative diff <before> <after>` is registered but not implemented yet.
 
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.

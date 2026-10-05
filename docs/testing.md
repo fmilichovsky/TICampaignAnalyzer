@@ -51,7 +51,9 @@ data in fixture metadata.
 Versioned, save-shaped JSON fixtures live under
 `tests/fixtures/io/terra_invicta_json_v1/`. Their `fixture_manifest.json` is
 the canonical set-level metadata: it records the fixture-set version,
-provenance, game-version status, expected raw-loader outcome, JSON validity,
+provenance, game-version status, expected loader outcome (`raw_save`, `malformed_save_error`,
+`unsupported_shape_error`, or `unsupported_version_error`, checked against
+`parse_raw_save` by `tests/parsing/test_raw_save.py`), JSON validity,
 SHA-256 hashes, and a per-file size limit. Every entry also declares a
 `format_assumption`, `format_documentation`, and `version_assumption`. The
 format assumption must be a documented supported envelope identifier, and its
