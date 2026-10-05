@@ -21,6 +21,10 @@ The supported v1 envelope is **uncompressed JSON bytes**. The loader does not ap
 
 No real game build has been observed in serialized metadata, so no explicit game build is supported. `require_supported_game_version` rejects an explicit value clearly. `require_supported_format("terra_invicta_json_v1")` is the separate assertion that the caller selected this documented envelope; unknown format identifiers are rejected clearly.
 
+## Loader validation
+
+`parse_raw_save` (in `tinarrative.parsing`) turns bytes into a `RawSave` for this identifier. Its checks follow only the observations above: the bytes must be non-empty, uncompressed UTF-8 JSON without a byte-order mark, the root must be an object, and `currentID` and `gamestates` must be present with `gamestates` an object (observed in all three samples). The contents of `gamestates` are not validated, so unknown state types load. The error categories (`MalformedSaveError`, `UnsupportedSaveShapeError`, `UnsupportedSaveFormatError`, `UnsupportedGameVersionError`) are a design choice, not format claims. Requiring `currentID` as an envelope member is a conservative reading of three samples (hypothesis for other builds). Each case is covered by a synthetic fixture whose manifest `expected_loader_outcome` states the result; gzip, zip, UTF-16, BOM, empty and invalid-UTF-8 inputs are built inline in tests.
+
 ## Hypotheses and open questions
 
 - The pair-map convention is documented from one complete save in [the container notes](containers-and-references.md); its coverage in every possible state type and build remains unverified.

@@ -1,21 +1,29 @@
 """Game-version detection and explicit compatibility boundaries."""
 
-from .raw_save import RawSave
+from __future__ import annotations
 
-SUPPORTED_SAVE_FORMATS = frozenset({"terra_invicta_json_v1"})
+from collections.abc import Mapping
+from typing import Any
+
+from .errors import UnsupportedGameVersionError, UnsupportedSaveFormatError
+
+DEFAULT_FORMAT = "terra_invicta_json_v1"
+SUPPORTED_SAVE_FORMATS = frozenset({DEFAULT_FORMAT})
 """Documented envelope identifiers, not Terra Invicta release numbers."""
 
+__all__ = [
+    "DEFAULT_FORMAT",
+    "SUPPORTED_SAVE_FORMATS",
+    "UnsupportedGameVersionError",
+    "UnsupportedSaveFormatError",
+    "detect_game_version",
+    "require_supported_format",
+    "require_supported_game_version",
+]
 
-class UnsupportedSaveFormatError(ValueError):
-    """Raised when no parser contract has been documented for a format."""
 
-
-class UnsupportedGameVersionError(ValueError):
-    """Raised for an explicit game build that has no documented support."""
-
-
-def detect_game_version(raw_save: RawSave) -> str | None:
-    value = raw_save.get("game_version")
+def detect_game_version(root: Mapping[str, Any]) -> str | None:
+    value = root.get("game_version")
     return str(value) if value is not None else None
 
 
@@ -27,9 +35,9 @@ def require_supported_format(format_identifier: str) -> str:
     return format_identifier
 
 
-def require_supported_game_version(raw_save: RawSave) -> str | None:
+def require_supported_game_version(root: Mapping[str, Any]) -> str | None:
     """Allow absent build metadata; reject every unverified explicit build."""
-    version = detect_game_version(raw_save)
+    version = detect_game_version(root)
     if version is not None:
         raise UnsupportedGameVersionError(
             f"Unsupported Terra Invicta game version {version!r}; no explicit game build is documented as supported."

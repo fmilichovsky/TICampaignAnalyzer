@@ -674,7 +674,7 @@ terra-invicta-narrative/
 ├── src/
 │   └── tinarrative/
 │       ├── cli.py
-│       ├── inspection.py      # raw structural report (`tinarrative inspect`)
+│       ├── inspection/        # raw structural report (`tinarrative inspect`)
 │       ├── identity.py        # entity-identity table and ID census
 │       │
 │       ├── io/
@@ -689,7 +689,8 @@ terra-invicta-narrative/
 │       │   └── evidence.py
 │       │
 │       ├── parsing/
-│       │   ├── raw_save.py
+│       │   ├── raw_save.py        # RawSave + parse_raw_save
+│       │   ├── errors.py          # SaveLoadError categories
 │       │   ├── normalization.py
 │       │   └── game_version.py
 │       │

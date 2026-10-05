@@ -30,7 +30,12 @@ REQUIRED_MANIFEST_FIELDS = {
     "max_fixture_bytes",
     "fixtures",
 }
-EXPECTED_LOADER_OUTCOME = "returns_exact_raw_bytes"
+LOADER_OUTCOMES = {
+    "raw_save",
+    "malformed_save_error",
+    "unsupported_shape_error",
+    "unsupported_version_error",
+}
 SUPPORTED_FORMAT_ASSUMPTIONS = {"terra_invicta_json_v1"}
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
@@ -84,7 +89,7 @@ def verify_manifest(manifest_path: Path) -> list[str]:
         actual_hash = hashlib.sha256(raw).hexdigest()
         if actual_hash != entry["sha256"]:
             errors.append(f"Fixture hash does not match manifest: {entry['path']}")
-        if entry["expected_loader_outcome"] != EXPECTED_LOADER_OUTCOME:
+        if entry["expected_loader_outcome"] not in LOADER_OUTCOMES:
             errors.append(f"Unexpected loader outcome declaration: {entry['path']}")
         if entry["format_assumption"] not in SUPPORTED_FORMAT_ASSUMPTIONS:
             errors.append(f"Unsupported format assumption for {entry['path']}: {entry['format_assumption']!r}")
