@@ -1,9 +1,10 @@
-"""Pure-function coverage for the semantics-free save inspector."""
+"""Pure-function coverage for the save inspector."""
 
 import json
 
 import pytest
 
+from tinarrative.identity import STATE_PREFIX
 from tinarrative.inspection import (
     RenderLimits,
     decode_save,
@@ -177,3 +178,17 @@ def test_rendering_is_deterministic_and_ascii_only() -> None:
     assert render_text(first).isascii()
     assert render_json(first).isascii()
     assert json.loads(render_json(first))["paths"][0]["value"] == {"état": ["ünïcode"]}
+
+
+def test_inspection_reports_anomalies() -> None:
+    save = (
+        '{"currentID":{"value":1},"gamestates":{"'
+        + STATE_PREFIX
+        + 'TIFactionState":[{"Key":{"value":2},"Value":{"ID":{"value":3}}}]}}'
+    ).encode()
+    report = inspect_bytes(save, "x.json")
+    codes = {diagnostic.code for diagnostic in report.diagnostics}
+    assert {"id_key_mismatch", "current_id_behind"} <= codes
+    text = render_text(report)
+    assert "identity:" in text
+    assert "TIFactionState: 1 entries" in text
