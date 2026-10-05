@@ -1,14 +1,18 @@
 # Commands
 
-One page per `tinarrative` subcommand. Each page covers purpose, options,
-output, and exit codes. Run `tinarrative COMMAND --help` for the authoritative
+One page per implemented `tinarrative` subcommand. Each page covers purpose,
+options, output, and exit codes. Run `tinarrative COMMAND --help` for the authoritative
 option list of the installed version.
 
 | Command | Status | Page |
 | --- | --- | --- |
 | `inspect <save>` | Implemented | [inspect.md](inspect.md) |
-| `parse <save>` | Stub | [parse.md](parse.md) |
-| `diff <before> <after>` | Stub | [diff.md](diff.md) |
+| `parse <save>` | Stub | Normalizes one save into a `SaveSnapshot`. |
+| `diff <before> <after>` | Stub | Reports literal state changes between two snapshots. |
+
+Stubs are registered so their exit code is stable. They accept no arguments:
+running one prints `tinarrative <command> is not implemented yet.` to stderr and
+exits with code 3. A command gets its own page when it is implemented.
 
 ## Shared exit codes
 
