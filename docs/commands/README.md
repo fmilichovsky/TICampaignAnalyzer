@@ -7,7 +7,7 @@ option list of the installed version.
 | Command | Status | Page |
 | --- | --- | --- |
 | `inspect <save>` | Implemented | [inspect.md](inspect.md) |
-| `parse <save>` | Implemented (validation only) | [parse.md](parse.md) |
+| `parse <save>` | Implemented | [parse.md](parse.md) |
 | `diff <before> <after>` | Stub | Reports literal state changes between two snapshots. |
 
 Stubs (currently `diff`) are registered so their exit code is stable. They accept

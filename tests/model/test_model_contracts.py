@@ -50,6 +50,21 @@ def test_to_jsonable_keeps_unknown_visible() -> None:
     assert to_jsonable(None) is None
 
 
+def test_unresolved_reference_keeps_its_raw_value() -> None:
+    unresolved = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze({"value": 999}))
+    assert is_unknown(unresolved)
+    assert unresolved != Unknown(UnknownReason.UNRESOLVED_REFERENCE)
+    assert to_jsonable(unresolved) == {"unknown": "unresolved_reference", "raw": {"value": 999}}
+
+
+def test_entity_ref_is_a_field_value() -> None:
+    ref = _ref("4")
+    assert freeze(ref) is ref
+    assert freeze([ref]) == (ref,)
+    assert to_jsonable(ref) == {"ref": "nation:4", "state_type": "TINationState", "confidence": "in-save-id"}
+    assert to_jsonable((ref,)) == [to_jsonable(ref)]
+
+
 def test_entity_id_is_domain_qualified() -> None:
     assert EntityId(EntityDomain.NATION, "1") != EntityId(EntityDomain.REGION, "1")
     assert str(EntityId(EntityDomain.NATION, "1")) == "nation:1"
@@ -80,9 +95,12 @@ def test_diff_orders_changes_deterministically() -> None:
 
 def test_snapshot_orders_collections_and_is_immutable() -> None:
     states = (EntityState(_ref("20")), EntityState(_ref("3")))
-    snapshot = SaveSnapshot(source="a.save", date="2030-01-01", nations=states)
-    assert snapshot == SaveSnapshot(source="a.save", date="2030-01-01", nations=tuple(reversed(states)))
+    snapshot = SaveSnapshot(source="a.save", date="2030-01-01", nations=states, control_points=states)
+    assert snapshot == SaveSnapshot(
+        source="a.save", date="2030-01-01", nations=tuple(reversed(states)), control_points=tuple(reversed(states))
+    )
     assert [s.ref.entity_id.key for s in snapshot.nations] == ["20", "3"]
+    assert [s.ref.entity_id.key for s in snapshot.control_points] == ["20", "3"]
     with pytest.raises(FrozenInstanceError):
         snapshot.source = "x"  # type: ignore[misc]
     assert isinstance(hash(snapshot), int)
@@ -97,6 +115,10 @@ def test_missing_field_differs_from_known_empty() -> None:
     data = snapshot.to_dict()
     assert json.loads(json.dumps(data)) == data
     assert data["campaign"]["difficulty"] == {"unknown": "missing"}
+    assert data["campaign"]["scenario_template"] == {"unknown": "missing"}
+    assert data["date"] == "d"
+    assert data["campaign_day"] == {"unknown": "missing"}
+    assert data["control_points"] == []
     assert data["nations"][0]["fields"] == {"allies": [], "at_war": False}
 
 
