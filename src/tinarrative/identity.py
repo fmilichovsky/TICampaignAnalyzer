@@ -37,6 +37,7 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
     IdentityStrategy(EntityDomain.FACTION, ("TIFactionState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(EntityDomain.NATION, ("TINationState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(EntityDomain.REGION, ("TIRegionState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
+    IdentityStrategy(EntityDomain.CONTROL_POINT, ("TIControlPoint",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(EntityDomain.COUNCILOR, ("TICouncilorState",), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(EntityDomain.ARMY, ("TIArmyState", "TIMegafaunaArmyState"), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(EntityDomain.FLEET, ("TISpaceFleetState",), _NUMERIC_ID, _IN_SAVE, None),
@@ -94,7 +95,7 @@ class IdentityReport:
     current_id: int | None
 
 
-def _int_value(holder: Any) -> int | None:
+def read_id_value(holder: Any) -> int | None:
     """Read ``{"value": <int>}``; booleans are not IDs."""
     if isinstance(holder, dict):
         value = holder.get("value")
@@ -112,8 +113,8 @@ def _census_type(state_type: str, entries: Any, owners: dict[int, set[str]]) -> 
     for entry in entries:
         entry_dict = entry if isinstance(entry, dict) else {}
         value = entry_dict.get("Value")
-        key_id = _int_value(entry_dict.get("Key"))
-        inner_id = _int_value(value.get("ID")) if isinstance(value, dict) else None
+        key_id = read_id_value(entry_dict.get("Key"))
+        inner_id = read_id_value(value.get("ID")) if isinstance(value, dict) else None
         if key_id is None or inner_id is None:
             missing += 1
         elif key_id == inner_id:
@@ -163,5 +164,5 @@ def analyze_identity(root: Any) -> IdentityReport | None:
         ids_shared_across_types=sum(1 for types in owners.values() if len(types) > 1),
         total_ids=len(owners),
         max_observed_id=max(owners) if owners else None,
-        current_id=_int_value(root.get("currentID")),
+        current_id=read_id_value(root.get("currentID")),
     )

@@ -20,6 +20,17 @@
       "purpose": "Decode a complete valid Terra Invicta-shaped JSON document to a RawSave."
     },
     {
+      "path": "political_control.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "9986623af9c7d811882c3e55690babb5fe9448ca1e56536ac06ecab4d5d27752",
+      "purpose": "Normalize metadata, time, factions, nations, regions, and control points: control ownership (owned, unowned, unresolved nation), a missing field, an undocumented field, mixed army reference types, an empty {} container, and an unknown state type."
+    },
+    {
       "path": "unknown_state_type.json",
       "kind": "synthetic_unknown_state_fragment",
       "json_valid": true,

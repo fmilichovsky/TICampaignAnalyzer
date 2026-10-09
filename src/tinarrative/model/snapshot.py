@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from typing import Any
 
@@ -31,13 +31,38 @@ class EntityState:
 
 @dataclass(frozen=True)
 class CampaignMetadata:
+    """Campaign-level facts from ``TIMetadataState`` and ``TITimeState``."""
+
     player_faction_name: Observed = field(default_factory=Unknown)
     difficulty: Observed = field(default_factory=Unknown)
     played_with_mods: Observed = field(default_factory=Unknown)
+    game_time_string: Observed = field(default_factory=Unknown)
+    scenario_master_template: Observed = field(default_factory=Unknown)
+    scenario_template: Observed = field(default_factory=Unknown)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {item.name: to_jsonable(getattr(self, item.name)) for item in fields(self)}
 
 
-STATE_COLLECTIONS = ("factions", "nations", "regions", "councilors", "armies", "organizations", "technologies")
+STATE_COLLECTIONS = (
+    "factions",
+    "nations",
+    "regions",
+    "control_points",
+    "councilors",
+    "armies",
+    "organizations",
+    "technologies",
+)
 """Every ``SaveSnapshot`` field holding entity states; extend this when adding a domain."""
+
+NORMALIZED_COLLECTION_LABELS = (
+    ("factions", "factions"),
+    ("nations", "nations"),
+    ("regions", "regions"),
+    ("control_points", "control points"),
+)
+"""(attribute, display label) for the collections the normalizer currently fills."""
 
 
 def _sorted_states(states: tuple[EntityState, ...]) -> tuple[EntityState, ...]:
@@ -46,15 +71,23 @@ def _sorted_states(states: tuple[EntityState, ...]) -> tuple[EntityState, ...]:
 
 @dataclass(frozen=True)
 class SaveSnapshot:
+    """One save, normalized.
+
+    ``date`` is the ISO-8601 game timestamp (no timezone; game-calendar time) or ``Unknown``.
+    ``campaign_day`` and ``campaign_quarter`` are the serialized turn-like counters.
+    """
+
     source: str
-    date: str
+    date: Observed
     game_version: str | None = None
     timestamp: datetime | None = None
-    turn: int | None = None
+    campaign_day: Observed = field(default_factory=Unknown)
+    campaign_quarter: Observed = field(default_factory=Unknown)
     campaign: CampaignMetadata = field(default_factory=CampaignMetadata)
     factions: tuple[EntityState, ...] = ()
     nations: tuple[EntityState, ...] = ()
     regions: tuple[EntityState, ...] = ()
+    control_points: tuple[EntityState, ...] = ()
     councilors: tuple[EntityState, ...] = ()
     armies: tuple[EntityState, ...] = ()
     organizations: tuple[EntityState, ...] = ()
@@ -81,15 +114,12 @@ class SaveSnapshot:
 
         return {
             "source": self.source,
-            "date": self.date,
+            "date": to_jsonable(self.date),
             "game_version": self.game_version,
             "timestamp": self.timestamp.isoformat() if self.timestamp else None,
-            "turn": self.turn,
-            "campaign": {
-                "player_faction_name": to_jsonable(self.campaign.player_faction_name),
-                "difficulty": to_jsonable(self.campaign.difficulty),
-                "played_with_mods": to_jsonable(self.campaign.played_with_mods),
-            },
+            "campaign_day": to_jsonable(self.campaign_day),
+            "campaign_quarter": to_jsonable(self.campaign_quarter),
+            "campaign": self.campaign.to_dict(),
             **{name: states(getattr(self, name)) for name in STATE_COLLECTIONS},
             "raw_metadata": {key: to_jsonable(value) for key, value in self.raw_metadata},
         }

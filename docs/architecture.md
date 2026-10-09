@@ -207,12 +207,25 @@ The snippets above are conceptual; the implemented types differ as follows:
     source state type, so differently-established identities never compare equal.
 -   `Observed = FieldValue | Unknown`: a field absent from the save is
     `Unknown(reason)`, never `False`, zero or empty. `None` and `()` are known
-    values.
+    values. An `Unknown` may carry `raw`, the serialized value it could not
+    interpret (for example the ID of an unresolved reference).
+-   A resolved in-save reference is an `EntityRef` field value (domain, map ID,
+    `in-save-id` confidence, owning state type). The parser resolves a reference
+    only when the ID exists in the same save under the expected domain; otherwise
+    the field is `Unknown(unresolved_reference, raw=...)`. Reference targets whose
+    state type has no `EntityDomain` yet are kept as raw values.
+-   `SaveSnapshot.date` is the ISO-8601 game timestamp or `Unknown`; `campaign_day`
+    and `campaign_quarter` are the serialized turn-like counters. Every
+    `EntityState` has a `SourceLocation` with the short state type, map ID and
+    the RFC 6901 path of its serialized `Value` object.
 -   `Evidence` keeps before/after values plus a `SourceLocation` for each side
     (save ID, state type, map ID, path; `TINationState:123` is the provenance key).
 -   `StateDiff` and `StateChange` live in `model.changes`; `diff.state_diff`
-    re-exports them. Fleets, ships and space objects have an `EntityDomain`
-    but no `SaveSnapshot` collection yet, and singular states (space, diplomacy,
+    re-exports them. The parser currently fills the faction, nation, region and
+    control-point collections (`parsing.fields` lists the observed fields it
+    copies). Councilors, armies, organizations and technologies have collections
+    but are not normalized yet; fleets, ships and space objects have an
+    `EntityDomain` but no collection, and singular states (space, diplomacy,
     economy, research) are not modelled either.
 
 ------------------------------------------------------------------------

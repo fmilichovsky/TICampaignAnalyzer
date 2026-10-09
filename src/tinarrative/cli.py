@@ -12,6 +12,8 @@ from typing import cast
 from . import __version__
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_loader import load_raw_save, load_save
+from .model.snapshot import NORMALIZED_COLLECTION_LABELS
+from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 
@@ -95,7 +97,20 @@ def _run_parse(args: argparse.Namespace) -> int:
     print(f"size: {raw.size_bytes} bytes")
     print(f"top-level keys: {', '.join(raw.root)}")
     print(f"state types: {len(raw.root['gamestates'])}")
+    print(f"date: {_render_observed(snapshot.date)}")
+    print(f"campaign day: {_render_observed(snapshot.campaign_day)}")
+    print(f"player faction: {_render_observed(snapshot.campaign.player_faction_name)}")
+    for attribute, label in NORMALIZED_COLLECTION_LABELS:
+        print(f"{label}: {len(getattr(snapshot, attribute))}")
     return EXIT_SUCCESS
+
+
+def _render_observed(value: Observed) -> str:
+    """One-line text for a normalized value; unknown values say why."""
+    rendered = to_jsonable(value)
+    if isinstance(rendered, dict) and "unknown" in rendered:
+        return f"unknown ({rendered['unknown']})"
+    return str(rendered)
 
 
 def _add_parse_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -104,8 +119,8 @@ def _add_parse_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentP
         "parse",
         help=summary,
         description=(
-            f"{summary} Currently reports the validated envelope; normalized campaign "
-            "snapshot output is not implemented yet."
+            f"{summary} Reports the validated envelope and a summary of the normalized "
+            "snapshot: game date, campaign day, player faction, and entity counts."
         ),
         epilog=(
             "Exit codes: 0 success; 2 usage error; 4 file cannot be read; "
