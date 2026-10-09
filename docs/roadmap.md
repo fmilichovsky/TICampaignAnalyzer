@@ -17,6 +17,11 @@
 
 ## Campaign history
 
-- [ ] Add domain analyzers and rule-based reconstruction.
+- [ ] Add domain analyzers and rule-based reconstruction of higher-level events.
 - [ ] Aggregate events across an ordered save sequence.
-- [ ] Add fixture-driven parser, diff, and renderer coverage.
+- [ ] Allow automatically detecting and scanning the real game save directory.
+- [ ] Add a heuristic for grouping different saves into distinct campaigns.
+
+## Narrative generator
+
+- [ ] Consume normalized campaign data and turn them into a readable narrative.
