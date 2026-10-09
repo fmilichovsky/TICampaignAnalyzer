@@ -12,6 +12,7 @@
 - [x] Inspect a single save's raw structure deterministically (`tinarrative inspect`).
 - [x] Load and validate a raw save (`tinarrative parse` validation).
 - [x] Normalize a minimal save snapshot (`tinarrative parse` summary).
+- [x] Normalize councilors, armies, space entities, and research state.
 - [ ] Produce a deterministic single-save diff.
 - [ ] Render objective changes as Markdown.
 

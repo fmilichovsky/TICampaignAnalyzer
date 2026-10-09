@@ -21,6 +21,7 @@ REPRESENTATIVE = ("io", "terra_invicta_json_v1", "representative_campaign.json")
 GOLDEN_CASES = [
     (("io", "terra_invicta_json_v1", "representative_campaign.json"), EXIT_SUCCESS),
     (("io", "terra_invicta_json_v1", "political_control.json"), EXIT_SUCCESS),
+    (("io", "terra_invicta_json_v1", "campaign_assets.json"), EXIT_SUCCESS),
     (("io", "terra_invicta_json_v1", "unknown_state_type.json"), EXIT_SUCCESS),
     (("io", "terra_invicta_json_v1", "known_game_version.json"), EXIT_SUCCESS),
     (("io", "terra_invicta_json_v1", "numeric_game_version.json"), EXIT_SUCCESS),

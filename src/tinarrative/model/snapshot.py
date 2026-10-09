@@ -44,6 +44,29 @@ class CampaignMetadata:
         return {item.name: to_jsonable(getattr(self, item.name)) for item in fields(self)}
 
 
+@dataclass(frozen=True)
+class ResearchState:
+    """Campaign-wide research facts from the ``TIGlobalResearchState`` singleton.
+
+    These are the serialized collections the per-technology states are derived from; keeping both
+    preserves the evidence (this object) next to the derived view (``SaveSnapshot.technologies``).
+    """
+
+    finished_techs_names: Observed = field(default_factory=Unknown)
+    finished_one_time_only_project_names: Observed = field(default_factory=Unknown)
+    tech_progress: Observed = field(default_factory=Unknown)
+    campaign_start_year: Observed = field(default_factory=Unknown)
+    end_game_techs_completed_by_category: Observed = field(default_factory=Unknown)
+    location: SourceLocation | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            item.name: to_jsonable(getattr(self, item.name)) for item in fields(self) if item.name != "location"
+        }
+        data["location"] = self.location.to_dict() if self.location else None
+        return data
+
+
 STATE_COLLECTIONS = (
     "factions",
     "nations",
@@ -51,6 +74,9 @@ STATE_COLLECTIONS = (
     "control_points",
     "councilors",
     "armies",
+    "fleets",
+    "ships",
+    "habs",
     "organizations",
     "technologies",
 )
@@ -61,6 +87,12 @@ NORMALIZED_COLLECTION_LABELS = (
     ("nations", "nations"),
     ("regions", "regions"),
     ("control_points", "control points"),
+    ("councilors", "councilors"),
+    ("armies", "armies"),
+    ("fleets", "fleets"),
+    ("ships", "ships"),
+    ("habs", "habs"),
+    ("technologies", "technologies"),
 )
 """(attribute, display label) for the collections the normalizer currently fills."""
 
@@ -75,6 +107,8 @@ class SaveSnapshot:
 
     ``date`` is the ISO-8601 game timestamp (no timezone; game-calendar time) or ``Unknown``.
     ``campaign_day`` and ``campaign_quarter`` are the serialized turn-like counters.
+    ``habs`` holds ``TIHabState`` objects (domain ``space object``); ``technologies`` are name-keyed
+    states derived from ``research``.
     """
 
     source: str
@@ -90,8 +124,12 @@ class SaveSnapshot:
     control_points: tuple[EntityState, ...] = ()
     councilors: tuple[EntityState, ...] = ()
     armies: tuple[EntityState, ...] = ()
+    fleets: tuple[EntityState, ...] = ()
+    ships: tuple[EntityState, ...] = ()
+    habs: tuple[EntityState, ...] = ()
     organizations: tuple[EntityState, ...] = ()
     technologies: tuple[EntityState, ...] = ()
+    research: ResearchState = field(default_factory=ResearchState)
     raw_metadata: tuple[tuple[str, FieldValue], ...] = ()
 
     def __post_init__(self) -> None:
@@ -121,5 +159,6 @@ class SaveSnapshot:
             "campaign_quarter": to_jsonable(self.campaign_quarter),
             "campaign": self.campaign.to_dict(),
             **{name: states(getattr(self, name)) for name in STATE_COLLECTIONS},
+            "research": self.research.to_dict(),
             "raw_metadata": {key: to_jsonable(value) for key, value in self.raw_metadata},
         }

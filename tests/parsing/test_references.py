@@ -14,6 +14,7 @@ GAMESTATES: dict[str, object] = {
     STATE_PREFIX + "TINationState": [pair(20)],
     STATE_PREFIX + "TIArmyState": [pair(50)],
     STATE_PREFIX + "TIMegafaunaArmyState": [pair(51)],
+    STATE_PREFIX + "TIHabState": [pair(140)],
     STATE_PREFIX + "TIFederationState": [pair(80)],  # no entity domain: never resolves
     STATE_PREFIX + "TICouncilorState": [{"Key": {"value": 1}, "Value": {"ID": {"value": 2}}}],  # malformed, skipped
 }
@@ -25,6 +26,7 @@ def test_index_covers_domain_state_types_and_skips_malformed_or_undomained_types
         20: (EntityDomain.NATION, "TINationState"),
         50: (EntityDomain.ARMY, "TIArmyState"),
         51: (EntityDomain.ARMY, "TIMegafaunaArmyState"),
+        140: (EntityDomain.SPACE_OBJECT, "TIHabState"),
     }
 
 
@@ -62,4 +64,20 @@ def test_list_with_one_unresolvable_element_is_wholly_unknown() -> None:
     assert INDEX.resolve_list([], EntityDomain.NATION) == ()
     assert INDEX.resolve_list({"value": 20}, EntityDomain.NATION) == Unknown(
         UnknownReason.UNPARSEABLE, FrozenMap((("value", 20),))
+    )
+
+
+def test_a_field_may_name_several_target_domains_and_the_owner_decides_the_domain() -> None:
+    place = frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT))
+    assert INDEX.resolve({"value": 140, "$type": "x"}, place) == EntityRef(
+        EntityId(EntityDomain.SPACE_OBJECT, "140"), IdentityConfidence.IN_SAVE_ID, state_type="TIHabState"
+    )
+    assert INDEX.resolve({"value": 20}, place) == Unknown(
+        UnknownReason.UNRESOLVED_REFERENCE, FrozenMap((("value", 20),))
+    )
+    assert INDEX.resolve_list([{"value": 140}, {"value": 20}], place) == Unknown(
+        UnknownReason.UNRESOLVED_REFERENCE, (FrozenMap((("value", 140),)), FrozenMap((("value", 20),)))
+    )
+    assert INDEX.resolve_list([{"value": 140}], frozenset((EntityDomain.SPACE_OBJECT,))) == (
+        EntityRef(EntityId(EntityDomain.SPACE_OBJECT, "140"), IdentityConfidence.IN_SAVE_ID, state_type="TIHabState"),
     )
