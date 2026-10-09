@@ -8,7 +8,7 @@ import pytest
 from tinarrative.model.changes import StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.snapshot import EntityState, SaveSnapshot
+from tinarrative.model.snapshot import STATE_COLLECTIONS, EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze, is_unknown, to_jsonable
 
 
@@ -95,12 +95,14 @@ def test_diff_orders_changes_deterministically() -> None:
 
 def test_snapshot_orders_collections_and_is_immutable() -> None:
     states = (EntityState(_ref("20")), EntityState(_ref("3")))
-    snapshot = SaveSnapshot(source="a.save", date="2030-01-01", nations=states, control_points=states)
+    snapshot = SaveSnapshot(source="a.save", date="2030-01-01", **{name: states for name in STATE_COLLECTIONS})
+    reversed_states = tuple(reversed(states))
     assert snapshot == SaveSnapshot(
-        source="a.save", date="2030-01-01", nations=tuple(reversed(states)), control_points=tuple(reversed(states))
+        source="a.save", date="2030-01-01", **{name: reversed_states for name in STATE_COLLECTIONS}
     )
-    assert [s.ref.entity_id.key for s in snapshot.nations] == ["20", "3"]
-    assert [s.ref.entity_id.key for s in snapshot.control_points] == ["20", "3"]
+    assert {"fleets", "ships", "habs", "technologies"} <= set(STATE_COLLECTIONS)
+    for name in STATE_COLLECTIONS:
+        assert [s.ref.entity_id.key for s in getattr(snapshot, name)] == ["20", "3"]
     with pytest.raises(FrozenInstanceError):
         snapshot.source = "x"  # type: ignore[misc]
     assert isinstance(hash(snapshot), int)
@@ -128,3 +130,26 @@ def test_snapshot_serialization_keeps_state_provenance() -> None:
     entry = snapshot.to_dict()["nations"][0]
     assert entry["state_type"] == "TINationState"
     assert entry["location"] == location.to_dict()
+
+
+def test_research_state_defaults_to_unknown_and_serializes_with_its_location() -> None:
+    empty = ResearchState()
+    assert empty.finished_techs_names == Unknown()
+    assert empty.tech_progress == Unknown()
+    assert empty.location is None
+    assert empty.to_dict()["campaign_start_year"] == {"unknown": "missing"}
+    assert empty.to_dict()["location"] is None
+    location = SourceLocation("a.save", "TIGlobalResearchState", 150, "/gamestates/x/0/Value")
+    research = ResearchState(finished_techs_names=("A", "B"), campaign_start_year=2030, location=location)
+    data = SaveSnapshot(source="a.save", date="d", research=research).to_dict()["research"]
+    assert data == {
+        "finished_techs_names": ["A", "B"],
+        "finished_one_time_only_project_names": {"unknown": "missing"},
+        "tech_progress": {"unknown": "missing"},
+        "campaign_start_year": 2030,
+        "end_game_techs_completed_by_category": {"unknown": "missing"},
+        "location": location.to_dict(),
+    }
+    assert SaveSnapshot(source="a.save", date="d").research == empty
+    with pytest.raises(FrozenInstanceError):
+        research.campaign_start_year = 1  # type: ignore[misc]

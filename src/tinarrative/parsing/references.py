@@ -1,7 +1,8 @@
 """Conservative resolution of serialized ``{"value": id}`` references to entity identities.
 
-A reference resolves only when the ID is present in the save under a state type that belongs to the
-expected ``EntityDomain``. Anything else stays ``Unknown`` with the raw serialized value attached, so the
+A reference resolves only when the ID is present in the save under a state type that belongs to one of
+the expected ``EntityDomain`` values (a field such as councilor ``location`` is observed to point at either
+a region or a hab). Anything else stays ``Unknown`` with the raw serialized value attached, so the
 normalizer never invents a target.
 """
 
@@ -15,6 +16,13 @@ from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfiden
 from ..model.values import Observed, Unknown, UnknownReason, freeze
 from .containers import decode_state_map
 from .errors import UnsupportedSaveShapeError
+
+ExpectedDomains = EntityDomain | frozenset[EntityDomain]
+"""One target domain, or the set of domains a reference field is observed to point at."""
+
+
+def _as_domains(expected: ExpectedDomains) -> frozenset[EntityDomain]:
+    return expected if isinstance(expected, frozenset) else frozenset((expected,))
 
 
 @dataclass(frozen=True)
@@ -38,31 +46,32 @@ class ReferenceIndex:
                     owners.setdefault(entry.map_id, (strategy.domain, short_type))
         return cls(owners)
 
-    def _lookup(self, value: Any, expected: EntityDomain) -> EntityRef | None:
+    def _lookup(self, value: Any, expected: frozenset[EntityDomain]) -> EntityRef | None:
         map_id = read_id_value(value)
         if map_id is None:
             return None
         owner = self.owners.get(map_id)
-        if owner is None or owner[0] is not expected:
+        if owner is None or owner[0] not in expected:
             return None
-        return EntityRef(EntityId(expected, str(map_id)), IdentityConfidence.IN_SAVE_ID, state_type=owner[1])
+        return EntityRef(EntityId(owner[0], str(map_id)), IdentityConfidence.IN_SAVE_ID, state_type=owner[1])
 
-    def resolve(self, value: Any, expected: EntityDomain) -> Observed:
+    def resolve(self, value: Any, expected: ExpectedDomains) -> Observed:
         """``null`` stays ``None``; a resolvable reference becomes an ``EntityRef``; otherwise unknown."""
         if value is None:
             return None
-        ref = self._lookup(value, expected)
+        ref = self._lookup(value, _as_domains(expected))
         if ref is None:
             return Unknown(UnknownReason.UNRESOLVED_REFERENCE, raw=freeze(value))
         return ref
 
-    def resolve_list(self, value: Any, expected: EntityDomain) -> Observed:
+    def resolve_list(self, value: Any, expected: ExpectedDomains) -> Observed:
         """A list of references; one unresolvable element makes the whole field unknown."""
         if not isinstance(value, list):
             return Unknown(UnknownReason.UNPARSEABLE, raw=freeze(value))
+        domains = _as_domains(expected)
         refs: list[EntityRef] = []
         for item in value:
-            ref = self._lookup(item, expected)
+            ref = self._lookup(item, domains)
             if ref is None:
                 return Unknown(UnknownReason.UNRESOLVED_REFERENCE, raw=freeze(value))
             refs.append(ref)

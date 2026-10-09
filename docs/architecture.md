@@ -221,12 +221,24 @@ The snippets above are conceptual; the implemented types differ as follows:
 -   `Evidence` keeps before/after values plus a `SourceLocation` for each side
     (save ID, state type, map ID, path; `TINationState:123` is the provenance key).
 -   `StateDiff` and `StateChange` live in `model.changes`; `diff.state_diff`
-    re-exports them. The parser currently fills the faction, nation, region and
-    control-point collections (`parsing.fields` lists the observed fields it
-    copies). Councilors, armies, organizations and technologies have collections
-    but are not normalized yet; fleets, ships and space objects have an
-    `EntityDomain` but no collection, and singular states (space, diplomacy,
-    economy, research) are not modelled either.
+    re-exports them. The parser fills the faction, nation, region, control-point,
+    councilor, army (both army state types), fleet, ship and hab collections
+    (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
+    objects in the `space object` domain). A reference field observed to point at
+    more than one domain (councilor `location`: region or hab) resolves against
+    that set, and the owning state type decides the resulting domain.
+-   Research is the one explicitly typed substate: `SaveSnapshot.research`
+    (`ResearchState`) keeps the `TIGlobalResearchState` singleton's collections
+    with its location, and `SaveSnapshot.technologies` holds the name-keyed
+    (`name-key` confidence) technology states derived from it, each with
+    `finished`, `progress` and a path into the list it came from.
+-   A fleet ID is valid only for the fleet's lifetime: merged fleets vanish and a
+    fleet's `parentFleet` often names an ID absent from the save. The parser keeps
+    that as `Unknown(unresolved_reference, raw=...)` rather than dropping it, so
+    the diff layer sees the limitation; ships keep their IDs across merges.
+-   Organizations have a collection but are not normalized yet; other space
+    objects (bodies, orbits, hab sites, sectors, modules) resolve as reference
+    targets only, and singular diplomacy and economy states are not modelled.
 
 ------------------------------------------------------------------------
 

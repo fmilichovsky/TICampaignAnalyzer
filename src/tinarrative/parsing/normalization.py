@@ -2,6 +2,8 @@
 
 Only fields observed in ``docs/game-data-notes/domain-field-map.md`` are copied; a listed field that the
 save omits is ``Unknown``, fields the save adds are ignored, and no ownership or cause is inferred.
+A reference to an ID absent from the save (for example a fleet's ``parentFleet`` after a merge) stays an
+unresolved ``Unknown`` carrying the raw ID, so fleet-ID lifetime limits remain visible downstream.
 """
 
 from __future__ import annotations
@@ -12,10 +14,10 @@ from typing import Any
 from ..identity import STATE_PREFIX, read_id_value
 from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from ..model.evidence import SourceLocation
-from ..model.snapshot import CampaignMetadata, EntityState, SaveSnapshot
+from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_state_map, entry_path
-from .fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, REFERENCE_FIELDS
+from .fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, REFERENCE_FIELDS, RESEARCH_STATE_TYPE
 from .raw_save import RawSave
 from .references import ReferenceIndex
 
@@ -73,8 +75,67 @@ def _entity_state(
     return EntityState(ref=ref, fields=tuple(fields), location=location)
 
 
+def _technology_state(
+    name: str, finished: bool, progress: Observed, entry: StateEntry, index: int, member: str, source: str
+) -> EntityState:
+    ref = EntityRef(
+        EntityId(EntityDomain.TECHNOLOGY, name), IdentityConfidence.NAME_KEY, state_type=RESEARCH_STATE_TYPE, name=name
+    )
+    value_path = entry_path(STATE_PREFIX + RESEARCH_STATE_TYPE, entry.index)
+    location = SourceLocation(source, RESEARCH_STATE_TYPE, entry.map_id, f"{value_path}/{member}/{index}")
+    return EntityState(ref=ref, fields=(("finished", finished), ("progress", progress)), location=location)
+
+
+def _research(gamestates: dict[str, Any], source: str) -> tuple[ResearchState, tuple[EntityState, ...]]:
+    """The research singleton and the name-keyed technology states derived from it.
+
+    A technology exists for every string in ``finishedTechsNames`` and for every ``techProgress`` element
+    with a string ``techTemplateName`` (observed: a finished tech may still carry a progress entry).
+    Elements of another shape create no identity; they remain visible raw on the ``ResearchState``.
+    """
+    entries = decode_state_map(gamestates, RESEARCH_STATE_TYPE)
+    if not entries:
+        return ResearchState(), ()
+    entry = entries[0]
+    value = entry.value
+    research = ResearchState(
+        finished_techs_names=_observed(value, "finishedTechsNames"),
+        finished_one_time_only_project_names=_observed(value, "finishedOneTimeOnlyProjectNames"),
+        tech_progress=_observed(value, "techProgress"),
+        campaign_start_year=_observed(value, "campaignStartYear"),
+        end_game_techs_completed_by_category=_observed(value, "endGameTechsCompletedByCategory"),
+        location=SourceLocation(
+            source, RESEARCH_STATE_TYPE, entry.map_id, entry_path(STATE_PREFIX + RESEARCH_STATE_TYPE, entry.index)
+        ),
+    )
+
+    finished_raw = value.get("finishedTechsNames")
+    finished_names = [item for item in finished_raw if isinstance(item, str)] if isinstance(finished_raw, list) else []
+    progress_raw = value.get("techProgress")
+    progress_items = progress_raw if isinstance(progress_raw, list) else []
+
+    progress: dict[str, tuple[int, FieldValue]] = {}
+    for position, item in enumerate(progress_items):
+        name = item.get("techTemplateName") if isinstance(item, dict) else None
+        if isinstance(name, str):
+            progress.setdefault(name, (position, freeze(item)))
+
+    technologies: dict[str, EntityState] = {}
+    for position, name in enumerate(finished_names):
+        if name in technologies:
+            continue
+        progress_value: Observed = progress[name][1] if name in progress else Unknown()
+        technologies[name] = _technology_state(
+            name, True, progress_value, entry, position, "finishedTechsNames", source
+        )
+    for name, (position, frozen) in progress.items():
+        if name not in technologies:
+            technologies[name] = _technology_state(name, False, frozen, entry, position, "techProgress", source)
+    return research, tuple(technologies.values())
+
+
 def normalize(raw_save: RawSave) -> SaveSnapshot:
-    """Normalize campaign time, metadata, factions, nations, regions, and control points."""
+    """Normalize campaign time and metadata, the entity collections in ``NORMALIZED_DOMAINS``, and research."""
     gamestates: dict[str, Any] = raw_save.root["gamestates"]
     index = ReferenceIndex.from_gamestates(gamestates)
 
@@ -105,9 +166,9 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
     collections: dict[str, tuple[EntityState, ...]] = {}
     for domain, short_type, attribute in NORMALIZED_DOMAINS:
         entries = decode_state_map(gamestates, short_type)
-        collections[attribute] = tuple(
-            _entity_state(domain, short_type, entry, index, raw_save.source) for entry in entries
-        )
+        states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source) for entry in entries)
+        collections[attribute] = collections.get(attribute, ()) + states
+    research, technologies = _research(gamestates, raw_save.source)
 
     raw_metadata: tuple[tuple[str, FieldValue], ...] = (
         ("current_id", read_id_value(raw_save.root.get("currentID"))),
@@ -121,6 +182,8 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
         campaign_day=_observed(time_state, "daysInCampaign"),
         campaign_quarter=_observed(time_state, "currentQuarterSinceStart"),
         campaign=campaign,
+        research=research,
+        technologies=technologies,
         raw_metadata=raw_metadata,
         **collections,
     )

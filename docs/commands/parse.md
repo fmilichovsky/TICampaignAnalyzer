@@ -12,7 +12,8 @@ into a `SaveSnapshot`, and prints a short summary:
   bytes, top-level keys, and the number of state types;
 - snapshot: the game `date` (ISO-8601 from `TITimeState.currentDateTime`, no timezone),
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
-  `regions`, and `control points`.
+  `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
+  `ships`, `habs`, and `technologies` (name-keyed, derived from the research singleton).
 
 A value the save does not establish prints as `unknown (<reason>)`, where the reason is
 `missing`, `unparseable`, or `unresolved_reference`; it is never replaced by a default.
