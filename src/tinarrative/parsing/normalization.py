@@ -8,10 +8,13 @@ unresolved ``Unknown`` carrying the raw ID, so fleet-ID lifetime limits remain v
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import Any
 
 from ..identity import STATE_PREFIX, read_id_value
+from ..log import fields as log_fields
+from ..log import get_logger, shape
 from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from ..model.evidence import SourceLocation
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
@@ -23,6 +26,8 @@ from .references import ReferenceIndex
 
 _DATE_COMPONENTS = ("year", "month", "day", "hour", "minute", "second")
 
+logger = get_logger(__name__)
+
 
 def _observed(value: dict[str, Any], name: str) -> Observed:
     return freeze(value[name]) if name in value else Unknown()
@@ -31,7 +36,19 @@ def _observed(value: dict[str, Any], name: str) -> Observed:
 def _single_entry(gamestates: dict[str, Any], short_type: str) -> dict[str, Any]:
     """The ``Value`` of a singleton state (metadata, time); ``{}`` when absent."""
     entries = decode_state_map(gamestates, short_type)
+    if len(entries) != 1:
+        logger.debug("singleton state %s", log_fields(state_type=short_type, entries=len(entries), used="first"))
     return entries[0].value if entries else {}
+
+
+def _unknown_counts(states: tuple[EntityState, ...]) -> dict[str, int]:
+    """How many normalized fields are unknown, by reason; a cheap aggregate for the debug log."""
+    counts = {reason.value: 0 for reason in UnknownReason}
+    for state in states:
+        for _name, value in state.fields:
+            if isinstance(value, Unknown):
+                counts[value.reason.value] += 1
+    return counts
 
 
 def game_datetime(components: Any) -> datetime | None:
@@ -131,6 +148,17 @@ def _research(gamestates: dict[str, Any], source: str) -> tuple[ResearchState, t
     for name, (position, frozen) in progress.items():
         if name not in technologies:
             technologies[name] = _technology_state(name, False, frozen, entry, position, "techProgress", source)
+    logger.debug(
+        "research normalized %s",
+        log_fields(
+            state_type=RESEARCH_STATE_TYPE,
+            entries=len(entries),
+            finished=len(finished_names),
+            progress=len(progress),
+            progress_items_skipped=len(progress_items) - len(progress),
+            technologies=len(technologies),
+        ),
+    )
     return research, tuple(technologies.values())
 
 
@@ -146,13 +174,15 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
     date: Observed
     if "currentDateTime" not in time_state:
         date = Unknown()
+        logger.debug("date missing %s", log_fields(state_type="TITimeState", field="currentDateTime"))
     else:
         timestamp = game_datetime(time_state["currentDateTime"])
-        date = (
-            timestamp.isoformat()
-            if timestamp
-            else Unknown(UnknownReason.UNPARSEABLE, freeze(time_state["currentDateTime"]))
-        )
+        if timestamp:
+            date = timestamp.isoformat()
+            logger.debug("date parsed %s", log_fields(date=date))
+        else:
+            date = Unknown(UnknownReason.UNPARSEABLE, freeze(time_state["currentDateTime"]))
+            logger.debug("date unparseable %s", log_fields(value=shape(time_state["currentDateTime"])))
 
     campaign = CampaignMetadata(
         player_faction_name=_observed(metadata_state, "playerFactionName"),
@@ -168,7 +198,28 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
         entries = decode_state_map(gamestates, short_type)
         states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source) for entry in entries)
         collections[attribute] = collections.get(attribute, ()) + states
+        if logger.isEnabledFor(logging.DEBUG):
+            unknown = _unknown_counts(states)
+            logger.debug(
+                "domain normalized %s",
+                log_fields(
+                    state_type=short_type,
+                    domain=domain.value,
+                    entities=len(states),
+                    missing_fields=unknown[UnknownReason.MISSING.value],
+                    unresolved_references=unknown[UnknownReason.UNRESOLVED_REFERENCE.value],
+                    unparseable=unknown[UnknownReason.UNPARSEABLE.value],
+                ),
+            )
     research, technologies = _research(gamestates, raw_save.source)
+    logger.info(
+        "normalized %s",
+        log_fields(
+            state_types=len(gamestates),
+            entities=sum(len(states) for states in collections.values()),
+            technologies=len(technologies),
+        ),
+    )
 
     raw_metadata: tuple[tuple[str, FieldValue], ...] = (
         ("current_id", read_id_value(raw_save.root.get("currentID"))),

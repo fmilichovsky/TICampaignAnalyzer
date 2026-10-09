@@ -1,5 +1,9 @@
 """Conservative reference resolution: resolve only to a known ID in the expected domain."""
 
+import logging
+
+import pytest
+
 from tinarrative.identity import STATE_PREFIX
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason
@@ -81,3 +85,14 @@ def test_a_field_may_name_several_target_domains_and_the_owner_decides_the_domai
     assert INDEX.resolve_list([{"value": 140}], frozenset((EntityDomain.SPACE_OBJECT,))) == (
         EntityRef(EntityId(EntityDomain.SPACE_OBJECT, "140"), IdentityConfidence.IN_SAVE_ID, state_type="TIHabState"),
     )
+
+
+def test_skipped_malformed_container_is_explained_in_the_debug_log(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.DEBUG, logger="tinarrative"):
+        ReferenceIndex.from_gamestates(GAMESTATES)
+    skipped = [record.getMessage() for record in caplog.records if "reference index skipped" in record.getMessage()]
+    assert skipped == [
+        "reference index skipped state_type=TICouncilorState "
+        "reason='PavonisInteractive.TerraInvicta.TICouncilorState[0]: Key.value 1 != Value.ID.value 2'"
+    ]
+    assert "reference index built ids=4 skipped_types=1" in caplog.text

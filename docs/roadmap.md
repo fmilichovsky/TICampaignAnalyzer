@@ -5,6 +5,8 @@
 - [x] Establish the installable Python package and CLI entry point.
 - [x] Separate loading, parsing, model, diff, analysis, reconstruction,
   narrative, and rendering responsibilities.
+- [x] Opt-in debug logging for `inspect` and `parse` (`--log-level`,
+  `TINARRATIVE_LOG_LEVEL`).
 
 ## MVP
 

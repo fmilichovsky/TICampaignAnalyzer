@@ -52,6 +52,10 @@ must pass before a change is considered done; CI runs exactly that
   requirement, not a nicety (architecture doc, sections 3–5).
 - **Version-specific parsing stays in `parsing`.** Downstream stages depend on
   normalized model types only.
+- **Diagnostics go through `tinarrative.log`.** `logger = get_logger(__name__)`,
+  `fields(...)` for `key=value` context, aggregate counts instead of per-entity lines,
+  nothing above DEBUG/INFO on the success path. Never log a directory path or a string
+  value read from a save; use `safe_path` and `shape`. See [docs/debugging.md](docs/debugging.md).
 - **Save format claims must be observed, not assumed.** Only document a format
   fact in `docs/game-data-notes/` if it was checked against real data, and
   label it as observed vs. hypothesis per that directory's README.

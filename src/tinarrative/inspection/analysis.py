@@ -6,6 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from tinarrative.identity import IdentityReport, analyze_identity
+from tinarrative.log import fields, get_logger
 
 from .decode import decode_save, file_facts
 from .pointer import resolve_pointer, truncate_value, type_label, value_length
@@ -13,6 +14,8 @@ from .report import Diagnostic, InspectReport, KeySummary, PathResult, RenderLim
 
 ENVELOPE_KEYS = ("currentID", "gamestates")
 """Top-level keys documented in docs/game-data-notes/terra_invicta_json_v1.md."""
+
+logger = get_logger(__name__)
 
 
 def summarize_children(value: dict[str, Any]) -> tuple[KeySummary, ...]:
@@ -52,8 +55,13 @@ def inspect_bytes(
     if isinstance(root, dict):
         top_level = summarize_children(root)
         second_level = {key: summarize_children(item) for key, item in root.items() if isinstance(item, dict)}
+        logger.debug(
+            "root shape %s",
+            fields(root="object", top_level_keys=len(top_level), second_level_objects=len(second_level)),
+        )
         for key in ENVELOPE_KEYS:
             if key not in root:
+                logger.debug("envelope key missing %s", fields(key=key))
                 diagnostics.append(
                     Diagnostic(
                         "missing_key",
@@ -61,9 +69,23 @@ def inspect_bytes(
                     )
                 )
         identity = analyze_identity(root)
-        if identity is not None:
+        if identity is None:
+            logger.debug("identity census skipped %s", fields(reason="gamestates is not an object"))
+        else:
+            logger.debug(
+                "identity census %s",
+                fields(
+                    domains=len(identity.domains),
+                    types=sum(len(domain.types) for domain in identity.domains),
+                    ids=identity.total_ids,
+                    shared_ids=identity.ids_shared_across_types,
+                    max_id=identity.max_observed_id,
+                    current_id=identity.current_id,
+                ),
+            )
             diagnostics.extend(_identity_diagnostics(identity))
     else:
+        logger.debug("root shape %s", fields(root=type_label(root)))
         diagnostics.append(
             Diagnostic(
                 "root_not_object",
@@ -76,6 +98,10 @@ def inspect_bytes(
     for pointer in pointers:
         lookup = resolve_pointer(root, pointer)
         if lookup.found:
+            logger.debug(
+                "pointer resolved %s",
+                fields(pointer=pointer, type=type_label(lookup.value), length=value_length(lookup.value)),
+            )
             results.append(
                 PathResult(
                     pointer,
@@ -87,6 +113,7 @@ def inspect_bytes(
                 )
             )
         else:
+            logger.debug("pointer unresolved %s", fields(pointer=pointer, code=lookup.code, reason=lookup.reason))
             status = "path_not_found"
             results.append(PathResult(pointer, False, None, None, None, lookup.reason))
             diagnostics.append(Diagnostic(lookup.code or "pointer_not_found", f"{pointer}: {lookup.reason}"))

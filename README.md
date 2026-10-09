@@ -32,6 +32,10 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.
 
+To see what the parser decided, run any command with `--log-level debug` before
+the command name, or set `TINARRATIVE_LOG_LEVEL=debug`; the log goes to stderr and
+names no paths or save content. See the [debugging guide](docs/debugging.md).
+
 ## Testing
 
 ```sh
@@ -54,6 +58,7 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
   normalizing it.
 - `identity`: per-domain entity-identity strategy table and the ID census that
   `inspection` reports.
+- `log`: opt-in diagnostic logging conventions shared by every stage.
 - `parsing`: decode version-specific save data and normalize it.
 - `model`: stable snapshots, changes, events, and provenance types.
 - `diff`: derive literal state transitions.

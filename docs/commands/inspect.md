@@ -30,6 +30,10 @@ tinarrative inspect Autosave.json --format json
 
 All limits accept 0, which shows only the truncation marker.
 
+The global `--log-level debug` option (before `inspect`) explains the decode steps,
+the ID census totals, and each pointer resolution on stderr; see the
+[debugging guide](../debugging.md). The report on stdout is unaffected.
+
 ## Report contents
 
 The report is produced in this order and is byte-identical across runs for the

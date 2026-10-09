@@ -7,7 +7,10 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+from ..log import fields, get_logger
 from .report import Diagnostic, FileFacts, LineEndings
+
+logger = get_logger(__name__)
 
 GZIP_MAGIC = b"\x1f\x8b"
 ZIP_MAGIC = b"PK\x03\x04"
@@ -53,7 +56,8 @@ def decode_save(data: bytes) -> DecodeResult:
     """Decode bytes as UTF-8 JSON, or explain exactly why that is impossible."""
     diagnostics: list[Diagnostic] = []
 
-    def failure(code: str, message: str, detail: str | None = None) -> DecodeResult:
+    def failure(code: str, message: str, detail: str | None = None, **context: object) -> DecodeResult:
+        logger.debug("decode rejected %s", fields(code=code, **context))
         diagnostics.append(Diagnostic(code, message, detail))
         return DecodeResult(False, None, None, tuple(diagnostics))
 
@@ -82,6 +86,7 @@ def decode_save(data: bytes) -> DecodeResult:
             )
         )
         data = data[len(UTF8_BOM) :]
+        logger.debug("utf8 bom stripped %s", fields(bytes=len(UTF8_BOM)))
 
     try:
         text = data.decode("utf-8")
@@ -89,7 +94,9 @@ def decode_save(data: bytes) -> DecodeResult:
         return failure(
             "invalid_utf8",
             f"{error.reason} at byte offset {error.start}",
+            offset=error.start,
         )
+    logger.debug("utf-8 decoded %s", fields(bytes=len(data), chars=len(text)))
 
     try:
         value = json.loads(text)
@@ -100,5 +107,9 @@ def decode_save(data: bytes) -> DecodeResult:
             "json_decode_error",
             f"{error.msg}: line {error.lineno} column {error.colno} (char {error.pos})",
             f"context: {context!r}",
+            line=error.lineno,
+            column=error.colno,
+            pos=error.pos,
         )
+    logger.debug("json decoded %s", fields(root=type(value).__name__))
     return DecodeResult(True, value, text, tuple(diagnostics))

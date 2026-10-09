@@ -21,7 +21,9 @@ The normalizer copies only the fields listed in the
 [domain field map](../game-data-notes/domain-field-map.md), resolves references only to
 entities present in the same save, and infers nothing about causes.
 
-Failures print one message to stderr and no traceback.
+Failures print one message to stderr and no traceback. To see which parser decisions
+led there, run with the global `--log-level debug` option (before `parse`); see the
+[debugging guide](../debugging.md). The summary on stdout is unaffected.
 
 ## Exit codes
 

@@ -12,10 +12,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..identity import ENTITY_DOMAINS, read_id_value
+from ..log import fields, get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from ..model.values import Observed, Unknown, UnknownReason, freeze
 from .containers import decode_state_map
 from .errors import UnsupportedSaveShapeError
+
+logger = get_logger(__name__)
 
 ExpectedDomains = EntityDomain | frozenset[EntityDomain]
 """One target domain, or the set of domains a reference field is observed to point at."""
@@ -34,16 +37,21 @@ class ReferenceIndex:
     @classmethod
     def from_gamestates(cls, gamestates: dict[str, Any]) -> ReferenceIndex:
         owners: dict[int, tuple[EntityDomain, str]] = {}
+        skipped = 0
         for strategy in ENTITY_DOMAINS:
             if strategy.confidence is not IdentityConfidence.IN_SAVE_ID:
                 continue
             for short_type in strategy.state_types:
                 try:
                     entries = decode_state_map(gamestates, short_type)
-                except UnsupportedSaveShapeError:
-                    continue  # a malformed unrelated container must not break the normalized domains
+                except UnsupportedSaveShapeError as error:
+                    # A malformed unrelated container must not break the normalized domains.
+                    logger.debug("reference index skipped %s", fields(state_type=short_type, reason=str(error)))
+                    skipped += 1
+                    continue
                 for entry in entries:
                     owners.setdefault(entry.map_id, (strategy.domain, short_type))
+        logger.debug("reference index built %s", fields(ids=len(owners), skipped_types=skipped))
         return cls(owners)
 
     def _lookup(self, value: Any, expected: frozenset[EntityDomain]) -> EntityRef | None:

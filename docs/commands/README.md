@@ -10,6 +10,15 @@ option list of the installed version.
 | `parse <save>` | Implemented | [parse.md](parse.md) |
 | `diff <before> <after>` | Stub | Reports literal state changes between two snapshots. |
 
+## Global options
+
+Global options precede the command name.
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--version` | | Print the package version and exit. |
+| `--log-level LEVEL` | `warning` | Diagnostic log level on stderr: `debug`, `info`, `warning`, or `error`. Overrides the `TINARRATIVE_LOG_LEVEL` environment variable. See the [debugging guide](../debugging.md). |
+
 Stubs (currently `diff`) are registered so their exit code is stable. They accept
 no arguments: running one prints `tinarrative <command> is not implemented yet.`
 to stderr and exits with code 3. A command gets its own page when it is implemented.
