@@ -6,10 +6,20 @@ narrative presentation.
 
 ## Development
 
+Requires Python 3.11 or newer. Work inside a project-local virtual environment
+so the pinned development tools don't mix with other Python installs:
+
 ```sh
+python3 -m venv .venv            # once per clone
+source .venv/bin/activate        # once per shell session
 python -m pip install -e ".[dev]"
 tinarrative --help
 ```
+
+Activation puts `.venv/bin` first on `PATH`, so `python`, `tinarrative`, and the
+`make` targets below all use the environment's interpreter. Run `deactivate` to
+leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
+`.venv/` directory is ignored by git; delete and recreate it to start fresh.
 
 ## Commands
 

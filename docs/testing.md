@@ -1,6 +1,7 @@
 # Testing and fixtures
 
-Run the normal test suite locally with:
+Run the normal test suite locally, from an activated virtual environment (see
+[Development](../README.md#development)), with:
 
 ```sh
 python -m pip install -e ".[test]"
