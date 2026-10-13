@@ -26,7 +26,11 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 - [`tinarrative inspect <save>`](docs/commands/inspect.md): report one save's
   raw serialized structure without interpreting it.
 - [`tinarrative parse <save>`](docs/commands/parse.md): load and validate one
-  save as a supported raw save and print an envelope summary.
+  save as a supported raw save and print an envelope summary, ending with the
+  number of unknown structures met.
+- [`tinarrative unknowns <path>...`](docs/commands/unknowns.md): scan saves for
+  structures the parser does not describe and record them in the
+  [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.
 - `tinarrative diff <before> <after>` is registered but not implemented yet.
 
 Each page documents the command's options, output, and exit codes. See the
@@ -59,7 +63,10 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `identity`: per-domain entity-identity strategy table and the ID census that
   `inspection` reports.
 - `log`: opt-in diagnostic logging conventions shared by every stage.
-- `parsing`: decode version-specific save data and normalize it.
+- `parsing`: decode version-specific save data and normalize it; every run
+  also reports the structures outside its schema as content-free findings.
+- `maintenance`: scan saves for those findings and keep the unknowns registry
+  (`tinarrative unknowns`, `parse --record-unknowns`).
 - `model`: stable snapshots, changes, events, and provenance types.
 - `diff`: derive literal state transitions.
 - `analyzers`: emit domain-specific atomic events.

@@ -38,7 +38,11 @@ def decode_state_map(gamestates: dict[str, Any], short_type: str) -> tuple[State
     pair shape, whose ``Key.value`` and ``Value.ID.value`` disagree, or that repeats an ID.
     """
     full_type = STATE_PREFIX + short_type
-    container = gamestates.get(full_type)
+    return decode_container(full_type, gamestates.get(full_type))
+
+
+def decode_container(full_type: str, container: Any) -> tuple[StateEntry, ...]:
+    """Decode one serialized state collection under its exact ``gamestates`` key (see ``decode_state_map``)."""
     if container is None or container == {}:
         return ()
     if not isinstance(container, list):

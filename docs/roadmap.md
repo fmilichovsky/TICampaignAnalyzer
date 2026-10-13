@@ -7,6 +7,8 @@
   narrative, and rendering responsibilities.
 - [x] Opt-in debug logging for `inspect` and `parse` (`--log-level`,
   `TINARRATIVE_LOG_LEVEL`).
+- [x] Detect and register unknown save structures (`tinarrative unknowns`,
+  `parse --record-unknowns`, `docs/game-data-notes/unknowns/`).
 
 ## MVP
 

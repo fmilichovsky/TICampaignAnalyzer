@@ -6,8 +6,8 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 
 | Normalized domain | State type | Observed fields relevant to the architecture |
 | --- | --- | --- |
-| Campaign time | `TITimeState` | `daysInCampaign`, `currentQuarterSinceStart`, `currentDateTime` (`year`, `month`, `day`, `hour`, `minute`, `second`, `millisecond`), `masterMetaTemplateName`, `scenarioMetaTemplateName` |
-| Campaign metadata | `TIMetadataState` | `gameTimeString`, `playerFactionName`, `difficulty`, `playedWithMods`, scenario/difficulty multipliers |
+| Campaign time | `TITimeState` | `daysInCampaign`, `currentQuarterSinceStart`, `currentDateTime` (`year`, `month`, `day`, `hour`, `minute`, `second`, `millisecond`), `masterMetaTemplateName`, `scenarioMetaTemplateName` (`TIME_FIELDS`) |
+| Campaign metadata | `TIMetadataState` | `gameTimeString`, `playerFactionName`, `difficulty`, `playedWithMods` (`METADATA_FIELDS`); scenario/difficulty multipliers stay unnormalized |
 | Factions | `TIFactionState` | `player`, `councilors`, `knownSpies`, `fleets`, `habSectors`, `controlPoints`, `armies`, `resources`, `finishedProjectNames`, `currentProjectProgress`, `researchWeights`, `intel`, `factionGoals` |
 | Nations | `TINationState` | `capital`, `regions`, `allies`, `rivals`, `claims`, `wars`, `armies`, `publicOpinion`, `GDP`, `inequality`, `education`, `democracy`, `cohesion`, `unrest`, `militaryTechLevel`, `controlPoints`, `federation`, `breakawayParent`, `breakaways` |
 | Control points | `TIControlPoint` | `nation`, `faction`, `benefitsDisabled`, `defended`, `crackdownExpiration`, `defendExpiration`, `controlPointType`, `positionInNation` |
@@ -111,7 +111,18 @@ Use the state type and numeric map ID as the factual provenance key, for example
 
 `src/tinarrative/parsing/fields.py` implements this for `TIFactionState`, `TINationState`, `TIRegionState`, `TIControlPoint`, `TICouncilorState`, `TIArmyState`, `TIMegafaunaArmyState`, `TISpaceFleetState`, `TISpaceShipState`, and `TIHabState`: it copies exactly the fields in the table above (plus the common entity metadata), resolves a reference field only when its observed target type has an entity domain and the ID exists in the same save, keeps other reference-shaped values raw, and records every object's state type, map ID, and `/gamestates/<type>/<index>/Value` path. A field observed to point at more than one domain (councilor `location`) resolves against the set of observed domains; the owning state type decides the resulting domain.
 
-Deliberately not copied: `damagePoints` (vectors), ship module graphs and `ammo`/`batteryCharge` (`$id`/`$ref`), fleet `Logs`, `AI_FailedAttackEnemyStrength`, `unreachableLocations`, hab `conflictFleets` (51 of 55 IDs were stale), and every `TIHabModuleState`/`TIOrgState` field.
+Every `Value` object also carries the serializer members `$type`, `ID`, `finderSortOverride` and `gameStateSubjectCreated` (`SERIALIZATION_FIELDS`); they are known and never normalized. The following observed fields are deliberately not copied; `ACKNOWLEDGED_FIELDS` in `fields.py` lists them with the same `UnsupportedReason`, so the unknowns scan does not report them. Every `TIHabModuleState`/`TIOrgState` field is likewise left raw, because those types are not normalized at all.
+
+| State type | Field | Reason |
+| --- | --- | --- |
+| `TISpaceShipState` | `damagePoints` | `vector` (`{w, x, y, z}`, not hit points) |
+| `TISpaceShipState` | `hullWeapons`, `noseWeapons`, `utilityModules`, `ammo`, `batteryCharge` | `reference_graph` (`$id`/`$ref` module graphs) |
+| `TISpaceFleetState` | `Logs` | `derived_history` |
+| `TISpaceFleetState` | `AI_FailedAttackEnemyStrength` | `ai_internal` |
+| `TISpaceFleetState` | `unreachableLocations` | `stale_references` |
+| `TIHabState` | `conflictFleets` | `stale_references` (51 of 55 IDs were stale) |
+
+Every other field observed on a normalized type or singleton that is neither in the table above nor copied is an open item in the [unknowns registry](unknowns/README.md); triage moves it into one of the two tables.
 
 Research has no state objects. `normalization._research` keeps the five singleton fields on `ResearchState` (with the singleton's path) and derives one name-keyed `technology` state per string in `finishedTechsNames` and per `techProgress` element with a string `techTemplateName`, each with `finished` (membership in the finished list), `progress` (the raw element or unknown), and a path into the list it came from. Elements of another shape create no identity and stay visible raw on `ResearchState`.
 

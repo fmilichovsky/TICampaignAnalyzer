@@ -16,12 +16,14 @@ from tinarrative.cli import (
     EXIT_INPUT_ERROR,
     EXIT_NOT_IMPLEMENTED,
     EXIT_PATH_NOT_FOUND,
+    EXIT_REGISTRY_ERROR,
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED_INPUT,
     EXIT_USAGE_ERROR,
     main,
 )
 from tinarrative.log import ENV_VAR
+from tinarrative.maintenance import REGISTRY_ENV_VAR
 
 REPRESENTATIVE = ("io", "terra_invicta_json_v1", "representative_campaign.json")
 
@@ -48,7 +50,7 @@ class CliSkeletonTests(unittest.TestCase):
             self.assertEqual(main(["diff"]), EXIT_NOT_IMPLEMENTED)
 
     def test_subcommand_help_does_not_need_a_save_file(self) -> None:
-        for command in ("inspect", "parse", "diff"):
+        for command in ("inspect", "parse", "unknowns", "diff"):
             with self.subTest(command=command), redirect_stdout(StringIO()):
                 with self.assertRaises(SystemExit) as result:
                     main([command, "--help"])
@@ -65,6 +67,41 @@ class ParseCommandTests(unittest.TestCase):
         self.assertIn("format: terra_invicta_json_v1", out)
         self.assertIn("game version: not serialized", out)
         self.assertEqual(err, "")
+
+    def test_summary_ends_with_the_unknown_structure_count(self) -> None:
+        code, out, err = self.run_parse(fixture_path("io", "terra_invicta_json_v1", "campaign_assets.json"))
+        self.assertEqual((code, err), (EXIT_SUCCESS, ""))
+        self.assertEqual(out.splitlines()[-1], "unknown structures: 0")
+        code, out, _ = self.run_parse(fixture_path("io", "terra_invicta_json_v1", "political_control.json"))
+        self.assertEqual(code, EXIT_SUCCESS)
+        self.assertEqual(out.splitlines()[-1], "unknown structures: 2")
+
+    def test_record_unknowns_needs_a_registry_and_writes_one(self) -> None:
+        save = fixture_path("io", "terra_invicta_json_v1", "political_control.json")
+        with mock.patch.dict(os.environ):
+            os.environ.pop(REGISTRY_ENV_VAR, None)
+            code, out, err = run_cli(["parse", str(save), "--record-unknowns"])
+            self.assertEqual(code, EXIT_USAGE_ERROR)
+            self.assertIn("unknown structures: 2", out)
+            self.assertIn(f"--record-unknowns needs --registry PATH or {REGISTRY_ENV_VAR}", err)
+            with tempfile.TemporaryDirectory() as directory:
+                registry = Path(directory) / "registry.json"
+                code, out, err = run_cli(["parse", str(save), "--record-unknowns", "--registry", str(registry)])
+                self.assertEqual((code, err), (EXIT_SUCCESS, ""))
+                self.assertEqual(out.splitlines()[-1], f"registry: {registry}: 2 added, 0 updated, 0 pruned, 2 total")
+                self.assertTrue(registry.exists())
+                os.environ[REGISTRY_ENV_VAR] = str(registry)
+                code, out, err = run_cli(["parse", str(save), "--record-unknowns"])
+                self.assertEqual((code, err), (EXIT_SUCCESS, ""))
+                self.assertIn("2 updated", out.splitlines()[-1])
+                code, out, err = run_cli(["parse", str(save), "--registry", str(registry)])  # flag alone: no write
+                self.assertEqual((code, err), (EXIT_SUCCESS, ""))
+                self.assertNotIn("registry:", out)
+                code, out, err = run_cli(["parse", str(save), "--record-unknowns", "--registry", directory])
+                self.assertEqual(code, EXIT_REGISTRY_ERROR)
+                self.assertIn("unknown structures: 2", out)
+                self.assertIn("cannot update registry", err)
+                self.assertNotIn("Traceback", err)
 
     def test_missing_path_is_an_input_error(self) -> None:
         code, _, err = self.run_parse(Path("does-not-exist.json"))
@@ -130,6 +167,12 @@ class LogLevelTests(unittest.TestCase):
             any(line.startswith("DEBUG tinarrative.parsing.normalization: domain normalized") for line in lines)
         )
         self.assertTrue(lines[-1].startswith("INFO tinarrative.cli: parse done save="))
+        self.assertIn("unknowns=3 exit=0", lines[-1])
+        self.assertIn(
+            "INFO tinarrative.parsing.unknowns: unknown structures total=3 state_types=0 fields=3 envelope_keys=0 "
+            "field_shapes=0 reference_domains=0 singletons=0 containers=0",
+            lines,
+        )
 
     def test_info_level_summarizes_without_debug_lines(self) -> None:
         code, _, err = run_cli(["--log-level", "info", "parse", str(self.save)])

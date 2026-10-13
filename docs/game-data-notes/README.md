@@ -24,6 +24,8 @@ For implementation-facing findings, start with [containers and references](conta
 
 The [state-type inventory](state-type-inventory.md) is the complete observed envelope key set and should be used for parser routing—not as a rejection list for additional future state types.
 
+[Unknown save structures](unknowns/README.md) is the triage backlog: `unknowns/registry.json` is written by `tinarrative unknowns` and records every field, state type, shape or reference target the parser met and does not describe (names, shapes, counts and dates only). It is the only machine-written file in this directory; its README explains how an entry becomes a normalized or acknowledged field.
+
 [Chronology and duplicate snapshots](chronology-and-deduplication.md) defines the observed ordering and byte-level deduplication behavior needed before producing a campaign sequence.
 
 [Campaign grouping](campaign-grouping.md) describes the evidence-based

@@ -15,6 +15,7 @@ from tinarrative.parsing.errors import UnsupportedSaveShapeError
 from tinarrative.parsing.fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, RESEARCH_STATE_TYPE
 from tinarrative.parsing.normalization import game_datetime, normalize
 from tinarrative.parsing.raw_save import RawSave
+from tinarrative.parsing.unknowns import PAIR_MAP_VIOLATION, ShapeSummary, UnknownCollector, UnknownReport
 
 FIXTURE_SET = ("io", "terra_invicta_json_v1")
 
@@ -23,11 +24,27 @@ def load(name: str) -> SaveSnapshot:
     return normalize(load_raw_save(fixture_path(*FIXTURE_SET, name)))
 
 
-def fragment(gamestates: dict[str, object]) -> SaveSnapshot:
+def fragment_raw(gamestates: dict[str, object]) -> RawSave:
     root: dict[str, object] = {"currentID": {"value": 1}, "gamestates": gamestates}
-    return normalize(
-        RawSave(source="fragment.json", format="terra_invicta_json_v1", game_version=None, root=root, size_bytes=1)
-    )
+    return RawSave(source="fragment.json", format="terra_invicta_json_v1", game_version=None, root=root, size_bytes=1)
+
+
+def fragment(gamestates: dict[str, object]) -> SaveSnapshot:
+    return normalize(fragment_raw(gamestates))
+
+
+def collect(raw: RawSave) -> tuple[SaveSnapshot, UnknownReport]:
+    collector = UnknownCollector()
+    snapshot = normalize(raw, collector=collector)
+    return snapshot, collector.report()
+
+
+def keys(report: UnknownReport) -> list[tuple[str, str, str, str]]:
+    return [finding.key for finding in report.findings]
+
+
+def pair(map_id: int, **members: object) -> dict[str, object]:
+    return {"Key": {"value": map_id}, "Value": {"ID": {"value": map_id}, **members}}
 
 
 def by_id(states: tuple[EntityState, ...], key: str) -> EntityState:
@@ -447,3 +464,94 @@ def test_malformed_normalized_container_is_rejected_as_unsupported_shape() -> No
     bad = [{"Key": {"value": 1}, "Value": {"ID": {"value": 2}}}]
     with pytest.raises(UnsupportedSaveShapeError, match="TIControlPoint"):
         fragment({STATE_PREFIX + "TIControlPoint": bad})
+
+
+# --- unknown structures -------------------------------------------------------------------------------------------
+
+
+@pytest.mark.fixture
+def test_fixture_unknowns_are_reported_and_leave_the_snapshot_unchanged(political: SaveSnapshot) -> None:
+    raw = load_raw_save(fixture_path(*FIXTURE_SET, "political_control.json"))
+    snapshot, report = collect(raw)
+    assert snapshot == political
+    assert keys(report) == [
+        ("unknown_field", "TINationState", "fixtureOnlyUndocumentedField", ""),
+        ("unknown_state_type", "TIFixtureUnknownState", "", ""),
+    ]
+    field, state_type = report.findings
+    assert field.occurrences == 1 and field.shape == ShapeSummary(("number",))
+    assert state_type.occurrences == 1
+    assert "Fixture Resistance" not in json.dumps(report.to_dict())  # the type name is schema, values are not
+    _assets, clean = collect(load_raw_save(fixture_path(*FIXTURE_SET, "campaign_assets.json")))
+    assert clean.total == 0
+
+
+def test_reference_fields_report_unexpected_shapes_and_owners_while_resolving_as_before() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [pair(10)],
+        STATE_PREFIX + "TIMissionState": [pair(998)],  # inventory type without an entity domain
+        STATE_PREFIX + "TIRegionState": [pair(40)],
+        STATE_PREFIX + "TINationState": [
+            pair(20, capital={"value": 10}, regions={"value": 40}, allies=[None], rivals=["x"]),
+            pair(21, capital={"value": 998}, breakawayParent={"value": 999}, regions=[{"value": 40}]),
+            pair(22, capital="40"),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert keys(report) == [
+        ("unexpected_field_shape", "TINationState", "allies", "reference_object"),
+        ("unexpected_field_shape", "TINationState", "capital", "reference_object"),
+        ("unexpected_field_shape", "TINationState", "regions", "array_of_references"),
+        ("unexpected_field_shape", "TINationState", "rivals", "reference_object"),
+        ("unexpected_reference_domain", "TINationState", "capital", "TIFactionState"),
+        ("unexpected_reference_domain", "TINationState", "capital", "TIMissionState"),
+    ]
+    assert by_id(snapshot.nations, "20").get("capital") == unresolved(10)
+    assert by_id(snapshot.nations, "20").get("regions") == Unknown(
+        UnknownReason.UNPARSEABLE, FrozenMap((("value", 40),))
+    )
+    assert by_id(snapshot.nations, "21").get("capital") == unresolved(998)
+    assert by_id(snapshot.nations, "21").get("breakawayParent") == unresolved(999)  # absent ID: no finding
+    assert by_id(snapshot.nations, "21").get("regions") == (ref(EntityDomain.REGION, "40", "TIRegionState"),)
+    assert by_id(snapshot.nations, "22").get("capital") == Unknown(UnknownReason.UNRESOLVED_REFERENCE, "40")
+    assert snapshot == fragment(gamestates)
+
+
+def test_singletons_dates_and_research_lists_report_their_unexpected_structures() -> None:
+    time_entries = [
+        pair(2, currentDateTime="2031-03-01T00:00:00", nextTurn=1),
+        pair(3, currentDateTime={"year": 2031}),
+    ]
+    research = pair(5, finishedTechsNames="not-a-list", techProgress=[{"techTemplateName": "Dup"}])
+    bad_org = [{"Key": {"value": 1}, "Value": {"ID": {"value": 2}}}]
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TITimeState": time_entries,
+        STATE_PREFIX + RESEARCH_STATE_TYPE: [research],
+        STATE_PREFIX + "TIOrgState": bad_org,
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert keys(report) == [
+        ("unexpected_container_shape", "TIOrgState", "", PAIR_MAP_VIOLATION),
+        ("unexpected_field_shape", RESEARCH_STATE_TYPE, "finishedTechsNames", "array"),
+        ("unexpected_field_shape", "TITimeState", "currentDateTime", "componentized_date"),
+        ("unexpected_singleton_count", "TITimeState", "", ""),
+        ("unknown_field", "TITimeState", "nextTurn", ""),
+    ]
+    singleton = next(finding for finding in report.findings if finding.kind.value == "unexpected_singleton_count")
+    assert singleton.occurrences == 2 and singleton.shape is None
+    date_shape = next(finding for finding in report.findings if finding.field == "currentDateTime")
+    assert date_shape.shape == ShapeSummary(("string",))
+    assert snapshot.date == Unknown(UnknownReason.UNPARSEABLE, "2031-03-01T00:00:00")
+    assert snapshot.research.finished_techs_names == "not-a-list"
+
+
+def test_unknown_structures_are_summarized_in_the_log_without_a_collector(caplog: pytest.LogCaptureFixture) -> None:
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="tinarrative"):
+        fragment({STATE_PREFIX + "TINationState": [pair(20, secretField="Fixture Value")]})
+    assert (
+        "unknown structures total=1 state_types=0 fields=1 envelope_keys=0 field_shapes=0 reference_domains=0 "
+        "singletons=0 containers=0"
+    ) in caplog.text
+    assert "secretField" not in caplog.text and "Fixture" not in caplog.text

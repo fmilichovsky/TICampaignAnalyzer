@@ -239,6 +239,13 @@ The snippets above are conceptual; the implemented types differ as follows:
 -   Organizations have a collection but are not normalized yet; other space
     objects (bodies, orbits, hab sites, sectors, modules) resolve as reference
     targets only, and singular diplomacy and economy states are not modelled.
+-   The normalizer never drops information silently. Every structure outside its
+    code-form schema (`parsing.inventory`, `parsing.fields`) is reported through
+    `parsing.unknowns.UnknownCollector` as a content-free finding (state type, field,
+    JSON shape, counts) and never coerced into a model value: an unlisted field is
+    still not copied, and a reference to an unexpectedly owned ID still resolves to
+    `Unknown(unresolved_reference)`. The `maintenance` package persists findings in
+    `docs/game-data-notes/unknowns/registry.json` for triage into the schema.
 
 ------------------------------------------------------------------------
 
