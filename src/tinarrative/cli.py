@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import functools
 import os
 import sys
 from collections.abc import Callable, Sequence
@@ -12,6 +11,9 @@ from pathlib import Path
 from typing import cast
 
 from . import __version__
+from .diff import diff_states
+from .diff import render_json as render_diff_json
+from .diff import render_text as render_diff_text
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_loader import load_raw_save, load_save
 from .log import DEFAULT_LEVEL, ENV_VAR, LEVELS, configure_logging, fields, get_logger, safe_path
@@ -20,7 +22,7 @@ from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
 from .maintenance.scan import ScanRun, expand_inputs, scan_inputs
-from .model.snapshot import NORMALIZED_COLLECTION_LABELS
+from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
@@ -31,6 +33,7 @@ logger = get_logger(__name__)
 EXIT_SUCCESS = 0
 EXIT_USAGE_ERROR = 2
 EXIT_NOT_IMPLEMENTED = 3
+"""Reserved for commands registered before they are implemented; none is at present."""
 EXIT_INPUT_ERROR = 4
 """The save path could not be read (missing, unreadable, or a directory)."""
 EXIT_UNSUPPORTED_INPUT = 5
@@ -43,15 +46,6 @@ EXIT_REGISTRY_ERROR = 7
 or summary is still printed."""
 
 Handler = Callable[[argparse.Namespace], int]
-
-
-def _not_implemented(command: str, _args: argparse.Namespace) -> int:
-    """Report a pipeline stage that has not been implemented yet."""
-    print(
-        f"tinarrative {command} is not implemented yet.",
-        file=sys.stderr,
-    )
-    return EXIT_NOT_IMPLEMENTED
 
 
 def _non_negative_int(text: str) -> int:
@@ -226,6 +220,44 @@ def _unknowns_exit_code(run: ScanRun) -> int:
     return EXIT_SUCCESS
 
 
+def _load_snapshot(command: str, save_path: Path) -> SaveSnapshot | int:
+    """Load and normalize one save, or print the failure and return the exit code."""
+    save_name = safe_path(save_path)
+    try:
+        return normalize(load_raw_save(save_path))
+    except OSError as error:
+        reason = error.strerror or str(error)
+        logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
+        print(f"tinarrative {command}: cannot read {save_path}: {reason}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    except SaveLoadError as error:
+        logger.debug("parse failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
+        print(f"tinarrative {command}: {save_path}: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+
+
+def _run_diff(args: argparse.Namespace) -> int:
+    """Compare two saves and report every literal state change between them."""
+    before_path, after_path = cast(Path, args.before), cast(Path, args.after)
+    before_name, after_name = safe_path(before_path), safe_path(after_path)
+    logger.info("diff start %s", fields(before=before_name, after=after_name))
+    before = _load_snapshot("diff", before_path)
+    if isinstance(before, int):
+        return before
+    after = _load_snapshot("diff", after_path)
+    if isinstance(after, int):
+        return after
+    diff = diff_states(before, after)
+    rendered = render_diff_json(diff) if args.format == "json" else render_diff_text(diff)
+    sys.stdout.write(rendered)
+    sys.stdout.flush()
+    logger.info(
+        "diff done %s",
+        fields(before=before_name, after=after_name, changes=len(diff.changes), exit=EXIT_SUCCESS),
+    )
+    return EXIT_SUCCESS
+
+
 def _render_observed(value: Observed) -> str:
     """One-line text for a normalized value; unknown values say why."""
     rendered = to_jsonable(value)
@@ -363,6 +395,33 @@ def _add_inspect_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
     parser.set_defaults(handler=_run_inspect)
 
 
+def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "Compare two campaign snapshots and report state changes."
+    parser = subcommands.add_parser(
+        "diff",
+        help=summary,
+        description=(
+            f"{summary} Both saves are normalized exactly as 'parse' does, entities are matched by "
+            "their in-save ID (technologies by name), and every differing field is listed with its "
+            "before and after value and its location in each save. Entities present in only one save "
+            "are reported as appeared or disappeared; no cause is inferred."
+        ),
+        epilog=(
+            "Exit codes: 0 success; 2 usage error; 4 a save cannot be read; "
+            "5 a save is malformed or has an unsupported shape, format, or game version."
+        ),
+    )
+    parser.add_argument("before", type=Path, help="Path to the earlier save file.")
+    parser.add_argument("after", type=Path, help="Path to the later save file.")
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Report format (default %(default)s).",
+    )
+    parser.set_defaults(handler=_run_diff)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tinarrative",
@@ -389,9 +448,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_inspect_parser(subcommands)
     _add_parse_parser(subcommands)
     _add_unknowns_parser(subcommands)
-    diff_summary = "Compare two campaign snapshots and report state changes."
-    diff_parser = subcommands.add_parser("diff", help=diff_summary, description=diff_summary)
-    diff_parser.set_defaults(handler=functools.partial(_not_implemented, "diff"))
+    _add_diff_parser(subcommands)
     return parser
 
 

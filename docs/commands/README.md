@@ -9,7 +9,7 @@ option list of the installed version.
 | `inspect <save>` | Implemented | [inspect.md](inspect.md) |
 | `parse <save>` | Implemented | [parse.md](parse.md) |
 | `unknowns <path>...` | Implemented | [unknowns.md](unknowns.md) |
-| `diff <before> <after>` | Stub | Reports literal state changes between two snapshots. |
+| `diff <before> <after>` | Implemented | [diff.md](diff.md) |
 
 ## Global options
 
@@ -24,10 +24,6 @@ Global options precede the command name.
 `TINARRATIVE_UNKNOWNS_REGISTRY` environment variable; see the
 [unknowns registry](../game-data-notes/unknowns/README.md).
 
-Stubs (currently `diff`) are registered so their exit code is stable. They accept
-no arguments: running one prints `tinarrative <command> is not implemented yet.`
-to stderr and exits with code 3. A command gets its own page when it is implemented.
-
 ## Shared exit codes
 
 Exit codes are stable and defined at the top of `src/tinarrative/cli.py`.
@@ -36,7 +32,7 @@ Exit codes are stable and defined at the top of `src/tinarrative/cli.py`.
 | --- | --- |
 | 0 | Success. |
 | 2 | Usage error (argparse). |
-| 3 | The command is registered but not implemented yet. |
+| 3 | Reserved for a command registered before it is implemented; no command uses it at present. |
 | 4 | An input path could not be read. |
 | 5 | Input bytes were read but are not in a decodable, documented format (`parse`: malformed data or unsupported shape, format, or game version). |
 | 6 | A user-selected path did not resolve. |

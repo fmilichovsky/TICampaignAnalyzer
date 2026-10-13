@@ -5,7 +5,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from tinarrative.model.changes import StateChange, StateDiff
+from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.evidence import Evidence, SourceLocation
 from tinarrative.model.snapshot import STATE_COLLECTIONS, EntityState, ResearchState, SaveSnapshot
@@ -85,12 +85,52 @@ def test_change_traces_to_values_and_locations() -> None:
 def test_diff_orders_changes_deterministically() -> None:
     before = SaveSnapshot(source="a.save", date="2030-01-01")
     after = SaveSnapshot(source="b.save", date="2030-02-01")
-    changes = [_change("z", "2"), _change("a", "2"), _change("m", "1")]
+    changes = [_change("z", "2"), _change("a", "2"), _change("m", "10"), _change("m", "9")]
     forward = StateDiff(before, after, tuple(changes))
     backward = StateDiff(before, after, tuple(reversed(changes)))
     assert forward == backward
-    assert [c.field for c in forward.changes] == ["m", "a", "z"]
+    assert [(c.entity_id.key if c.entity_id else None, c.field) for c in forward.changes] == [
+        ("2", "a"),
+        ("2", "z"),
+        ("9", "m"),
+        ("10", "m"),
+    ]
     assert json.dumps(forward.to_dict()) == json.dumps(backward.to_dict())
+    assert forward.to_dict()["before_date"] == "2030-01-01"
+
+
+def test_change_kind_detail_and_absent_field_serialize() -> None:
+    plain = _change("population")
+    assert plain.kind is ChangeKind.VALUE and plain.detail is None
+    data = plain.to_dict()
+    assert (data["kind"], data["detail"], data["description"]) == ("value", None, "population")
+    presence = StateChange(
+        domain="nation",
+        field=None,
+        before=Unknown(),
+        after=_ref("7"),
+        evidence=Evidence("nation", "present only in the after snapshot", Unknown(), _ref("7")),
+        entity_id=EntityId(EntityDomain.NATION, "7"),
+        kind=ChangeKind.APPEARED,
+    )
+    assert presence.sort_key == ("nation", 0, 1, "7", "")
+    assert presence.to_dict()["field"] is None
+    assert presence.to_dict()["kind"] == "appeared"
+    membership = StateChange(
+        domain="nation",
+        field="allies",
+        before=(),
+        after=(_ref("2"),),
+        evidence=Evidence("nation", "allies membership changed: 1 added, 0 removed", (), (_ref("2"),)),
+        entity_id=EntityId(EntityDomain.NATION, "7"),
+        kind=ChangeKind.MEMBERSHIP,
+        detail=MembershipDetail(added=(_ref("2"),)),
+    )
+    assert membership.to_dict()["detail"] == {"added": [to_jsonable(_ref("2"))], "removed": []}
+    assert MapDetail(changed=("Money",)).to_dict() == {"added": [], "removed": [], "changed": ["Money"]}
+    assert isinstance(hash(membership), int)
+    name_keyed = EntityId(EntityDomain.TECHNOLOGY, "Alpha").sort_key
+    assert EntityId(EntityDomain.TECHNOLOGY, "9").sort_key < name_keyed
 
 
 def test_snapshot_orders_collections_and_is_immutable() -> None:
@@ -102,7 +142,7 @@ def test_snapshot_orders_collections_and_is_immutable() -> None:
     )
     assert {"fleets", "ships", "habs", "technologies"} <= set(STATE_COLLECTIONS)
     for name in STATE_COLLECTIONS:
-        assert [s.ref.entity_id.key for s in getattr(snapshot, name)] == ["20", "3"]
+        assert [s.ref.entity_id.key for s in getattr(snapshot, name)] == ["3", "20"]  # natural, not lexical
     with pytest.raises(FrozenInstanceError):
         snapshot.source = "x"  # type: ignore[misc]
     assert isinstance(hash(snapshot), int)

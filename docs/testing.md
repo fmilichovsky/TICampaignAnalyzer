@@ -92,6 +92,26 @@ tinarrative inspect tests/fixtures/io/terra_invicta_json_v1/representative_campa
 Real saves must never be added here. The opt-in `real_save` test reads the
 save location from the `TINARRATIVE_REAL_SAVE` environment variable instead.
 
+## Expected `diff` reports
+
+`tests/fixtures/diff/<fixture-set>/<before-name>__<after-name>.expected.txt` and `.expected.json`
+hold the exact text and JSON that `tinarrative diff` must print for the fixture pair of
+those names under `tests/fixtures/io/<fixture-set>/`. The goldens are produced from
+inside the fixture directory with bare file names, so they contain no machine paths:
+
+```sh
+cd tests/fixtures/io/terra_invicta_json_v1
+tinarrative diff interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.txt
+tinarrative diff --format json interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.json
+```
+
+Review a regenerated golden line by line and commit it with the change that altered it.
+The pair is hand-authored so that each `ChangeKind` (value, membership, map, unknown,
+appeared, disappeared) occurs at least once; a test asserts that.
+
+The opt-in `real_save` diff test additionally needs `TINARRATIVE_REAL_SAVE_AFTER`, the later
+save of a consecutive pair; it checks determinism and evidence only and prints nothing.
+
 ### Deriving a safe structural fixture
 
 1. Inspect a real save locally; never copy it into the repository or a shared
