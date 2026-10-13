@@ -44,6 +44,10 @@ Arrays occur for both relationship collections and scalar collections. For examp
 
 Some reference-shaped objects also had a `$type` member (observed in `TICouncilorState.location` and `TISpaceFleetState.barycenter`). Preserve that discriminator until the relevant domain parser has a documented use for it.
 
+### Field-level dictionaries
+
+Observed on 2026-10-13 in five private complete saves (structure only): a dictionary-valued *field* on a state object follows the same convention as the state-type containers. A non-empty dictionary is an array of `{ "Key": ..., "Value": ... }` pairs whose `Key` is a reference object (`{ "value": id }`, sometimes with `$type`), and an empty dictionary is `{}`. The same field is therefore seen as an array on some entities and as an object on others: `TIFactionState.Kills`, `factionAssassinations`, `internalCouncilorSuspicion`, `nShipyardQueues`, `TICouncilorState.assassinations`, `TINationState.adjacentNations`, `rivalryCooldowns`, `improveRelationsCooldowns`, `factionUnrestAttempts`. Dictionaries that were never empty in the sample (`TIFactionState.lostControlPoints`, `knownAlienSites`, `factionHate`) appeared only in the array form. A field-level decoder must accept both forms; the normalizer does not decode these fields yet.
+
 ### Common entity metadata
 
 The inspected entity values included `ID`, `archived`, `exists`, `finderSortOverride`, `templateName`, `displayName`, and `$type` alongside domain-specific fields. These fields are serialized data, not a promise that every future state type will have exactly this set.
@@ -62,6 +66,6 @@ The following is a project contract derived from the observations, rather than a
 
 ## Hypotheses and limits
 
-- The `{}`-for-empty convention appears to be a serializer behavior, but it has been observed in one complete save only. A future format may emit `[]`.
+- The `{}`-for-empty convention appears to be a serializer behavior. It has since been observed in six complete saves, at the container level and at the field level, but a future format may still emit `[]`.
 - Equality of map key and `Value.ID` is a strong observed invariant, not proof that every possible game object or future build uses it.
 - `$type` may distinguish polymorphic reference targets. Its semantics are not yet mapped.

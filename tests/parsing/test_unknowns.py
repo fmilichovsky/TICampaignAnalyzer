@@ -12,6 +12,7 @@ from tinarrative.identity import ENTITY_DOMAINS, STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.parsing.fields import (
     ACKNOWLEDGED_FIELDS,
+    COMMON_FIELDS,
     ENTITY_FIELDS,
     KNOWN_FIELDS,
     SERIALIZATION_FIELDS,
@@ -235,8 +236,10 @@ def test_is_known_says_whether_the_schema_can_still_produce_a_finding(key: tuple
 
 def test_schema_tables_are_consistent() -> None:
     for state_type, acknowledged in ACKNOWLEDGED_FIELDS.items():
-        assert state_type in ENTITY_FIELDS
-        assert not set(acknowledged) & set(ENTITY_FIELDS[state_type])
+        assert state_type in ENTITY_FIELDS or state_type in SINGLETON_FIELDS
+        copied = ENTITY_FIELDS.get(state_type, COMMON_FIELDS + SINGLETON_FIELDS.get(state_type, ()))
+        assert not set(acknowledged) & set(copied)
+        assert not set(acknowledged) & set(SERIALIZATION_FIELDS)
     for state_type, copied in ENTITY_FIELDS.items():
         assert not set(SERIALIZATION_FIELDS) & set(copied)
         assert KNOWN_FIELDS[state_type] >= set(copied) | set(SERIALIZATION_FIELDS)
