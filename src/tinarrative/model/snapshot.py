@@ -98,7 +98,7 @@ NORMALIZED_COLLECTION_LABELS = (
 
 
 def _sorted_states(states: tuple[EntityState, ...]) -> tuple[EntityState, ...]:
-    return tuple(sorted(states, key=lambda state: state.ref.entity_id))
+    return tuple(sorted(states, key=lambda state: state.ref.entity_id.sort_key))
 
 
 @dataclass(frozen=True)

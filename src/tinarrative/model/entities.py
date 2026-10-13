@@ -38,6 +38,12 @@ class EntityId:
     def __str__(self) -> str:
         return f"{self.domain.value}:{self.key}"
 
+    @property
+    def sort_key(self) -> tuple[str, int, int, str]:
+        """Natural order: numeric keys by value (``9`` before ``10``), then name keys lexically."""
+        numeric = self.key.isdigit()
+        return (self.domain.value, 0 if numeric else 1, len(self.key) if numeric else 0, self.key)
+
 
 @dataclass(frozen=True, order=True)
 class EntityRef:

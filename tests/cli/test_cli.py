@@ -14,7 +14,6 @@ import tinarrative
 from tests.fixtures import fixture_path
 from tinarrative.cli import (
     EXIT_INPUT_ERROR,
-    EXIT_NOT_IMPLEMENTED,
     EXIT_PATH_NOT_FOUND,
     EXIT_REGISTRY_ERROR,
     EXIT_SUCCESS,
@@ -44,10 +43,6 @@ class CliSkeletonTests(unittest.TestCase):
 
     def test_cli_runs_without_arguments(self) -> None:
         self.assertEqual(main([]), EXIT_SUCCESS)
-
-    def test_placeholder_commands_have_stable_exit_codes(self) -> None:
-        with redirect_stderr(StringIO()):
-            self.assertEqual(main(["diff"]), EXIT_NOT_IMPLEMENTED)
 
     def test_subcommand_help_does_not_need_a_save_file(self) -> None:
         for command in ("inspect", "parse", "unknowns", "diff"):
@@ -149,7 +144,8 @@ class LogLevelTests(unittest.TestCase):
         os.environ.pop(ENV_VAR, None)
 
     def test_default_run_writes_nothing_to_stderr(self) -> None:
-        for argv in (["parse", str(self.save)], ["inspect", str(self.save)]):
+        save = str(self.save)
+        for argv in (["parse", save], ["inspect", save], ["diff", save, save]):
             with self.subTest(argv=argv[0]):
                 code, _, err = run_cli(argv)
                 self.assertEqual(code, EXIT_SUCCESS)

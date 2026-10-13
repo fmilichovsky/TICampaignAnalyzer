@@ -17,7 +17,7 @@
 - [x] Load and validate a raw save (`tinarrative parse` validation).
 - [x] Normalize a minimal save snapshot (`tinarrative parse` summary).
 - [x] Normalize councilors, armies, space entities, and research state.
-- [ ] Produce a deterministic single-save diff.
+- [x] Produce a deterministic single-save diff (`tinarrative diff`).
 - [ ] Render objective changes as Markdown.
 
 ## Campaign history

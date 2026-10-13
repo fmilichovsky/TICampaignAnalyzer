@@ -1,36 +1,91 @@
-"""Objective state changes and the diff that collects them."""
+"""Objective state changes and the diff that collects them.
+
+A change records what differs between two snapshots and nothing about why. The wording is
+deliberately literal: an entity *appeared* or *disappeared* from a snapshot; whether that is a
+creation, destruction, merge or filter is an inference left to later stages.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from .entities import EntityId
 from .evidence import Evidence, SourceLocation
 from .snapshot import SaveSnapshot
-from .values import Observed, to_jsonable
+from .values import FieldValue, Observed, to_jsonable
+
+
+class ChangeKind(StrEnum):
+    """How a change was established; the discriminator for ``StateChange.detail``."""
+
+    APPEARED = "appeared"
+    """The entity is present only in the later snapshot; ``field`` is ``None``."""
+    DISAPPEARED = "disappeared"
+    """The entity is present only in the earlier snapshot; ``field`` is ``None``."""
+    VALUE = "value"
+    """Both sides are known and compared as one atomic value (scalar, null, reference, nested structure)."""
+    MEMBERSHIP = "membership"
+    """Both sides are reference or name lists compared as multisets; order alone never counts."""
+    MAP = "map"
+    """Both sides are mappings; ``detail`` names the keys added, removed and changed."""
+    UNKNOWN = "unknown"
+    """At least one side is ``Unknown``, so the values cannot be compared structurally."""
+
+
+@dataclass(frozen=True)
+class MembershipDetail:
+    """Members present on one side only, each sorted deterministically."""
+
+    added: tuple[FieldValue, ...] = ()
+    removed: tuple[FieldValue, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"added": [to_jsonable(m) for m in self.added], "removed": [to_jsonable(m) for m in self.removed]}
+
+
+@dataclass(frozen=True)
+class MapDetail:
+    """Keys of a mapping that differ between the two sides, sorted."""
+
+    added: tuple[str, ...] = ()
+    removed: tuple[str, ...] = ()
+    changed: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"added": list(self.added), "removed": list(self.removed), "changed": list(self.changed)}
 
 
 @dataclass(frozen=True)
 class StateChange:
+    """One literal difference; ``field`` is ``None`` only for entity appearance or disappearance."""
+
     domain: str
-    field: str
+    field: str | None
     before: Observed
     after: Observed
     evidence: Evidence
     entity_id: EntityId | None = None
+    kind: ChangeKind = ChangeKind.VALUE
+    detail: MembershipDetail | MapDetail | None = None
 
     @property
-    def sort_key(self) -> tuple[str, str, str]:
-        return (self.domain, str(self.entity_id) if self.entity_id else "", self.field)
+    def sort_key(self) -> tuple[str, int, int, str, str]:
+        """Domain, then entity in natural order (``9`` before ``10``, names after numbers), then field."""
+        entity = self.entity_id.sort_key if self.entity_id else ("", 0, 0, "")
+        return (self.domain, entity[1], entity[2], entity[3], self.field or "")
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "domain": self.domain,
             "entity_id": str(self.entity_id) if self.entity_id else None,
             "field": self.field,
+            "kind": self.kind.value,
             "before": to_jsonable(self.before),
             "after": to_jsonable(self.after),
+            "detail": self.detail.to_dict() if self.detail else None,
+            "description": self.evidence.description,
             "before_location": _location_dict(self.evidence.before_location),
             "after_location": _location_dict(self.evidence.after_location),
         }
@@ -53,5 +108,7 @@ class StateDiff:
         return {
             "before": self.before.source,
             "after": self.after.source,
+            "before_date": to_jsonable(self.before.date),
+            "after_date": to_jsonable(self.after.date),
             "changes": [change.to_dict() for change in self.changes],
         }

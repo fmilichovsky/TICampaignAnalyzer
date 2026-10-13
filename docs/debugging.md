@@ -48,12 +48,20 @@ Levels:
 
 | Level | Carries |
 | --- | --- |
-| `info` | One line per command stage: start, unknown-structure counts per kind, normalized, done; `unknowns` adds one line per scanned or skipped save. |
-| `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, research counts, root shape, ID census totals, each `--path` resolution, and registry load/update counts. |
+| `info` | One line per command stage: start, unknown-structure counts per kind, normalized, done; `unknowns` adds one line per scanned or skipped save; `diff` reports the total change count on its done line. |
+| `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, research counts, root shape, ID census totals, each `--path` resolution, registry load/update counts, and for `diff` one line per compared collection with entity counts on each side and the number of changes per kind (never the entities or values themselves). |
 | `warning`, `error` | Nothing on the success path. The CLI promises an empty stderr there, so a warning in normal operation is a bug. |
 
 When `parse` rejects a save, the one-line stderr message is unchanged; at `debug` it is
-preceded by a `parse failed save=... error=<ErrorClass>` line and the traceback.
+preceded by a `parse failed save=... error=<ErrorClass>` line and the traceback. `diff`
+normalizes both saves with the same lines, then adds its own aggregates:
+
+```text
+INFO tinarrative.cli: diff start before=Earlier.json after=Later.json
+DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=295 after=295 matched=295 appeared=0 disappeared=0 value=502 membership=42 map=0 unknown=0
+DEBUG tinarrative.diff.state_diff: singletons compared appeared=0 disappeared=0 value=4 membership=1 map=0 unknown=0
+INFO tinarrative.cli: diff done before=Earlier.json after=Later.json changes=1180 exit=0
+```
 
 ## What is never logged
 

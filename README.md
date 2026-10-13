@@ -31,7 +31,9 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 - [`tinarrative unknowns <path>...`](docs/commands/unknowns.md): scan saves for
   structures the parser does not describe and record them in the
   [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.
-- `tinarrative diff <before> <after>` is registered but not implemented yet.
+- [`tinarrative diff <before> <after>`](docs/commands/diff.md): compare two saves and
+  list every literal state change between them, with before/after values and
+  evidence, without inferring causes.
 
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.

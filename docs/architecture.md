@@ -221,7 +221,17 @@ The snippets above are conceptual; the implemented types differ as follows:
 -   `Evidence` keeps before/after values plus a `SourceLocation` for each side
     (save ID, state type, map ID, path; `TINationState:123` is the provenance key).
 -   `StateDiff` and `StateChange` live in `model.changes`; `diff.state_diff`
-    re-exports them. The parser fills the faction, nation, region, control-point,
+    re-exports them and implements `diff_states`. Each change has a `ChangeKind`:
+    `value` (one atomic known value on each side, strict equality so `1 != 1.0`),
+    `membership` (lists of references or of names compared as multisets; order
+    alone is not a change), `map` (objects compared key by key, the detail naming
+    the keys), `unknown` (either side is `Unknown`; nothing is inferred from the
+    known side), and `appeared`/`disappeared` (an entity present in one snapshot
+    only, with `field = None` and no per-field changes). Entities are matched by
+    `EntityId`; snapshot-level values are compared under the pseudo-domains
+    `campaign` and `research` with no entity. The campaign singletons carry no
+    `SourceLocation` yet, so those changes cite only the save; everything else
+    cites state type, map ID and path on each side. The parser fills the faction, nation, region, control-point,
     councilor, army (both army state types), fleet, ship and hab collections
     (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
     objects in the `space object` domain). A reference field observed to point at

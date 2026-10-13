@@ -128,6 +128,28 @@
       "version_assumption": "Synthetic explicit game_version on a full envelope; no build is documented as supported.",
       "sha256": "c84da3c513836086c824d920dc38e9360a341c358e891f53a843e073800dc979",
       "purpose": "Explicit game_version is rejected with UnsupportedGameVersionError."
+    },
+    {
+      "path": "interval_before.json",
+      "kind": "synthetic_diff_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "dcfcf1ad2071010e211041fb2aa6cef98ec2853ef1e350fa55ae873a2537c6ae",
+      "purpose": "Earlier snapshot of a synthetic campaign interval for `tinarrative diff`; pair with interval_after.json. Holds the entities and values that change, disappear (control point 12, councilor 101) or stay in a different order (nation regions) in the later snapshot; control points 9..12 exercise natural ID ordering."
+    },
+    {
+      "path": "interval_after.json",
+      "kind": "synthetic_diff_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "64e5381dd32489d20cd63db5e87eab1d1d36dc414373ff5636cffb80488d797c",
+      "purpose": "Later snapshot of the same synthetic interval: scalar, reference (null to resolved, resolved to unresolved), membership, map-key and unknown-value changes; entities that appear (megafauna army 112, councilor 102, fleet 121); a reference list with a stale ID; a newly finished technology; a later date."
     }
   ]
 }
