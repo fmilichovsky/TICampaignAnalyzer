@@ -116,3 +116,20 @@ checked in and run by default. They must not contain original campaign data.
 Real saves are never committed, sanitized or not. Tests that need one are
 tagged `@pytest.mark.real_save`, stay outside the default suite, and locate the
 save through `TINARRATIVE_REAL_SAVE`.
+
+## Unknowns registry
+
+`docs/game-data-notes/unknowns/registry.json` is machine-written by
+`tinarrative unknowns` from private saves and committed; it contains state-type
+and field names, JSON shapes, counts and dates only (see
+[its README](game-data-notes/unknowns/README.md)).
+`tests/maintenance/test_committed_registry.py` runs in the default suite and
+fails when the file is not canonical, holds an unsafe string, or lists an entry
+the schema now covers. After extending `ENTITY_FIELDS`, `ACKNOWLEDGED_FIELDS` or
+`KNOWN_STATE_TYPES`, refresh it locally:
+
+```sh
+tinarrative unknowns /path/to/private/saves --registry docs/game-data-notes/unknowns/registry.json
+```
+
+Review the diff before committing; never edit entries by hand.

@@ -28,6 +28,12 @@ touching the model or pipeline.
   Update the matching page when a command's behavior changes.
 - `docs/game-data-notes/` — evidence log of the observed save format. Start at
   its [README](docs/game-data-notes/README.md).
+- `docs/game-data-notes/unknowns/` — machine-written registry of save structures the
+  parser met and does not describe, plus the triage workflow
+  ([README](docs/game-data-notes/unknowns/README.md)). Refreshed by
+  `tinarrative unknowns`; never edited by hand.
+- `src/tinarrative/maintenance/` — `tinarrative unknowns`: scans saves and maintains
+  that registry. A tool package like `inspection`, not a pipeline stage.
 - `scripts/verify_fixture_manifest.py` — validates the versioned fixture set.
 
 ## Commands
@@ -59,6 +65,12 @@ must pass before a change is considered done; CI runs exactly that
 - **Save format claims must be observed, not assumed.** Only document a format
   fact in `docs/game-data-notes/` if it was checked against real data, and
   label it as observed vs. hypothesis per that directory's README.
+- **Never ignore an undocumented structure silently.** The normalizer reports
+  everything outside `parsing/fields.py` and `parsing/inventory.py` through
+  `UnknownCollector`. After adding a field to `ENTITY_FIELDS` or
+  `ACKNOWLEDGED_FIELDS` (with an `UnsupportedReason`), re-run the unknowns scan on
+  private saves so the registry shrinks; the committed-registry test fails otherwise.
+  The registry holds names, shapes, counts and dates only, never values.
 
 ## Tests and fixtures
 

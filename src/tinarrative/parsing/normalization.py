@@ -1,9 +1,14 @@
 """Turn a validated ``RawSave`` into a ``SaveSnapshot``.
 
 Only fields observed in ``docs/game-data-notes/domain-field-map.md`` are copied; a listed field that the
-save omits is ``Unknown``, fields the save adds are ignored, and no ownership or cause is inferred.
+save omits is ``Unknown``, fields the save adds are not copied, and no ownership or cause is inferred.
 A reference to an ID absent from the save (for example a fleet's ``parentFleet`` after a merge) stays an
 unresolved ``Unknown`` carrying the raw ID, so fleet-ID lifetime limits remain visible downstream.
+
+Nothing is ignored silently: every structure the schema does not describe (an unlisted field, an unknown
+state type, an unexpected shape or reference target) is reported through an
+:class:`~tinarrative.parsing.unknowns.UnknownCollector` as a content-free finding, without changing the
+snapshot. See ``docs/game-data-notes/unknowns/README.md``.
 """
 
 from __future__ import annotations
@@ -20,9 +25,17 @@ from ..model.evidence import SourceLocation
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_state_map, entry_path
-from .fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, REFERENCE_FIELDS, RESEARCH_STATE_TYPE
+from .fields import (
+    ENTITY_FIELDS,
+    METADATA_FIELDS,
+    NORMALIZED_DOMAINS,
+    REFERENCE_FIELDS,
+    RESEARCH_STATE_TYPE,
+    TIME_FIELDS,
+)
 from .raw_save import RawSave
-from .references import ReferenceIndex
+from .references import ExpectedDomains, ReferenceIndex, as_domains
+from .unknowns import UnknownCollector, scan_envelope, scan_fields
 
 _DATE_COMPONENTS = ("year", "month", "day", "hour", "minute", "second")
 
@@ -33,12 +46,20 @@ def _observed(value: dict[str, Any], name: str) -> Observed:
     return freeze(value[name]) if name in value else Unknown()
 
 
-def _single_entry(gamestates: dict[str, Any], short_type: str) -> dict[str, Any]:
-    """The ``Value`` of a singleton state (metadata, time); ``{}`` when absent."""
+def _single_entry(gamestates: dict[str, Any], short_type: str, collector: UnknownCollector) -> dict[str, Any]:
+    """The ``Value`` of a singleton state (metadata, time); ``{}`` when absent.
+
+    An absent singleton is ordinary missing evidence (its fields become ``Unknown``); more than one entry is
+    an unexpected structure and is reported.
+    """
     entries = decode_state_map(gamestates, short_type)
     if len(entries) != 1:
         logger.debug("singleton state %s", log_fields(state_type=short_type, entries=len(entries), used="first"))
-    return entries[0].value if entries else {}
+    if len(entries) > 1:
+        collector.singleton_count(short_type, len(entries))
+    value = entries[0].value if entries else {}
+    scan_fields(short_type, value, collector)
+    return value
 
 
 def _unknown_counts(states: tuple[EntityState, ...]) -> dict[str, int]:
@@ -66,8 +87,43 @@ def game_datetime(components: Any) -> datetime | None:
         return None
 
 
+def _check_reference(
+    state_type: str,
+    name: str,
+    raw: Any,
+    expected: ExpectedDomains,
+    is_list: bool,
+    index: ReferenceIndex,
+    collector: UnknownCollector,
+) -> None:
+    """Report a reference field whose shape or target type is not the documented one; resolution is unchanged."""
+    if is_list:
+        if not isinstance(raw, list):
+            collector.field_shape(state_type, name, "array_of_references", raw)
+            return
+        items: list[Any] = raw
+    else:
+        items = [raw]
+    domains = as_domains(expected)
+    for item in items:
+        if item is None and not is_list:
+            continue
+        map_id = read_id_value(item)
+        if map_id is None:
+            collector.field_shape(state_type, name, "reference_object", item)
+            continue
+        owner = index.owner_state_type(map_id, domains)
+        if owner is not None:
+            collector.reference_domain(state_type, name, owner)
+
+
 def _entity_state(
-    domain: EntityDomain, short_type: str, entry: StateEntry, index: ReferenceIndex, source: str
+    domain: EntityDomain,
+    short_type: str,
+    entry: StateEntry,
+    index: ReferenceIndex,
+    source: str,
+    collector: UnknownCollector,
 ) -> EntityState:
     references = REFERENCE_FIELDS.get(short_type, {})
     fields: list[tuple[str, Observed]] = []
@@ -78,9 +134,11 @@ def _entity_state(
         raw = entry.value[name]
         if name in references:
             target, is_list = references[name]
+            _check_reference(short_type, name, raw, target, is_list, index, collector)
             fields.append((name, index.resolve_list(raw, target) if is_list else index.resolve(raw, target)))
         else:
             fields.append((name, freeze(raw)))
+    scan_fields(short_type, entry.value, collector)
     display_name = entry.value.get("displayName")
     ref = EntityRef(
         EntityId(domain, str(entry.map_id)),
@@ -103,7 +161,9 @@ def _technology_state(
     return EntityState(ref=ref, fields=(("finished", finished), ("progress", progress)), location=location)
 
 
-def _research(gamestates: dict[str, Any], source: str) -> tuple[ResearchState, tuple[EntityState, ...]]:
+def _research(
+    gamestates: dict[str, Any], source: str, collector: UnknownCollector
+) -> tuple[ResearchState, tuple[EntityState, ...]]:
     """The research singleton and the name-keyed technology states derived from it.
 
     A technology exists for every string in ``finishedTechsNames`` and for every ``techProgress`` element
@@ -113,8 +173,14 @@ def _research(gamestates: dict[str, Any], source: str) -> tuple[ResearchState, t
     entries = decode_state_map(gamestates, RESEARCH_STATE_TYPE)
     if not entries:
         return ResearchState(), ()
+    if len(entries) > 1:
+        collector.singleton_count(RESEARCH_STATE_TYPE, len(entries))
     entry = entries[0]
     value = entry.value
+    scan_fields(RESEARCH_STATE_TYPE, value, collector)
+    for list_name in ("finishedTechsNames", "techProgress"):
+        if list_name in value and not isinstance(value[list_name], list):
+            collector.field_shape(RESEARCH_STATE_TYPE, list_name, "array", value[list_name])
     research = ResearchState(
         finished_techs_names=_observed(value, "finishedTechsNames"),
         finished_one_time_only_project_names=_observed(value, "finishedOneTimeOnlyProjectNames"),
@@ -162,13 +228,20 @@ def _research(gamestates: dict[str, Any], source: str) -> tuple[ResearchState, t
     return research, tuple(technologies.values())
 
 
-def normalize(raw_save: RawSave) -> SaveSnapshot:
-    """Normalize campaign time and metadata, the entity collections in ``NORMALIZED_DOMAINS``, and research."""
-    gamestates: dict[str, Any] = raw_save.root["gamestates"]
-    index = ReferenceIndex.from_gamestates(gamestates)
+def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -> SaveSnapshot:
+    """Normalize campaign time and metadata, the entity collections in ``NORMALIZED_DOMAINS``, and research.
 
-    time_state = _single_entry(gamestates, "TITimeState")
-    metadata_state = _single_entry(gamestates, "TIMetadataState")
+    Structures outside the schema are always detected and summarized in the log; pass a ``collector`` to
+    receive them as findings. The snapshot does not depend on whether one is passed.
+    """
+    if collector is None:
+        collector = UnknownCollector()
+    scan_envelope(raw_save.root, collector)
+    gamestates: dict[str, Any] = raw_save.root["gamestates"]
+    index = ReferenceIndex.from_gamestates(gamestates, on_skipped=collector.container_shape)
+
+    time_state = _single_entry(gamestates, "TITimeState", collector)
+    metadata_state = _single_entry(gamestates, "TIMetadataState", collector)
 
     timestamp: datetime | None = None
     date: Observed
@@ -183,20 +256,23 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
         else:
             date = Unknown(UnknownReason.UNPARSEABLE, freeze(time_state["currentDateTime"]))
             logger.debug("date unparseable %s", log_fields(value=shape(time_state["currentDateTime"])))
+            collector.field_shape("TITimeState", "currentDateTime", "componentized_date", time_state["currentDateTime"])
 
+    metadata = {name: _observed(metadata_state, name) for name in METADATA_FIELDS}
+    time_fields = {name: _observed(time_state, name) for name in TIME_FIELDS}
     campaign = CampaignMetadata(
-        player_faction_name=_observed(metadata_state, "playerFactionName"),
-        difficulty=_observed(metadata_state, "difficulty"),
-        played_with_mods=_observed(metadata_state, "playedWithMods"),
-        game_time_string=_observed(metadata_state, "gameTimeString"),
-        scenario_master_template=_observed(time_state, "masterMetaTemplateName"),
-        scenario_template=_observed(time_state, "scenarioMetaTemplateName"),
+        player_faction_name=metadata["playerFactionName"],
+        difficulty=metadata["difficulty"],
+        played_with_mods=metadata["playedWithMods"],
+        game_time_string=metadata["gameTimeString"],
+        scenario_master_template=time_fields["masterMetaTemplateName"],
+        scenario_template=time_fields["scenarioMetaTemplateName"],
     )
 
     collections: dict[str, tuple[EntityState, ...]] = {}
     for domain, short_type, attribute in NORMALIZED_DOMAINS:
         entries = decode_state_map(gamestates, short_type)
-        states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source) for entry in entries)
+        states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source, collector) for entry in entries)
         collections[attribute] = collections.get(attribute, ()) + states
         if logger.isEnabledFor(logging.DEBUG):
             unknown = _unknown_counts(states)
@@ -209,9 +285,11 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
                     missing_fields=unknown[UnknownReason.MISSING.value],
                     unresolved_references=unknown[UnknownReason.UNRESOLVED_REFERENCE.value],
                     unparseable=unknown[UnknownReason.UNPARSEABLE.value],
+                    unknown_fields=collector.field_count(short_type),
                 ),
             )
-    research, technologies = _research(gamestates, raw_save.source)
+    research, technologies = _research(gamestates, raw_save.source, collector)
+    collector.log_summary()
     logger.info(
         "normalized %s",
         log_fields(
@@ -230,8 +308,8 @@ def normalize(raw_save: RawSave) -> SaveSnapshot:
         date=date,
         game_version=raw_save.game_version,
         timestamp=timestamp,
-        campaign_day=_observed(time_state, "daysInCampaign"),
-        campaign_quarter=_observed(time_state, "currentQuarterSinceStart"),
+        campaign_day=time_fields["daysInCampaign"],
+        campaign_quarter=time_fields["currentQuarterSinceStart"],
         campaign=campaign,
         research=research,
         technologies=technologies,

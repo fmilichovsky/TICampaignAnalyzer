@@ -95,4 +95,19 @@ def test_skipped_malformed_container_is_explained_in_the_debug_log(caplog: pytes
         "reference index skipped state_type=TICouncilorState "
         "reason='PavonisInteractive.TerraInvicta.TICouncilorState[0]: Key.value 1 != Value.ID.value 2'"
     ]
-    assert "reference index built ids=4 skipped_types=1" in caplog.text
+    assert "reference index built ids=4 other_ids=1 skipped_types=1" in caplog.text
+
+
+def test_other_owners_name_ids_outside_the_entity_domains() -> None:
+    assert INDEX.other_owners == {80: "TIFederationState"}
+    nation = frozenset((EntityDomain.NATION,))
+    assert INDEX.owner_state_type(50, nation) == "TIArmyState"  # exists, wrong domain
+    assert INDEX.owner_state_type(80, nation) == "TIFederationState"  # exists, no domain
+    assert INDEX.owner_state_type(20, nation) is None  # expected owner
+    assert INDEX.owner_state_type(999, nation) is None  # absent
+
+
+def test_skipped_containers_are_announced_through_the_callback() -> None:
+    skipped: list[str] = []
+    ReferenceIndex.from_gamestates(GAMESTATES, on_skipped=skipped.append)
+    assert skipped == ["TICouncilorState"]

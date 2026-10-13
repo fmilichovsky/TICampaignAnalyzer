@@ -6,6 +6,8 @@ are listed, and a reference field is resolved only when its observed target type
 
 from __future__ import annotations
 
+from enum import StrEnum
+
 from ..model.entities import EntityDomain
 from .references import ExpectedDomains
 
@@ -176,6 +178,25 @@ RESEARCH_FIELDS = (
 )
 """Singleton research fields copied into ``ResearchState``; technologies are derived from the first three."""
 
+TIME_FIELDS = (
+    "currentDateTime",
+    "daysInCampaign",
+    "currentQuarterSinceStart",
+    "masterMetaTemplateName",
+    "scenarioMetaTemplateName",
+)
+"""``TITimeState`` singleton fields read into ``SaveSnapshot`` chronology and ``CampaignMetadata``."""
+
+METADATA_FIELDS = ("playerFactionName", "difficulty", "playedWithMods", "gameTimeString")
+"""``TIMetadataState`` singleton fields read into ``CampaignMetadata``."""
+
+SINGLETON_FIELDS: dict[str, tuple[str, ...]] = {
+    "TITimeState": TIME_FIELDS,
+    "TIMetadataState": METADATA_FIELDS,
+    RESEARCH_STATE_TYPE: RESEARCH_FIELDS,
+}
+"""The singleton state types the normalizer reads, with the fields it copies from each."""
+
 _ARMY_LIST = (EntityDomain.ARMY, True)
 _FACTION = (EntityDomain.FACTION, False)
 _REGION = (EntityDomain.REGION, False)
@@ -270,3 +291,59 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
 
 Several state types may feed one attribute (both army types fill ``armies``).
 """
+
+SERIALIZATION_FIELDS = ("$type", "ID", "finderSortOverride", "gameStateSubjectCreated")
+"""Serializer members observed on every entity and singleton ``Value`` object; known, never normalized."""
+
+
+class UnsupportedReason(StrEnum):
+    """Why an observed field is deliberately not normalized (the classification issue #8 asks for)."""
+
+    VECTOR = "vector"
+    """Spatial or physics vectors (``{w, x, y, z}``), not gameplay state."""
+    REFERENCE_GRAPH = "reference_graph"
+    """JSON.NET ``$id``/``$ref`` object graphs that the normalizer does not reconstruct."""
+    DERIVED_HISTORY = "derived_history"
+    """Logs and running histories the game derives from state the snapshot already carries."""
+    STALE_REFERENCES = "stale_references"
+    """Reference lists observed to point mostly at IDs absent from the save."""
+    AI_INTERNAL = "ai_internal"
+    """AI planning scratch data."""
+    UI_CACHE = "ui_cache"
+    """Presentation and notification preferences."""
+
+
+def _reasons(*groups: tuple[UnsupportedReason, tuple[str, ...]]) -> dict[str, UnsupportedReason]:
+    return {name: reason for reason, names in groups for name in names}
+
+
+ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
+    "TISpaceFleetState": _reasons(
+        (UnsupportedReason.DERIVED_HISTORY, ("Logs",)),
+        (UnsupportedReason.AI_INTERNAL, ("AI_FailedAttackEnemyStrength",)),
+        (UnsupportedReason.STALE_REFERENCES, ("unreachableLocations",)),
+    ),
+    "TISpaceShipState": _reasons(
+        (UnsupportedReason.VECTOR, ("damagePoints",)),
+        (UnsupportedReason.REFERENCE_GRAPH, ("hullWeapons", "noseWeapons", "utilityModules", "ammo", "batteryCharge")),
+    ),
+    "TIHabState": _reasons(
+        (UnsupportedReason.STALE_REFERENCES, ("conflictFleets",)),
+    ),
+}
+"""Observed fields that are known and deliberately not copied, with the reason (``domain-field-map.md``).
+
+Only names observed in real saves belong here, each listed explicitly; a field that is neither normalized nor
+acknowledged is reported as unknown and recorded in ``docs/game-data-notes/unknowns/registry.json``.
+"""
+
+
+def _known(state_type: str, copied: tuple[str, ...]) -> frozenset[str]:
+    return frozenset(copied) | frozenset(SERIALIZATION_FIELDS) | frozenset(ACKNOWLEDGED_FIELDS.get(state_type, {}))
+
+
+KNOWN_FIELDS: dict[str, frozenset[str]] = {
+    **{state_type: _known(state_type, names) for state_type, names in ENTITY_FIELDS.items()},
+    **{state_type: _known(state_type, COMMON_FIELDS + names) for state_type, names in SINGLETON_FIELDS.items()},
+}
+"""Every field name the parser describes per scanned state type: copied, serializer, or acknowledged."""

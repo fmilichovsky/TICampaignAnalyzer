@@ -7,6 +7,7 @@ import functools
 import os
 import sys
 from collections.abc import Callable, Sequence
+from datetime import date
 from pathlib import Path
 from typing import cast
 
@@ -14,10 +15,16 @@ from . import __version__
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_loader import load_raw_save, load_save
 from .log import DEFAULT_LEVEL, ENV_VAR, LEVELS, configure_logging, fields, get_logger, safe_path
+from .maintenance import REGISTRY_ENV_VAR
+from .maintenance.registry import RegistryError, RegistryUpdate, record
+from .maintenance.render import render_json as render_unknowns_json
+from .maintenance.render import render_text as render_unknowns_text
+from .maintenance.scan import ScanRun, expand_inputs, scan_inputs
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS
 from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
+from .parsing.unknowns import UnknownCollector
 
 logger = get_logger(__name__)
 
@@ -31,6 +38,9 @@ EXIT_UNSUPPORTED_INPUT = 5
 supported save: malformed, wrong shape, or unsupported format/version (``parse``)."""
 EXIT_PATH_NOT_FOUND = 6
 """At least one ``--path`` did not resolve; the full report is still printed."""
+EXIT_REGISTRY_ERROR = 7
+"""The unknowns registry could not be read, is not a registry document, or could not be written; the report
+or summary is still printed."""
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -98,9 +108,10 @@ def _run_parse(args: argparse.Namespace) -> int:
     save_path = cast(Path, args.save)
     save_name = safe_path(save_path)
     logger.info("parse start %s", fields(save=save_name))
+    collector = UnknownCollector()
     try:
         raw = load_raw_save(save_path)
-        snapshot = normalize(raw)
+        snapshot = normalize(raw, collector=collector)
     except OSError as error:
         reason = error.strerror or str(error)
         logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
@@ -111,10 +122,7 @@ def _run_parse(args: argparse.Namespace) -> int:
         print(f"tinarrative parse: {save_path}: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
 
-    logger.info(
-        "parse done %s",
-        fields(save=save_name, state_types=len(raw.root["gamestates"]), game_version=raw.game_version, exit=0),
-    )
+    report = collector.report()
     print(f"source: {snapshot.source}")
     print(f"format: {raw.format}")
     print(f"game version: {raw.game_version or 'not serialized'}")
@@ -126,6 +134,95 @@ def _run_parse(args: argparse.Namespace) -> int:
     print(f"player faction: {_render_observed(snapshot.campaign.player_faction_name)}")
     for attribute, label in NORMALIZED_COLLECTION_LABELS:
         print(f"{label}: {len(getattr(snapshot, attribute))}")
+    print(f"unknown structures: {report.total}")
+
+    code = EXIT_SUCCESS
+    if args.record_unknowns:
+        registry = _resolve_registry(args.registry)
+        if registry is None:
+            print(f"tinarrative parse: --record-unknowns needs --registry PATH or {REGISTRY_ENV_VAR}", file=sys.stderr)
+            code = EXIT_USAGE_ERROR
+        else:
+            try:
+                update = record(registry, [(report, raw.game_version)], format=raw.format, today=date.today())
+            except RegistryError as error:
+                logger.debug("registry failed %s", fields(registry=safe_path(registry)), exc_info=True)
+                print(f"tinarrative parse: cannot update registry {registry}: {error}", file=sys.stderr)
+                code = EXIT_REGISTRY_ERROR
+            else:
+                print(_registry_line(registry, update))
+    logger.info(
+        "parse done %s",
+        fields(
+            save=save_name,
+            state_types=len(raw.root["gamestates"]),
+            game_version=raw.game_version,
+            unknowns=report.total,
+            exit=code,
+        ),
+    )
+    return code
+
+
+def _registry_line(registry: Path, update: RegistryUpdate) -> str:
+    return (
+        f"registry: {registry}: {update.added} added, {update.updated} updated, {update.pruned} pruned, "
+        f"{update.total} total"
+    )
+
+
+def _resolve_registry(flag: Path | None) -> Path | None:
+    """``--registry`` wins over ``TINARRATIVE_UNKNOWNS_REGISTRY``; an empty variable counts as unset."""
+    if flag is not None:
+        return flag
+    from_env = os.environ.get(REGISTRY_ENV_VAR, "").strip()
+    return Path(from_env) if from_env else None
+
+
+def _run_unknowns(args: argparse.Namespace) -> int:
+    """Scan saves for structures outside the schema; optionally fold them into the registry."""
+    paths = cast(list[Path], args.paths)
+    inputs = expand_inputs(paths)
+    logger.info("unknowns start %s", fields(inputs=len(paths), saves=len(inputs)))
+    run = scan_inputs(inputs)
+    registry = _resolve_registry(args.registry)
+    update: RegistryUpdate | None = None
+    code = _unknowns_exit_code(run)
+    if registry is not None and run.scanned:
+        try:
+            update = record(registry, run.scans(), today=date.today())
+        except RegistryError as error:
+            logger.debug("registry failed %s", fields(registry=safe_path(registry)), exc_info=True)
+            print(f"tinarrative unknowns: cannot update registry {registry}: {error}", file=sys.stderr)
+            code = EXIT_REGISTRY_ERROR
+    rendered = (
+        render_unknowns_json(run, update, registry)
+        if args.format == "json"
+        else render_unknowns_text(run, update, registry)
+    )
+    sys.stdout.write(rendered)
+    sys.stdout.flush()
+    logger.info(
+        "unknowns done %s",
+        fields(
+            saves=len(run.results),
+            scanned=len(run.scanned),
+            skipped=len(run.results) - len(run.scanned),
+            findings=len(run.findings),
+            registry=safe_path(registry) if registry is not None else None,
+            exit=code,
+        ),
+    )
+    return code
+
+
+def _unknowns_exit_code(run: ScanRun) -> int:
+    """Only inputs named on the command line decide the code: 4 beats 5 beats 0; findings are not failures."""
+    explicit_failures = [result for result in run.results if result.explicit and not result.scanned]
+    if any(result.input_error for result in explicit_failures):
+        return EXIT_INPUT_ERROR
+    if explicit_failures:
+        return EXIT_UNSUPPORTED_INPUT
     return EXIT_SUCCESS
 
 
@@ -147,12 +244,68 @@ def _add_parse_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentP
             "snapshot: game date, campaign day, player faction, and entity counts."
         ),
         epilog=(
-            "Exit codes: 0 success; 2 usage error; 4 file cannot be read; "
-            "5 malformed data or unsupported shape, format, or game version."
+            "Exit codes: 0 success; 2 usage error (including --record-unknowns without a registry); "
+            "4 file cannot be read; 5 malformed data or unsupported shape, format, or game version; "
+            "7 the unknowns registry cannot be read, is invalid, or cannot be written."
         ),
     )
     parser.add_argument("save", type=Path, help="Path to a single save file.")
+    parser.add_argument(
+        "--record-unknowns",
+        action="store_true",
+        help="Also fold the unknown structures met in this save into the registry (see 'tinarrative unknowns').",
+    )
+    _add_registry_argument(parser)
     parser.set_defaults(handler=_run_parse)
+
+
+def _add_registry_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        default=None,
+        metavar="PATH",
+        help=(
+            f"Unknowns registry JSON file to update; created when missing. Overrides the {REGISTRY_ENV_VAR} "
+            "environment variable."
+        ),
+    )
+
+
+def _add_unknowns_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "Scan saves for structures the parser does not describe and record them for triage."
+    parser = subcommands.add_parser(
+        "unknowns",
+        help=summary,
+        description=(
+            f"{summary} Each save is normalized exactly as 'parse' does, and every state type, field, "
+            "envelope key, field shape or reference target outside the documented schema is reported with "
+            "a content-free shape summary (type labels and member names only). With a registry, the findings "
+            "are merged into it; entries the schema has since learned are pruned."
+        ),
+        epilog=(
+            "Exit codes: 0 every given path was scanned (findings are not failures); 2 usage error; "
+            "4 a given path cannot be read or a given directory holds no files; 5 a given file is not a "
+            "supported save; 7 the registry cannot be read, is invalid, or cannot be written (report still "
+            "printed). Files found inside a given directory that fail are listed as skipped and never change "
+            "the exit code. 7 takes precedence over 4, and 4 over 5."
+        ),
+    )
+    parser.add_argument(
+        "paths",
+        type=Path,
+        nargs="+",
+        metavar="PATH",
+        help="Save files or directories; a directory is scanned one level deep.",
+    )
+    _add_registry_argument(parser)
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Report format (default %(default)s).",
+    )
+    parser.set_defaults(handler=_run_unknowns)
 
 
 def _add_inspect_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -235,6 +388,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_inspect_parser(subcommands)
     _add_parse_parser(subcommands)
+    _add_unknowns_parser(subcommands)
     diff_summary = "Compare two campaign snapshots and report state changes."
     diff_parser = subcommands.add_parser("diff", help=diff_summary, description=diff_summary)
     diff_parser.set_defaults(handler=functools.partial(_not_implemented, "diff"))
