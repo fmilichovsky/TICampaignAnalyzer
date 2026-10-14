@@ -102,26 +102,32 @@ def _keyed_list(short_type: str, name: str, raw: Any, key: str, collector: Unkno
     return Unknown(UnknownReason.UNPARSEABLE, freeze(raw))
 
 
-def _reference_map(
+def _pair_map_field(
     short_type: str,
     name: str,
     raw: Any,
-    expected: ExpectedDomains,
+    keys: ExpectedDomains | None,
     index: ReferenceIndex,
     collector: UnknownCollector,
 ) -> Observed:
-    """A ``PAIR_MAP_FIELDS`` value: keys resolved like a reference list, values frozen.
+    """A ``PAIR_MAP_FIELDS`` value: reference keys resolved like a reference list, integer keys as text, values frozen.
 
-    A value that is not a pair map, or that repeats a key, is ``Unknown(unparseable)`` and reported as an
-    unexpected shape; key shapes and owners are checked like any reference list.
+    A value that is not a pair map, that repeats a key, or (``keys is None``) has a key that is not an integer is
+    ``Unknown(unparseable)`` and reported as an unexpected shape; reference keys are checked like a reference list.
     """
     pairs = decode_pair_map(raw)
-    key_ids = [key_id for key, _value in pairs or () if (key_id := read_id_value(key)) is not None]
-    if pairs is None or len(set(key_ids)) != len(key_ids):
+    key_ids: list[int] | None = None
+    if pairs is not None and keys is not None:
+        key_ids = [key_id for key, _value in pairs if (key_id := read_id_value(key)) is not None]
+    elif pairs is not None and all(isinstance(key, int) and not isinstance(key, bool) for key, _value in pairs):
+        key_ids = [key for key, _value in pairs]
+    if pairs is None or key_ids is None or len(set(key_ids)) != len(key_ids):
         collector.field_shape(short_type, name, PAIR_MAP, raw)
         return Unknown(UnknownReason.UNPARSEABLE, freeze(raw))
-    check_reference(short_type, name, [key for key, _value in pairs], expected, True, index, collector)
-    return index.resolve_map(pairs, expected, raw)
+    if keys is None:
+        return FrozenMap(tuple((str(key), freeze(value)) for key, value in pairs))
+    check_reference(short_type, name, [key for key, _value in pairs], keys, True, index, collector)
+    return index.resolve_map(pairs, keys, raw)
 
 
 def _entity_state(
@@ -148,7 +154,7 @@ def _entity_state(
         elif name in keyed_lists:
             fields.append((name, _keyed_list(short_type, name, raw, keyed_lists[name], collector)))
         elif name in pair_maps:
-            fields.append((name, _reference_map(short_type, name, raw, pair_maps[name], index, collector)))
+            fields.append((name, _pair_map_field(short_type, name, raw, pair_maps[name], index, collector)))
         else:
             fields.append((name, freeze(raw)))
     scan_fields(short_type, entry.value, collector)

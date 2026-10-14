@@ -842,6 +842,87 @@ def test_pair_map_fields_report_unexpected_shapes_and_key_owners() -> None:
     assert snapshot == fragment(gamestates)
 
 
+NATION_SCALARS = {
+    "advisingCouncilors": [],
+    "aggregateNation": False,
+    "alienNation": False,
+    "military": True,
+    "nuclearProgram": True,
+    "numNuclearWeapons": 4,
+    "spaceFlightProgram": True,
+    "spaceFunding_year": 12.5,
+    "sustainability": 3.0,
+    "numControlPoints": 3,
+    "policy_closedBorders": False,
+    "policy_noMineralDevelopment": False,
+    "policy_noNukes": False,
+    "policy_noOilDevelopment": False,
+    "tracker_CohesionChangeReason_AllTime": {"CohesionReason_Coup": -1.5, "CohesionReason_WarEnded": 0.25},
+    "tracker_DemocracyChangeReason_AllTime": {"DemReason_Coup": -2.0},
+    "tracker_EducationChangeReason_AllTime": {},
+    "tracker_GDPChangeReason_AllTime": {"GDPReason_ClimateChange": -0.5},
+    "tracker_InequalityChangeReason_AllTime": {"InqReason_ClimateChange": 0.1},
+    "tracker_UnrestChangeReason_AllTime": {"UnrestReason_Coup": 1.0},
+}
+
+
+def test_nation_flags_trackers_claims_and_unrest_attempts_are_normalized() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [pair(10)],
+        STATE_PREFIX + "TIRegionState": [pair(40), pair(41)],
+        STATE_PREFIX + "TINationState": [
+            pair(
+                20,
+                originalCapital={"value": 40},
+                hostileClaims=[{"value": 41}],
+                factionUnrestAttempts=[{"Key": {"value": 10}, "Value": 2}],
+                tracker_PCGDP_ByQuarter=[{"Key": 1, "Value": 1.5}, {"Key": -1, "Value": 0.5}, {"Key": 0, "Value": 1.0}],
+                **NATION_SCALARS,
+            ),
+            pair(21, originalCapital=None, hostileClaims=[], factionUnrestAttempts={}, tracker_PCGDP_ByQuarter=[]),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert report.total == 0
+    nation = by_id(snapshot.nations, "20")
+    assert nation.get("originalCapital") == ref(EntityDomain.REGION, "40", "TIRegionState")
+    assert nation.get("hostileClaims") == (ref(EntityDomain.REGION, "41", "TIRegionState"),)
+    assert nation.get("factionUnrestAttempts") == FrozenMap((("faction:10", 2),))
+    quarters = nation.get("tracker_PCGDP_ByQuarter")  # a quarter -> value map, whatever the serialized order
+    assert quarters == FrozenMap((("-1", 0.5), ("0", 1.0), ("1", 1.5)))
+    for name, value in NATION_SCALARS.items():
+        assert nation.get(name) == freeze(value)
+    coups = nation.get("tracker_CohesionChangeReason_AllTime")
+    assert isinstance(coups, FrozenMap) and dict(coups.items)["CohesionReason_Coup"] == -1.5
+
+    empty = by_id(snapshot.nations, "21")
+    assert empty.get("originalCapital") is None and empty.get("hostileClaims") == ()
+    assert empty.get("factionUnrestAttempts") == FrozenMap() and empty.get("tracker_PCGDP_ByQuarter") == FrozenMap()
+    for name in NATION_SCALARS:
+        assert empty.get(name) == Unknown()  # missing, not coerced
+
+    # a new quarter is one added key, not a rewritten series
+    later = FrozenMap((("-1", 0.5), ("0", 1.0), ("1", 1.5), ("2", 1.75)))
+    assert compare_values(quarters, later) == (ChangeKind.MAP, MapDetail(added=("2",)))
+
+
+def test_integer_keyed_pair_maps_report_non_integer_and_repeated_keys() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TINationState": [
+            pair(20, tracker_PCGDP_ByQuarter=[{"Key": "1", "Value": 1.0}]),
+            pair(21, tracker_PCGDP_ByQuarter=[{"Key": True, "Value": 1.0}]),
+            pair(22, tracker_PCGDP_ByQuarter=[{"Key": 1, "Value": 1.0}, {"Key": 1, "Value": 2.0}]),
+            pair(23, tracker_PCGDP_ByQuarter=[1.0, 2.0]),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert keys(report) == [("unexpected_field_shape", "TINationState", "tracker_PCGDP_ByQuarter", "pair_map")]
+    assert report.findings[0].occurrences == 4
+    for nation in snapshot.nations:
+        value = nation.get("tracker_PCGDP_ByQuarter")
+        assert isinstance(value, Unknown) and value.reason is UnknownReason.UNPARSEABLE
+
+
 def test_singletons_dates_and_research_lists_report_their_unexpected_structures() -> None:
     time_entries = [
         pair(2, currentDateTime="2031-03-01T00:00:00", nextTurn=1),
