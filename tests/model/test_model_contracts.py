@@ -7,6 +7,7 @@ import pytest
 
 from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
+from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, SourceRole
 from tinarrative.model.evidence import Evidence, SourceLocation, pointer_path
 from tinarrative.model.records import (
     DestructionEntry,
@@ -277,3 +278,45 @@ def test_records_detail_serializes_entries_and_changed_pairs() -> None:
     }
     assert ChangeKind.RECORDS.value == "records"
     assert isinstance(hash(detail), int)
+
+
+def _event_source(role: SourceRole = SourceRole.PRIMARY, member: object = None) -> EventSource:
+    change = _change("allies", "20")
+    return EventSource(change, role, member, SourceLocation("b.save", "TINationState", 20, "/x/allies/0"))  # type: ignore[arg-type]
+
+
+def test_event_sorts_its_parts_and_serializes_json_friendly() -> None:
+    later = _event_source(SourceRole.CORROBORATING)
+    earlier = _event_source(SourceRole.PRIMARY, _ref("2"))
+    event = Event(
+        id="nation.relation_changed/nation:20/allies/nation:2/added",
+        event_type="nation.relation_changed",
+        status=EventStatus.OBJECTIVE,
+        confidence=Confidence.HIGH,
+        date="2030-02-01",
+        date_basis=DateBasis.INTERVAL,
+        not_before="2030-01-01",
+        sources=(later, earlier),
+        entities=(_ref("20"), _ref("2"), _ref("20")),
+        attributes=(("transition", "added"), ("relation", "allies"), ("raw", Unknown())),
+    )
+    assert event.sources == (earlier, later)  # primary first
+    assert event.entities == (_ref("20"), _ref("2"))  # order kept (subject first), duplicates dropped
+    assert [key for key, _ in event.attributes] == ["raw", "relation", "transition"]
+    assert event.attribute("relation") == "allies" and event.attribute("missing") == Unknown()
+    assert event.sort_key == ("2030-02-01", "nation.relation_changed", event.id)
+    data = event.to_dict()
+    assert json.loads(json.dumps(data)) == data
+    assert data["date_basis"] == "interval" and data["attributes"]["raw"] == {"unknown": "missing"}
+    assert data["sources"][0] == {
+        "role": "primary",
+        "member": to_jsonable(_ref("2")),
+        "entry": {"save_id": "b.save", "state_type": "TINationState", "map_id": 20, "path": "/x/allies/0"},
+        "change": earlier.change.to_dict(),
+    }
+    assert isinstance(hash(event), int)
+    with pytest.raises(FrozenInstanceError):
+        event.id = "x"  # type: ignore[misc]
+    undated = Event(**{**event.__dict__, "date": Unknown(), "date_basis": DateBasis.RECORD})
+    assert undated.sort_key[0] == "" and undated.sort_key < event.sort_key
+    assert undated.to_dict()["date"] == {"unknown": "missing"}

@@ -172,6 +172,28 @@
       "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
       "sha256": "b66792b5d3c2f710e8d1b77ad6cdd7aabbe35dab5b2efef89073f13935e7832a",
       "purpose": "Later snapshot of the same synthetic interval: every log is a strict prefix extension (ledger, destruction log with an unresolved space body and a null destroyer, milestones), pair maps go from {} to one pair, keyed values change (faction hate, objective status, armies lost, boost account date), counters increment, a control point is lost, and nation 20 records a dated executive change by coup."
+    },
+    {
+      "path": "politics_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "646e2294c98a8149661c81e65dab2d764f5c9fef85ba0dd784be0ca03176ef66",
+      "purpose": "Earlier snapshot of a synthetic interval for the politics analyzers; pair with politics_after.json. Factions 15/16 with councilor and control-point rosters (faction 16 with an empty lostControlPoints record), nations 20..22 with regions, rivals, control points and an executive-change record on nation 20, control points 9..11, councilors 100..102 and a hab as a councilor location."
+    },
+    {
+      "path": "politics_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "c205775cfc6bd257acee341980130c5195b98ea9afe875c32b859ca5fd88b040",
+      "purpose": "Later snapshot of the same synthetic interval: a control point whose controller changes faction (with both rosters and a dated lostControlPoints entry) and one that becomes uncontrolled; a control point and a region that move to another nation; a capital change; a breakaway link; a reciprocal war entry and a one-sided rival removal; a re-dated executive change; a councilor that changes faction, status and detaining faction; a councilor that moves from a region to a hab (priorLocation set); a councilor whose faction becomes null; a nation control-point list with an unmirrored member; a faction councilor list with a stale ID."
     }
   ]
 }

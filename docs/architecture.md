@@ -605,6 +605,49 @@ prematurely mirroring every field in the save.
 
 Analyzers should be independently testable.
 
+### Implemented contract (`src/tinarrative/analyzers/`)
+
+The first family is `analyzers/politics/`: `ControlPointAnalyzer`,
+`NationAnalyzer` and `CouncilorAnalyzer`, run together by
+`analyzers.run_analyzers(POLITICS_ANALYZERS, before, after, diff)`. They read
+the `StateDiff` only (never re-deriving a fact from the snapshots; the
+snapshots supply context such as an entity's own reference or a control
+point's nation) and emit objective events whose sources are the literal
+changes (section 5.2). Shared machinery for every family lives in
+`analyzers/common.py`: a change index, the `Transition` classifier (`set`,
+`cleared`, `changed`, `unresolved`; a side that is `missing` or `unparseable`
+is a schema gap and emits nothing), snapshot lookup, the membership ledger and
+the event builder.
+
+Ownership and control are kept distinct by analyzer and type prefix:
+
+-   `control_point.*` speaks only about a control point's `faction`
+    (controller), `nation` and presence, plus `control_point.loss_recorded`
+    for every `lostControlPoints` entry added or re-dated (record-dated, and
+    also cited as corroboration by a matching controller change).
+-   `region.nation_changed` and `nation.*` speak about territory, capital,
+    federation (a raw value: the state type has no entity domain), breakaway
+    links, one `nation.relation_changed` per nation pair and direction for
+    `allies`/`rivals`/`wars` (the mirrored entry on the other nation is merged
+    and marked `reciprocal`), presence, and the literal `lastExecutiveChange`
+    record (`nation.executive_change_recorded`; its `cause` string is an
+    attribute only).
+-   `councilor.*` speaks about a councilor's `faction`, `status`, `location`,
+    `detainingFaction` and presence.
+
+A nation's `controlPoints` list means which control points belong to the
+nation, never "faction X controls nation Y"; that is a reconstruction rule
+for later. Members of the handled reference lists (`faction.controlPoints`,
+`faction.councilors`, `nation.controlPoints`, `nation.regions`,
+`nation.breakaways`, the relation lists) that no event explains are reported
+as `<owner>.<field>_changed`, so no literal change on them is dropped; a list
+unresolved on one side is one such event with `transition = unresolved`.
+Everything else (councilor `orgs`, `XP`, `priorLocation`; nation statistics
+and claims; control-point timers and priorities; region occupation and
+annexation flags) stays in the diff and is left to other analyzers or to the
+diff report. Deliberately out of reach of every analyzer: naming a purge,
+coup, annexation or defection.
+
 ------------------------------------------------------------------------
 
 # 10. Event Reconstruction
