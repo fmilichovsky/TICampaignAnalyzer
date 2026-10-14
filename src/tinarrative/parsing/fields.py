@@ -100,6 +100,28 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "adjacencies",
         "armies",
         "abductions",
+        "alienCrashdown",
+        "alienLanding",
+        "boostFacility",
+        "missionControlFacility",
+        "spaceDefenseFacility",
+        "spaceFacilities",
+        "originalColony",
+        "annexationBeginDate",
+        "annexationDaysLeft",
+        "antiSpaceDefenses",
+        "boostPerYear_dekatons",
+        "missionControl",
+        "numSTOFighters",
+        "isCounterfiring",
+        "nuclearDetonations",
+        "underBombardment",
+        "colonyRegion",
+        "permanentlyDecolonized",
+        "coreEconomicRegion",
+        "oilRegion",
+        "resourceRegion",
+        "oceanType",
     ),
     "TICouncilorState": COMMON_FIELDS
     + (
@@ -252,6 +274,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TIRegionState": {
         "nation": (EntityDomain.NATION, False),
+        "originalColony": (EntityDomain.NATION, False),
         "armies": _ARMY_LIST,
     },
     "TICouncilorState": {
@@ -287,8 +310,8 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
 """Reference fields and their observed target domain(s); ``True`` marks a list of references.
 
 Reference-shaped fields whose observed target type has no ``EntityDomain`` (officers, missions, sectors,
-hab modules) or whose target was never observed non-null (``agentForFaction``, ``storedFaction``) are
-deliberately absent and stay raw.
+hab modules, region facility and alien sub-states) or whose target was never observed non-null
+(``agentForFaction``, ``storedFaction``) are deliberately absent and stay raw.
 """
 
 NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (

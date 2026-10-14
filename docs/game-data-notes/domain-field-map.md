@@ -11,7 +11,7 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 | Factions | `TIFactionState` | `player`, `councilors`, `knownSpies`, `fleets`, `habSectors`, `controlPoints`, `armies`, `resources`, `finishedProjectNames`, `currentProjectProgress`, `researchWeights`, `intel`, `factionGoals` |
 | Nations | `TINationState` | `capital`, `regions`, `allies`, `rivals`, `claims`, `wars`, `armies`, `publicOpinion`, `GDP`, `inequality`, `education`, `democracy`, `cohesion`, `unrest`, `militaryTechLevel`, `controlPoints`, `federation`, `breakawayParent`, `breakaways` |
 | Control points | `TIControlPoint` | `nation`, `faction`, `benefitsDisabled`, `defended`, `crackdownExpiration`, `defendExpiration`, `controlPointType`, `positionInNation`, `controlPointPriorities` |
-| Regions | `TIRegionState` | `nation`, `leadOccupier`, `occupations`, `populationInMillions`, `alienFacility`, `alienActivity`, `xenoforming`, `isBeingAnnexed`, `annexingArmy`, `adjacencies`, `armies`, `abductions` |
+| Regions | `TIRegionState` | `nation`, `leadOccupier`, `occupations`, `populationInMillions`, `alienFacility`, `alienActivity`, `xenoforming`, `isBeingAnnexed`, `annexingArmy`, `adjacencies`, `armies`, `abductions`, `alienCrashdown`, `alienLanding`, `boostFacility`, `missionControlFacility`, `spaceDefenseFacility`, `spaceFacilities`, `originalColony`, `annexationBeginDate`, `annexationDaysLeft`, `antiSpaceDefenses`, `boostPerYear_dekatons`, `missionControl`, `numSTOFighters`, `isCounterfiring`, `nuclearDetonations`, `underBombardment` (the region's own flag, distinct from the hab field of the same name), `colonyRegion`, `permanentlyDecolonized`, `coreEconomicRegion`, `oilRegion`, `resourceRegion`, `oceanType` |
 | Armies | `TIArmyState`, `TIMegafaunaArmyState` | `currentRegion`, `faction`, `homeRegion`, `priorRegion`, `strength`, `operationTarget`, `destroyed`, `armyType`, `deploymentType`, `destinationQueue`, `currentOperations`, `destinationSeaDate`, `embarkDate`, `huntingXenofauna`; megafauna armies add `bonusTechLevel` |
 | Councilors | `TICouncilorState` | `faction`, `agentForFaction`, `location`, `priorLocation`, `homeRegion`, `detainingFaction`, `recruitDate`, `detainedReleaseDate`, `attributes`, `activeMission`, `completedMission`, `orgs`, `status`, `XP`, `typeTemplateName`, `traitTemplateNames` |
 | Organizations | `TIOrgState` | `assignedCouncilor`, `factionOrbit`, `homeRegion`, `tier`, costs, monthly incomes, research/mission-control income, and attribute/priority bonuses |
@@ -32,6 +32,12 @@ Further 2026-10-09 observations (structure only):
 - Ship module objects (`hullWeapons`, `noseWeapons`, `utilityModules`, `ammo`, `batteryCharge`, `damagedParts[].module`) and fleet `trajectory.Segments` sometimes contain `$id`/`$ref` members or a `{"$id", "$content"}` wrapper. *Hypothesis:* JSON.NET reference preservation. The normalizer keeps these values raw.
 - `TIHabState.orbitState` was non-null in 73 of 269 habs and `habSite` in the other 196 (counts only, not checked per entry). *Hypothesis:* exactly one of the two is set.
 - Observed on 2026-10-14 in five private complete saves of one campaign (2045-08 to 2046-10, structure only): `TIHabState.globalPosition` is an `{x, y, z}` object of floats in every hab, like the fleet field; `inEarthLEO` was true in 18 habs of each save; `coreDefended` was false and `coreDefendExpiration` `null` in every hab, and `advisingCouncilors` was empty in every hab; all six fields were present in every hab. *Hypothesis:* `coreDefended`/`coreDefendExpiration` mirror the control-point `defended`/`defendExpiration` pair, so a non-null `coreDefendExpiration` is a componentized date object; the normalizer copies whatever value is present.
+- Observed on 2026-10-14 in five private saves of one campaign (363 regions each, structure only): every
+  `TIRegionState` field added for issue #48 is present on every region. `annexationBeginDate` was `null` and
+  `annexationDaysLeft` `0` on every region; `isCounterfiring`, `underBombardment` and `oilRegion` were `false` and
+  `nuclearDetonations` `0` everywhere, so their non-default shapes are not observed. *Hypothesis:* a set
+  `annexationBeginDate` is a componentized date like `TIControlPoint.crackdownExpiration`. `oceanType` is a string with
+  two distinct values; the remaining flags and counters held both default and non-default values.
 - Ship `templateName` is a design name shared by many ships; hab `templateName` was null in 267 of 269 habs. Neither is a secondary key.
 - Observed on 2026-10-14 in five private complete saves of one campaign (structure only): every `TIArmyState` (19 per save) and `TIMegafaunaArmyState` (0 or 1 per save) carried `currentOperations` as an empty list, `destinationSeaDate` and `embarkDate` as `null`, and `huntingXenofauna` as `false`. All four are copied as-is. *Hypothesis:* army operation elements share the fleet element keys (`operationDataName`, `target`, `startDate`, `completionDate`) and the two transit dates use the componentized date object; neither was seen on an army.
 
@@ -54,6 +60,10 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TIRegionState` | `nation` | reference | `TINationState` |
 | `TIRegionState` | `alienFacility`, `alienActivity`, `xenoforming` | reference | `TIRegionAlienFacilityState`, `TIRegionAlienActivityState`, `TIRegionXenoformingState` |
 | `TIRegionState` | `leadOccupier`, `annexingArmy` | `null` in every inspected region | not observed |
+| `TIRegionState` | `originalColony` | reference or `null` (set on 25 of 363 regions; observed 2026-10-14, five saves) | `TINationState` |
+| `TIRegionState` | `boostFacility`, `missionControlFacility`, `spaceDefenseFacility` | reference, one per region (observed 2026-10-14, five saves) | `TILaunchFacilityState`, `TIMissionControlFacilityState`, `TISpaceDefensesFacilityState` |
+| `TIRegionState` | `alienCrashdown`, `alienLanding` | reference, one per region (observed 2026-10-14, five saves) | `TIRegionUFOCrashdownState`, `TIRegionUFOLandingState` |
+| `TIRegionState` | `spaceFacilities` | list of three typed references (`$type`), one per facility type above, the same IDs as the three facility fields (observed 2026-10-14, five saves) | `TILaunchFacilityState`, `TIMissionControlFacilityState`, `TISpaceDefensesFacilityState` |
 | `TIFactionState` | `player` | reference | `TIPlayerState` |
 | `TIFactionState` | `councilors` | list of references | `TICouncilorState` |
 | `TIFactionState` | `controlPoints` | list of references | `TIControlPoint` |
