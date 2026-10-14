@@ -194,6 +194,28 @@
       "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
       "sha256": "c205775cfc6bd257acee341980130c5195b98ea9afe875c32b859ca5fd88b040",
       "purpose": "Later snapshot of the same synthetic interval: a control point whose controller changes faction (with both rosters and a dated lostControlPoints entry) and one that becomes uncontrolled; a control point and a region that move to another nation; a capital change; a breakaway link; a reciprocal war entry and a one-sided rival removal; a re-dated executive change; a councilor that changes faction, status and detaining faction; a councilor that moves from a region to a hab (priorLocation set); a councilor whose faction becomes null; a nation control-point list with an unmirrored member; a faction councilor list with a stale ID."
+    },
+    {
+      "path": "assets_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "337b3aeee74f79f1003ad1968b51cefe758f6d4b83c12fb7526d5f1d2baf85d8",
+      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, and a research singleton with two finished techs and one progress entry."
+    },
+    {
+      "path": "assets_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "d65cedacb2a9667781fd4451616f45fce157606a3daa10a3c4d6f63fb9218f51",
+      "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed."
     }
   ]
 }

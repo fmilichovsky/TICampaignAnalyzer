@@ -137,6 +137,43 @@ def _nation_presence(event: Event) -> str:
     return f"{_subject(event)} {_presence(event)}"
 
 
+def _with_context(label: str, domain: EntityDomain, prefix: str = "") -> Callable[[Event], str]:
+    """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
+
+    def describe(event: Event) -> str:
+        return f"{_subject(event)} ({prefix}{_name(_entity(event, domain))}) {_transition(event, label)}"
+
+    return describe
+
+
+def _presence_with(domain: EntityDomain, prefix: str) -> Callable[[Event], str]:
+    return lambda event: f"{_subject(event)} ({prefix} {_name(_entity(event, domain))}) {_presence(event)}"
+
+
+def _army_presence(event: Event) -> str:
+    faction = _name(_entity(event, EntityDomain.FACTION))
+    region = _name(_entity(event, EntityDomain.REGION))
+    return f"{_subject(event)} (faction {faction}, region {region}) {_presence(event)}"
+
+
+def _destruction_recorded(event: Event) -> str:
+    return (
+        f"{_subject(event)} records a hab destruction dated {_text(event, 'recorded_on')}: "
+        f"type {_attr(event, 'hab_type')} at {_attr(event, 'space_body')} by {_attr(event, 'destroyer')}"
+    )
+
+
+def _technology_completed(event: Event) -> str:
+    text = f"{_subject(event)} is listed as finished"
+    if event.attribute("side") == "after":
+        text += " (no earlier research state)"
+    return text
+
+
+def _technology_presence(event: Event) -> str:
+    return f"{_subject(event)} (finished {_attr(event, 'finished')}) {_presence(event)}"
+
+
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "control_point.controller_changed": _controller_changed,
     "control_point.nation_changed": _plain("nation"),
@@ -165,4 +202,46 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "councilor.appeared": _councilor_presence,
     "councilor.disappeared": _councilor_presence,
     "faction.councilors_changed": _list_changed,
+    "army.region_changed": _with_context("region", EntityDomain.FACTION),
+    "army.faction_changed": _with_context("faction", EntityDomain.REGION, "in "),
+    "army.destroyed_changed": _with_context("destroyed flag", EntityDomain.FACTION),
+    "army.strength_changed": _with_context("strength", EntityDomain.FACTION),
+    "army.type_changed": _with_context("type", EntityDomain.FACTION),
+    "army.deployment_type_changed": _with_context("deployment type", EntityDomain.FACTION),
+    "army.home_region_changed": _with_context("home region", EntityDomain.FACTION),
+    "army.appeared": _army_presence,
+    "army.disappeared": _army_presence,
+    "faction.armies_changed": _list_changed,
+    "nation.armies_changed": _list_changed,
+    "region.armies_changed": _list_changed,
+    "fleet.faction_changed": _plain("faction"),
+    "fleet.docked_location_changed": _with_context("docked location", EntityDomain.FACTION),
+    "fleet.orbit_changed": _with_context("orbit", EntityDomain.FACTION),
+    "fleet.barycenter_changed": _with_context("barycenter", EntityDomain.FACTION),
+    "fleet.parent_fleet_changed": _with_context("parent fleet", EntityDomain.FACTION),
+    "fleet.in_combat_changed": _with_context("in-combat flag", EntityDomain.FACTION),
+    "fleet.appeared": _presence_with(EntityDomain.FACTION, "faction"),
+    "fleet.disappeared": _presence_with(EntityDomain.FACTION, "faction"),
+    "faction.fleets_changed": _list_changed,
+    "hab.docked_fleets_changed": _list_changed,
+    "ship.fleet_changed": _plain("fleet"),
+    "ship.last_refit_date_changed": _with_context("last refit date", EntityDomain.FLEET, "fleet "),
+    "ship.appeared": _presence_with(EntityDomain.FLEET, "fleet"),
+    "ship.disappeared": _presence_with(EntityDomain.FLEET, "fleet"),
+    "fleet.ships_changed": _list_changed,
+    "hab.faction_changed": _plain("faction"),
+    "hab.type_changed": _with_context("type", EntityDomain.FACTION),
+    "hab.tier_changed": _with_context("tier", EntityDomain.FACTION),
+    "hab.in_combat_changed": _with_context("in-combat flag", EntityDomain.FACTION),
+    "hab.under_assault_changed": _with_context("under-assault flag", EntityDomain.FACTION),
+    "hab.under_bombardment_changed": _with_context("under-bombardment flag", EntityDomain.FACTION),
+    "hab.core_completed_changed": _with_context("core-completed flag", EntityDomain.FACTION),
+    "hab.appeared": _presence_with(EntityDomain.FACTION, "faction"),
+    "hab.disappeared": _presence_with(EntityDomain.FACTION, "faction"),
+    "faction.hab_destruction_recorded": _destruction_recorded,
+    "technology.completed": _technology_completed,
+    "technology.finished_changed": _plain("finished"),
+    "technology.appeared": _technology_presence,
+    "technology.disappeared": _technology_presence,
+    "research.finished_techs_changed": _list_changed,
 }

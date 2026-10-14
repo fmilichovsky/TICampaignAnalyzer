@@ -2,9 +2,25 @@
 
 from .base import Analyzer
 from .common import run_analyzers
+from .military import ArmyAnalyzer
 from .politics import ControlPointAnalyzer, CouncilorAnalyzer, NationAnalyzer
+from .space import FleetAnalyzer, HabAnalyzer, ShipAnalyzer
+from .technology import TechnologyAnalyzer
 
 POLITICS_ANALYZERS: tuple[Analyzer, ...] = (ControlPointAnalyzer(), NationAnalyzer(), CouncilorAnalyzer())
 """The analyzers of the politics family, in the order they run (the output is sorted regardless)."""
+MILITARY_ANALYZERS: tuple[Analyzer, ...] = (ArmyAnalyzer(),)
+SPACE_ANALYZERS: tuple[Analyzer, ...] = (FleetAnalyzer(), ShipAnalyzer(), HabAnalyzer())
+TECHNOLOGY_ANALYZERS: tuple[Analyzer, ...] = (TechnologyAnalyzer(),)
+ALL_ANALYZERS: tuple[Analyzer, ...] = POLITICS_ANALYZERS + MILITARY_ANALYZERS + SPACE_ANALYZERS + TECHNOLOGY_ANALYZERS
+"""Every family; each handled reference list is owned by exactly one analyzer, so IDs never collide."""
 
-__all__ = ["POLITICS_ANALYZERS", "Analyzer", "run_analyzers"]
+__all__ = [
+    "ALL_ANALYZERS",
+    "MILITARY_ANALYZERS",
+    "POLITICS_ANALYZERS",
+    "SPACE_ANALYZERS",
+    "TECHNOLOGY_ANALYZERS",
+    "Analyzer",
+    "run_analyzers",
+]

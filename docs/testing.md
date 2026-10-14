@@ -129,9 +129,16 @@ contains a cause word (`purg`, `coup`, `annex`, `defect`, `destroy`, ...).
 Attributes are exempt from that check on purpose: they are literal copies of
 save values (the records pair carries a recorded `cause` of `Coup`).
 
-`politics_before.json` / `politics_after.json` is the analyzer pair: it holds
-only political state types and exercises each political transition once (see
-the manifest `purpose` fields). Like every pair, it is not a `diff` golden.
+`politics_before.json` / `politics_after.json` is the politics analyzer pair: it
+holds only political state types and exercises each political transition once
+(see the manifest `purpose` fields). `assets_before.json` / `assets_after.json`
+is the pair for the army, space and technology analyzers (armies of both state
+types, fleets, ships, habs, a hab destruction log and the research singleton);
+`tests/analyzers/test_asset_fixture_pairs.py` runs those families over it and
+over the `interval_*` pair with the same invariants, allows the words
+*destroy* and *refit* only when the primary source is the save field that
+carries them, and runs every family together over all four pairs to prove the
+event IDs never collide. Like every pair, neither is a `diff` golden.
 The opt-in `real_save` analyzer test reuses `TINARRATIVE_REAL_SAVE` and
 `TINARRATIVE_REAL_SAVE_AFTER` and prints nothing.
 
