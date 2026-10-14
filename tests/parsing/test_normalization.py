@@ -11,7 +11,7 @@ from tinarrative.identity import STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.snapshot import EntityState, ResearchState, SaveSnapshot
-from tinarrative.model.values import FrozenMap, Unknown, UnknownReason
+from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze
 from tinarrative.parsing.errors import UnsupportedSaveShapeError
 from tinarrative.parsing.fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, RESEARCH_STATE_TYPE
 from tinarrative.parsing.normalization import game_datetime, normalize
@@ -227,6 +227,81 @@ def test_nation_and_region_references_resolve_through_documented_domains(politic
     )
     assert faction.get("player") == FrozenMap((("value", 60),))
     assert faction.get("resources") == FrozenMap((("Influence", 2.5), ("Money", 10.0)))
+
+
+REGION_FACILITIES = {
+    "boostFacility": "TILaunchFacilityState",
+    "missionControlFacility": "TIMissionControlFacilityState",
+    "spaceDefenseFacility": "TISpaceDefensesFacilityState",
+}
+
+
+def test_region_sub_states_stay_raw_and_scalars_flags_and_original_colony_are_copied() -> None:
+    facilities = {name: {"value": 100 + offset} for offset, name in enumerate(REGION_FACILITIES)}
+    typed_facilities = [
+        {"$type": STATE_PREFIX + state_type, "value": 100 + offset}
+        for offset, state_type in enumerate(REGION_FACILITIES.values())
+    ]
+    region = pair(
+        40,
+        nation={"value": 20},
+        originalColony={"value": 21},
+        alienCrashdown={"value": 110},
+        alienLanding={"value": 111},
+        spaceFacilities=typed_facilities,
+        annexationBeginDate=None,
+        annexationDaysLeft=0.0,
+        antiSpaceDefenses=True,
+        boostPerYear_dekatons=1.5,
+        missionControl=2,
+        numSTOFighters=3,
+        isCounterfiring=False,
+        nuclearDetonations=0,
+        underBombardment=False,
+        colonyRegion=True,
+        permanentlyDecolonized=False,
+        coreEconomicRegion=True,
+        oilRegion=False,
+        resourceRegion=True,
+        oceanType="FixtureOcean",
+        **facilities,
+    )
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TINationState": [pair(20), pair(21)],
+        STATE_PREFIX + "TIRegionState": [
+            region,
+            pair(41, originalColony={"value": 999}),
+            pair(42, originalColony=None),
+        ],
+        **{
+            STATE_PREFIX + state_type: [pair(100 + offset)]
+            for offset, state_type in enumerate(REGION_FACILITIES.values())
+        },
+        STATE_PREFIX + "TIRegionUFOCrashdownState": [pair(110)],
+        STATE_PREFIX + "TIRegionUFOLandingState": [pair(111)],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert [key for key in keys(report) if key[1] == "TIRegionState"] == []
+
+    full = by_id(snapshot.regions, "40")
+    assert full.get("originalColony") == ref(EntityDomain.NATION, "21", "TINationState")
+    # Facility and UFO sub-state types have no entity domain: copied raw, like alienFacility.
+    assert full.get("boostFacility") == FrozenMap((("value", 100),))
+    assert full.get("alienCrashdown") == FrozenMap((("value", 110),))
+    assert full.get("alienLanding") == FrozenMap((("value", 111),))
+    assert full.get("spaceFacilities") == tuple(freeze(item) for item in typed_facilities)
+    assert full.get("annexationBeginDate") is None
+    assert full.get("boostPerYear_dekatons") == 1.5
+    assert full.get("numSTOFighters") == 3
+    assert full.get("underBombardment") is False
+    assert full.get("colonyRegion") is True
+    assert full.get("oceanType") == "FixtureOcean"
+
+    dangling = by_id(snapshot.regions, "41")
+    assert dangling.get("originalColony") == unresolved(999)
+    assert dangling.get("nuclearDetonations") == Unknown()  # omitted by the save
+    assert dangling.get("spaceFacilities") == Unknown()
+    assert by_id(snapshot.regions, "42").get("originalColony") is None
 
 
 @pytest.mark.fixture
