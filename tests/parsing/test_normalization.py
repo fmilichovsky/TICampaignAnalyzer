@@ -757,6 +757,81 @@ def test_reference_fields_report_unexpected_shapes_and_owners_while_resolving_as
     assert snapshot == fragment(gamestates)
 
 
+FIRE_MISSION = {"year": 2031, "month": 5, "day": 1, "hour": 0, "minute": 0, "second": 0, "millisecond": 0}
+FLEET_OPERATION = {
+    "operationDataName": "FixtureOperation",
+    "target": {"$type": STATE_PREFIX + "TISpaceFleetState", "value": 81},
+    "startDate": FIRE_MISSION,
+    "completionDate": {"$ref": "1"},
+}
+FLEET_ORDERS = {
+    "currentOperations": [FLEET_OPERATION],
+    "huntingXenofauna": False,
+    "unavailableForOperations": True,
+    "bombardmentTarget": None,
+    "bombardmentTargetBracketStatus": "FixtureStatus",
+    "endBombardmentReason": "FixtureReason",
+    "timeOfLastFireMission": FIRE_MISSION,
+}
+
+
+def test_fleet_names_operations_and_bombardment_state_are_normalized() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [pair(10), pair(11)],
+        STATE_PREFIX + "TISpaceFleetState": [
+            pair(
+                80,
+                displayNameByFaction=[
+                    {"Key": {"value": 10}, "Value": "Fixture Fleet"},
+                    {"Key": {"value": 11}, "Value": "Fixture Contact"},
+                ],
+                **FLEET_ORDERS,
+            ),
+            pair(81, displayNameByFaction={}),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert report.total == 0
+    fleet = by_id(snapshot.fleets, "80")
+    assert fleet.get("displayNameByFaction") == FrozenMap(
+        (("faction:10", "Fixture Fleet"), ("faction:11", "Fixture Contact"))
+    )
+    for name, value in FLEET_ORDERS.items():
+        assert fleet.get(name) == freeze(value)  # operations (a `$ref` date, a fleet target) and dates stay raw
+
+    quiet = by_id(snapshot.fleets, "81")
+    assert quiet.get("displayNameByFaction") == FrozenMap()
+    for name in FLEET_ORDERS:
+        assert quiet.get(name) == Unknown()  # missing, not coerced
+
+    renamed = FrozenMap((("faction:10", "Fixture Fleet"), ("faction:11", "Fixture Renamed")))
+    assert compare_values(fleet.get("displayNameByFaction"), renamed) == (
+        ChangeKind.MAP,
+        MapDetail(changed=("faction:11",)),
+    )
+
+
+def test_fleet_names_keyed_by_another_type_are_reported() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TINationState": [pair(20)],
+        STATE_PREFIX + "TISpaceFleetState": [
+            pair(80, displayNameByFaction=[{"Key": {"value": 20}, "Value": "Fixture Fleet"}]),
+            pair(81, displayNameByFaction="Fixture Fleet"),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert keys(report) == [
+        ("unexpected_field_shape", "TISpaceFleetState", "displayNameByFaction", "pair_map"),
+        ("unexpected_reference_domain", "TISpaceFleetState", "displayNameByFaction", "TINationState"),
+    ]
+    assert "Fixture" not in json.dumps(report.to_dict())  # fleet names are campaign content
+    unresolved_names = by_id(snapshot.fleets, "80").get("displayNameByFaction")
+    assert isinstance(unresolved_names, Unknown) and unresolved_names.reason is UnknownReason.UNRESOLVED_REFERENCE
+    assert by_id(snapshot.fleets, "81").get("displayNameByFaction") == Unknown(
+        UnknownReason.UNPARSEABLE, "Fixture Fleet"
+    )
+
+
 COUNCILOR_IDENTITY = {
     "ancestry": "FixtureAncestry",
     "gender": "Female",
