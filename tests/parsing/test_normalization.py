@@ -380,6 +380,7 @@ def test_faction_flags_counters_orgs_and_name_keyed_ship_designs() -> None:
         10,
         knowsWinCondition=True,
         unlockedVictoryObjective=False,
+        defeated=False,
         sabotagedProjects=["FixtureProject"],
         unassignedOrgs=[{"value": 70}, {"value": 71}],
         shipDesigns=[design("FixtureDesignB", refitIteration=1), design("FixtureDesignA")],
@@ -395,6 +396,7 @@ def test_faction_flags_counters_orgs_and_name_keyed_ship_designs() -> None:
     state = by_id(snapshot.factions, "10")
     assert state.get("knowsWinCondition") is True
     assert state.get("unlockedVictoryObjective") is False
+    assert state.get("defeated") is False
     assert state.get("sabotagedProjects") == ("FixtureProject",)
     # resolved like councilor ``orgs``
     org_refs = (ref(EntityDomain.ORGANIZATION, "70", "TIOrgState"), ref(EntityDomain.ORGANIZATION, "71", "TIOrgState"))
