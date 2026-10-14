@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..identity import STATE_PREFIX, read_id_value
+from ..model.evidence import pointer_path
 from .errors import UnsupportedSaveShapeError
 
 
@@ -22,13 +23,28 @@ class StateEntry:
     value: dict[str, Any]
 
 
-def _escape_pointer_token(token: str) -> str:
-    return token.replace("~", "~0").replace("/", "~1")
-
-
 def entry_path(full_type: str, index: int) -> str:
     """RFC 6901 pointer to one entry's ``Value`` object."""
-    return f"/gamestates/{_escape_pointer_token(full_type)}/{index}/Value"
+    return pointer_path("/gamestates", full_type, index, "Value")
+
+
+def decode_pair_map(value: Any) -> tuple[tuple[Any, Any], ...] | None:
+    """Decode a field-level dictionary (``containers-and-references.md``, "Field-level dictionaries").
+
+    An empty dictionary serializes as ``{}`` and a populated one as an array of ``{"Key", "Value"}`` objects;
+    both decode to ``(key, value)`` pairs in serialized order. Any other value, including an array with one
+    element that is not such an object, returns ``None`` so the caller can report the shape.
+    """
+    if value == {}:
+        return ()
+    if not isinstance(value, list):
+        return None
+    pairs: list[tuple[Any, Any]] = []
+    for item in value:
+        if not isinstance(item, dict) or "Key" not in item or "Value" not in item:
+            return None
+        pairs.append((item["Key"], item["Value"]))
+    return tuple(pairs)
 
 
 def decode_state_map(gamestates: dict[str, Any], short_type: str) -> tuple[StateEntry, ...]:

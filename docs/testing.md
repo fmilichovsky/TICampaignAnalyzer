@@ -145,8 +145,8 @@ and field names, JSON shapes, counts and dates only (see
 [its README](game-data-notes/unknowns/README.md)).
 `tests/maintenance/test_committed_registry.py` runs in the default suite and
 fails when the file is not canonical, holds an unsafe string, or lists an entry
-the schema now covers. After extending `ENTITY_FIELDS`, `ACKNOWLEDGED_FIELDS` or
-`KNOWN_STATE_TYPES`, refresh it locally:
+the schema now covers. After extending `ENTITY_FIELDS`, `RECORD_FIELDS`,
+`ACKNOWLEDGED_FIELDS` or `KNOWN_STATE_TYPES`, refresh it locally:
 
 ```sh
 tinarrative unknowns /path/to/private/saves --registry docs/game-data-notes/unknowns/registry.json

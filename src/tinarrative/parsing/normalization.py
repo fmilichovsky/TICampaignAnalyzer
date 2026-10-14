@@ -2,6 +2,8 @@
 
 Only fields observed in ``docs/game-data-notes/domain-field-map.md`` are copied; a listed field that the
 save omits is ``Unknown``, fields the save adds are not copied, and no ownership or cause is inferred.
+Save-carried records (dated logs and cumulative counters listed in ``RECORD_FIELDS``) are decoded by
+:mod:`tinarrative.parsing.records` into ``SaveSnapshot.records`` next to the entity collections.
 A reference to an ID absent from the save (for example a fleet's ``parentFleet`` after a merge) stays an
 unresolved ``Unknown`` carrying the raw ID, so fleet-ID lifetime limits remain visible downstream.
 
@@ -22,9 +24,11 @@ from ..log import fields as log_fields
 from ..log import get_logger, shape
 from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from ..model.evidence import SourceLocation
+from ..model.records import RecordSet, record_counts
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_state_map, entry_path
+from .dates import COMPONENTIZED_DATE, game_datetime
 from .fields import (
     ENTITY_FIELDS,
     METADATA_FIELDS,
@@ -34,10 +38,11 @@ from .fields import (
     TIME_FIELDS,
 )
 from .raw_save import RawSave
-from .references import ExpectedDomains, ReferenceIndex, as_domains
-from .unknowns import UnknownCollector, scan_envelope, scan_fields
+from .records import decode_records
+from .references import ReferenceIndex
+from .unknowns import UnknownCollector, check_reference, scan_envelope, scan_fields
 
-_DATE_COMPONENTS = ("year", "month", "day", "hour", "minute", "second")
+__all__ = ["game_datetime", "normalize"]
 
 logger = get_logger(__name__)
 
@@ -72,51 +77,6 @@ def _unknown_counts(states: tuple[EntityState, ...]) -> dict[str, int]:
     return counts
 
 
-def game_datetime(components: Any) -> datetime | None:
-    """Build a naive game-calendar datetime from the componentized ``currentDateTime`` object."""
-    if not isinstance(components, dict):
-        return None
-    try:
-        parts: list[Any] = [components[name] for name in _DATE_COMPONENTS]
-        millisecond: Any = components.get("millisecond", 0)
-        if any(isinstance(part, bool) or not isinstance(part, int) for part in [*parts, millisecond]):
-            return None
-        year, month, day, hour, minute, second = (int(part) for part in parts)
-        return datetime(year, month, day, hour, minute, second, int(millisecond) * 1000)
-    except (KeyError, TypeError, ValueError):
-        return None
-
-
-def _check_reference(
-    state_type: str,
-    name: str,
-    raw: Any,
-    expected: ExpectedDomains,
-    is_list: bool,
-    index: ReferenceIndex,
-    collector: UnknownCollector,
-) -> None:
-    """Report a reference field whose shape or target type is not the documented one; resolution is unchanged."""
-    if is_list:
-        if not isinstance(raw, list):
-            collector.field_shape(state_type, name, "array_of_references", raw)
-            return
-        items: list[Any] = raw
-    else:
-        items = [raw]
-    domains = as_domains(expected)
-    for item in items:
-        if item is None and not is_list:
-            continue
-        map_id = read_id_value(item)
-        if map_id is None:
-            collector.field_shape(state_type, name, "reference_object", item)
-            continue
-        owner = index.owner_state_type(map_id, domains)
-        if owner is not None:
-            collector.reference_domain(state_type, name, owner)
-
-
 def _entity_state(
     domain: EntityDomain,
     short_type: str,
@@ -134,7 +94,7 @@ def _entity_state(
         raw = entry.value[name]
         if name in references:
             target, is_list = references[name]
-            _check_reference(short_type, name, raw, target, is_list, index, collector)
+            check_reference(short_type, name, raw, target, is_list, index, collector)
             fields.append((name, index.resolve_list(raw, target) if is_list else index.resolve(raw, target)))
         else:
             fields.append((name, freeze(raw)))
@@ -256,7 +216,7 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
         else:
             date = Unknown(UnknownReason.UNPARSEABLE, freeze(time_state["currentDateTime"]))
             logger.debug("date unparseable %s", log_fields(value=shape(time_state["currentDateTime"])))
-            collector.field_shape("TITimeState", "currentDateTime", "componentized_date", time_state["currentDateTime"])
+            collector.field_shape("TITimeState", "currentDateTime", COMPONENTIZED_DATE, time_state["currentDateTime"])
 
     metadata = {name: _observed(metadata_state, name) for name in METADATA_FIELDS}
     time_fields = {name: _observed(time_state, name) for name in TIME_FIELDS}
@@ -270,10 +230,12 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
     )
 
     collections: dict[str, tuple[EntityState, ...]] = {}
+    records: list[RecordSet] = []
     for domain, short_type, attribute in NORMALIZED_DOMAINS:
         entries = decode_state_map(gamestates, short_type)
         states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source, collector) for entry in entries)
         collections[attribute] = collections.get(attribute, ()) + states
+        records.extend(decode_records(short_type, entries, states, index, raw_save.source, collector))
         if logger.isEnabledFor(logging.DEBUG):
             unknown = _unknown_counts(states)
             logger.debug(
@@ -290,12 +252,15 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
             )
     research, technologies = _research(gamestates, raw_save.source, collector)
     collector.log_summary()
+    record_sets, record_entries = record_counts(records)
     logger.info(
         "normalized %s",
         log_fields(
             state_types=len(gamestates),
             entities=sum(len(states) for states in collections.values()),
             technologies=len(technologies),
+            record_sets=record_sets,
+            record_entries=record_entries,
         ),
     )
 
@@ -313,6 +278,7 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
         campaign=campaign,
         research=research,
         technologies=technologies,
+        records=tuple(records),
         raw_metadata=raw_metadata,
         **collections,
     )

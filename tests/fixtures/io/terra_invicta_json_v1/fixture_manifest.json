@@ -150,6 +150,28 @@
       "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
       "sha256": "64e5381dd32489d20cd63db5e87eab1d1d36dc414373ff5636cffb80488d797c",
       "purpose": "Later snapshot of the same synthetic interval: scalar, reference (null to resolved, resolved to unresolved), membership, map-key and unknown-value changes; entities that appear (megafauna army 112, councilor 102, fleet 121); a reference list with a stale ID; a newly finished technology; a later date."
+    },
+    {
+      "path": "records_before.json",
+      "kind": "synthetic_records_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "b5c35dd8b91b723937b44cb313a14671853e73642c5164bbf4763a7897545ca7",
+      "purpose": "Earlier snapshot of a synthetic interval for the save-carried records layer; pair with records_after.json. Faction 15 carries every record field (ledger with a hashed-looking label, destruction log, empty pair maps as {}, typed alien-site keys incl. an absent ID, counters, dated labels); faction 16 carries none (missing case); nation 20 has no executive change yet."
+    },
+    {
+      "path": "records_after.json",
+      "kind": "synthetic_records_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "b66792b5d3c2f710e8d1b77ad6cdd7aabbe35dab5b2efef89073f13935e7832a",
+      "purpose": "Later snapshot of the same synthetic interval: every log is a strict prefix extension (ledger, destruction log with an unresolved space body and a null destroyer, milestones), pair maps go from {} to one pair, keyed values change (faction hate, objective status, armies lost, boost account date), counters increment, a control point is lost, and nation 20 records a dated executive change by coup."
     }
   ]
 }

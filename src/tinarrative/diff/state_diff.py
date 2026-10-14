@@ -16,6 +16,11 @@ Comparison rules (also documented in ``docs/commands/diff.md``):
 - When either side is ``Unknown`` the kind is ``unknown``; nothing is inferred from the known side.
 - An entity present in one snapshot only yields a single ``appeared`` or ``disappeared`` change and no
   per-field changes.
+- Save-carried records (``SaveSnapshot.records``) are compared per owning entity and field. A log is
+  compared as a multiset of entries (``records``: entries added and removed, index aside); a keyed record
+  by key (added, removed and changed keys); a scalar record like an ordinary field. A removed entry is
+  reported literally (some ledger labels are observed to be rewritten between saves); nothing is
+  inferred from it.
 """
 
 from __future__ import annotations
@@ -24,16 +29,20 @@ import json
 import logging
 from collections import Counter
 from dataclasses import fields as dataclass_fields
+from dataclasses import replace
 
 from ..log import fields as log_fields
 from ..log import get_logger
-from ..model.changes import ChangeKind, MapDetail, MembershipDetail, StateChange, StateDiff
-from ..model.entities import EntityRef
+from ..model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
+from ..model.entities import EntityId, EntityRef
 from ..model.evidence import Evidence, SourceLocation
+from ..model.records import KEYED_KINDS, SCALAR_KINDS, ItemEntry, KeyedEntry, RecordEntry, RecordSet
 from ..model.snapshot import STATE_COLLECTIONS, CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, to_jsonable
 
-__all__ = ["ChangeKind", "MapDetail", "MembershipDetail", "StateChange", "StateDiff", "diff_states"]
+__all__ = ["ChangeKind", "MapDetail", "MembershipDetail", "RecordsDetail", "StateChange", "StateDiff", "diff_states"]
+
+Detail = MembershipDetail | MapDetail | RecordsDetail | None
 
 logger = get_logger(__name__)
 
@@ -50,6 +59,7 @@ def diff_states(before: SaveSnapshot, after: SaveSnapshot) -> StateDiff:
     changes: list[StateChange] = []
     for name in STATE_COLLECTIONS:
         changes.extend(_collection_changes(name, before, after))
+    changes.extend(_record_changes(before, after))
     changes.extend(_singleton_changes(before, after))
     return StateDiff(before=before, after=after, changes=tuple(changes))
 
@@ -86,7 +96,7 @@ def order_key(value: FieldValue) -> tuple[int, str, int, str]:
     return (3, "", 0, json.dumps(to_jsonable(value), sort_keys=True, ensure_ascii=True))
 
 
-def compare_values(before: Observed, after: Observed) -> tuple[ChangeKind, MembershipDetail | MapDetail | None] | None:
+def compare_values(before: Observed, after: Observed) -> tuple[ChangeKind, Detail] | None:
     """The kind and detail of the difference between two observed values, or ``None`` when equal."""
     if strict_equal(before, after):
         return None
@@ -99,9 +109,7 @@ def compare_values(before: Observed, after: Observed) -> tuple[ChangeKind, Membe
     return (ChangeKind.VALUE, None)
 
 
-def _membership(
-    before: tuple[FieldValue, ...], after: tuple[FieldValue, ...]
-) -> tuple[ChangeKind, MembershipDetail | MapDetail | None] | None:
+def _membership(before: tuple[FieldValue, ...], after: tuple[FieldValue, ...]) -> tuple[ChangeKind, Detail] | None:
     before_counts = Counter(before)
     after_counts = Counter(after)
     added = tuple(sorted((after_counts - before_counts).elements(), key=order_key))
@@ -122,7 +130,12 @@ def _map_detail(before: FrozenMap, after: FrozenMap) -> MapDetail:
     return MapDetail(added=added, removed=removed, changed=changed)
 
 
-def _describe(field: str, kind: ChangeKind, detail: MembershipDetail | MapDetail | None) -> str:
+def _describe(field: str, kind: ChangeKind, detail: Detail) -> str:
+    if isinstance(detail, RecordsDetail):
+        return (
+            f"{field} records changed: {len(detail.added)} added, {len(detail.removed)} removed, "
+            f"{len(detail.changed)} changed"
+        )
     if isinstance(detail, MembershipDetail):
         return f"{field} membership changed: {len(detail.added)} added, {len(detail.removed)} removed"
     if isinstance(detail, MapDetail):
@@ -142,7 +155,7 @@ def _field_change(
     after: Observed,
     before_location: SourceLocation | None,
     after_location: SourceLocation | None,
-    entity: EntityState | None = None,
+    entity_id: EntityId | None = None,
 ) -> StateChange | None:
     compared = compare_values(before, after)
     if compared is None:
@@ -155,7 +168,7 @@ def _field_change(
         before=before,
         after=after,
         evidence=Evidence(domain, description, before, after, before_location, after_location),
-        entity_id=entity.ref.entity_id if entity else None,
+        entity_id=entity_id,
         kind=kind,
         detail=detail,
     )
@@ -165,7 +178,9 @@ def _entity_changes(domain: str, before: EntityState, after: EntityState) -> lis
     names = sorted({name for name, _ in before.fields} | {name for name, _ in after.fields})
     changes: list[StateChange] = []
     for name in names:
-        change = _field_change(domain, name, before.get(name), after.get(name), before.location, after.location, after)
+        change = _field_change(
+            domain, name, before.get(name), after.get(name), before.location, after.location, after.ref.entity_id
+        )
         if change is not None:
             changes.append(change)
     return changes
@@ -220,6 +235,132 @@ def _collection_changes(name: str, before: SaveSnapshot, after: SaveSnapshot) ->
                 collection=name,
                 before=len(before_states),
                 after=len(after_states),
+                matched=matched,
+                **{kind.value: counts.get(kind.value, 0) for kind in ChangeKind},
+            ),
+        )
+    return changes
+
+
+def _content(entry: RecordEntry) -> RecordEntry:
+    """The entry without its position: two entries with the same content are the same record."""
+    return replace(entry, index=0)
+
+
+def _side_count(entries: tuple[RecordEntry, ...] | Unknown) -> Observed:
+    return entries if isinstance(entries, Unknown) else len(entries)
+
+
+def _log_detail(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...]) -> RecordsDetail:
+    """Entries on one side only, as multisets of content, each kept in serialized order."""
+    before_counts = Counter(_content(entry) for entry in before)
+    after_counts = Counter(_content(entry) for entry in after)
+    added = _surplus(after, after_counts - before_counts)
+    removed = _surplus(before, before_counts - after_counts)
+    return RecordsDetail(added=added, removed=removed)
+
+
+def _surplus(entries: tuple[RecordEntry, ...], extra: Counter[RecordEntry]) -> tuple[RecordEntry, ...]:
+    """The entries accounting for ``extra``; among equal entries the later ones, since logs grow at the end."""
+    remaining = Counter(extra)
+    picked: list[RecordEntry] = []
+    for entry in reversed(entries):
+        content = _content(entry)
+        if remaining[content] > 0:
+            remaining[content] -= 1
+            picked.append(entry)
+    return tuple(reversed(picked))
+
+
+def _keyed_detail(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...]) -> RecordsDetail:
+    """Entries matched by key; falls back to the multiset rule when a side repeats a key or is not keyed."""
+    before_keyed = [entry for entry in before if isinstance(entry, KeyedEntry)]
+    after_keyed = [entry for entry in after if isinstance(entry, KeyedEntry)]
+    before_map = {entry.key: entry for entry in before_keyed}
+    after_map = {entry.key: entry for entry in after_keyed}
+    if (
+        len(before_keyed) != len(before)
+        or len(after_keyed) != len(after)
+        or len(before_map) != len(before)
+        or len(after_map) != len(after)
+    ):
+        return _log_detail(before, after)
+    added = tuple(entry for entry in after_keyed if entry.key not in before_map)
+    removed = tuple(entry for entry in before_keyed if entry.key not in after_map)
+    changed = tuple(
+        (before_map[entry.key], entry)
+        for entry in after_keyed
+        if entry.key in before_map and not strict_equal(before_map[entry.key].value, entry.value)
+    )
+    return RecordsDetail(added=added, removed=removed, changed=changed)
+
+
+def _record_change(before: RecordSet, after: RecordSet) -> StateChange | None:
+    domain = before.owner.entity_id.domain.value
+    entity_id = before.owner.entity_id
+    field = before.field
+    if isinstance(before.entries, Unknown) or isinstance(after.entries, Unknown):
+        return _field_change(
+            domain,
+            field,
+            _side_count(before.entries),
+            _side_count(after.entries),
+            before.location,
+            after.location,
+            entity_id,
+        )
+    if before.kind in SCALAR_KINDS and after.kind in SCALAR_KINDS:
+        first, second = _single_item(before.entries), _single_item(after.entries)
+        if first is not None and second is not None:
+            return _field_change(domain, field, first.value, second.value, before.location, after.location, entity_id)
+    if before.kind in KEYED_KINDS and after.kind in KEYED_KINDS:
+        detail = _keyed_detail(before.entries, after.entries)
+    else:
+        detail = _log_detail(before.entries, after.entries)
+    if not (detail.added or detail.removed or detail.changed):
+        return None
+    counts: tuple[Observed, Observed] = (len(before.entries), len(after.entries))
+    description = _describe(field, ChangeKind.RECORDS, detail)
+    return StateChange(
+        domain=domain,
+        field=field,
+        before=counts[0],
+        after=counts[1],
+        evidence=Evidence(domain, description, counts[0], counts[1], before.location, after.location),
+        entity_id=entity_id,
+        kind=ChangeKind.RECORDS,
+        detail=detail,
+    )
+
+
+def _single_item(entries: tuple[RecordEntry, ...]) -> ItemEntry | None:
+    if len(entries) == 1 and isinstance(entries[0], ItemEntry):
+        return entries[0]
+    return None
+
+
+def _record_changes(before: SaveSnapshot, after: SaveSnapshot) -> list[StateChange]:
+    """Record sets matched by owner and field; a set whose owner is on one side only is covered by that entity's
+    ``appeared``/``disappeared`` change."""
+    before_index = {(record.owner.entity_id, record.field): record for record in before.records}
+    after_index = {(record.owner.entity_id, record.field): record for record in after.records}
+    changes: list[StateChange] = []
+    matched = 0
+    for key, record in before_index.items():
+        other = after_index.get(key)
+        if other is None:
+            continue
+        matched += 1
+        change = _record_change(record, other)
+        if change is not None:
+            changes.append(change)
+    if logger.isEnabledFor(logging.DEBUG):
+        counts = Counter(change.kind.value for change in changes)
+        logger.debug(
+            "records compared %s",
+            log_fields(
+                before=len(before.records),
+                after=len(after.records),
                 matched=matched,
                 **{kind.value: counts.get(kind.value, 0) for kind in ChangeKind},
             ),

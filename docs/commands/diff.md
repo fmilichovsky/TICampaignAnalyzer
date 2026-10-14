@@ -37,6 +37,7 @@ and the derived `timestamp` are not compared.
 | `unknown` | At least one side is `unknown`: the field is absent in that save, unparseable, or a reference whose ID does not exist there. Nothing is inferred from the known side. | `councilor:100 location: region:40 -> unknown (unresolved_reference, raw={...})` |
 | `appeared` | The entity is present only in the later save. No per-field changes are reported for it. | `fleet:121: present only in the after snapshot` |
 | `disappeared` | The entity is present only in the earlier save. | `control point:12: absent from the after snapshot` |
+| `records` | Both sides are known save-carried record sets of one entity and field (see below). `before` and `after` are the entry counts; the detail lists the entries added, removed and, for keyed records, changed. The text form shows counts only, because record entries carry campaign content (ledger labels, destroyed-asset names). | `faction:15 Transactions: +240 entries`, `faction:15 factionHate: ~1 entries` |
 
 Lists that are not reference or name lists (numeric lists such as `researchWeights`, lists
 of objects such as `techProgress`) are one `value`; a reorder of such a list is a change.
@@ -44,18 +45,38 @@ A reference list with one stale ID is `unknown (unresolved_reference)` as a whol
 normalizer could not resolve it; its raw IDs stay visible. Values and references print as
 `domain:key`, `unknown (<reason>)`, or compact JSON.
 
+### Save-carried records
+
+The dated logs and cumulative counters listed in the field map's
+[save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table
+(`Transactions`, `HabDestructionLog`, `lostControlPoints`, `lastExecutiveChange`, ...) are
+compared per owning entity and field, under the owner's domain. A log (ledger, destruction log,
+milestones) is compared as a multiset of entries, index aside: entries only in the later save are
+`added`; entries only in the earlier save are `removed` and reported literally (observed for some
+`Transactions` labels, which the game rewrites rather than appends to). A keyed record (pair maps and label maps) is compared by key, so a changed
+value is reported against its key (`~`). A single-value record is compared like an ordinary
+field: a counter is a `value` change (`faction:15 abductions: 0 -> 1`), `intelSharingFactions`
+a `membership` change, `dateOfNewGovernment` a `value` change. A record set that is `unknown`
+on one side (the field is absent or has an undocumented shape in that save) is an `unknown`
+change whose known side is the entry count. An entity present on one side only reports no record
+changes, like its fields.
+
 ## Evidence
 
 Every change carries the before and after value and a location on each side: the save path,
 the short state type, the map ID and the RFC 6901 path of the entity's serialized `Value`
 object. For an appeared or disappeared entity the absent side has only the save path. The
 campaign singletons have no recorded location yet, so their changes carry the save path only;
-the research fields carry the `TIGlobalResearchState` location.
+the research fields carry the `TIGlobalResearchState` location. A `records` change carries the
+record set's location, whose path ends in `/Value/<field>`; each entry in the detail keeps its
+`index` (and a ledger entry its `label`), which addresses it inside that field.
 
 With `--format json` the report is the serialized `StateDiff`: `before`, `after`,
 `before_date`, `after_date`, and `changes`, each with `domain`, `entity_id`, `field` (`null`
-for appeared/disappeared), `kind`, `before`, `after`, `detail` (`added`/`removed` members, or
-`added`/`removed`/`changed` keys), `description`, `before_location` and `after_location`.
+for appeared/disappeared), `kind`, `before`, `after`, `detail` (`added`/`removed` members,
+`added`/`removed`/`changed` keys, or for `records` the `added`/`removed` entries and
+`changed` `{before, after}` entry pairs), `description`, `before_location` and
+`after_location`.
 Unknown values serialize as `{"unknown": "<reason>"}` with the raw value when there is one.
 
 The output is deterministic: the same two saves always give byte-identical reports. The
@@ -63,7 +84,7 @@ chronological order of the two saves is not checked; the report always describes
 transition from the first argument to the second.
 
 Failures print one message to stderr naming the save that failed and no traceback. To see
-how the two saves were normalized and the per-collection change counts, run with the global
+how the two saves were normalized and the per-collection and record change counts, run with the global
 `--log-level debug` option (before `diff`); see the [debugging guide](../debugging.md).
 
 ## Exit codes

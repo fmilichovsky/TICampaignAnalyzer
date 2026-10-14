@@ -67,7 +67,7 @@ must pass before a change is considered done; CI runs exactly that
   label it as observed vs. hypothesis per that directory's README.
 - **Never ignore an undocumented structure silently.** The normalizer reports
   everything outside `parsing/fields.py` and `parsing/inventory.py` through
-  `UnknownCollector`. After adding a field to `ENTITY_FIELDS` or
+  `UnknownCollector`. After adding a field to `ENTITY_FIELDS`, `RECORD_FIELDS` or
   `ACKNOWLEDGED_FIELDS` (with an `UnsupportedReason`), re-run the unknowns scan on
   private saves so the registry shrinks; the committed-registry test fails otherwise.
   The registry holds names, shapes, counts and dates only, never values.

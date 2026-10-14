@@ -15,6 +15,9 @@ from tinarrative.parsing.fields import (
     COMMON_FIELDS,
     ENTITY_FIELDS,
     KNOWN_FIELDS,
+    RECORD_FIELDS,
+    RECORD_MEMBER_TARGETS,
+    REFERENCE_FIELDS,
     SERIALIZATION_FIELDS,
     SINGLETON_FIELDS,
 )
@@ -215,6 +218,19 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
         (("unknown_field", "TINationState", "$type", ""), True),
         (("unknown_field", "TISpaceShipState", "damagePoints", ""), True),
         (("unknown_field", "TINationState", "fixtureOnlyUndocumentedField", ""), False),
+        (("unknown_field", "TIFactionState", "Transactions", ""), True),
+        (("unknown_field", "TINationState", "lastExecutiveChange", ""), True),
+        (("unexpected_field_shape", "TIFactionState", "Transactions", "object"), False),
+        (("unexpected_field_shape", "TIFactionState", "Kills", "pair_map"), False),
+        (("unexpected_reference_domain", "TIFactionState", "knownAlienSites", "TIRegionState"), True),
+        (("unexpected_reference_domain", "TIFactionState", "knownAlienSites", "TIHabState"), True),
+        (("unexpected_reference_domain", "TIFactionState", "knownAlienSites", "TIFactionState"), False),
+        (("unexpected_reference_domain", "TIFactionState", "lostControlPoints", "TINationState"), False),
+        (("unexpected_reference_domain", "TIFactionState", "HabDestructionLog.Destroyer", "TINationState"), False),
+        (("unexpected_reference_domain", "TIFactionState", "HabDestructionLog.Destroyer", "TIFactionState"), True),
+        (("unexpected_reference_domain", "TIFactionState", "milestones", "TINationState"), True),
+        (("unexpected_reference_domain", "TINationState", "lastExecutiveChange.newExecutive", "TINationState"), False),
+        (("unexpected_reference_domain", "TINationState", "HabDestructionLog.Destroyer", "TINationState"), True),
         (("unknown_field", "TIOrgState", "anything", ""), True),  # no longer scanned: cannot recur
         (("unexpected_field_shape", "TINationState", "regions", "array_of_references"), False),
         (("unexpected_field_shape", "TINationState", "notAField", "array"), True),
@@ -243,6 +259,16 @@ def test_schema_tables_are_consistent() -> None:
     for state_type, copied in ENTITY_FIELDS.items():
         assert not set(SERIALIZATION_FIELDS) & set(copied)
         assert KNOWN_FIELDS[state_type] >= set(copied) | set(SERIALIZATION_FIELDS)
+    for state_type, records in RECORD_FIELDS.items():
+        assert state_type in ENTITY_FIELDS
+        assert not set(records) & set(ENTITY_FIELDS[state_type])
+        assert not set(records) & set(ACKNOWLEDGED_FIELDS.get(state_type, {}))
+        assert not set(records) & set(SERIALIZATION_FIELDS)
+        assert not set(records) & set(REFERENCE_FIELDS.get(state_type, {}))
+        assert KNOWN_FIELDS[state_type] >= set(records)
+    for qualified in RECORD_MEMBER_TARGETS:
+        field, _member = qualified.split(".", 1)
+        assert any(field in records for records in RECORD_FIELDS.values())
     for state_type in (*ENTITY_FIELDS, *SINGLETON_FIELDS):
         assert STATE_PREFIX + state_type in KNOWN_STATE_TYPES
     for strategy in ENTITY_DOMAINS:

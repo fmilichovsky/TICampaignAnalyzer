@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 
-from ..model.changes import ChangeKind, MapDetail, MembershipDetail, StateChange, StateDiff
+from ..model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from ..model.entities import EntityRef
 from ..model.values import Observed, Unknown, to_jsonable
 
@@ -33,6 +33,10 @@ def render_change(change: StateChange) -> str:
     subject = _subject(change)
     if change.kind in (ChangeKind.APPEARED, ChangeKind.DISAPPEARED):
         return f"{subject}: {change.evidence.description}"
+    if isinstance(change.detail, RecordsDetail):
+        # Counts only: record entries carry campaign content (ledger labels, destroyed-asset names).
+        counts = (("+", len(change.detail.added)), ("-", len(change.detail.removed)), ("~", len(change.detail.changed)))
+        return f"{subject}: {' '.join(f'{sign}{count}' for sign, count in counts if count)} entries"
     if isinstance(change.detail, MembershipDetail):
         parts = [f"+{render_value(m)}" for m in change.detail.added]
         parts += [f"-{render_value(m)}" for m in change.detail.removed]

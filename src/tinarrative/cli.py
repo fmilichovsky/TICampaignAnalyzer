@@ -22,6 +22,7 @@ from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
 from .maintenance.scan import ScanRun, expand_inputs, scan_inputs
+from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
@@ -128,6 +129,8 @@ def _run_parse(args: argparse.Namespace) -> int:
     print(f"player faction: {_render_observed(snapshot.campaign.player_faction_name)}")
     for attribute, label in NORMALIZED_COLLECTION_LABELS:
         print(f"{label}: {len(getattr(snapshot, attribute))}")
+    record_sets, record_entries = record_counts(snapshot.records)
+    print(f"records: {record_sets} fields, {record_entries} entries")
     print(f"unknown structures: {report.total}")
 
     code = EXIT_SUCCESS

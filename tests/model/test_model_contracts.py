@@ -5,9 +5,18 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, StateChange, StateDiff
+from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from tinarrative.model.evidence import Evidence, SourceLocation
+from tinarrative.model.evidence import Evidence, SourceLocation, pointer_path
+from tinarrative.model.records import (
+    DestructionEntry,
+    ItemEntry,
+    KeyedEntry,
+    LedgerEntry,
+    RecordKind,
+    RecordSet,
+    record_counts,
+)
 from tinarrative.model.snapshot import STATE_COLLECTIONS, EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze, is_unknown, to_jsonable
 
@@ -193,3 +202,78 @@ def test_research_state_defaults_to_unknown_and_serializes_with_its_location() -
     assert SaveSnapshot(source="a.save", date="d").research == empty
     with pytest.raises(FrozenInstanceError):
         research.campaign_start_year = 1  # type: ignore[misc]
+
+
+FACTION = EntityRef(EntityId(EntityDomain.FACTION, "15"), IdentityConfidence.IN_SAVE_ID, "TIFactionState")
+FIELD_LOCATION = SourceLocation("a.save", "TIFactionState", 15, "/gamestates/x/0/Value/Transactions")
+
+
+def _record(field: str, kind: RecordKind, *entries: object, key: str = "15") -> RecordSet:
+    owner = EntityRef(EntityId(EntityDomain.FACTION, key), IdentityConfidence.IN_SAVE_ID, "TIFactionState")
+    location = SourceLocation("a.save", "TIFactionState", int(key), f"/gamestates/x/0/Value/{field}")
+    return RecordSet(owner, field, kind, location, tuple(entries))  # type: ignore[arg-type]
+
+
+def test_pointer_path_escapes_tokens() -> None:
+    assert pointer_path("/gamestates", "a/b~c", 0, "Value") == "/gamestates/a~1b~0c/0/Value"
+    assert pointer_path("") == ""
+
+
+def test_record_set_defaults_to_unknown_entries_and_is_immutable() -> None:
+    missing = RecordSet(FACTION, "Transactions", RecordKind.LEDGER, FIELD_LOCATION)
+    assert missing.entries == Unknown()
+    assert missing.to_dict()["entries"] == {"unknown": "missing"}
+    assert missing.to_dict()["owner"] == "faction:15"
+    assert missing.to_dict()["location"] == FIELD_LOCATION.to_dict()
+    with pytest.raises(FrozenInstanceError):
+        missing.field = "x"  # type: ignore[misc]
+    assert isinstance(hash(missing), int)
+    assert record_counts(
+        [missing, _record("milestones", RecordKind.NAME_LOG, ItemEntry(0, "A"), ItemEntry(1, "B"))]
+    ) == (1, 2)
+
+
+def test_record_entries_locate_by_label_index_or_key() -> None:
+    ledger = _record("Transactions", RecordKind.LEDGER, LedgerEntry(2, "Cause/With~Slash", "Money", 1.0, "d"))
+    assert ledger.entry_location(ledger.entries[0]).path == "/gamestates/x/0/Value/Transactions/Cause~1With~0Slash/2"  # type: ignore[index]
+    assert ledger.entry_location(ledger.entries[0]).provenance_key == "TIFactionState:15"  # type: ignore[index]
+    destruction = _record("HabDestructionLog", RecordKind.DESTRUCTION_LOG, DestructionEntry(1, "Base", None, "d", None))
+    assert destruction.entry_location(destruction.entries[0]).path.endswith("/HabDestructionLog/1")  # type: ignore[index]
+    pair_map = _record("factionHate", RecordKind.REFERENCE_VALUES, KeyedEntry(3, FACTION, 0.5))
+    assert pair_map.entry_location(pair_map.entries[0]).path.endswith("/factionHate/3")  # type: ignore[index]
+    label_map = _record("armiesLost", RecordKind.LABEL_VALUES, KeyedEntry(0, "Human", 1))
+    assert label_map.entry_location(label_map.entries[0]).path.endswith("/armiesLost/Human")  # type: ignore[index]
+    scalar = _record("abductions", RecordKind.COUNTER, ItemEntry(0, 3))
+    assert scalar.entry_location(scalar.entries[0]).path == "/gamestates/x/0/Value/abductions"  # type: ignore[index]
+
+
+def test_snapshot_orders_records_by_owner_then_field_and_serializes_them() -> None:
+    later = _record("milestones", RecordKind.NAME_LOG, ItemEntry(0, "A"), key="20")
+    second = _record("milestones", RecordKind.NAME_LOG, key="3")
+    first = _record("Transactions", RecordKind.LEDGER, key="3")
+    snapshot = SaveSnapshot(source="a.save", date="d", records=(later, second, first))
+    assert snapshot.records == (first, second, later)
+    assert snapshot == SaveSnapshot(source="a.save", date="d", records=(first, later, second))
+    data = snapshot.to_dict()
+    assert json.loads(json.dumps(data)) == data
+    assert [(r["owner"], r["field"], r["kind"]) for r in data["records"]] == [
+        ("faction:3", "Transactions", "ledger"),
+        ("faction:3", "milestones", "name_log"),
+        ("faction:20", "milestones", "name_log"),
+    ]
+    assert data["records"][2]["entries"] == [{"index": 0, "value": "A"}]
+    assert SaveSnapshot(source="a.save", date="d").records == ()
+
+
+def test_records_detail_serializes_entries_and_changed_pairs() -> None:
+    before, after = KeyedEntry(0, "Human", 0), KeyedEntry(0, "Human", 1)
+    detail = RecordsDetail(added=(ItemEntry(1, "B"),), changed=((before, after),))
+    assert detail.to_dict() == {
+        "added": [{"index": 1, "value": "B"}],
+        "removed": [],
+        "changed": [
+            {"before": {"index": 0, "key": "Human", "value": 0}, "after": {"index": 0, "key": "Human", "value": 1}}
+        ],
+    }
+    assert ChangeKind.RECORDS.value == "records"
+    assert isinstance(hash(detail), int)

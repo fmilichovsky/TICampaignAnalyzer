@@ -84,11 +84,15 @@ re-run. Never delete entries by hand.
    reference) or to the singleton tables in `src/tinarrative/parsing/fields.py`, add it to the
    observed table in [the domain field map](../domain-field-map.md), extend the normalizer or
    tests as needed, re-run the scan: the entry is pruned.
-2. **Acknowledge it.** The field is understood and deliberately not normalized (a UI cache, an
+2. **Record it.** The field is a dated, append-only log or a cumulative counter that the
+   snapshot cannot re-derive (architecture section 4.3). Add it to `RECORD_FIELDS` with a
+   `RecordKind` (and a decoder in `src/tinarrative/parsing/records.py` if the kind is new), add
+   the row to the field map's "Save-carried records" table, re-run the scan: the entry is pruned.
+3. **Acknowledge it.** The field is understood and deliberately not normalized (a UI cache, an
    AI scratch value, a derived history, a `$id`/`$ref` graph, a vector). Add it to
    `ACKNOWLEDGED_FIELDS` with an `UnsupportedReason`, add the row to the field map's
    "deliberately not copied" table, re-run the scan: the entry is pruned.
-3. **Keep it open.** Add a `triage` block with what is known and what evidence would settle it.
+4. **Keep it open.** Add a `triage` block with what is known and what evidence would settle it.
    The next scan keeps the block and refreshes the counts.
 
 For an `unknown_state_type`, the equivalent of acknowledging is adding the key to the

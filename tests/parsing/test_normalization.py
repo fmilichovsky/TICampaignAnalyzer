@@ -234,6 +234,7 @@ def test_empty_gamestates_give_an_empty_snapshot() -> None:
     assert all(getattr(snapshot, attribute) == () for _, _, attribute in NORMALIZED_DOMAINS)
     assert snapshot.technologies == ()
     assert snapshot.research == ResearchState()
+    assert snapshot.records == ()
 
 
 @pytest.mark.fixture
