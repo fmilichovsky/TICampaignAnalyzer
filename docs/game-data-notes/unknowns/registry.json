@@ -78,18 +78,6 @@
     },
     {
       "kind": "unknown_field",
-      "state_type": "TIControlPoint",
-      "field": "controlPointPriorities",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["Civilian_InitiateSpaceflightProgram", "Economy", "Environment", "Funding", "Government", "Knowledge", "LaunchFacilities", "Military", "Military_BuildArmy", "Military_BuildNavy", "Military_BuildNuclearWeapons", "Military_BuildSTOSquadron", "Military_BuildSpaceDefenses", "Military_FoundMilitary", "Military_InitiateNuclearProgram", "MissionControl", "Oppression", "Spoils", "Unity", "Welfare"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 386,
-      "saves_seen": 15,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-14",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
       "state_type": "TICouncilorState",
       "field": "ancestry",
       "detail": null,

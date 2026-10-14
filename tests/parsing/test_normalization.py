@@ -6,6 +6,7 @@ from datetime import datetime
 import pytest
 
 from tests.fixtures import fixture_path
+from tinarrative.diff.state_diff import ChangeKind, MapDetail, diff_states
 from tinarrative.identity import STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
@@ -165,6 +166,29 @@ def test_control_point_ownership_is_copied_not_invented(political: SaveSnapshot)
     dangling = by_id(political.control_points, "33")
     assert dangling.get("nation") == Unknown(UnknownReason.UNRESOLVED_REFERENCE, FrozenMap((("value", 999),)))
     assert dangling.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
+
+
+def control_points(**priorities: dict[str, int]) -> dict[str, object]:
+    entries = [pair(int(key), controlPointPriorities=weights) for key, weights in priorities.items()]
+    return {STATE_PREFIX + "TIControlPoint": entries + [pair(39)]}  # 39 serializes no priorities
+
+
+def test_control_point_priorities_are_a_name_to_weight_map_diffed_per_weight() -> None:
+    weights = {"Economy": 2, "Unity": 0, "Military_BuildArmy": 1}
+    snapshot, report = collect(fragment_raw(control_points(**{"30": weights})))
+    assert report.total == 0
+    point = by_id(snapshot.control_points, "30")
+    assert point.get("controlPointPriorities") == FrozenMap((("Economy", 2), ("Military_BuildArmy", 1), ("Unity", 0)))
+    assert by_id(snapshot.control_points, "39").get("controlPointPriorities") == Unknown()
+
+    after = fragment(control_points(**{"30": {**weights, "Unity": 3}}))
+    (change,) = diff_states(snapshot, after).changes
+    assert (change.entity_id, change.field, change.kind) == (
+        point.ref.entity_id,
+        "controlPointPriorities",
+        ChangeKind.MAP,
+    )
+    assert change.detail == MapDetail(added=(), removed=(), changed=("Unity",))
 
 
 @pytest.mark.fixture

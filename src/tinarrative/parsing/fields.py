@@ -80,6 +80,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "defendExpiration",
         "controlPointType",
         "positionInNation",
+        "controlPointPriorities",
     ),
     "TIRegionState": COMMON_FIELDS
     + (
