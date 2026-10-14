@@ -1,7 +1,7 @@
 # `tinarrative diff`
 
 ```
-tinarrative diff <before> <after> [--format text|json]
+tinarrative diff <before> <after> [--format text|json|markdown]
 ```
 
 Reads two saves, normalizes each exactly as [`parse`](parse.md) does, and prints every
@@ -82,6 +82,15 @@ Unknown values serialize as `{"unknown": "<reason>"}` with the raw value when th
 The output is deterministic: the same two saves always give byte-identical reports. The
 chronological order of the two saves is not checked; the report always describes the
 transition from the first argument to the second.
+
+### Markdown output
+
+`--format markdown` renders the same literal diff for human reading. It also runs the
+objective domain analyzers and shows their already-structured results beside the raw changes;
+raw changes remain visible under their category. It does not reconstruct inferred events or
+infer any additional facts. The Markdown report includes both snapshot metadata and, for each
+analyzer result, the affected entities. Use the programmatic renderer's verbose mode when
+forensic source locations and evidence values are required.
 
 Failures print one message to stderr naming the save that failed and no traceback. To see
 how the two saves were normalized and the per-collection and record change counts, run with the global

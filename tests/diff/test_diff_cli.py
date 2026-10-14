@@ -114,6 +114,25 @@ def test_diffing_a_save_with_itself_reports_no_changes(capsys: pytest.CaptureFix
 
 
 @pytest.mark.fixture
+def test_markdown_format_renders_objective_results_and_raw_changes(capsys: pytest.CaptureFixture[str]) -> None:
+    before = fixture_path("io", FIXTURE_SET, "interval_before.json")
+    after = fixture_path("io", FIXTURE_SET, "interval_after.json")
+    argv = ["diff", "--format", "markdown", str(before), str(after)]
+
+    assert main(argv) == EXIT_SUCCESS
+    first = capsys.readouterr()
+    assert main(argv) == EXIT_SUCCESS
+    second = capsys.readouterr()
+
+    assert first.out == second.out
+    assert first.err == second.err == ""
+    assert "# Save comparison\n" in first.out
+    assert "## Snapshots\n" in first.out
+    assert "Objective analyzer results:\n" in first.out
+    assert "Observed state changes:\n" in first.out
+
+
+@pytest.mark.fixture
 def test_unreadable_and_unsupported_inputs_name_the_failing_file(capsys: pytest.CaptureFixture[str]) -> None:
     good = str(fixture_path("io", FIXTURE_SET, "interval_before.json"))
     assert main(["diff", good, "does-not-exist.json"]) == EXIT_INPUT_ERROR
