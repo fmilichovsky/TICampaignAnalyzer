@@ -28,21 +28,22 @@ from ..model.evidence import SourceLocation
 from ..model.records import RecordSet, record_counts
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason, freeze
-from .containers import StateEntry, decode_state_map, entry_path
+from .containers import StateEntry, decode_pair_map, decode_state_map, entry_path
 from .dates import COMPONENTIZED_DATE, game_datetime
 from .fields import (
     ENTITY_FIELDS,
     KEYED_LIST_FIELDS,
     METADATA_FIELDS,
     NORMALIZED_DOMAINS,
+    PAIR_MAP_FIELDS,
     REFERENCE_FIELDS,
     RESEARCH_STATE_TYPE,
     TIME_FIELDS,
 )
 from .raw_save import RawSave
 from .records import decode_records
-from .references import ReferenceIndex
-from .unknowns import UnknownCollector, check_reference, scan_envelope, scan_fields
+from .references import ExpectedDomains, ReferenceIndex
+from .unknowns import PAIR_MAP, UnknownCollector, check_reference, scan_envelope, scan_fields
 
 __all__ = ["game_datetime", "normalize"]
 
@@ -101,6 +102,28 @@ def _keyed_list(short_type: str, name: str, raw: Any, key: str, collector: Unkno
     return Unknown(UnknownReason.UNPARSEABLE, freeze(raw))
 
 
+def _reference_map(
+    short_type: str,
+    name: str,
+    raw: Any,
+    expected: ExpectedDomains,
+    index: ReferenceIndex,
+    collector: UnknownCollector,
+) -> Observed:
+    """A ``PAIR_MAP_FIELDS`` value: keys resolved like a reference list, values frozen.
+
+    A value that is not a pair map, or that repeats a key, is ``Unknown(unparseable)`` and reported as an
+    unexpected shape; key shapes and owners are checked like any reference list.
+    """
+    pairs = decode_pair_map(raw)
+    key_ids = [key_id for key, _value in pairs or () if (key_id := read_id_value(key)) is not None]
+    if pairs is None or len(set(key_ids)) != len(key_ids):
+        collector.field_shape(short_type, name, PAIR_MAP, raw)
+        return Unknown(UnknownReason.UNPARSEABLE, freeze(raw))
+    check_reference(short_type, name, [key for key, _value in pairs], expected, True, index, collector)
+    return index.resolve_map(pairs, expected, raw)
+
+
 def _entity_state(
     domain: EntityDomain,
     short_type: str,
@@ -111,6 +134,7 @@ def _entity_state(
 ) -> EntityState:
     references = REFERENCE_FIELDS.get(short_type, {})
     keyed_lists = KEYED_LIST_FIELDS.get(short_type, {})
+    pair_maps = PAIR_MAP_FIELDS.get(short_type, {})
     fields: list[tuple[str, Observed]] = []
     for name in ENTITY_FIELDS[short_type]:
         if name not in entry.value:
@@ -123,6 +147,8 @@ def _entity_state(
             fields.append((name, index.resolve_list(raw, target) if is_list else index.resolve(raw, target)))
         elif name in keyed_lists:
             fields.append((name, _keyed_list(short_type, name, raw, keyed_lists[name], collector)))
+        elif name in pair_maps:
+            fields.append((name, _reference_map(short_type, name, raw, pair_maps[name], index, collector)))
         else:
             fields.append((name, freeze(raw)))
     scan_fields(short_type, entry.value, collector)

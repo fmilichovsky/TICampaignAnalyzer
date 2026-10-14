@@ -148,6 +148,13 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "XP",
         "typeTemplateName",
         "traitTemplateNames",
+        "ancestry",
+        "gender",
+        "dateBorn",
+        "assassinations",
+        "knowsIveBeenSeenBy",
+        "priorMissionTemplateName",
+        "protectingTarget",
     ),
     "TIArmyState": _ARMY_FIELDS,
     "TIMegafaunaArmyState": _ARMY_FIELDS + ("bonusTechLevel",),
@@ -252,8 +259,8 @@ _ARMY_LIST = (EntityDomain.ARMY, True)
 _FACTION = (EntityDomain.FACTION, False)
 _REGION = (EntityDomain.REGION, False)
 _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
-_PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT)), False)
-"""A councilor location: observed to point at a ``TIRegionState`` or a ``TIHabState``."""
+_PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP)), False)
+"""A councilor location: observed to point at a ``TIRegionState``, a ``TIHabState`` or (once) a ``TISpaceShipState``."""
 
 _ARMY_REFERENCES: dict[str, tuple[ExpectedDomains, bool]] = {
     "currentRegion": _REGION,
@@ -298,6 +305,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "location": _PLACE,
         "priorLocation": _PLACE,
         "orgs": (EntityDomain.ORGANIZATION, True),
+        "knowsIveBeenSeenBy": (EntityDomain.FACTION, True),
     },
     "TIArmyState": _ARMY_REFERENCES,
     "TIMegafaunaArmyState": _ARMY_REFERENCES,
@@ -336,6 +344,16 @@ KEYED_LIST_FIELDS: dict[str, dict[str, str]] = {
 Observed unique within each list (``shipDesigns``: ship ``templateName`` points at a design ``dataName``), so
 keying by it lets the diff compare designs one by one instead of the whole list as one value. Each element is
 copied whole. A list that does not have this shape stays raw as ``Unknown(unparseable)`` and is reported.
+"""
+
+PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains]] = {
+    "TICouncilorState": {"assassinations": EntityDomain.FACTION},
+}
+"""Entity fields serialized as a field-level pair map keyed by references, with the keys' observed target domain(s).
+
+Each is also in ``ENTITY_FIELDS``. The normalizer decodes it (``{}`` when empty, otherwise ``Key``/``Value``
+objects) into a ``FrozenMap`` from each key's ``EntityId`` text (``faction:12``) to the frozen ``Value``, so the
+diff compares it key by key. A key that does not resolve makes the whole field unresolved, as in a reference list.
 """
 
 NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (

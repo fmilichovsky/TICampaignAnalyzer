@@ -25,9 +25,17 @@ from typing import Any
 from ..identity import ENTITY_DOMAINS, STATE_PREFIX, read_id_value
 from ..log import fields as log_fields
 from ..log import get_logger
+from ..model.entities import EntityDomain
 from .containers import decode_container
 from .errors import UnsupportedSaveShapeError
-from .fields import ACKNOWLEDGED_FIELDS, KNOWN_FIELDS, REFERENCE_FIELDS, SINGLETON_FIELDS, record_reference_domains
+from .fields import (
+    ACKNOWLEDGED_FIELDS,
+    KNOWN_FIELDS,
+    PAIR_MAP_FIELDS,
+    REFERENCE_FIELDS,
+    SINGLETON_FIELDS,
+    record_reference_domains,
+)
 from .inventory import KNOWN_STATE_TYPES, short_state_type
 from .raw_save import ENVELOPE_KEYS
 from .references import ExpectedDomains, ReferenceIndex, as_domains
@@ -47,6 +55,8 @@ PAIR_MAP_VIOLATION = "pair_map_violation"
 ARRAY_OF_REFERENCES = "array_of_references"
 REFERENCE_OBJECT = "reference_object"
 """``field_shape`` details for a reference field that is not a list, or a reference that is not ``{"value": id}``."""
+PAIR_MAP = "pair_map"
+"""``field_shape`` detail: expected ``{}`` or ``Key``/``Value`` objects (with distinct keys in an entity field)."""
 
 
 class UnknownKind(StrEnum):
@@ -425,7 +435,13 @@ def is_known(key: FindingKey) -> bool:
         return known is None or field not in known or field in ACKNOWLEDGED_FIELDS.get(state_type, {})
     if kind == UnknownKind.REFERENCE_DOMAIN:
         expected = REFERENCE_FIELDS.get(state_type, {}).get(field)
-        domains = as_domains(expected[0]) if expected is not None else record_reference_domains(state_type, field)
+        keys = PAIR_MAP_FIELDS.get(state_type, {}).get(field)
+        if expected is not None:
+            domains: frozenset[EntityDomain] | None = as_domains(expected[0])
+        elif keys is not None:
+            domains = as_domains(keys)
+        else:
+            domains = record_reference_domains(state_type, field)
         if domains is None:
             return True
         target_domain = _DOMAIN_OF_STATE_TYPE.get(detail)

@@ -17,7 +17,7 @@ from typing import Any
 from ..identity import ENTITY_DOMAINS, STATE_PREFIX, read_id_value
 from ..log import fields, get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from ..model.values import Observed, Unknown, UnknownReason, freeze
+from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason, freeze
 from .containers import decode_state_map
 from .errors import UnsupportedSaveShapeError
 
@@ -123,3 +123,17 @@ class ReferenceIndex:
                 return Unknown(UnknownReason.UNRESOLVED_REFERENCE, raw=freeze(value))
             refs.append(ref)
         return tuple(refs)
+
+    def resolve_map(self, pairs: tuple[tuple[Any, Any], ...], expected: ExpectedDomains, raw: Any) -> Observed:
+        """Decoded pair-map ``pairs`` keyed by references, as ``EntityId`` text -> frozen value.
+
+        Like ``resolve_list``, one key that does not resolve makes the whole field unknown, keeping ``raw``.
+        """
+        domains = as_domains(expected)
+        items: list[tuple[str, FieldValue]] = []
+        for key, value in pairs:
+            ref = self._lookup(key, domains)
+            if ref is None:
+                return Unknown(UnknownReason.UNRESOLVED_REFERENCE, raw=freeze(raw))
+            items.append((str(ref.entity_id), freeze(value)))
+        return FrozenMap(tuple(items))
