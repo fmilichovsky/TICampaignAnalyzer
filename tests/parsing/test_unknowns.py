@@ -236,6 +236,9 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
         (("unexpected_reference_domain", "TICouncilorState", "assassinations", "TINationState"), False),
         (("unexpected_reference_domain", "TICouncilorState", "assassinations", "TIFactionState"), True),
         (("unexpected_field_shape", "TICouncilorState", "assassinations", "pair_map"), False),
+        (("unexpected_reference_domain", "TINationState", "factionUnrestAttempts", "TINationState"), False),
+        (("unexpected_reference_domain", "TINationState", "tracker_PCGDP_ByQuarter", "TINationState"), True),
+        (("unexpected_field_shape", "TINationState", "tracker_PCGDP_ByQuarter", "pair_map"), False),
         (("unknown_field", "TIOrgState", "anything", ""), True),  # no longer scanned: cannot recur
         (("unexpected_field_shape", "TINationState", "regions", "array_of_references"), False),
         (("unexpected_field_shape", "TINationState", "notAField", "array"), True),

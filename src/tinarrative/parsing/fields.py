@@ -80,6 +80,30 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "federation",
         "breakawayParent",
         "breakaways",
+        "originalCapital",
+        "hostileClaims",
+        "advisingCouncilors",
+        "aggregateNation",
+        "alienNation",
+        "military",
+        "nuclearProgram",
+        "numNuclearWeapons",
+        "spaceFlightProgram",
+        "spaceFunding_year",
+        "sustainability",
+        "numControlPoints",
+        "policy_closedBorders",
+        "policy_noMineralDevelopment",
+        "policy_noNukes",
+        "policy_noOilDevelopment",
+        "factionUnrestAttempts",
+        "tracker_CohesionChangeReason_AllTime",
+        "tracker_DemocracyChangeReason_AllTime",
+        "tracker_EducationChangeReason_AllTime",
+        "tracker_GDPChangeReason_AllTime",
+        "tracker_InequalityChangeReason_AllTime",
+        "tracker_UnrestChangeReason_AllTime",
+        "tracker_PCGDP_ByQuarter",
     ),
     "TIControlPoint": COMMON_FIELDS
     + (
@@ -279,8 +303,10 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TINationState": {
         "capital": (EntityDomain.REGION, False),
+        "originalCapital": (EntityDomain.REGION, False),
         "regions": (EntityDomain.REGION, True),
         "claims": (EntityDomain.REGION, True),
+        "hostileClaims": (EntityDomain.REGION, True),
         "allies": (EntityDomain.NATION, True),
         "rivals": (EntityDomain.NATION, True),
         "wars": (EntityDomain.NATION, True),
@@ -346,14 +372,17 @@ keying by it lets the diff compare designs one by one instead of the whole list 
 copied whole. A list that does not have this shape stays raw as ``Unknown(unparseable)`` and is reported.
 """
 
-PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains]] = {
+PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
+    "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
     "TICouncilorState": {"assassinations": EntityDomain.FACTION},
 }
-"""Entity fields serialized as a field-level pair map keyed by references, with the keys' observed target domain(s).
+"""Entity fields serialized as a field-level pair map, with the keys' observed target domain(s); ``None`` marks
+integer keys (``tracker_PCGDP_ByQuarter``: quarter index -> value), which are not references.
 
 Each is also in ``ENTITY_FIELDS``. The normalizer decodes it (``{}`` when empty, otherwise ``Key``/``Value``
-objects) into a ``FrozenMap`` from each key's ``EntityId`` text (``faction:12``) to the frozen ``Value``, so the
-diff compares it key by key. A key that does not resolve makes the whole field unresolved, as in a reference list.
+objects) into a ``FrozenMap`` from each key's ``EntityId`` text (``faction:12``), or the integer key's decimal
+text, to the frozen ``Value``, so the diff compares it key by key. A key that does not resolve makes the whole
+field unresolved, as in a reference list.
 """
 
 NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
