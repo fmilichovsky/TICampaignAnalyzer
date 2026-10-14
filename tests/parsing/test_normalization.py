@@ -327,6 +327,48 @@ def test_armies_merge_both_state_types_and_keep_destruction_literal(
     assert all(bare.get(name) == Unknown() for name in ("currentRegion", "faction", "strength", "destroyed"))
 
 
+def test_army_operations_transit_dates_and_hunting_flag_are_copied_raw() -> None:
+    operation = {"operationDataName": "FixtureOperation", "target": {"value": 40}, "startDate": None}
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIRegionState": [pair(40)],
+        STATE_PREFIX + "TIArmyState": [
+            pair(
+                110,
+                currentOperations=[operation],
+                destinationSeaDate=None,
+                embarkDate=None,
+                huntingXenofauna=False,
+            ),
+            pair(111),
+        ],
+        STATE_PREFIX + "TIMegafaunaArmyState": [pair(112, currentOperations=[], huntingXenofauna=True)],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert report.total == 0
+
+    army = by_id(snapshot.armies, "110")
+    # copied as-is: the operation's target stays a raw reference object, it is not resolved
+    assert army.get("currentOperations") == (
+        FrozenMap(
+            (("operationDataName", "FixtureOperation"), ("startDate", None), ("target", FrozenMap((("value", 40),))))
+        ),
+    )
+    assert army.get("destinationSeaDate") is None
+    assert army.get("embarkDate") is None
+    assert army.get("huntingXenofauna") is False
+
+    megafauna = by_id(snapshot.armies, "112")
+    assert megafauna.get("currentOperations") == ()
+    assert megafauna.get("huntingXenofauna") is True
+    # absent in the save: unknown, never a default
+    assert megafauna.get("embarkDate") == Unknown()
+    bare = by_id(snapshot.armies, "111")
+    assert all(
+        bare.get(name) == Unknown()
+        for name in ("currentOperations", "destinationSeaDate", "embarkDate", "huntingXenofauna")
+    )
+
+
 @pytest.mark.fixture
 def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSnapshot) -> None:
     fleet = by_id(assets.fleets, "120")
