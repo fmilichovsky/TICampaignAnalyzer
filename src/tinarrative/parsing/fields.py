@@ -51,6 +51,13 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "researchWeights",
         "intel",
         "factionGoals",
+        "knowsWinCondition",
+        "unlockedVictoryObjective",
+        "sabotagedProjects",
+        "unassignedOrgs",
+        "shipDesigns",
+        "shipsBuiltInClass",
+        "techNameContributionHistory",
     ),
     "TINationState": COMMON_FIELDS
     + (
@@ -255,6 +262,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "fleets": (EntityDomain.FLEET, True),
         "controlPoints": (EntityDomain.CONTROL_POINT, True),
         "armies": _ARMY_LIST,
+        "unassignedOrgs": (EntityDomain.ORGANIZATION, True),
     },
     "TINationState": {
         "capital": (EntityDomain.REGION, False),
@@ -312,6 +320,16 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
 Reference-shaped fields whose observed target type has no ``EntityDomain`` (officers, missions, sectors,
 hab modules, region facility and alien sub-states) or whose target was never observed non-null
 (``agentForFaction``, ``storedFaction``) are deliberately absent and stay raw.
+"""
+
+KEYED_LIST_FIELDS: dict[str, dict[str, str]] = {
+    "TIFactionState": {"shipDesigns": "dataName"},
+}
+"""List-of-object fields copied as a ``FrozenMap`` keyed by the named string member, per state type.
+
+Observed unique within each list (``shipDesigns``: ship ``templateName`` points at a design ``dataName``), so
+keying by it lets the diff compare designs one by one instead of the whole list as one value. Each element is
+copied whole. A list that does not have this shape stays raw as ``Unknown(unparseable)`` and is reported.
 """
 
 NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (

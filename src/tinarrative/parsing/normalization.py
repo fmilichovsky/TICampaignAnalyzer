@@ -1,7 +1,8 @@
 """Turn a validated ``RawSave`` into a ``SaveSnapshot``.
 
 Only fields observed in ``docs/game-data-notes/domain-field-map.md`` are copied; a listed field that the
-save omits is ``Unknown``, fields the save adds are not copied, and no ownership or cause is inferred.
+save omits is ``Unknown``, fields the save adds are not copied, and no ownership or cause is inferred. A list
+field in ``KEYED_LIST_FIELDS`` (faction ``shipDesigns``) is copied as a map keyed by a member of its elements.
 Save-carried records (dated logs and cumulative counters listed in ``RECORD_FIELDS``) are decoded by
 :mod:`tinarrative.parsing.records` into ``SaveSnapshot.records`` next to the entity collections.
 A reference to an ID absent from the save (for example a fleet's ``parentFleet`` after a merge) stays an
@@ -26,11 +27,12 @@ from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfiden
 from ..model.evidence import SourceLocation
 from ..model.records import RecordSet, record_counts
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
-from ..model.values import FieldValue, Observed, Unknown, UnknownReason, freeze
+from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_state_map, entry_path
 from .dates import COMPONENTIZED_DATE, game_datetime
 from .fields import (
     ENTITY_FIELDS,
+    KEYED_LIST_FIELDS,
     METADATA_FIELDS,
     NORMALIZED_DOMAINS,
     REFERENCE_FIELDS,
@@ -45,6 +47,9 @@ from .unknowns import UnknownCollector, check_reference, scan_envelope, scan_fie
 __all__ = ["game_datetime", "normalize"]
 
 logger = get_logger(__name__)
+
+ARRAY_OF_KEYED_OBJECTS = "array_of_keyed_objects"
+"""``field_shape`` detail: expected a list of objects with a unique string key member (``KEYED_LIST_FIELDS``)."""
 
 
 def _observed(value: dict[str, Any], name: str) -> Observed:
@@ -77,6 +82,25 @@ def _unknown_counts(states: tuple[EntityState, ...]) -> dict[str, int]:
     return counts
 
 
+def _keyed_list(short_type: str, name: str, raw: Any, key: str, collector: UnknownCollector) -> Observed:
+    """``raw`` as a ``FrozenMap`` from each element's ``key`` member to the whole element.
+
+    Anything else (not a list, an element that is not an object or lacks a string key, a repeated key) is
+    reported and kept raw as ``Unknown(unparseable)``; no element is dropped or renamed.
+    """
+    items: dict[str, FieldValue] = {}
+    if isinstance(raw, list):
+        for item in raw:
+            item_key = item.get(key) if isinstance(item, dict) else None
+            if not isinstance(item_key, str) or item_key in items:
+                break
+            items[item_key] = freeze(item)
+        else:
+            return FrozenMap(tuple(items.items()))
+    collector.field_shape(short_type, name, ARRAY_OF_KEYED_OBJECTS, raw)
+    return Unknown(UnknownReason.UNPARSEABLE, freeze(raw))
+
+
 def _entity_state(
     domain: EntityDomain,
     short_type: str,
@@ -86,6 +110,7 @@ def _entity_state(
     collector: UnknownCollector,
 ) -> EntityState:
     references = REFERENCE_FIELDS.get(short_type, {})
+    keyed_lists = KEYED_LIST_FIELDS.get(short_type, {})
     fields: list[tuple[str, Observed]] = []
     for name in ENTITY_FIELDS[short_type]:
         if name not in entry.value:
@@ -96,6 +121,8 @@ def _entity_state(
             target, is_list = references[name]
             check_reference(short_type, name, raw, target, is_list, index, collector)
             fields.append((name, index.resolve_list(raw, target) if is_list else index.resolve(raw, target)))
+        elif name in keyed_lists:
+            fields.append((name, _keyed_list(short_type, name, raw, keyed_lists[name], collector)))
         else:
             fields.append((name, freeze(raw)))
     scan_fields(short_type, entry.value, collector)
