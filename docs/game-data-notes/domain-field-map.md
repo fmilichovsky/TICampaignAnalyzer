@@ -17,7 +17,7 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 | Organizations | `TIOrgState` | `assignedCouncilor`, `factionOrbit`, `homeRegion`, `tier`, costs, monthly incomes, research/mission-control income, and attribute/priority bonuses |
 | Fleets | `TISpaceFleetState` | `ships`, `trajectory`, `inAccelerationPhase`, `inDecelerationPhase`, `homeport`, `barycenter`, `combatState`, `parentFleet`, `faction`, `orbitState`, `dockedLocation`, `inCombat`, `globalPosition` |
 | Ships | `TISpaceShipState` | `fleet`, `launchDate`, `lastRefitDate`, `propellant_tons`, `kills` (list of strings), `officers`, `storedFaction`, `cruiseAcceleration_mps2`, `combatAcceleration_mps2`, `currentDeltaV_kps`, `currentMaxDeltaV_kps`, `currentMass_kg`, `armor` (`Nose`/`Left`/`Right`/`Tail`, each `armorValue`, `chippedPct`, `maxArmor`), `damagedParts`, `damagedSystems`, `isDamageControlSuspended` |
-| Habs | `TIHabState` | `faction`, `orbitState`, `habSite`, `barycenter`, `sectors`, `districts`, `dockedFleets`, `councilorsOnBoard`, `habType`, `tier`, `inCombat`, `underAssault`, `underBombardment`, `anyCoreCompleted`, `staticHab` |
+| Habs | `TIHabState` | `faction`, `orbitState`, `habSite`, `barycenter`, `sectors`, `districts`, `dockedFleets`, `councilorsOnBoard`, `officersOnBoard`, `advisingCouncilors`, `habType`, `tier`, `inCombat`, `underAssault`, `underBombardment`, `anyCoreCompleted`, `coreDefended`, `coreDefendExpiration`, `staticHab`, `inEarthLEO`, `globalPosition` |
 | Hab modules | `TIHabModuleState` | `sector`, `slot`, `constructionCompleted`, `decommissioning`, `destroyed`, `powered`, `priorModuleCompleted`, `startBuildDate`, `completionDate`, `decommissionDate` (strings), `destroyedTime`, `buildCost`; not normalized |
 | Research | `TIGlobalResearchState` | `finishedTechsNames`, `finishedOneTimeOnlyProjectNames`, `techProgress` (elements: `techTemplateName`, `accumulatedResearch`, `factionContributions`, `selector`), `campaignStartYear`, `endGameTechsCompletedByCategory` |
 | Federation and war | `TIFederationState`, `TIWarState` | federation `members`, name/adjective fields; `TIWarState` was present but empty in this sample |
@@ -31,6 +31,7 @@ Further 2026-10-09 observations (structure only):
 - `TISpaceShipState.kills` is a list of strings, not references.
 - Ship module objects (`hullWeapons`, `noseWeapons`, `utilityModules`, `ammo`, `batteryCharge`, `damagedParts[].module`) and fleet `trajectory.Segments` sometimes contain `$id`/`$ref` members or a `{"$id", "$content"}` wrapper. *Hypothesis:* JSON.NET reference preservation. The normalizer keeps these values raw.
 - `TIHabState.orbitState` was non-null in 73 of 269 habs and `habSite` in the other 196 (counts only, not checked per entry). *Hypothesis:* exactly one of the two is set.
+- Observed on 2026-10-14 in five private complete saves of one campaign (2045-08 to 2046-10, structure only): `TIHabState.globalPosition` is an `{x, y, z}` object of floats in every hab, like the fleet field; `inEarthLEO` was true in 18 habs of each save; `coreDefended` was false and `coreDefendExpiration` `null` in every hab, and `advisingCouncilors` was empty in every hab; all six fields were present in every hab. *Hypothesis:* `coreDefended`/`coreDefendExpiration` mirror the control-point `defended`/`defendExpiration` pair, so a non-null `coreDefendExpiration` is a componentized date object; the normalizer copies whatever value is present.
 - Ship `templateName` is a design name shared by many ships; hab `templateName` was null in 267 of 269 habs. Neither is a secondary key.
 - Observed on 2026-10-14 in five private complete saves of one campaign (structure only): every `TIArmyState` (19 per save) and `TIMegafaunaArmyState` (0 or 1 per save) carried `currentOperations` as an empty list, `destinationSeaDate` and `embarkDate` as `null`, and `huntingXenofauna` as `false`. All four are copied as-is. *Hypothesis:* army operation elements share the fleet element keys (`operationDataName`, `target`, `startDate`, `completionDate`) and the two transit dates use the componentized date object; neither was seen on an army.
 
@@ -85,6 +86,9 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TIHabState` | `sectors` | list of references | `TISectorState` |
 | `TIHabState` | `dockedFleets` | list of references | `TISpaceFleetState` |
 | `TIHabState` | `councilorsOnBoard` | list of references | `TICouncilorState` |
+| `TIHabState` | `officersOnBoard` | list of references; one element across all habs in each save | `TIOfficerState` |
+| `TIHabState` | `advisingCouncilors` | empty list in every inspected hab | not observed |
+| `TIHabState` | `coreDefendExpiration` | `null` in every inspected hab | not observed |
 | `TIHabState` | `districts` | `null` in every inspected hab | not observed |
 | `TIHabModuleState` | `sector` | reference | `TISectorState` |
 | `TIGlobalResearchState` | `techProgress[].selector`, `techProgress[].factionContributions[].Key` | reference | `TIFactionState` |
