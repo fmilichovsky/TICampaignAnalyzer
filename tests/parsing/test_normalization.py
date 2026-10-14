@@ -6,9 +6,10 @@ from datetime import datetime
 import pytest
 
 from tests.fixtures import fixture_path
-from tinarrative.diff.state_diff import ChangeKind, MapDetail, diff_states
+from tinarrative.diff.state_diff import compare_values, diff_states
 from tinarrative.identity import STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
+from tinarrative.model.changes import ChangeKind, MapDetail
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.snapshot import EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze
@@ -753,6 +754,91 @@ def test_reference_fields_report_unexpected_shapes_and_owners_while_resolving_as
     assert by_id(snapshot.nations, "21").get("breakawayParent") == unresolved(999)  # absent ID: no finding
     assert by_id(snapshot.nations, "21").get("regions") == (ref(EntityDomain.REGION, "40", "TIRegionState"),)
     assert by_id(snapshot.nations, "22").get("capital") == Unknown(UnknownReason.UNRESOLVED_REFERENCE, "40")
+    assert snapshot == fragment(gamestates)
+
+
+COUNCILOR_IDENTITY = {
+    "ancestry": "FixtureAncestry",
+    "gender": "Female",
+    "dateBorn": {"year": 1990, "month": 4, "day": 2, "hour": 0, "minute": 0, "second": 0, "millisecond": 0},
+    "priorMissionTemplateName": "FixtureMission",
+    "protectingTarget": None,
+}
+
+
+def test_councilor_identity_detection_and_assassinations_are_normalized() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [pair(10), pair(11)],
+        STATE_PREFIX + "TISpaceShipState": [pair(60)],
+        STATE_PREFIX + "TICouncilorState": [
+            pair(
+                100,
+                location={"$type": STATE_PREFIX + "TISpaceShipState", "value": 60},
+                priorLocation={"$type": STATE_PREFIX + "TISpaceShipState", "value": 60},
+                knowsIveBeenSeenBy=[{"value": 11}],
+                assassinations=[{"Key": {"value": 11}, "Value": 2}, {"Key": {"value": 10}, "Value": 1}],
+                **COUNCILOR_IDENTITY,
+            ),
+            pair(101, assassinations={}, knowsIveBeenSeenBy=[]),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert report.total == 0
+    onboard = by_id(snapshot.councilors, "100")
+    ship = ref(EntityDomain.SHIP, "60", "TISpaceShipState")
+    assert onboard.get("location") == ship and onboard.get("priorLocation") == ship
+    assert onboard.get("knowsIveBeenSeenBy") == (ref(EntityDomain.FACTION, "11", "TIFactionState"),)
+    assert onboard.get("assassinations") == FrozenMap((("faction:10", 1), ("faction:11", 2)))
+    assert onboard.get("ancestry") == "FixtureAncestry" and onboard.get("gender") == "Female"
+    assert onboard.get("priorMissionTemplateName") == "FixtureMission"
+    assert onboard.get("protectingTarget") is None
+    born = onboard.get("dateBorn")
+    assert isinstance(born, FrozenMap) and dict(born.items)["year"] == 1990  # componentized, like recruitDate
+
+    quiet = by_id(snapshot.councilors, "101")
+    assert quiet.get("assassinations") == FrozenMap() and quiet.get("knowsIveBeenSeenBy") == ()
+    for name in COUNCILOR_IDENTITY:
+        assert quiet.get(name) == Unknown()  # missing, not coerced
+
+    # a reference-keyed pair map diffs key by key
+    assert compare_values(quiet.get("assassinations"), onboard.get("assassinations")) == (
+        ChangeKind.MAP,
+        MapDetail(added=("faction:10", "faction:11")),
+    )
+
+
+def test_pair_map_fields_report_unexpected_shapes_and_key_owners() -> None:
+    def assassinations(*keys: object) -> list[dict[str, object]]:
+        return [{"Key": key, "Value": 1} for key in keys]
+
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [pair(10)],
+        STATE_PREFIX + "TINationState": [pair(20)],
+        STATE_PREFIX + "TICouncilorState": [
+            pair(100, assassinations="none"),
+            pair(101, assassinations=[{"Key": {"value": 10}}]),
+            pair(102, assassinations=assassinations({"value": 10}, {"value": 10})),
+            pair(103, assassinations=assassinations({"value": 20})),
+            pair(104, assassinations=assassinations({"value": 999})),
+            pair(105, assassinations=assassinations("10")),
+        ],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert keys(report) == [
+        ("unexpected_field_shape", "TICouncilorState", "assassinations", "pair_map"),
+        ("unexpected_field_shape", "TICouncilorState", "assassinations", "reference_object"),
+        ("unexpected_reference_domain", "TICouncilorState", "assassinations", "TINationState"),
+    ]
+    assert next(finding for finding in report.findings if finding.detail == "pair_map").occurrences == 3
+    councilors = snapshot.councilors
+    assert by_id(councilors, "100").get("assassinations") == Unknown(UnknownReason.UNPARSEABLE, "none")
+    for key in ("101", "102"):
+        value = by_id(councilors, key).get("assassinations")
+        assert isinstance(value, Unknown) and value.reason is UnknownReason.UNPARSEABLE
+    for key in ("103", "104", "105"):  # wrong owner, absent ID, malformed key: unresolved, raw kept
+        value = by_id(councilors, key).get("assassinations")
+        assert isinstance(value, Unknown) and value.reason is UnknownReason.UNRESOLVED_REFERENCE
+        assert isinstance(value.raw, tuple) and len(value.raw) == 1
     assert snapshot == fragment(gamestates)
 
 

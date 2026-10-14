@@ -15,6 +15,7 @@ from tinarrative.parsing.fields import (
     COMMON_FIELDS,
     ENTITY_FIELDS,
     KNOWN_FIELDS,
+    PAIR_MAP_FIELDS,
     RECORD_FIELDS,
     RECORD_MEMBER_TARGETS,
     REFERENCE_FIELDS,
@@ -231,6 +232,10 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
         (("unexpected_reference_domain", "TIFactionState", "milestones", "TINationState"), True),
         (("unexpected_reference_domain", "TINationState", "lastExecutiveChange.newExecutive", "TINationState"), False),
         (("unexpected_reference_domain", "TINationState", "HabDestructionLog.Destroyer", "TINationState"), True),
+        (("unexpected_reference_domain", "TICouncilorState", "location", "TISpaceShipState"), True),
+        (("unexpected_reference_domain", "TICouncilorState", "assassinations", "TINationState"), False),
+        (("unexpected_reference_domain", "TICouncilorState", "assassinations", "TIFactionState"), True),
+        (("unexpected_field_shape", "TICouncilorState", "assassinations", "pair_map"), False),
         (("unknown_field", "TIOrgState", "anything", ""), True),  # no longer scanned: cannot recur
         (("unexpected_field_shape", "TINationState", "regions", "array_of_references"), False),
         (("unexpected_field_shape", "TINationState", "notAField", "array"), True),
@@ -266,6 +271,9 @@ def test_schema_tables_are_consistent() -> None:
         assert not set(records) & set(SERIALIZATION_FIELDS)
         assert not set(records) & set(REFERENCE_FIELDS.get(state_type, {}))
         assert KNOWN_FIELDS[state_type] >= set(records)
+    for state_type, pair_maps in PAIR_MAP_FIELDS.items():
+        assert set(pair_maps) <= set(ENTITY_FIELDS[state_type])
+        assert not set(pair_maps) & set(REFERENCE_FIELDS.get(state_type, {}))
     for qualified in RECORD_MEMBER_TARGETS:
         field, _member = qualified.split(".", 1)
         assert any(field in records for records in RECORD_FIELDS.values())

@@ -34,12 +34,10 @@ from .containers import StateEntry, decode_pair_map, entry_path
 from .dates import iso_date
 from .fields import RECORD_FIELDS, RECORD_MEMBER_TARGETS, RecordField
 from .references import ExpectedDomains, ReferenceIndex
-from .unknowns import UnknownCollector, check_reference
+from .unknowns import PAIR_MAP, UnknownCollector, check_reference
 
 logger = get_logger(__name__)
 
-PAIR_MAP = "pair_map"
-"""``field_shape`` detail: expected ``{}`` or an array of ``Key``/``Value`` objects."""
 OBJECT = "object"
 ARRAY = "array"
 ARRAY_OF_OBJECTS = "array_of_objects"
