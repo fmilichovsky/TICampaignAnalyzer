@@ -12,10 +12,10 @@
 - [x] Inspect a single save's raw structure deterministically (`tinarrative inspect`).
 - [ ] Normalize a minimal save snapshot.
 - [ ] Produce a deterministic single-save diff.
-- [ ] Render objective changes as Markdown.
+- [x] Render objective changes as Markdown.
 
 ## Campaign history
 
 - [ ] Add domain analyzers and rule-based reconstruction.
 - [ ] Aggregate events across an ordered save sequence.
-- [ ] Add fixture-driven parser, diff, and renderer coverage.
+- [ ] Add fixture-driven parser and diff coverage.
