@@ -33,7 +33,7 @@ and the derived `timestamp` are not compared.
 | --- | --- | --- |
 | `value` | Both sides are known and compared as one value: scalar, `null`, resolved reference, or any structure not covered below. Equality is strict (`1` and `1.0`, or `true` and `1`, differ). | `nation:20 GDP: 1000.0 -> 1200.0` |
 | `membership` | Both sides are lists of references or lists of names. They are compared as multisets: the same members in another order is not a change; duplicates count. | `nation:20 allies: +nation:22 -nation:21` |
-| `map` | Both sides are objects. The detail names the keys added, removed and changed; the whole objects stay in the evidence. A componentized date is one map, so a timer change reads `changed month`. | `ship:130 armor: changed Nose` |
+| `map` | Both sides are objects. The detail names the keys added, removed and changed; the whole objects stay in the evidence. A componentized date is one map, so a timer change reads `changed month`. Faction `shipDesigns` is normalized to an object keyed by design `dataName`, so a design reads as an added, removed or changed key. | `ship:130 armor: changed Nose` |
 | `unknown` | At least one side is `unknown`: the field is absent in that save, unparseable, or a reference whose ID does not exist there. Nothing is inferred from the known side. | `councilor:100 location: region:40 -> unknown (unresolved_reference, raw={...})` |
 | `appeared` | The entity is present only in the later save. No per-field changes are reported for it. | `fleet:121: present only in the after snapshot` |
 | `disappeared` | The entity is present only in the earlier save. | `control point:12: absent from the after snapshot` |

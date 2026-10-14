@@ -370,6 +370,57 @@ def test_councilors_carry_membership_location_and_unknowns(assets: SaveSnapshot)
     )
 
 
+def design(name: str, **members: object) -> dict[str, object]:
+    return {"dataName": name, "hullName": "FixtureHull", "friendlyName": None, **members}
+
+
+def test_faction_flags_counters_orgs_and_name_keyed_ship_designs() -> None:
+    faction = pair(
+        10,
+        knowsWinCondition=True,
+        unlockedVictoryObjective=False,
+        sabotagedProjects=["FixtureProject"],
+        unassignedOrgs=[{"value": 70}, {"value": 71}],
+        shipDesigns=[design("FixtureDesignB", refitIteration=1), design("FixtureDesignA")],
+        shipsBuiltInClass={"FixtureDesignA": 3},
+        techNameContributionHistory={"FixtureTech": 0.25},
+    )
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [faction],
+        STATE_PREFIX + "TIOrgState": [pair(70), pair(71)],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert report.total == 0
+    state = by_id(snapshot.factions, "10")
+    assert state.get("knowsWinCondition") is True
+    assert state.get("unlockedVictoryObjective") is False
+    assert state.get("sabotagedProjects") == ("FixtureProject",)
+    # resolved like councilor ``orgs``
+    org_refs = (ref(EntityDomain.ORGANIZATION, "70", "TIOrgState"), ref(EntityDomain.ORGANIZATION, "71", "TIOrgState"))
+    assert state.get("unassignedOrgs") == org_refs
+    assert state.get("shipsBuiltInClass") == FrozenMap((("FixtureDesignA", 3),))
+    assert state.get("techNameContributionHistory") == FrozenMap((("FixtureTech", 0.25),))
+    designs = state.get("shipDesigns")
+    assert isinstance(designs, FrozenMap)
+    assert [name for name, _ in designs.items] == ["FixtureDesignA", "FixtureDesignB"]
+    assert dict(designs.items)["FixtureDesignB"] == freeze(design("FixtureDesignB", refitIteration=1))
+
+
+def test_missing_faction_fields_are_unknown_and_malformed_ship_designs_stay_raw() -> None:
+    malformed = [design("FixtureDesignA"), design("FixtureDesignA")]  # a repeated key cannot be keyed
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TIFactionState": [pair(10), pair(11, shipDesigns=malformed), pair(12, shipDesigns=None)],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    missing = by_id(snapshot.factions, "10")
+    for name in ENTITY_FIELDS["TIFactionState"]:
+        assert missing.get(name) == Unknown(), name
+    assert by_id(snapshot.factions, "11").get("shipDesigns") == Unknown(UnknownReason.UNPARSEABLE, freeze(malformed))
+    assert by_id(snapshot.factions, "12").get("shipDesigns") == Unknown(UnknownReason.UNPARSEABLE, None)
+    assert keys(report) == [("unexpected_field_shape", "TIFactionState", "shipDesigns", "array_of_keyed_objects")]
+    assert report.findings[0].occurrences == 2
+
+
 @pytest.mark.fixture
 def test_armies_merge_both_state_types_and_keep_destruction_literal(
     assets: SaveSnapshot, political: SaveSnapshot
