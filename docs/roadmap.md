@@ -23,7 +23,10 @@
 
 ## Campaign history
 
-- [ ] Add domain analyzers and rule-based reconstruction of higher-level events.
+- [x] Add the politics analyzers (control-point control, nation ownership and
+  relations, councilor membership) emitting objective, evidence-backed events.
+- [ ] Add the army, space-object and technology analyzers.
+- [ ] Add rule-based reconstruction of higher-level events.
 - [ ] Aggregate events across an ordered save sequence.
 - [ ] Allow automatically detecting and scanning the real game save directory.
 - [ ] Add a heuristic for grouping different saves into distinct campaigns.

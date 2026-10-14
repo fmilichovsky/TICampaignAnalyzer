@@ -112,6 +112,29 @@ appeared, disappeared) occurs at least once; a test asserts that.
 The opt-in `real_save` diff test additionally needs `TINARRATIVE_REAL_SAVE_AFTER`, the later
 save of a consecutive pair; it checks determinism and evidence only and prints nothing.
 
+## Analyzer fixtures and tests
+
+`tests/analyzers/` is a test package (it has `__init__.py` files) so that its
+modules share `tests/analyzers/support.py`: builders for synthetic entity
+states, snapshots and record sets (`state`, `snapshot`, `record_set`, `pair`),
+`fixture_pair(before, after)` which loads, normalizes and diffs two fixtures of
+the `terra_invicta_json_v1` set, and small event lookups (`only`, `by_type`).
+Per-analyzer unit tests build the smallest snapshot pair that shows one
+transition; `tests/analyzers/politics/test_politics_fixture_pairs.py` runs the
+whole family over the `interval_*`, `records_*` and `politics_*` fixture pairs
+and asserts the exact event IDs, that every source is a change of the diff,
+that every member of a handled membership change is cited by some event, that
+two runs are identical, and that no event type or `describe_event` line
+contains a cause word (`purg`, `coup`, `annex`, `defect`, `destroy`, ...).
+Attributes are exempt from that check on purpose: they are literal copies of
+save values (the records pair carries a recorded `cause` of `Coup`).
+
+`politics_before.json` / `politics_after.json` is the analyzer pair: it holds
+only political state types and exercises each political transition once (see
+the manifest `purpose` fields). Like every pair, it is not a `diff` golden.
+The opt-in `real_save` analyzer test reuses `TINARRATIVE_REAL_SAVE` and
+`TINARRATIVE_REAL_SAVE_AFTER` and prints nothing.
+
 ### Deriving a safe structural fixture
 
 1. Inspect a real save locally; never copy it into the repository or a shared
