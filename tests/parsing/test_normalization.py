@@ -439,6 +439,35 @@ def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: Save
     assert site_hab.get("dockedFleets") == ()
 
 
+def test_hab_core_defense_position_and_crew_are_copied_with_officers_raw() -> None:
+    expiration = {"year": 2040, "month": 3, "day": 1, "hour": 0, "minute": 0, "second": 0, "millisecond": 0}
+    defended = pair(
+        140,
+        templateName=None,
+        coreDefended=True,
+        coreDefendExpiration=expiration,
+        globalPosition={"x": 1.0, "y": 2.0, "z": 3.0},
+        inEarthLEO=True,
+        officersOnBoard=[{"value": 170}],
+        advisingCouncilors=[],
+    )
+    raw = fragment_raw({STATE_PREFIX + "TIHabState": [defended, pair(141, templateName=None)]})
+    snapshot, report = collect(raw)
+
+    hab = by_id(snapshot.habs, "140")
+    assert hab.get("coreDefended") is True
+    assert hab.get("coreDefendExpiration") == FrozenMap(tuple(sorted(expiration.items())))
+    assert hab.get("globalPosition") == FrozenMap((("x", 1.0), ("y", 2.0), ("z", 3.0)))
+    assert hab.get("inEarthLEO") is True
+    assert hab.get("officersOnBoard") == (FrozenMap((("value", 170),)),)  # officer type has no domain: raw
+    assert hab.get("advisingCouncilors") == ()
+
+    bare = by_id(snapshot.habs, "141")
+    new_fields = ("coreDefended", "coreDefendExpiration", "globalPosition", "inEarthLEO", "officersOnBoard")
+    assert all(bare.get(name) == Unknown() for name in new_fields + ("advisingCouncilors",))
+    assert not [key for key in keys(report) if key[1] == "TIHabState"]
+
+
 @pytest.mark.fixture
 def test_technologies_are_name_keyed_and_derived_from_the_research_singleton(assets: SaveSnapshot) -> None:
     research = assets.research
