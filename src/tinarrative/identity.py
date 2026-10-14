@@ -11,58 +11,39 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
+
+from .model.entities import EntityDomain, IdentityConfidence
 
 STATE_PREFIX = "PavonisInteractive.TerraInvicta."
 
-Confidence = Literal["in-save-id", "name-key"]
-
 
 @dataclass(frozen=True)
-class EntityDomain:
-    domain: str
+class IdentityStrategy:
+    """Where one entity domain keeps its identifier and how far it can be trusted."""
+
+    domain: EntityDomain
     state_types: tuple[str, ...]
     id_source: str
-    confidence: Confidence
+    confidence: IdentityConfidence
     secondary_key: str | None
 
 
 _NUMERIC_ID = "gamestates/<type>[].Key.value == Value.ID.value"
 
-ENTITY_DOMAINS: tuple[EntityDomain, ...] = (
-    EntityDomain("faction", ("TIFactionState",), _NUMERIC_ID, "in-save-id", "Value.templateName"),
-    EntityDomain("nation", ("TINationState",), _NUMERIC_ID, "in-save-id", "Value.templateName"),
-    EntityDomain("region", ("TIRegionState",), _NUMERIC_ID, "in-save-id", "Value.templateName"),
-    EntityDomain(
-        "councilor",
-        ("TICouncilorState",),
-        _NUMERIC_ID,
-        "in-save-id",
-        None,
-    ),
-    EntityDomain(
-        "army",
-        ("TIArmyState", "TIMegafaunaArmyState"),
-        _NUMERIC_ID,
-        "in-save-id",
-        None,
-    ),
-    EntityDomain(
-        "fleet",
-        ("TISpaceFleetState",),
-        _NUMERIC_ID,
-        "in-save-id",
-        None,
-    ),
-    EntityDomain(
-        "ship",
-        ("TISpaceShipState",),
-        _NUMERIC_ID,
-        "in-save-id",
-        None,
-    ),
-    EntityDomain(
-        "space object",
+_IN_SAVE = IdentityConfidence.IN_SAVE_ID
+
+ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
+    IdentityStrategy(EntityDomain.FACTION, ("TIFactionState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
+    IdentityStrategy(EntityDomain.NATION, ("TINationState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
+    IdentityStrategy(EntityDomain.REGION, ("TIRegionState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
+    IdentityStrategy(EntityDomain.CONTROL_POINT, ("TIControlPoint",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
+    IdentityStrategy(EntityDomain.COUNCILOR, ("TICouncilorState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(EntityDomain.ARMY, ("TIArmyState", "TIMegafaunaArmyState"), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(EntityDomain.FLEET, ("TISpaceFleetState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(EntityDomain.SHIP, ("TISpaceShipState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(
+        EntityDomain.SPACE_OBJECT,
         (
             "TISpaceBodyState",
             "TILagrangePointState",
@@ -72,21 +53,15 @@ ENTITY_DOMAINS: tuple[EntityDomain, ...] = (
             "TIHabState",
         ),
         _NUMERIC_ID,
-        "in-save-id",
+        _IN_SAVE,
         "Value.templateName (space bodies)",
     ),
-    EntityDomain(
-        "organization",
-        ("TIOrgState",),
-        _NUMERIC_ID,
-        "in-save-id",
-        None,
-    ),
-    EntityDomain(
-        "technology",
+    IdentityStrategy(EntityDomain.ORGANIZATION, ("TIOrgState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(
+        EntityDomain.TECHNOLOGY,
         ("TIGlobalResearchState",),
         "gamestates/TIGlobalResearchState[0].Value.finishedTechsNames[], techProgress[].techTemplateName",
-        "name-key",
+        IdentityConfidence.NAME_KEY,
         None,
     ),
 )
@@ -107,7 +82,7 @@ class TypeIdentity:
 
 @dataclass(frozen=True)
 class DomainIdentity:
-    domain: EntityDomain
+    domain: IdentityStrategy
     types: tuple[TypeIdentity, ...]
 
 
@@ -120,7 +95,7 @@ class IdentityReport:
     current_id: int | None
 
 
-def _int_value(holder: Any) -> int | None:
+def read_id_value(holder: Any) -> int | None:
     """Read ``{"value": <int>}``; booleans are not IDs."""
     if isinstance(holder, dict):
         value = holder.get("value")
@@ -130,6 +105,7 @@ def _int_value(holder: Any) -> int | None:
 
 
 def _census_type(state_type: str, entries: Any, owners: dict[int, set[str]]) -> TypeIdentity:
+    """Count one state type's ID pairs; also records each Key ID's state type in ``owners``."""
     if not isinstance(entries, list):
         return TypeIdentity(state_type, True, 0, 0, 0, 0, 0, None, None)
     matches = mismatches = missing = 0
@@ -137,8 +113,8 @@ def _census_type(state_type: str, entries: Any, owners: dict[int, set[str]]) -> 
     for entry in entries:
         entry_dict = entry if isinstance(entry, dict) else {}
         value = entry_dict.get("Value")
-        key_id = _int_value(entry_dict.get("Key"))
-        inner_id = _int_value(value.get("ID")) if isinstance(value, dict) else None
+        key_id = read_id_value(entry_dict.get("Key"))
+        inner_id = read_id_value(value.get("ID")) if isinstance(value, dict) else None
         if key_id is None or inner_id is None:
             missing += 1
         elif key_id == inner_id:
@@ -188,5 +164,5 @@ def analyze_identity(root: Any) -> IdentityReport | None:
         ids_shared_across_types=sum(1 for types in owners.values() if len(types) > 1),
         total_ids=len(owners),
         max_observed_id=max(owners) if owners else None,
-        current_id=_int_value(root.get("currentID")),
+        current_id=read_id_value(root.get("currentID")),
     )

@@ -1,0 +1,89 @@
+tinarrative inspect report
+file: campaign_assets.json
+  size_bytes: 27563
+  sha256: 116006425064d2a7ce115b18d9da931c1b02d2ae916dbc4f8cbd6bf243647dbf
+  leading_bytes: 7b 0a 20 20 22 63 75 72
+  utf8_bom: no
+  line_endings: lf
+  decoded_chars: 27563
+decode: ok (json)
+root: object (2 keys)
+top-level keys:
+  currentID: object (1 key)
+  gamestates: object (17 keys)
+currentID keys:
+  value: number
+gamestates keys:
+  PavonisInteractive.TerraInvicta.TIMetadataState: array (1 item)
+  PavonisInteractive.TerraInvicta.TITimeState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIFactionState: array (2 items)
+  PavonisInteractive.TerraInvicta.TINationState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIRegionState: array (2 items)
+  PavonisInteractive.TerraInvicta.TISpaceBodyState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIOrbitState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIHabSiteState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIOrgState: array (1 item)
+  PavonisInteractive.TerraInvicta.TICouncilorState: array (3 items)
+  PavonisInteractive.TerraInvicta.TIArmyState: array (2 items)
+  PavonisInteractive.TerraInvicta.TIMegafaunaArmyState: array (1 item)
+  PavonisInteractive.TerraInvicta.TISpaceFleetState: array (2 items)
+  PavonisInteractive.TerraInvicta.TISpaceShipState: array (3 items)
+  PavonisInteractive.TerraInvicta.TIHabState: array (2 items)
+  PavonisInteractive.TerraInvicta.TISectorState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIGlobalResearchState: array (1 item)
+identity:
+  ids: 26 distinct, 0 shared across state types
+  max_observed_id: 160
+  currentID: 999
+  faction: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TIFactionState: 2 entries, ids 10..11, key==id 2, mismatch 0, missing 0, duplicate 0
+  nation: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TINationState: 1 entries, ids 20..20, key==id 1, mismatch 0, missing 0, duplicate 0
+  region: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TIRegionState: 2 entries, ids 40..41, key==id 2, mismatch 0, missing 0, duplicate 0
+  control point: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TIControlPoint: absent
+  councilor: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TICouncilorState: 3 entries, ids 100..102, key==id 3, mismatch 0, missing 0, duplicate 0
+  army: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIArmyState: 2 entries, ids 110..111, key==id 2, mismatch 0, missing 0, duplicate 0
+    TIMegafaunaArmyState: 1 entries, ids 112..112, key==id 1, mismatch 0, missing 0, duplicate 0
+  fleet: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TISpaceFleetState: 2 entries, ids 120..121, key==id 2, mismatch 0, missing 0, duplicate 0
+  ship: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TISpaceShipState: 3 entries, ids 130..132, key==id 3, mismatch 0, missing 0, duplicate 0
+  space object: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName (space bodies)
+    TISpaceBodyState: 1 entries, ids 50..50, key==id 1, mismatch 0, missing 0, duplicate 0
+    TILagrangePointState: absent
+    TIOrbitState: 1 entries, ids 60..60, key==id 1, mismatch 0, missing 0, duplicate 0
+    TIAdHocOrbitState: absent
+    TIHabSiteState: 1 entries, ids 61..61, key==id 1, mismatch 0, missing 0, duplicate 0
+    TIHabState: 2 entries, ids 140..141, key==id 2, mismatch 0, missing 0, duplicate 0
+  organization: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIOrgState: 1 entries, ids 70..70, key==id 1, mismatch 0, missing 0, duplicate 0
+  technology: confidence=name-key
+    id_source: gamestates/TIGlobalResearchState[0].Value.finishedTechsNames[], techProgress[].techTemplateName
+    secondary_key: none
+    TIGlobalResearchState: 1 entries, ids 150..150, key==id 1, mismatch 0, missing 0, duplicate 0
+selected paths: none
+diagnostics: none

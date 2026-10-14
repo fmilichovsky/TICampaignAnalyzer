@@ -12,67 +12,210 @@
       "path": "representative_campaign.json",
       "kind": "synthetic_representative_save_shape",
       "json_valid": true,
-      "expected_loader_outcome": "returns_exact_raw_bytes",
+      "expected_loader_outcome": "raw_save",
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
       "version_assumption": "Observed JSON envelope; source game build is not serialized.",
       "sha256": "c01379f493338b6016b04432a805ad1fbeb43918dee6de7b6d208a0534590911",
-      "purpose": "Exercise raw loading of a complete valid Terra Invicta-shaped JSON document."
+      "purpose": "Decode a complete valid Terra Invicta-shaped JSON document to a RawSave."
+    },
+    {
+      "path": "political_control.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "9986623af9c7d811882c3e55690babb5fe9448ca1e56536ac06ecab4d5d27752",
+      "purpose": "Normalize metadata, time, factions, nations, regions, and control points: control ownership (owned, unowned, unresolved nation), a missing field, an undocumented field, mixed army reference types, an empty {} container, and an unknown state type."
+    },
+    {
+      "path": "campaign_assets.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "116006425064d2a7ce115b18d9da931c1b02d2ae916dbc4f8cbd6bf243647dbf",
+      "purpose": "Normalize councilors, armies (both state types), fleets, ships, habs, and research: resolved, null, and unresolved references per domain (including a councilor located at a hab, a fleet whose parentFleet ID is absent, and a ship in an absent fleet), missing fields, a megafauna-only field, and a research singleton whose techProgress overlaps finishedTechsNames and has one element without a template name."
     },
     {
       "path": "unknown_state_type.json",
       "kind": "synthetic_unknown_state_fragment",
       "json_valid": true,
-      "expected_loader_outcome": "returns_exact_raw_bytes",
+      "expected_loader_outcome": "raw_save",
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
       "version_assumption": "Observed JSON envelope; unknown state types remain uninterpreted.",
       "sha256": "be080ea86e20ecc429b536e62dada015c54277b6a8bc9b47dcbfeba52c70f1e2",
-      "purpose": "Preserve an unknown typed state as raw bytes until a future parser owns that behavior."
+      "purpose": "Show an unknown typed state still loads; state types are not validated by the loader."
     },
     {
       "path": "malformed_truncated.json",
       "kind": "synthetic_malformed_fragment",
       "json_valid": false,
-      "expected_loader_outcome": "returns_exact_raw_bytes",
+      "expected_loader_outcome": "malformed_save_error",
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
       "version_assumption": "Observed JSON envelope; deliberately malformed decoder-boundary case.",
       "sha256": "60339ebba358a8dc00a988756babf204a0bf07bd8ad0c90741e103816fe96cd0",
-      "purpose": "Keep malformed JSON coverage at the raw-loader boundary without adding decoding logic."
+      "purpose": "Truncated JSON is rejected with MalformedSaveError."
     },
     {
       "path": "known_game_version.json",
       "kind": "synthetic_parser_fragment",
       "json_valid": true,
-      "expected_loader_outcome": "returns_exact_raw_bytes",
+      "expected_loader_outcome": "unsupported_shape_error",
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
       "version_assumption": "Synthetic explicit-version detector case; not a supported game build.",
       "sha256": "09c7c819838adc621c26c543d267b3f03728a3171babf7f96a29c8ba5c29d1d9",
-      "purpose": "Assert the existing detector preserves a string game_version value."
+      "purpose": "Assert the existing detector preserves a string game_version value. Fragment without the documented envelope, so the loader rejects it as an unsupported shape."
     },
     {
       "path": "numeric_game_version.json",
       "kind": "synthetic_parser_fragment",
       "json_valid": true,
-      "expected_loader_outcome": "returns_exact_raw_bytes",
+      "expected_loader_outcome": "unsupported_shape_error",
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
       "version_assumption": "Synthetic numeric-version detector case; not a supported game build.",
       "sha256": "ec074b1682da8fcce00fa99475cb764f5085c524ce89a7d95bdeec9ccbc3e0ce",
-      "purpose": "Assert the existing detector stringifies a numeric game_version value."
+      "purpose": "Assert the existing detector stringifies a numeric game_version value. Fragment without the documented envelope, so the loader rejects it as an unsupported shape."
     },
     {
       "path": "absent_game_version.json",
       "kind": "synthetic_parser_fragment",
       "json_valid": true,
-      "expected_loader_outcome": "returns_exact_raw_bytes",
+      "expected_loader_outcome": "unsupported_shape_error",
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
       "version_assumption": "Observed missing top-level game-version behavior.",
       "sha256": "5bf31c5f8bfe268571bfca7212ff093fcfd67589b66243332993c492d871bd88",
-      "purpose": "Assert current missing-version and missing-date defaults."
+      "purpose": "Assert current missing-version and missing-date defaults. Fragment without the documented envelope, so the loader rejects it as an unsupported shape."
+    },
+    {
+      "path": "missing_gamestates.json",
+      "kind": "synthetic_unsupported_shape_fragment",
+      "json_valid": true,
+      "expected_loader_outcome": "unsupported_shape_error",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Envelope member 'gamestates' absent; observed saves always have it.",
+      "sha256": "0977a67daefe25710a0a6693587f76afdf79dc72b0f0f3d00b3be78176d33e4a",
+      "purpose": "Valid JSON object lacking 'gamestates' is rejected with UnsupportedSaveShapeError."
+    },
+    {
+      "path": "root_array.json",
+      "kind": "synthetic_unsupported_shape_fragment",
+      "json_valid": true,
+      "expected_loader_outcome": "unsupported_shape_error",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Observed saves have an object root; an array root is outside the identifier.",
+      "sha256": "23e769876864e491a9c4af290ebc7099a0f3285083f4af3076ba2c91a648084d",
+      "purpose": "Non-object JSON root is rejected with UnsupportedSaveShapeError."
+    },
+    {
+      "path": "explicit_game_version_envelope.json",
+      "kind": "synthetic_explicit_version_save",
+      "json_valid": true,
+      "expected_loader_outcome": "unsupported_version_error",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Synthetic explicit game_version on a full envelope; no build is documented as supported.",
+      "sha256": "c84da3c513836086c824d920dc38e9360a341c358e891f53a843e073800dc979",
+      "purpose": "Explicit game_version is rejected with UnsupportedGameVersionError."
+    },
+    {
+      "path": "interval_before.json",
+      "kind": "synthetic_diff_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "dcfcf1ad2071010e211041fb2aa6cef98ec2853ef1e350fa55ae873a2537c6ae",
+      "purpose": "Earlier snapshot of a synthetic campaign interval for `tinarrative diff`; pair with interval_after.json. Holds the entities and values that change, disappear (control point 12, councilor 101) or stay in a different order (nation regions) in the later snapshot; control points 9..12 exercise natural ID ordering."
+    },
+    {
+      "path": "interval_after.json",
+      "kind": "synthetic_diff_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "64e5381dd32489d20cd63db5e87eab1d1d36dc414373ff5636cffb80488d797c",
+      "purpose": "Later snapshot of the same synthetic interval: scalar, reference (null to resolved, resolved to unresolved), membership, map-key and unknown-value changes; entities that appear (megafauna army 112, councilor 102, fleet 121); a reference list with a stale ID; a newly finished technology; a later date."
+    },
+    {
+      "path": "records_before.json",
+      "kind": "synthetic_records_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "b5c35dd8b91b723937b44cb313a14671853e73642c5164bbf4763a7897545ca7",
+      "purpose": "Earlier snapshot of a synthetic interval for the save-carried records layer; pair with records_after.json. Faction 15 carries every record field (ledger with a hashed-looking label, destruction log, empty pair maps as {}, typed alien-site keys incl. an absent ID, counters, dated labels); faction 16 carries none (missing case); nation 20 has no executive change yet."
+    },
+    {
+      "path": "records_after.json",
+      "kind": "synthetic_records_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "b66792b5d3c2f710e8d1b77ad6cdd7aabbe35dab5b2efef89073f13935e7832a",
+      "purpose": "Later snapshot of the same synthetic interval: every log is a strict prefix extension (ledger, destruction log with an unresolved space body and a null destroyer, milestones), pair maps go from {} to one pair, keyed values change (faction hate, objective status, armies lost, boost account date), counters increment, a control point is lost, and nation 20 records a dated executive change by coup."
+    },
+    {
+      "path": "politics_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "646e2294c98a8149661c81e65dab2d764f5c9fef85ba0dd784be0ca03176ef66",
+      "purpose": "Earlier snapshot of a synthetic interval for the politics analyzers; pair with politics_after.json. Factions 15/16 with councilor and control-point rosters (faction 16 with an empty lostControlPoints record), nations 20..22 with regions, rivals, control points and an executive-change record on nation 20, control points 9..11, councilors 100..102 and a hab as a councilor location."
+    },
+    {
+      "path": "politics_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "c205775cfc6bd257acee341980130c5195b98ea9afe875c32b859ca5fd88b040",
+      "purpose": "Later snapshot of the same synthetic interval: a control point whose controller changes faction (with both rosters and a dated lostControlPoints entry) and one that becomes uncontrolled; a control point and a region that move to another nation; a capital change; a breakaway link; a reciprocal war entry and a one-sided rival removal; a re-dated executive change; a councilor that changes faction, status and detaining faction; a councilor that moves from a region to a hab (priorLocation set); a councilor whose faction becomes null; a nation control-point list with an unmirrored member; a faction councilor list with a stale ID."
+    },
+    {
+      "path": "assets_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "337b3aeee74f79f1003ad1968b51cefe758f6d4b83c12fb7526d5f1d2baf85d8",
+      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, and a research singleton with two finished techs and one progress entry."
+    },
+    {
+      "path": "assets_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "d65cedacb2a9667781fd4451616f45fce157606a3daa10a3c4d6f63fb9218f51",
+      "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed."
     }
   ]
 }

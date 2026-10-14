@@ -1,0 +1,125 @@
+"""Fleet transitions a save shows directly: faction, docking, orbit, barycenter, parent fleet, combat flag, presence.
+
+A fleet ID is valid for the fleet's lifetime only: merged fleets vanish and ``parentFleet`` often names an ID
+absent from the save. A fleet present in one snapshot only is therefore reported as absent from (or present only
+in) that snapshot, and an unresolved ``parentFleet`` as an unresolved transition; neither is evidence of a merge
+or a loss. ``trajectory``, ``globalPosition``, operations and bombardment fields stay in the diff.
+"""
+
+from __future__ import annotations
+
+from ...model.changes import ChangeKind, StateChange, StateDiff
+from ...model.entities import EntityDomain
+from ...model.events import Event, SourceRole
+from ...model.snapshot import SaveSnapshot
+from ..common import (
+    ChangeIndex,
+    EventBuilder,
+    Lookup,
+    MembershipLedger,
+    Side,
+    Transition,
+    classify,
+    confidence_for,
+    list_changed_event,
+    mirrored_sources,
+    primary,
+    transition_attributes,
+    value_transition_event,
+)
+
+FACTION_CHANGED = "fleet.faction_changed"
+DOCKED_LOCATION_CHANGED = "fleet.docked_location_changed"
+ORBIT_CHANGED = "fleet.orbit_changed"
+BARYCENTER_CHANGED = "fleet.barycenter_changed"
+PARENT_FLEET_CHANGED = "fleet.parent_fleet_changed"
+IN_COMBAT_CHANGED = "fleet.in_combat_changed"
+APPEARED = "fleet.appeared"
+DISAPPEARED = "fleet.disappeared"
+FACTION_LIST_CHANGED = "faction.fleets_changed"
+DOCKED_LIST_CHANGED = "hab.docked_fleets_changed"
+
+HANDLED_LISTS = ((EntityDomain.FACTION, "fleets"), (EntityDomain.SPACE_OBJECT, "dockedFleets"))
+MIRRORED_FIELDS = (("faction", FACTION_CHANGED, "fleets"), ("dockedLocation", DOCKED_LOCATION_CHANGED, "dockedFleets"))
+"""Reference fields whose owner lists fleets, with the owner's list field."""
+VALUE_FIELDS = (
+    ("orbitState", ORBIT_CHANGED),
+    ("barycenter", BARYCENTER_CHANGED),
+    ("parentFleet", PARENT_FLEET_CHANGED),
+    ("inCombat", IN_COMBAT_CHANGED),
+)
+
+_LIST_EVENT = {EntityDomain.FACTION.value: FACTION_LIST_CHANGED, EntityDomain.SPACE_OBJECT.value: DOCKED_LIST_CHANGED}
+
+
+class FleetAnalyzer:
+    def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
+        index = ChangeIndex(diff)
+        lookup = Lookup(before, after)
+        ledger = MembershipLedger(index, HANDLED_LISTS)
+        build = EventBuilder(before, after)
+        events: list[Event] = []
+
+        for field_name, event_type, list_field in MIRRORED_FIELDS:
+            for change in index.fields(EntityDomain.FLEET, field_name):
+                event = _mirrored(event_type, list_field, change, lookup, ledger, build)
+                if event is not None:
+                    events.append(event)
+        for field_name, event_type in VALUE_FIELDS:
+            for change in index.fields(EntityDomain.FLEET, field_name):
+                assert change.entity_id is not None
+                faction = lookup.context_ref(change.entity_id, "faction")
+                event = value_transition_event(event_type, change, lookup, build, context=(faction,))
+                if event is not None:
+                    events.append(event)
+        for change in index.presence(EntityDomain.FLEET):
+            events.append(_presence(change, lookup, ledger, build))
+        for change, member, transition in ledger.leftovers():
+            events.append(list_changed_event(_LIST_EVENT[change.domain], change, member, transition, lookup, build))
+        return events
+
+
+def _mirrored(
+    event_type: str,
+    list_field: str,
+    change: StateChange,
+    lookup: Lookup,
+    ledger: MembershipLedger,
+    build: EventBuilder,
+) -> Event | None:
+    transition = classify(change.before, change.after)
+    if transition is None or change.entity_id is None:
+        return None
+    fleet_id = change.entity_id
+    context = lookup.context_ref(fleet_id, "faction") if change.field != "faction" else None
+    return build.event(
+        event_type,
+        id_parts=(fleet_id,),
+        sources=mirrored_sources(change, ledger, list_field, fleet_id),
+        entities=(lookup.ref(fleet_id), context, lookup.resolve(change.before), lookup.resolve(change.after)),
+        attributes=transition_attributes(change, transition),
+        confidence=confidence_for(transition),
+    )
+
+
+def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder) -> Event:
+    appeared = change.kind is ChangeKind.APPEARED
+    side = Side.AFTER if appeared else Side.BEFORE
+    membership = Transition.ADDED if appeared else Transition.REMOVED
+    fleet_id = change.entity_id
+    assert fleet_id is not None
+    sources = [primary(change)]
+    faction = lookup.ref_field(fleet_id, "faction", side)
+    docked = lookup.ref_field(fleet_id, "dockedLocation", side)
+    for owner, list_field in ((faction, "fleets"), (docked, "dockedFleets")):
+        if owner is not None:
+            cited = ledger.claim(owner.entity_id, list_field, fleet_id, membership, SourceRole.CORROBORATING)
+            if cited is not None:
+                sources.append(cited)
+    return build.event(
+        APPEARED if appeared else DISAPPEARED,
+        id_parts=(fleet_id,),
+        sources=sources,
+        entities=(lookup.ref(fleet_id), faction, docked),
+        attributes=(("side", side.value),),
+    )

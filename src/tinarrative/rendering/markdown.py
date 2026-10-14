@@ -6,17 +6,16 @@ infers facts itself.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from collections.abc import Iterable
-from dataclasses import asdict, is_dataclass
-from typing import Any, cast
 
+from ..analyzers.render import describe_event
+from ..diff.render import render_change, render_value
 from ..diff.state_diff import StateDiff
 from ..model.changes import StateChange
 from ..model.entities import EntityRef
-from ..model.events import Event, EventStatus
-from ..model.evidence import Evidence
+from ..model.events import Event, EventSource, EventStatus
+from ..model.evidence import Evidence, SourceLocation
 from ..model.snapshot import SaveSnapshot
 
 
@@ -34,7 +33,7 @@ def render_comparison(
     event_list = list(events)
     objective_events = sorted(
         (event for event in event_list if event.status is EventStatus.OBJECTIVE),
-        key=_event_sort_key,
+        key=lambda event: event.sort_key,
     )
     grouped_changes: dict[str, list[StateChange]] = defaultdict(list)
     grouped_events: dict[str, list[Event]] = defaultdict(list)
@@ -57,7 +56,7 @@ def render_comparison(
                 lines.extend(["", "Objective analyzer results:"])
                 for event in category_events:
                     lines.extend(_event_lines(event, verbose=verbose))
-            category_changes = sorted(grouped_changes.get(category, []), key=_change_sort_key)
+            category_changes = sorted(grouped_changes.get(category, []), key=lambda change: change.sort_key)
             if category_changes:
                 lines.extend(["", "Observed state changes:"])
                 for change in category_changes:
@@ -66,19 +65,19 @@ def render_comparison(
     if verbose:
         inferred = sorted(
             (event for event in event_list if event.status is not EventStatus.OBJECTIVE),
-            key=_event_sort_key,
+            key=lambda event: event.sort_key,
         )
         if inferred:
             lines.extend(["", "## Omitted non-objective results", ""])
             for event in inferred:
-                marker = "[inferred, ambiguous]" if event.attributes.get("ambiguous") else "[inferred]"
-                lines.append(f"- {marker} {_event_summary(event)}")
+                marker = "[inferred, ambiguous]" if event.attribute("ambiguous") is True else "[inferred]"
+                lines.append(f"- {marker} {describe_event(event)}")
         lines.extend(
             [
                 "",
                 "## Rendering notes",
                 "",
-                "- `<unknown>` marks unavailable normalized metadata.",
+                "- `unknown (...)` marks unavailable or unresolved normalized data.",
                 "- `ambiguous` marks an analyzer result that needs interpretation.",
             ]
         )
@@ -87,7 +86,10 @@ def render_comparison(
 
 def render_events(events: list[Event]) -> str:
     """Render the original deterministic event-list API."""
-    return "\n".join(f"- {event.date}: {event.event_type}" for event in sorted(events, key=_event_sort_key))
+    return "\n".join(
+        f"- {render_value(event.date)}: {event.event_type}"
+        for event in sorted(events, key=lambda event: event.sort_key)
+    )
 
 
 def _snapshot_lines(label: str, snapshot: SaveSnapshot) -> list[str]:
@@ -95,7 +97,8 @@ def _snapshot_lines(label: str, snapshot: SaveSnapshot) -> list[str]:
     details.extend(
         [
             f"game version: `{_optional(snapshot.game_version)}`",
-            f"turn: `{_optional(snapshot.turn)}`",
+            f"campaign day: `{render_value(snapshot.campaign_day)}`",
+            f"campaign quarter: `{render_value(snapshot.campaign_quarter)}`",
             f"timestamp: `{_optional(snapshot.timestamp)}`",
         ]
     )
@@ -103,7 +106,7 @@ def _snapshot_lines(label: str, snapshot: SaveSnapshot) -> list[str]:
 
 
 def _event_lines(event: Event, *, verbose: bool) -> list[str]:
-    lines = [f"- {_event_summary(event)}"]
+    lines = [f"- {describe_event(event)}"]
     if verbose:
         lines.extend(
             [
@@ -113,23 +116,18 @@ def _event_lines(event: Event, *, verbose: bool) -> list[str]:
             ]
         )
         lines.extend(_entity_lines(event.entities, indent="  "))
-        lines.extend(_evidence_lines(event.sources, indent="  "))
+        lines.extend(_event_source_lines(event.sources, indent="  "))
         if event.attributes:
-            lines.append(f"  - attributes: `{_value(event.attributes)}`")
+            attributes = "; ".join(f"{name}: `{render_value(value)}`" for name, value in event.attributes)
+            lines.append(f"  - attributes: {attributes}")
     return lines
 
 
-def _event_summary(event: Event) -> str:
-    entities = _entities(event.entities)
-    return f"{event.event_type}" + (f" — affected: {entities}" if entities else "")
-
-
 def _change_lines(change: StateChange, *, verbose: bool) -> list[str]:
-    entity = f" for `{change.entity_id}`" if change.entity_id is not None else ""
-    lines = [f"- `{change.field}`{entity}: `{_value(change.before)}` → `{_value(change.after)}`"]
+    lines = [f"- {render_change(change)}"]
     if verbose:
         lines.append(f"  - evidence: {change.evidence.description}")
-        lines.extend(_evidence_lines([change.evidence], indent="  ", include_description=False))
+        lines.extend(_evidence_lines(change.evidence, indent="  "))
     return lines
 
 
@@ -139,28 +137,45 @@ def _entity_lines(entities: Iterable[EntityRef], *, indent: str) -> list[str]:
 
 
 def _entities(entities: Iterable[EntityRef]) -> str:
-    ordered = sorted(entities, key=lambda entity: (entity.kind, entity.id, entity.name or ""))
-    return ", ".join(f"{entity.kind} `{entity.name or entity.id}` ({entity.id})" for entity in ordered)
+    ordered = sorted(entities, key=lambda entity: entity.entity_id.sort_key)
+    return ", ".join(str(entity.entity_id) for entity in ordered)
 
 
-def _evidence_lines(evidence: Iterable[Evidence], *, indent: str, include_description: bool = True) -> list[str]:
+def _event_source_lines(sources: Iterable[EventSource], *, indent: str) -> list[str]:
     lines: list[str] = []
-    for item in sorted(evidence, key=_evidence_sort_key):
-        parts = [f"save: `{item.save_id}`", f"domain: `{item.domain}`"]
-        if item.path is not None:
-            parts.append(f"path: `{item.path}`")
-        parts.extend([f"before: `{_value(item.before)}`", f"after: `{_value(item.after)}`"])
-        if include_description:
-            parts.insert(0, item.description)
-        lines.append(f"{indent}- evidence: " + "; ".join(parts))
+    for source in sorted(sources, key=lambda source: source.sort_key):
+        lines.append(f"{indent}- source ({source.role.value}): {render_change(source.change)}")
+        lines.extend(_evidence_lines(source.change.evidence, indent=indent + "  "))
+        if source.entry is not None:
+            lines.append(f"{indent}  - record entry: `{_location(source.entry)}`")
     return lines
 
 
+def _evidence_lines(evidence: Evidence, *, indent: str) -> list[str]:
+    return [
+        f"{indent}- before source: `{_location(evidence.before_location)}`",
+        f"{indent}- after source: `{_location(evidence.after_location)}`",
+    ]
+
+
+def _location(location: SourceLocation | None) -> str:
+    if location is None:
+        return "absent"
+    parts = [location.save_id]
+    if location.state_type is not None:
+        parts.append(location.state_type)
+    if location.map_id is not None:
+        parts.append(str(location.map_id))
+    if location.path is not None:
+        parts.append(location.path)
+    return " / ".join(parts)
+
+
 def _event_category(event: Event) -> str:
-    category = event.attributes.get("category")
+    category = event.attribute("category")
     if isinstance(category, str) and category:
         return category
-    domains = {evidence.domain for evidence in event.sources}
+    domains = {source.change.domain for source in event.sources}
     return next(iter(domains)).replace("_", " ").title() if len(domains) == 1 else "Analyzer results"
 
 
@@ -168,27 +183,5 @@ def _change_category(change: StateChange) -> str:
     return change.domain.replace("_", " ").title()
 
 
-def _change_sort_key(change: StateChange) -> tuple[str, str, str, str, str]:
-    return (change.domain, change.entity_id or "", change.field, _value(change.before), _value(change.after))
-
-
-def _event_sort_key(event: Event) -> tuple[str, str, str]:
-    return (event.date, event.id, event.event_type)
-
-
-def _evidence_sort_key(evidence: Evidence) -> tuple[str, str, str, str, str]:
-    return (evidence.domain, evidence.path or "", evidence.description, _value(evidence.before), _value(evidence.after))
-
-
 def _optional(value: object | None) -> str:
     return "<unknown>" if value is None else str(value)
-
-
-def _value(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, ensure_ascii=True, default=_json_default)
-
-
-def _json_default(value: object) -> object:
-    if is_dataclass(value) and not isinstance(value, type):
-        return asdict(cast(Any, value))
-    return str(value)

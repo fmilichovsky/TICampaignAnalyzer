@@ -1,0 +1,1869 @@
+{
+  "before": "interval_before.json",
+  "after": "interval_after.json",
+  "before_date": "2031-03-01T00:00:00",
+  "after_date": "2031-06-01T00:00:00",
+  "changes": [
+    {
+      "domain": "army",
+      "entity_id": "army:110",
+      "field": "currentRegion",
+      "kind": "value",
+      "before": {
+        "ref": "region:40",
+        "state_type": "TIRegionState",
+        "confidence": "in-save-id"
+      },
+      "after": {
+        "ref": "region:42",
+        "state_type": "TIRegionState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "currentRegion changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIArmyState",
+        "map_id": 110,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIArmyState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIArmyState",
+        "map_id": 110,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIArmyState/0/Value"
+      }
+    },
+    {
+      "domain": "army",
+      "entity_id": "army:110",
+      "field": "priorRegion",
+      "kind": "value",
+      "before": {
+        "ref": "region:41",
+        "state_type": "TIRegionState",
+        "confidence": "in-save-id"
+      },
+      "after": {
+        "ref": "region:40",
+        "state_type": "TIRegionState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "priorRegion changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIArmyState",
+        "map_id": 110,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIArmyState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIArmyState",
+        "map_id": 110,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIArmyState/0/Value"
+      }
+    },
+    {
+      "domain": "army",
+      "entity_id": "army:110",
+      "field": "strength",
+      "kind": "value",
+      "before": 3.5,
+      "after": 2.0,
+      "detail": null,
+      "description": "strength changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIArmyState",
+        "map_id": 110,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIArmyState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIArmyState",
+        "map_id": 110,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIArmyState/0/Value"
+      }
+    },
+    {
+      "domain": "army",
+      "entity_id": "army:112",
+      "field": null,
+      "kind": "appeared",
+      "before": {
+        "unknown": "missing"
+      },
+      "after": {
+        "ref": "army:112",
+        "state_type": "TIMegafaunaArmyState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "present only in the after snapshot",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIMegafaunaArmyState",
+        "map_id": 112,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIMegafaunaArmyState/0/Value"
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "campaign_day",
+      "kind": "value",
+      "before": 425,
+      "after": 517,
+      "detail": null,
+      "description": "campaign_day changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "campaign_quarter",
+      "kind": "value",
+      "before": 4,
+      "after": 5,
+      "detail": null,
+      "description": "campaign_quarter changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "date",
+      "kind": "value",
+      "before": "2031-03-01T00:00:00",
+      "after": "2031-06-01T00:00:00",
+      "detail": null,
+      "description": "date changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "game_time_string",
+      "kind": "value",
+      "before": "3/1/2031 12:00:00 AM",
+      "after": "6/1/2031 12:00:00 AM",
+      "detail": null,
+      "description": "game_time_string changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "control point",
+      "entity_id": "control point:9",
+      "field": "defended",
+      "kind": "value",
+      "before": false,
+      "after": true,
+      "detail": null,
+      "description": "defended changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIControlPoint",
+        "map_id": 9,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIControlPoint",
+        "map_id": 9,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/0/Value"
+      }
+    },
+    {
+      "domain": "control point",
+      "entity_id": "control point:9",
+      "field": "faction",
+      "kind": "value",
+      "before": null,
+      "after": {
+        "ref": "faction:15",
+        "state_type": "TIFactionState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "faction changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIControlPoint",
+        "map_id": 9,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIControlPoint",
+        "map_id": 9,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/0/Value"
+      }
+    },
+    {
+      "domain": "control point",
+      "entity_id": "control point:10",
+      "field": "crackdownExpiration",
+      "kind": "value",
+      "before": {
+        "day": 1,
+        "hour": 0,
+        "millisecond": 0,
+        "minute": 0,
+        "month": 6,
+        "second": 0,
+        "year": 2031
+      },
+      "after": null,
+      "detail": null,
+      "description": "crackdownExpiration changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIControlPoint",
+        "map_id": 10,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIControlPoint",
+        "map_id": 10,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/1/Value"
+      }
+    },
+    {
+      "domain": "control point",
+      "entity_id": "control point:10",
+      "field": "defended",
+      "kind": "unknown",
+      "before": false,
+      "after": {
+        "unknown": "missing"
+      },
+      "detail": null,
+      "description": "defended is unknown on at least one side",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIControlPoint",
+        "map_id": 10,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIControlPoint",
+        "map_id": 10,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/1/Value"
+      }
+    },
+    {
+      "domain": "control point",
+      "entity_id": "control point:11",
+      "field": "defendExpiration",
+      "kind": "map",
+      "before": {
+        "day": 15,
+        "hour": 0,
+        "millisecond": 0,
+        "minute": 0,
+        "month": 4,
+        "second": 0,
+        "year": 2031
+      },
+      "after": {
+        "day": 15,
+        "hour": 0,
+        "millisecond": 0,
+        "minute": 0,
+        "month": 7,
+        "second": 0,
+        "year": 2031
+      },
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          "month"
+        ]
+      },
+      "description": "defendExpiration map changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIControlPoint",
+        "map_id": 11,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/2/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIControlPoint",
+        "map_id": 11,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/2/Value"
+      }
+    },
+    {
+      "domain": "control point",
+      "entity_id": "control point:12",
+      "field": null,
+      "kind": "disappeared",
+      "before": {
+        "ref": "control point:12",
+        "state_type": "TIControlPoint",
+        "confidence": "in-save-id"
+      },
+      "after": {
+        "unknown": "missing"
+      },
+      "detail": null,
+      "description": "absent from the after snapshot",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIControlPoint",
+        "map_id": 12,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIControlPoint/3/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:100",
+      "field": "XP",
+      "kind": "value",
+      "before": 12,
+      "after": 20,
+      "detail": null,
+      "description": "XP changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:100",
+      "field": "attributes",
+      "kind": "map",
+      "before": {
+        "Administration": 5,
+        "ApparentLoyalty": 5,
+        "Command": 5,
+        "Espionage": 5,
+        "Investigation": 5,
+        "Loyalty": 5,
+        "Persuasion": 5,
+        "Science": 5,
+        "Security": 5
+      },
+      "after": {
+        "Administration": 5,
+        "ApparentLoyalty": 5,
+        "Command": 5,
+        "Espionage": 5,
+        "Investigation": 5,
+        "Loyalty": 5,
+        "Persuasion": 6,
+        "Science": 5,
+        "Security": 5
+      },
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          "Persuasion"
+        ]
+      },
+      "description": "attributes map changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:100",
+      "field": "location",
+      "kind": "unknown",
+      "before": {
+        "ref": "region:40",
+        "state_type": "TIRegionState",
+        "confidence": "in-save-id"
+      },
+      "after": {
+        "unknown": "unresolved_reference",
+        "raw": {
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState",
+          "value": 999
+        }
+      },
+      "detail": null,
+      "description": "location is unknown on at least one side",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:100",
+      "field": "orgs",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "organization:70",
+          "state_type": "TIOrgState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [],
+      "detail": {
+        "added": [],
+        "removed": [
+          {
+            "ref": "organization:70",
+            "state_type": "TIOrgState",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "orgs membership changed: 0 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:100",
+      "field": "priorLocation",
+      "kind": "value",
+      "before": null,
+      "after": {
+        "ref": "region:40",
+        "state_type": "TIRegionState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "priorLocation changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:100",
+      "field": "traitTemplateNames",
+      "kind": "membership",
+      "before": [
+        "FixtureTrait"
+      ],
+      "after": [
+        "FixtureTrait",
+        "FixtureTraitB"
+      ],
+      "detail": {
+        "added": [
+          "FixtureTraitB"
+        ],
+        "removed": []
+      },
+      "description": "traitTemplateNames membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 100,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/0/Value"
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:101",
+      "field": null,
+      "kind": "disappeared",
+      "before": {
+        "ref": "councilor:101",
+        "state_type": "TICouncilorState",
+        "confidence": "in-save-id"
+      },
+      "after": {
+        "unknown": "missing"
+      },
+      "detail": null,
+      "description": "absent from the after snapshot",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TICouncilorState",
+        "map_id": 101,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "councilor",
+      "entity_id": "councilor:102",
+      "field": null,
+      "kind": "appeared",
+      "before": {
+        "unknown": "missing"
+      },
+      "after": {
+        "ref": "councilor:102",
+        "state_type": "TICouncilorState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "present only in the after snapshot",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TICouncilorState",
+        "map_id": 102,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TICouncilorState/1/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "councilors",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "councilor:100",
+          "state_type": "TICouncilorState",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "councilor:101",
+          "state_type": "TICouncilorState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [
+        {
+          "ref": "councilor:100",
+          "state_type": "TICouncilorState",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "councilor:102",
+          "state_type": "TICouncilorState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "councilor:102",
+            "state_type": "TICouncilorState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": [
+          {
+            "ref": "councilor:101",
+            "state_type": "TICouncilorState",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "councilors membership changed: 1 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "finishedProjectNames",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        "Project_Fixture"
+      ],
+      "detail": {
+        "added": [
+          "Project_Fixture"
+        ],
+        "removed": []
+      },
+      "description": "finishedProjectNames membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "fleets",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "fleet:120",
+          "state_type": "TISpaceFleetState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [
+        {
+          "ref": "fleet:120",
+          "state_type": "TISpaceFleetState",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "fleet:121",
+          "state_type": "TISpaceFleetState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "fleet:121",
+            "state_type": "TISpaceFleetState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "fleets membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "researchWeights",
+      "kind": "value",
+      "before": [
+        1,
+        2,
+        3
+      ],
+      "after": [
+        3,
+        2,
+        1
+      ],
+      "detail": null,
+      "description": "researchWeights changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "resources",
+      "kind": "map",
+      "before": {
+        "Influence": 2.5,
+        "Money": 10.0
+      },
+      "after": {
+        "Influence": 2.5,
+        "Money": 12.5
+      },
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          "Money"
+        ]
+      },
+      "description": "resources map changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:16",
+      "field": "armies",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "army:112",
+          "state_type": "TIMegafaunaArmyState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "army:112",
+            "state_type": "TIMegafaunaArmyState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "armies membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 16,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 16,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/1/Value"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:16",
+      "field": "controlPoints",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "control point:11",
+          "state_type": "TIControlPoint",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "control point:12",
+          "state_type": "TIControlPoint",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [
+        {
+          "ref": "control point:11",
+          "state_type": "TIControlPoint",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [],
+        "removed": [
+          {
+            "ref": "control point:12",
+            "state_type": "TIControlPoint",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "controlPoints membership changed: 0 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 16,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 16,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/1/Value"
+      }
+    },
+    {
+      "domain": "fleet",
+      "entity_id": "fleet:120",
+      "field": "dockedLocation",
+      "kind": "value",
+      "before": null,
+      "after": {
+        "ref": "space object:140",
+        "state_type": "TIHabState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "dockedLocation changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 120,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 120,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/0/Value"
+      }
+    },
+    {
+      "domain": "fleet",
+      "entity_id": "fleet:120",
+      "field": "orbitState",
+      "kind": "value",
+      "before": {
+        "ref": "space object:61",
+        "state_type": "TIOrbitState",
+        "confidence": "in-save-id"
+      },
+      "after": null,
+      "detail": null,
+      "description": "orbitState changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 120,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 120,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/0/Value"
+      }
+    },
+    {
+      "domain": "fleet",
+      "entity_id": "fleet:120",
+      "field": "ships",
+      "kind": "unknown",
+      "before": [
+        {
+          "ref": "ship:130",
+          "state_type": "TISpaceShipState",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "ship:131",
+          "state_type": "TISpaceShipState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": {
+        "unknown": "unresolved_reference",
+        "raw": [
+          {
+            "value": 130
+          },
+          {
+            "value": 999
+          }
+        ]
+      },
+      "detail": null,
+      "description": "ships is unknown on at least one side",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 120,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 120,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/0/Value"
+      }
+    },
+    {
+      "domain": "fleet",
+      "entity_id": "fleet:121",
+      "field": null,
+      "kind": "appeared",
+      "before": {
+        "unknown": "missing"
+      },
+      "after": {
+        "ref": "fleet:121",
+        "state_type": "TISpaceFleetState",
+        "confidence": "in-save-id"
+      },
+      "detail": null,
+      "description": "present only in the after snapshot",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceFleetState",
+        "map_id": 121,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceFleetState/1/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "GDP",
+      "kind": "value",
+      "before": 1000.0,
+      "after": 1200.0,
+      "detail": null,
+      "description": "GDP changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "allies",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "nation:21",
+          "state_type": "TINationState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [
+        {
+          "ref": "nation:22",
+          "state_type": "TINationState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "nation:22",
+            "state_type": "TINationState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": [
+          {
+            "ref": "nation:21",
+            "state_type": "TINationState",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "allies membership changed: 1 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "armies",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "army:110",
+          "state_type": "TIArmyState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [],
+      "detail": {
+        "added": [],
+        "removed": [
+          {
+            "ref": "army:110",
+            "state_type": "TIArmyState",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "armies membership changed: 0 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "displayName",
+      "kind": "value",
+      "before": "Fixture Northland",
+      "after": "Fixture Northland Union",
+      "detail": null,
+      "description": "displayName changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "federation",
+      "kind": "value",
+      "before": null,
+      "after": {
+        "value": 80
+      },
+      "detail": null,
+      "description": "federation changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:21",
+      "field": "armies",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "army:110",
+          "state_type": "TIArmyState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "army:110",
+            "state_type": "TIArmyState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "armies membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 21,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 21,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/1/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:21",
+      "field": "controlPoints",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "control point:11",
+          "state_type": "TIControlPoint",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "control point:12",
+          "state_type": "TIControlPoint",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [
+        {
+          "ref": "control point:11",
+          "state_type": "TIControlPoint",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [],
+        "removed": [
+          {
+            "ref": "control point:12",
+            "state_type": "TIControlPoint",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "controlPoints membership changed: 0 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 21,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 21,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/1/Value"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:22",
+      "field": "allies",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "nation:20",
+          "state_type": "TINationState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "nation:20",
+            "state_type": "TINationState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "allies membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TINationState",
+        "map_id": 22,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/2/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TINationState",
+        "map_id": 22,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/2/Value"
+      }
+    },
+    {
+      "domain": "region",
+      "entity_id": "region:40",
+      "field": "armies",
+      "kind": "membership",
+      "before": [
+        {
+          "ref": "army:110",
+          "state_type": "TIArmyState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "after": [],
+      "detail": {
+        "added": [],
+        "removed": [
+          {
+            "ref": "army:110",
+            "state_type": "TIArmyState",
+            "confidence": "in-save-id"
+          }
+        ]
+      },
+      "description": "armies membership changed: 0 added, 1 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIRegionState",
+        "map_id": 40,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIRegionState",
+        "map_id": 40,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/0/Value"
+      }
+    },
+    {
+      "domain": "region",
+      "entity_id": "region:42",
+      "field": "annexingArmy",
+      "kind": "value",
+      "before": null,
+      "after": {
+        "value": 110
+      },
+      "detail": null,
+      "description": "annexingArmy changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIRegionState",
+        "map_id": 42,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/2/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIRegionState",
+        "map_id": 42,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/2/Value"
+      }
+    },
+    {
+      "domain": "region",
+      "entity_id": "region:42",
+      "field": "armies",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "army:110",
+          "state_type": "TIArmyState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "army:110",
+            "state_type": "TIArmyState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "armies membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIRegionState",
+        "map_id": 42,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/2/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIRegionState",
+        "map_id": 42,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/2/Value"
+      }
+    },
+    {
+      "domain": "region",
+      "entity_id": "region:42",
+      "field": "isBeingAnnexed",
+      "kind": "value",
+      "before": false,
+      "after": true,
+      "detail": null,
+      "description": "isBeingAnnexed changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIRegionState",
+        "map_id": 42,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/2/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIRegionState",
+        "map_id": 42,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIRegionState/2/Value"
+      }
+    },
+    {
+      "domain": "research",
+      "entity_id": null,
+      "field": "finished_techs_names",
+      "kind": "membership",
+      "before": [
+        "FixtureTechA"
+      ],
+      "after": [
+        "FixtureTechA",
+        "FixtureTechB"
+      ],
+      "detail": {
+        "added": [
+          "FixtureTechB"
+        ],
+        "removed": []
+      },
+      "description": "finished_techs_names membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value"
+      }
+    },
+    {
+      "domain": "research",
+      "entity_id": null,
+      "field": "tech_progress",
+      "kind": "value",
+      "before": [
+        {
+          "accumulatedResearch": 5.0,
+          "factionContributions": [
+            {
+              "Key": {
+                "value": 15
+              },
+              "Value": 5.0
+            }
+          ],
+          "selector": {
+            "value": 15
+          },
+          "techTemplateName": "FixtureTechB"
+        }
+      ],
+      "after": [
+        {
+          "accumulatedResearch": 3.0,
+          "factionContributions": [
+            {
+              "Key": {
+                "value": 15
+              },
+              "Value": 3.0
+            }
+          ],
+          "selector": {
+            "value": 15
+          },
+          "techTemplateName": "FixtureTechC"
+        }
+      ],
+      "detail": null,
+      "description": "tech_progress changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value"
+      }
+    },
+    {
+      "domain": "ship",
+      "entity_id": "ship:130",
+      "field": "armor",
+      "kind": "map",
+      "before": {
+        "Left": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        },
+        "Nose": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        },
+        "Right": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        },
+        "Tail": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        }
+      },
+      "after": {
+        "Left": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        },
+        "Nose": {
+          "armorValue": 8,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        },
+        "Right": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        },
+        "Tail": {
+          "armorValue": 10,
+          "chippedPct": 0.0,
+          "maxArmor": 10
+        }
+      },
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          "Nose"
+        ]
+      },
+      "description": "armor map changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 130,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 130,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/0/Value"
+      }
+    },
+    {
+      "domain": "ship",
+      "entity_id": "ship:130",
+      "field": "propellant_tons",
+      "kind": "value",
+      "before": 100.0,
+      "after": 80.0,
+      "detail": null,
+      "description": "propellant_tons changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 130,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 130,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/0/Value"
+      }
+    },
+    {
+      "domain": "ship",
+      "entity_id": "ship:131",
+      "field": "fleet",
+      "kind": "unknown",
+      "before": {
+        "ref": "fleet:120",
+        "state_type": "TISpaceFleetState",
+        "confidence": "in-save-id"
+      },
+      "after": {
+        "unknown": "unresolved_reference",
+        "raw": {
+          "value": 999
+        }
+      },
+      "detail": null,
+      "description": "fleet is unknown on at least one side",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 131,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 131,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/1/Value"
+      }
+    },
+    {
+      "domain": "ship",
+      "entity_id": "ship:131",
+      "field": "kills",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        "FixtureKill"
+      ],
+      "detail": {
+        "added": [
+          "FixtureKill"
+        ],
+        "removed": []
+      },
+      "description": "kills membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 131,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/1/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 131,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/1/Value"
+      }
+    },
+    {
+      "domain": "space object",
+      "entity_id": "space object:140",
+      "field": "councilorsOnBoard",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "councilor:102",
+          "state_type": "TICouncilorState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "councilor:102",
+            "state_type": "TICouncilorState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "councilorsOnBoard membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIHabState",
+        "map_id": 140,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIHabState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIHabState",
+        "map_id": 140,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIHabState/0/Value"
+      }
+    },
+    {
+      "domain": "space object",
+      "entity_id": "space object:140",
+      "field": "dockedFleets",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "fleet:120",
+          "state_type": "TISpaceFleetState",
+          "confidence": "in-save-id"
+        },
+        {
+          "ref": "fleet:121",
+          "state_type": "TISpaceFleetState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "fleet:120",
+            "state_type": "TISpaceFleetState",
+            "confidence": "in-save-id"
+          },
+          {
+            "ref": "fleet:121",
+            "state_type": "TISpaceFleetState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "dockedFleets membership changed: 2 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIHabState",
+        "map_id": 140,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIHabState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIHabState",
+        "map_id": 140,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIHabState/0/Value"
+      }
+    },
+    {
+      "domain": "space object",
+      "entity_id": "space object:140",
+      "field": "tier",
+      "kind": "value",
+      "before": 1,
+      "after": 2,
+      "detail": null,
+      "description": "tier changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIHabState",
+        "map_id": 140,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIHabState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIHabState",
+        "map_id": 140,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIHabState/0/Value"
+      }
+    },
+    {
+      "domain": "technology",
+      "entity_id": "technology:FixtureTechB",
+      "field": "finished",
+      "kind": "value",
+      "before": false,
+      "after": true,
+      "detail": null,
+      "description": "finished changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value/techProgress/0"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value/finishedTechsNames/1"
+      }
+    },
+    {
+      "domain": "technology",
+      "entity_id": "technology:FixtureTechB",
+      "field": "progress",
+      "kind": "unknown",
+      "before": {
+        "accumulatedResearch": 5.0,
+        "factionContributions": [
+          {
+            "Key": {
+              "value": 15
+            },
+            "Value": 5.0
+          }
+        ],
+        "selector": {
+          "value": 15
+        },
+        "techTemplateName": "FixtureTechB"
+      },
+      "after": {
+        "unknown": "missing"
+      },
+      "detail": null,
+      "description": "progress is unknown on at least one side",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value/techProgress/0"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value/finishedTechsNames/1"
+      }
+    },
+    {
+      "domain": "technology",
+      "entity_id": "technology:FixtureTechC",
+      "field": null,
+      "kind": "appeared",
+      "before": {
+        "unknown": "missing"
+      },
+      "after": {
+        "ref": "technology:FixtureTechC",
+        "state_type": "TIGlobalResearchState",
+        "confidence": "name-key"
+      },
+      "detail": null,
+      "description": "present only in the after snapshot",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIGlobalResearchState",
+        "map_id": 150,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalResearchState/0/Value/techProgress/0"
+      }
+    }
+  ]
+}

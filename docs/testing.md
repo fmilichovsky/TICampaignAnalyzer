@@ -1,17 +1,18 @@
 # Testing and fixtures
 
-Run the normal test suite locally with:
+Run the normal test suite locally, from an activated virtual environment (see
+[Development](../README.md#development)), with:
 
-```powershell
+```sh
 python -m pip install -e ".[test]"
 python -m pytest
 ```
 
 Pytest discovers files named `test_*.py` below `tests/` and test functions or
 `unittest.TestCase` methods whose names begin with `test_`. The same command is
-run in CI. Tests marked `real_save` are excluded by default; use
-`python -m pytest -m real_save` only when the optional, sanitized real-save
-fixtures are present and you intentionally want to run those tests.
+run in CI. Tests marked `real_save` are excluded by default; they read a
+private save from the `TINARRATIVE_REAL_SAVE` environment variable and run with
+`python -m pytest -m real_save`.
 
 ## Fixture layout and naming
 
@@ -22,7 +23,7 @@ implementation detail. A raw save fixture, for example, is named
 Expected rendered output may use `*.expected.md`; structured expected data may
 use `*.expected.json`.
 
-Tests must locate fixture files through `tests.fixture_path`, never through a
+Tests must locate fixture files through `tests.fixtures.fixture_path`, never through a
 current-working-directory-relative path. This keeps local, CI, and IDE runs
 equivalent:
 
@@ -51,7 +52,9 @@ data in fixture metadata.
 Versioned, save-shaped JSON fixtures live under
 `tests/fixtures/io/terra_invicta_json_v1/`. Their `fixture_manifest.json` is
 the canonical set-level metadata: it records the fixture-set version,
-provenance, game-version status, expected raw-loader outcome, JSON validity,
+provenance, game-version status, expected loader outcome (`raw_save`, `malformed_save_error`,
+`unsupported_shape_error`, or `unsupported_version_error`, checked against
+`parse_raw_save` by `tests/parsing/test_raw_save.py`), JSON validity,
 SHA-256 hashes, and a per-file size limit. Every entry also declares a
 `format_assumption`, `format_documentation`, and `version_assumption`. The
 format assumption must be a documented supported envelope identifier, and its
@@ -62,7 +65,7 @@ changing either field.
 
 Validate the set after every edit:
 
-```powershell
+```sh
 python scripts/verify_fixture_manifest.py tests/fixtures/io/terra_invicta_json_v1/fixture_manifest.json
 ```
 
@@ -82,12 +85,62 @@ When the report format changes deliberately, regenerate a golden by running
 the command on the fixture, review the diff line by line, and commit both
 together:
 
-```powershell
+```sh
 tinarrative inspect tests/fixtures/io/terra_invicta_json_v1/representative_campaign.json > tests/fixtures/inspection/terra_invicta_json_v1/representative_campaign.json.expected.txt
 ```
 
 Real saves must never be added here. The opt-in `real_save` test reads the
 save location from the `TINARRATIVE_REAL_SAVE` environment variable instead.
+
+## Expected `diff` reports
+
+`tests/fixtures/diff/<fixture-set>/<before-name>__<after-name>.expected.txt` and `.expected.json`
+hold the exact text and JSON that `tinarrative diff` must print for the fixture pair of
+those names under `tests/fixtures/io/<fixture-set>/`. The goldens are produced from
+inside the fixture directory with bare file names, so they contain no machine paths:
+
+```sh
+cd tests/fixtures/io/terra_invicta_json_v1
+tinarrative diff interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.txt
+tinarrative diff --format json interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.json
+```
+
+Review a regenerated golden line by line and commit it with the change that altered it.
+The pair is hand-authored so that each `ChangeKind` (value, membership, map, unknown,
+appeared, disappeared) occurs at least once; a test asserts that.
+
+The opt-in `real_save` diff test additionally needs `TINARRATIVE_REAL_SAVE_AFTER`, the later
+save of a consecutive pair; it checks determinism and evidence only and prints nothing.
+
+## Analyzer fixtures and tests
+
+`tests/analyzers/` is a test package (it has `__init__.py` files) so that its
+modules share `tests/analyzers/support.py`: builders for synthetic entity
+states, snapshots and record sets (`state`, `snapshot`, `record_set`, `pair`),
+`fixture_pair(before, after)` which loads, normalizes and diffs two fixtures of
+the `terra_invicta_json_v1` set, and small event lookups (`only`, `by_type`).
+Per-analyzer unit tests build the smallest snapshot pair that shows one
+transition; `tests/analyzers/politics/test_politics_fixture_pairs.py` runs the
+whole family over the `interval_*`, `records_*` and `politics_*` fixture pairs
+and asserts the exact event IDs, that every source is a change of the diff,
+that every member of a handled membership change is cited by some event, that
+two runs are identical, and that no event type or `describe_event` line
+contains a cause word (`purg`, `coup`, `annex`, `defect`, `destroy`, ...).
+Attributes are exempt from that check on purpose: they are literal copies of
+save values (the records pair carries a recorded `cause` of `Coup`).
+
+`politics_before.json` / `politics_after.json` is the politics analyzer pair: it
+holds only political state types and exercises each political transition once
+(see the manifest `purpose` fields). `assets_before.json` / `assets_after.json`
+is the pair for the army, space and technology analyzers (armies of both state
+types, fleets, ships, habs, a hab destruction log and the research singleton);
+`tests/analyzers/test_asset_fixture_pairs.py` runs those families over it and
+over the `interval_*` pair with the same invariants, allows the words
+*destroy* and *refit* only when the primary source is the save field that
+carries them, and runs every family together over all four pairs to prove the
+event IDs never collide. Like every pair, neither is a `diff` golden.
+The opt-in `real_save` analyzer test reuses `TINARRATIVE_REAL_SAVE` and
+`TINARRATIVE_REAL_SAVE_AFTER` and prints nothing.
 
 ### Deriving a safe structural fixture
 
@@ -110,9 +163,23 @@ Prefer the smallest synthetic fixture that makes a test meaningful. Synthetic
 fixtures, including hand-authored structural derivatives of a real save, are
 checked in and run by default. They must not contain original campaign data.
 
-Real complete saves are reserved for integration coverage of format details
-that cannot be represented faithfully in a small fixture. Commit one only when
-redistribution is explicitly permitted; document provenance, game version,
-privacy review, and licensing; tag its tests `@pytest.mark.real_save`; and keep
-it outside the default suite. Never commit unsanitized saves or saves whose
-redistribution status is unclear.
+Real saves are never committed, sanitized or not. Tests that need one are
+tagged `@pytest.mark.real_save`, stay outside the default suite, and locate the
+save through `TINARRATIVE_REAL_SAVE`.
+
+## Unknowns registry
+
+`docs/game-data-notes/unknowns/registry.json` is machine-written by
+`tinarrative unknowns` from private saves and committed; it contains state-type
+and field names, JSON shapes, counts and dates only (see
+[its README](game-data-notes/unknowns/README.md)).
+`tests/maintenance/test_committed_registry.py` runs in the default suite and
+fails when the file is not canonical, holds an unsafe string, or lists an entry
+the schema now covers. After extending `ENTITY_FIELDS`, `RECORD_FIELDS`,
+`ACKNOWLEDGED_FIELDS` or `KNOWN_STATE_TYPES`, refresh it locally:
+
+```sh
+tinarrative unknowns /path/to/private/saves --registry docs/game-data-notes/unknowns/registry.json
+```
+
+Review the diff before committing; never edit entries by hand.

@@ -5,6 +5,12 @@ representative private saves inspected on 2026-09-08. It is an observation of
 one envelope family, not an allowlist for future saves. Preserve unknown keys
 as raw data and add a documented parser only when their structure is mapped.
 
+`KNOWN_STATE_TYPES` in `src/tinarrative/parsing/inventory.py` is the code form of this list
+and a test keeps the two equal. A key outside it is never rejected; the parser reports it as
+an `unknown_state_type` finding, and `tinarrative unknowns` records it in the
+[unknowns registry](unknowns/README.md). Keep the three code blocks below plain lists, one
+key per line.
+
 ## Core and Earth-state collections
 
 ```text

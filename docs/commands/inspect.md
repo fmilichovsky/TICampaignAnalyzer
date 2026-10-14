@@ -1,14 +1,16 @@
 # `tinarrative inspect <save>`
 
-Report the raw structure of one save file without normalizing it or inferring
-any game meaning. The command is a static-analysis aid: it shows what is
-literally serialized so that format observations in
-[docs/game-data-notes](../game-data-notes/README.md) can be checked and
-unsupported saves can be diagnosed. It never imports from `tinarrative.parsing`.
+Report the raw structure of one save file without normalizing it. The report
+describes what is literally serialized; the only game-specific knowledge it
+applies is the documented envelope keys and the entity-identity table, whose
+census counts serialized IDs without comparing saves. The command is a
+static-analysis aid: it lets format observations in
+[docs/game-data-notes](../game-data-notes/README.md) be checked and unsupported
+saves be diagnosed. It never imports from `tinarrative.parsing`.
 
 ## Usage
 
-```powershell
+```sh
 tinarrative inspect Autosave.json
 tinarrative inspect Autosave.json --path /gamestates/PavonisInteractive.TerraInvicta.TIMetadataState/0/Value
 tinarrative inspect Autosave.json --path /currentID --max-items 5 --max-string 40
@@ -27,6 +29,10 @@ tinarrative inspect Autosave.json --format json
 | `--format text\|json` | `text` | Human-readable report or the same report as JSON. |
 
 All limits accept 0, which shows only the truncation marker.
+
+The global `--log-level debug` option (before `inspect`) explains the decode steps,
+the ID census totals, and each pointer resolution on stderr; see the
+[debugging guide](../debugging.md). The report on stdout is unaffected.
 
 ## Report contents
 

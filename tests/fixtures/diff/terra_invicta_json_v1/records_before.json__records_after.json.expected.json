@@ -1,0 +1,662 @@
+{
+  "before": "records_before.json",
+  "after": "records_after.json",
+  "before_date": "2031-03-01T00:00:00",
+  "after_date": "2031-06-01T00:00:00",
+  "changes": [
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "campaign_day",
+      "kind": "value",
+      "before": 425,
+      "after": 517,
+      "detail": null,
+      "description": "campaign_day changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "campaign_quarter",
+      "kind": "value",
+      "before": 4,
+      "after": 5,
+      "detail": null,
+      "description": "campaign_quarter changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "date",
+      "kind": "value",
+      "before": "2031-03-01T00:00:00",
+      "after": "2031-06-01T00:00:00",
+      "detail": null,
+      "description": "date changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "campaign",
+      "entity_id": null,
+      "field": "game_time_string",
+      "kind": "value",
+      "before": "3/1/2031 12:00:00 AM",
+      "after": "6/1/2031 12:00:00 AM",
+      "detail": null,
+      "description": "game_time_string changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": null,
+        "map_id": null,
+        "path": null
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "HabDestructionLog",
+      "kind": "records",
+      "before": 1,
+      "after": 3,
+      "detail": {
+        "added": [
+          {
+            "index": 1,
+            "hab_type": "Base",
+            "space_body": {
+              "unknown": "unresolved_reference",
+              "raw": {
+                "value": 999
+              }
+            },
+            "date": "2031-04-02T00:00:00",
+            "destroyer": {
+              "ref": "faction:16",
+              "state_type": "TIFactionState",
+              "confidence": "in-save-id"
+            }
+          },
+          {
+            "index": 2,
+            "hab_type": "Station",
+            "space_body": {
+              "ref": "space object:50",
+              "state_type": "TISpaceBodyState",
+              "confidence": "in-save-id"
+            },
+            "date": "2031-05-20T00:00:00",
+            "destroyer": null
+          }
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "description": "HabDestructionLog records changed: 2 added, 0 removed, 0 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/HabDestructionLog"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/HabDestructionLog"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "Kills",
+      "kind": "records",
+      "before": 0,
+      "after": 1,
+      "detail": {
+        "added": [
+          {
+            "index": 0,
+            "key": {
+              "ref": "faction:16",
+              "state_type": "TIFactionState",
+              "confidence": "in-save-id"
+            },
+            "value": [
+              "Fixture Hull A"
+            ]
+          }
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "description": "Kills records changed: 1 added, 0 removed, 0 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/Kills"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/Kills"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "Transactions",
+      "kind": "records",
+      "before": 2,
+      "after": 4,
+      "detail": {
+        "added": [
+          {
+            "index": 1,
+            "label": "1234567890",
+            "resource": "Influence",
+            "amount": -1.0,
+            "date": "2031-05-01T00:00:00"
+          },
+          {
+            "index": 1,
+            "label": "FixtureCause",
+            "resource": "Money",
+            "amount": 12.0,
+            "date": "2031-04-01T00:00:00"
+          }
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "description": "Transactions records changed: 2 added, 0 removed, 0 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/Transactions"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/Transactions"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "abductions",
+      "kind": "value",
+      "before": 0,
+      "after": 1,
+      "detail": null,
+      "description": "abductions changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/abductions"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/abductions"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "armiesLost",
+      "kind": "records",
+      "before": 3,
+      "after": 3,
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "before": {
+              "index": 0,
+              "key": "Human",
+              "value": 0
+            },
+            "after": {
+              "index": 0,
+              "key": "Human",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "description": "armiesLost records changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/armiesLost"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/armiesLost"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "atrocities",
+      "kind": "value",
+      "before": 1,
+      "after": 2,
+      "detail": null,
+      "description": "atrocities changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/atrocities"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/atrocities"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "boostAccounts",
+      "kind": "records",
+      "before": 4,
+      "after": 4,
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "before": {
+              "index": 1,
+              "key": "Station",
+              "value": null
+            },
+            "after": {
+              "index": 1,
+              "key": "Station",
+              "value": "2031-05-05T00:00:00"
+            }
+          }
+        ]
+      },
+      "description": "boostAccounts records changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/boostAccounts"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/boostAccounts"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "factionHate",
+      "kind": "records",
+      "before": 1,
+      "after": 1,
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "before": {
+              "index": 0,
+              "key": {
+                "ref": "faction:16",
+                "state_type": "TIFactionState",
+                "confidence": "in-save-id"
+              },
+              "value": 0.5
+            },
+            "after": {
+              "index": 0,
+              "key": {
+                "ref": "faction:16",
+                "state_type": "TIFactionState",
+                "confidence": "in-save-id"
+              },
+              "value": 0.7
+            }
+          }
+        ]
+      },
+      "description": "factionHate records changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/factionHate"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/factionHate"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "intelSharingFactions",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "faction:16",
+          "state_type": "TIFactionState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "faction:16",
+            "state_type": "TIFactionState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "intelSharingFactions membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/intelSharingFactions"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/intelSharingFactions"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "lostControlPoints",
+      "kind": "records",
+      "before": 0,
+      "after": 1,
+      "detail": {
+        "added": [
+          {
+            "index": 0,
+            "key": {
+              "ref": "control point:9",
+              "state_type": "TIControlPoint",
+              "confidence": "in-save-id"
+            },
+            "value": "2031-04-10T00:00:00"
+          }
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "description": "lostControlPoints records changed: 1 added, 0 removed, 0 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/lostControlPoints"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/lostControlPoints"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "milestones",
+      "kind": "records",
+      "before": 1,
+      "after": 2,
+      "detail": {
+        "added": [
+          {
+            "index": 1,
+            "value": "FixtureMilestoneB"
+          }
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "description": "milestones records changed: 1 added, 0 removed, 0 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/milestones"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/milestones"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "numAtrocitiesByCause",
+      "kind": "records",
+      "before": 1,
+      "after": 2,
+      "detail": {
+        "added": [
+          {
+            "index": 1,
+            "key": "FixtureCauseY",
+            "value": 1
+          }
+        ],
+        "removed": [],
+        "changed": []
+      },
+      "description": "numAtrocitiesByCause records changed: 1 added, 0 removed, 0 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/numAtrocitiesByCause"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/numAtrocitiesByCause"
+      }
+    },
+    {
+      "domain": "faction",
+      "entity_id": "faction:15",
+      "field": "objectiveNames",
+      "kind": "records",
+      "before": 2,
+      "after": 2,
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "before": {
+              "index": 0,
+              "key": "FixtureObjectiveA",
+              "value": "Locked"
+            },
+            "after": {
+              "index": 0,
+              "key": "FixtureObjectiveA",
+              "value": "Unlocked"
+            }
+          }
+        ]
+      },
+      "description": "objectiveNames records changed: 0 added, 0 removed, 1 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/objectiveNames"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TIFactionState",
+        "map_id": 15,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/0/Value/objectiveNames"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "dateOfNewGovernment",
+      "kind": "value",
+      "before": null,
+      "after": "2031-04-20T00:00:00",
+      "detail": null,
+      "description": "dateOfNewGovernment changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value/dateOfNewGovernment"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value/dateOfNewGovernment"
+      }
+    },
+    {
+      "domain": "nation",
+      "entity_id": "nation:20",
+      "field": "lastExecutiveChange",
+      "kind": "records",
+      "before": 3,
+      "after": 3,
+      "detail": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "before": {
+              "index": 0,
+              "key": "cause",
+              "value": "None"
+            },
+            "after": {
+              "index": 0,
+              "key": "cause",
+              "value": "Coup"
+            }
+          },
+          {
+            "before": {
+              "index": 1,
+              "key": "date",
+              "value": null
+            },
+            "after": {
+              "index": 1,
+              "key": "date",
+              "value": "2031-04-20T00:00:00"
+            }
+          },
+          {
+            "before": {
+              "index": 2,
+              "key": "newExecutive",
+              "value": null
+            },
+            "after": {
+              "index": 2,
+              "key": "newExecutive",
+              "value": {
+                "ref": "faction:15",
+                "state_type": "TIFactionState",
+                "confidence": "in-save-id"
+              }
+            }
+          }
+        ]
+      },
+      "description": "lastExecutiveChange records changed: 0 added, 0 removed, 3 changed",
+      "before_location": {
+        "save_id": "records_before.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value/lastExecutiveChange"
+      },
+      "after_location": {
+        "save_id": "records_after.json",
+        "state_type": "TINationState",
+        "map_id": 20,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TINationState/0/Value/lastExecutiveChange"
+      }
+    }
+  ]
+}

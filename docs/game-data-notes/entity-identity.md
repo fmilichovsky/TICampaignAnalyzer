@@ -19,10 +19,12 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
   3734..4557, factions 4815..4822); objects created during play (councilors,
   ships, fleets, habs, orgs, armies, ad hoc orbits) are interleaved up to
   `currentID`.
-- Factions, nations, regions and space bodies carry a unique `Value.templateName`
-  (content key). Councilor and organization `templateName` values are **not**
+- Factions, nations, regions, control points (observed 2026-10-09, 383 of 383) and
+  space bodies carry a unique `Value.templateName` (content key). Councilor and organization `templateName` values are **not**
   unique (generated pools such as `randomizedCouncilor1`, `Random*`), so they are
-  not a secondary key.
+  not a secondary key. Ship `templateName` is a design name shared by many ships
+  and hab `templateName` is null for almost every hab (observed 2026-10-09), so
+  neither is a secondary key either.
 - Technologies have no state objects. Finished techs are strings in
   `TIGlobalResearchState.finishedTechsNames`; progress is
   `techProgress[].techTemplateName` with per-faction contributions keyed by
@@ -35,7 +37,8 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | faction | `TIFactionState` | numeric ID | `in-save-id` | `templateName` |
 | nation | `TINationState` | numeric ID | `in-save-id` | `templateName` |
 | region | `TIRegionState` | numeric ID | `in-save-id` | `templateName` |
-| councilor | `TICouncilorState` | numeric ID | `in-save-id` none |
+| control point | `TIControlPoint` | numeric ID | `in-save-id` | `templateName` |
+| councilor | `TICouncilorState` | numeric ID | `in-save-id` | none |
 | army | `TIArmyState`, `TIMegafaunaArmyState` | numeric ID | `in-save-id` | none |
 | fleet | `TISpaceFleetState` | numeric ID | `in-save-id` | none |
 | ship | `TISpaceShipState` | numeric ID | `in-save-id` | none |

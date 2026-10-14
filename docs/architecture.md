@@ -85,7 +85,7 @@ Save files
    │
    ▼
 [Normalized Save State]
-   │
+   │  entity collections + save-carried records (dated logs, counters)
    ▼
 [State Diff / Objective Event Detection]
    │
@@ -195,6 +195,126 @@ Examples:
 The diff layer should remain relatively literal. It is not yet trying to
 explain *why* something changed.
 
+### Implemented contract (`src/tinarrative/model/`)
+
+The snippets above are conceptual; the implemented types differ as follows:
+
+-   All model types are frozen dataclasses holding tuples, sorted
+    deterministically on construction (collections by `EntityId`, changes by
+    domain/entity/field). Each has a JSON-friendly `to_dict()`.
+-   `EntityId(domain, key)` is domain-qualified; `EntityRef` adds the
+    `IdentityConfidence` (`in-save-id`, `name-key`, reserved `heuristic`) and
+    source state type, so differently-established identities never compare equal.
+-   `Observed = FieldValue | Unknown`: a field absent from the save is
+    `Unknown(reason)`, never `False`, zero or empty. `None` and `()` are known
+    values. An `Unknown` may carry `raw`, the serialized value it could not
+    interpret (for example the ID of an unresolved reference).
+-   A resolved in-save reference is an `EntityRef` field value (domain, map ID,
+    `in-save-id` confidence, owning state type). The parser resolves a reference
+    only when the ID exists in the same save under the expected domain; otherwise
+    the field is `Unknown(unresolved_reference, raw=...)`. Reference targets whose
+    state type has no `EntityDomain` yet are kept as raw values.
+-   `SaveSnapshot.date` is the ISO-8601 game timestamp or `Unknown`; `campaign_day`
+    and `campaign_quarter` are the serialized turn-like counters. Every
+    `EntityState` has a `SourceLocation` with the short state type, map ID and
+    the RFC 6901 path of its serialized `Value` object.
+-   `Evidence` keeps before/after values plus a `SourceLocation` for each side
+    (save ID, state type, map ID, path; `TINationState:123` is the provenance key).
+-   `StateDiff` and `StateChange` live in `model.changes`; `diff.state_diff`
+    re-exports them and implements `diff_states`. Each change has a `ChangeKind`:
+    `value` (one atomic known value on each side, strict equality so `1 != 1.0`),
+    `membership` (lists of references or of names compared as multisets; order
+    alone is not a change), `map` (objects compared key by key, the detail naming
+    the keys), `unknown` (either side is `Unknown`; nothing is inferred from the
+    known side), and `appeared`/`disappeared` (an entity present in one snapshot
+    only, with `field = None` and no per-field changes). Entities are matched by
+    `EntityId`; snapshot-level values are compared under the pseudo-domains
+    `campaign` and `research` with no entity. The campaign singletons carry no
+    `SourceLocation` yet, so those changes cite only the save; everything else
+    cites state type, map ID and path on each side. The parser fills the faction, nation, region, control-point,
+    councilor, army (both army state types), fleet, ship and hab collections
+    (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
+    objects in the `space object` domain). A reference field observed to point at
+    more than one domain (councilor `location`: region or hab) resolves against
+    that set, and the owning state type decides the resulting domain.
+-   Research is the one explicitly typed substate: `SaveSnapshot.research`
+    (`ResearchState`) keeps the `TIGlobalResearchState` singleton's collections
+    with its location, and `SaveSnapshot.technologies` holds the name-keyed
+    (`name-key` confidence) technology states derived from it, each with
+    `finished`, `progress` and a path into the list it came from.
+-   A fleet ID is valid only for the fleet's lifetime: merged fleets vanish and a
+    fleet's `parentFleet` often names an ID absent from the save. The parser keeps
+    that as `Unknown(unresolved_reference, raw=...)` rather than dropping it, so
+    the diff layer sees the limitation; ships keep their IDs across merges.
+-   Organizations have a collection but are not normalized yet; other space
+    objects (bodies, orbits, hab sites, sectors, modules) resolve as reference
+    targets only, and singular diplomacy and economy states are not modelled.
+-   Save-carried records (section 4.3) are compared per owning entity and field
+    with `ChangeKind.records`: `before`/`after` are the entry counts and the
+    `RecordsDetail` lists the entries added, removed and (for keyed records)
+    changed. Logs are compared as multisets of entries, keyed records by key,
+    and single-value records (counters, a date, a reference list) like ordinary
+    fields. A set that is `Unknown` on one side gives an `unknown` change.
+-   The normalizer never drops information silently. Every structure outside its
+    code-form schema (`parsing.inventory`, `parsing.fields`) is reported through
+    `parsing.unknowns.UnknownCollector` as a content-free finding (state type, field,
+    JSON shape, counts) and never coerced into a model value: an unlisted field is
+    still not copied, and a reference to an unexpectedly owned ID still resolves to
+    `Unknown(unresolved_reference)`. The `maintenance` package persists findings in
+    `docs/game-data-notes/unknowns/registry.json` for triage into the schema.
+
+## 4.3 Save-carried records
+
+Between objective snapshot state and inferred events sits a layer the save
+carries literally: dated logs and cumulative counters that no field of the
+same snapshot can re-derive. Observed examples (2026-10-13, five
+private saves of one campaign, structure only): a faction's resource ledger
+since campaign start (`Transactions`), its hab destruction log, the control
+points it lost with the date last lost, the alien sites it knows with the date
+last updated, its kill lists and milestones, cumulative counters such as
+`abductions` and `atrocities`, and a nation's last executive change with its
+cause. Across the four consecutive intervals of the sample (checked 2026-10-14),
+the destruction logs, milestones and kill lists only grew (the earlier value was
+a strict prefix of the later one), the keyed records never lost a key, and the
+ledger grew by appending for most labels while a minority of labels were
+rewritten wholesale (see the field map). These fill the gaps between sparse
+saves with exact dates, so they must be kept as evidence in their own right:
+never folded into inferred events and never acknowledged as `derived_history`.
+
+A field qualifies as a record when its entries are dated or cumulative, are not
+derivable from the rest of the snapshot, and are carried forward from save to
+save rather than recomputed from current state. Rolling windows and running
+histories the game recomputes from state the snapshot already holds are
+`derived_history` and stay unnormalized.
+
+Implemented contract (`model/records.py`, `parsing/records.py`):
+
+-   `parsing.fields.RECORD_FIELDS` lists the record fields per state type with a
+    `RecordKind` (ledger, destruction log, name log, dated references, reference
+    values, label values, dated labels, executive change, counter, date,
+    reference list). They are known to the unknowns scan but are not copied into
+    the `EntityState`.
+-   Each record field of each entity becomes one `RecordSet(owner, field, kind,
+    location, entries)` on `SaveSnapshot.records`, sorted by owner then field.
+    Entries are typed (`LedgerEntry`, `DestructionEntry`, `KeyedEntry`,
+    `ItemEntry`), keep serialized order and their index, decode componentized
+    dates to ISO-8601 text, and resolve references exactly like entity fields
+    (an unresolvable reference is `Unknown(unresolved_reference, raw=...)`).
+-   Provenance is state type + map ID + field + index. The set's
+    `SourceLocation` points at the field (`<entity Value path>/<field>`) and
+    `RecordSet.entry_location` extends it to one entry (`/<label>/<index>` for a
+    ledger, `/<index>` for arrays and pair maps, `/<key>` for label maps).
+-   An absent field gives `entries = Unknown()`; a field without the documented
+    shape gives `Unknown(unparseable, raw)` plus an `unexpected_field_shape`
+    finding. A problem inside one element (an unparseable date, an unresolvable
+    key) stays inside that entry, so the rest of the log remains evidence.
+-   The diff stage treats new entries since the previous save as evidence and
+    never re-derives them: a `records` change lists the entries added and, when
+    entries of the earlier save are gone (observed for some ledger labels), the
+    entries removed, literally; it never assumes a log is append-only. Downstream
+    stages may date an objective event by a record entry itself rather than by
+    the save interval, but must cite the entry as evidence.
+
 ------------------------------------------------------------------------
 
 # 5. Event Model
@@ -260,6 +380,11 @@ Examples:
 
 An inferred event may be strongly supported without being literally
 persisted in the save.
+
+Save-carried records (section 4.3) are objective evidence of a third sort: a
+ledger entry or a destruction-log entry is literally persisted, dated by the
+game, and not a transition between two snapshots. An event built from one is
+objective and dated by the entry; the record itself is never an inference.
 
 This dimension should not be overloaded with presentation concerns.
 
@@ -361,6 +486,10 @@ The renderer can use provenance for:
 
 The system should never lose the evidence merely because a higher-level
 narrative event was created.
+
+Evidence that cites a save-carried record names the entry, not only the
+owning entity: state type, map ID, field and index
+(`RecordSet.entry_location`).
 
 ------------------------------------------------------------------------
 
@@ -475,6 +604,102 @@ The exact decomposition should follow discovered game data rather than
 prematurely mirroring every field in the save.
 
 Analyzers should be independently testable.
+
+### Implemented contract (`src/tinarrative/analyzers/`)
+
+The first family is `analyzers/politics/`: `ControlPointAnalyzer`,
+`NationAnalyzer` and `CouncilorAnalyzer`, run together by
+`analyzers.run_analyzers(POLITICS_ANALYZERS, before, after, diff)`. They read
+the `StateDiff` only (never re-deriving a fact from the snapshots; the
+snapshots supply context such as an entity's own reference or a control
+point's nation) and emit objective events whose sources are the literal
+changes (section 5.2). Shared machinery for every family lives in
+`analyzers/common.py`: a change index, the `Transition` classifier (`set`,
+`cleared`, `changed`, `unresolved`; a side that is `missing` or `unparseable`
+is a schema gap and emits nothing), snapshot lookup, the membership ledger and
+the event builder.
+
+Ownership and control are kept distinct by analyzer and type prefix:
+
+-   `control_point.*` speaks only about a control point's `faction`
+    (controller), `nation` and presence, plus `control_point.loss_recorded`
+    for every `lostControlPoints` entry added or re-dated (record-dated, and
+    also cited as corroboration by a matching controller change).
+-   `region.nation_changed` and `nation.*` speak about territory, capital,
+    federation (a raw value: the state type has no entity domain), breakaway
+    links, one `nation.relation_changed` per nation pair and direction for
+    `allies`/`rivals`/`wars` (the mirrored entry on the other nation is merged
+    and marked `reciprocal`), presence, and the literal `lastExecutiveChange`
+    record (`nation.executive_change_recorded`; its `cause` string is an
+    attribute only).
+-   `councilor.*` speaks about a councilor's `faction`, `status`, `location`,
+    `detainingFaction` and presence.
+
+A nation's `controlPoints` list means which control points belong to the
+nation, never "faction X controls nation Y"; that is a reconstruction rule
+for later. Members of the handled reference lists (`faction.controlPoints`,
+`faction.councilors`, `nation.controlPoints`, `nation.regions`,
+`nation.breakaways`, the relation lists) that no event explains are reported
+as `<owner>.<field>_changed`, so no literal change on them is dropped; a list
+unresolved on one side is one such event with `transition = unresolved`.
+Everything else (councilor `orgs`, `XP`, `priorLocation`; nation statistics
+and claims; control-point timers and priorities; region occupation and
+annexation flags) stays in the diff and is left to other analyzers or to the
+diff report. Deliberately out of reach of every analyzer: naming a purge,
+coup, annexation or defection.
+
+The asset families follow the same contract and are run together with the
+politics family as `analyzers.ALL_ANALYZERS` (or separately as
+`MILITARY_ANALYZERS`, `SPACE_ANALYZERS`, `TECHNOLOGY_ANALYZERS`). A handled
+reference list is owned by the analyzer of the entities it contains, so no two
+analyzers report the same leftover and `run_analyzers` never sees an ID twice:
+
+-   `analyzers/military/armies.py` (`ArmyAnalyzer`): `army.region_changed`
+    (`currentRegion`, mirrored by the region `armies` lists),
+    `army.faction_changed` (mirrored by the faction `armies` lists),
+    `army.destroyed_changed`, `army.strength_changed`, `army.type_changed`,
+    `army.deployment_type_changed`, `army.home_region_changed`, presence
+    (citing every faction, nation and region `armies` list that names the army
+    on the existing side) and the leftovers `faction.armies_changed`,
+    `nation.armies_changed`, `region.armies_changed`. A nation's `armies` list
+    has no mirroring army field, so a region move leaves its nation entries as
+    leftovers rather than guessing which nation an army belongs to.
+-   `analyzers/space/fleets.py` (`FleetAnalyzer`): `fleet.faction_changed`
+    (mirrored by faction `fleets`), `fleet.docked_location_changed` (mirrored
+    by hab `dockedFleets`), `fleet.orbit_changed`, `fleet.barycenter_changed`,
+    `fleet.parent_fleet_changed`, `fleet.in_combat_changed`, presence and the
+    leftovers `faction.fleets_changed`, `hab.docked_fleets_changed`.
+-   `analyzers/space/ships.py` (`ShipAnalyzer`): `ship.fleet_changed`
+    (mirrored by fleet `ships`), `ship.last_refit_date_changed`, presence and
+    the leftover `fleet.ships_changed`.
+-   `analyzers/space/habs.py` (`HabAnalyzer`, prefix `hab.` for `TIHabState`
+    objects of the `space object` domain): `hab.faction_changed`,
+    `hab.type_changed`, `hab.tier_changed`, `hab.in_combat_changed`,
+    `hab.under_assault_changed`, `hab.under_bombardment_changed`,
+    `hab.core_completed_changed`, presence without corroboration, and
+    `faction.hab_destruction_recorded` for every `HabDestructionLog` entry
+    added (record-dated; it names a hab type and a space body, never a hab ID,
+    so it is not linked to any `hab.disappeared`).
+-   `analyzers/technology/research.py` (`TechnologyAnalyzer`; identity is the
+    template-name key): `technology.completed` when a technology's `finished`
+    goes from false to true or it appears already finished, corroborated by the
+    research singleton's `finished_techs_names` member; `technology.finished_changed`
+    for any other literal transition; `technology.appeared` /
+    `technology.disappeared` for progress-only or vanished states; the leftover
+    `research.finished_techs_changed` for a name no technology event claimed.
+
+Wording rule: the words *destroyed*, *destruction* and *refit* occur only in
+event types whose primary source is the save field that literally carries them
+(`destroyed`, `HabDestructionLog`, `lastRefitDate`); the fixture-pair tests
+enforce it. A fleet absent from the later save, a `parentFleet` that no longer
+resolves, a ship whose `fleet` is unresolved, and a vanished army or hab are
+reported as absent or unresolved, never as a merge, loss or battle. Left in the
+diff on purpose: army `priorRegion`, operations and transit dates; fleet
+`trajectory`, position, operations and bombardment fields; ship propellant,
+armor, damage and `kills`; hab `sectors`, `councilorsOnBoard` and orbit data;
+technology `progress` values (a missing progress entry is `Unknown`, which
+`classify` treats as a schema gap); project-name lists; faction `Kills` and
+`armiesLost` records.
 
 ------------------------------------------------------------------------
 
@@ -654,6 +879,8 @@ terra-invicta-narrative/
 ├── src/
 │   └── tinarrative/
 │       ├── cli.py
+│       ├── inspection/        # raw structural report (`tinarrative inspect`)
+│       ├── identity.py        # entity-identity table and ID census
 │       │
 │       ├── io/
 │       │   ├── save_loader.py
@@ -662,13 +889,17 @@ terra-invicta-narrative/
 │       ├── model/
 │       │   ├── snapshot.py
 │       │   ├── entities.py
+│       │   ├── records.py         # save-carried records (section 4.3)
 │       │   ├── changes.py
 │       │   ├── events.py
 │       │   └── evidence.py
 │       │
 │       ├── parsing/
-│       │   ├── raw_save.py
+│       │   ├── raw_save.py        # RawSave + parse_raw_save
+│       │   ├── errors.py          # SaveLoadError categories
+│       │   ├── fields.py          # ENTITY_FIELDS, RECORD_FIELDS, ACKNOWLEDGED_FIELDS
 │       │   ├── normalization.py
+│       │   ├── records.py         # record decoders
 │       │   └── game_version.py
 │       │
 │       ├── diff/
@@ -697,7 +928,7 @@ terra-invicta-narrative/
 │
 └── tests/
     ├── fixtures/
-    ├── parser/
+    ├── parsing/
     ├── diff/
     ├── analyzers/
     ├── reconstruction/
