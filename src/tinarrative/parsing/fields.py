@@ -29,6 +29,10 @@ _ARMY_FIELDS = COMMON_FIELDS + (
     "armyType",
     "deploymentType",
     "destinationQueue",
+    "currentOperations",
+    "destinationSeaDate",
+    "embarkDate",
+    "huntingXenofauna",
 )
 
 ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
