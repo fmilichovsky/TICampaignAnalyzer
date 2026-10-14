@@ -197,6 +197,14 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "dockedLocation",
         "inCombat",
         "globalPosition",
+        "displayNameByFaction",
+        "currentOperations",
+        "huntingXenofauna",
+        "unavailableForOperations",
+        "bombardmentTarget",
+        "bombardmentTargetBracketStatus",
+        "endBombardmentReason",
+        "timeOfLastFireMission",
     ),
     "TISpaceShipState": COMMON_FIELDS
     + (
@@ -359,7 +367,9 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
 
 Reference-shaped fields whose observed target type has no ``EntityDomain`` (officers, missions, sectors,
 hab modules, region facility and alien sub-states) or whose target was never observed non-null
-(``agentForFaction``, ``storedFaction``) are deliberately absent and stay raw.
+(``agentForFaction``, ``storedFaction``) are deliberately absent and stay raw. A fleet's ``bombardmentTarget`` and
+``currentOperations`` stay raw too: their targets include a domain-less ``TIRegionXenoformingState``, and operation
+dates can be ``$ref`` graph nodes.
 """
 
 KEYED_LIST_FIELDS: dict[str, dict[str, str]] = {
@@ -375,6 +385,7 @@ copied whole. A list that does not have this shape stays raw as ``Unknown(unpars
 PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
     "TICouncilorState": {"assassinations": EntityDomain.FACTION},
+    "TISpaceFleetState": {"displayNameByFaction": EntityDomain.FACTION},
 }
 """Entity fields serialized as a field-level pair map, with the keys' observed target domain(s); ``None`` marks
 integer keys (``tracker_PCGDP_ByQuarter``: quarter index -> value), which are not references.

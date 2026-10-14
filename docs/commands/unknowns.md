@@ -100,5 +100,6 @@ manifests, sidecars and other non-saves. 7 takes precedence over 4, and 4 over 5
 
 `tests/cli/test_unknowns_cli.py` and `tests/maintenance/` cover the command, the scan and the
 registry on checked-in fixtures; `tests/maintenance/test_committed_registry.py` validates the
-committed registry on every run. An opt-in `real_save` test checks that a private save produces
-field-level findings only and that no value leaks into the report.
+committed registry on every run. Opt-in `real_save` tests check that a private save produces
+field-level findings only and, with the metadata singleton's fields hidden from the schema so that
+real values are reported, that no value leaks into the report.
