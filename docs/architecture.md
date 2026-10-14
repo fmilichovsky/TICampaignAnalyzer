@@ -648,6 +648,59 @@ annexation flags) stays in the diff and is left to other analyzers or to the
 diff report. Deliberately out of reach of every analyzer: naming a purge,
 coup, annexation or defection.
 
+The asset families follow the same contract and are run together with the
+politics family as `analyzers.ALL_ANALYZERS` (or separately as
+`MILITARY_ANALYZERS`, `SPACE_ANALYZERS`, `TECHNOLOGY_ANALYZERS`). A handled
+reference list is owned by the analyzer of the entities it contains, so no two
+analyzers report the same leftover and `run_analyzers` never sees an ID twice:
+
+-   `analyzers/military/armies.py` (`ArmyAnalyzer`): `army.region_changed`
+    (`currentRegion`, mirrored by the region `armies` lists),
+    `army.faction_changed` (mirrored by the faction `armies` lists),
+    `army.destroyed_changed`, `army.strength_changed`, `army.type_changed`,
+    `army.deployment_type_changed`, `army.home_region_changed`, presence
+    (citing every faction, nation and region `armies` list that names the army
+    on the existing side) and the leftovers `faction.armies_changed`,
+    `nation.armies_changed`, `region.armies_changed`. A nation's `armies` list
+    has no mirroring army field, so a region move leaves its nation entries as
+    leftovers rather than guessing which nation an army belongs to.
+-   `analyzers/space/fleets.py` (`FleetAnalyzer`): `fleet.faction_changed`
+    (mirrored by faction `fleets`), `fleet.docked_location_changed` (mirrored
+    by hab `dockedFleets`), `fleet.orbit_changed`, `fleet.barycenter_changed`,
+    `fleet.parent_fleet_changed`, `fleet.in_combat_changed`, presence and the
+    leftovers `faction.fleets_changed`, `hab.docked_fleets_changed`.
+-   `analyzers/space/ships.py` (`ShipAnalyzer`): `ship.fleet_changed`
+    (mirrored by fleet `ships`), `ship.last_refit_date_changed`, presence and
+    the leftover `fleet.ships_changed`.
+-   `analyzers/space/habs.py` (`HabAnalyzer`, prefix `hab.` for `TIHabState`
+    objects of the `space object` domain): `hab.faction_changed`,
+    `hab.type_changed`, `hab.tier_changed`, `hab.in_combat_changed`,
+    `hab.under_assault_changed`, `hab.under_bombardment_changed`,
+    `hab.core_completed_changed`, presence without corroboration, and
+    `faction.hab_destruction_recorded` for every `HabDestructionLog` entry
+    added (record-dated; it names a hab type and a space body, never a hab ID,
+    so it is not linked to any `hab.disappeared`).
+-   `analyzers/technology/research.py` (`TechnologyAnalyzer`; identity is the
+    template-name key): `technology.completed` when a technology's `finished`
+    goes from false to true or it appears already finished, corroborated by the
+    research singleton's `finished_techs_names` member; `technology.finished_changed`
+    for any other literal transition; `technology.appeared` /
+    `technology.disappeared` for progress-only or vanished states; the leftover
+    `research.finished_techs_changed` for a name no technology event claimed.
+
+Wording rule: the words *destroyed*, *destruction* and *refit* occur only in
+event types whose primary source is the save field that literally carries them
+(`destroyed`, `HabDestructionLog`, `lastRefitDate`); the fixture-pair tests
+enforce it. A fleet absent from the later save, a `parentFleet` that no longer
+resolves, a ship whose `fleet` is unresolved, and a vanished army or hab are
+reported as absent or unresolved, never as a merge, loss or battle. Left in the
+diff on purpose: army `priorRegion`, operations and transit dates; fleet
+`trajectory`, position, operations and bombardment fields; ship propellant,
+armor, damage and `kills`; hab `sectors`, `councilorsOnBoard` and orbit data;
+technology `progress` values (a missing progress entry is `Unknown`, which
+`classify` treats as a schema gap); project-name lists; faction `Kills` and
+`armiesLost` records.
+
 ------------------------------------------------------------------------
 
 # 10. Event Reconstruction

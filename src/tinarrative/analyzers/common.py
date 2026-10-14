@@ -109,6 +109,13 @@ class ChangeIndex:
     def presence(self, domain: EntityDomain) -> tuple[StateChange, ...]:
         return tuple(self._presence.get(domain.value, ()))
 
+    def singleton(self, domain: str, field_name: str) -> StateChange | None:
+        """The one change of a pseudo-domain field (``campaign``, ``research``: no entity), if any."""
+        for change in self._by_domain_field.get((domain, field_name), ()):
+            if change.entity_id is None:
+                return change
+        return None
+
 
 class Lookup:
     """Context from the two snapshots: entity states, their references and record sets, by side."""
@@ -291,6 +298,32 @@ def run_analyzers(
 
 def transition_attributes(change: StateChange, transition: Transition) -> tuple[tuple[str, Observed], ...]:
     return (("transition", transition.value), ("before", change.before), ("after", change.after))
+
+
+def value_transition_event(
+    event_type: str,
+    change: StateChange,
+    lookup: Lookup,
+    build: EventBuilder,
+    *,
+    context: Iterable[EntityRef | None] = (),
+) -> Event | None:
+    """One field of an entity changed: the literal transition, the subject, ``context`` and both values' entities.
+
+    ``None`` when a side is missing or unparseable (a schema gap, not a transition) or the change has no entity.
+    """
+    transition = classify(change.before, change.after)
+    if transition is None or change.entity_id is None:
+        return None
+    subject = change.entity_id
+    return build.event(
+        event_type,
+        id_parts=(subject,),
+        sources=(primary(change),),
+        entities=(lookup.ref(subject), *context, lookup.resolve(change.before), lookup.resolve(change.after)),
+        attributes=transition_attributes(change, transition),
+        confidence=confidence_for(transition),
+    )
 
 
 def mirrored_sources(

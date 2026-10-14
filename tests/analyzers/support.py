@@ -27,9 +27,15 @@ STATE_TYPES = {
     EntityDomain.REGION: ("TIRegionState", "regions"),
     EntityDomain.CONTROL_POINT: ("TIControlPoint", "control_points"),
     EntityDomain.COUNCILOR: ("TICouncilorState", "councilors"),
+    EntityDomain.ARMY: ("TIArmyState", "armies"),
+    EntityDomain.FLEET: ("TISpaceFleetState", "fleets"),
+    EntityDomain.SHIP: ("TISpaceShipState", "ships"),
     EntityDomain.SPACE_OBJECT: ("TIHabState", "habs"),
     EntityDomain.ORGANIZATION: ("TIOrgState", "organizations"),
+    EntityDomain.TECHNOLOGY: ("TIGlobalResearchState", "technologies"),
 }
+MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
+RESEARCH_ID = 150
 
 
 def ref(domain: EntityDomain, key: str) -> EntityRef:
@@ -57,11 +63,37 @@ def councilor_ref(key: str) -> EntityRef:
     return ref(EntityDomain.COUNCILOR, key)
 
 
-def state(domain: EntityDomain, key: str, save: str, **fields: Observed) -> EntityState:
-    state_type, _ = STATE_TYPES[domain]
+def army_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.ARMY, key)
+
+
+def fleet_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.FLEET, key)
+
+
+def ship_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.SHIP, key)
+
+
+def hab_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.SPACE_OBJECT, key)
+
+
+def state(domain: EntityDomain, key: str, save: str, state_type: str | None = None, **fields: Observed) -> EntityState:
+    """An entity state with a display name; ``state_type`` overrides the domain's default (megafauna armies)."""
+    state_type = state_type or STATE_TYPES[domain][0]
     own = EntityRef(EntityId(domain, key), IdentityConfidence.IN_SAVE_ID, state_type, f"Fixture {domain.value} {key}")
     location = SourceLocation(save, state_type, int(key), f"/gamestates/{state_type}/{key}/Value")
     return EntityState(own, tuple(fields.items()), location)
+
+
+def technology_state(name: str, save: str, finished: bool, progress: Observed = None) -> EntityState:
+    """A name-keyed technology state as ``normalization._research`` derives it from the research singleton."""
+    state_type, _ = STATE_TYPES[EntityDomain.TECHNOLOGY]
+    own = EntityRef(EntityId(EntityDomain.TECHNOLOGY, name), IdentityConfidence.NAME_KEY, state_type, name)
+    member = "finishedTechsNames" if finished else "techProgress"
+    location = SourceLocation(save, state_type, RESEARCH_ID, f"/gamestates/{state_type}/0/Value/{member}/0")
+    return EntityState(own, (("finished", finished), ("progress", progress)), location)
 
 
 def snapshot(
