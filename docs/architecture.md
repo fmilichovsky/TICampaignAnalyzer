@@ -85,7 +85,7 @@ Save files
    │
    ▼
 [Normalized Save State]
-   │
+   │  entity collections + save-carried records (dated logs, counters)
    ▼
 [State Diff / Objective Event Detection]
    │
@@ -249,6 +249,12 @@ The snippets above are conceptual; the implemented types differ as follows:
 -   Organizations have a collection but are not normalized yet; other space
     objects (bodies, orbits, hab sites, sectors, modules) resolve as reference
     targets only, and singular diplomacy and economy states are not modelled.
+-   Save-carried records (section 4.3) are compared per owning entity and field
+    with `ChangeKind.records`: `before`/`after` are the entry counts and the
+    `RecordsDetail` lists the entries added, removed and (for keyed records)
+    changed. Logs are compared as multisets of entries, keyed records by key,
+    and single-value records (counters, a date, a reference list) like ordinary
+    fields. A set that is `Unknown` on one side gives an `unknown` change.
 -   The normalizer never drops information silently. Every structure outside its
     code-form schema (`parsing.inventory`, `parsing.fields`) is reported through
     `parsing.unknowns.UnknownCollector` as a content-free finding (state type, field,
@@ -256,6 +262,58 @@ The snippets above are conceptual; the implemented types differ as follows:
     still not copied, and a reference to an unexpectedly owned ID still resolves to
     `Unknown(unresolved_reference)`. The `maintenance` package persists findings in
     `docs/game-data-notes/unknowns/registry.json` for triage into the schema.
+
+## 4.3 Save-carried records
+
+Between objective snapshot state and inferred events sits a layer the save
+carries literally: dated logs and cumulative counters that no field of the
+same snapshot can re-derive. Observed examples (2026-10-13, five
+private saves of one campaign, structure only): a faction's resource ledger
+since campaign start (`Transactions`), its hab destruction log, the control
+points it lost with the date last lost, the alien sites it knows with the date
+last updated, its kill lists and milestones, cumulative counters such as
+`abductions` and `atrocities`, and a nation's last executive change with its
+cause. Across the four consecutive intervals of the sample (checked 2026-10-14),
+the destruction logs, milestones and kill lists only grew (the earlier value was
+a strict prefix of the later one), the keyed records never lost a key, and the
+ledger grew by appending for most labels while a minority of labels were
+rewritten wholesale (see the field map). These fill the gaps between sparse
+saves with exact dates, so they must be kept as evidence in their own right:
+never folded into inferred events and never acknowledged as `derived_history`.
+
+A field qualifies as a record when its entries are dated or cumulative, are not
+derivable from the rest of the snapshot, and are carried forward from save to
+save rather than recomputed from current state. Rolling windows and running
+histories the game recomputes from state the snapshot already holds are
+`derived_history` and stay unnormalized.
+
+Implemented contract (`model/records.py`, `parsing/records.py`):
+
+-   `parsing.fields.RECORD_FIELDS` lists the record fields per state type with a
+    `RecordKind` (ledger, destruction log, name log, dated references, reference
+    values, label values, dated labels, executive change, counter, date,
+    reference list). They are known to the unknowns scan but are not copied into
+    the `EntityState`.
+-   Each record field of each entity becomes one `RecordSet(owner, field, kind,
+    location, entries)` on `SaveSnapshot.records`, sorted by owner then field.
+    Entries are typed (`LedgerEntry`, `DestructionEntry`, `KeyedEntry`,
+    `ItemEntry`), keep serialized order and their index, decode componentized
+    dates to ISO-8601 text, and resolve references exactly like entity fields
+    (an unresolvable reference is `Unknown(unresolved_reference, raw=...)`).
+-   Provenance is state type + map ID + field + index. The set's
+    `SourceLocation` points at the field (`<entity Value path>/<field>`) and
+    `RecordSet.entry_location` extends it to one entry (`/<label>/<index>` for a
+    ledger, `/<index>` for arrays and pair maps, `/<key>` for label maps).
+-   An absent field gives `entries = Unknown()`; a field without the documented
+    shape gives `Unknown(unparseable, raw)` plus an `unexpected_field_shape`
+    finding. A problem inside one element (an unparseable date, an unresolvable
+    key) stays inside that entry, so the rest of the log remains evidence.
+-   The diff stage treats new entries since the previous save as evidence and
+    never re-derives them: a `records` change lists the entries added and, when
+    entries of the earlier save are gone (observed for some ledger labels), the
+    entries removed, literally; it never assumes a log is append-only. Downstream
+    stages may date an objective event by a record entry itself rather than by
+    the save interval, but must cite the entry as evidence.
 
 ------------------------------------------------------------------------
 
@@ -322,6 +380,11 @@ Examples:
 
 An inferred event may be strongly supported without being literally
 persisted in the save.
+
+Save-carried records (section 4.3) are objective evidence of a third sort: a
+ledger entry or a destruction-log entry is literally persisted, dated by the
+game, and not a transition between two snapshots. An event built from one is
+objective and dated by the entry; the record itself is never an inference.
 
 This dimension should not be overloaded with presentation concerns.
 
@@ -423,6 +486,10 @@ The renderer can use provenance for:
 
 The system should never lose the evidence merely because a higher-level
 narrative event was created.
+
+Evidence that cites a save-carried record names the entry, not only the
+owning entity: state type, map ID, field and index
+(`RecordSet.entry_location`).
 
 ------------------------------------------------------------------------
 
@@ -726,6 +793,7 @@ terra-invicta-narrative/
 │       ├── model/
 │       │   ├── snapshot.py
 │       │   ├── entities.py
+│       │   ├── records.py         # save-carried records (section 4.3)
 │       │   ├── changes.py
 │       │   ├── events.py
 │       │   └── evidence.py
@@ -733,7 +801,9 @@ terra-invicta-narrative/
 │       ├── parsing/
 │       │   ├── raw_save.py        # RawSave + parse_raw_save
 │       │   ├── errors.py          # SaveLoadError categories
+│       │   ├── fields.py          # ENTITY_FIELDS, RECORD_FIELDS, ACKNOWLEDGED_FIELDS
 │       │   ├── normalization.py
+│       │   ├── records.py         # record decoders
 │       │   └── game_version.py
 │       │
 │       ├── diff/

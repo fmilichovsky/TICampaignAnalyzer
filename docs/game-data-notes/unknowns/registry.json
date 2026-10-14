@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "format": "terra_invicta_json_v1",
-  "last_scan": "2026-10-13",
+  "last_scan": "2026-10-14",
   "privacy_note": "Schema-level facts only: state-type names, field names, JSON shapes, counts and dates. Never values, player or file names, paths or hashes.",
   "entries": [
     {
@@ -11,9 +11,9 @@
       "detail": "TISpaceShipState",
       "shape": null,
       "max_occurrences": 1,
-      "saves_seen": 6,
+      "saves_seen": 9,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -23,9 +23,9 @@
       "detail": "TISpaceShipState",
       "shape": null,
       "max_occurrences": 1,
-      "saves_seen": 8,
+      "saves_seen": 12,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -35,9 +35,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 19,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -47,9 +47,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 19,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -59,9 +59,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 19,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -71,9 +71,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 19,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -83,9 +83,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["Civilian_InitiateSpaceflightProgram", "Economy", "Environment", "Funding", "Government", "Knowledge", "LaunchFacilities", "Military", "Military_BuildArmy", "Military_BuildNavy", "Military_BuildNuclearWeapons", "Military_BuildSTOSquadron", "Military_BuildSpaceDefenses", "Military_FoundMilitary", "Military_InitiateNuclearProgram", "MissionControl", "Oppression", "Spoils", "Unity", "Welfare"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 386,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -95,9 +95,9 @@
       "detail": null,
       "shape": {"types": ["string"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -107,9 +107,9 @@
       "detail": null,
       "shape": {"types": ["array", "object"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -119,9 +119,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["day", "hour", "millisecond", "minute", "month", "second", "year"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -131,9 +131,9 @@
       "detail": null,
       "shape": {"types": ["string"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -143,9 +143,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["value"]},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -155,9 +155,9 @@
       "detail": null,
       "shape": {"types": ["null", "string"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -167,165 +167,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 159,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "HabDestructionLog",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Date", "Destroyer", "HabType", "SpaceBody"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "Kills",
-      "detail": null,
-      "shape": {"types": ["array", "object"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "Transactions",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["Abductions", "Advise", "Assassinate", "AssaultAlienAsset", "Augmentation", "Contact", "Coup", "Crackdown", "Decommission", "DefendInterests", "Detain", "EnthrallElites", "EnthrallUnalignedElites", "Extract", "FoundColonyOperation", "FoundOrbitalOperation", "FoundOutpostOperation", "FoundPlatformOperation", "FoundRingOperation", "FoundSettlementOperation", "GainInfluence", "HostileTakeover", "Inspire", "InvestigateAlienActivity", "InvestigateCouncilor", "LaunchAllProbeOperation", "LaunchProbeOperation", "Propaganda", "Purge", "RepairFleetOperation", "ResupplyAndRepairOperation", "ResupplyOperation"], "object_keys_omitted": true, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "abductions",
-      "detail": null,
-      "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "alienInvestigations",
-      "detail": null,
-      "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "aliensRemoved",
-      "detail": null,
-      "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "armiesLost",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["AlienInvader", "AlienMegafauna", "Human"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "atrocities",
-      "detail": null,
-      "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "boostAccounts",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["Base", "Org", "Probe", "Station"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "factionAssassinations",
-      "detail": null,
-      "shape": {"types": ["array", "object"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "factionHate",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "intelSharingFactions",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["value"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "knownAlienSites",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -335,57 +179,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "lostControlPoints",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "milestones",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["string"], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "numAtrocitiesByCause",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["EventEffect", "IncreaseUnrestCritFailure", "NuclearTesting"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TIFactionState",
-      "field": "objectiveNames",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["AccessHydraCorpus", "AppeaseVictory", "BeginTheSearch", "CaptureAHydra", "ConductHydraDiplomacy", "ConductHydraInterrogation", "ConstructSentinelModules", "ConstructTheBifrost", "ContactTheAliens", "CooperateVictory", "DestroyVictory", "EscapeVictory", "ExploitVictory", "HumanGeneralCouncil", "HumanGeneralEarth", "HumanGeneralSpace", "InvestigateAlienAbductions", "InvestigateAlienCrashdown", "InvestigateEnthrallMission", "ResearchANewHome", "ResearchAPermanentPeace", "ResearchAlienChokePoint", "ResearchAlienContainment", "ResearchAlienTechnology", "ResearchAppeaseVictory", "ResearchCoexistencePact", "ResearchCooperateVictory", "ResearchDestroyVictory", "ResearchEnslavetheMasters", "ResearchEscapeVictory", "ResearchExoticHybridSystems", "ResearchExotics"], "object_keys_omitted": true, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 8,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -395,9 +191,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["string"], "array_item_keys": []},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -407,9 +203,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["_displayName", "_unnormalizedCombatValue", "dataName", "disable", "driveName", "factionName", "fireModeTemplateEntries", "friendlyName", "hasDisplayName", "hideInSkirmish", "hullAppearanceIndex", "hullName", "hullWeaponTemplateEntries", "isIncompleteDesign", "lateralArmor", "moduleTemplateEntries", "nation", "noseArmor", "noseWeaponTemplateEntries", "powerPlantName", "propellantTanks", "radiatorName", "refitIteration", "role", "tailArmor"]},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -419,9 +215,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["AlienCouncilShipTemplate169", "AlienCouncilShipTemplate171", "AlienCouncilShipTemplate175", "AlienCouncilShipTemplate176", "AlienCouncilShipTemplate178", "AlienCouncilShipTemplate184", "AlienCouncilShipTemplate208", "AlienCouncilShipTemplate209", "AlienCouncilShipTemplate211", "AlienCouncilShipTemplate218", "AlienCouncilShipTemplate237", "AppeaseCouncilShipTemplate59", "AppeaseCouncilShipTemplate66", "AppeaseCouncilShipTemplate67", "CooperateCouncilShipTemplate16", "CooperateCouncilShipTemplate17", "CooperateCouncilShipTemplate18", "CooperateCouncilShipTemplate19", "CooperateCouncilShipTemplate2", "CooperateCouncilShipTemplate26", "CooperateCouncilShipTemplate3", "CooperateCouncilShipTemplate35", "CooperateCouncilShipTemplate37", "CooperateCouncilShipTemplate38", "CooperateCouncilShipTemplate42", "CooperateCouncilShipTemplate45", "CooperateCouncilShipTemplate47", "CooperateCouncilShipTemplate48", "CooperateCouncilShipTemplate51", "DestroyCouncilShipTemplate1", "DestroyCouncilShipTemplate10", "DestroyCouncilShipTemplate11"], "object_keys_omitted": true, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -431,9 +227,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["Accelerando", "AdAstra", "AdministrationAlgorithms", "AdvancedAtomicManipulation", "AdvancedCarbonManipulation", "AdvancedChemicalRocketry", "AdvancedFissionSystems", "AdvancedHeatManagementConcepts", "AdvancedHydrogenContainment", "AdvancedMagnetics", "AdvancedMissileWarfareDoctrine", "AdvancedNeuralNetworks", "AdvancedSuperconductors", "AneutronicFusion", "AntimatterContainment", "AntimatterMassProduction", "AntimatterPropulsion", "AntimatterWeaponry", "AppliedArtificialIntelligence", "ArcLasers", "ArrivalCulture", "ArrivalDomesticPolitics", "ArrivalEconomics", "ArrivalGovernance", "ArrivalInternationalDevelopment", "ArrivalInternationalRelations", "ArrivalLaw", "ArrivalMassCommunications", "ArrivalPsychology", "ArrivalSecurity", "ArrivalSociology", "AugmentedReality"], "object_keys_omitted": true, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -443,9 +239,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["value"]},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -455,9 +251,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 8,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -467,9 +263,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 273,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -479,9 +275,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 273,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -491,9 +287,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 273,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -503,9 +299,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["x", "y", "z"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 273,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -515,9 +311,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 273,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -527,9 +323,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["value"]},
       "max_occurrences": 273,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -539,9 +335,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 1,
-      "saves_seen": 8,
+      "saves_seen": 12,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -551,9 +347,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 1,
-      "saves_seen": 8,
+      "saves_seen": 12,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -563,9 +359,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 1,
-      "saves_seen": 8,
+      "saves_seen": 12,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -575,9 +371,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 1,
-      "saves_seen": 8,
+      "saves_seen": 12,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -587,9 +383,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["string"], "array_item_keys": []},
       "max_occurrences": 1,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -599,9 +395,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -611,9 +407,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -623,21 +419,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TINationState",
-      "field": "dateOfNewGovernment",
-      "detail": null,
-      "shape": {"types": ["null", "object"], "object_keys": ["day", "hour", "millisecond", "minute", "month", "second", "year"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 295,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -647,9 +431,9 @@
       "detail": null,
       "shape": {"types": ["array", "object"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -659,21 +443,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["value"]},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
-      "state_type": "TINationState",
-      "field": "lastExecutiveChange",
-      "detail": null,
-      "shape": {"types": ["object"], "object_keys": ["cause", "date", "newExecutive"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
-      "max_occurrences": 295,
-      "saves_seen": 10,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -683,9 +455,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -695,9 +467,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -707,9 +479,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -719,9 +491,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -731,9 +503,9 @@
       "detail": null,
       "shape": {"types": ["null", "object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -743,9 +515,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -755,9 +527,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -767,9 +539,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -779,9 +551,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -791,9 +563,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -803,9 +575,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -815,9 +587,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -827,9 +599,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["CohesionReason_Annexation", "CohesionReason_AnsweredAllyCallToWar", "CohesionReason_ArmyLost", "CohesionReason_Coup", "CohesionReason_DeclaringWarOnNewRival", "CohesionReason_DeclaringWarOnOldRival", "CohesionReason_Effect", "CohesionReason_Independence", "CohesionReason_InequalityAboveMax", "CohesionReason_KnowledgePriority", "CohesionReason_MovementToRestValue", "CohesionReason_NationReleased", "CohesionReason_OppressionPriority", "CohesionReason_RegimeChange", "CohesionReason_RegionBrokeAway", "CohesionReason_Revolution", "CohesionReason_Secession", "CohesionReason_UnityPriority", "CohesionReason_WarDeclaredOnUs", "CohesionReason_WarEnded"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -839,9 +611,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["DemReason_AmicableRelease", "DemReason_AtWar", "DemReason_Coup", "DemReason_EventEffect", "DemReason_GovernmentPriority", "DemReason_LowCohesion", "DemReason_NearbyDemocracies", "DemReason_OppressionPriority", "DemReason_RegimeChange", "DemReason_Revolution", "DemReason_Secession", "DemReason_SpoilsPriority", "DemReason_ZeroCohesion"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -851,9 +623,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["EducationReason_CO2Poisoning", "EducationReason_EventEffect", "EducationReason_KnowledgePriority", "EducationReason_PopulationLoss", "EducationReason_RegionTransfer", "EducationReason_UnityPriority"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -863,9 +635,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["GDPReason_ClimateChange", "GDPReason_Coup", "GDPReason_EconomyPriority", "GDPReason_EventEffect", "GDPReason_GlobalCoreEconomicRegionDestroyed", "GDPReason_GlobalCoreResourceRegionDestroyed", "GDPReason_Independence", "GDPReason_PopulationChange", "GDPReason_RegionDamage", "GDPReason_TerritoryChange"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -875,9 +647,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["InqReason_Annexation", "InqReason_ClimateChange", "InqReason_EconomyPriority", "InqReason_EventEffects", "InqReason_Revolution", "InqReason_Secession", "InqReason_SpoilsPriority", "InqReason_WelfarePriority"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -887,9 +659,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -899,9 +671,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["UnrestReason_AlienNationDominance", "UnrestReason_AliensLostCapitalChaos", "UnrestReason_Coup", "UnrestReason_DemocracyLostInRegionTransfer", "UnrestReason_EventEffect", "UnrestReason_Independence", "UnrestReason_InequalityAboveMax", "UnrestReason_MovementToRestValue", "UnrestReason_NationReleased", "UnrestReason_OppressionPriority", "UnrestReason_RegimeChange", "UnrestReason_RegionBrokeAway", "UnrestReason_RegionTransfer", "UnrestReason_Revolution", "UnrestReason_StabilizeMission", "UnrestReason_StabilizeMissionFailure", "UnrestReason_UnrestMission", "UnrestReason_ZeroCohesion"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 295,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -911,9 +683,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -923,9 +695,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -935,9 +707,9 @@
       "detail": null,
       "shape": {"types": ["null"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -947,9 +719,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -959,9 +731,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -971,9 +743,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -983,9 +755,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -995,9 +767,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1007,9 +779,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1019,9 +791,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1031,9 +803,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1043,9 +815,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1055,9 +827,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1067,9 +839,9 @@
       "detail": null,
       "shape": {"types": ["number"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1079,9 +851,9 @@
       "detail": null,
       "shape": {"types": ["string"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1091,9 +863,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1103,9 +875,9 @@
       "detail": null,
       "shape": {"types": ["null", "object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1115,9 +887,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1127,9 +899,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1139,9 +911,9 @@
       "detail": null,
       "shape": {"types": ["object"], "object_keys": ["value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1151,9 +923,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["$type", "value"]},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1163,9 +935,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 363,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1175,9 +947,9 @@
       "detail": null,
       "shape": {"types": ["null", "object"], "object_keys": ["$type", "value"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1187,9 +959,9 @@
       "detail": null,
       "shape": {"types": ["string"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1199,9 +971,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["completionDate", "operationDataName", "startDate", "target"]},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1211,9 +983,9 @@
       "detail": null,
       "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["object"], "array_item_keys": ["Key", "Value"]},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1223,9 +995,9 @@
       "detail": null,
       "shape": {"types": ["string"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1235,9 +1007,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1247,9 +1019,9 @@
       "detail": null,
       "shape": {"types": ["null", "object"], "object_keys": ["day", "hour", "millisecond", "minute", "month", "second", "year"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     },
     {
@@ -1259,9 +1031,9 @@
       "detail": null,
       "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
       "max_occurrences": 96,
-      "saves_seen": 10,
+      "saves_seen": 15,
       "first_seen": "2026-10-13",
-      "last_seen": "2026-10-13",
+      "last_seen": "2026-10-14",
       "game_versions": ["not-serialized"]
     }
   ]

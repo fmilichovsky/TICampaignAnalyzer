@@ -34,9 +34,10 @@ DEBUG tinarrative.parsing.game_version: game_version absent, accepted
 DEBUG tinarrative.parsing.references: reference index built ids=12345 skipped_types=0
 DEBUG tinarrative.parsing.normalization: date parsed date=2046-10-08T00:00:00
 DEBUG tinarrative.parsing.normalization: domain normalized state_type=TIFactionState domain=faction entities=8 missing_fields=0 unresolved_references=2 unparseable=0 unknown_fields=124
+DEBUG tinarrative.parsing.records: records normalized state_type=TIFactionState fields=17 entities=8 sets=136 known_sets=136 missing=0 entries=6146 unparseable_dates=0 unresolved_references=7 shape_findings=0
 DEBUG tinarrative.parsing.unknowns: unknown fields state_type=TIFactionState fields=124 entities=8
 INFO tinarrative.parsing.unknowns: unknown structures total=388 state_types=0 fields=386 envelope_keys=0 field_shapes=0 reference_domains=2 singletons=0 containers=0
-INFO tinarrative.parsing.normalization: normalized state_types=61 entities=3210 technologies=240
+INFO tinarrative.parsing.normalization: normalized state_types=61 entities=3210 technologies=240 record_sets=726 record_entries=7326
 INFO tinarrative.cli: parse done save=Save.json state_types=61 game_version=none unknowns=388 exit=0
 ```
 
@@ -49,7 +50,7 @@ Levels:
 | Level | Carries |
 | --- | --- |
 | `info` | One line per command stage: start, unknown-structure counts per kind, normalized, done; `unknowns` adds one line per scanned or skipped save; `diff` reports the total change count on its done line. |
-| `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, research counts, root shape, ID census totals, each `--path` resolution, registry load/update counts, and for `diff` one line per compared collection with entity counts on each side and the number of changes per kind (never the entities or values themselves). |
+| `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, per-type record-set counts (sets, entries, unparseable dates, unresolved references; never a label or value), research counts, root shape, ID census totals, each `--path` resolution, registry load/update counts, and for `diff` one line per compared collection, one for the record sets and one for the singletons, with counts on each side and the number of changes per kind (never the entities or values themselves). |
 | `warning`, `error` | Nothing on the success path. The CLI promises an empty stderr there, so a warning in normal operation is a bug. |
 
 When `parse` rejects a save, the one-line stderr message is unchanged; at `debug` it is
@@ -58,8 +59,9 @@ normalizes both saves with the same lines, then adds its own aggregates:
 
 ```text
 INFO tinarrative.cli: diff start before=Earlier.json after=Later.json
-DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=295 after=295 matched=295 appeared=0 disappeared=0 value=502 membership=42 map=0 unknown=0
-DEBUG tinarrative.diff.state_diff: singletons compared appeared=0 disappeared=0 value=4 membership=1 map=0 unknown=0
+DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=295 after=295 matched=295 appeared=0 disappeared=0 value=502 membership=42 map=0 unknown=0 records=0
+DEBUG tinarrative.diff.state_diff: records compared before=726 after=726 matched=726 appeared=0 disappeared=0 value=1 membership=0 map=0 unknown=0 records=36
+DEBUG tinarrative.diff.state_diff: singletons compared appeared=0 disappeared=0 value=4 membership=1 map=0 unknown=0 records=0
 INFO tinarrative.cli: diff done before=Earlier.json after=Later.json changes=1180 exit=0
 ```
 

@@ -14,6 +14,10 @@ into a `SaveSnapshot`, and prints a short summary:
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
   `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
   `ships`, `habs`, and `technologies` (name-keyed, derived from the research singleton);
+- `records`: how many save-carried record fields were decoded with a known value across all
+  entities and how many entries they hold in total (see the
+  [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table;
+  a field an entity does not carry is unknown and not counted);
 - `unknown structures`: how many structures outside the parser's schema the save contains
   (undocumented fields, unknown state types, unexpected shapes or reference targets). They
   never change the snapshot; `tinarrative unknowns` lists them.

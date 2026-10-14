@@ -3,7 +3,7 @@
 import pytest
 
 from tinarrative.identity import STATE_PREFIX
-from tinarrative.parsing.containers import StateEntry, decode_state_map, entry_path
+from tinarrative.parsing.containers import StateEntry, decode_pair_map, decode_state_map, entry_path
 from tinarrative.parsing.errors import UnsupportedSaveShapeError
 
 NATION = STATE_PREFIX + "TINationState"
@@ -49,3 +49,18 @@ def test_malformed_containers_are_rejected(container: object, message: str) -> N
 def test_entry_path_is_an_rfc6901_pointer() -> None:
     assert entry_path(NATION, 4) == f"/gamestates/{NATION}/4/Value"
     assert entry_path("a/b~c", 0) == "/gamestates/a~1b~0c/0/Value"
+
+
+def test_field_level_dictionary_decodes_both_serialized_forms() -> None:
+    assert decode_pair_map({}) == ()
+    assert decode_pair_map([]) == ()
+    pairs = decode_pair_map([{"Key": {"value": 16}, "Value": 0.5}, {"Key": {"value": 17, "$type": "T"}, "Value": None}])
+    assert pairs == (({"value": 16}, 0.5), ({"value": 17, "$type": "T"}, None))
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["text", None, 3, {"Key": {"value": 1}, "Value": 2}, [{"Key": {"value": 1}}], [{"Value": 1}], ["pair"], [None]],
+)
+def test_other_values_are_not_field_level_dictionaries(value: object) -> None:
+    assert decode_pair_map(value) is None

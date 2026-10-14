@@ -22,15 +22,15 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from ..identity import ENTITY_DOMAINS, STATE_PREFIX
+from ..identity import ENTITY_DOMAINS, STATE_PREFIX, read_id_value
 from ..log import fields as log_fields
 from ..log import get_logger
 from .containers import decode_container
 from .errors import UnsupportedSaveShapeError
-from .fields import ACKNOWLEDGED_FIELDS, KNOWN_FIELDS, REFERENCE_FIELDS, SINGLETON_FIELDS
+from .fields import ACKNOWLEDGED_FIELDS, KNOWN_FIELDS, REFERENCE_FIELDS, SINGLETON_FIELDS, record_reference_domains
 from .inventory import KNOWN_STATE_TYPES, short_state_type
 from .raw_save import ENVELOPE_KEYS
-from .references import as_domains
+from .references import ExpectedDomains, ReferenceIndex, as_domains
 
 logger = get_logger(__name__)
 
@@ -44,6 +44,9 @@ _IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_]*$")
 
 PAIR_MAP_VIOLATION = "pair_map_violation"
 """``detail`` of a container that does not follow the documented pair-map shape."""
+ARRAY_OF_REFERENCES = "array_of_references"
+REFERENCE_OBJECT = "reference_object"
+"""``field_shape`` details for a reference field that is not a list, or a reference that is not ``{"value": id}``."""
 
 
 class UnknownKind(StrEnum):
@@ -348,6 +351,39 @@ def scan_envelope(root: Mapping[str, Any], collector: UnknownCollector) -> None:
                 collector.state_type(key, container)
 
 
+def check_reference(
+    state_type: str,
+    name: str,
+    raw: Any,
+    expected: ExpectedDomains,
+    is_list: bool,
+    index: ReferenceIndex,
+    collector: UnknownCollector,
+) -> None:
+    """Report a reference whose shape or target type is not the documented one; resolution is unchanged.
+
+    ``name`` is the field, or ``Field.member`` for a reference inside a record entry.
+    """
+    if is_list:
+        if not isinstance(raw, list):
+            collector.field_shape(state_type, name, ARRAY_OF_REFERENCES, raw)
+            return
+        items: list[Any] = raw
+    else:
+        items = [raw]
+    domains = as_domains(expected)
+    for item in items:
+        if item is None and not is_list:
+            continue
+        map_id = read_id_value(item)
+        if map_id is None:
+            collector.field_shape(state_type, name, REFERENCE_OBJECT, item)
+            continue
+        owner = index.owner_state_type(map_id, domains)
+        if owner is not None:
+            collector.reference_domain(state_type, name, owner)
+
+
 def scan_fields(state_type: str, value: Mapping[str, Any], collector: UnknownCollector) -> None:
     """Report the members of one ``Value`` object that the schema for ``state_type`` does not describe."""
     known = KNOWN_FIELDS.get(state_type)
@@ -389,10 +425,11 @@ def is_known(key: FindingKey) -> bool:
         return known is None or field not in known or field in ACKNOWLEDGED_FIELDS.get(state_type, {})
     if kind == UnknownKind.REFERENCE_DOMAIN:
         expected = REFERENCE_FIELDS.get(state_type, {}).get(field)
-        if expected is None:
+        domains = as_domains(expected[0]) if expected is not None else record_reference_domains(state_type, field)
+        if domains is None:
             return True
         target_domain = _DOMAIN_OF_STATE_TYPE.get(detail)
-        return target_domain is not None and target_domain in as_domains(expected[0])
+        return target_domain is not None and target_domain in domains
     if kind == UnknownKind.SINGLETON_COUNT:
         return state_type not in SINGLETON_FIELDS
     if kind == UnknownKind.CONTAINER_SHAPE:

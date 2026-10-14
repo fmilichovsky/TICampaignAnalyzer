@@ -8,6 +8,12 @@ from typing import Any
 from .values import Observed
 
 
+def pointer_path(base: str, *tokens: str | int) -> str:
+    """Extend an RFC 6901 pointer by one token per argument, escaping ``~`` and ``/`` in names."""
+    escaped = (str(token).replace("~", "~0").replace("/", "~1") for token in tokens)
+    return base + "".join(f"/{token}" for token in escaped)
+
+
 @dataclass(frozen=True, order=True)
 class SourceLocation:
     save_id: str

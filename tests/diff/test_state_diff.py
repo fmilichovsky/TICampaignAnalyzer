@@ -4,9 +4,11 @@ import json
 
 import pytest
 
-from tinarrative.diff.state_diff import ChangeKind, MapDetail, MembershipDetail, StateChange, diff_states
+from tinarrative.diff.render import render_change
+from tinarrative.diff.state_diff import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, diff_states
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.evidence import SourceLocation
+from tinarrative.model.records import ItemEntry, KeyedEntry, LedgerEntry, RecordEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown, UnknownReason, freeze
 
@@ -250,3 +252,202 @@ def test_repeated_runs_are_identical_objects_and_bytes() -> None:
     for change in first.changes:
         assert change.evidence.before_location is not None and change.evidence.after_location is not None
         assert change.evidence.before == change.before and change.evidence.after == change.after
+
+
+FACTION = EntityRef(EntityId(EntityDomain.FACTION, "15"), IdentityConfidence.IN_SAVE_ID, "TIFactionState")
+
+
+def record(
+    save: str, field: str, kind: RecordKind, entries: tuple[RecordEntry, ...] | Unknown, owner: EntityRef = FACTION
+) -> RecordSet:
+    path = f"/gamestates/TIFactionState/0/Value/{field}"
+    return RecordSet(owner, field, kind, SourceLocation(save, "TIFactionState", 15, path), entries)
+
+
+def record_change(before: RecordSet, after: RecordSet) -> StateChange | None:
+    changes = changes_of(snapshot(BEFORE, records=(before,)), snapshot(AFTER, records=(after,)))
+    assert len(changes) <= 1
+    return changes[0] if changes else None
+
+
+def ledger(index: int, amount: float, date: str) -> LedgerEntry:
+    return LedgerEntry(index, "FixtureCause", "Money", amount, date)
+
+
+def test_appended_log_entries_are_a_records_change_with_counts_and_entries() -> None:
+    first, second, third = (
+        ledger(0, 1.0, "2031-01-01T00:00:00"),
+        ledger(1, 2.0, "2031-02-01T00:00:00"),
+        ledger(2, 3.0, "d"),
+    )
+    before = record(BEFORE, "Transactions", RecordKind.LEDGER, (first, second))
+    after = record(AFTER, "Transactions", RecordKind.LEDGER, (first, second, third))
+    change = record_change(before, after)
+    assert change is not None
+    assert (change.domain, change.entity_id, change.field, change.kind) == (
+        "faction",
+        FACTION.entity_id,
+        "Transactions",
+        ChangeKind.RECORDS,
+    )
+    assert (change.before, change.after) == (2, 3)
+    assert change.detail == RecordsDetail(added=(third,))
+    assert change.evidence.before_location == before.location
+    assert change.evidence.after_location == after.location
+    assert change.evidence.description == "Transactions records changed: 1 added, 0 removed, 0 changed"
+    assert render_change(change) == "faction:15 Transactions: +1 entries"
+    assert "Money" not in render_change(change) and "FixtureCause" not in render_change(change)
+
+
+def test_a_violated_prefix_reports_the_missing_entries_literally() -> None:
+    kept, dropped = ledger(0, 1.0, "a"), ledger(1, 2.0, "b")
+    change = record_change(
+        record(BEFORE, "Transactions", RecordKind.LEDGER, (kept, dropped)),
+        record(AFTER, "Transactions", RecordKind.LEDGER, (kept,)),
+    )
+    assert change is not None and change.kind is ChangeKind.RECORDS
+    assert change.detail == RecordsDetail(removed=(dropped,))
+    assert render_change(change) == "faction:15 Transactions: -1 entries"
+
+
+def test_log_entries_match_by_content_not_by_index() -> None:
+    reordered_before = (ledger(0, 1.0, "a"), ledger(1, 2.0, "b"))
+    reordered_after = (ledger(0, 2.0, "b"), ledger(1, 1.0, "a"))
+    assert (
+        record_change(
+            record(BEFORE, "Transactions", RecordKind.LEDGER, reordered_before),
+            record(AFTER, "Transactions", RecordKind.LEDGER, reordered_after),
+        )
+        is None
+    )
+    duplicated = record_change(
+        record(BEFORE, "Transactions", RecordKind.LEDGER, (ledger(0, 1.0, "a"),)),
+        record(AFTER, "Transactions", RecordKind.LEDGER, (ledger(0, 1.0, "a"), ledger(1, 1.0, "a"))),
+    )
+    assert duplicated is not None and duplicated.detail == RecordsDetail(added=(ledger(1, 1.0, "a"),))
+
+
+def test_keyed_records_report_added_removed_and_changed_keys() -> None:
+    hated = ref("16", EntityDomain.FACTION, "TIFactionState")
+    newcomer = ref("17", EntityDomain.FACTION, "TIFactionState")
+    gone = ref("18", EntityDomain.FACTION, "TIFactionState")
+    before = record(
+        BEFORE, "factionHate", RecordKind.REFERENCE_VALUES, (KeyedEntry(0, hated, 0.5), KeyedEntry(1, gone, 1.0))
+    )
+    after = record(
+        AFTER, "factionHate", RecordKind.REFERENCE_VALUES, (KeyedEntry(0, hated, 0.7), KeyedEntry(1, newcomer, 0.1))
+    )
+    change = record_change(before, after)
+    assert change is not None and change.kind is ChangeKind.RECORDS
+    assert change.detail == RecordsDetail(
+        added=(KeyedEntry(1, newcomer, 0.1),),
+        removed=(KeyedEntry(1, gone, 1.0),),
+        changed=((KeyedEntry(0, hated, 0.5), KeyedEntry(0, hated, 0.7)),),
+    )
+    assert render_change(change) == "faction:15 factionHate: +1 -1 ~1 entries"
+    same_value_other_index = record(
+        AFTER, "factionHate", RecordKind.REFERENCE_VALUES, (KeyedEntry(1, gone, 1.0), KeyedEntry(0, hated, 0.5))
+    )
+    assert record_change(before, same_value_other_index) is None
+
+
+def test_keyed_records_with_repeated_keys_fall_back_to_the_multiset_rule() -> None:
+    before = record(
+        BEFORE, "objectiveNames", RecordKind.LABEL_VALUES, (KeyedEntry(0, "A", "Locked"), KeyedEntry(1, "A", "Locked"))
+    )
+    after = record(AFTER, "objectiveNames", RecordKind.LABEL_VALUES, (KeyedEntry(0, "A", "Locked"),))
+    change = record_change(before, after)
+    assert change is not None
+    assert change.detail == RecordsDetail(removed=(KeyedEntry(1, "A", "Locked"),))
+
+
+def test_keyed_value_comparison_is_strict() -> None:
+    before = record(BEFORE, "armiesLost", RecordKind.LABEL_VALUES, (KeyedEntry(0, "Human", 1),))
+    after = record(AFTER, "armiesLost", RecordKind.LABEL_VALUES, (KeyedEntry(0, "Human", 1.0),))
+    change = record_change(before, after)
+    assert change is not None and change.detail is not None
+    assert isinstance(change.detail, RecordsDetail) and len(change.detail.changed) == 1
+
+
+def test_scalar_records_are_compared_like_fields() -> None:
+    counter = record_change(
+        record(BEFORE, "abductions", RecordKind.COUNTER, (ItemEntry(0, 3),)),
+        record(AFTER, "abductions", RecordKind.COUNTER, (ItemEntry(0, 5),)),
+    )
+    assert counter is not None
+    assert (counter.kind, counter.before, counter.after, counter.entity_id) == (
+        ChangeKind.VALUE,
+        3,
+        5,
+        FACTION.entity_id,
+    )
+    assert counter.evidence.before_location is not None and counter.evidence.before_location.path.endswith(
+        "/abductions"
+    )
+    assert render_change(counter) == "faction:15 abductions: 3 -> 5"
+    other = ref("16", EntityDomain.FACTION, "TIFactionState")
+    sharing = record_change(
+        record(BEFORE, "intelSharingFactions", RecordKind.REFERENCE_LIST, (ItemEntry(0, ()),)),
+        record(AFTER, "intelSharingFactions", RecordKind.REFERENCE_LIST, (ItemEntry(0, (other,)),)),
+    )
+    assert sharing is not None and sharing.kind is ChangeKind.MEMBERSHIP
+    assert sharing.detail == MembershipDetail(added=(other,))
+    date = record_change(
+        record(BEFORE, "dateOfNewGovernment", RecordKind.DATE, (ItemEntry(0, None),)),
+        record(AFTER, "dateOfNewGovernment", RecordKind.DATE, (ItemEntry(0, "2031-04-20T00:00:00"),)),
+    )
+    assert date is not None and date.kind is ChangeKind.VALUE
+
+
+def test_unknown_record_sets_are_unknown_changes_or_nothing() -> None:
+    known = record(AFTER, "Transactions", RecordKind.LEDGER, (ledger(0, 1.0, "a"), ledger(1, 2.0, "b")))
+    change = record_change(record(BEFORE, "Transactions", RecordKind.LEDGER, Unknown()), known)
+    assert change is not None
+    assert (change.kind, change.before, change.after) == (ChangeKind.UNKNOWN, Unknown(), 2)
+    assert render_change(change) == "faction:15 Transactions: unknown (missing) -> 2"
+    unparseable = Unknown(UnknownReason.UNPARSEABLE, ())
+    assert (
+        record_change(
+            record(BEFORE, "Transactions", RecordKind.LEDGER, Unknown()),
+            record(AFTER, "Transactions", RecordKind.LEDGER, Unknown()),
+        )
+        is None
+    )
+    assert (
+        record_change(
+            record(BEFORE, "Transactions", RecordKind.LEDGER, unparseable),
+            record(AFTER, "Transactions", RecordKind.LEDGER, unparseable),
+        )
+        is None
+    )
+    missing_to_unparseable = record_change(
+        record(BEFORE, "Transactions", RecordKind.LEDGER, Unknown()),
+        record(AFTER, "Transactions", RecordKind.LEDGER, unparseable),
+    )
+    assert missing_to_unparseable is not None and missing_to_unparseable.kind is ChangeKind.UNKNOWN
+
+
+def test_record_sets_whose_owner_is_on_one_side_only_add_no_changes() -> None:
+    only_after = record(AFTER, "Transactions", RecordKind.LEDGER, (ledger(0, 1.0, "a"),))
+    changes = changes_of(snapshot(BEFORE), snapshot(AFTER, records=(only_after,)))
+    assert changes == ()
+
+
+def test_record_changes_sort_with_the_owner_entity_field_changes() -> None:
+    owner_before = EntityState(FACTION, (("resources", 1.0),), SourceLocation(BEFORE, "TIFactionState", 15))
+    owner_after = EntityState(FACTION, (("resources", 2.0),), SourceLocation(AFTER, "TIFactionState", 15))
+    before = snapshot(
+        BEFORE, factions=(owner_before,), records=(record(BEFORE, "Transactions", RecordKind.LEDGER, ()),)
+    )
+    after = snapshot(
+        AFTER,
+        factions=(owner_after,),
+        records=(record(AFTER, "Transactions", RecordKind.LEDGER, (ledger(0, 1.0, "a"),)),),
+    )
+    assert [(c.entity_id, c.field) for c in changes_of(before, after)] == [
+        (FACTION.entity_id, "Transactions"),
+        (FACTION.entity_id, "resources"),
+    ]
+    assert json.dumps(diff_states(before, after).to_dict(), sort_keys=True) == json.dumps(
+        diff_states(before, after).to_dict(), sort_keys=True
+    )

@@ -8,6 +8,7 @@ from typing import Any
 
 from .entities import EntityRef
 from .evidence import SourceLocation
+from .records import RecordSet
 from .values import FieldValue, Observed, Unknown, to_jsonable
 
 
@@ -108,7 +109,8 @@ class SaveSnapshot:
     ``date`` is the ISO-8601 game timestamp (no timezone; game-calendar time) or ``Unknown``.
     ``campaign_day`` and ``campaign_quarter`` are the serialized turn-like counters.
     ``habs`` holds ``TIHabState`` objects (domain ``space object``); ``technologies`` are name-keyed
-    states derived from ``research``.
+    states derived from ``research``. ``records`` holds the save-carried records (dated logs and cumulative
+    counters) of every entity, one ``RecordSet`` per entity and field, sorted by owner then field.
     """
 
     source: str
@@ -130,11 +132,13 @@ class SaveSnapshot:
     organizations: tuple[EntityState, ...] = ()
     technologies: tuple[EntityState, ...] = ()
     research: ResearchState = field(default_factory=ResearchState)
+    records: tuple[RecordSet, ...] = ()
     raw_metadata: tuple[tuple[str, FieldValue], ...] = ()
 
     def __post_init__(self) -> None:
         for name in STATE_COLLECTIONS:
             object.__setattr__(self, name, _sorted_states(getattr(self, name)))
+        object.__setattr__(self, "records", tuple(sorted(self.records, key=lambda record: record.sort_key)))
         object.__setattr__(self, "raw_metadata", tuple(sorted(self.raw_metadata, key=lambda item: item[0])))
 
     def to_dict(self) -> dict[str, Any]:
@@ -160,5 +164,6 @@ class SaveSnapshot:
             "campaign": self.campaign.to_dict(),
             **{name: states(getattr(self, name)) for name in STATE_COLLECTIONS},
             "research": self.research.to_dict(),
+            "records": [record.to_dict() for record in self.records],
             "raw_metadata": {key: to_jsonable(value) for key, value in self.raw_metadata},
         }

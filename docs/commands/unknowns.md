@@ -35,7 +35,7 @@ occurrence count. Findings carry a **content-free shape**: JSON type labels, ide
 member names one level deep (at most 32), and element types of arrays (first 64 elements).
 No string value, number, map ID, name or path from a save is ever recorded, so the report and
 the registry can be shared. Detection is driven by the code-form schema in
-`src/tinarrative/parsing/fields.py` (`ENTITY_FIELDS`, the singleton tables,
+`src/tinarrative/parsing/fields.py` (`ENTITY_FIELDS`, `RECORD_FIELDS`, the singleton tables,
 `SERIALIZATION_FIELDS`, `ACKNOWLEDGED_FIELDS`) and `src/tinarrative/parsing/inventory.py`
 (`KNOWN_STATE_TYPES`).
 
@@ -44,8 +44,8 @@ the registry can be shared. Detection is driven by the code-form schema in
 | `unknown_state_type` | A `gamestates` key outside the observed inventory. The shape lists the member names of its entries; `detail` is `pair_map_violation` when the container is not the documented pair map. | Entries in the container. |
 | `unknown_field` | A `Value` member of a normalized state type or singleton that is neither copied, a serializer member, nor acknowledged. | Entities carrying the member. |
 | `unknown_envelope_key` | A root member other than `currentID` and `gamestates`. `state_type` is empty. | 1 |
-| `unexpected_field_shape` | A known field whose value is not the documented shape; `detail` names the expected shape (`array_of_references`, `reference_object`, `componentized_date`, `array`). | Values with that shape. |
-| `unexpected_reference_domain` | A reference whose ID exists in the save, but under a state type outside the field's documented domains; `detail` is that state type. The field still resolves to `unknown (unresolved_reference)`. | References. |
+| `unexpected_field_shape` | A known field whose value is not the documented shape; `detail` names the expected shape (`array_of_references`, `reference_object`, `componentized_date`, `array`, `object`, `array_of_objects`, `pair_map`). For a record field, `field` may also name a member inside an entry (`HabDestructionLog.Destroyer`). | Values with that shape. |
+| `unexpected_reference_domain` | A reference whose ID exists in the save, but under a state type outside the field's documented domains; `detail` is that state type. The field (or record entry member) still resolves to `unknown (unresolved_reference)`. | References. |
 | `unexpected_singleton_count` | `TITimeState`, `TIMetadataState` or `TIGlobalResearchState` with more than one entry. | Entries. |
 | `unexpected_container_shape` | A pair-map violation in an entity-domain container that is not normalized (the reference index skips it); `detail` is `pair_map_violation`. | 1 |
 

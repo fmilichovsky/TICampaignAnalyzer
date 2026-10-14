@@ -2,14 +2,19 @@
 
 This is the code form of ``docs/game-data-notes/domain-field-map.md``: only fields observed in real saves
 are listed, and a reference field is resolved only when its observed target type has an entity domain.
+Three tables describe a state type's members: ``ENTITY_FIELDS`` (copied into the entity state),
+``RECORD_FIELDS`` (decoded into save-carried records) and ``ACKNOWLEDGED_FIELDS`` (known, deliberately
+not normalized).
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import StrEnum
 
 from ..model.entities import EntityDomain
-from .references import ExpectedDomains
+from ..model.records import RecordKind
+from .references import ExpectedDomains, as_domains
 
 COMMON_FIELDS = ("templateName", "displayName", "archived", "exists")
 
@@ -294,6 +299,74 @@ Several state types may feed one attribute (both army types fill ``armies``).
 
 SERIALIZATION_FIELDS = ("$type", "ID", "finderSortOverride", "gameStateSubjectCreated")
 """Serializer members observed on every entity and singleton ``Value`` object; known, never normalized."""
+
+
+@dataclass(frozen=True)
+class RecordField:
+    """How one save-carried record field is decoded (``parsing.records``).
+
+    ``targets`` are the expected domains of the references a pair map is keyed by or a reference list holds.
+    Kinds with fixed members (``destruction_log``, ``executive_change``) resolve each member against
+    ``RECORD_MEMBER_TARGETS`` instead.
+    """
+
+    kind: RecordKind
+    targets: ExpectedDomains | None = None
+
+
+_FACTION_COUNTER = RecordField(RecordKind.COUNTER)
+_FACTION_KEYED = RecordField(RecordKind.REFERENCE_VALUES, EntityDomain.FACTION)
+_ALIEN_SITE = frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP))
+"""A ``knownAlienSites`` key: observed to point at a region, a hab or (once) a ship."""
+
+RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
+    "TIFactionState": {
+        "HabDestructionLog": RecordField(RecordKind.DESTRUCTION_LOG),
+        "Kills": _FACTION_KEYED,
+        "Transactions": RecordField(RecordKind.LEDGER),
+        "abductions": _FACTION_COUNTER,
+        "alienInvestigations": _FACTION_COUNTER,
+        "aliensRemoved": _FACTION_COUNTER,
+        "armiesLost": RecordField(RecordKind.LABEL_VALUES),
+        "atrocities": _FACTION_COUNTER,
+        "boostAccounts": RecordField(RecordKind.DATED_LABELS),
+        "factionAssassinations": _FACTION_KEYED,
+        "factionHate": _FACTION_KEYED,
+        "intelSharingFactions": RecordField(RecordKind.REFERENCE_LIST, EntityDomain.FACTION),
+        "knownAlienSites": RecordField(RecordKind.DATED_REFERENCES, _ALIEN_SITE),
+        "lostControlPoints": RecordField(RecordKind.DATED_REFERENCES, EntityDomain.CONTROL_POINT),
+        "milestones": RecordField(RecordKind.NAME_LOG),
+        "numAtrocitiesByCause": RecordField(RecordKind.LABEL_VALUES),
+        "objectiveNames": RecordField(RecordKind.LABEL_VALUES),
+    },
+    "TINationState": {
+        "dateOfNewGovernment": RecordField(RecordKind.DATE),
+        "lastExecutiveChange": RecordField(RecordKind.EXECUTIVE_CHANGE),
+    },
+}
+"""Save-carried record fields per state type: dated logs and cumulative counters not derivable from the snapshot.
+
+Observed in private saves (``domain-field-map.md``, "Save-carried records"); decoded by ``parsing.records`` into
+``SaveSnapshot.records`` rather than copied into the entity state.
+"""
+
+RECORD_MEMBER_TARGETS: dict[str, ExpectedDomains] = {
+    "HabDestructionLog.SpaceBody": EntityDomain.SPACE_OBJECT,
+    "HabDestructionLog.Destroyer": EntityDomain.FACTION,
+    "lastExecutiveChange.newExecutive": EntityDomain.FACTION,
+}
+"""Reference members inside record entries, as ``Field.member``, with their observed target domain."""
+
+
+def record_reference_domains(state_type: str, field: str) -> frozenset[EntityDomain] | None:
+    """Expected domains of the references in a record field (``Field`` or ``Field.member``); ``None`` if not one."""
+    spec = RECORD_FIELDS.get(state_type, {}).get(field)
+    if spec is not None and spec.targets is not None:
+        return as_domains(spec.targets)
+    member_target = RECORD_MEMBER_TARGETS.get(field)
+    if member_target is not None and field.split(".", 1)[0] in RECORD_FIELDS.get(state_type, {}):
+        return as_domains(member_target)
+    return None
 
 
 class UnsupportedReason(StrEnum):
@@ -718,11 +791,16 @@ acknowledged is reported as unknown and recorded in ``docs/game-data-notes/unkno
 
 
 def _known(state_type: str, copied: tuple[str, ...]) -> frozenset[str]:
-    return frozenset(copied) | frozenset(SERIALIZATION_FIELDS) | frozenset(ACKNOWLEDGED_FIELDS.get(state_type, {}))
+    return (
+        frozenset(copied)
+        | frozenset(SERIALIZATION_FIELDS)
+        | frozenset(RECORD_FIELDS.get(state_type, {}))
+        | frozenset(ACKNOWLEDGED_FIELDS.get(state_type, {}))
+    )
 
 
 KNOWN_FIELDS: dict[str, frozenset[str]] = {
     **{state_type: _known(state_type, names) for state_type, names in ENTITY_FIELDS.items()},
     **{state_type: _known(state_type, COMMON_FIELDS + names) for state_type, names in SINGLETON_FIELDS.items()},
 }
-"""Every field name the parser describes per scanned state type: copied, serializer, or acknowledged."""
+"""Every field name the parser describes per scanned state type: copied, record, serializer, or acknowledged."""

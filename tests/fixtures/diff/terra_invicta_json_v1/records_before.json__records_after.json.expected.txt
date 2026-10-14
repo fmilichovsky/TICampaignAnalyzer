@@ -1,0 +1,31 @@
+tinarrative diff report
+before: records_before.json
+  date: "2031-03-01T00:00:00"
+  game_version: not serialized
+after: records_after.json
+  date: "2031-06-01T00:00:00"
+  game_version: not serialized
+changes: 19
+  campaign: 4
+  faction: 13
+  nation: 2
+changes:
+  campaign campaign_day: 425 -> 517
+  campaign campaign_quarter: 4 -> 5
+  campaign date: "2031-03-01T00:00:00" -> "2031-06-01T00:00:00"
+  campaign game_time_string: "3/1/2031 12:00:00 AM" -> "6/1/2031 12:00:00 AM"
+  faction:15 HabDestructionLog: +2 entries
+  faction:15 Kills: +1 entries
+  faction:15 Transactions: +2 entries
+  faction:15 abductions: 0 -> 1
+  faction:15 armiesLost: ~1 entries
+  faction:15 atrocities: 1 -> 2
+  faction:15 boostAccounts: ~1 entries
+  faction:15 factionHate: ~1 entries
+  faction:15 intelSharingFactions: +faction:16
+  faction:15 lostControlPoints: +1 entries
+  faction:15 milestones: +1 entries
+  faction:15 numAtrocitiesByCause: +1 entries
+  faction:15 objectiveNames: ~1 entries
+  nation:20 dateOfNewGovernment: null -> "2031-04-20T00:00:00"
+  nation:20 lastExecutiveChange: ~3 entries

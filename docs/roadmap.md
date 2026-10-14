@@ -18,6 +18,7 @@
 - [x] Normalize a minimal save snapshot (`tinarrative parse` summary).
 - [x] Normalize councilors, armies, space entities, and research state.
 - [x] Produce a deterministic single-save diff (`tinarrative diff`).
+- [x] Decode save-carried records (dated logs, cumulative counters) with provenance and diff support.
 - [ ] Render objective changes as Markdown.
 
 ## Campaign history

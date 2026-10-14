@@ -13,6 +13,7 @@ from typing import Any
 
 from .entities import EntityId
 from .evidence import Evidence, SourceLocation
+from .records import RecordEntry, entry_to_dict
 from .snapshot import SaveSnapshot
 from .values import FieldValue, Observed, to_jsonable
 
@@ -32,6 +33,8 @@ class ChangeKind(StrEnum):
     """Both sides are mappings; ``detail`` names the keys added, removed and changed."""
     UNKNOWN = "unknown"
     """At least one side is ``Unknown``, so the values cannot be compared structurally."""
+    RECORDS = "records"
+    """Both sides are known record sets; ``before``/``after`` are entry counts and ``detail`` lists the entries."""
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,26 @@ class MapDetail:
 
 
 @dataclass(frozen=True)
+class RecordsDetail:
+    """Record entries present on one side only, and, for keyed kinds, the pairs whose value changed for one key.
+
+    Entries keep their serialized order and index. A removed entry is reported literally: the diff never
+    assumes a log is append-only.
+    """
+
+    added: tuple[RecordEntry, ...] = ()
+    removed: tuple[RecordEntry, ...] = ()
+    changed: tuple[tuple[RecordEntry, RecordEntry], ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "added": [entry_to_dict(entry) for entry in self.added],
+            "removed": [entry_to_dict(entry) for entry in self.removed],
+            "changed": [{"before": entry_to_dict(a), "after": entry_to_dict(b)} for a, b in self.changed],
+        }
+
+
+@dataclass(frozen=True)
 class StateChange:
     """One literal difference; ``field`` is ``None`` only for entity appearance or disappearance."""
 
@@ -68,7 +91,7 @@ class StateChange:
     evidence: Evidence
     entity_id: EntityId | None = None
     kind: ChangeKind = ChangeKind.VALUE
-    detail: MembershipDetail | MapDetail | None = None
+    detail: MembershipDetail | MapDetail | RecordsDetail | None = None
 
     @property
     def sort_key(self) -> tuple[str, int, int, str, str]:
