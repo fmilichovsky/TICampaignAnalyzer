@@ -254,6 +254,7 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
         game_time_string=metadata["gameTimeString"],
         scenario_master_template=time_fields["masterMetaTemplateName"],
         scenario_template=time_fields["scenarioMetaTemplateName"],
+        selected_factions_for_scenario=metadata["selectedFactionsForScenario"],
     )
 
     collections: dict[str, tuple[EntityState, ...]] = {}

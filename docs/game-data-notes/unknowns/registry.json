@@ -114,18 +114,6 @@
     },
     {
       "kind": "unknown_field",
-      "state_type": "TIMetadataState",
-      "field": "selectedFactionsForScenario",
-      "detail": null,
-      "shape": {"types": ["array"], "object_keys": [], "object_keys_omitted": false, "array_item_types": ["string"], "array_item_keys": []},
-      "max_occurrences": 1,
-      "saves_seen": 15,
-      "first_seen": "2026-10-13",
-      "last_seen": "2026-10-14",
-      "game_versions": ["not-serialized"]
-    },
-    {
-      "kind": "unknown_field",
       "state_type": "TINationState",
       "field": "advisingCouncilors",
       "detail": null,

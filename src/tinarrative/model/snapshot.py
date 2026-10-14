@@ -40,6 +40,7 @@ class CampaignMetadata:
     game_time_string: Observed = field(default_factory=Unknown)
     scenario_master_template: Observed = field(default_factory=Unknown)
     scenario_template: Observed = field(default_factory=Unknown)
+    selected_factions_for_scenario: Observed = field(default_factory=Unknown)
 
     def to_dict(self) -> dict[str, Any]:
         return {item.name: to_jsonable(getattr(self, item.name)) for item in fields(self)}

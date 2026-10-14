@@ -232,7 +232,13 @@ TIME_FIELDS = (
 )
 """``TITimeState`` singleton fields read into ``SaveSnapshot`` chronology and ``CampaignMetadata``."""
 
-METADATA_FIELDS = ("playerFactionName", "difficulty", "playedWithMods", "gameTimeString")
+METADATA_FIELDS = (
+    "playerFactionName",
+    "difficulty",
+    "playedWithMods",
+    "gameTimeString",
+    "selectedFactionsForScenario",
+)
 """``TIMetadataState`` singleton fields read into ``CampaignMetadata``."""
 
 SINGLETON_FIELDS: dict[str, tuple[str, ...]] = {

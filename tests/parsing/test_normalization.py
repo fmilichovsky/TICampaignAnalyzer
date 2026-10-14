@@ -682,6 +682,23 @@ def test_unparseable_time_keeps_the_raw_value() -> None:
     assert snapshot.date == Unknown(UnknownReason.UNPARSEABLE, FrozenMap((("year", 2031),)))
 
 
+def test_scenario_faction_list_is_copied_as_template_names_without_resolution() -> None:
+    names = ["FixtureResistTemplate", "FixtureExploitTemplate"]
+    metadata = pair(1, playerFactionName="Fixture Resistance", selectedFactionsForScenario=names)
+    snapshot, report = collect(fragment_raw({STATE_PREFIX + "TIMetadataState": [metadata]}))
+    assert snapshot.campaign.selected_factions_for_scenario == tuple(names)
+    assert snapshot.to_dict()["campaign"]["selected_factions_for_scenario"] == names
+    assert report.findings == ()
+
+
+def test_missing_scenario_faction_list_is_unknown() -> None:
+    metadata = pair(1, playerFactionName="Fixture Resistance")
+    snapshot = fragment({STATE_PREFIX + "TIMetadataState": [metadata]})
+    assert snapshot.campaign.player_faction_name == "Fixture Resistance"
+    assert snapshot.campaign.selected_factions_for_scenario == Unknown()
+    assert snapshot.to_dict()["campaign"]["selected_factions_for_scenario"] == {"unknown": "missing"}
+
+
 def test_malformed_normalized_container_is_rejected_as_unsupported_shape() -> None:
     bad = [{"Key": {"value": 1}, "Value": {"ID": {"value": 2}}}]
     with pytest.raises(UnsupportedSaveShapeError, match="TIControlPoint"):
