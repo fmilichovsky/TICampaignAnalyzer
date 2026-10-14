@@ -242,4 +242,6 @@ See [snapshot-diff observations](diff-observations.md) for aggregate evidence th
 
 - `currentDateTime` is the best candidate for normalized chronology because it is componentized, but the project has not yet compared it against `gameTimeString` across a sequence.
 - A missing entity from a later map may mean destruction, archival, a filter, or a serialization change. Diff code must preserve that ambiguity.
+- `TIFactionState.CombatLogs` is acknowledged as `runtime_internal` above, but on 2026-10-14 it was observed to be a per-battle record (sides, hull classes, winner; undated). Reclassifying it as a save-carried record is issue #69; see [sources for higher-level events](higher-level-event-sources.md).
+- `TIGlobalValuesState` (not read by the normalizer) carries `campaignStartVersion` and `latestSaveVersion` strings, observed on 2026-10-14; the second changed within one campaign. Game-build detection should consider them (same page, issue #67).
 - Field names suggest domain semantics, but a field's units, lifecycle, and causal meaning require before/after validation before an analyzer labels an event.

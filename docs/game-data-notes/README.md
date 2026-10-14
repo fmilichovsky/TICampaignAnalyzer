@@ -31,3 +31,9 @@ The [state-type inventory](state-type-inventory.md) is the complete observed env
 [Campaign grouping](campaign-grouping.md) describes the evidence-based
 heuristic for partitioning a mixed directory into campaign chains when no
 explicit campaign identifier is serialized.
+
+[Sources for higher-level events](higher-level-event-sources.md) records the
+observed shape and lifecycle of the structures that carry wars, federations,
+alien activity on Earth, the game's own notification log, combat logs and the
+other evidence the reconstruction and narrative stages need but the normalizer
+does not read yet.

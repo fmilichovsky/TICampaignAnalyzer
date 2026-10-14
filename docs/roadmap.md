@@ -26,7 +26,22 @@
 - [x] Add the politics analyzers (control-point control, nation ownership and
   relations, councilor membership) emitting objective, evidence-backed events.
 - [x] Add the army, space-object and technology analyzers.
-- [ ] Add rule-based reconstruction of higher-level events.
+- [ ] Add rule-based reconstruction of higher-level events (evidence in
+  [sources for higher-level events](game-data-notes/higher-level-event-sources.md)):
+  - [ ] Significance on events and the churn rules (recruit-pool councilors,
+    routine fleet and councilor movement) (#70).
+  - [ ] Nation metric shifts with cause attribution from the
+    `tracker_*ChangeReason_AllTime` maps (#71).
+  - [ ] Territorial reconstruction: unification, secession, annexation (#72).
+  - [ ] Space reconstruction: first presence on a body, hab losses joined to
+    the destruction log, battle outcomes (#73).
+  - [ ] Wars and federations as entities with a war analyzer (#64).
+  - [ ] Region alien substates and Earth anomaly events (#65).
+  - [ ] Organizations and councilor organization events (#66).
+  - [ ] `TIGlobalValuesState` singleton: interstate wars, global milestones,
+    nuclear and climate counters, serialized build version (#67).
+  - [ ] The game's notification log as a save-carried record (#68).
+  - [ ] `CombatLogs` reclassified from acknowledged to a record (#69).
 - [ ] Aggregate events across an ordered save sequence.
 - [ ] Allow automatically detecting and scanning the real game save directory.
 - [ ] Add a heuristic for grouping different saves into distinct campaigns.
