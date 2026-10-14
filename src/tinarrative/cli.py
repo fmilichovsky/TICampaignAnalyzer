@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import cast
 
 from . import __version__
+from .analyzers import ALL_ANALYZERS, run_analyzers
 from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
@@ -28,6 +29,7 @@ from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
+from .rendering.markdown import render_comparison
 
 logger = get_logger(__name__)
 
@@ -251,7 +253,12 @@ def _run_diff(args: argparse.Namespace) -> int:
     if isinstance(after, int):
         return after
     diff = diff_states(before, after)
-    rendered = render_diff_json(diff) if args.format == "json" else render_diff_text(diff)
+    if args.format == "json":
+        rendered = render_diff_json(diff)
+    elif args.format == "markdown":
+        rendered = render_comparison(diff, run_analyzers(ALL_ANALYZERS, before, after, diff))
+    else:
+        rendered = render_diff_text(diff)
     sys.stdout.write(rendered)
     sys.stdout.flush()
     logger.info(
@@ -418,7 +425,7 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
     parser.add_argument("after", type=Path, help="Path to the later save file.")
     parser.add_argument(
         "--format",
-        choices=("text", "json"),
+        choices=("text", "json", "markdown"),
         default="text",
         help="Report format (default %(default)s).",
     )

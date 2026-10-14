@@ -19,7 +19,7 @@
 - [x] Normalize councilors, armies, space entities, and research state.
 - [x] Produce a deterministic single-save diff (`tinarrative diff`).
 - [x] Decode save-carried records (dated logs, cumulative counters) with provenance and diff support.
-- [ ] Render objective changes as Markdown.
+- [x] Render objective changes as Markdown.
 
 ## Campaign history
 
@@ -43,9 +43,3 @@
   - [ ] The game's notification log as a save-carried record (#68).
   - [ ] `CombatLogs` reclassified from acknowledged to a record (#69).
 - [ ] Aggregate events across an ordered save sequence.
-- [ ] Allow automatically detecting and scanning the real game save directory.
-- [ ] Add a heuristic for grouping different saves into distinct campaigns.
-
-## Narrative generator
-
-- [ ] Consume normalized campaign data and turn them into a readable narrative.
