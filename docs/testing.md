@@ -145,7 +145,14 @@ the interval, one that gains an alliance member and a later
 `dateOfLastFighting`, a federation that gains and loses a member, and one
 `wars` entry no war explains. The politics fixture-pair test also keeps the
 words *declared*, *won*, *lost* and *peace* out of every `war.*` and
-`federation.*` line. Like every pair, none is a `diff` golden.
+`federation.*` line. `aliens_before.json` / `aliens_after.json` is the region
+alien pair: three regions with all five alien sub-states, a crashdown that
+appears with a `crashdownTime` inside the interval, xenoforming rising from
+zero in one region and dropping to zero in another, a facility built, a landing
+present, and a megafauna army that appears;
+`tests/analyzers/aliens/test_alien_fixture_pairs.py` checks those events and
+keeps words such as *detected*, *cleared* and *crashed* out of every `region.*`
+line. Like every pair, none is a `diff` golden.
 The opt-in `real_save` analyzer test reuses `TINARRATIVE_REAL_SAVE` and
 `TINARRATIVE_REAL_SAVE_AFTER` and prints nothing.
 

@@ -79,4 +79,5 @@ def test_every_documented_domain_is_present() -> None:
         "technology",
         "war",
         "federation",
+        "region alien state",
     }

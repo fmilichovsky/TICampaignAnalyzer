@@ -1,0 +1,568 @@
+{
+  "currentID": {
+    "value": 999
+  },
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIMetadataState": [
+      {
+        "Key": {
+          "value": 1
+        },
+        "Value": {
+          "ID": {
+            "value": 1
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "playerFactionName": "Fixture Resistance",
+          "gameTimeString": "1/1/2032 12:00:00 AM",
+          "difficulty": "Normal",
+          "playedWithMods": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMetadataState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TITimeState": [
+      {
+        "Key": {
+          "value": 2
+        },
+        "Value": {
+          "ID": {
+            "value": 2
+          },
+          "templateName": "FixtureTime",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "currentDateTime": {
+            "year": 2032,
+            "month": 4,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "daysInCampaign": 731,
+          "currentQuarterSinceStart": 8,
+          "masterMetaTemplateName": "FixtureMaster",
+          "scenarioMetaTemplateName": "FixtureScenario",
+          "$type": "PavonisInteractive.TerraInvicta.TITimeState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIPlayerState": [
+      {
+        "Key": {
+          "value": 60
+        },
+        "Value": {
+          "ID": {
+            "value": 60
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "isAI": false,
+          "faction": {
+            "value": 15
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIPlayerState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {
+          "value": 16
+        },
+        "Value": {
+          "ID": {
+            "value": 16
+          },
+          "templateName": "FixtureAliens",
+          "displayName": "Fixture Aliens",
+          "archived": false,
+          "exists": true,
+          "armies": [
+            {
+              "value": 51
+            }
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionState": [
+      {
+        "Key": {
+          "value": 40
+        },
+        "Value": {
+          "ID": {
+            "value": 40
+          },
+          "templateName": "FixtureNorthCoast",
+          "displayName": "NorthCoast",
+          "archived": false,
+          "exists": true,
+          "nation": null,
+          "armies": [],
+          "alienCrashdown": {
+            "value": 100
+          },
+          "alienLanding": {
+            "value": 101
+          },
+          "alienFacility": {
+            "value": 102
+          },
+          "xenoforming": {
+            "value": 103
+          },
+          "alienActivity": {
+            "value": 104
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 41
+        },
+        "Value": {
+          "ID": {
+            "value": 41
+          },
+          "templateName": "FixtureSouthPlain",
+          "displayName": "SouthPlain",
+          "archived": false,
+          "exists": true,
+          "nation": null,
+          "armies": [],
+          "alienCrashdown": {
+            "value": 110
+          },
+          "alienLanding": {
+            "value": 111
+          },
+          "alienFacility": {
+            "value": 112
+          },
+          "xenoforming": {
+            "value": 113
+          },
+          "alienActivity": {
+            "value": 114
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 42
+        },
+        "Value": {
+          "ID": {
+            "value": 42
+          },
+          "templateName": "FixtureEastHills",
+          "displayName": "EastHills",
+          "archived": false,
+          "exists": true,
+          "nation": null,
+          "armies": [
+            {
+              "value": 51
+            }
+          ],
+          "alienCrashdown": {
+            "value": 120
+          },
+          "alienLanding": {
+            "value": 121
+          },
+          "alienFacility": {
+            "value": 122
+          },
+          "xenoforming": {
+            "value": 123
+          },
+          "alienActivity": {
+            "value": 124
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionUFOCrashdownState": [
+      {
+        "Key": {
+          "value": 100
+        },
+        "Value": {
+          "ID": {
+            "value": 100
+          },
+          "templateName": "FixtureNorthCoast",
+          "displayName": "UFO Crashdown",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 40
+          },
+          "crashdownPresent": true,
+          "crashdownTime": {
+            "year": 2032,
+            "month": 2,
+            "day": 14,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionUFOCrashdownState"
+        }
+      },
+      {
+        "Key": {
+          "value": 110
+        },
+        "Value": {
+          "ID": {
+            "value": 110
+          },
+          "templateName": "FixtureSouthPlain",
+          "displayName": "UFO Crashdown",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 41
+          },
+          "crashdownPresent": false,
+          "crashdownTime": null,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionUFOCrashdownState"
+        }
+      },
+      {
+        "Key": {
+          "value": 120
+        },
+        "Value": {
+          "ID": {
+            "value": 120
+          },
+          "templateName": "FixtureEastHills",
+          "displayName": "UFO Crashdown",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 42
+          },
+          "crashdownPresent": false,
+          "crashdownTime": null,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionUFOCrashdownState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionUFOLandingState": [
+      {
+        "Key": {
+          "value": 101
+        },
+        "Value": {
+          "ID": {
+            "value": 101
+          },
+          "templateName": "FixtureNorthCoast",
+          "displayName": "UFO Landing",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 40
+          },
+          "landingPresent": false,
+          "deployingArmy": false,
+          "supportingArmyBuildup": false,
+          "currentHP": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionUFOLandingState"
+        }
+      },
+      {
+        "Key": {
+          "value": 111
+        },
+        "Value": {
+          "ID": {
+            "value": 111
+          },
+          "templateName": "FixtureSouthPlain",
+          "displayName": "UFO Landing",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 41
+          },
+          "landingPresent": false,
+          "deployingArmy": false,
+          "supportingArmyBuildup": false,
+          "currentHP": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionUFOLandingState"
+        }
+      },
+      {
+        "Key": {
+          "value": 121
+        },
+        "Value": {
+          "ID": {
+            "value": 121
+          },
+          "templateName": "FixtureEastHills",
+          "displayName": "UFO Landing",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 42
+          },
+          "landingPresent": true,
+          "deployingArmy": true,
+          "supportingArmyBuildup": false,
+          "currentHP": 20.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionUFOLandingState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionAlienFacilityState": [
+      {
+        "Key": {
+          "value": 102
+        },
+        "Value": {
+          "ID": {
+            "value": 102
+          },
+          "templateName": "FixtureNorthCoast",
+          "displayName": "Alien Facility",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 40
+          },
+          "built": false,
+          "currentHP": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionAlienFacilityState"
+        }
+      },
+      {
+        "Key": {
+          "value": 112
+        },
+        "Value": {
+          "ID": {
+            "value": 112
+          },
+          "templateName": "FixtureSouthPlain",
+          "displayName": "Alien Facility",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 41
+          },
+          "built": true,
+          "currentHP": 50.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionAlienFacilityState"
+        }
+      },
+      {
+        "Key": {
+          "value": 122
+        },
+        "Value": {
+          "ID": {
+            "value": 122
+          },
+          "templateName": "FixtureEastHills",
+          "displayName": "Alien Facility",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 42
+          },
+          "built": false,
+          "currentHP": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionAlienFacilityState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionXenoformingState": [
+      {
+        "Key": {
+          "value": 103
+        },
+        "Value": {
+          "ID": {
+            "value": 103
+          },
+          "templateName": "FixtureNorthCoast",
+          "displayName": "Xenoforming",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 40
+          },
+          "xenoformingLevel": 2.5,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionXenoformingState"
+        }
+      },
+      {
+        "Key": {
+          "value": 113
+        },
+        "Value": {
+          "ID": {
+            "value": 113
+          },
+          "templateName": "FixtureSouthPlain",
+          "displayName": "Xenoforming",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 41
+          },
+          "xenoformingLevel": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionXenoformingState"
+        }
+      },
+      {
+        "Key": {
+          "value": 123
+        },
+        "Value": {
+          "ID": {
+            "value": 123
+          },
+          "templateName": "FixtureEastHills",
+          "displayName": "Xenoforming",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 42
+          },
+          "xenoformingLevel": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionXenoformingState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionAlienActivityState": [
+      {
+        "Key": {
+          "value": 104
+        },
+        "Value": {
+          "ID": {
+            "value": 104
+          },
+          "templateName": "FixtureNorthCoast",
+          "displayName": "Alien Activity",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 40
+          },
+          "alienMissionsDetected": [
+            {
+              "Key": {
+                "value": 16
+              },
+              "Value": []
+            }
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionAlienActivityState"
+        }
+      },
+      {
+        "Key": {
+          "value": 114
+        },
+        "Value": {
+          "ID": {
+            "value": 114
+          },
+          "templateName": "FixtureSouthPlain",
+          "displayName": "Alien Activity",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 41
+          },
+          "alienMissionsDetected": {},
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionAlienActivityState"
+        }
+      },
+      {
+        "Key": {
+          "value": 124
+        },
+        "Value": {
+          "ID": {
+            "value": 124
+          },
+          "templateName": "FixtureEastHills",
+          "displayName": "Alien Activity",
+          "archived": false,
+          "exists": true,
+          "region": {
+            "value": 42
+          },
+          "alienMissionsDetected": {},
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionAlienActivityState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIMegafaunaArmyState": [
+      {
+        "Key": {
+          "value": 51
+        },
+        "Value": {
+          "ID": {
+            "value": 51
+          },
+          "templateName": null,
+          "displayName": "Fixture Megafauna",
+          "archived": false,
+          "exists": true,
+          "currentRegion": {
+            "value": 42
+          },
+          "faction": {
+            "value": 16
+          },
+          "homeRegion": {
+            "value": 42
+          },
+          "priorRegion": {
+            "value": 42
+          },
+          "strength": 1.0,
+          "operationTarget": null,
+          "destroyed": false,
+          "armyType": "Alien",
+          "deploymentType": "Land",
+          "destinationQueue": [],
+          "currentOperations": [],
+          "destinationSeaDate": null,
+          "embarkDate": null,
+          "huntingXenofauna": false,
+          "bonusTechLevel": 0.0,
+          "$type": "PavonisInteractive.TerraInvicta.TIMegafaunaArmyState"
+        }
+      }
+    ]
+  }
+}

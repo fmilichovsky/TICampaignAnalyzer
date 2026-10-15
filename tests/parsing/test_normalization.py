@@ -222,7 +222,7 @@ def test_nation_and_region_references_resolve_through_documented_domains(politic
     region = by_id(political.regions, "42")
     assert region.get("nation") == ref(EntityDomain.NATION, "21", "TINationState")
     assert region.get("armies") == (ref(EntityDomain.ARMY, "51", "TIMegafaunaArmyState"),)
-    assert region.get("alienFacility") == FrozenMap((("value", 70),))
+    assert region.get("alienFacility") == unresolved(70)  # the fixture carries no alien sub-states
     assert region.get("leadOccupier") is None
 
     faction = by_id(political.factions, "10")
@@ -240,7 +240,7 @@ REGION_FACILITIES = {
 }
 
 
-def test_region_sub_states_stay_raw_and_scalars_flags_and_original_colony_are_copied() -> None:
+def test_region_facilities_stay_raw_alien_sub_states_resolve_and_scalars_are_copied() -> None:
     facilities = {name: {"value": 100 + offset} for offset, name in enumerate(REGION_FACILITIES)}
     typed_facilities = [
         {"$type": STATE_PREFIX + state_type, "value": 100 + offset}
@@ -281,18 +281,20 @@ def test_region_sub_states_stay_raw_and_scalars_flags_and_original_colony_are_co
             STATE_PREFIX + state_type: [pair(100 + offset)]
             for offset, state_type in enumerate(REGION_FACILITIES.values())
         },
-        STATE_PREFIX + "TIRegionUFOCrashdownState": [pair(110)],
-        STATE_PREFIX + "TIRegionUFOLandingState": [pair(111)],
+        STATE_PREFIX + "TIRegionUFOCrashdownState": [pair(110, region={"value": 40})],
+        STATE_PREFIX + "TIRegionUFOLandingState": [pair(111, region={"value": 40})],
     }
     snapshot, report = collect(fragment_raw(gamestates))
     assert [key for key in keys(report) if key[1] == "TIRegionState"] == []
 
     full = by_id(snapshot.regions, "40")
     assert full.get("originalColony") == ref(EntityDomain.NATION, "21", "TINationState")
-    # Facility and UFO sub-state types have no entity domain: copied raw, like alienFacility.
+    # Facility state types have no entity domain and are copied raw; the alien sub-states resolve both ways.
     assert full.get("boostFacility") == FrozenMap((("value", 100),))
-    assert full.get("alienCrashdown") == FrozenMap((("value", 110),))
-    assert full.get("alienLanding") == FrozenMap((("value", 111),))
+    assert full.get("alienCrashdown") == ref(EntityDomain.REGION_ALIEN_STATE, "110", "TIRegionUFOCrashdownState")
+    assert full.get("alienLanding") == ref(EntityDomain.REGION_ALIEN_STATE, "111", "TIRegionUFOLandingState")
+    crashdown = by_id(snapshot.region_alien_states, "110")
+    assert crashdown.get("region") == ref(EntityDomain.REGION, "40", "TIRegionState")
     assert full.get("spaceFacilities") == tuple(freeze(item) for item in typed_facilities)
     assert full.get("annexationBeginDate") is None
     assert full.get("boostPerYear_dekatons") == 1.5

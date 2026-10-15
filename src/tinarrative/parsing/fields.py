@@ -18,6 +18,15 @@ from .references import ExpectedDomains, as_domains
 
 COMMON_FIELDS = ("templateName", "displayName", "archived", "exists")
 
+REGION_ALIEN_STATE_TYPES = (
+    "TIRegionUFOCrashdownState",
+    "TIRegionUFOLandingState",
+    "TIRegionAlienFacilityState",
+    "TIRegionXenoformingState",
+    "TIRegionAlienActivityState",
+)
+"""The per-region alien sub-states: one entry per region each, with a ``region`` back-reference (observed)."""
+
 _ARMY_FIELDS = COMMON_FIELDS + (
     "currentRegion",
     "faction",
@@ -241,6 +250,12 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "cohesionGainByNation",
     ),
     "TIFederationState": COMMON_FIELDS + ("members", "federationName", "adjective"),
+    "TIRegionUFOCrashdownState": COMMON_FIELDS + ("region", "crashdownPresent"),
+    "TIRegionUFOLandingState": COMMON_FIELDS
+    + ("region", "landingPresent", "deployingArmy", "supportingArmyBuildup", "currentHP"),
+    "TIRegionAlienFacilityState": COMMON_FIELDS + ("region", "built", "currentHP"),
+    "TIRegionXenoformingState": COMMON_FIELDS + ("region", "xenoformingLevel"),
+    "TIRegionAlienActivityState": COMMON_FIELDS + ("region", "alienMissionsDetected"),
     "TIHabState": COMMON_FIELDS
     + (
         "faction",
@@ -309,6 +324,7 @@ _REGION = (EntityDomain.REGION, False)
 _NATION = (EntityDomain.NATION, False)
 _NATION_LIST = (EntityDomain.NATION, True)
 _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
+_ALIEN_STATE = (EntityDomain.REGION_ALIEN_STATE, False)
 _PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP)), False)
 """A councilor location: observed to point at a ``TIRegionState``, a ``TIHabState`` or (once) a ``TISpaceShipState``."""
 
@@ -350,6 +366,11 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "nation": (EntityDomain.NATION, False),
         "originalColony": (EntityDomain.NATION, False),
         "armies": _ARMY_LIST,
+        "alienFacility": _ALIEN_STATE,
+        "alienActivity": _ALIEN_STATE,
+        "xenoforming": _ALIEN_STATE,
+        "alienCrashdown": _ALIEN_STATE,
+        "alienLanding": _ALIEN_STATE,
     },
     "TICouncilorState": {
         "faction": _FACTION,
@@ -373,6 +394,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     "TIFederationState": {
         "members": _NATION_LIST,
     },
+    **{state_type: {"region": _REGION} for state_type in REGION_ALIEN_STATE_TYPES},
     "TISpaceFleetState": {
         "ships": (EntityDomain.SHIP, True),
         "parentFleet": (EntityDomain.FLEET, False),
@@ -396,11 +418,10 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
 """Reference fields and their observed target domain(s); ``True`` marks a list of references.
 
 Reference-shaped fields whose observed target type has no ``EntityDomain`` (officers, missions, sectors,
-hab modules, region facility and alien sub-states) or whose target was never observed non-null
+hab modules, region facilities) or whose target was never observed non-null
 (``agentForFaction``, ``storedFaction``, a war's ``nukedRegions`` and ``annexedRegions``: empty in every observed
 war) are deliberately absent and stay raw. A fleet's ``bombardmentTarget`` and
-``currentOperations`` stay raw too: their targets include a domain-less ``TIRegionXenoformingState``, and operation
-dates can be ``$ref`` graph nodes.
+``currentOperations`` stay raw too: operation dates can be ``$ref`` graph nodes.
 """
 
 KEYED_LIST_FIELDS: dict[str, dict[str, str]] = {
@@ -418,6 +439,7 @@ PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TICouncilorState": {"assassinations": EntityDomain.FACTION},
     "TISpaceFleetState": {"displayNameByFaction": EntityDomain.FACTION},
     "TIWarState": {"peaceOfferHistory": EntityDomain.NATION, "cohesionGainByNation": EntityDomain.NATION},
+    "TIRegionAlienActivityState": {"alienMissionsDetected": EntityDomain.FACTION},
 }
 """Entity fields serialized as a field-level pair map, with the keys' observed target domain(s); ``None`` marks
 integer keys (``tracker_PCGDP_ByQuarter``: quarter index -> value), which are not references.
@@ -441,10 +463,12 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.SPACE_OBJECT, "TIHabState", "habs"),
     (EntityDomain.WAR, "TIWarState", "wars"),
     (EntityDomain.FEDERATION, "TIFederationState", "federations"),
+    *((EntityDomain.REGION_ALIEN_STATE, state_type, "region_alien_states") for state_type in REGION_ALIEN_STATE_TYPES),
 )
 """(domain, short state type, ``SaveSnapshot`` attribute) for each normalized collection.
 
-Several state types may feed one attribute (both army types fill ``armies``).
+Several state types may feed one attribute (both army types fill ``armies``; the five region alien sub-states
+fill ``region_alien_states``).
 """
 
 SERIALIZATION_FIELDS = ("$type", "ID", "finderSortOverride", "gameStateSubjectCreated")
@@ -496,6 +520,9 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     "TIWarState": {
         "startDate": RecordField(RecordKind.DATE),
         "dateOfLastFighting": RecordField(RecordKind.DATE),
+    },
+    "TIRegionUFOCrashdownState": {
+        "crashdownTime": RecordField(RecordKind.DATE),
     },
 }
 """Save-carried record fields per state type: dated logs and cumulative counters not derivable from the snapshot.

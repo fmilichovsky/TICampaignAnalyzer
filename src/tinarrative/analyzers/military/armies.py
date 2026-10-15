@@ -2,9 +2,10 @@
 
 The ``destroyed`` flag is the only place this analyzer uses that word, because the save carries it literally.
 An army present in one snapshot only is reported as absent from (or present only in) that snapshot; whether
-it was disbanded, lost in battle or merged is a reconstruction question. ``priorRegion``, ``operationTarget``,
-``destinationQueue``, ``currentOperations``, the transit dates, ``huntingXenofauna`` and ``bonusTechLevel``
-stay in the diff.
+it was disbanded, lost in battle or merged is a reconstruction question. A presence event of a
+``TIMegafaunaArmyState`` army carries ``megafauna = True``; regular armies carry no such attribute.
+``priorRegion``, ``operationTarget``, ``destinationQueue``, ``currentOperations``, the transit dates,
+``huntingXenofauna`` and ``bonusTechLevel`` stay in the diff.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityRef
 from ...model.events import Event, SourceRole
 from ...model.snapshot import SaveSnapshot
+from ...model.values import Observed
 from ..common import (
     ChangeIndex,
     EventBuilder,
@@ -38,6 +40,7 @@ DEPLOYMENT_TYPE_CHANGED = "army.deployment_type_changed"
 HOME_REGION_CHANGED = "army.home_region_changed"
 APPEARED = "army.appeared"
 DISAPPEARED = "army.disappeared"
+MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 
 LIST_FIELD = "armies"
 LIST_OWNERS = (EntityDomain.FACTION, EntityDomain.NATION, EntityDomain.REGION)
@@ -124,14 +127,14 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
             cited = ledger.claim(owner, LIST_FIELD, army_id, membership, SourceRole.CORROBORATING)
             if cited is not None:
                 sources.append(cited)
+    army = lookup.ref(army_id)
+    attributes: list[tuple[str, Observed]] = [("side", side.value)]
+    if army is not None and army.state_type == MEGAFAUNA_STATE_TYPE:
+        attributes.append(("megafauna", True))
     return build.event(
         APPEARED if appeared else DISAPPEARED,
         id_parts=(army_id,),
         sources=sources,
-        entities=(
-            lookup.ref(army_id),
-            lookup.ref_field(army_id, "faction", side),
-            lookup.ref_field(army_id, "currentRegion", side),
-        ),
-        attributes=(("side", side.value),),
+        entities=(army, lookup.ref_field(army_id, "faction", side), lookup.ref_field(army_id, "currentRegion", side)),
+        attributes=attributes,
     )

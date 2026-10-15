@@ -82,5 +82,13 @@ identity:
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none
     TIFederationState: absent
+  region alien state: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIRegionUFOCrashdownState: absent
+    TIRegionUFOLandingState: absent
+    TIRegionAlienFacilityState: absent
+    TIRegionXenoformingState: absent
+    TIRegionAlienActivityState: absent
 selected paths: none
 diagnostics: none

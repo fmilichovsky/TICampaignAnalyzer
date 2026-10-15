@@ -66,6 +66,19 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
     ),
     IdentityStrategy(EntityDomain.WAR, ("TIWarState",), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(EntityDomain.FEDERATION, ("TIFederationState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(
+        EntityDomain.REGION_ALIEN_STATE,
+        (
+            "TIRegionUFOCrashdownState",
+            "TIRegionUFOLandingState",
+            "TIRegionAlienFacilityState",
+            "TIRegionXenoformingState",
+            "TIRegionAlienActivityState",
+        ),
+        _NUMERIC_ID,
+        _IN_SAVE,
+        None,
+    ),
 )
 
 

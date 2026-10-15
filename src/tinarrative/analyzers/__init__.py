@@ -1,5 +1,6 @@
 """Modular, domain-specific atomic-event analyzers."""
 
+from .aliens import RegionAlienAnalyzer
 from .base import Analyzer
 from .common import run_analyzers
 from .military import ArmyAnalyzer
@@ -18,10 +19,14 @@ POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
 MILITARY_ANALYZERS: tuple[Analyzer, ...] = (ArmyAnalyzer(),)
 SPACE_ANALYZERS: tuple[Analyzer, ...] = (FleetAnalyzer(), ShipAnalyzer(), HabAnalyzer())
 TECHNOLOGY_ANALYZERS: tuple[Analyzer, ...] = (TechnologyAnalyzer(),)
-ALL_ANALYZERS: tuple[Analyzer, ...] = POLITICS_ANALYZERS + MILITARY_ANALYZERS + SPACE_ANALYZERS + TECHNOLOGY_ANALYZERS
+ALIEN_ANALYZERS: tuple[Analyzer, ...] = (RegionAlienAnalyzer(),)
+ALL_ANALYZERS: tuple[Analyzer, ...] = (
+    POLITICS_ANALYZERS + MILITARY_ANALYZERS + SPACE_ANALYZERS + TECHNOLOGY_ANALYZERS + ALIEN_ANALYZERS
+)
 """Every family; each handled reference list is owned by exactly one analyzer, so IDs never collide."""
 
 __all__ = [
+    "ALIEN_ANALYZERS",
     "ALL_ANALYZERS",
     "MILITARY_ANALYZERS",
     "POLITICS_ANALYZERS",

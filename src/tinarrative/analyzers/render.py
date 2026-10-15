@@ -177,7 +177,17 @@ def _presence_with(domain: EntityDomain, prefix: str) -> Callable[[Event], str]:
 def _army_presence(event: Event) -> str:
     faction = _name(_entity(event, EntityDomain.FACTION))
     region = _name(_entity(event, EntityDomain.REGION))
-    return f"{_subject(event)} (faction {faction}, region {region}) {_presence(event)}"
+    text = f"{_subject(event)} (faction {faction}, region {region}) {_presence(event)}"
+    return text + " (megafauna)" if event.attribute("megafauna") is True else text
+
+
+def _crashdown_changed(event: Event) -> str:
+    if event.sources and event.sources[0].change.field == "crashdownTime":
+        return f"{_subject(event)} {_transition(event, 'crashdown time')}"
+    text = f"{_subject(event)} {_transition(event, 'crashdown present')}"
+    if not isinstance(event.attribute("crashdown_time"), Unknown):
+        text += f"; crashdown time {_text(event, 'crashdown_time')}"
+    return text
 
 
 def _destruction_recorded(event: Event) -> str:
@@ -246,6 +256,10 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "army.home_region_changed": _with_context("home region", EntityDomain.FACTION),
     "army.appeared": _army_presence,
     "army.disappeared": _army_presence,
+    "region.crashdown_changed": _crashdown_changed,
+    "region.landing_changed": _plain("landing present"),
+    "region.alien_facility_changed": _plain("alien facility built"),
+    "region.xenoforming_changed": _plain("xenoforming level"),
     "faction.armies_changed": _list_changed,
     "nation.armies_changed": _list_changed,
     "region.armies_changed": _list_changed,

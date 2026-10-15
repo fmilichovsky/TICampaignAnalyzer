@@ -238,6 +238,28 @@
       "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
       "sha256": "d65cedacb2a9667781fd4451616f45fce157606a3daa10a3c4d6f63fb9218f51",
       "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed."
+    },
+    {
+      "path": "aliens_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "7aa70b2053c237c940d298d925e73a9df58dd04dc855ea0eb5779513ea89c278",
+      "purpose": "Earlier snapshot of a synthetic interval for the region alien analyzer; pair with aliens_after.json. Regions 40..42, each with all five alien sub-states (crashdown, landing, facility, xenoforming, activity; IDs 100..124) linked both ways, region 41 xenoforming at 3.0, and faction 16 with no armies."
+    },
+    {
+      "path": "aliens_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
+      "sha256": "216453adb91e993f595a0df2e575ee662b7b2e62549545f0e6c61dbdd33c7e01",
+      "purpose": "Later snapshot of the same synthetic interval: region 40 has a crashdown with a crashdown time inside the interval and xenoforming rising from 0 to 2.5, region 41 xenoforming dropping to 0 and its facility built, region 42 a landing present and a megafauna army 51 of faction 16 (listed by the faction and the region), and region 40's activity lists missions detected by faction 16."
     }
   ]
 }

@@ -20,6 +20,7 @@ class EntityDomain(StrEnum):
     TECHNOLOGY = "technology"
     WAR = "war"
     FEDERATION = "federation"
+    REGION_ALIEN_STATE = "region alien state"
 
 
 class IdentityConfidence(StrEnum):
