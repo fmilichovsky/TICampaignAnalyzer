@@ -137,8 +137,15 @@ types, fleets, ships, habs, a hab destruction log and the research singleton);
 `tests/analyzers/test_asset_fixture_pairs.py` runs those families over it and
 over the `interval_*` pair with the same invariants, allows the words
 *destroy* and *refit* only when the primary source is the save field that
-carries them, and runs every family together over all four pairs to prove the
-event IDs never collide. Like every pair, neither is a `diff` golden.
+carries them, and runs every family together over all the pairs to prove the
+event IDs never collide. `wars_before.json` / `wars_after.json` is the war and
+federation pair: nations with mirrored `wars` lists and `federation`
+references, a war that disappears, one that appears with a `startDate` inside
+the interval, one that gains an alliance member and a later
+`dateOfLastFighting`, a federation that gains and loses a member, and one
+`wars` entry no war explains. The politics fixture-pair test also keeps the
+words *declared*, *won*, *lost* and *peace* out of every `war.*` and
+`federation.*` line. Like every pair, none is a `diff` golden.
 The opt-in `real_save` analyzer test reuses `TINARRATIVE_REAL_SAVE` and
 `TINARRATIVE_REAL_SAVE_AFTER` and prints nothing.
 

@@ -573,6 +573,30 @@
         }
       }
     ],
+    "PavonisInteractive.TerraInvicta.TIFederationState": [
+      {
+        "Key": {
+          "value": 80
+        },
+        "Value": {
+          "ID": {
+            "value": 80
+          },
+          "templateName": null,
+          "displayName": "Fixture Federation",
+          "archived": false,
+          "exists": true,
+          "members": [
+            {
+              "value": 21
+            }
+          ],
+          "federationName": "Fixture Federation",
+          "adjective": "Fixture",
+          "$type": "PavonisInteractive.TerraInvicta.TIFederationState"
+        }
+      }
+    ],
     "PavonisInteractive.TerraInvicta.TIWarState": {},
     "PavonisInteractive.TerraInvicta.TIFixtureUnknownState": [
       {

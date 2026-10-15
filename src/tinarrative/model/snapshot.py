@@ -81,6 +81,8 @@ STATE_COLLECTIONS = (
     "habs",
     "organizations",
     "technologies",
+    "wars",
+    "federations",
 )
 """Every ``SaveSnapshot`` field holding entity states; extend this when adding a domain."""
 
@@ -95,6 +97,8 @@ NORMALIZED_COLLECTION_LABELS = (
     ("ships", "ships"),
     ("habs", "habs"),
     ("technologies", "technologies"),
+    ("wars", "wars"),
+    ("federations", "federations"),
 )
 """(attribute, display label) for the collections the normalizer currently fills."""
 
@@ -132,6 +136,8 @@ class SaveSnapshot:
     habs: tuple[EntityState, ...] = ()
     organizations: tuple[EntityState, ...] = ()
     technologies: tuple[EntityState, ...] = ()
+    wars: tuple[EntityState, ...] = ()
+    federations: tuple[EntityState, ...] = ()
     research: ResearchState = field(default_factory=ResearchState)
     records: tuple[RecordSet, ...] = ()
     raw_metadata: tuple[tuple[str, FieldValue], ...] = ()

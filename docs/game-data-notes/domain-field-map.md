@@ -20,7 +20,8 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 | Habs | `TIHabState` | `faction`, `orbitState`, `habSite`, `barycenter`, `sectors`, `districts`, `dockedFleets`, `councilorsOnBoard`, `officersOnBoard`, `advisingCouncilors`, `habType`, `tier`, `inCombat`, `underAssault`, `underBombardment`, `anyCoreCompleted`, `coreDefended`, `coreDefendExpiration`, `staticHab`, `inEarthLEO`, `globalPosition` |
 | Hab modules | `TIHabModuleState` | `sector`, `slot`, `constructionCompleted`, `decommissioning`, `destroyed`, `powered`, `priorModuleCompleted`, `startBuildDate`, `completionDate`, `decommissionDate` (strings), `destroyedTime`, `buildCost`; not normalized |
 | Research | `TIGlobalResearchState` | `finishedTechsNames`, `finishedOneTimeOnlyProjectNames`, `techProgress` (elements: `techTemplateName`, `accumulatedResearch`, `factionContributions`, `selector`), `campaignStartYear`, `endGameTechsCompletedByCategory` |
-| Federation and war | `TIFederationState`, `TIWarState` | federation `members`, name/adjective fields; `TIWarState` was present but empty in this sample |
+| Wars | `TIWarState` | `attacker`, `defender`, `originalAttacker`, `originalDefender`, `_attackingAlliance`, `_defendingAlliance`, `nukedRegions`, `annexedRegions` (empty in every observed war; copied raw), `defensiveNukes`, `peaceOfferHistory`, `cohesionGainByNation` (pair maps, see below); `startDate` and `dateOfLastFighting` are save-carried records. The container was an empty `{}` in the first inspected sample |
+| Federations | `TIFederationState` | `members`, `federationName` (string or `null`), `adjective` |
 
 Every inspected entity in the normalized types also carried `templateName`, `displayName`, `archived`, and `exists`. Observed on 2026-10-09 in two private complete saves (structure only): every field named above for councilors, armies, fleets, ships, habs, hab modules, and research is present in every entry of its type, and the field-name sets of both saves are identical.
 
@@ -66,7 +67,13 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TINationState` | `regions`, `claims` | list of references | `TIRegionState` |
 | `TINationState` | `allies`, `rivals`, `wars`, `breakaways` | list of references | `TINationState` |
 | `TINationState` | `breakawayParent` | reference or `null` | `TINationState` |
-| `TINationState` | `federation` | reference or `null` | `TIFederationState` |
+| `TINationState` | `federation` | reference or `null`; mirrors the federation's `members` in every nation of eight private saves (2026-10-15) | `TIFederationState` |
+| `TIWarState` | `attacker`, `defender`, `originalAttacker`, `originalDefender` | reference (2026-10-15, eight private saves of two campaigns) | `TINationState` |
+| `TIWarState` | `_attackingAlliance`, `_defendingAlliance` | list of references; `attacker` is always in `_attackingAlliance` and `defender` in `_defendingAlliance`, and the nations' `wars` lists hold exactly the attacking × defending pairs, both directions (2026-10-15, eight saves) | `TINationState` |
+| `TIWarState` | `peaceOfferHistory[].Key` | pair-map key reference (`{}` when empty; `Value` a list of objects, copied raw; 2026-10-15) | `TINationState` |
+| `TIWarState` | `cohesionGainByNation[].Key` | pair-map key reference (`Value` a number; 2026-10-15) | `TINationState` |
+| `TIWarState` | `nukedRegions`, `annexedRegions` | empty list in every observed war | not observed |
+| `TIFederationState` | `members` | list of references (2026-10-15, eight saves) | `TINationState` |
 | `TINationState` | `originalCapital` | reference or `null` (`null` on one nation; 2026-10-14, five private saves) | `TIRegionState` |
 | `TINationState` | `hostileClaims` | list of references (non-empty on 11–12 nations per save; 2026-10-14) | `TIRegionState` |
 | `TINationState` | `factionUnrestAttempts[].Key` | pair-map key reference (`{}` when empty; non-empty on 8–9 nations per save, `Value` a number; 2026-10-14) | `TIFactionState` |
@@ -156,6 +163,7 @@ Observed on 2026-10-13 in five private complete saves of one campaign (2045-08 t
 | `TIFactionState` | `abductions`, `alienInvestigations`, `aliensRemoved`, `atrocities` | `counter` | cumulative number | — |
 | `TIFactionState` | `intelSharingFactions` | `reference_list` | list of references (empty or one in the sample) | `TIFactionState` |
 | `TINationState` | `dateOfNewGovernment` | `date` | componentized date or `null`; set on 43 of 295 nations | — |
+| `TIWarState` | `startDate`, `dateOfLastFighting` | `date` | componentized date (2026-10-15, eight private saves); a war that appeared in an interval had its `startDate` inside it; `dateOfLastFighting` moved later in both newer intervals | — |
 | `TINationState` | `lastExecutiveChange` | `executive_change` | object `{newExecutive, date, cause}`; `newExecutive` and `date` may be `null`; causes seen: `None`, `Politics`, `Independence`, `Coup`, `RegimeChange`, `Enthrall` | `newExecutive` -> `TIFactionState` |
 
 *Hypothesis:* `knownAlienSites` keys whose ID is absent from the save are sites on bodies or habs that no longer exist; not checked.
@@ -225,6 +233,8 @@ Every `Value` object also carries the serializer members `$type`, `ID`, `finderS
 | `TIMetadataState` | `ui_cache` | `lastCompletedObjectiveArtPath`, `lastCompletedObjectiveName`, `playerFactionGradientPath`, `playerFactionIconPath` |
 | `TIMetadataState` | `runtime_internal` | `alienProgressionSpeed`, `averageMonthlyEvents`, `controlPointMaintenanceFreebieBonus`, `controlPointMaintenanceFreebieBonusAI`, `customDifficulty`, `miningProductivityMultiplier`, `missionControlBonus`, `missionControlBonusAI`, `nationalIPMultiplier`, `requiredDLC`, `researchSpeedMultiplier` |
 | `TIGlobalResearchState` | `runtime_internal` | `useHarshTree` |
+| `TIFederationState` | `ui_cache` | `displayNameWithArticle`, `displayNameWithArticleCapitalized`, `flagResource` |
+| `TIFederationState` | `runtime_internal` (`{}` in every observed federation) | `lastAttemptToLeaveDarkFederation` |
 
 Every other field observed on a normalized type or singleton that is neither in the table above, nor copied, nor a save-carried record is an open item in the [unknowns registry](unknowns/README.md); triage moves it into one of the three tables (`ENTITY_FIELDS`, `RECORD_FIELDS`, `ACKNOWLEDGED_FIELDS`). The 105 entries left after the 2026-10-13 triage were decided as *normalize* or as *save-carried records* and are tracked as GitHub issues; the 19 record fields landed on 2026-10-14 (issue #40), leaving the *normalize* entries open.
 

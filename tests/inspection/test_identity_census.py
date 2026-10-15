@@ -77,4 +77,6 @@ def test_every_documented_domain_is_present() -> None:
         "space object",
         "organization",
         "technology",
+        "war",
+        "federation",
     }

@@ -252,7 +252,8 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
         (("unexpected_singleton_count", "TITimeState", "", ""), False),
         (("unexpected_singleton_count", "TINationState", "", ""), True),
         (("unexpected_container_shape", "TIOrgState", "", PAIR_MAP_VIOLATION), False),
-        (("unexpected_container_shape", "TIWarState", "", PAIR_MAP_VIOLATION), True),
+        (("unexpected_container_shape", "TIWarState", "", PAIR_MAP_VIOLATION), False),
+        (("unexpected_container_shape", "TIMissionState", "", PAIR_MAP_VIOLATION), True),
         (("made_up_kind", "TINationState", "", ""), False),
     ],
 )

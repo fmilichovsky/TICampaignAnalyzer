@@ -74,5 +74,13 @@ identity:
     id_source: gamestates/TIGlobalResearchState[0].Value.finishedTechsNames[], techProgress[].techTemplateName
     secondary_key: none
     TIGlobalResearchState: absent
+  war: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIWarState: absent
+  federation: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIFederationState: absent
 selected paths: none
 diagnostics: none

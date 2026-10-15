@@ -1,16 +1,16 @@
 tinarrative inspect report
 file: political_control.json
-  size_bytes: 14373
-  sha256: 9986623af9c7d811882c3e55690babb5fe9448ca1e56536ac06ecab4d5d27752
+  size_bytes: 14968
+  sha256: b68746af5a423425553740eb56ec36a07fd158b61bd9ab2df23755539b979e67
   leading_bytes: 7b 0a 20 20 22 63 75 72
   utf8_bom: no
   line_endings: lf
-  decoded_chars: 14373
+  decoded_chars: 14968
 decode: ok (json)
 root: object (2 keys)
 top-level keys:
   currentID: object (1 key)
-  gamestates: object (11 keys)
+  gamestates: object (12 keys)
 currentID keys:
   value: number
 gamestates keys:
@@ -23,10 +23,11 @@ gamestates keys:
   PavonisInteractive.TerraInvicta.TIControlPoint: array (4 items)
   PavonisInteractive.TerraInvicta.TIArmyState: array (1 item)
   PavonisInteractive.TerraInvicta.TIMegafaunaArmyState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIFederationState: array (1 item)
   PavonisInteractive.TerraInvicta.TIWarState: object (0 keys)
   PavonisInteractive.TerraInvicta.TIFixtureUnknownState: array (1 item)
 identity:
-  ids: 17 distinct, 0 shared across state types
+  ids: 18 distinct, 0 shared across state types
   max_observed_id: 90
   currentID: 999
   faction: confidence=in-save-id
@@ -79,5 +80,13 @@ identity:
     id_source: gamestates/TIGlobalResearchState[0].Value.finishedTechsNames[], techProgress[].techTemplateName
     secondary_key: none
     TIGlobalResearchState: absent
+  war: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIWarState: 0 entries, ids none, key==id 0, mismatch 0, missing 0, duplicate 0
+  federation: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIFederationState: 1 entries, ids 80..80, key==id 1, mismatch 0, missing 0, duplicate 0
 selected paths: none
 diagnostics: none

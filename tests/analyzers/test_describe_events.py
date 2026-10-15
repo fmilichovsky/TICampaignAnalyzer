@@ -18,7 +18,7 @@ EXPECTED_INTERVAL = {
     'councilor:100 (faction:15) location: region:40 -> unknown (unresolved_reference, raw={"$type": '
     '"PavonisInteractive.TerraInvicta.TIRegionState", "value": 999})',
     "faction:15 councilors list: -councilor:101",
-    'nation:20 federation: null -> {"value": 80} (unmodelled state type)',
+    "federation:80 members: +nation:20",
     "nation:20 and nation:21: allies entry removed (listed by nation:20 only)",
     "nation:20 and nation:22: allies entry added (listed by both)",
 }
@@ -101,6 +101,16 @@ EXPECTED_ASSETS = {
     "technology:FixtureTechD (finished true) is absent from the after snapshot",
 }
 
+EXPECTED_WARS = {
+    "war:92 (nation:23, nation:25) is present only in the after snapshot; start date 2032-02-20T00:00:00",
+    "war:91 (nation:22, nation:23) is absent from the after snapshot",
+    "war:90 attacking side: +nation:22",
+    'war:90 date of last fighting: "2031-12-10T00:00:00" -> "2032-03-15T00:00:00"',
+    "federation:80 members: +nation:20",
+    "federation:80 members: -nation:25",
+    "nation:21 and nation:24: wars entry added (listed by nation:24 only)",
+}
+
 
 def lines(before_name: str, after_name: str, analyzers: tuple[Analyzer, ...] = POLITICS_ANALYZERS) -> set[str]:
     before, after, diff = fixture_pair(before_name, after_name)
@@ -111,7 +121,8 @@ def test_every_politics_event_type_has_a_template() -> None:
     assert lines("interval_before.json", "interval_after.json") == EXPECTED_INTERVAL
     assert lines("records_before.json", "records_after.json") == EXPECTED_RECORDS
     assert lines("politics_before.json", "politics_after.json") == EXPECTED_POLITICS
-    assert all(line.isascii() for line in EXPECTED_INTERVAL | EXPECTED_RECORDS | EXPECTED_POLITICS)
+    assert lines("wars_before.json", "wars_after.json") == EXPECTED_WARS
+    assert all(line.isascii() for line in EXPECTED_INTERVAL | EXPECTED_RECORDS | EXPECTED_POLITICS | EXPECTED_WARS)
 
 
 def test_every_asset_event_type_has_a_template() -> None:

@@ -19,8 +19,8 @@ The work items derived from this page are issues #64 to #73, listed under the re
 
 | Source | Normalized today? | Supports | Lifecycle observed |
 | --- | --- | --- | --- |
-| `TIWarState` | No (type has no domain) | war declared, nation joins, peace | appears with `startDate` in the interval, disappears at peace |
-| `TIFederationState` | No (referenced raw by `nation.federation`) | nation joins or leaves a federation | `members` grew 4 → 5 → 7 across the older sample |
+| `TIWarState` | Yes (`war` domain, issue #64) | war declared, nation joins, peace | appears with `startDate` in the interval, disappears at peace |
+| `TIFederationState` | Yes (`federation` domain, issue #64) | nation joins or leaves a federation | `members` grew 4 → 5 → 7 across the older sample |
 | `TIGlobalValuesState` | No (singleton not read) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
 | Five `TIRegion*State` alien substates | No (referenced raw from the region) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
@@ -48,13 +48,21 @@ moved in both newer intervals while `attacker`/`defender` did not. *Hypothesis:*
 `annexedRegions` hold region references; `attacker`/`defender` can differ from the `original*` pair when
 leadership of an alliance passes (observed once, not explained).
 
+Re-checked on 2026-10-15 in the same eight saves (structure and set equality only): `attacker` was a member of
+`_attackingAlliance` and `defender` of `_defendingAlliance` in every war; the set of nation `wars` entries equalled the
+attacking × defending alliance pairs, in both directions, in every save (2 to 16 entries), with no entry outside a
+war. The war analyzer relies on this to cite the `wars` entries as corroboration of a war appearing, disappearing or
+gaining an alliance member; an entry that no war explains is still reported on its own.
+
 ## `TIFederationState`
 
 Fields: `members` (list of nation references), `federationName` (string or `null`), `adjective`,
 `displayName`, `displayNameWithArticle`, `displayNameWithArticleCapitalized`, `flagResource` (resource
 path string), `lastAttemptToLeaveDarkFederation` (`{}` in every observed entry), `templateName` (`null`).
 One federation in the older sample, two in the newer; `nation.federation` references resolve to these
-entries. A federation ID was stable across all saves of its campaign.
+entries. A federation ID was stable across all saves of its campaign. Re-checked on 2026-10-15: in every save each
+federation member's `federation` named that federation, and the number of nations with a non-null `federation`
+equalled the total member count (4 to 29), so the two are exact mirrors.
 
 ## `TIGlobalValuesState` (singleton)
 

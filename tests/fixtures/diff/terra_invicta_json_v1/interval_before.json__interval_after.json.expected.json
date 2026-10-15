@@ -915,6 +915,43 @@
       }
     },
     {
+      "domain": "federation",
+      "entity_id": "federation:80",
+      "field": "members",
+      "kind": "membership",
+      "before": [],
+      "after": [
+        {
+          "ref": "nation:20",
+          "state_type": "TINationState",
+          "confidence": "in-save-id"
+        }
+      ],
+      "detail": {
+        "added": [
+          {
+            "ref": "nation:20",
+            "state_type": "TINationState",
+            "confidence": "in-save-id"
+          }
+        ],
+        "removed": []
+      },
+      "description": "members membership changed: 1 added, 0 removed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIFederationState",
+        "map_id": 80,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFederationState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIFederationState",
+        "map_id": 80,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIFederationState/0/Value"
+      }
+    },
+    {
       "domain": "fleet",
       "entity_id": "fleet:120",
       "field": "dockedLocation",
@@ -1174,7 +1211,9 @@
       "kind": "value",
       "before": null,
       "after": {
-        "value": 80
+        "ref": "federation:80",
+        "state_type": "TIFederationState",
+        "confidence": "in-save-id"
       },
       "detail": null,
       "description": "federation changed",

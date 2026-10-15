@@ -9,7 +9,9 @@ from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.politics.control_points import HANDLED_LISTS as POINT_LISTS
 from tinarrative.analyzers.politics.councilors import HANDLED_LISTS as COUNCILOR_LISTS
+from tinarrative.analyzers.politics.federations import HANDLED_LISTS as FEDERATION_LISTS
 from tinarrative.analyzers.politics.nations import HANDLED_LISTS as NATION_LISTS
+from tinarrative.analyzers.politics.wars import HANDLED_LISTS as WAR_LISTS
 from tinarrative.analyzers.render import describe_event
 from tinarrative.model.changes import ChangeKind, MembershipDetail, StateDiff
 from tinarrative.model.entities import EntityRef
@@ -21,12 +23,18 @@ PAIRS = [
     ("interval_before.json", "interval_after.json"),
     ("records_before.json", "records_after.json"),
     ("politics_before.json", "politics_after.json"),
+    ("wars_before.json", "wars_after.json"),
 ]
 FORBIDDEN = (
     "purg", "coup", "annex", "defect", "destroy", "kill", "recruit", "join", "conquer", "captur", "seiz",
     "assassin", "died", "death", "creat",
 )  # fmt: skip
-HANDLED = {(domain.value, field) for domain, field in POINT_LISTS + NATION_LISTS + COUNCILOR_LISTS}
+WAR_FORBIDDEN = ("declar", "won", "lost", "peace", "victor", "defeat", "surrender")
+"""Reconstruction vocabulary for wars; ``lost`` is fine elsewhere (``lostControlPoints`` is literal)."""
+HANDLED = {
+    (domain.value, field)
+    for domain, field in POINT_LISTS + NATION_LISTS + WAR_LISTS + FEDERATION_LISTS + COUNCILOR_LISTS
+}
 
 
 def run(before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> tuple[Event, ...]:
@@ -48,7 +56,7 @@ def test_interval_pair_yields_the_expected_events() -> None:
         "councilor.disappeared/councilor:101",
         "councilor.location_changed/councilor:100",
         "faction.councilors_changed/faction:15/councilor:101/removed",
-        "nation.federation_changed/nation:20",
+        "federation.members_changed/federation:80/nation:20/added",
         "nation.relation_changed/allies/nation:20/nation:21/removed",
         "nation.relation_changed/allies/nation:20/nation:22/added",
     ]
@@ -58,6 +66,11 @@ def test_interval_pair_yields_the_expected_events() -> None:
     assert by_id["councilor.appeared/councilor:102"].sources[1].change.field == "councilors"
     unresolved = by_id["councilor.location_changed/councilor:100"]
     assert unresolved.confidence is Confidence.LOW and unresolved.attribute("transition") == "unresolved"
+    joined = by_id["federation.members_changed/federation:80/nation:20/added"]
+    assert [(s.role, s.change.domain, s.change.field) for s in joined.sources] == [
+        (SourceRole.PRIMARY, "federation", "members"),
+        (SourceRole.CORROBORATING, "nation", "federation"),
+    ]
     assert by_id["nation.relation_changed/allies/nation:20/nation:22/added"].attribute("reciprocal") is True
     assert by_id["nation.relation_changed/allies/nation:20/nation:21/removed"].attribute("reciprocal") is False
     assert all(event.date_basis is DateBasis.INTERVAL for event in events)
@@ -118,6 +131,56 @@ def test_politics_pair_covers_every_transition_once() -> None:
 
 
 @pytest.mark.fixture
+def test_wars_pair_yields_war_and_federation_events_corroborated_by_the_nations() -> None:
+    before, after, diff = fixture_pair(*PAIRS[3])
+    events = run(before, after, diff)
+    assert sorted(ids(events)) == [
+        "federation.members_changed/federation:80/nation:20/added",
+        "federation.members_changed/federation:80/nation:25/removed",
+        "nation.relation_changed/wars/nation:21/nation:24/added",
+        "war.alliance_changed/war:90/attacking/nation:22/added",
+        "war.appeared/war:92",
+        "war.disappeared/war:91",
+        "war.last_fighting_changed/war:90",
+    ]
+    by_id = {event.id: event for event in events}
+
+    def cited(event_id: str) -> list[tuple[SourceRole, str, str | None]]:
+        return [(s.role, str(s.change.entity_id), s.change.field) for s in by_id[event_id].sources]
+
+    appeared = by_id["war.appeared/war:92"]
+    assert (appeared.date, appeared.date_basis) == ("2032-02-20T00:00:00", DateBasis.RECORD)
+    assert appeared.attribute("started_on") == "2032-02-20T00:00:00"
+    assert [str(ref.entity_id) for ref in appeared.entities] == ["war:92", "nation:23", "nation:25"]
+    assert cited("war.appeared/war:92")[-2:] == [
+        (SourceRole.CORROBORATING, "nation:23", "wars"),
+        (SourceRole.CORROBORATING, "nation:25", "wars"),
+    ]
+    start = next(s for s in appeared.sources if s.member == "startDate")
+    assert start.entry is not None and start.entry.path.endswith("/startDate")  # type: ignore[union-attr]
+    gone = by_id["war.disappeared/war:91"]
+    assert gone.date_basis is DateBasis.INTERVAL
+    assert cited("war.disappeared/war:91") == [
+        (SourceRole.PRIMARY, "war:91", None),
+        (SourceRole.CORROBORATING, "nation:22", "wars"),
+        (SourceRole.CORROBORATING, "nation:23", "wars"),
+    ]
+    assert cited("war.alliance_changed/war:90/attacking/nation:22/added") == [
+        (SourceRole.PRIMARY, "war:90", "_attackingAlliance"),
+        (SourceRole.CORROBORATING, "nation:21", "wars"),
+        (SourceRole.CORROBORATING, "nation:22", "wars"),
+    ]
+    fighting = by_id["war.last_fighting_changed/war:90"]
+    assert (fighting.date, fighting.date_basis) == ("2032-03-15T00:00:00", DateBasis.RECORD)
+    for member, transition in (("20", "added"), ("25", "removed")):
+        assert cited(f"federation.members_changed/federation:80/nation:{member}/{transition}") == [
+            (SourceRole.PRIMARY, "federation:80", "members"),
+            (SourceRole.CORROBORATING, f"nation:{member}", "federation"),
+        ]
+    assert by_id["nation.relation_changed/wars/nation:21/nation:24/added"].attribute("reciprocal") is False
+
+
+@pytest.mark.fixture
 @pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
 def test_every_event_is_evidenced_objective_and_deterministic(before_name: str, after_name: str) -> None:
     before, after, diff = fixture_pair(before_name, after_name)
@@ -167,5 +230,6 @@ def test_types_and_messages_never_name_a_cause(before_name: str, after_name: str
     before, after, diff = fixture_pair(before_name, after_name)
     for event in run(before, after, diff):
         text = f"{event.event_type} {describe_event(event)}".lower()
-        for word in FORBIDDEN:
+        war_words = WAR_FORBIDDEN if event.event_type.startswith(("war.", "federation.")) else ()
+        for word in FORBIDDEN + war_words:
             assert word not in text, (event.id, word)
