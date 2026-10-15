@@ -307,10 +307,12 @@ def value_transition_event(
     build: EventBuilder,
     *,
     context: Iterable[EntityRef | None] = (),
+    recorded_on: Observed = None,
 ) -> Event | None:
     """One field of an entity changed: the literal transition, the subject, ``context`` and both values' entities.
 
     ``None`` when a side is missing or unparseable (a schema gap, not a transition) or the change has no entity.
+    ``recorded_on`` dates the event by a record (see ``EventBuilder.event``).
     """
     transition = classify(change.before, change.after)
     if transition is None or change.entity_id is None:
@@ -323,6 +325,7 @@ def value_transition_event(
         entities=(lookup.ref(subject), *context, lookup.resolve(change.before), lookup.resolve(change.after)),
         attributes=transition_attributes(change, transition),
         confidence=confidence_for(transition),
+        recorded_on=recorded_on,
     )
 
 

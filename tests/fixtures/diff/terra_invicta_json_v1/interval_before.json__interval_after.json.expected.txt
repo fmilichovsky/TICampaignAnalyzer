@@ -5,12 +5,13 @@ before: interval_before.json
 after: interval_after.json
   date: "2031-06-01T00:00:00"
   game_version: not serialized
-changes: 57
+changes: 58
   army: 4
   campaign: 4
   control point: 6
   councilor: 8
   faction: 7
+  federation: 1
   fleet: 4
   nation: 8
   region: 4
@@ -48,6 +49,7 @@ changes:
   faction:15 resources: changed Money
   faction:16 armies: +army:112
   faction:16 controlPoints: -control point:12
+  federation:80 members: +nation:20
   fleet:120 dockedLocation: null -> space object:140
   fleet:120 orbitState: space object:61 -> null
   fleet:120 ships: [ship:130, ship:131] -> unknown (unresolved_reference, raw=[{"value": 130}, {"value": 999}])
@@ -56,7 +58,7 @@ changes:
   nation:20 allies: +nation:22 -nation:21
   nation:20 armies: -army:110
   nation:20 displayName: "Fixture Northland" -> "Fixture Northland Union"
-  nation:20 federation: null -> {"value": 80}
+  nation:20 federation: null -> federation:80
   nation:21 armies: +army:110
   nation:21 controlPoints: -control point:12
   nation:22 allies: +nation:20

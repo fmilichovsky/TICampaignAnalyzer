@@ -64,6 +64,8 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
         IdentityConfidence.NAME_KEY,
         None,
     ),
+    IdentityStrategy(EntityDomain.WAR, ("TIWarState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(EntityDomain.FEDERATION, ("TIFederationState",), _NUMERIC_ID, _IN_SAVE, None),
 )
 
 

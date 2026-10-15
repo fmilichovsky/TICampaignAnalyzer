@@ -33,6 +33,8 @@ STATE_TYPES = {
     EntityDomain.SPACE_OBJECT: ("TIHabState", "habs"),
     EntityDomain.ORGANIZATION: ("TIOrgState", "organizations"),
     EntityDomain.TECHNOLOGY: ("TIGlobalResearchState", "technologies"),
+    EntityDomain.WAR: ("TIWarState", "wars"),
+    EntityDomain.FEDERATION: ("TIFederationState", "federations"),
 }
 MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 RESEARCH_ID = 150
@@ -77,6 +79,14 @@ def ship_ref(key: str) -> EntityRef:
 
 def hab_ref(key: str) -> EntityRef:
     return ref(EntityDomain.SPACE_OBJECT, key)
+
+
+def war_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.WAR, key)
+
+
+def federation_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.FEDERATION, key)
 
 
 def state(domain: EntityDomain, key: str, save: str, state_type: str | None = None, **fields: Observed) -> EntityState:

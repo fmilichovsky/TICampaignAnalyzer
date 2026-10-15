@@ -226,6 +226,21 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "damagedSystems",
         "isDamageControlSuspended",
     ),
+    "TIWarState": COMMON_FIELDS
+    + (
+        "attacker",
+        "defender",
+        "originalAttacker",
+        "originalDefender",
+        "_attackingAlliance",
+        "_defendingAlliance",
+        "nukedRegions",
+        "annexedRegions",
+        "defensiveNukes",
+        "peaceOfferHistory",
+        "cohesionGainByNation",
+    ),
+    "TIFederationState": COMMON_FIELDS + ("members", "federationName", "adjective"),
     "TIHabState": COMMON_FIELDS
     + (
         "faction",
@@ -291,6 +306,8 @@ SINGLETON_FIELDS: dict[str, tuple[str, ...]] = {
 _ARMY_LIST = (EntityDomain.ARMY, True)
 _FACTION = (EntityDomain.FACTION, False)
 _REGION = (EntityDomain.REGION, False)
+_NATION = (EntityDomain.NATION, False)
+_NATION_LIST = (EntityDomain.NATION, True)
 _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
 _PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP)), False)
 """A councilor location: observed to point at a ``TIRegionState``, a ``TIHabState`` or (once) a ``TISpaceShipState``."""
@@ -323,6 +340,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "breakawayParent": (EntityDomain.NATION, False),
         "controlPoints": (EntityDomain.CONTROL_POINT, True),
         "armies": _ARMY_LIST,
+        "federation": (EntityDomain.FEDERATION, False),
     },
     "TIControlPoint": {
         "nation": (EntityDomain.NATION, False),
@@ -344,6 +362,17 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TIArmyState": _ARMY_REFERENCES,
     "TIMegafaunaArmyState": _ARMY_REFERENCES,
+    "TIWarState": {
+        "attacker": _NATION,
+        "defender": _NATION,
+        "originalAttacker": _NATION,
+        "originalDefender": _NATION,
+        "_attackingAlliance": _NATION_LIST,
+        "_defendingAlliance": _NATION_LIST,
+    },
+    "TIFederationState": {
+        "members": _NATION_LIST,
+    },
     "TISpaceFleetState": {
         "ships": (EntityDomain.SHIP, True),
         "parentFleet": (EntityDomain.FLEET, False),
@@ -368,7 +397,8 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
 
 Reference-shaped fields whose observed target type has no ``EntityDomain`` (officers, missions, sectors,
 hab modules, region facility and alien sub-states) or whose target was never observed non-null
-(``agentForFaction``, ``storedFaction``) are deliberately absent and stay raw. A fleet's ``bombardmentTarget`` and
+(``agentForFaction``, ``storedFaction``, a war's ``nukedRegions`` and ``annexedRegions``: empty in every observed
+war) are deliberately absent and stay raw. A fleet's ``bombardmentTarget`` and
 ``currentOperations`` stay raw too: their targets include a domain-less ``TIRegionXenoformingState``, and operation
 dates can be ``$ref`` graph nodes.
 """
@@ -387,6 +417,7 @@ PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
     "TICouncilorState": {"assassinations": EntityDomain.FACTION},
     "TISpaceFleetState": {"displayNameByFaction": EntityDomain.FACTION},
+    "TIWarState": {"peaceOfferHistory": EntityDomain.NATION, "cohesionGainByNation": EntityDomain.NATION},
 }
 """Entity fields serialized as a field-level pair map, with the keys' observed target domain(s); ``None`` marks
 integer keys (``tracker_PCGDP_ByQuarter``: quarter index -> value), which are not references.
@@ -408,6 +439,8 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.FLEET, "TISpaceFleetState", "fleets"),
     (EntityDomain.SHIP, "TISpaceShipState", "ships"),
     (EntityDomain.SPACE_OBJECT, "TIHabState", "habs"),
+    (EntityDomain.WAR, "TIWarState", "wars"),
+    (EntityDomain.FEDERATION, "TIFederationState", "federations"),
 )
 """(domain, short state type, ``SaveSnapshot`` attribute) for each normalized collection.
 
@@ -459,6 +492,10 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     "TINationState": {
         "dateOfNewGovernment": RecordField(RecordKind.DATE),
         "lastExecutiveChange": RecordField(RecordKind.EXECUTIVE_CHANGE),
+    },
+    "TIWarState": {
+        "startDate": RecordField(RecordKind.DATE),
+        "dateOfLastFighting": RecordField(RecordKind.DATE),
     },
 }
 """Save-carried record fields per state type: dated logs and cumulative counters not derivable from the snapshot.
@@ -873,6 +910,10 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         (UnsupportedReason.AI_INTERNAL, ("habSchematic", "HabSchematicAssignedDate", "habSchematicTemplateName")),
         (UnsupportedReason.UI_CACHE, ("connStruct", "customHabIconResource", "ringStruct")),
         (UnsupportedReason.RUNTIME_INTERNAL, ("_dockedShipAbovePositions", "createdFromTemplate")),
+    ),
+    "TIFederationState": _reasons(
+        (UnsupportedReason.UI_CACHE, ("displayNameWithArticle", "displayNameWithArticleCapitalized", "flagResource")),
+        (UnsupportedReason.RUNTIME_INTERNAL, ("lastAttemptToLeaveDarkFederation",)),
     ),
     "TIMetadataState": _reasons(
         (

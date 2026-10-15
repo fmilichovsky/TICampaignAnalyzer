@@ -214,7 +214,10 @@ def test_nation_and_region_references_resolve_through_documented_domains(politic
 
     south = by_id(political.nations, "21")
     assert south.get("capital") is None
-    assert south.get("federation") == FrozenMap((("value", 80),))  # target type has no domain: kept raw
+    assert south.get("federation") == ref(EntityDomain.FEDERATION, "80", "TIFederationState")
+    (federation,) = political.federations
+    assert federation.get("members") == (ref(EntityDomain.NATION, "21", "TINationState"),)
+    assert political.wars == ()  # serialized as an empty {} container
 
     region = by_id(political.regions, "42")
     assert region.get("nation") == ref(EntityDomain.NATION, "21", "TINationState")
@@ -1038,3 +1041,34 @@ def test_unknown_structures_are_summarized_in_the_log_without_a_collector(caplog
         "singletons=0 containers=0"
     ) in caplog.text
     assert "secretField" not in caplog.text and "Fixture" not in caplog.text
+
+
+@pytest.mark.fixture
+def test_wars_and_federations_normalize_with_provenance_and_resolved_references() -> None:
+    raw = load_raw_save(fixture_path(*FIXTURE_SET, "wars_before.json"))
+    collector = UnknownCollector()
+    snapshot = normalize(raw, collector=collector)
+    assert collector.report().findings == ()
+
+    def nation(key: str) -> EntityRef:
+        return ref(EntityDomain.NATION, key, "TINationState")
+
+    war = by_id(snapshot.wars, "90")
+    assert war.ref.entity_id == EntityId(EntityDomain.WAR, "90") and war.ref.name == "Fixture War 90"
+    assert war.location is not None and war.location.state_type == "TIWarState"
+    assert war.location.path == "/gamestates/PavonisInteractive.TerraInvicta.TIWarState/0/Value"
+    assert war.get("attacker") == nation("20") and war.get("originalDefender") == nation("21")
+    assert war.get("_attackingAlliance") == (nation("20"),)
+    assert war.get("cohesionGainByNation") == FrozenMap((("nation:21", 0.5),))
+    assert war.get("peaceOfferHistory") == FrozenMap(())
+    assert war.get("nukedRegions") == () and war.get("defensiveNukes") == 0
+    records = {(record.owner.entity_id.key, record.field): record for record in snapshot.records}
+    start = records[("90", "startDate")]
+    assert [entry.value for entry in start.entries] == ["2031-06-01T00:00:00"]  # type: ignore[union-attr]
+    assert ("90", "dateOfLastFighting") in records and "startDate" not in dict(war.fields)
+
+    federation = by_id(snapshot.federations, "80")
+    assert federation.get("members") == (nation("24"), nation("25"))
+    assert federation.get("federationName") == "Fixture Federation"
+    assert "flagResource" not in dict(federation.fields)  # acknowledged UI cache
+    assert by_id(snapshot.nations, "24").get("federation") == ref(EntityDomain.FEDERATION, "80", "TIFederationState")

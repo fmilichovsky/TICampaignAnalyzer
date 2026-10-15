@@ -1,8 +1,10 @@
 """Nation territory, structure, relations and the recorded executive change.
 
-Events here speak about which nation a region belongs to, a nation's capital, federation, breakaway
-links and relation lists, and the literal ``lastExecutiveChange`` record. They never say which faction
-controls a nation: that is a reconstruction question, and control-point control is reported separately.
+Events here speak about which nation a region belongs to, a nation's capital, breakaway links, the
+``allies`` and ``rivals`` lists, and the literal ``lastExecutiveChange`` record. A nation's ``wars`` list
+and ``federation`` belong to the war and federation analyzers, which cite them as corroboration. They never say
+which faction controls a nation: that is a reconstruction question, and control-point control is reported
+separately.
 """
 
 from __future__ import annotations
@@ -31,14 +33,15 @@ from ..common import (
 REGION_NATION_CHANGED = "region.nation_changed"
 CAPITAL_CHANGED = "nation.capital_changed"
 RELATION_CHANGED = "nation.relation_changed"
-FEDERATION_CHANGED = "nation.federation_changed"
 BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
 EXECUTIVE_CHANGE_RECORDED = "nation.executive_change_recorded"
 APPEARED = "nation.appeared"
 DISAPPEARED = "nation.disappeared"
 
-RELATION_FIELDS = ("allies", "rivals", "wars")
-"""Nation-to-nation reference lists; an entry is expected on both nations, which is checked, not assumed."""
+RELATION_FIELDS = ("allies", "rivals")
+"""Nation-to-nation reference lists; an entry is expected on both nations, which is checked, not assumed.
+
+``wars`` has the same shape and is reported the same way by ``WarAnalyzer`` for pairs no war explains."""
 HANDLED_LISTS = tuple((EntityDomain.NATION, name) for name in ("regions", "breakaways", *RELATION_FIELDS))
 EXECUTIVE_FIELD = "lastExecutiveChange"
 
@@ -61,10 +64,8 @@ class NationAnalyzer:
             events.extend(_owner_transition(BREAKAWAY_PARENT_CHANGED, change, "breakaways", lookup, ledger, build))
         for change in index.fields(EntityDomain.NATION, "capital"):
             events.extend(_value_transition(CAPITAL_CHANGED, change, lookup, build))
-        for change in index.fields(EntityDomain.NATION, "federation"):
-            events.extend(_value_transition(FEDERATION_CHANGED, change, lookup, build))
         for field_name in RELATION_FIELDS:
-            events.extend(_relations(field_name, lookup, ledger, build))
+            events.extend(relation_events(field_name, lookup, ledger, build))
         for change in index.fields(EntityDomain.NATION, EXECUTIVE_FIELD):
             event = _executive_change(change, lookup, build)
             if event is not None:
@@ -115,7 +116,7 @@ def _value_transition(event_type: str, change: StateChange, lookup: Lookup, buil
     ]
 
 
-def _relations(field_name: str, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder) -> list[Event]:
+def relation_events(field_name: str, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder) -> list[Event]:
     """One event per nation pair and direction; the mirrored entry of the other nation is merged when present."""
     events: list[Event] = []
     for owner, member, transition in ledger.pending(field_name):

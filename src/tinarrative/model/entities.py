@@ -18,6 +18,8 @@ class EntityDomain(StrEnum):
     SPACE_OBJECT = "space object"
     ORGANIZATION = "organization"
     TECHNOLOGY = "technology"
+    WAR = "war"
+    FEDERATION = "federation"
 
 
 class IdentityConfidence(StrEnum):

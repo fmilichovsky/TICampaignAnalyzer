@@ -1,4 +1,4 @@
-"""Nation events: territory, capital, relations, federation, breakaways, the executive record and presence."""
+"""Nation events: territory, capital, relations, breakaways, the executive record and presence."""
 
 from tests.analyzers.support import (
     AFTER,
@@ -7,6 +7,7 @@ from tests.analyzers.support import (
     analyze,
     by_type,
     faction_ref,
+    federation_ref,
     nation_ref,
     only,
     record_set,
@@ -21,7 +22,6 @@ from tinarrative.analyzers.politics.nations import (
     CAPITAL_CHANGED,
     DISAPPEARED,
     EXECUTIVE_CHANGE_RECORDED,
-    FEDERATION_CHANGED,
     REGION_NATION_CHANGED,
     list_event_type,
 )
@@ -59,39 +59,38 @@ def test_region_ownership_change_cites_both_nations_region_lists() -> None:
     ]
 
 
-def test_capital_and_federation_are_single_field_transitions() -> None:
-    before = snapshot(BEFORE, state(NATION, "20", BEFORE, capital=region_ref("40"), federation=None))
-    after = snapshot(AFTER, state(NATION, "20", AFTER, capital=region_ref("41"), federation=freeze({"value": 80})))
+def test_capital_is_a_single_field_transition_and_federation_and_wars_are_left_to_their_analyzers() -> None:
+    before = snapshot(BEFORE, state(NATION, "20", BEFORE, capital=region_ref("40"), federation=None, wars=()))
+    after = snapshot(
+        AFTER,
+        state(NATION, "20", AFTER, capital=region_ref("41"), federation=federation_ref("80"), wars=(nation_ref("21"),)),
+    )
     events = analyze(ANALYZER, before, after)
     capital = only(events, CAPITAL_CHANGED)
     assert [str(ref.entity_id) for ref in capital.entities] == ["nation:20", "region:40", "region:41"]
-    federation = only(events, FEDERATION_CHANGED)
-    assert [str(ref.entity_id) for ref in federation.entities] == ["nation:20"]
-    assert dict(federation.attributes) == {"transition": "set", "before": None, "after": freeze({"value": 80})}
-    assert federation.confidence is Confidence.HIGH
-    assert len(events) == 2
+    assert len(events) == 1
 
 
 def test_reciprocal_relation_entries_merge_and_one_sided_entries_name_the_lister() -> None:
     before = snapshot(
         BEFORE,
-        state(NATION, "20", BEFORE, allies=(nation_ref("21"),), wars=()),
-        state(NATION, "21", BEFORE, allies=(nation_ref("20"),), wars=()),
-        state(NATION, "22", BEFORE, allies=(), wars=()),
+        state(NATION, "20", BEFORE, allies=(nation_ref("21"),), rivals=()),
+        state(NATION, "21", BEFORE, allies=(nation_ref("20"),), rivals=()),
+        state(NATION, "22", BEFORE, allies=(), rivals=()),
     )
     after = snapshot(
         AFTER,
-        state(NATION, "20", AFTER, allies=(nation_ref("22"),), wars=(nation_ref("21"),)),
-        state(NATION, "21", AFTER, allies=(nation_ref("20"),), wars=(nation_ref("20"),)),
-        state(NATION, "22", AFTER, allies=(nation_ref("20"),), wars=()),
+        state(NATION, "20", AFTER, allies=(nation_ref("22"),), rivals=(nation_ref("21"),)),
+        state(NATION, "21", AFTER, allies=(nation_ref("20"),), rivals=(nation_ref("20"),)),
+        state(NATION, "22", AFTER, allies=(nation_ref("20"),), rivals=()),
     )
     events = analyze(ANALYZER, before, after)
     assert [event.id for event in events] == [
         "nation.relation_changed/allies/nation:20/nation:22/added",
         "nation.relation_changed/allies/nation:20/nation:21/removed",
-        "nation.relation_changed/wars/nation:20/nation:21/added",
+        "nation.relation_changed/rivals/nation:20/nation:21/added",
     ]
-    added, removed, war = events
+    added, removed, rivals = events
     assert dict(added.attributes) == {"relation": "allies", "transition": "added", "reciprocal": True}
     assert [(s.role, str(s.change.entity_id), s.member) for s in added.sources] == [
         (SourceRole.PRIMARY, "nation:20", nation_ref("22")),
@@ -104,7 +103,7 @@ def test_reciprocal_relation_entries_merge_and_one_sided_entries_name_the_lister
         "listed_by": removed.entities[0],
     }
     assert str(removed.entities[0].entity_id) == "nation:20" and len(removed.sources) == 1
-    assert dict(war.attributes)["reciprocal"] is True and len(war.sources) == 2
+    assert dict(rivals.attributes)["reciprocal"] is True and len(rivals.sources) == 2
     assert all(event.confidence is Confidence.HIGH for event in events)
 
 

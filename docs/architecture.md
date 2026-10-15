@@ -232,7 +232,7 @@ The snippets above are conceptual; the implemented types differ as follows:
     `campaign` and `research` with no entity. The campaign singletons carry no
     `SourceLocation` yet, so those changes cite only the save; everything else
     cites state type, map ID and path on each side. The parser fills the faction, nation, region, control-point,
-    councilor, army (both army state types), fleet, ship and hab collections
+    councilor, army (both army state types), fleet, ship, hab, war and federation collections
     (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
     objects in the `space object` domain). A reference field observed to point at
     more than one domain (councilor `location`: region or hab) resolves against
@@ -608,7 +608,8 @@ Analyzers should be independently testable.
 ### Implemented contract (`src/tinarrative/analyzers/`)
 
 The first family is `analyzers/politics/`: `ControlPointAnalyzer`,
-`NationAnalyzer` and `CouncilorAnalyzer`, run together by
+`NationAnalyzer`, `WarAnalyzer`, `FederationAnalyzer` and `CouncilorAnalyzer`,
+run together by
 `analyzers.run_analyzers(POLITICS_ANALYZERS, before, after, diff)`. They read
 the `StateDiff` only (never re-deriving a fact from the snapshots; the
 snapshots supply context such as an entity's own reference or a control
@@ -626,12 +627,31 @@ Ownership and control are kept distinct by analyzer and type prefix:
     for every `lostControlPoints` entry added or re-dated (record-dated, and
     also cited as corroboration by a matching controller change).
 -   `region.nation_changed` and `nation.*` speak about territory, capital,
-    federation (a raw value: the state type has no entity domain), breakaway
-    links, one `nation.relation_changed` per nation pair and direction for
-    `allies`/`rivals`/`wars` (the mirrored entry on the other nation is merged
-    and marked `reciprocal`), presence, and the literal `lastExecutiveChange`
-    record (`nation.executive_change_recorded`; its `cause` string is an
-    attribute only).
+    breakaway links, one `nation.relation_changed` per nation pair and
+    direction for `allies`/`rivals` (the mirrored entry on the other nation is
+    merged and marked `reciprocal`), presence, and the literal
+    `lastExecutiveChange` record (`nation.executive_change_recorded`; its
+    `cause` string is an attribute only).
+-   `war.*` (`analyzers/politics/wars.py`, `TIWarState` objects of the `war`
+    domain) speaks about `war.appeared` (record-dated by the war's literal
+    `startDate` when present) and `war.disappeared`, each citing every nation
+    `wars` entry between the two alliances on the existing side;
+    `war.alliance_changed` per nation added to or removed from
+    `_attackingAlliance`/`_defendingAlliance` (attribute `side`), citing the
+    member's `wars` entries against the opposing alliance;
+    `war.attacker_changed`, `war.defender_changed`; and
+    `war.last_fighting_changed` (the `dateOfLastFighting` record, dated by its
+    new value). The analyzer owns the nation `wars` lists: an entry no war
+    explains is a `nation.relation_changed` with `relation = wars`, exactly as
+    for `allies` and `rivals`, and an alliance list unresolved on one side is
+    `war.attacking_alliance_changed`/`war.defending_alliance_changed`.
+-   `federation.*` (`analyzers/politics/federations.py`) speaks about
+    `federation.members_changed` per member of `members`, citing the member's
+    `nation.federation` change, and `federation.appeared`/`disappeared`, citing
+    the members' `federation` changes. A `nation.federation` change no member
+    change or presence explains is `nation.federation_changed`.
+-   War vocabulary stays out of these types and messages: no event says a war
+    was declared, won or lost, or that peace was made; that is reconstruction.
 -   `councilor.*` speaks about a councilor's `faction`, `status`, `location`,
     `detainingFaction` and presence.
 
@@ -639,7 +659,8 @@ A nation's `controlPoints` list means which control points belong to the
 nation, never "faction X controls nation Y"; that is a reconstruction rule
 for later. Members of the handled reference lists (`faction.controlPoints`,
 `faction.councilors`, `nation.controlPoints`, `nation.regions`,
-`nation.breakaways`, the relation lists) that no event explains are reported
+`nation.breakaways`, the relation lists, the war alliances, federation
+`members`) that no event explains are reported
 as `<owner>.<field>_changed`, so no literal change on them is dropped; a list
 unresolved on one side is one such event with `transition = unresolved`.
 Everything else (councilor `orgs`, `XP`, `priorLocation`; nation statistics

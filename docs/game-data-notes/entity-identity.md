@@ -25,6 +25,11 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
   not a secondary key. Ship `templateName` is a design name shared by many ships
   and hab `templateName` is null for almost every hab (observed 2026-10-09), so
   neither is a secondary key either.
+- Wars and federations (observed 2026-10-15, eight private saves of two
+  campaigns) carry `templateName = null`. A federation kept its ID across every
+  save of its campaign, and a war present in consecutive saves kept its ID and
+  its `startDate`; the one war that disappeared was simply missing from the next
+  save's container (observed once).
 - Technologies have no state objects. Finished techs are strings in
   `TIGlobalResearchState.finishedTechsNames`; progress is
   `techProgress[].techTemplateName` with per-faction contributions keyed by
@@ -45,6 +50,8 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | space object | space body, Lagrange point, orbit, ad hoc orbit, hab site, hab | numeric ID | `in-save-id` | `templateName` (space bodies) |
 | organization | `TIOrgState` | numeric ID | `in-save-id` | none |
 | technology | `TIGlobalResearchState` | template name string | `name-key` | none |
+| war | `TIWarState` | numeric ID | `in-save-id` | none (`templateName` is `null`) |
+| federation | `TIFederationState` | numeric ID | `in-save-id` | none (`templateName` is `null`) |
 
 Because the counter is global, `(numeric ID)` alone is unique within a save; a
 cross-snapshot key should still be stored with its domain.

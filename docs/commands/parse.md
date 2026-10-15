@@ -13,7 +13,8 @@ into a `SaveSnapshot`, and prints a short summary:
 - snapshot: the game `date` (ISO-8601 from `TITimeState.currentDateTime`, no timezone),
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
   `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
-  `ships`, `habs`, and `technologies` (name-keyed, derived from the research singleton);
+  `ships`, `habs`, `technologies` (name-keyed, derived from the research singleton),
+  `wars`, and `federations`;
 - `records`: how many save-carried record fields were decoded with a known value across all
   entities and how many entries they hold in total (see the
   [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table;
