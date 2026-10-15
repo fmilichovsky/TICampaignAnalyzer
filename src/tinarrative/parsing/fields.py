@@ -250,6 +250,47 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "cohesionGainByNation",
     ),
     "TIFederationState": COMMON_FIELDS + ("members", "federationName", "adjective"),
+    "TIOrgState": COMMON_FIELDS
+    + (
+        "assignedCouncilor",
+        "factionOrbit",
+        "homeRegion",
+        "tier",
+        "applyingBonuses",
+        "takeoverDefense",
+        "XPModifier",
+        "projectCapacityGranted",
+        "costMoney",
+        "costInfluence",
+        "costOps",
+        "costBoost",
+        "incomeMoney_month",
+        "incomeInfluence_month",
+        "incomeOps_month",
+        "incomeBoost_month",
+        "incomeResearch_month",
+        "incomeMissionControl",
+        "MCBonus",
+        "persuasion",
+        "investigation",
+        "espionage",
+        "command",
+        "administration",
+        "science",
+        "security",
+        "economyBonus",
+        "welfareBonus",
+        "knowledgeBonus",
+        "governmentBonus",
+        "unityBonus",
+        "militaryBonus",
+        "oppressionBonus",
+        "spoilsBonus",
+        "environmentBonus",
+        "miningBonus",
+        "spaceDevBonus",
+        "spaceflightBonus",
+    ),
     "TIRegionUFOCrashdownState": COMMON_FIELDS + ("region", "crashdownPresent"),
     "TIRegionUFOLandingState": COMMON_FIELDS
     + ("region", "landingPresent", "deployingArmy", "supportingArmyBuildup", "currentHP"),
@@ -321,6 +362,7 @@ SINGLETON_FIELDS: dict[str, tuple[str, ...]] = {
 _ARMY_LIST = (EntityDomain.ARMY, True)
 _FACTION = (EntityDomain.FACTION, False)
 _REGION = (EntityDomain.REGION, False)
+_COUNCILOR = (EntityDomain.COUNCILOR, False)
 _NATION = (EntityDomain.NATION, False)
 _NATION_LIST = (EntityDomain.NATION, True)
 _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
@@ -394,6 +436,11 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     "TIFederationState": {
         "members": _NATION_LIST,
     },
+    "TIOrgState": {
+        "assignedCouncilor": _COUNCILOR,
+        "factionOrbit": _FACTION,
+        "homeRegion": _REGION,
+    },
     **{state_type: {"region": _REGION} for state_type in REGION_ALIEN_STATE_TYPES},
     "TISpaceFleetState": {
         "ships": (EntityDomain.SHIP, True),
@@ -463,6 +510,7 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.SPACE_OBJECT, "TIHabState", "habs"),
     (EntityDomain.WAR, "TIWarState", "wars"),
     (EntityDomain.FEDERATION, "TIFederationState", "federations"),
+    (EntityDomain.ORGANIZATION, "TIOrgState", "organizations"),
     *((EntityDomain.REGION_ALIEN_STATE, state_type, "region_alien_states") for state_type in REGION_ALIEN_STATE_TYPES),
 )
 """(domain, short state type, ``SaveSnapshot`` attribute) for each normalized collection.
@@ -941,6 +989,9 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
     "TIFederationState": _reasons(
         (UnsupportedReason.UI_CACHE, ("displayNameWithArticle", "displayNameWithArticleCapitalized", "flagResource")),
         (UnsupportedReason.RUNTIME_INTERNAL, ("lastAttemptToLeaveDarkFederation",)),
+    ),
+    "TIOrgState": _reasons(
+        (UnsupportedReason.UI_CACHE, ("orgIconPath", "orgIconTemplateName", "displayNameWithArticle")),
     ),
     "TIMetadataState": _reasons(
         (

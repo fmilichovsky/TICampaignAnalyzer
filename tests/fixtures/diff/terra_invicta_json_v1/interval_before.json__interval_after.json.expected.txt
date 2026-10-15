@@ -5,7 +5,7 @@ before: interval_before.json
 after: interval_after.json
   date: "2031-06-01T00:00:00"
   game_version: not serialized
-changes: 58
+changes: 59
   army: 4
   campaign: 4
   control point: 6
@@ -14,6 +14,7 @@ changes: 58
   federation: 1
   fleet: 4
   nation: 8
+  organization: 1
   region: 4
   research: 2
   ship: 4
@@ -62,6 +63,7 @@ changes:
   nation:21 armies: +army:110
   nation:21 controlPoints: -control point:12
   nation:22 allies: +nation:20
+  organization:70 assignedCouncilor: councilor:100 -> null
   region:40 armies: -army:110
   region:42 annexingArmy: null -> {"value": 110}
   region:42 armies: +army:110

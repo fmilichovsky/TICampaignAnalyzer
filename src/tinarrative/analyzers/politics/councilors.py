@@ -39,7 +39,7 @@ VALUE_FIELDS = (
     ("location", LOCATION_CHANGED),
     ("detainingFaction", DETAINING_FACTION_CHANGED),
 )
-"""Fields whose change is an event on its own; ``XP``, ``orgs``, ``attributes``, ``priorLocation`` stay in the diff."""
+"""Fields whose change is an event on its own; ``XP``, ``attributes``, ``priorLocation`` stay in the diff."""
 
 
 class CouncilorAnalyzer:

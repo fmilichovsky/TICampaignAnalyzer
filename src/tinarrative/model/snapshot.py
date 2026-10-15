@@ -97,6 +97,7 @@ NORMALIZED_COLLECTION_LABELS = (
     ("fleets", "fleets"),
     ("ships", "ships"),
     ("habs", "habs"),
+    ("organizations", "organizations"),
     ("technologies", "technologies"),
     ("wars", "wars"),
     ("federations", "federations"),

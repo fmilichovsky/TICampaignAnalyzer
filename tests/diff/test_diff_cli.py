@@ -163,7 +163,7 @@ def test_debug_log_reports_aggregates_without_save_values(capsys: pytest.Capture
     lines = err.splitlines()
     assert lines[0] == "INFO tinarrative.cli: diff start before=interval_before.json after=interval_after.json"
     assert lines[-1] == (
-        "INFO tinarrative.cli: diff done before=interval_before.json after=interval_after.json changes=58 exit=0"
+        "INFO tinarrative.cli: diff done before=interval_before.json after=interval_after.json changes=59 exit=0"
     )
     assert (
         "DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=3 after=3 matched=3 "

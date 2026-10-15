@@ -1353,6 +1353,32 @@
       }
     },
     {
+      "domain": "organization",
+      "entity_id": "organization:70",
+      "field": "assignedCouncilor",
+      "kind": "value",
+      "before": {
+        "ref": "councilor:100",
+        "state_type": "TICouncilorState",
+        "confidence": "in-save-id"
+      },
+      "after": null,
+      "detail": null,
+      "description": "assignedCouncilor changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TIOrgState",
+        "map_id": 70,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIOrgState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TIOrgState",
+        "map_id": 70,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TIOrgState/0/Value"
+      }
+    },
+    {
       "domain": "region",
       "entity_id": "region:40",
       "field": "armies",

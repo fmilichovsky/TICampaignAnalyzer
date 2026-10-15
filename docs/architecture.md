@@ -232,7 +232,7 @@ The snippets above are conceptual; the implemented types differ as follows:
     `campaign` and `research` with no entity. The campaign singletons carry no
     `SourceLocation` yet, so those changes cite only the save; everything else
     cites state type, map ID and path on each side. The parser fills the faction, nation, region, control-point,
-    councilor, army (both army state types), fleet, ship, hab, war, federation and region alien state
+    councilor, organization, army (both army state types), fleet, ship, hab, war, federation and region alien state
     collections (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
     objects in the `space object` domain; the five `TIRegion*State` alien sub-states share the
     `region alien state` domain and `SaveSnapshot.region_alien_states`, told apart by state type). A reference field observed to point at
@@ -247,9 +247,8 @@ The snippets above are conceptual; the implemented types differ as follows:
     fleet's `parentFleet` often names an ID absent from the save. The parser keeps
     that as `Unknown(unresolved_reference, raw=...)` rather than dropping it, so
     the diff layer sees the limitation; ships keep their IDs across merges.
--   Organizations have a collection but are not normalized yet; other space
-    objects (bodies, orbits, hab sites, sectors, modules) resolve as reference
-    targets only, and singular diplomacy and economy states are not modelled.
+-   Other space objects (bodies, orbits, hab sites, sectors, modules) resolve as
+    reference targets only, and singular diplomacy and economy states are not modelled.
 -   Save-carried records (section 4.3) are compared per owning entity and field
     with `ChangeKind.records`: `before`/`after` are the entry counts and the
     `RecordsDetail` lists the entries added, removed and (for keyed records)
@@ -651,6 +650,12 @@ Ownership and control are kept distinct by analyzer and type prefix:
     `nation.federation` change, and `federation.appeared`/`disappeared`, citing
     the members' `federation` changes. A `nation.federation` change no member
     change or presence explains is `nation.federation_changed`.
+-   `organization.*` (`analyzers/politics/organizations.py`) speaks about
+    `organization.assigned_councilor_changed`, citing the councilors' `orgs`
+    entries (and the faction `unassignedOrgs` entry) as corroboration,
+    `organization.faction_orbit_changed` and `organization.appeared`/`disappeared`.
+    Councilor `orgs` and faction `unassignedOrgs` changes no organization change
+    explains are `councilor.orgs_changed` and `faction.unassigned_orgs_changed`.
 -   War vocabulary stays out of these types and messages: no event says a war
     was declared, won or lost, or that peace was made; that is reconstruction.
 -   `councilor.*` speaks about a councilor's `faction`, `status`, `location`,
