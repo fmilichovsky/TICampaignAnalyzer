@@ -139,8 +139,10 @@ def test_presence_cites_every_list_naming_the_army_on_the_existing_side() -> Non
         (SourceRole.CORROBORATING, "nation:20"),
         (SourceRole.CORROBORATING, "region:41"),
     ]
+    assert isinstance(gone.attribute("megafauna"), Unknown)  # only megafauna armies are marked
     new = only(events, APPEARED)
     assert new.entities[0].state_type == MEGAFAUNA_STATE_TYPE
+    assert new.attribute("megafauna") is True
     assert [(s.role, str(s.change.entity_id)) for s in new.sources] == [
         (SourceRole.PRIMARY, "army:112"),
         (SourceRole.CORROBORATING, "region:41"),

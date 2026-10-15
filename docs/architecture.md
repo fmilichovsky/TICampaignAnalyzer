@@ -232,9 +232,10 @@ The snippets above are conceptual; the implemented types differ as follows:
     `campaign` and `research` with no entity. The campaign singletons carry no
     `SourceLocation` yet, so those changes cite only the save; everything else
     cites state type, map ID and path on each side. The parser fills the faction, nation, region, control-point,
-    councilor, army (both army state types), fleet, ship, hab, war and federation collections
-    (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
-    objects in the `space object` domain). A reference field observed to point at
+    councilor, army (both army state types), fleet, ship, hab, war, federation and region alien state
+    collections (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
+    objects in the `space object` domain; the five `TIRegion*State` alien sub-states share the
+    `region alien state` domain and `SaveSnapshot.region_alien_states`, told apart by state type). A reference field observed to point at
     more than one domain (councilor `location`: region or hab) resolves against
     that set, and the owning state type decides the resulting domain.
 -   Research is the one explicitly typed substate: `SaveSnapshot.research`
@@ -671,7 +672,7 @@ coup, annexation or defection.
 
 The asset families follow the same contract and are run together with the
 politics family as `analyzers.ALL_ANALYZERS` (or separately as
-`MILITARY_ANALYZERS`, `SPACE_ANALYZERS`, `TECHNOLOGY_ANALYZERS`). A handled
+`MILITARY_ANALYZERS`, `SPACE_ANALYZERS`, `TECHNOLOGY_ANALYZERS`, `ALIEN_ANALYZERS`). A handled
 reference list is owned by the analyzer of the entities it contains, so no two
 analyzers report the same leftover and `run_analyzers` never sees an ID twice:
 
@@ -684,7 +685,9 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     on the existing side) and the leftovers `faction.armies_changed`,
     `nation.armies_changed`, `region.armies_changed`. A nation's `armies` list
     has no mirroring army field, so a region move leaves its nation entries as
-    leftovers rather than guessing which nation an army belongs to.
+    leftovers rather than guessing which nation an army belongs to. A presence
+    event of a `TIMegafaunaArmyState` army carries `megafauna = True` (regular
+    armies carry no such attribute).
 -   `analyzers/space/fleets.py` (`FleetAnalyzer`): `fleet.faction_changed`
     (mirrored by faction `fleets`), `fleet.docked_location_changed` (mirrored
     by hab `dockedFleets`), `fleet.orbit_changed`, `fleet.barycenter_changed`,
@@ -708,6 +711,16 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     for any other literal transition; `technology.appeared` /
     `technology.disappeared` for progress-only or vanished states; the leftover
     `research.finished_techs_changed` for a name no technology event claimed.
+-   `analyzers/aliens/regions.py` (`RegionAlienAnalyzer`, `region alien state`
+    domain): every event names the region (the sub-state's `region`
+    back-reference) first and the sub-state second, with the literal
+    `transition`/`before`/`after`. `region.crashdown_changed` for
+    `crashdownPresent` or the `crashdownTime` record (both cited as primary;
+    record-dated by the new time, attribute `crashdown_time`),
+    `region.landing_changed` (`landingPresent`), `region.alien_facility_changed`
+    (`built`) and `region.xenoforming_changed` (`xenoformingLevel`, before and
+    after level). No event says a crashdown, landing or xenoforming was
+    detected, repelled or cleared; thresholds are reconstruction.
 
 Wording rule: the words *destroyed*, *destruction* and *refit* occur only in
 event types whose primary source is the save field that literally carries them
@@ -720,7 +733,8 @@ diff on purpose: army `priorRegion`, operations and transit dates; fleet
 armor, damage and `kills`; hab `sectors`, `councilorsOnBoard` and orbit data;
 technology `progress` values (a missing progress entry is `Unknown`, which
 `classify` treats as a schema gap); project-name lists; faction `Kills` and
-`armiesLost` records.
+`armiesLost` records; region alien sub-state `currentHP`, `deployingArmy`,
+`supportingArmyBuildup`, `alienMissionsDetected` and sub-state presence.
 
 ------------------------------------------------------------------------
 

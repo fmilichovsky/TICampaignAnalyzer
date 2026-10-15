@@ -30,6 +30,11 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
   save of its campaign, and a war present in consecutive saves kept its ID and
   its `startDate`; the one war that disappeared was simply missing from the next
   save's container (observed once).
+- The five region alien sub-states (observed 2026-10-15, eight private saves of
+  two campaigns) carry the `templateName` of their region, so it is shared by
+  five objects and is not a secondary key of its own; the `region`
+  back-reference is the link. Every sub-state kept its ID and its `region`
+  across every consecutive save of its campaign.
 - Technologies have no state objects. Finished techs are strings in
   `TIGlobalResearchState.finishedTechsNames`; progress is
   `techProgress[].techTemplateName` with per-faction contributions keyed by
@@ -52,6 +57,7 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | technology | `TIGlobalResearchState` | template name string | `name-key` | none |
 | war | `TIWarState` | numeric ID | `in-save-id` | none (`templateName` is `null`) |
 | federation | `TIFederationState` | numeric ID | `in-save-id` | none (`templateName` is `null`) |
+| region alien state | `TIRegionUFOCrashdownState`, `TIRegionUFOLandingState`, `TIRegionAlienFacilityState`, `TIRegionXenoformingState`, `TIRegionAlienActivityState` | numeric ID | `in-save-id` | none (`templateName` is the region's) |
 
 Because the counter is global, `(numeric ID)` alone is unique within a save; a
 cross-snapshot key should still be stored with its domain.

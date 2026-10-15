@@ -32,6 +32,7 @@ ALL_PAIRS = PAIRS + [
     ("records_before.json", "records_after.json"),
     ("politics_before.json", "politics_after.json"),
     ("wars_before.json", "wars_after.json"),
+    ("aliens_before.json", "aliens_after.json"),
 ]
 FORBIDDEN = (
     "purg", "coup", "annex", "defect", "kill", "recruit", "join", "conquer", "captur", "seiz",

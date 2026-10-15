@@ -36,7 +36,7 @@
   - [ ] Space reconstruction: first presence on a body, hab losses joined to
     the destruction log, battle outcomes (#73).
   - [x] Wars and federations as entities with a war analyzer (#64).
-  - [ ] Region alien substates and Earth anomaly events (#65).
+  - [x] Region alien substates and Earth anomaly events (#65).
   - [ ] Organizations and councilor organization events (#66).
   - [ ] `TIGlobalValuesState` singleton: interstate wars, global milestones,
     nuclear and climate counters, serialized build version (#67).

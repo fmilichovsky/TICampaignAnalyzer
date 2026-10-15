@@ -50,7 +50,7 @@ EXPECTED_POLITICS = {
 }
 
 EXPECTED_INTERVAL_ASSETS = {
-    "army:112 (faction faction:16, region region:41) is present only in the after snapshot",
+    "army:112 (faction faction:16, region region:41) is present only in the after snapshot (megafauna)",
     "army:110 (faction:15) region: region:40 -> region:42",
     "army:110 (faction:15) strength: 3.5 -> 2.0",
     "fleet:121 (faction faction:15) is present only in the after snapshot",
@@ -70,7 +70,7 @@ EXPECTED_ASSETS = {
     'faction:15 records a hab destruction dated 2032-05-20T00:00:00: type "Base" at space object:50 by faction:16',
     'faction:15 records a hab destruction dated 2032-06-02T00:00:00: type "Base" at unknown (unresolved_reference, '
     'raw={"value": 998}) by null',
-    "army:112 (faction faction:16, region region:41) is present only in the after snapshot",
+    "army:112 (faction faction:16, region region:41) is present only in the after snapshot (megafauna)",
     "army:111 (faction:16) destroyed flag: false -> true",
     "army:113 (faction faction:15, region region:41) is absent from the after snapshot",
     "army:111 (in region:40) faction: faction:15 -> faction:16",

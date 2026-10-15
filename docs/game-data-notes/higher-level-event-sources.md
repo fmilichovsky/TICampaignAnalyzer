@@ -22,7 +22,7 @@ The work items derived from this page are issues #64 to #73, listed under the re
 | `TIWarState` | Yes (`war` domain, issue #64) | war declared, nation joins, peace | appears with `startDate` in the interval, disappears at peace |
 | `TIFederationState` | Yes (`federation` domain, issue #64) | nation joins or leaves a federation | `members` grew 4 → 5 → 7 across the older sample |
 | `TIGlobalValuesState` | No (singleton not read) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
-| Five `TIRegion*State` alien substates | No (referenced raw from the region) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
+| Five `TIRegion*State` alien substates | Yes (`region alien state` domain, issue #65) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
 | `TIOrgState` | No (organization domain declared, never filled) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
 | `TINotificationQueueState` | No (singleton not read) | the game's own dated event log, player-centric | rolling five-year window with further pruning |
@@ -122,8 +122,16 @@ Five state types with exactly one entry per region (363 each), each carrying a `
 | `TIRegionXenoformingState` | `xenoformingLevel` (number) | non-zero on 8 regions in the latest older save; changed in 13–14 regions per older interval, rising, falling and dropping to 0 |
 | `TIRegionAlienActivityState` | `alienMissionsDetected` (pair map faction → list) | non-empty on 94 of 363 regions (older), `{}` everywhere (newer); never changed across any interval |
 
+Re-checked on 2026-10-15 in the same eight saves (structure and counts only): `crashdownPresent` was true exactly when
+`crashdownTime` was non-null; every `alienMissionsDetected` entry was keyed by a faction reference with an empty list as
+its value; the only field that changed within a campaign was `xenoformingLevel` (13–14 regions per older interval, one
+per newer interval); every sub-state kept its ID and `region` across consecutive saves. The region alien analyzer emits
+`region.crashdown_changed`, `region.landing_changed`, `region.alien_facility_changed` and `region.xenoforming_changed`
+from these fields.
+
 `TIMegafaunaArmyState` shares the army fields plus `bonusTechLevel`; it is already normalized into the army
-domain, and the state type on the entity reference distinguishes it. One entry was removed in the third
+domain, and the state type on the entity reference distinguishes it (`army.appeared`/`army.disappeared` carry
+`megafauna = True` for it). One entry was removed in the third
 older interval and a different one added in the fourth.
 
 ## `TIOrgState`

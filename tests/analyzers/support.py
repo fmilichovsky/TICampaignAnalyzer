@@ -35,6 +35,7 @@ STATE_TYPES = {
     EntityDomain.TECHNOLOGY: ("TIGlobalResearchState", "technologies"),
     EntityDomain.WAR: ("TIWarState", "wars"),
     EntityDomain.FEDERATION: ("TIFederationState", "federations"),
+    EntityDomain.REGION_ALIEN_STATE: ("TIRegionXenoformingState", "region_alien_states"),
 }
 MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 RESEARCH_ID = 150

@@ -339,5 +339,7 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIWarState fields=2 entities=0 sets=0 known_sets=0 missing=0 entries=0 "
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "records normalized state_type=TIRegionUFOCrashdownState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
+        "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
     ]
     assert "Secret" not in caplog.text and "Fixture" not in caplog.text
