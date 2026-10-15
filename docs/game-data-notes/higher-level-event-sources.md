@@ -24,7 +24,7 @@ The work items derived from this page are issues #64 to #73, listed under the re
 | `TIGlobalValuesState` | No (singleton not read) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
 | Five `TIRegion*State` alien substates | Yes (`region alien state` domain, issue #65) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
-| `TIOrgState` | No (organization domain declared, never filled) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
+| `TIOrgState` | Yes (`organization` domain, issue #66) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
 | `TINotificationQueueState` | No (singleton not read) | the game's own dated event log, player-centric | rolling five-year window with further pruning |
 | `TIFactionState.CombatLogs` | Acknowledged as `runtime_internal` | space battles: sides, hull classes, winner | undated; grows mostly by appending |
 | Nation `tracker_*ChangeReason_AllTime` | Yes | cause attribution for metric shifts | per-cause deltas between saves |
@@ -147,6 +147,11 @@ Fields: `assignedCouncilor` (councilor reference or `null`), `factionOrbit` (fac
 `spaceflightBonus`, and `orgIconPath`, `orgIconTemplateName`, `displayNameWithArticle` (presentation).
 Counts: 798–813 per older save, 270–293 per newer; 12–58 added and 0–57 removed per interval. Councilor
 `orgs` lists, faction `unassignedOrgs` and `TIOrgState.assignedCouncilor` describe the same ownership.
+
+Implemented in the `organization.*` analyzer: an `assignedCouncilor` change cites the matching councilor `orgs`
+entries as corroboration, and (hypothesis, not separately verified) the holder faction's `unassignedOrgs` entry
+when the organization is released or taken; list changes nothing explains stay `councilor.orgs_changed` and
+`faction.unassigned_orgs_changed`.
 
 ## `TINotificationQueueState` (singleton)
 

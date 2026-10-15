@@ -14,7 +14,7 @@ into a `SaveSnapshot`, and prints a short summary:
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
   `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
   `ships`, `habs`, `technologies` (name-keyed, derived from the research singleton),
-  `wars`, `federations`, and `region alien states` (the five per-region alien sub-state types together);
+  `organizations`, `wars`, `federations`, and `region alien states` (the five per-region alien sub-state types together);
 - `records`: how many save-carried record fields were decoded with a known value across all
   entities and how many entries they hold in total (see the
   [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table;

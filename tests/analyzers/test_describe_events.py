@@ -18,6 +18,7 @@ EXPECTED_INTERVAL = {
     'councilor:100 (faction:15) location: region:40 -> unknown (unresolved_reference, raw={"$type": '
     '"PavonisInteractive.TerraInvicta.TIRegionState", "value": 999})',
     "faction:15 councilors list: -councilor:101",
+    "organization:70 assigned councilor: councilor:100 -> null",
     "federation:80 members: +nation:20",
     "nation:20 and nation:21: allies entry removed (listed by nation:20 only)",
     "nation:20 and nation:22: allies entry added (listed by both)",

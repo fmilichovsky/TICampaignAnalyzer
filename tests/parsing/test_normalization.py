@@ -17,7 +17,7 @@ from tinarrative.parsing.errors import UnsupportedSaveShapeError
 from tinarrative.parsing.fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, RESEARCH_STATE_TYPE
 from tinarrative.parsing.normalization import game_datetime, normalize
 from tinarrative.parsing.raw_save import RawSave
-from tinarrative.parsing.unknowns import PAIR_MAP_VIOLATION, ShapeSummary, UnknownCollector, UnknownReport
+from tinarrative.parsing.unknowns import ShapeSummary, UnknownCollector, UnknownReport
 
 FIXTURE_SET = ("io", "terra_invicta_json_v1")
 
@@ -340,6 +340,29 @@ def test_empty_gamestates_give_an_empty_snapshot() -> None:
     assert snapshot.technologies == ()
     assert snapshot.research == ResearchState()
     assert snapshot.records == ()
+
+
+def test_organizations_carry_resolved_references_and_scalars() -> None:
+    org = pair(
+        70,
+        templateName="FixtureOrg",
+        displayName="Fixture Org",
+        assignedCouncilor={"value": 100},
+        factionOrbit=None,
+        homeRegion={"value": 40},
+        tier=2,
+        costMoney=1.5,
+        orgIconPath="ignored",
+    )
+    gamestates: dict[str, object] = {STATE_PREFIX + "TIOrgState": [org], STATE_PREFIX + "TICouncilorState": [pair(100)]}
+    snapshot, report = collect(fragment_raw(gamestates))
+    state = by_id(snapshot.organizations, "70")
+    assert state.ref.name == "Fixture Org"
+    assert state.get("assignedCouncilor") == ref(EntityDomain.COUNCILOR, "100", "TICouncilorState")
+    assert state.get("factionOrbit") is None
+    assert isinstance(state.get("homeRegion"), Unknown)  # no region entity in this fragment
+    assert state.get("tier") == 2 and state.get("costMoney") == 1.5
+    assert report.total == 0  # the icon path is acknowledged presentation data
 
 
 @pytest.mark.fixture
@@ -1011,15 +1034,12 @@ def test_singletons_dates_and_research_lists_report_their_unexpected_structures(
         pair(3, currentDateTime={"year": 2031}),
     ]
     research = pair(5, finishedTechsNames="not-a-list", techProgress=[{"techTemplateName": "Dup"}])
-    bad_org = [{"Key": {"value": 1}, "Value": {"ID": {"value": 2}}}]
     gamestates: dict[str, object] = {
         STATE_PREFIX + "TITimeState": time_entries,
         STATE_PREFIX + RESEARCH_STATE_TYPE: [research],
-        STATE_PREFIX + "TIOrgState": bad_org,
     }
     snapshot, report = collect(fragment_raw(gamestates))
     assert keys(report) == [
-        ("unexpected_container_shape", "TIOrgState", "", PAIR_MAP_VIOLATION),
         ("unexpected_field_shape", RESEARCH_STATE_TYPE, "finishedTechsNames", "array"),
         ("unexpected_field_shape", "TITimeState", "currentDateTime", "componentized_date"),
         ("unexpected_singleton_count", "TITimeState", "", ""),

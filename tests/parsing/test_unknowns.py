@@ -181,7 +181,7 @@ def test_political_fixture_unknown_type_exposes_its_member_names() -> None:
 
 def test_scan_fields_skips_unscanned_types_and_known_members() -> None:
     collector = UnknownCollector()
-    scan_fields("TIOrgState", {"anything": 1}, collector)  # not normalized: never scanned
+    scan_fields("TIMissionState", {"anything": 1}, collector)  # not normalized: never scanned
     scan_fields("TISpaceShipState", {"fleet": 1, "$type": "x", "damagePoints": {}, "newField": 1}, collector)
     scan_fields("TITimeState", {"currentDateTime": {}, "archived": False, "nextTurn": 1}, collector)
     report = collector.report()
@@ -189,7 +189,7 @@ def test_scan_fields_skips_unscanned_types_and_known_members() -> None:
         ("unknown_field", "TISpaceShipState", "newField", ""),
         ("unknown_field", "TITimeState", "nextTurn", ""),
     ]
-    assert collector.field_count("TISpaceShipState") == 1 and collector.field_count("TIOrgState") == 0
+    assert collector.field_count("TISpaceShipState") == 1 and collector.field_count("TIMissionState") == 0
 
 
 def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None:
@@ -239,7 +239,7 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
         (("unexpected_reference_domain", "TINationState", "factionUnrestAttempts", "TINationState"), False),
         (("unexpected_reference_domain", "TINationState", "tracker_PCGDP_ByQuarter", "TINationState"), True),
         (("unexpected_field_shape", "TINationState", "tracker_PCGDP_ByQuarter", "pair_map"), False),
-        (("unknown_field", "TIOrgState", "anything", ""), True),  # no longer scanned: cannot recur
+        (("unknown_field", "TIMissionState", "anything", ""), True),  # no longer scanned: cannot recur
         (("unexpected_field_shape", "TINationState", "regions", "array_of_references"), False),
         (("unexpected_field_shape", "TINationState", "notAField", "array"), True),
         (("unexpected_field_shape", "TISpaceShipState", "damagePoints", "array"), True),

@@ -37,7 +37,7 @@
     the destruction log, battle outcomes (#73).
   - [x] Wars and federations as entities with a war analyzer (#64).
   - [x] Region alien substates and Earth anomaly events (#65).
-  - [ ] Organizations and councilor organization events (#66).
+  - [x] Organizations and councilor organization events (#66).
   - [ ] `TIGlobalValuesState` singleton: interstate wars, global milestones,
     nuclear and climate counters, serialized build version (#67).
   - [ ] The game's notification log as a save-carried record (#68).

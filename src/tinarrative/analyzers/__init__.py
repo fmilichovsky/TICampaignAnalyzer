@@ -4,7 +4,14 @@ from .aliens import RegionAlienAnalyzer
 from .base import Analyzer
 from .common import run_analyzers
 from .military import ArmyAnalyzer
-from .politics import ControlPointAnalyzer, CouncilorAnalyzer, FederationAnalyzer, NationAnalyzer, WarAnalyzer
+from .politics import (
+    ControlPointAnalyzer,
+    CouncilorAnalyzer,
+    FederationAnalyzer,
+    NationAnalyzer,
+    OrganizationAnalyzer,
+    WarAnalyzer,
+)
 from .space import FleetAnalyzer, HabAnalyzer, ShipAnalyzer
 from .technology import TechnologyAnalyzer
 
@@ -14,6 +21,7 @@ POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
     WarAnalyzer(),
     FederationAnalyzer(),
     CouncilorAnalyzer(),
+    OrganizationAnalyzer(),
 )
 """The analyzers of the politics family, in the order they run (the output is sorted regardless)."""
 MILITARY_ANALYZERS: tuple[Analyzer, ...] = (ArmyAnalyzer(),)

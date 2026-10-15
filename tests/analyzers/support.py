@@ -90,6 +90,10 @@ def federation_ref(key: str) -> EntityRef:
     return ref(EntityDomain.FEDERATION, key)
 
 
+def org_ref(key: str) -> EntityRef:
+    return ref(EntityDomain.ORGANIZATION, key)
+
+
 def state(domain: EntityDomain, key: str, save: str, state_type: str | None = None, **fields: Observed) -> EntityState:
     """An entity state with a display name; ``state_type`` overrides the domain's default (megafauna armies)."""
     state_type = state_type or STATE_TYPES[domain][0]
