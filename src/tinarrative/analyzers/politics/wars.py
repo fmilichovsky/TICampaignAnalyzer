@@ -2,8 +2,10 @@
 
 A ``TIWarState`` lists both sides (``_attackingAlliance``, ``_defendingAlliance``, observed to include the
 ``attacker`` and ``defender``), and every nation of one side lists every nation of the other in its ``wars``
-(observed in every inspected save). Those ``wars`` entries are cited as corroboration of the war events; a pair
-no war explains is reported as ``nation.relation_changed`` exactly like ``allies`` and ``rivals``. Nothing here
+(observed in every inspected save). Those ``wars`` entries, and the war's entry in the global-values
+``interstateWars`` list, are cited as corroboration of the war events; a pair no war explains is reported as
+``nation.relation_changed`` exactly like ``allies`` and ``rivals``, and an ``interstateWars`` member no war presence
+explains as ``campaign.interstate_wars_changed``. Nothing here
 says a war was declared, won or lost, or that peace was made: those are reconstruction questions.
 """
 
@@ -17,6 +19,7 @@ from ...model.events import Event, EventSource, SourceRole
 from ...model.records import ItemEntry
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
+from ..campaign.global_values import INTERSTATE_WARS, INTERSTATE_WARS_CHANGED
 from ..common import (
     ChangeIndex,
     EventBuilder,
@@ -57,8 +60,14 @@ LEFTOVER_TYPES = {
     ATTACKING: "war.attacking_alliance_changed",
     DEFENDING: "war.defending_alliance_changed",
     "wars": WARS_LIST_CHANGED,
+    INTERSTATE_WARS: INTERSTATE_WARS_CHANGED,
 }
-HANDLED_LISTS = ((EntityDomain.WAR, ATTACKING), (EntityDomain.WAR, DEFENDING), (EntityDomain.NATION, "wars"))
+HANDLED_LISTS = (
+    (EntityDomain.WAR, ATTACKING),
+    (EntityDomain.WAR, DEFENDING),
+    (EntityDomain.NATION, "wars"),
+    (EntityDomain.GLOBAL_VALUES, INTERSTATE_WARS),
+)
 VALUE_FIELDS = (("attacker", ATTACKER_CHANGED), ("defender", DEFENDER_CHANGED))
 START_DATE = "startDate"
 LAST_FIGHTING = "dateOfLastFighting"
@@ -72,8 +81,9 @@ class WarAnalyzer:
         build = EventBuilder(before, after)
         events: list[Event] = []
 
+        global_values = tuple(change.entity_id for change in index.fields(EntityDomain.GLOBAL_VALUES, INTERSTATE_WARS))
         for change in index.presence(EntityDomain.WAR):
-            events.append(_presence(change, lookup, ledger, build))
+            events.append(_presence(change, lookup, ledger, build, global_values))
         for own_side, opponents in SIDES:
             for war_id, member, transition in ledger.pending(own_side.alliance):
                 events.append(_alliance_changed(war_id, own_side, opponents, member, transition, lookup, ledger, build))
@@ -135,7 +145,13 @@ def _start_date(lookup: Lookup, change: StateChange, war_id: EntityId) -> tuple[
     return entry.value, EventSource(change, SourceRole.PRIMARY, START_DATE, record_set.entry_location(entry))
 
 
-def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder) -> Event:
+def _presence(
+    change: StateChange,
+    lookup: Lookup,
+    ledger: MembershipLedger,
+    build: EventBuilder,
+    global_values: tuple[EntityId | None, ...],
+) -> Event:
     appeared = change.kind is ChangeKind.APPEARED
     war_id = change.entity_id
     assert war_id is not None
@@ -150,7 +166,12 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         if start_source is not None:
             sources.append(start_source)
             attributes.append(("started_on", started_on))
-    sources.extend(_war_pairs(ledger, attackers, defenders, Transition.ADDED if appeared else Transition.REMOVED))
+    transition = Transition.ADDED if appeared else Transition.REMOVED
+    for owner in global_values:
+        cited = ledger.claim(owner, INTERSTATE_WARS, war_id, transition, SourceRole.CORROBORATING) if owner else None
+        if cited is not None:
+            sources.append(cited)
+    sources.extend(_war_pairs(ledger, attackers, defenders, transition))
     return build.event(
         APPEARED if appeared else DISAPPEARED,
         id_parts=(war_id,),

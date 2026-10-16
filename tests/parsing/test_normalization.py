@@ -1094,3 +1094,52 @@ def test_wars_and_federations_normalize_with_provenance_and_resolved_references(
     assert federation.get("federationName") == "Fixture Federation"
     assert "flagResource" not in dict(federation.fields)  # acknowledged UI cache
     assert by_id(snapshot.nations, "24").get("federation") == ref(EntityDomain.FEDERATION, "80", "TIFederationState")
+
+
+GLOBAL_VALUES_TYPE = STATE_PREFIX + "TIGlobalValuesState"
+
+
+@pytest.mark.fixture
+def test_the_global_values_singleton_normalizes_as_one_entity_with_provenance() -> None:
+    raw = load_raw_save(fixture_path(*FIXTURE_SET, "global_values_before.json"))
+    collector = UnknownCollector()
+    snapshot = normalize(raw, collector=collector)
+    assert collector.report().findings == ()
+
+    (singleton,) = snapshot.global_values
+    assert singleton.ref.entity_id == EntityId(EntityDomain.GLOBAL_VALUES, "70")
+    assert singleton.ref.confidence is IdentityConfidence.IN_SAVE_ID
+    assert singleton.location is not None and singleton.location.path == f"/gamestates/{GLOBAL_VALUES_TYPE}/0/Value"
+    assert singleton.get("interstateWars") == (
+        ref(EntityDomain.WAR, "90", "TIWarState"),
+        ref(EntityDomain.WAR, "91", "TIWarState"),
+    )
+    assert singleton.get("nuclearStrikes") == 0 and singleton.get("globalSeaLevelRise1Triggered") is False
+    assert singleton.get("latestSaveVersion") == "fixture-build-1"
+    assert singleton.get("bestGlobalHumanEducation") == Unknown()  # observed on the newer build only
+    fields = dict(singleton.fields)
+    for acknowledged in ("difficulty", "narrativeEvents", "pastEarthAtmosphericCO2_ppm", "showFinderArmies"):
+        assert acknowledged not in fields
+    owned = {record.field for record in snapshot.records if record.owner.entity_id == singleton.ref.entity_id}
+    assert owned == {
+        "globalMilestones",
+        "narrativeEventsOnCooldown_months",
+        "removedNarrativeEvents",
+        "triggeredOncePerCampaignEvents",
+        "triggeredOncePerTargetEvents",
+    }
+    assert "globalMilestones" not in fields
+
+
+def test_a_missing_save_version_is_unknown() -> None:
+    raw = fragment_raw({GLOBAL_VALUES_TYPE: [pair(70, campaignStartVersion="fixture-build-1")]})
+    snapshot = normalize(raw)
+    (singleton,) = snapshot.global_values
+    assert singleton.get("latestSaveVersion") == Unknown()
+    assert singleton.get("campaignStartVersion") == "fixture-build-1"
+
+
+def test_a_second_global_values_entry_is_reported_and_kept() -> None:
+    snapshot, report = collect(fragment_raw({GLOBAL_VALUES_TYPE: [pair(70), pair(71)]}))
+    assert [state.ref.entity_id.key for state in snapshot.global_values] == ["70", "71"]
+    assert keys(report) == [("unexpected_singleton_count", "TIGlobalValuesState", "", "")]

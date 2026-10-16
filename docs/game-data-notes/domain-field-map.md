@@ -23,6 +23,7 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 | Wars | `TIWarState` | `attacker`, `defender`, `originalAttacker`, `originalDefender`, `_attackingAlliance`, `_defendingAlliance`, `nukedRegions`, `annexedRegions` (empty in every observed war; copied raw), `defensiveNukes`, `peaceOfferHistory`, `cohesionGainByNation` (pair maps, see below); `startDate` and `dateOfLastFighting` are save-carried records. The container was an empty `{}` in the first inspected sample |
 | Federations | `TIFederationState` | `members`, `federationName` (string or `null`), `adjective` |
 | Region alien states | `TIRegionUFOCrashdownState`, `TIRegionUFOLandingState`, `TIRegionAlienFacilityState`, `TIRegionXenoformingState`, `TIRegionAlienActivityState` (one `region alien state` domain) | every type: `region`; crashdown: `crashdownPresent` (`crashdownTime` is a save-carried record); landing: `landingPresent`, `deployingArmy`, `supportingArmyBuildup`, `currentHP`; facility: `built`, `currentHP`; xenoforming: `xenoformingLevel`; activity: `alienMissionsDetected` (pair map, see below). 363 entries of each type in each of eight private saves (2026-10-15) |
+| Global values | `TIGlobalValuesState` (singleton, one `global values` entity) | `interstateWars` (list of references), `nuclearStrikes`, `looseNukes`, `currentNuclearExchanges` (empty list throughout, copied raw), `alienInvaderArmies`, `earthAtmosphericCO2_ppm`, `earthAtmosphericCH4_ppm`, `earthAtmosphericN2O_ppm`, `stratosphericAerosols_ppm`, `globalSeaLevelAnomaly_cm`, `globalSeaLevelRise1Triggered`, `globalSeaLevelRise2Triggered`, `endOfOil`, `bestGlobalHumanMiltech`, `bestGlobalHumanEducation` (newer build only), `campaignStartVersion`, `latestSaveVersion` (build strings), `realWorldCampaignStart` (a real-world componentized date, copied raw); `globalMilestones`, `triggeredOncePerTargetEvents`, `triggeredOncePerCampaignEvents`, `removedNarrativeEvents` and `narrativeEventsOnCooldown_months` are save-carried records. Every other observed member is acknowledged: `pastEarthAtmospheric*` (`derived_history`); the `*SourcesRecord_ppm` objects, `resourceMarketValues`, `maxGlobalExpectedHabSiteProduction_day`, `baselineUnnormalizedSpaceCombatValue`, `controlPointMaintenanceFreebies`, `initialSustainabilityMin`, `fixedPCGDP*` (`derived_cache`); the sort, finder and quick-build flags (`ui_cache`); `difficulty`, `startDifficulty`, the other narrative-event bookkeeping, `scenarioCustomizations`, the modding, tutorial and random-state members and `repairCPMaintenanceScaling` (`runtime_internal`). One entry per save with an ID stable within each campaign (2026-10-16, eight private saves of two campaigns; 68 members on the older build, 71 on the newer) |
 
 Every inspected entity in the normalized types also carried `templateName`, `displayName`, `archived`, and `exists`. Observed on 2026-10-09 in two private complete saves (structure only): every field named above for councilors, armies, fleets, ships, habs, hab modules, and research is present in every entry of its type, and the field-name sets of both saves are identical.
 
@@ -143,6 +144,9 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TIFactionState` | `knownAlienSites[].Key` | typed pair-map key reference (`$type` present); a few IDs absent from the save | `TIRegionState` (most), `TIHabState`, `TISpaceShipState` (one) |
 | `TIFactionState` | `lostControlPoints[].Key` | pair-map key reference | `TIControlPoint` |
 | `TINationState` | `lastExecutiveChange.newExecutive` | reference or `null` | `TIFactionState` |
+| `TIGlobalValuesState` | `interstateWars` | list of references (1–2 per save; 2026-10-16, eight private saves) | `TIWarState` |
+| `TIGlobalValuesState` | `globalMilestones.<label>` | reference (0 or 9 labels per save) | `TIFactionState` |
+| `TIGlobalValuesState` | `triggeredOncePerTargetEvents.<label>[]` | list of references (102 labels per save, 38–102 of them empty) | `TIFactionState` |
 
 The inspected `TIFactionState.resources` object had these named resource members: `Money`, `Influence`, `Operations`, `Research`, `Projects`, `Boost`, `MissionControl`, `Water`, `Volatiles`, `Metals`, `NobleMetals`, `Fissiles`, `Antimatter`, and `Exotics`. The inspected `TICouncilorState.attributes` object had `Persuasion`, `Investigation`, `Espionage`, `Command`, `Administration`, `Science`, `Security`, `Loyalty`, and `ApparentLoyalty`.
 
@@ -171,6 +175,10 @@ Observed on 2026-10-13 in five private complete saves of one campaign (2045-08 t
 | `TINationState` | `dateOfNewGovernment` | `date` | componentized date or `null`; set on 43 of 295 nations | — |
 | `TIRegionUFOCrashdownState` | `crashdownTime` | `date` | componentized date or `null` (2026-10-15, eight private saves); non-null exactly when `crashdownPresent` is true (15 of 363 regions in the older campaign, 1 in the newer); never changed within a campaign | — |
 | `TIWarState` | `startDate`, `dateOfLastFighting` | `date` | componentized date (2026-10-15, eight private saves); a war that appeared in an interval had its `startDate` inside it; `dateOfLastFighting` moved later in both newer intervals | — |
+| `TIGlobalValuesState` | `globalMilestones` | `labelled_references` | object: milestone template name -> faction reference (`{}` early in the newer campaign, 9 labels in every older save); entry provenance `/globalMilestones/<label>` | `TIFactionState` |
+| `TIGlobalValuesState` | `triggeredOncePerTargetEvents` | `labelled_references` | object: narrative-event name -> list of faction references | `TIFactionState` |
+| `TIGlobalValuesState` | `triggeredOncePerCampaignEvents`, `removedNarrativeEvents` | `name_log` | list of narrative-event names; `removedNarrativeEvents` grew 242 -> 249 across the older sample and 0 -> 15 across the newer | — |
+| `TIGlobalValuesState` | `narrativeEventsOnCooldown_months` | `label_values` | object: narrative-event name -> months (0–36 labels; changes every interval) | — |
 | `TINationState` | `lastExecutiveChange` | `executive_change` | object `{newExecutive, date, cause}`; `newExecutive` and `date` may be `null`; causes seen: `None`, `Politics`, `Independence`, `Coup`, `RegimeChange`, `Enthrall` | `newExecutive` -> `TIFactionState` |
 
 *Hypothesis:* `knownAlienSites` keys whose ID is absent from the save are sites on bodies or habs that no longer exist; not checked.
@@ -192,6 +200,7 @@ TISpaceFleetState     -> fleets
 TISpaceShipState      -> ships
 TIHabState            -> habs (domain: space object)
 TIGlobalResearchState -> research (singleton) + technologies (name-keyed)
+TIGlobalValuesState   -> global_values (singleton as one in-save-ID entity)
 ```
 
 Use the state type and numeric map ID as the factual provenance key, for example `TINationState:123`. Save the original state type, map ID, and source path with every normalized object. Field-level domain code should resolve reference IDs through the target state map and report an unresolved reference as unknown rather than guessing a target.

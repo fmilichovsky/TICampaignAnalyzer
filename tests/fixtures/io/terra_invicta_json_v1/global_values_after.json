@@ -1,0 +1,493 @@
+{
+  "currentID": {
+    "value": 999
+  },
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIMetadataState": [
+      {
+        "Key": {
+          "value": 1
+        },
+        "Value": {
+          "ID": {
+            "value": 1
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "playerFactionName": "Fixture Resistance",
+          "gameTimeString": "1/1/2032 12:00:00 AM",
+          "difficulty": "Normal",
+          "playedWithMods": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMetadataState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TITimeState": [
+      {
+        "Key": {
+          "value": 2
+        },
+        "Value": {
+          "ID": {
+            "value": 2
+          },
+          "templateName": "FixtureTime",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "currentDateTime": {
+            "year": 2032,
+            "month": 4,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "daysInCampaign": 731,
+          "currentQuarterSinceStart": 8,
+          "masterMetaTemplateName": "FixtureMaster",
+          "scenarioMetaTemplateName": "FixtureScenario",
+          "$type": "PavonisInteractive.TerraInvicta.TITimeState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIPlayerState": [
+      {
+        "Key": {
+          "value": 60
+        },
+        "Value": {
+          "ID": {
+            "value": 60
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "isAI": false,
+          "faction": {
+            "value": 15
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIPlayerState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TINationState": [
+      {
+        "Key": {
+          "value": 20
+        },
+        "Value": {
+          "ID": {
+            "value": 20
+          },
+          "templateName": "FixtureNation20",
+          "displayName": "Fixture Nation 20",
+          "archived": false,
+          "exists": true,
+          "wars": [
+            {
+              "value": 21
+            }
+          ],
+          "federation": {
+            "value": 80
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 21
+        },
+        "Value": {
+          "ID": {
+            "value": 21
+          },
+          "templateName": "FixtureNation21",
+          "displayName": "Fixture Nation 21",
+          "archived": false,
+          "exists": true,
+          "wars": [
+            {
+              "value": 20
+            },
+            {
+              "value": 22
+            }
+          ],
+          "federation": null,
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 22
+        },
+        "Value": {
+          "ID": {
+            "value": 22
+          },
+          "templateName": "FixtureNation22",
+          "displayName": "Fixture Nation 22",
+          "archived": false,
+          "exists": true,
+          "wars": [
+            {
+              "value": 21
+            }
+          ],
+          "federation": null,
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 23
+        },
+        "Value": {
+          "ID": {
+            "value": 23
+          },
+          "templateName": "FixtureNation23",
+          "displayName": "Fixture Nation 23",
+          "archived": false,
+          "exists": true,
+          "wars": [
+            {
+              "value": 25
+            }
+          ],
+          "federation": null,
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 24
+        },
+        "Value": {
+          "ID": {
+            "value": 24
+          },
+          "templateName": "FixtureNation24",
+          "displayName": "Fixture Nation 24",
+          "archived": false,
+          "exists": true,
+          "wars": [
+            {
+              "value": 21
+            }
+          ],
+          "federation": {
+            "value": 80
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 25
+        },
+        "Value": {
+          "ID": {
+            "value": 25
+          },
+          "templateName": "FixtureNation25",
+          "displayName": "Fixture Nation 25",
+          "archived": false,
+          "exists": true,
+          "wars": [
+            {
+              "value": 23
+            }
+          ],
+          "federation": null,
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIWarState": [
+      {
+        "Key": {
+          "value": 90
+        },
+        "Value": {
+          "ID": {
+            "value": 90
+          },
+          "templateName": null,
+          "displayName": "Fixture War 90",
+          "archived": false,
+          "exists": true,
+          "attacker": {
+            "value": 20
+          },
+          "defender": {
+            "value": 21
+          },
+          "originalAttacker": {
+            "value": 20
+          },
+          "originalDefender": {
+            "value": 21
+          },
+          "_attackingAlliance": [
+            {
+              "value": 20
+            },
+            {
+              "value": 22
+            }
+          ],
+          "_defendingAlliance": [
+            {
+              "value": 21
+            }
+          ],
+          "startDate": {
+            "year": 2031,
+            "month": 6,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "dateOfLastFighting": {
+            "year": 2032,
+            "month": 3,
+            "day": 15,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "nukedRegions": [],
+          "annexedRegions": [],
+          "defensiveNukes": 0,
+          "peaceOfferHistory": {},
+          "cohesionGainByNation": [
+            {
+              "Key": {
+                "value": 21
+              },
+              "Value": 0.5
+            }
+          ],
+          "finderSortOverride": 0,
+          "$type": "PavonisInteractive.TerraInvicta.TIWarState"
+        }
+      },
+      {
+        "Key": {
+          "value": 92
+        },
+        "Value": {
+          "ID": {
+            "value": 92
+          },
+          "templateName": null,
+          "displayName": "Fixture War 92",
+          "archived": false,
+          "exists": true,
+          "attacker": {
+            "value": 23
+          },
+          "defender": {
+            "value": 25
+          },
+          "originalAttacker": {
+            "value": 23
+          },
+          "originalDefender": {
+            "value": 25
+          },
+          "_attackingAlliance": [
+            {
+              "value": 23
+            }
+          ],
+          "_defendingAlliance": [
+            {
+              "value": 25
+            }
+          ],
+          "startDate": {
+            "year": 2032,
+            "month": 2,
+            "day": 20,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "dateOfLastFighting": {
+            "year": 2032,
+            "month": 3,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "nukedRegions": [],
+          "annexedRegions": [],
+          "defensiveNukes": 0,
+          "peaceOfferHistory": {},
+          "cohesionGainByNation": [
+            {
+              "Key": {
+                "value": 25
+              },
+              "Value": 0.5
+            }
+          ],
+          "finderSortOverride": 0,
+          "$type": "PavonisInteractive.TerraInvicta.TIWarState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFederationState": [
+      {
+        "Key": {
+          "value": 80
+        },
+        "Value": {
+          "ID": {
+            "value": 80
+          },
+          "templateName": null,
+          "displayName": "Fixture Federation",
+          "archived": false,
+          "exists": true,
+          "members": [
+            {
+              "value": 24
+            },
+            {
+              "value": 20
+            }
+          ],
+          "federationName": "Fixture Federation",
+          "adjective": "Fixture",
+          "displayNameWithArticle": "the Fixture Federation",
+          "displayNameWithArticleCapitalized": "The Fixture Federation",
+          "flagResource": "fixture/flag",
+          "lastAttemptToLeaveDarkFederation": {},
+          "finderSortOverride": 0,
+          "$type": "PavonisInteractive.TerraInvicta.TIFederationState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {
+          "value": 15
+        },
+        "Value": {
+          "ID": {
+            "value": 15
+          },
+          "templateName": "ResistCouncil",
+          "displayName": "Fixture Resistance",
+          "archived": false,
+          "exists": true,
+          "player": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIGlobalValuesState": [
+      {
+        "Key": {
+          "value": 70
+        },
+        "Value": {
+          "ID": {
+            "value": 70
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "finderSortOverride": 0,
+          "gameStateSubjectCreated": false,
+          "interstateWars": [
+            {
+              "value": 90
+            },
+            {
+              "value": 92
+            }
+          ],
+          "nuclearStrikes": 2,
+          "looseNukes": 0,
+          "currentNuclearExchanges": [],
+          "alienInvaderArmies": 0,
+          "earthAtmosphericCO2_ppm": 421.5,
+          "earthAtmosphericCH4_ppm": 1.9,
+          "earthAtmosphericN2O_ppm": 0.33,
+          "stratosphericAerosols_ppm": 0.0,
+          "globalSeaLevelAnomaly_cm": 12.0,
+          "globalSeaLevelRise1Triggered": true,
+          "globalSeaLevelRise2Triggered": false,
+          "endOfOil": false,
+          "bestGlobalHumanMiltech": 3.5,
+          "campaignStartVersion": "fixture-build-1",
+          "latestSaveVersion": "fixture-build-2",
+          "realWorldCampaignStart": {
+            "year": 2000,
+            "month": 1,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "difficulty": 3,
+          "startDifficulty": 3,
+          "globalMilestones": {
+            "FirstOrbitalStation": {
+              "value": 15
+            },
+            "FirstBaseOnLuna": {
+              "value": 15
+            }
+          },
+          "removedNarrativeEvents": [
+            "event_FixtureOld2",
+            "event_FixtureOld3"
+          ],
+          "triggeredOncePerCampaignEvents": [
+            "event_FixtureOnce",
+            "event_FixtureSecond"
+          ],
+          "triggeredOncePerTargetEvents": {
+            "event_FixtureTarget": [
+              {
+                "value": 15
+              }
+            ]
+          },
+          "narrativeEventsOnCooldown_months": {
+            "event_FixtureCooldown": 2.0
+          },
+          "narrativeEvents": {
+            "event_FixtureOnce": 1.0
+          },
+          "pastEarthAtmosphericCO2_ppm": [
+            419.0,
+            420.0
+          ],
+          "showFinderArmies": true,
+          "tutorialMode": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIGlobalValuesState"
+        }
+      }
+    ]
+  }
+}

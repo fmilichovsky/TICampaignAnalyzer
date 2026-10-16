@@ -341,5 +341,64 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIRegionUFOCrashdownState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
         "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "records normalized state_type=TIGlobalValuesState fields=5 entities=0 sets=0 known_sets=0 missing=0 "
+        "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
     ]
     assert "Secret" not in caplog.text and "Fixture" not in caplog.text
+
+
+GLOBAL_VALUES_TYPE = STATE_PREFIX + "TIGlobalValuesState"
+
+
+def test_labelled_references_hold_one_reference_or_a_list_per_label() -> None:
+    gamestates: dict[str, object] = {
+        **faction_fragment(),
+        GLOBAL_VALUES_TYPE: [
+            pair(
+                70,
+                globalMilestones={"FirstWarship": {"value": 15}, "FirstBase": {"value": 20}},
+                triggeredOncePerTargetEvents={"event_A": [{"value": 15}, {"value": 16}], "event_B": []},
+            )
+        ],
+    }
+    snapshot, report = collect(gamestates)
+    milestones = record(snapshot, "70", "globalMilestones")
+    assert milestones.kind is RecordKind.LABELLED_REFERENCES
+    assert milestones.entries == (KeyedEntry(0, "FirstWarship", FACTION_15), KeyedEntry(1, "FirstBase", unresolved(20)))
+    assert isinstance(milestones.entries, tuple)
+    assert milestones.entry_location(milestones.entries[0]).path == (
+        f"/gamestates/{GLOBAL_VALUES_TYPE}/0/Value/globalMilestones/FirstWarship"
+    )
+    assert record(snapshot, "70", "triggeredOncePerTargetEvents").entries == (
+        KeyedEntry(0, "event_A", (FACTION_15, FACTION_16)),
+        KeyedEntry(1, "event_B", ()),
+    )
+    assert keys(report) == [("unexpected_reference_domain", "TIGlobalValuesState", "globalMilestones", "TINationState")]
+
+
+def test_labelled_references_of_the_wrong_shape_are_unparseable_and_reported() -> None:
+    snapshot, report = collect({GLOBAL_VALUES_TYPE: [pair(70, globalMilestones=[{"value": 15}])]})
+    entries = record(snapshot, "70", "globalMilestones").entries
+    assert isinstance(entries, Unknown) and entries.reason is UnknownReason.UNPARSEABLE
+    assert keys(report) == [("unexpected_field_shape", "TIGlobalValuesState", "globalMilestones", "object")]
+
+
+def test_global_values_name_logs_and_cooldowns_are_records() -> None:
+    gamestates: dict[str, object] = {
+        GLOBAL_VALUES_TYPE: [
+            pair(
+                70,
+                removedNarrativeEvents=["event_A", "event_A"],
+                triggeredOncePerCampaignEvents=[],
+                narrativeEventsOnCooldown_months={"event_B": 2.0},
+            )
+        ]
+    }
+    snapshot, report = collect(gamestates)
+    assert record(snapshot, "70", "removedNarrativeEvents").entries == (
+        ItemEntry(0, "event_A"),
+        ItemEntry(1, "event_A"),
+    )
+    assert record(snapshot, "70", "triggeredOncePerCampaignEvents").entries == ()
+    assert record(snapshot, "70", "narrativeEventsOnCooldown_months").entries == (KeyedEntry(0, "event_B", 2.0),)
+    assert report.findings == ()

@@ -4,8 +4,8 @@ Each record field of an entity becomes exactly one :class:`~tinarrative.model.re
 ``<entity Value path>/<field>``. An absent field gives ``entries = Unknown()``; a field whose value does not
 have the documented shape gives ``Unknown(unparseable, raw)`` and an ``unexpected_field_shape`` finding. A
 problem inside one element (an unparseable date, an unresolvable reference) stays inside that entry, so
-the rest of the log remains evidence. Nothing read from a record is logged: ledger labels, milestone names
-and kill lists are campaign content.
+the rest of the log remains evidence. Nothing read from a record is logged: ledger labels, milestone names,
+narrative-event names and kill lists are campaign content.
 """
 
 from __future__ import annotations
@@ -184,6 +184,24 @@ def _reference_list(raw: Any, spec: RecordField, ctx: _Context) -> Entries:
     return (ItemEntry(0, value),)
 
 
+def _labelled_references(raw: Any, spec: RecordField, ctx: _Context) -> Entries:
+    """An object label -> one reference or a list of references; each value is checked and resolved in place."""
+    if not isinstance(raw, dict):
+        return ctx.unparseable(OBJECT, raw)
+    targets = spec.targets if spec.targets is not None else frozenset()
+    entries: list[RecordEntry] = []
+    for position, (label, value) in enumerate(raw.items()):
+        if isinstance(value, list):
+            check_reference(ctx.state_type, ctx.field, value, targets, True, ctx.index, ctx.collector)
+            resolved = ctx.index.resolve_list(value, targets)
+            if isinstance(resolved, Unknown):
+                ctx.unresolved_references += 1
+        else:
+            resolved = ctx.reference(value, targets, ctx.field)
+        entries.append(KeyedEntry(position, str(label), resolved))
+    return tuple(entries)
+
+
 def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
     kind = spec.kind
     if kind is RecordKind.LEDGER:
@@ -198,6 +216,8 @@ def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
         return _label_map(raw, spec, ctx)
     if kind is RecordKind.EXECUTIVE_CHANGE:
         return _executive_change(raw, ctx)
+    if kind is RecordKind.LABELLED_REFERENCES:
+        return _labelled_references(raw, spec, ctx)
     if kind is RecordKind.COUNTER:
         return (ItemEntry(0, freeze(raw)),)
     if kind is RecordKind.DATE:

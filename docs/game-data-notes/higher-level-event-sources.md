@@ -21,7 +21,7 @@ The work items derived from this page are issues #64 to #73, listed under the re
 | --- | --- | --- | --- |
 | `TIWarState` | Yes (`war` domain, issue #64) | war declared, nation joins, peace | appears with `startDate` in the interval, disappears at peace |
 | `TIFederationState` | Yes (`federation` domain, issue #64) | nation joins or leaves a federation | `members` grew 4 → 5 → 7 across the older sample |
-| `TIGlobalValuesState` | No (singleton not read) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
+| `TIGlobalValuesState` | Yes (`global values` domain, issue #67) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
 | Five `TIRegion*State` alien substates | Yes (`region alien state` domain, issue #65) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
 | `TIOrgState` | Yes (`organization` domain, issue #66) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |

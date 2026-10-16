@@ -27,6 +27,9 @@ REGION_ALIEN_STATE_TYPES = (
 )
 """The per-region alien sub-states: one entry per region each, with a ``region`` back-reference (observed)."""
 
+GLOBAL_VALUES_STATE_TYPE = "TIGlobalValuesState"
+"""The campaign-wide singleton, normalized as a one-entity collection (``SaveSnapshot.global_values``)."""
+
 _ARMY_FIELDS = COMMON_FIELDS + (
     "currentRegion",
     "faction",
@@ -321,8 +324,31 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "inEarthLEO",
         "globalPosition",
     ),
+    # bestGlobalHumanEducation: newer build only; realWorldCampaignStart: a real-world date, copied raw.
+    GLOBAL_VALUES_STATE_TYPE: COMMON_FIELDS
+    + (
+        "interstateWars",
+        "nuclearStrikes",
+        "looseNukes",
+        "currentNuclearExchanges",
+        "alienInvaderArmies",
+        "earthAtmosphericCO2_ppm",
+        "earthAtmosphericCH4_ppm",
+        "earthAtmosphericN2O_ppm",
+        "stratosphericAerosols_ppm",
+        "globalSeaLevelAnomaly_cm",
+        "globalSeaLevelRise1Triggered",
+        "globalSeaLevelRise2Triggered",
+        "endOfOil",
+        "bestGlobalHumanMiltech",
+        "bestGlobalHumanEducation",
+        "campaignStartVersion",
+        "latestSaveVersion",
+        "realWorldCampaignStart",
+    ),
 }
 """Fields copied into each ``EntityState``; anything else serialized on the object is ignored."""
+
 
 RESEARCH_STATE_TYPE = "TIGlobalResearchState"
 RESEARCH_FIELDS = (
@@ -436,6 +462,9 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     "TIFederationState": {
         "members": _NATION_LIST,
     },
+    GLOBAL_VALUES_STATE_TYPE: {
+        "interstateWars": (EntityDomain.WAR, True),
+    },
     "TIOrgState": {
         "assignedCouncilor": _COUNCILOR,
         "factionOrbit": _FACTION,
@@ -512,12 +541,16 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.FEDERATION, "TIFederationState", "federations"),
     (EntityDomain.ORGANIZATION, "TIOrgState", "organizations"),
     *((EntityDomain.REGION_ALIEN_STATE, state_type, "region_alien_states") for state_type in REGION_ALIEN_STATE_TYPES),
+    (EntityDomain.GLOBAL_VALUES, GLOBAL_VALUES_STATE_TYPE, "global_values"),
 )
 """(domain, short state type, ``SaveSnapshot`` attribute) for each normalized collection.
 
 Several state types may feed one attribute (both army types fill ``armies``; the five region alien sub-states
-fill ``region_alien_states``).
+fill ``region_alien_states``). ``TIGlobalValuesState`` is a singleton; more than one entry is reported.
 """
+
+SINGLETON_ENTITY_TYPES = frozenset((GLOBAL_VALUES_STATE_TYPE,))
+"""Normalized state types observed with exactly one entry; the normalizer reports any other count above one."""
 
 SERIALIZATION_FIELDS = ("$type", "ID", "finderSortOverride", "gameStateSubjectCreated")
 """Serializer members observed on every entity and singleton ``Value`` object; known, never normalized."""
@@ -528,6 +561,7 @@ class RecordField:
     """How one save-carried record field is decoded (``parsing.records``).
 
     ``targets`` are the expected domains of the references a pair map is keyed by or a reference list holds.
+    A ``labelled_references`` value may be one reference or a list of them; both resolve against ``targets``.
     Kinds with fixed members (``destruction_log``, ``executive_change``) resolve each member against
     ``RECORD_MEMBER_TARGETS`` instead.
     """
@@ -571,6 +605,13 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     },
     "TIRegionUFOCrashdownState": {
         "crashdownTime": RecordField(RecordKind.DATE),
+    },
+    GLOBAL_VALUES_STATE_TYPE: {
+        "globalMilestones": RecordField(RecordKind.LABELLED_REFERENCES, EntityDomain.FACTION),
+        "narrativeEventsOnCooldown_months": RecordField(RecordKind.LABEL_VALUES),
+        "removedNarrativeEvents": RecordField(RecordKind.NAME_LOG),
+        "triggeredOncePerCampaignEvents": RecordField(RecordKind.NAME_LOG),
+        "triggeredOncePerTargetEvents": RecordField(RecordKind.LABELLED_REFERENCES, EntityDomain.FACTION),
     },
 }
 """Save-carried record fields per state type: dated logs and cumulative counters not derivable from the snapshot.
@@ -1017,6 +1058,66 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
                 "nationalIPMultiplier",
                 "requiredDLC",
                 "researchSpeedMultiplier",
+            ),
+        ),
+    ),
+    GLOBAL_VALUES_STATE_TYPE: _reasons(
+        (
+            UnsupportedReason.DERIVED_HISTORY,
+            ("pastEarthAtmosphericCH4_ppm", "pastEarthAtmosphericCO2_ppm", "pastEarthAtmosphericN2O_ppm"),
+        ),
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            (
+                "baselineUnnormalizedSpaceCombatValue",
+                "CH4SourcesRecord_ppm",
+                "CO2SourcesRecord_ppm",
+                "controlPointMaintenanceFreebies",
+                "fixedPCGDPToRaiseBaseCPMaintenanceCostBy1",
+                "fixedPCGDPToRaiseMissionBaseDifficultyBy1",
+                "fixedPCGDPToReduceUnrestBy1",
+                "initialSustainabilityMin",
+                "maxGlobalExpectedHabSiteProduction_day",
+                "N2OSourcesRecord_ppm",
+                "resourceMarketValues",
+            ),
+        ),
+        (
+            UnsupportedReason.UI_CACHE,
+            (
+                "currentProjectSort",
+                "currentTechSort",
+                "fleetScreenClassShowObsolete",
+                "habQuickBuildToggle",
+                "habQuickBuildWithBoostToggle",
+                "projectSortAscend",
+                "projectSortShowObsolete",
+                "showFinderArmies",
+                "showFinderCouncilors",
+                "showFinderFleets",
+                "showFinderHabs",
+                "techSortAscend",
+            ),
+        ),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "altWeightConditionTriggered",
+                "difficulty",
+                "inactiveNarrativeEvents",
+                "moddingActive",
+                "moddingUsedAnytime",
+                "narrativeEvents",
+                "narrativeEventsTargetSpecificCooldowns",
+                "pendingNarrativeEvents",
+                "priorNarrativeEventData",
+                "randomState",
+                "repairCPMaintenanceScaling",
+                "savedInit",
+                "scenarioCustomizations",
+                "startDifficulty",
+                "storedRandomSeed",
+                "tutorialMode",
             ),
         ),
     ),

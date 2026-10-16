@@ -101,5 +101,9 @@ identity:
     TIRegionAlienFacilityState: absent
     TIRegionXenoformingState: absent
     TIRegionAlienActivityState: absent
+  global values: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIGlobalValuesState: absent
 selected paths: none
 diagnostics: none

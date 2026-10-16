@@ -21,6 +21,7 @@ class EntityDomain(StrEnum):
     WAR = "war"
     FEDERATION = "federation"
     REGION_ALIEN_STATE = "region alien state"
+    GLOBAL_VALUES = "global values"
 
 
 class IdentityConfidence(StrEnum):
