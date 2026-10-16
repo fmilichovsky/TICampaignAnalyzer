@@ -7,7 +7,7 @@ import pytest
 
 from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, SourceRole
+from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Significance, SourceRole
 from tinarrative.model.evidence import Evidence, SourceLocation, pointer_path
 from tinarrative.model.records import (
     CombatEntry,
@@ -311,6 +311,7 @@ def test_event_sorts_its_parts_and_serializes_json_friendly() -> None:
     data = event.to_dict()
     assert json.loads(json.dumps(data)) == data
     assert data["date_basis"] == "interval" and data["attributes"]["raw"] == {"unknown": "missing"}
+    assert event.significance is Significance.MINOR and data["significance"] == "minor"  # analyzers leave the default
     assert data["sources"][0] == {
         "role": "primary",
         "member": to_jsonable(_ref("2")),

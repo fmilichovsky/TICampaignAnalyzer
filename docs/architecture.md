@@ -913,6 +913,28 @@ This allows the renderer to offer different levels of detail:
 Significance should be based on the impact of the event, not how certain
 it is.
 
+### Implemented contract (`src/tinarrative/narrative/significance.py`)
+
+`Significance` lives in the model beside `Confidence`; every `Event` carries it,
+defaulting to `minor`, and `SIGNIFICANCE_ORDER` ranks the levels explicitly.
+Analyzers never set it. `assign_significance(events, before, after)` is a
+post-pass of the narrative stage that copies each event with its level, so one
+module holds every judgement of impact. The level comes from, in order, a
+context rule for the event type (recruit-pool councilors whose `faction` is
+`null` on their existing side are `trivial`, a `nation.relation_changed` for
+`wars` or an executive change by `Coup`, `RegimeChange`, `Independence` or
+`Enthrall` is `major`, a tier-3 organization changing hands is `major`,
+megafauna presence is `major`), then a per-type table, then the default. Each
+entry and threshold carries its evidence from
+[sources for higher-level events](game-data-notes/higher-level-event-sources.md)
+or its rationale, and no threshold is tuned to one campaign. Routine churn
+(councilor movement, ship reassignment, organization presence, log pruning,
+leftover lists that mirror an asset's owner field) is `trivial`; the leftover
+lists of geopolitical relations stay `minor` so the unexplained residue is never
+hidden; campaign-wide milestones, nuclear strikes, sea-level stages and nation
+presence are `campaign_defining`. `tinarrative diff --format markdown
+--min-significance <level>` is the first consumer.
+
 ------------------------------------------------------------------------
 
 # 13. Narrative Rendering

@@ -14,7 +14,7 @@ from ..diff.render import render_change, render_value
 from ..diff.state_diff import StateDiff
 from ..model.changes import StateChange
 from ..model.entities import EntityRef
-from ..model.events import Event, EventSource, EventStatus
+from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
 from ..model.snapshot import SaveSnapshot
 
@@ -24,17 +24,21 @@ def render_comparison(
     events: Iterable[Event] = (),
     *,
     verbose: bool = False,
+    min_significance: Significance = Significance.TRIVIAL,
 ) -> str:
     """Render one comparison and supplied analyzer results as deterministic Markdown.
 
-    Normal output includes only objective analyzer results. Verbose output also
-    identifies inferred results omitted from this factual comparison report.
+    Normal output includes only objective analyzer results of at least ``min_significance`` (the default
+    keeps every level); the number omitted is stated once. Verbose output also identifies inferred results
+    omitted from this factual comparison report.
     """
     event_list = list(events)
+    objective = [event for event in event_list if event.status is EventStatus.OBJECTIVE]
     objective_events = sorted(
-        (event for event in event_list if event.status is EventStatus.OBJECTIVE),
+        (event for event in objective if event.significance.rank >= min_significance.rank),
         key=lambda event: event.sort_key,
     )
+    omitted = len(objective) - len(objective_events)
     grouped_changes: dict[str, list[StateChange]] = defaultdict(list)
     grouped_events: dict[str, list[Event]] = defaultdict(list)
     for change in comparison.changes:
@@ -61,6 +65,9 @@ def render_comparison(
                 lines.extend(["", "Observed state changes:"])
                 for change in category_changes:
                     lines.extend(_change_lines(change, verbose=verbose))
+    if omitted:
+        noun = "result" if omitted == 1 else "results"
+        lines.extend(["", f"{omitted} objective analyzer {noun} below {min_significance.value} significance omitted."])
 
     if verbose:
         inferred = sorted(
@@ -113,6 +120,7 @@ def _event_lines(event: Event, *, verbose: bool) -> list[str]:
                 f"  - event id: `{event.id}`",
                 f"  - date: `{event.date}`",
                 f"  - confidence: `{event.confidence}`",
+                f"  - significance: `{event.significance}`",
             ]
         )
         lines.extend(_entity_lines(event.entities, indent="  "))

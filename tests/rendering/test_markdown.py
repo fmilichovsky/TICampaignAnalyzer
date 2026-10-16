@@ -5,7 +5,7 @@ from datetime import datetime
 from tinarrative.diff.state_diff import StateDiff
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus
+from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Significance
 from tinarrative.model.evidence import Evidence, SourceLocation
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.rendering.markdown import render_comparison
@@ -34,9 +34,15 @@ def _nation() -> EntityRef:
     return EntityRef(EntityId(EntityDomain.NATION, "1"), IdentityConfidence.IN_SAVE_ID, name="Germany")
 
 
-def _control_event(change: StateChange, *, status: EventStatus = EventStatus.OBJECTIVE) -> Event:
+def _control_event(
+    change: StateChange,
+    *,
+    status: EventStatus = EventStatus.OBJECTIVE,
+    event_id: str = "e-1",
+    significance: Significance = Significance.MINOR,
+) -> Event:
     return Event(
-        id="e-1",
+        id=event_id,
         event_type="control_point.controller_changed",
         status=status,
         confidence=Confidence.HIGH,
@@ -46,6 +52,7 @@ def _control_event(change: StateChange, *, status: EventStatus = EventStatus.OBJ
         sources=(EventSource(change),),
         entities=(_nation(),),
         attributes=(("before", change.before), ("after", change.after)),
+        significance=significance,
     )
 
 
@@ -83,6 +90,7 @@ def test_verbose_markdown_golden_includes_traceable_evidence() -> None:
     )
     rendered = render_comparison(_comparison(change), [inferred, objective], verbose=True)
     assert "event id: `e-1`" in rendered
+    assert "  - significance: `minor`" in rendered
     assert "before / TINationState / 1 / /control" in rendered
     assert "[inferred, ambiguous] A purge occurred" in rendered
     assert "`unknown (...)` marks unavailable or unresolved normalized data." in rendered
@@ -99,3 +107,21 @@ def test_partially_normalized_snapshot_golden() -> None:
     assert "date: `<unknown>`" in rendered
     assert "game version: `<unknown>`" in rendered
     assert "campaign day: `unknown (missing)`" in rendered
+
+
+def test_minimum_significance_omits_lesser_results_and_counts_them_once() -> None:
+    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+    trivial = _control_event(change, event_id="e-trivial", significance=Significance.TRIVIAL)
+    major = _control_event(change, event_id="e-major", significance=Significance.MAJOR)
+    everything = render_comparison(_comparison(change), [trivial, major])
+    assert everything.count('- nation:1 (null) controller: "Servants" -> "Resistance"') == 2
+    assert "omitted" not in everything
+    rendered = render_comparison(
+        _comparison(change), [trivial, major], min_significance=Significance.MAJOR, verbose=True
+    )
+    assert "event id: `e-major`" in rendered and "event id: `e-trivial`" not in rendered
+    assert "\n1 objective analyzer result below major significance omitted.\n" in rendered
+    assert rendered.index("Observed state changes:") < rendered.index("omitted") < rendered.index("## Rendering notes")
+    only_changes = render_comparison(_comparison(change), [trivial], min_significance=Significance.MINOR)
+    assert "Objective analyzer results:" not in only_changes and "### Politics" in only_changes
+    assert "1 objective analyzer result below minor significance omitted." in only_changes

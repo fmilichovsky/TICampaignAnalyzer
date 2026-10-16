@@ -23,9 +23,11 @@ from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
 from .maintenance.scan import ScanRun, expand_inputs, scan_inputs
+from .model.events import SIGNIFICANCE_ORDER, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
+from .narrative import assign_significance
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
@@ -256,7 +258,9 @@ def _run_diff(args: argparse.Namespace) -> int:
     if args.format == "json":
         rendered = render_diff_json(diff)
     elif args.format == "markdown":
-        rendered = render_comparison(diff, run_analyzers(ALL_ANALYZERS, before, after, diff))
+        events = assign_significance(run_analyzers(ALL_ANALYZERS, before, after, diff), before, after)
+        minimum = Significance(cast(str, args.min_significance))
+        rendered = render_comparison(diff, events, min_significance=minimum)
     else:
         rendered = render_diff_text(diff)
     sys.stdout.write(rendered)
@@ -428,6 +432,15 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
         choices=("text", "json", "markdown"),
         default="text",
         help="Report format (default %(default)s).",
+    )
+    parser.add_argument(
+        "--min-significance",
+        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
+        default=Significance.TRIVIAL.value,
+        help=(
+            "Lowest significance an analyzer result needs to be listed in the markdown report "
+            "(default %(default)s, which lists every result); the other formats ignore it."
+        ),
     )
     parser.set_defaults(handler=_run_diff)
 

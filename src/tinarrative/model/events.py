@@ -30,6 +30,36 @@ class Confidence(StrEnum):
     LOW = "low"
 
 
+class Significance(StrEnum):
+    """How much an event matters to a campaign history; independent of how certain it is (architecture 12).
+
+    Assigned by the narrative stage (``tinarrative.narrative.significance``) from the event type and its
+    context; the model only carries the value. ``SIGNIFICANCE_ORDER`` is the explicit ranking.
+    """
+
+    TRIVIAL = "trivial"
+    """Routine churn or bookkeeping that no history level shows (recruit-pool councilors, log pruning)."""
+    MINOR = "minor"
+    """Worth a forensic log line, not a history entry; the default for an unclassified type."""
+    MAJOR = "major"
+    """A development a normal campaign history reports."""
+    CAMPAIGN_DEFINING = "campaign_defining"
+    """A development even a concise summary keeps."""
+
+    @property
+    def rank(self) -> int:
+        return SIGNIFICANCE_ORDER.index(self)
+
+
+SIGNIFICANCE_ORDER: tuple[Significance, ...] = (
+    Significance.TRIVIAL,
+    Significance.MINOR,
+    Significance.MAJOR,
+    Significance.CAMPAIGN_DEFINING,
+)
+"""Least to most significant; compare levels through ``Significance.rank``, never by enum declaration order."""
+
+
 class DateBasis(StrEnum):
     """What ``Event.date`` is derived from."""
 
@@ -86,7 +116,7 @@ class Event:
     ``date`` is the game date the event is dated by (``date_basis`` says how) and ``not_before`` the date of
     the earlier snapshot of the interval; either may be ``Unknown`` when a snapshot has no date. ``entities``
     are the affected entities (subject first by domain order after sorting), ``attributes`` literal values
-    keyed by name.
+    keyed by name. ``significance`` is assigned by the narrative stage; analyzers leave the default.
     """
 
     id: str
@@ -99,6 +129,7 @@ class Event:
     sources: tuple[EventSource, ...]
     entities: tuple[EntityRef, ...]
     attributes: tuple[tuple[str, Observed], ...] = ()
+    significance: Significance = Significance.MINOR
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sources", tuple(sorted(self.sources, key=lambda source: source.sort_key)))
@@ -123,6 +154,7 @@ class Event:
             "event_type": self.event_type,
             "status": self.status.value,
             "confidence": self.confidence.value,
+            "significance": self.significance.value,
             "date": to_jsonable(self.date),
             "date_basis": self.date_basis.value,
             "not_before": to_jsonable(self.not_before),

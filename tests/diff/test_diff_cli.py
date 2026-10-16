@@ -133,6 +133,32 @@ def test_markdown_format_renders_objective_results_and_raw_changes(capsys: pytes
 
 
 @pytest.mark.fixture
+def test_minimum_significance_drops_lesser_results_from_the_markdown_report(capsys: pytest.CaptureFixture[str]) -> None:
+    before = fixture_path("io", FIXTURE_SET, "interval_before.json")
+    after = fixture_path("io", FIXTURE_SET, "interval_after.json")
+    assert main(["diff", "--format", "markdown", str(before), str(after)]) == EXIT_SUCCESS
+    everything = capsys.readouterr().out
+    argv = ["diff", "--format", "markdown", "--min-significance", "major", str(before), str(after)]
+    assert main(argv) == EXIT_SUCCESS
+    first = capsys.readouterr()
+    assert main(argv) == EXIT_SUCCESS
+    second = capsys.readouterr()
+    assert first.out == second.out and first.err == ""
+    assert "omitted" not in everything and " below major significance omitted.\n" in first.out
+    assert len(first.out) < len(everything)
+    assert main(["diff", "--min-significance", "major", str(before), str(after)]) == EXIT_SUCCESS
+    text = capsys.readouterr().out
+    assert "significance omitted" not in text and text.startswith("tinarrative diff report\n")
+
+
+def test_an_unknown_significance_level_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as result:
+        main(["diff", "--min-significance", "huge", "a.json", "b.json"])
+    assert result.value.code == EXIT_USAGE_ERROR
+    assert "invalid choice" in capsys.readouterr().err
+
+
+@pytest.mark.fixture
 def test_unreadable_and_unsupported_inputs_name_the_failing_file(capsys: pytest.CaptureFixture[str]) -> None:
     good = str(fixture_path("io", FIXTURE_SET, "interval_before.json"))
     assert main(["diff", good, "does-not-exist.json"]) == EXIT_INPUT_ERROR

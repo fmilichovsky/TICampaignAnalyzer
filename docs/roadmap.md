@@ -28,7 +28,7 @@
 - [x] Add the army, space-object and technology analyzers.
 - [ ] Add rule-based reconstruction of higher-level events (evidence in
   [sources for higher-level events](game-data-notes/higher-level-event-sources.md)):
-  - [ ] Significance on events and the churn rules (recruit-pool councilors,
+  - [x] Significance on events and the churn rules (recruit-pool councilors,
     routine fleet and councilor movement) (#70).
   - [ ] Nation metric shifts with cause attribution from the
     `tracker_*ChangeReason_AllTime` maps (#71).
