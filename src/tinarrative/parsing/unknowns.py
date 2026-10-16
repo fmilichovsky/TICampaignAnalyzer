@@ -34,6 +34,7 @@ from .fields import (
     PAIR_MAP_FIELDS,
     REFERENCE_FIELDS,
     SINGLETON_FIELDS,
+    UNTRACKED_REFERENCE_TARGETS,
     record_reference_domains,
 )
 from .inventory import KNOWN_STATE_TYPES, short_state_type
@@ -372,7 +373,8 @@ def check_reference(
 ) -> None:
     """Report a reference whose shape or target type is not the documented one; resolution is unchanged.
 
-    ``name`` is the field, or ``Field.member`` for a reference inside a record entry.
+    ``name`` is the field, or ``Field.member`` for a reference inside a record entry. A target type listed in
+    ``UNTRACKED_REFERENCE_TARGETS`` for ``name`` is known to have no domain and is not reported.
     """
     if is_list:
         if not isinstance(raw, list):
@@ -390,7 +392,7 @@ def check_reference(
             collector.field_shape(state_type, name, REFERENCE_OBJECT, item)
             continue
         owner = index.owner_state_type(map_id, domains)
-        if owner is not None:
+        if owner is not None and owner not in UNTRACKED_REFERENCE_TARGETS.get(name, frozenset()):
             collector.reference_domain(state_type, name, owner)
 
 
@@ -434,6 +436,8 @@ def is_known(key: FindingKey) -> bool:
         known = KNOWN_FIELDS.get(state_type)
         return known is None or field not in known or field in ACKNOWLEDGED_FIELDS.get(state_type, {})
     if kind == UnknownKind.REFERENCE_DOMAIN:
+        if detail in UNTRACKED_REFERENCE_TARGETS.get(field, frozenset()):
+            return True
         expected = REFERENCE_FIELDS.get(state_type, {}).get(field)
         keys = PAIR_MAP_FIELDS.get(state_type, {}).get(field)
         if expected is not None:

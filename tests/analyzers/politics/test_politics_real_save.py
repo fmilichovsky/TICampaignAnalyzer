@@ -30,6 +30,7 @@ FORBIDDEN = (
     "merge",
 )
 FIELD_BACKED = {"destroy": ("destroyed", "HabDestructionLog"), "refit": ("lastRefitDate",)}
+NOTIFICATION_LOG = "notificationSummaryQueue"
 
 
 def real_save_pair() -> tuple[Path, Path]:
@@ -55,6 +56,8 @@ def test_real_save_pair_analyzes_deterministically_with_evidence_on_every_event(
         assert event.sources and any(source.role is SourceRole.PRIMARY for source in event.sources)
         assert all(source.change in changes for source in event.sources)
         assert event.entities and event.not_before == before.date
+        if event.sources[0].change.field == NOTIFICATION_LOG:
+            continue  # the game's own event log says what happened: its wording is evidence, not inference
         text = f"{event.event_type} {describe_event(event)}".lower()
         assert not any(word in text for word in FORBIDDEN), event.id
         for word, fields in FIELD_BACKED.items():

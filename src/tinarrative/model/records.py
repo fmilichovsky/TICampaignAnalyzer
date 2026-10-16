@@ -9,8 +9,8 @@ state type + map ID + field + index. A set whose field is absent or has an undoc
 
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass
+from collections.abc import Hashable, Iterable
+from dataclasses import dataclass, replace
 from dataclasses import fields as dataclass_fields
 from enum import StrEnum
 from typing import Any
@@ -48,10 +48,14 @@ class RecordKind(StrEnum):
     LABELLED_REFERENCES = "labelled_references"
     """An object label -> reference or list of references (``globalMilestones``, ``triggeredOncePerTargetEvents``);
     ``KeyedEntry`` whose value is the resolved reference or list."""
+    NOTIFICATION_LOG = "notification_log"
+    """``notificationSummaryQueue``: a list of dated typed entries (the game's own event log);
+    ``NotificationEntry``."""
 
 
-LOG_KINDS = frozenset((RecordKind.LEDGER, RecordKind.DESTRUCTION_LOG, RecordKind.NAME_LOG))
-"""Logs: entries are compared as multisets, index aside (most grow by appending; see the field map)."""
+LOG_KINDS = frozenset((RecordKind.LEDGER, RecordKind.DESTRUCTION_LOG, RecordKind.NAME_LOG, RecordKind.NOTIFICATION_LOG))
+"""Logs: entries are compared as multisets of their ``diff_key``, index aside (most grow by appending; see the
+field map)."""
 KEYED_KINDS = frozenset(
     (
         RecordKind.DATED_REFERENCES,
@@ -108,7 +112,39 @@ class ItemEntry:
     value: Observed
 
 
-RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry
+@dataclass(frozen=True)
+class NotificationEntry:
+    """``notificationSummaryQueue[index]``: one entry of the game's notification log.
+
+    ``template`` is the log template identifier, ``date`` the ISO-8601 entry date and ``summary`` the localized
+    free text (campaign content: never logged). ``subject`` is the resolved ``gotoGameState`` (``EntityRef``,
+    ``None`` or unresolved ``Unknown``); the faction lists are resolved reference tuples.
+    """
+
+    index: int
+    template: Observed
+    date: Observed
+    summary: Observed
+    outcome: Observed
+    subject: Observed
+    alien_related: Observed
+    news_feed_factions: Observed
+    summary_log_factions: Observed
+
+
+RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry | NotificationEntry
+
+
+def diff_key(entry: RecordEntry) -> Hashable:
+    """What identifies a log entry across two saves, index aside.
+
+    A notification is identified by template, date and summary, so an entry whose other members differ is the
+    same entry changed: the game was observed to rewrite ``gotoGameState`` of kept entries (to ``null`` or to
+    another entity) between saves. Any other entry is identified by its whole content.
+    """
+    if isinstance(entry, NotificationEntry):
+        return (entry.template, entry.date, entry.summary)
+    return replace(entry, index=0)
 
 
 def entry_to_dict(entry: RecordEntry) -> dict[str, Any]:

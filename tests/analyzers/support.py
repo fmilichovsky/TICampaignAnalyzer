@@ -37,6 +37,7 @@ STATE_TYPES = {
     EntityDomain.FEDERATION: ("TIFederationState", "federations"),
     EntityDomain.REGION_ALIEN_STATE: ("TIRegionXenoformingState", "region_alien_states"),
     EntityDomain.GLOBAL_VALUES: ("TIGlobalValuesState", "global_values"),
+    EntityDomain.NOTIFICATION_QUEUE: ("TINotificationQueueState", "notification_queue"),
 }
 MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 RESEARCH_ID = 150

@@ -80,6 +80,7 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
         None,
     ),
     IdentityStrategy(EntityDomain.GLOBAL_VALUES, ("TIGlobalValuesState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(EntityDomain.NOTIFICATION_QUEUE, ("TINotificationQueueState",), _NUMERIC_ID, _IN_SAVE, None),
 )
 
 

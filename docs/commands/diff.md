@@ -55,7 +55,10 @@ The dated logs and cumulative counters listed in the field map's
 compared per owning entity and field, under the owner's domain. A log (ledger, destruction log,
 milestones) is compared as a multiset of entries, index aside: entries only in the later save are
 `added`; entries only in the earlier save are `removed` and reported literally (observed for some
-`Transactions` labels, which the game rewrites rather than appends to). A keyed record (pair maps and label maps) is compared by key, so a changed
+`Transactions` labels, which the game rewrites rather than appends to). The notification log
+(`notificationSummaryQueue`) is a multiset too, but an entry is identified by template, date and summary:
+an entry whose subject, outcome or faction lists differ is `changed` (`~`), because the game was observed to
+rewrite the subject of kept entries. A keyed record (pair maps and label maps) is compared by key, so a changed
 value is reported against its key (`~`). A single-value record is compared like an ordinary
 field: a counter is a `value` change (`faction:15 abductions: 0 -> 1`), `intelSharingFactions`
 a `membership` change, `dateOfNewGovernment` a `value` change. A record set that is `unknown`

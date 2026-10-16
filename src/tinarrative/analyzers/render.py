@@ -2,7 +2,9 @@
 
 This is the message catalog: the wording per event type that a renderer may reuse. It describes the
 literal transition and names the entities; it never names a cause. A literal save value that an event
-carries as an attribute (for example a recorded cause string) is deliberately not echoed here.
+carries as an attribute (for example a recorded cause string) is deliberately not echoed here. The exception is
+the game's notification log: a ``notification.*`` line quotes the log template identifier, which is the game's
+own statement of what happened, so its wording is evidence, not inference (the summary text is still not echoed).
 """
 
 from __future__ import annotations
@@ -13,14 +15,20 @@ from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
 from ..model.values import Unknown
+from .campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 
 ABSENT = "is absent from the after snapshot"
 PRESENT = "is present only in the after snapshot"
 
 
 def describe_event(event: Event) -> str:
-    """Deterministic ASCII text; an event type without a template falls back to the type and its entities."""
+    """Deterministic ASCII text; an event type without a template falls back to the type and its entities.
+
+    ``notification.<template>`` types share one template, since the log template set is open-ended.
+    """
     template = _TEMPLATES.get(event.event_type)
+    if template is None and event.event_type.startswith(NOTIFICATION_PREFIX):
+        template = _notification_logged
     if template is None:
         entities = ", ".join(str(ref.entity_id) for ref in event.entities)
         return _ascii(f"{event.event_type}: {entities}")
@@ -242,6 +250,34 @@ def _global_value_changed(event: Event) -> str:
     return f"{_subject(event)} {_transition(event, field)}"
 
 
+def _notification_subject(event: Event) -> str:
+    """The resolved subject, ``null`` for none, or the literal unresolved value; never the summary text."""
+    subject = event.attribute("subject")
+    return str(subject.entity_id) if isinstance(subject, EntityRef) else render_value(subject)
+
+
+def _notification_logged(event: Event) -> str:
+    date = event.date if isinstance(event.date, str) else render_value(event.date)
+    return f"{_subject(event)} logs {_text(event, 'template')} dated {date} about {_notification_subject(event)}"
+
+
+def _notification_removed(event: Event) -> str:
+    return (
+        f"{_subject(event)} no longer lists {_text(event, 'template')} dated {_text(event, 'logged_on')}"
+        f" about {_notification_subject(event)}"
+    )
+
+
+def _notification_changed(event: Event) -> str:
+    before_subject = event.attribute("before_subject")
+    before = str(before_subject.entity_id) if isinstance(before_subject, EntityRef) else render_value(before_subject)
+    return (
+        f"{_subject(event)} entry {_text(event, 'template')} dated {_text(event, 'logged_on')} changed: "
+        f"subject {before} -> {_notification_subject(event)}, "
+        f"outcome {_attr(event, 'before_outcome')} -> {_attr(event, 'outcome')}"
+    )
+
+
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "control_point.controller_changed": _controller_changed,
     "control_point.nation_changed": _plain("nation"),
@@ -342,4 +378,9 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "campaign.narrative_event_triggered": _narrative_event_triggered,
     "campaign.global_value_changed": _global_value_changed,
     "campaign.interstate_wars_changed": _list_changed,
+    "notification.queue_appeared": _global_values_presence,
+    "notification.queue_disappeared": _global_values_presence,
+    "notification.queue_value_changed": _global_value_changed,
+    "notification.entry_removed": _notification_removed,
+    "notification.entry_changed": _notification_changed,
 }

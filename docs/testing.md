@@ -151,7 +151,14 @@ milestone added, an `interstateWars` reference removed and one added (cited by
 the war events), a sea-level flag set, nuclear strikes, narrative-event lists
 that gain and lose entries, and a synthetic `latestSaveVersion` that changes
 (detected as `game_version`, never gated); `tests/analyzers/campaign/` covers it
-and the edge cases. `aliens_before.json` / `aliens_after.json` is the region
+and the edge cases. `notifications_before.json` / `notifications_after.json` is the
+notification-log pair. The queue singleton's `notificationSummaryQueue` keeps one entry, loses one, has one
+whose outcome changes, and gains a space battle, two identical entries (duplicates), an entry whose
+`gotoGameState` ID is absent, one pointing at the mission-phase singleton (no domain) and one with a null
+subject. Summaries are synthetic. `tests/analyzers/campaign/` checks that no line echoes a summary. Events
+whose primary source is the notification log are exempt from the banned-word checks (for example in the
+opt-in real-save test): the log is the game's own account of what happened, so a template name such as
+`LogSpaceBattleTakesPlace` or `LogHabDestroyed` is evidence, not an inferred cause. `aliens_before.json` / `aliens_after.json` is the region
 alien pair: three regions with all five alien sub-states, a crashdown that
 appears with a `crashdownTime` inside the interval, xenoforming rising from
 zero in one region and dropping to zero in another, a facility built, a landing

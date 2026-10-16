@@ -16,7 +16,8 @@ into a `SaveSnapshot`, and prints a short summary:
   `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
   `ships`, `habs`, `technologies` (name-keyed, derived from the research singleton),
   `organizations`, `wars`, `federations`, `region alien states` (the five per-region alien sub-state types together),
-  and `global values` (the `TIGlobalValuesState` singleton as one entity);
+  `global values` (the `TIGlobalValuesState` singleton as one entity), and `notification queue` (the
+  `TINotificationQueueState` singleton, owner of the notification log);
 - `records`: how many save-carried record fields were decoded with a known value across all
   entities and how many entries they hold in total (see the
   [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table;

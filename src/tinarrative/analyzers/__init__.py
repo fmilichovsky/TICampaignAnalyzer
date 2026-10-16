@@ -2,7 +2,7 @@
 
 from .aliens import RegionAlienAnalyzer
 from .base import Analyzer
-from .campaign import GlobalValuesAnalyzer
+from .campaign import GlobalValuesAnalyzer, NotificationAnalyzer
 from .common import run_analyzers
 from .military import ArmyAnalyzer
 from .politics import (
@@ -29,7 +29,7 @@ MILITARY_ANALYZERS: tuple[Analyzer, ...] = (ArmyAnalyzer(),)
 SPACE_ANALYZERS: tuple[Analyzer, ...] = (FleetAnalyzer(), ShipAnalyzer(), HabAnalyzer())
 TECHNOLOGY_ANALYZERS: tuple[Analyzer, ...] = (TechnologyAnalyzer(),)
 ALIEN_ANALYZERS: tuple[Analyzer, ...] = (RegionAlienAnalyzer(),)
-CAMPAIGN_ANALYZERS: tuple[Analyzer, ...] = (GlobalValuesAnalyzer(),)
+CAMPAIGN_ANALYZERS: tuple[Analyzer, ...] = (GlobalValuesAnalyzer(), NotificationAnalyzer())
 ALL_ANALYZERS: tuple[Analyzer, ...] = (
     POLITICS_ANALYZERS
     + MILITARY_ANALYZERS
