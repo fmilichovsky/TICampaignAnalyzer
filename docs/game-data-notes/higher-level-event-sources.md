@@ -240,7 +240,12 @@ reconstruction (issue #73).
   110 had an empty `orgs` list and no `priorMissionTemplateName`; every faction's `councilors` list held 6.
   All 52 councilors absent from the later save and all 60 present only there had `faction = null` on their
   existing side, in every older interval checked. Councilor presence changes with a null faction are the
-  candidate pool, not councilor fates.
+  candidate pool, not councilor fates. Implemented as the `trivial` rule for `councilor.appeared` /
+  `councilor.disappeared` in `narrative/significance.py` (issue #70). Checked again on 2026-10-16 on the
+  first newer interval (one week, a month into the campaign): 84 of 116 councilors had a null faction, and
+  4 councilors absent from the later save had a faction, an empty `orgs` list, no `priorMissionTemplateName`
+  and `status = Active`, so the rule ranks them major; that early in a campaign 31 of 32 faction councilors
+  share the empty-orgs, no-mission shape, so those two fields do not identify the pool on their own.
 - **Metric cause attribution.** Between saves the six `tracker_*ChangeReason_AllTime` maps change on the
   same nations as the statistics themselves, and the per-cause deltas sum to the statistic's change.
   Reason identifiers observed: `GDPReason_TerritoryChange`, `GDPReason_Independence`,

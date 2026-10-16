@@ -129,6 +129,15 @@ contains a cause word (`purg`, `coup`, `annex`, `defect`, `destroy`, ...).
 Attributes are exempt from that check on purpose: they are literal copies of
 save values (the records pair carries a recorded `cause` of `Coup`).
 
+`tests/narrative/` is a package too and reuses the same builders:
+`test_significance.py` runs one analyzer over a minimal synthetic pair, passes the
+events through `assign_significance`, and asserts the level per rule and branch
+(null-faction councilor, war relation, upheaval cause, tier-3 organization,
+megafauna). A coverage test resolves every event type of the `describe_event`
+catalog to a level and checks that every table or rule entry names a known type.
+The opt-in `real_save` politics test also asserts that a councilor presence event
+is `trivial` exactly when the councilor's `faction` is `null` on its existing side.
+
 `politics_before.json` / `politics_after.json` is the politics analyzer pair: it
 holds only political state types and exercises each political transition once
 (see the manifest `purpose` fields). `assets_before.json` / `assets_after.json`

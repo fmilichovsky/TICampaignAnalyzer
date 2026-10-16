@@ -1,7 +1,7 @@
 # `tinarrative diff`
 
 ```
-tinarrative diff <before> <after> [--format text|json|markdown]
+tinarrative diff <before> <after> [--format text|json|markdown] [--min-significance <level>]
 ```
 
 Reads two saves, normalizes each exactly as [`parse`](parse.md) does, and prints every
@@ -95,7 +95,15 @@ objective domain analyzers and shows their already-structured results beside the
 raw changes remain visible under their category. It does not reconstruct inferred events or
 infer any additional facts. The Markdown report includes both snapshot metadata and, for each
 analyzer result, the affected entities. Use the programmatic renderer's verbose mode when
-forensic source locations and evidence values are required.
+forensic source locations and evidence values are required; it prints each result's
+`significance` beside its confidence.
+
+Every analyzer result carries a significance (`trivial`, `minor`, `major` or
+`campaign_defining`), assigned by the rules in `narrative/significance.py` (architecture
+section 12). `--min-significance <level>` lists only the results at that level or above; the
+default `trivial` lists every result. When results are dropped, one line after the last category
+states how many were omitted and below which level, so the report never hides the omission.
+Raw changes are never filtered. The text and JSON formats run no analyzers and ignore the option.
 
 Failures print one message to stderr naming the save that failed and no traceback. To see
 how the two saves were normalized and the per-collection and record change counts, run with the global
@@ -106,6 +114,6 @@ how the two saves were normalized and the per-collection and record change count
 | Code | When |
 | --- | --- |
 | 0 | Both saves were loaded, normalized and compared. |
-| 2 | Usage error (a save path missing, or an unknown `--format`). |
+| 2 | Usage error (a save path missing, or an unknown `--format` or `--min-significance`). |
 | 4 | A save path cannot be read (missing, unreadable, or a directory). |
 | 5 | A save is empty, not UTF-8 JSON, lacks the documented envelope, carries an unsupported format, or a state collection does not follow the documented pair-map shape. |
