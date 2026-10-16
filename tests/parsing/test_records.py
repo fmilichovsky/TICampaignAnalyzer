@@ -13,6 +13,7 @@ from tinarrative.model.records import (
     ItemEntry,
     KeyedEntry,
     LedgerEntry,
+    NotificationEntry,
     RecordKind,
     RecordSet,
 )
@@ -343,6 +344,8 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
         "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIGlobalValuesState fields=5 entities=0 sets=0 known_sets=0 missing=0 "
         "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "records normalized state_type=TINotificationQueueState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
+        "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
     ]
     assert "Secret" not in caplog.text and "Fixture" not in caplog.text
 
@@ -402,3 +405,110 @@ def test_global_values_name_logs_and_cooldowns_are_records() -> None:
     assert record(snapshot, "70", "triggeredOncePerCampaignEvents").entries == ()
     assert record(snapshot, "70", "narrativeEventsOnCooldown_months").entries == (KeyedEntry(0, "event_B", 2.0),)
     assert report.findings == ()
+
+
+QUEUE_TYPE = STATE_PREFIX + "TINotificationQueueState"
+REGION_TYPE = STATE_PREFIX + "TIRegionState"
+PHASE_TYPE = STATE_PREFIX + "TIMissionPhaseState"
+REGION_40 = ref(EntityDomain.REGION, "40", "TIRegionState")
+
+
+def notice(template: str, subject: object, **members: object) -> dict[str, object]:
+    return {
+        "$id": "1",
+        "templateName": template,
+        "itemSummary": "Fixture summary.",
+        "dateTimeString": "4/2/2031 12:00:00 AM",
+        "dateTime": DATE,
+        "outcome": "None",
+        "gotoGameState": subject,
+        "alienRelated": False,
+        "timerFactions": [],
+        "newsFeedFactions": [{"value": 15}, {"value": 16}],
+        "summaryLogFactions": [{"value": 15}],
+        "iconResource": "fixture/icon",
+        "iconBackgroundResource": "fixture/background",
+        "backgroundColor": {"r": 0.0, "g": 0.0, "b": 0.0, "a": 1.0},
+        **members,
+    }
+
+
+def queue_fragment(*entries: object) -> dict[str, object]:
+    return {
+        **faction_fragment(),
+        REGION_TYPE: [pair(40)],
+        PHASE_TYPE: [pair(300)],
+        QUEUE_TYPE: [pair(80, notificationSummaryQueue=list(entries))],
+    }
+
+
+def test_the_notification_log_decodes_each_entry_with_provenance_and_resolved_references() -> None:
+    region = {"$type": REGION_TYPE, "value": 40}
+    snapshot, report = collect(queue_fragment(notice("LogFleetDetected", region), notice("LogNationJoinsWar", None)))
+    log = record(snapshot, "80", "notificationSummaryQueue")
+    assert log.kind is RecordKind.NOTIFICATION_LOG
+    assert log.owner.entity_id == EntityId(EntityDomain.NOTIFICATION_QUEUE, "80")
+    assert log.entries == (
+        NotificationEntry(
+            0,
+            "LogFleetDetected",
+            ISO,
+            "Fixture summary.",
+            "None",
+            REGION_40,
+            False,
+            (FACTION_15, FACTION_16),
+            (FACTION_15,),
+        ),
+        NotificationEntry(
+            1,
+            "LogNationJoinsWar",
+            ISO,
+            "Fixture summary.",
+            "None",
+            None,
+            False,
+            (FACTION_15, FACTION_16),
+            (FACTION_15,),
+        ),
+    )
+    assert isinstance(log.entries, tuple)
+    assert log.entry_location(log.entries[1]).path == f"/gamestates/{QUEUE_TYPE}/0/Value/notificationSummaryQueue/1"
+    assert report.findings == ()
+
+
+def test_a_subject_without_a_domain_or_absent_from_the_save_is_unresolved_without_a_finding() -> None:
+    phase = {"$type": PHASE_TYPE, "value": 300}
+    gone = {"$type": STATE_PREFIX + "TIHabState", "value": 999}
+    snapshot, report = collect(queue_fragment(notice("LogProjectComplete", phase), notice("LogHabDestroyed", gone)))
+    entries = record(snapshot, "80", "notificationSummaryQueue").entries
+    assert isinstance(entries, tuple)
+    subjects = [entry.subject for entry in entries if isinstance(entry, NotificationEntry)]
+    assert subjects == [unresolved(300, "TIMissionPhaseState"), unresolved(999, "TIHabState")]
+    assert report.findings == ()
+
+
+def test_a_subject_of_an_unexpected_type_and_an_unknown_entry_member_are_reported() -> None:
+    timed = notice("LogFleetDetected", {"value": 500})  # a TITimeEvent: no domain, not an observed target
+    extended = notice("LogFleetDetected", {"value": 15}, fixtureMember=1)
+    gamestates = {**queue_fragment(timed, extended), STATE_PREFIX + "TITimeEvent": [pair(500)]}
+    snapshot, report = collect(gamestates)
+    assert keys(report) == [
+        (
+            "unexpected_reference_domain",
+            "TINotificationQueueState",
+            "notificationSummaryQueue.gotoGameState",
+            "TITimeEvent",
+        ),
+        ("unknown_field", "TINotificationQueueState", "notificationSummaryQueue[].fixtureMember", ""),
+    ]
+    entries = record(snapshot, "80", "notificationSummaryQueue").entries
+    assert isinstance(entries, tuple) and isinstance(entries[1], NotificationEntry)
+    assert entries[1].subject == FACTION_15  # a faction is an expected subject
+
+
+def test_a_notification_log_of_the_wrong_shape_is_unparseable_and_reported() -> None:
+    snapshot, report = collect({QUEUE_TYPE: [pair(80, notificationSummaryQueue={"0": {}})]})
+    entries = record(snapshot, "80", "notificationSummaryQueue").entries
+    assert isinstance(entries, Unknown) and entries.reason is UnknownReason.UNPARSEABLE
+    assert keys(report) == [("unexpected_field_shape", "TINotificationQueueState", "notificationSummaryQueue", "array")]

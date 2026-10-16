@@ -94,5 +94,9 @@ identity:
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none
     TIGlobalValuesState: absent
+  notification queue: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TINotificationQueueState: absent
 selected paths: none
 diagnostics: none

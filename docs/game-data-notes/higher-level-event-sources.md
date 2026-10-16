@@ -25,7 +25,7 @@ The work items derived from this page are issues #64 to #73, listed under the re
 | Five `TIRegion*State` alien substates | Yes (`region alien state` domain, issue #65) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
 | `TIOrgState` | Yes (`organization` domain, issue #66) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
-| `TINotificationQueueState` | No (singleton not read) | the game's own dated event log, player-centric | rolling five-year window with further pruning |
+| `TINotificationQueueState` | Yes (`notification queue` domain, `notificationSummaryQueue` record, issue #68) | the game's own dated event log, player-centric | rolling five-year window with further pruning; subjects of kept entries rewritten |
 | `TIFactionState.CombatLogs` | Acknowledged as `runtime_internal` | space battles: sides, hull classes, winner | undated; grows mostly by appending |
 | Nation `tracker_*ChangeReason_AllTime` | Yes | cause attribution for metric shifts | per-cause deltas between saves |
 | Hab `barycenter` per faction | Yes | first presence on a body | 6 of 6 habs appearing in the last older interval were on a body new to their faction |
@@ -194,6 +194,20 @@ pruning is a per-category cap or player dismissal; neither rule is known.
 
 Privacy: `itemSummary` carries councilor, fleet, hab and nation names and must be treated like the `Kills`
 display names: never logged, never documented, never placed in a fixture.
+
+Re-checked on 2026-10-16 against the same eight saves (structure and counts only). In 23 entries over three
+older intervals, the game rewrote `gotoGameState` of an entry it kept: 14 to `null` and 9 to another entity. Template,
+date and summary did not change. Some of the disappearances counted above are those rewrites, not removals. When
+entries are matched by template, date and summary, 79, 19, 69 and 126 entries disappeared per interval, and every
+entry that appeared was dated inside its interval. `timerFactions` was empty in every summary entry. Some
+`panelSummaryQueue` `$ref` pointers do not target a summary entry's `$id` (*hypothesis:* they point into the
+timer queue).
+
+Implemented as the `notificationSummaryQueue` record (`notification_log`, owned by the `notification queue`
+singleton) and the `notification.*` analyzer. Each entry that appears becomes `notification.<templateName>`,
+dated by the entry. An entry that disappears becomes `notification.entry_removed` and is never called pruned. An
+entry whose subject, outcome or faction lists changed becomes `notification.entry_changed`. The summary is an
+event attribute and is never rendered.
 
 ## `TIFactionState.CombatLogs`
 

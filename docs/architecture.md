@@ -238,7 +238,9 @@ The snippets above are conceptual; the implemented types differ as follows:
     `region alien state` domain and `SaveSnapshot.region_alien_states`, told apart by state type). The
     `TIGlobalValuesState` singleton is normalized as one in-save-ID entity of the `global values` domain
     (`SaveSnapshot.global_values`), so its fields, references and records have an owner and provenance like any
-    entity's; a second entry is reported as `unexpected_singleton_count` and kept. A reference field observed to point at
+    entity's; a second entry is reported as `unexpected_singleton_count` and kept. `TINotificationQueueState` is
+    normalized the same way (`notification queue` domain, `SaveSnapshot.notification_queue`) as the owner of the
+    notification log. A reference field observed to point at
     more than one domain (councilor `location`: region or hab) resolves against
     that set, and the owning state type decides the resulting domain.
 -   Research is the one explicitly typed substate: `SaveSnapshot.research`
@@ -295,17 +297,24 @@ Implemented contract (`model/records.py`, `parsing/records.py`):
 -   `parsing.fields.RECORD_FIELDS` lists the record fields per state type with a
     `RecordKind` (ledger, destruction log, name log, dated references, reference
     values, label values, dated labels, executive change, counter, date,
-    reference list, labelled references). They are known to the unknowns scan but are not copied into
+    reference list, labelled references, notification log). They are known to the unknowns scan but are not copied into
     the `EntityState`.
 -   Each record field of each entity becomes one `RecordSet(owner, field, kind,
     location, entries)` on `SaveSnapshot.records`, sorted by owner then field.
     Entries are typed (`LedgerEntry`, `DestructionEntry`, `KeyedEntry`,
-    `ItemEntry`), keep serialized order and their index, decode componentized
+    `ItemEntry`, `NotificationEntry`), keep serialized order and their index, decode componentized
     dates to ISO-8601 text, and resolve references exactly like entity fields
     (an unresolvable reference is `Unknown(unresolved_reference, raw=...)`).
 -   A record of a campaign-wide singleton is owned by that singleton's entity
     (`global values` for `TIGlobalValuesState`: global milestones and the
-    narrative-event logs), not by a pseudo-domain without an entity.
+    narrative-event logs; `notification queue` for `TINotificationQueueState`: the
+    notification log), not by a pseudo-domain without an entity.
+-   A log is compared as a multiset of `diff_key(entry)`. For most kinds that is the whole
+    entry without its index. A notification is identified by template, date and summary, so an
+    entry whose subject, outcome or faction lists were rewritten is `changed`, not removed and
+    re-added. Its members outside `RECORD_ENTRY_MEMBERS` are reported as the unknown field
+    `notificationSummaryQueue[].<member>`. A subject whose target type has no domain
+    (`UNTRACKED_REFERENCE_TARGETS`) stays unresolved without a finding.
 -   Provenance is state type + map ID + field + index. The set's
     `SourceLocation` points at the field (`<entity Value path>/<field>`) and
     `RecordSet.entry_location` extends it to one entry (`/<label>/<index>` for a
@@ -735,6 +744,15 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     entry as corroboration, and an entry no war presence explains is the
     leftover `campaign.interstate_wars_changed`. A milestone is "recorded", never
     "achieved", and a removed entry is never assumed pruned.
+-   `analyzers/campaign/notifications.py` (`NotificationAnalyzer`, `notification queue`
+    domain): one `notification.<templateName>` event per log entry added. The template
+    name is used verbatim, and one that is not an identifier gives `notification.unknown_template`.
+    The event is dated by the entry (`DateBasis.RECORD`) and cites the entry. Its entities are the
+    queue and the resolved subject, and its attributes are the decoded members. An unresolved subject
+    gives low confidence. `notification.entry_removed` and `notification.entry_changed` are
+    interval-dated and literal: a removed entry is never assumed pruned. All template types share
+    one message (template, date, subject), and the summary text is never rendered. The log is
+    player-centric and pruned, so it adds to the snapshot evidence and is not a complete history.
 -   `analyzers/aliens/regions.py` (`RegionAlienAnalyzer`, `region alien state`
     domain): every event names the region (the sub-state's `region`
     back-reference) first and the sub-state second, with the literal

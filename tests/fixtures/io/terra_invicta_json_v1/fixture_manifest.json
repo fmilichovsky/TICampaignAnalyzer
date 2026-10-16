@@ -238,6 +238,28 @@
       "version_assumption": "Observed JSON envelope and observed field names. TIGlobalValuesState.latestSaveVersion carries a synthetic build string, not a real Terra Invicta build.",
       "sha256": "a29c66f562588e2f99886d1a5901aae5251e28302c7abd54e565fa431db61be4",
       "purpose": "Later snapshot of the global-values interval; pair with global_values_before.json. The wars_after.json content (war 91 gone, war 92 new) plus faction 15 and singleton 70: interstateWars 90 and 92, a second milestone, sea level rise 1 triggered, two nuclear strikes, a second once-per-campaign event, faction 15 as a once-per-target target, one removed-events entry replaced, a changed cooldown, a CO2 value and a new latestSaveVersion."
+    },
+    {
+      "path": "notifications_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "f3c59030206721304b7a1fa998aef3c089e0933be29ed762c2a40aede178417a",
+      "purpose": "Earlier snapshot of a synthetic interval for the notification analyzer; pair with notifications_after.json. Factions 15 and 16, region 40, fleet 50, mission phase 300 and notification queue singleton 80 whose notificationSummaryQueue holds three entries with synthetic summaries: a fleet sighting (kept), a councilor detention (removed later) and a mission outcome with outcome None (changed later). The acknowledged members panelSummaryQueue (one $ref), timerNotificationQueue, firstTimeTracker and alienEvents are present."
+    },
+    {
+      "path": "notifications_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "c3e9fa856388784a4768bdc469eee1f009a83545f2fd28539e795493dc58b695",
+      "purpose": "Later snapshot of the notification interval; pair with notifications_before.json. The kept sighting, the mission outcome now Success, and six new entries: a space battle naming fleet 50, two identical xenoforming entries (duplicates), a hab destroyed whose gotoGameState ID 999 is absent (unresolved), a project completion pointing at the mission-phase singleton (no domain, unresolved without a finding) and a nation joining a war with a null gotoGameState."
     }
   ]
 }

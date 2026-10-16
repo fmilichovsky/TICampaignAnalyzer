@@ -5,7 +5,7 @@ Each record field of an entity becomes exactly one :class:`~tinarrative.model.re
 have the documented shape gives ``Unknown(unparseable, raw)`` and an ``unexpected_field_shape`` finding. A
 problem inside one element (an unparseable date, an unresolvable reference) stays inside that entry, so
 the rest of the log remains evidence. Nothing read from a record is logged: ledger labels, milestone names,
-narrative-event names and kill lists are campaign content.
+narrative-event names, kill lists and notification summaries are campaign content.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from ..model.records import (
     ItemEntry,
     KeyedEntry,
     LedgerEntry,
+    NotificationEntry,
     RecordEntry,
     RecordKind,
     RecordSet,
@@ -32,7 +33,7 @@ from ..model.snapshot import EntityState
 from ..model.values import Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_pair_map, entry_path
 from .dates import iso_date
-from .fields import RECORD_FIELDS, RECORD_MEMBER_TARGETS, RecordField
+from .fields import RECORD_ENTRY_MEMBERS, RECORD_FIELDS, RECORD_MEMBER_TARGETS, RecordField, entry_member_name
 from .references import ExpectedDomains, ReferenceIndex
 from .unknowns import PAIR_MAP, UnknownCollector, check_reference
 
@@ -87,6 +88,18 @@ class _Context:
             return Unknown()
         qualified = f"{self.field}.{name}"
         return self.reference(item[name], RECORD_MEMBER_TARGETS[qualified], qualified)
+
+    def member_references(self, item: dict[str, Any], name: str) -> Observed:
+        """A list of references inside an entry; one unresolvable element makes the member unknown."""
+        if name not in item:
+            return Unknown()
+        qualified = f"{self.field}.{name}"
+        targets = RECORD_MEMBER_TARGETS[qualified]
+        check_reference(self.state_type, qualified, item[name], targets, True, self.index, self.collector)
+        value = self.index.resolve_list(item[name], targets)
+        if isinstance(value, Unknown):
+            self.unresolved_references += 1
+        return value
 
 
 def _ledger(raw: Any, ctx: _Context) -> Entries:
@@ -202,6 +215,39 @@ def _labelled_references(raw: Any, spec: RecordField, ctx: _Context) -> Entries:
     return tuple(entries)
 
 
+def _notification_log(raw: Any, ctx: _Context) -> Entries:
+    """A list of notification objects; a member outside ``RECORD_ENTRY_MEMBERS`` is reported as ``Field[].member``.
+
+    ``itemSummary`` is campaign content: it is kept as evidence and never logged.
+    """
+    if not isinstance(raw, list):
+        return ctx.unparseable(ARRAY, raw)
+    known = RECORD_ENTRY_MEMBERS.get(ctx.state_type, {}).get(ctx.field, frozenset())
+    entries: list[RecordEntry] = []
+    for position, item in enumerate(raw):
+        if not isinstance(item, dict):
+            bad = ctx.unparseable(ARRAY_OF_OBJECTS, item)
+            entries.append(NotificationEntry(position, bad, bad, bad, bad, bad, bad, bad, bad))
+            continue
+        for name, value in item.items():
+            if name not in known:
+                ctx.collector.field(ctx.state_type, entry_member_name(ctx.field, str(name)), value)
+        entries.append(
+            NotificationEntry(
+                position,
+                template=ctx.member(item, "templateName"),
+                date=ctx.member_date(item, "dateTime"),
+                summary=ctx.member(item, "itemSummary"),
+                outcome=ctx.member(item, "outcome"),
+                subject=ctx.member_reference(item, "gotoGameState"),
+                alien_related=ctx.member(item, "alienRelated"),
+                news_feed_factions=ctx.member_references(item, "newsFeedFactions"),
+                summary_log_factions=ctx.member_references(item, "summaryLogFactions"),
+            )
+        )
+    return tuple(entries)
+
+
 def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
     kind = spec.kind
     if kind is RecordKind.LEDGER:
@@ -218,6 +264,8 @@ def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
         return _executive_change(raw, ctx)
     if kind is RecordKind.LABELLED_REFERENCES:
         return _labelled_references(raw, spec, ctx)
+    if kind is RecordKind.NOTIFICATION_LOG:
+        return _notification_log(raw, ctx)
     if kind is RecordKind.COUNTER:
         return (ItemEntry(0, freeze(raw)),)
     if kind is RecordKind.DATE:

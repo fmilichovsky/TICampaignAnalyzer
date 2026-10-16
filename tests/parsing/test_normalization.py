@@ -1143,3 +1143,30 @@ def test_a_second_global_values_entry_is_reported_and_kept() -> None:
     snapshot, report = collect(fragment_raw({GLOBAL_VALUES_TYPE: [pair(70), pair(71)]}))
     assert [state.ref.entity_id.key for state in snapshot.global_values] == ["70", "71"]
     assert keys(report) == [("unexpected_singleton_count", "TIGlobalValuesState", "", "")]
+
+
+NOTIFICATION_QUEUE_TYPE = STATE_PREFIX + "TINotificationQueueState"
+
+
+@pytest.mark.fixture
+def test_the_notification_queue_normalizes_as_one_entity_owning_the_notification_log() -> None:
+    raw = load_raw_save(fixture_path(*FIXTURE_SET, "notifications_after.json"))
+    collector = UnknownCollector()
+    snapshot = normalize(raw, collector=collector)
+    assert collector.report().findings == ()
+
+    (queue,) = snapshot.notification_queue
+    assert queue.ref.entity_id == EntityId(EntityDomain.NOTIFICATION_QUEUE, "80")
+    assert queue.location is not None and queue.location.path == f"/gamestates/{NOTIFICATION_QUEUE_TYPE}/0/Value"
+    fields = dict(queue.fields)
+    for acknowledged in ("alienEvents", "firstTimeTracker", "panelSummaryQueue", "timerNotificationQueue"):
+        assert acknowledged not in fields
+    (log,) = [record for record in snapshot.records if record.owner.entity_id == queue.ref.entity_id]
+    assert log.field == "notificationSummaryQueue" and "notificationSummaryQueue" not in fields
+    assert not isinstance(log.entries, Unknown) and len(log.entries) == 8
+
+
+def test_a_second_notification_queue_entry_is_reported_and_kept() -> None:
+    snapshot, report = collect(fragment_raw({NOTIFICATION_QUEUE_TYPE: [pair(80), pair(81)]}))
+    assert [state.ref.entity_id.key for state in snapshot.notification_queue] == ["80", "81"]
+    assert keys(report) == [("unexpected_singleton_count", "TINotificationQueueState", "", "")]

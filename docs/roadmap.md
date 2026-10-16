@@ -40,6 +40,6 @@
   - [x] Organizations and councilor organization events (#66).
   - [x] `TIGlobalValuesState` singleton: interstate wars, global milestones,
     nuclear and climate counters, serialized build version (#67).
-  - [ ] The game's notification log as a save-carried record (#68).
+  - [x] The game's notification log as a save-carried record (#68).
   - [ ] `CombatLogs` reclassified from acknowledged to a record (#69).
 - [ ] Aggregate events across an ordered save sequence.

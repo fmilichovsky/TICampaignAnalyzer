@@ -22,6 +22,7 @@ class EntityDomain(StrEnum):
     FEDERATION = "federation"
     REGION_ALIEN_STATE = "region alien state"
     GLOBAL_VALUES = "global values"
+    NOTIFICATION_QUEUE = "notification queue"
 
 
 class IdentityConfidence(StrEnum):

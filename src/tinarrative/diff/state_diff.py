@@ -17,8 +17,10 @@ Comparison rules (also documented in ``docs/commands/diff.md``):
 - An entity present in one snapshot only yields a single ``appeared`` or ``disappeared`` change and no
   per-field changes.
 - Save-carried records (``SaveSnapshot.records``) are compared per owning entity and field. A log is
-  compared as a multiset of entries (``records``: entries added and removed, index aside); a keyed record
-  by key (added, removed and changed keys); a scalar record like an ordinary field. A removed entry is
+  compared as a multiset of entries (``records``: entries added and removed, index aside; a notification
+  entry is matched by template, date and summary, and one whose other members differ is
+  changed); a keyed record by key (added, removed and changed keys); a scalar record like an ordinary
+  field. A removed entry is
   reported literally (some ledger labels are observed to be rewritten between saves); nothing is
   inferred from it.
 """
@@ -28,6 +30,7 @@ from __future__ import annotations
 import json
 import logging
 from collections import Counter
+from collections.abc import Hashable
 from dataclasses import fields as dataclass_fields
 from dataclasses import replace
 
@@ -36,7 +39,7 @@ from ..log import get_logger
 from ..model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from ..model.entities import EntityId, EntityRef
 from ..model.evidence import Evidence, SourceLocation
-from ..model.records import KEYED_KINDS, SCALAR_KINDS, ItemEntry, KeyedEntry, RecordEntry, RecordSet
+from ..model.records import KEYED_KINDS, SCALAR_KINDS, ItemEntry, KeyedEntry, RecordEntry, RecordSet, diff_key
 from ..model.snapshot import STATE_COLLECTIONS, CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, to_jsonable
 
@@ -252,24 +255,51 @@ def _side_count(entries: tuple[RecordEntry, ...] | Unknown) -> Observed:
 
 
 def _log_detail(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...]) -> RecordsDetail:
-    """Entries on one side only, as multisets of content, each kept in serialized order."""
-    before_counts = Counter(_content(entry) for entry in before)
-    after_counts = Counter(_content(entry) for entry in after)
+    """Entries on one side only, as multisets of ``diff_key``, each kept in serialized order.
+
+    The entries left on both sides are paired per key in serialized order; a pair whose content differs
+    (a notification with the same key but another outcome) is ``changed``. For a kind whose key is its
+    content no pair can differ.
+    """
+    before_counts = Counter(diff_key(entry) for entry in before)
+    after_counts = Counter(diff_key(entry) for entry in after)
     added = _surplus(after, after_counts - before_counts)
     removed = _surplus(before, before_counts - after_counts)
-    return RecordsDetail(added=added, removed=removed)
+    kept_before = _kept(before, removed)
+    changed: list[tuple[RecordEntry, RecordEntry]] = []
+    for key, kept_after in _kept(after, added).items():
+        for old, new in zip(kept_before[key], kept_after, strict=True):
+            if _content(old) != _content(new):
+                changed.append((old, new))
+    return RecordsDetail(
+        added=tuple(entry for _, entry in added),
+        removed=tuple(entry for _, entry in removed),
+        changed=tuple(changed),
+    )
 
 
-def _surplus(entries: tuple[RecordEntry, ...], extra: Counter[RecordEntry]) -> tuple[RecordEntry, ...]:
-    """The entries accounting for ``extra``; among equal entries the later ones, since logs grow at the end."""
+def _surplus(entries: tuple[RecordEntry, ...], extra: Counter[Hashable]) -> tuple[tuple[int, RecordEntry], ...]:
+    """(position, entry) accounting for ``extra``; among equal keys the later ones, since logs grow at the end."""
     remaining = Counter(extra)
-    picked: list[RecordEntry] = []
-    for entry in reversed(entries):
-        content = _content(entry)
-        if remaining[content] > 0:
-            remaining[content] -= 1
-            picked.append(entry)
+    picked: list[tuple[int, RecordEntry]] = []
+    for position in reversed(range(len(entries))):
+        key = diff_key(entries[position])
+        if remaining[key] > 0:
+            remaining[key] -= 1
+            picked.append((position, entries[position]))
     return tuple(reversed(picked))
+
+
+def _kept(
+    entries: tuple[RecordEntry, ...], picked: tuple[tuple[int, RecordEntry], ...]
+) -> dict[Hashable, list[RecordEntry]]:
+    """The entries not ``picked``, grouped by ``diff_key`` in serialized order."""
+    skip = {position for position, _ in picked}
+    groups: dict[Hashable, list[RecordEntry]] = {}
+    for position, entry in enumerate(entries):
+        if position not in skip:
+            groups.setdefault(diff_key(entry), []).append(entry)
+    return groups
 
 
 def _keyed_detail(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...]) -> RecordsDetail:

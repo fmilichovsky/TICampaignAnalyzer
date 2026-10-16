@@ -8,7 +8,15 @@ from tinarrative.diff.render import render_change
 from tinarrative.diff.state_diff import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, diff_states
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.evidence import SourceLocation
-from tinarrative.model.records import ItemEntry, KeyedEntry, LedgerEntry, RecordEntry, RecordKind, RecordSet
+from tinarrative.model.records import (
+    ItemEntry,
+    KeyedEntry,
+    LedgerEntry,
+    NotificationEntry,
+    RecordEntry,
+    RecordKind,
+    RecordSet,
+)
 from tinarrative.model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown, UnknownReason, freeze
 
@@ -451,3 +459,41 @@ def test_record_changes_sort_with_the_owner_entity_field_changes() -> None:
     assert json.dumps(diff_states(before, after).to_dict(), sort_keys=True) == json.dumps(
         diff_states(before, after).to_dict(), sort_keys=True
     )
+
+
+def notification(
+    index: int, template: str, date: str, outcome: str = "None", subject: Observed = None
+) -> NotificationEntry:
+    return NotificationEntry(index, template, date, "Fixture summary.", outcome, subject, False, (FACTION,), (FACTION,))
+
+
+def notification_change(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...]) -> StateChange | None:
+    field = "notificationSummaryQueue"
+    return record_change(
+        record(BEFORE, field, RecordKind.NOTIFICATION_LOG, before),
+        record(AFTER, field, RecordKind.NOTIFICATION_LOG, after),
+    )
+
+
+def test_notification_entries_are_added_and_removed_by_key_with_duplicates_as_a_multiset() -> None:
+    kept = notification(0, "LogFleetDetected", "2031-01-01T00:00:00")
+    dropped = notification(1, "LogHabDestroyed", "2031-01-02T00:00:00")
+    added = notification(1, "LogSpaceBattleTakesPlace", "2031-02-01T00:00:00")
+    twin = notification(2, "LogSpaceBattleTakesPlace", "2031-02-01T00:00:00")
+    change = notification_change((kept, dropped), (kept, added, twin))
+    assert change is not None and change.kind is ChangeKind.RECORDS
+    assert change.detail == RecordsDetail(added=(added, twin), removed=(dropped,))
+    assert notification_change((kept,), (notification(3, "LogFleetDetected", "2031-01-01T00:00:00"),)) is None
+
+
+def test_a_notification_with_the_same_key_but_another_outcome_is_changed_not_replaced() -> None:
+    old = notification(0, "LogMissionOutcome", "2031-01-01T00:00:00")
+    new = notification(4, "LogMissionOutcome", "2031-01-01T00:00:00", outcome="Success")
+    change = notification_change((old,), (new,))
+    assert change is not None and change.detail == RecordsDetail(changed=((old, new),))
+    rewritten = notification(0, "LogMissionOutcome", "2031-01-01T00:00:00", subject=FACTION)  # observed in saves
+    change = notification_change((rewritten,), (old,))
+    assert change is not None and change.detail == RecordsDetail(changed=((rewritten, old),))
+    other_date = notification(0, "LogMissionOutcome", "2031-01-02T00:00:00")
+    replaced = notification_change((old,), (other_date,))
+    assert replaced is not None and replaced.detail == RecordsDetail(added=(other_date,), removed=(old,))
