@@ -24,7 +24,9 @@ Entities are matched across the two saves by their domain-qualified ID (numeric 
 template name for technologies). For a matched entity every field present on either side is
 compared; the two campaign singletons are compared as well, under the pseudo-domains
 `campaign` (date, campaign day and quarter, player faction name, difficulty, mods, scenario,
-scenario faction list) and `research` (the `TIGlobalResearchState` fields). `game_version`, the
+scenario faction list) and `research` (the `TIGlobalResearchState` fields). The `TIGlobalValuesState`
+singleton is an ordinary entity of the `global values` domain, matched by its map ID, so its
+fields and records are compared like any other entity's. `game_version`, the
 raw envelope metadata and the derived `timestamp` are not compared.
 
 ## Change kinds

@@ -235,7 +235,10 @@ The snippets above are conceptual; the implemented types differ as follows:
     councilor, organization, army (both army state types), fleet, ship, hab, war, federation and region alien state
     collections (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
     objects in the `space object` domain; the five `TIRegion*State` alien sub-states share the
-    `region alien state` domain and `SaveSnapshot.region_alien_states`, told apart by state type). A reference field observed to point at
+    `region alien state` domain and `SaveSnapshot.region_alien_states`, told apart by state type). The
+    `TIGlobalValuesState` singleton is normalized as one in-save-ID entity of the `global values` domain
+    (`SaveSnapshot.global_values`), so its fields, references and records have an owner and provenance like any
+    entity's; a second entry is reported as `unexpected_singleton_count` and kept. A reference field observed to point at
     more than one domain (councilor `location`: region or hab) resolves against
     that set, and the owning state type decides the resulting domain.
 -   Research is the one explicitly typed substate: `SaveSnapshot.research`
@@ -292,7 +295,7 @@ Implemented contract (`model/records.py`, `parsing/records.py`):
 -   `parsing.fields.RECORD_FIELDS` lists the record fields per state type with a
     `RecordKind` (ledger, destruction log, name log, dated references, reference
     values, label values, dated labels, executive change, counter, date,
-    reference list). They are known to the unknowns scan but are not copied into
+    reference list, labelled references). They are known to the unknowns scan but are not copied into
     the `EntityState`.
 -   Each record field of each entity becomes one `RecordSet(owner, field, kind,
     location, entries)` on `SaveSnapshot.records`, sorted by owner then field.
@@ -300,6 +303,9 @@ Implemented contract (`model/records.py`, `parsing/records.py`):
     `ItemEntry`), keep serialized order and their index, decode componentized
     dates to ISO-8601 text, and resolve references exactly like entity fields
     (an unresolvable reference is `Unknown(unresolved_reference, raw=...)`).
+-   A record of a campaign-wide singleton is owned by that singleton's entity
+    (`global values` for `TIGlobalValuesState`: global milestones and the
+    narrative-event logs), not by a pseudo-domain without an entity.
 -   Provenance is state type + map ID + field + index. The set's
     `SourceLocation` points at the field (`<entity Value path>/<field>`) and
     `RecordSet.entry_location` extends it to one entry (`/<label>/<index>` for a
@@ -716,6 +722,19 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     for any other literal transition; `technology.appeared` /
     `technology.disappeared` for progress-only or vanished states; the leftover
     `research.finished_techs_changed` for a name no technology event claimed.
+-   `analyzers/campaign/global_values.py` (`GlobalValuesAnalyzer`, `global values`
+    domain): `campaign.global_milestone_recorded` per milestone label added
+    (citing the record entry, naming the faction), `campaign.global_milestone_changed`
+    for a label recorded for another faction, `campaign.nuclear_strikes_changed`
+    (no threshold), `campaign.sea_level_rise_triggered` when a rise flag goes
+    from false to true, `campaign.narrative_event_triggered` per name added to
+    the once-per-campaign list and per once-per-target label that gained
+    targets, and `campaign.global_value_changed` for every other changed field or
+    record, and for any removed record entry, literally. `interstateWars` is
+    owned by the war analyzer: `war.appeared` / `war.disappeared` cite the war's
+    entry as corroboration, and an entry no war presence explains is the
+    leftover `campaign.interstate_wars_changed`. A milestone is "recorded", never
+    "achieved", and a removed entry is never assumed pruned.
 -   `analyzers/aliens/regions.py` (`RegionAlienAnalyzer`, `region alien state`
     domain): every event names the region (the sub-state's `region`
     back-reference) first and the sub-state second, with the literal

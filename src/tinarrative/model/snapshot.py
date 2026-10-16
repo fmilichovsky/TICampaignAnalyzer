@@ -84,6 +84,7 @@ STATE_COLLECTIONS = (
     "wars",
     "federations",
     "region_alien_states",
+    "global_values",
 )
 """Every ``SaveSnapshot`` field holding entity states; extend this when adding a domain."""
 
@@ -102,6 +103,7 @@ NORMALIZED_COLLECTION_LABELS = (
     ("wars", "wars"),
     ("federations", "federations"),
     ("region_alien_states", "region alien states"),
+    ("global_values", "global values"),
 )
 """(attribute, display label) for the collections the normalizer currently fills."""
 
@@ -117,8 +119,10 @@ class SaveSnapshot:
     ``date`` is the ISO-8601 game timestamp (no timezone; game-calendar time) or ``Unknown``.
     ``campaign_day`` and ``campaign_quarter`` are the serialized turn-like counters.
     ``habs`` holds ``TIHabState`` objects (domain ``space object``); ``technologies`` are name-keyed
-    states derived from ``research``. ``records`` holds the save-carried records (dated logs and cumulative
-    counters) of every entity, one ``RecordSet`` per entity and field, sorted by owner then field.
+    states derived from ``research``; ``global_values`` holds the ``TIGlobalValuesState`` singleton as one
+    in-save-ID entity, so its fields and records have an owner like any other entity's. ``records`` holds the
+    save-carried records (dated logs and cumulative counters) of every entity, one ``RecordSet`` per entity and
+    field, sorted by owner then field.
     """
 
     source: str
@@ -142,6 +146,7 @@ class SaveSnapshot:
     wars: tuple[EntityState, ...] = ()
     federations: tuple[EntityState, ...] = ()
     region_alien_states: tuple[EntityState, ...] = ()
+    global_values: tuple[EntityState, ...] = ()
     research: ResearchState = field(default_factory=ResearchState)
     records: tuple[RecordSet, ...] = ()
     raw_metadata: tuple[tuple[str, FieldValue], ...] = ()

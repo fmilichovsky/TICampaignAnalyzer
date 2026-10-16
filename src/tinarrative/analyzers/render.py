@@ -208,6 +208,40 @@ def _technology_presence(event: Event) -> str:
     return f"{_subject(event)} (finished {_attr(event, 'finished')}) {_presence(event)}"
 
 
+def _global_values_presence(event: Event) -> str:
+    return f"{_subject(event)} {_presence(event)}"
+
+
+def _milestone_recorded(event: Event) -> str:
+    return f"{_subject(event)} records global milestone {_text(event, 'milestone')} for {_attr(event, 'faction')}"
+
+
+def _milestone_changed(event: Event) -> str:
+    label = f"global milestone {_text(event, 'milestone')} faction"
+    return f"{_subject(event)} {_transition(event, label)}"
+
+
+def _sea_level_rise(event: Event) -> str:
+    return f"{_subject(event)} sea level rise {_attr(event, 'stage')} flag set"
+
+
+def _narrative_event_triggered(event: Event) -> str:
+    name = _text(event, "narrative_event")
+    if event.attribute("scope") == "target":
+        return f"{_subject(event)} lists narrative event {name} as triggered for {_attr(event, 'targets')}"
+    return f"{_subject(event)} lists narrative event {name} as triggered once per campaign"
+
+
+def _global_value_changed(event: Event) -> str:
+    field = _text(event, "field")
+    if isinstance(event.attribute("transition"), Unknown):
+        return (
+            f"{_subject(event)} {field} records changed: {_attr(event, 'added')} added, "
+            f"{_attr(event, 'removed')} removed, {_attr(event, 'changed')} changed"
+        )
+    return f"{_subject(event)} {_transition(event, field)}"
+
+
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "control_point.controller_changed": _controller_changed,
     "control_point.nation_changed": _plain("nation"),
@@ -299,4 +333,13 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "technology.appeared": _technology_presence,
     "technology.disappeared": _technology_presence,
     "research.finished_techs_changed": _list_changed,
+    "campaign.global_values_appeared": _global_values_presence,
+    "campaign.global_values_disappeared": _global_values_presence,
+    "campaign.global_milestone_recorded": _milestone_recorded,
+    "campaign.global_milestone_changed": _milestone_changed,
+    "campaign.nuclear_strikes_changed": _plain("nuclear strikes"),
+    "campaign.sea_level_rise_triggered": _sea_level_rise,
+    "campaign.narrative_event_triggered": _narrative_event_triggered,
+    "campaign.global_value_changed": _global_value_changed,
+    "campaign.interstate_wars_changed": _list_changed,
 }

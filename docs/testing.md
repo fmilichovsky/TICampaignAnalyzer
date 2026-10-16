@@ -145,7 +145,13 @@ the interval, one that gains an alliance member and a later
 `dateOfLastFighting`, a federation that gains and loses a member, and one
 `wars` entry no war explains. The politics fixture-pair test also keeps the
 words *declared*, *won*, *lost* and *peace* out of every `war.*` and
-`federation.*` line. `aliens_before.json` / `aliens_after.json` is the region
+`federation.*` line. `global_values_before.json` / `global_values_after.json` is
+the wars pair plus faction 15 and the `TIGlobalValuesState` singleton: a
+milestone added, an `interstateWars` reference removed and one added (cited by
+the war events), a sea-level flag set, nuclear strikes, narrative-event lists
+that gain and lose entries, and a synthetic `latestSaveVersion` that changes
+(detected as `game_version`, never gated); `tests/analyzers/campaign/` covers it
+and the edge cases. `aliens_before.json` / `aliens_after.json` is the region
 alien pair: three regions with all five alien sub-states, a crashdown that
 appears with a `crashdownTime` inside the interval, xenoforming rising from
 zero in one region and dropping to zero in another, a facility built, a landing

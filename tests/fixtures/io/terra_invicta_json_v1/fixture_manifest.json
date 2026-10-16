@@ -260,6 +260,28 @@
       "version_assumption": "Observed JSON envelope and observed field names; source game build is not serialized.",
       "sha256": "216453adb91e993f595a0df2e575ee662b7b2e62549545f0e6c61dbdd33c7e01",
       "purpose": "Later snapshot of the same synthetic interval: region 40 has a crashdown with a crashdown time inside the interval and xenoforming rising from 0 to 2.5, region 41 xenoforming dropping to 0 and its facility built, region 42 a landing present and a megafauna army 51 of faction 16 (listed by the faction and the region), and region 40's activity lists missions detected by faction 16."
+    },
+    {
+      "path": "global_values_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; no top-level game_version. TIGlobalValuesState.latestSaveVersion carries a synthetic build string, not a real Terra Invicta build.",
+      "sha256": "860b2a8dec270e53860e18f1f3e07a7cc6f9a28e47557826ddb76db01779f107",
+      "purpose": "Earlier snapshot of a synthetic interval for the global-values analyzer; pair with global_values_after.json. The wars_before.json content plus faction 15 and global-values singleton 70: interstateWars 90 and 91, one global milestone for faction 15, sea level rise 1 not triggered, no nuclear strikes, one once-per-campaign narrative event, an empty once-per-target list, two removed narrative events and one cooldown."
+    },
+    {
+      "path": "global_values_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names; no top-level game_version. TIGlobalValuesState.latestSaveVersion carries a synthetic build string, not a real Terra Invicta build.",
+      "sha256": "a29c66f562588e2f99886d1a5901aae5251e28302c7abd54e565fa431db61be4",
+      "purpose": "Later snapshot of the global-values interval; pair with global_values_before.json. The wars_after.json content (war 91 gone, war 92 new) plus faction 15 and singleton 70: interstateWars 90 and 92, a second milestone, sea level rise 1 triggered, two nuclear strikes, a second once-per-campaign event, faction 15 as a once-per-target target, one removed-events entry replaced, a changed cooldown, a CO2 value and a new latestSaveVersion."
     }
   ]
 }

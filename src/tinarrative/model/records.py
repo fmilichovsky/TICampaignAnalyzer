@@ -45,6 +45,9 @@ class RecordKind(StrEnum):
     """A componentized date or null; one ``ItemEntry``."""
     REFERENCE_LIST = "reference_list"
     """A list of references (``intelSharingFactions``); one ``ItemEntry`` holding the resolved list."""
+    LABELLED_REFERENCES = "labelled_references"
+    """An object label -> reference or list of references (``globalMilestones``, ``triggeredOncePerTargetEvents``);
+    ``KeyedEntry`` whose value is the resolved reference or list."""
 
 
 LOG_KINDS = frozenset((RecordKind.LEDGER, RecordKind.DESTRUCTION_LOG, RecordKind.NAME_LOG))
@@ -56,6 +59,7 @@ KEYED_KINDS = frozenset(
         RecordKind.LABEL_VALUES,
         RecordKind.DATED_LABELS,
         RecordKind.EXECUTIVE_CHANGE,
+        RecordKind.LABELLED_REFERENCES,
     )
 )
 """Maps: entries are matched by key, so a changed value is reported against its key."""

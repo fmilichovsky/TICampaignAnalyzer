@@ -8,13 +8,15 @@ Reads one save, validates it as a `terra_invicta_json_v1` raw save (see the
 [format note](../game-data-notes/terra_invicta_json_v1.md#loader-validation)), normalizes it
 into a `SaveSnapshot`, and prints a short summary:
 
-- envelope: source path, format identifier, game version (or `not serialized`), size in
+- envelope: source path, format identifier, game version (the envelope `game_version`, else
+  `TIGlobalValuesState.latestSaveVersion`, else `not serialized`), size in
   bytes, top-level keys, and the number of state types;
 - snapshot: the game `date` (ISO-8601 from `TITimeState.currentDateTime`, no timezone),
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
   `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
   `ships`, `habs`, `technologies` (name-keyed, derived from the research singleton),
-  `organizations`, `wars`, `federations`, and `region alien states` (the five per-region alien sub-state types together);
+  `organizations`, `wars`, `federations`, `region alien states` (the five per-region alien sub-state types together),
+  and `global values` (the `TIGlobalValuesState` singleton as one entity);
 - `records`: how many save-carried record fields were decoded with a known value across all
   entities and how many entries they hold in total (see the
   [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table;

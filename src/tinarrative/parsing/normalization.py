@@ -38,6 +38,7 @@ from .fields import (
     PAIR_MAP_FIELDS,
     REFERENCE_FIELDS,
     RESEARCH_STATE_TYPE,
+    SINGLETON_ENTITY_TYPES,
     TIME_FIELDS,
 )
 from .raw_save import RawSave
@@ -293,6 +294,8 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
     records: list[RecordSet] = []
     for domain, short_type, attribute in NORMALIZED_DOMAINS:
         entries = decode_state_map(gamestates, short_type)
+        if short_type in SINGLETON_ENTITY_TYPES and len(entries) > 1:
+            collector.singleton_count(short_type, len(entries))
         states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source, collector) for entry in entries)
         collections[attribute] = collections.get(attribute, ()) + states
         records.extend(decode_records(short_type, entries, states, index, raw_save.source, collector))

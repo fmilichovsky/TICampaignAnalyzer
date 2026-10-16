@@ -79,6 +79,7 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
         _IN_SAVE,
         None,
     ),
+    IdentityStrategy(EntityDomain.GLOBAL_VALUES, ("TIGlobalValuesState",), _NUMERIC_ID, _IN_SAVE, None),
 )
 
 

@@ -19,7 +19,7 @@ The supported v1 envelope is **uncompressed JSON bytes**. The loader does not ap
 
 `game_version` is an optional serialized field, not an inferred build number. When absent, `detect_game_version` returns `None`; this is the expected outcome for the observed v1 samples. A string or number in a synthetic fragment is merely reported (numbers are converted to strings) so callers can give a useful diagnostic.
 
-No real game build has been observed in serialized metadata, so no explicit game build is supported. `require_supported_game_version` rejects an explicit value clearly. `require_supported_format("terra_invicta_json_v1")` is the separate assertion that the caller selected this documented envelope; unknown format identifiers are rejected clearly.
+No real save carried the envelope `game_version`. The build string observed inside `TIGlobalValuesState.latestSaveVersion` (see the [notes README](README.md)) is reported by `detect_game_version` when the envelope member is absent, but it is not a compatibility boundary: no explicit game build is supported. `require_supported_game_version` rejects an explicit value clearly. `require_supported_format("terra_invicta_json_v1")` is the separate assertion that the caller selected this documented envelope; unknown format identifiers are rejected clearly.
 
 ## Loader validation
 
@@ -29,7 +29,7 @@ No real game build has been observed in serialized metadata, so no explicit game
 
 - The pair-map convention is documented from one complete save in [the container notes](containers-and-references.md); its coverage in every possible state type and build remains unverified.
 - The observed state-key count may be specific to this campaign era, installed content, or game build. Do not reject a future save solely because a state type is added or removed.
-- A game build may be stored inside a nested metadata state or outside the save. That has not been established and is not used for version detection.
+- A game build is stored inside the `TIGlobalValuesState` singleton (`latestSaveVersion`, observed 2026-10-16); it is reported, never gated on. Whether other builds store it elsewhere is not established.
 
 ## Adding a format or build
 
