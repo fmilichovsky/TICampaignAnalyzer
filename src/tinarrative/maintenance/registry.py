@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 
 SCHEMA_VERSION = 1
 NO_GAME_VERSION = "not-serialized"
-"""Recorded for a save without a serialized ``game_version``, so that fact survives later versioned saves."""
+"""Recorded for a save without a ``latestSaveVersion`` build string, so that fact survives later versioned saves."""
 PRIVACY_NOTE = (
     "Schema-level facts only: state-type names, field names, JSON shapes, counts and dates. "
     "Never values, player or file names, paths or hashes."

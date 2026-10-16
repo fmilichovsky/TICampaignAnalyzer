@@ -105,4 +105,4 @@ how the two saves were normalized and the per-collection and record change count
 | 0 | Both saves were loaded, normalized and compared. |
 | 2 | Usage error (a save path missing, or an unknown `--format`). |
 | 4 | A save path cannot be read (missing, unreadable, or a directory). |
-| 5 | A save is empty, not UTF-8 JSON, lacks the documented envelope, carries an unsupported format or game version, or a state collection does not follow the documented pair-map shape. |
+| 5 | A save is empty, not UTF-8 JSON, lacks the documented envelope, carries an unsupported format, or a state collection does not follow the documented pair-map shape. |

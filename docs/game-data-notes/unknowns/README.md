@@ -69,7 +69,7 @@ and never committed; scanning them is opt-in, like `real_save` tests.
 | `max_occurrences` | The largest per-save count (entities carrying the field, entries, references); re-scanning a save never inflates it. |
 | `saves_seen` | Save files in which the finding appeared, summed over scans. Not deduplicated, by design: no save hashes are stored. |
 | `first_seen`, `last_seen` | Scan dates. |
-| `game_versions` | Serialized `game_version` values seen, or `not-serialized`. |
+| `game_versions` | `latestSaveVersion` build strings seen, or `not-serialized` for a save without one. |
 | `triage` | Optional, hand-written: `status` (`open`, `investigating`, `needs_evidence`), `notes`, optional `ref`. Preserved verbatim by every scan. |
 
 Entries are sorted by `kind`, `state_type`, `field`, `detail`, so one state type's fields form

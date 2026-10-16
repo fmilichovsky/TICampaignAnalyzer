@@ -7,7 +7,6 @@ from tests.fixtures import fixture_path
 from tinarrative.parsing.errors import (
     MalformedSaveError,
     SaveLoadError,
-    UnsupportedGameVersionError,
     UnsupportedSaveFormatError,
     UnsupportedSaveShapeError,
 )
@@ -18,7 +17,6 @@ OUTCOME_ERRORS: dict[str, type[SaveLoadError] | None] = {
     "raw_save": None,
     "malformed_save_error": MalformedSaveError,
     "unsupported_shape_error": UnsupportedSaveShapeError,
-    "unsupported_version_error": UnsupportedGameVersionError,
 }
 VALID = b'{"currentID": {"value": 1}, "gamestates": {}}'
 
@@ -88,12 +86,14 @@ def test_unsupported_shapes_fail_with_specific_messages(data: bytes, message: st
         parse_raw_save(data, source="s")
 
 
-def test_unsupported_format_and_version_are_typed_errors() -> None:
+def test_unsupported_format_is_a_typed_error() -> None:
     with pytest.raises(UnsupportedSaveFormatError):
         parse_raw_save(VALID, source="s", format="terra_invicta_json_v999")
-    versioned = b'{"game_version": "9", "currentID": {}, "gamestates": {}}'
-    with pytest.raises(UnsupportedGameVersionError, match="'9'"):
-        parse_raw_save(versioned, source="s")
+
+
+def test_a_top_level_game_version_member_neither_gates_nor_is_reported() -> None:
+    raw = parse_raw_save(b'{"game_version": "9", "currentID": {}, "gamestates": {}}', source="s")
+    assert raw.game_version is None
 
 
 def test_all_failures_share_one_base_category() -> None:
@@ -101,6 +101,5 @@ def test_all_failures_share_one_base_category() -> None:
         MalformedSaveError,
         UnsupportedSaveShapeError,
         UnsupportedSaveFormatError,
-        UnsupportedGameVersionError,
     ):
         assert issubclass(error, SaveLoadError)

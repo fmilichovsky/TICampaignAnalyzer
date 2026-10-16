@@ -34,7 +34,7 @@ Exit codes are stable and defined at the top of `src/tinarrative/cli.py`.
 | 2 | Usage error (argparse). |
 | 3 | Reserved for a command registered before it is implemented; no command uses it at present. |
 | 4 | An input path could not be read. |
-| 5 | Input bytes were read but are not in a decodable, documented format (`parse`: malformed data or unsupported shape, format, or game version). |
+| 5 | Input bytes were read but are not in a decodable, documented format (`parse`: malformed data or unsupported shape or format). |
 | 6 | A user-selected path did not resolve. |
 | 7 | The unknowns registry could not be read, is not a valid registry document, or could not be written; the report or summary is still printed. |
 
