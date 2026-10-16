@@ -158,7 +158,12 @@ whose outcome changes, and gains a space battle, two identical entries (duplicat
 subject. Summaries are synthetic. `tests/analyzers/campaign/` checks that no line echoes a summary. Events
 whose primary source is the notification log are exempt from the banned-word checks (for example in the
 opt-in real-save test): the log is the game's own account of what happened, so a template name such as
-`LogSpaceBattleTakesPlace` or `LogHabDestroyed` is evidence, not an inferred cause. `aliens_before.json` / `aliens_after.json` is the region
+`LogSpaceBattleTakesPlace` or `LogHabDestroyed` is evidence, not an inferred cause. `combat_before.json` /
+`combat_after.json` is the combat-log pair: factions 15, 16 and 17, where faction 15's `CombatLogs` keeps one
+entry, loses one and gains a 16 vs 17 entry at a hab of faction 17 plus two identical one-sided entries
+(duplicates), and faction 16 gains the same 16 vs 17 entry (one combat in two logs). Every `Date` is `null`, as
+observed, and design names are synthetic; `tests/analyzers/space/` checks that no line echoes a design or hull
+name. `aliens_before.json` / `aliens_after.json` is the region
 alien pair: three regions with all five alien sub-states, a crashdown that
 appears with a `crashdownTime` inside the interval, xenoforming rising from
 zero in one region and dropping to zero in another, a facility built, a landing

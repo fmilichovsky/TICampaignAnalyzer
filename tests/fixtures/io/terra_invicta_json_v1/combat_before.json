@@ -1,0 +1,213 @@
+{
+  "currentID": {
+    "value": 999
+  },
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIMetadataState": [
+      {
+        "Key": {
+          "value": 1
+        },
+        "Value": {
+          "ID": {
+            "value": 1
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "playerFactionName": "Fixture Resistance",
+          "gameTimeString": "1/1/2032 12:00:00 AM",
+          "difficulty": "Normal",
+          "playedWithMods": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMetadataState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TITimeState": [
+      {
+        "Key": {
+          "value": 2
+        },
+        "Value": {
+          "ID": {
+            "value": 2
+          },
+          "templateName": "FixtureTime",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "currentDateTime": {
+            "year": 2032,
+            "month": 1,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "daysInCampaign": 731,
+          "currentQuarterSinceStart": 8,
+          "$type": "PavonisInteractive.TerraInvicta.TITimeState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIPlayerState": [
+      {
+        "Key": {
+          "value": 60
+        },
+        "Value": {
+          "ID": {
+            "value": 60
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "isAI": false,
+          "faction": {
+            "value": 15
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIPlayerState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {
+          "value": 15
+        },
+        "Value": {
+          "ID": {
+            "value": 15
+          },
+          "templateName": "FixtureResistance",
+          "displayName": "Fixture Resistance",
+          "archived": false,
+          "exists": true,
+          "CombatLogs": [
+            {
+              "Date": null,
+              "Ships": [
+                {
+                  "Key": {
+                    "value": 15
+                  },
+                  "Value": [
+                    {
+                      "Item1": "Fixture Design A",
+                      "Item2": "FixtureEscort"
+                    },
+                    {
+                      "Item1": "Fixture Design A",
+                      "Item2": "FixtureEscort"
+                    }
+                  ]
+                },
+                {
+                  "Key": {
+                    "value": 16
+                  },
+                  "Value": [
+                    {
+                      "Item1": "Fixture Design B",
+                      "Item2": "FixtureCruiser"
+                    }
+                  ]
+                }
+              ],
+              "HabFaction": null,
+              "Attacks": [
+                {
+                  "WeaponDataName": "FixtureLaser",
+                  "Range_km": 120.0,
+                  "ArmorFacing": "Nose",
+                  "Angle": 12.5,
+                  "TargetingBonus": 0.0
+                },
+                {
+                  "WeaponDataName": "FixtureCoilgun",
+                  "Range_km": 80.5,
+                  "ArmorFacing": "Lateral",
+                  "Angle": 12.5,
+                  "TargetingBonus": 0.0
+                }
+              ],
+              "winner": {
+                "value": 15
+              },
+              "WasSurprising": "No"
+            },
+            {
+              "Date": null,
+              "Ships": [
+                {
+                  "Key": {
+                    "value": 15
+                  },
+                  "Value": [
+                    {
+                      "Item1": "Fixture Design A",
+                      "Item2": "FixtureEscort"
+                    }
+                  ]
+                },
+                {
+                  "Key": {
+                    "value": 16
+                  },
+                  "Value": [
+                    {
+                      "Item1": "Fixture Design B",
+                      "Item2": "FixtureCruiser"
+                    }
+                  ]
+                }
+              ],
+              "HabFaction": null,
+              "Attacks": [],
+              "winner": {
+                "value": 16
+              },
+              "WasSurprising": "Indeterminate"
+            }
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 16
+        },
+        "Value": {
+          "ID": {
+            "value": 16
+          },
+          "templateName": "FixtureAliens",
+          "displayName": "Fixture Aliens",
+          "archived": false,
+          "exists": true,
+          "CombatLogs": [],
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 17
+        },
+        "Value": {
+          "ID": {
+            "value": 17
+          },
+          "templateName": "FixtureServants",
+          "displayName": "Fixture Servants",
+          "archived": false,
+          "exists": true,
+          "CombatLogs": [],
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ]
+  }
+}

@@ -14,7 +14,7 @@ from collections.abc import Callable
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
-from ..model.values import Unknown
+from ..model.values import FrozenMap, Unknown
 from .campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 
 ABSENT = "is absent from the after snapshot"
@@ -205,6 +205,43 @@ def _destruction_recorded(event: Event) -> str:
     )
 
 
+def _combat_sides(event: Event) -> str:
+    """``faction:15 (3 ships) vs faction:16 (2 ships)``; the unknown value when the sides are.
+
+    Hull class names stay in the ``sides`` attribute: they are game identifiers such as ``Battleship``, which
+    would read as a claim the line does not make.
+    """
+    sides = event.attribute("sides")
+    if not isinstance(sides, tuple):
+        return render_value(sides)
+    parts: list[str] = []
+    for side in sides:
+        if not (isinstance(side, tuple) and len(side) == 2 and isinstance(side[1], FrozenMap)):
+            parts.append(render_value(side))
+            continue
+        ships = sum(count for _, count in side[1].items if isinstance(count, int))
+        parts.append(f"{render_value(side[0])} ({ships} {'ship' if ships == 1 else 'ships'})")
+    return " vs ".join(parts) if parts else "no sides"
+
+
+def _combat_line(event: Event, verb: str) -> str:
+    recorded_on = event.attribute("recorded_on")
+    dated = "undated" if recorded_on is None else f"dated {_text(event, 'recorded_on')}"
+    return (
+        f"{_subject(event)} {verb} a combat entry ({dated}): {_combat_sides(event)}; "
+        f"winner {_attr(event, 'winner')}, hab faction {_attr(event, 'hab_faction')}, "
+        f"attacks {_attr(event, 'attack_count')}"
+    )
+
+
+def _combat_recorded(event: Event) -> str:
+    return _combat_line(event, "records")
+
+
+def _combat_entry_removed(event: Event) -> str:
+    return _combat_line(event, "no longer lists")
+
+
 def _technology_completed(event: Event) -> str:
     text = f"{_subject(event)} is listed as finished"
     if event.attribute("side") == "after":
@@ -364,6 +401,8 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "hab.appeared": _presence_with(EntityDomain.FACTION, "faction"),
     "hab.disappeared": _presence_with(EntityDomain.FACTION, "faction"),
     "faction.hab_destruction_recorded": _destruction_recorded,
+    "faction.combat_recorded": _combat_recorded,
+    "faction.combat_entry_removed": _combat_entry_removed,
     "technology.completed": _technology_completed,
     "technology.finished_changed": _plain("finished"),
     "technology.appeared": _technology_presence,

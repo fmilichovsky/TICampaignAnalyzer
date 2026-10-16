@@ -41,5 +41,5 @@
   - [x] `TIGlobalValuesState` singleton: interstate wars, global milestones,
     nuclear and climate counters, serialized build version (#67).
   - [x] The game's notification log as a save-carried record (#68).
-  - [ ] `CombatLogs` reclassified from acknowledged to a record (#69).
+  - [x] `CombatLogs` reclassified from acknowledged to a record (#69).
 - [ ] Aggregate events across an ordered save sequence.

@@ -51,9 +51,9 @@ normalizer could not resolve it; its raw IDs stay visible. Values and references
 
 The dated logs and cumulative counters listed in the field map's
 [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table
-(`Transactions`, `HabDestructionLog`, `lostControlPoints`, `lastExecutiveChange`, ...) are
+(`Transactions`, `HabDestructionLog`, `CombatLogs`, `lostControlPoints`, `lastExecutiveChange`, ...) are
 compared per owning entity and field, under the owner's domain. A log (ledger, destruction log,
-milestones) is compared as a multiset of entries, index aside: entries only in the later save are
+combat log, milestones) is compared as a multiset of entries, index aside: entries only in the later save are
 `added`; entries only in the earlier save are `removed` and reported literally (observed for some
 `Transactions` labels, which the game rewrites rather than appends to). The notification log
 (`notificationSummaryQueue`) is a multiset too, but an entry is identified by template, date and summary:
