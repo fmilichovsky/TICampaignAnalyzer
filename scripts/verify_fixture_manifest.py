@@ -34,7 +34,6 @@ LOADER_OUTCOMES = {
     "raw_save",
     "malformed_save_error",
     "unsupported_shape_error",
-    "unsupported_version_error",
 }
 SUPPORTED_FORMAT_ASSUMPTIONS = {"terra_invicta_json_v1"}
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]

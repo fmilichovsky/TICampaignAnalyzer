@@ -30,7 +30,7 @@ DEBUG tinarrative.parsing.raw_save: format accepted format=terra_invicta_json_v1
 DEBUG tinarrative.parsing.raw_save: utf-8 decoded bytes=84312715 chars=84312715
 DEBUG tinarrative.parsing.raw_save: json decoded root=dict
 DEBUG tinarrative.parsing.raw_save: envelope ok top_level_keys=2 state_types=61
-DEBUG tinarrative.parsing.game_version: game_version absent, accepted
+DEBUG tinarrative.parsing.game_version: game_version detected source=global_values
 DEBUG tinarrative.parsing.references: reference index built ids=12345 skipped_types=0
 DEBUG tinarrative.parsing.normalization: date parsed date=2046-10-08T00:00:00
 DEBUG tinarrative.parsing.normalization: domain normalized state_type=TIFactionState domain=faction entities=8 missing_fields=0 unresolved_references=2 unparseable=0 unknown_fields=124
@@ -38,7 +38,7 @@ DEBUG tinarrative.parsing.records: records normalized state_type=TIFactionState 
 DEBUG tinarrative.parsing.unknowns: unknown fields state_type=TIFactionState fields=124 entities=8
 INFO tinarrative.parsing.unknowns: unknown structures total=388 state_types=0 fields=386 envelope_keys=0 field_shapes=0 reference_domains=2 singletons=0 containers=0
 INFO tinarrative.parsing.normalization: normalized state_types=61 entities=3210 technologies=240 record_sets=726 record_entries=7326
-INFO tinarrative.cli: parse done save=Save.json state_types=61 game_version=none unknowns=388 exit=0
+INFO tinarrative.cli: parse done save=Save.json state_types=61 game_version=0.4.99 unknowns=388 exit=0
 ```
 
 Every line is `LEVEL logger: message key=value ...`. There are no timestamps, so two runs

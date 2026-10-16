@@ -114,7 +114,6 @@ class ParseCommandTests(unittest.TestCase):
         cases = {
             "malformed_truncated.json": "not valid JSON",
             "missing_gamestates.json": "'gamestates'",
-            "explicit_game_version_envelope.json": "Unsupported Terra Invicta game version",
         }
         for name, message in cases.items():
             with self.subTest(name=name):
@@ -165,7 +164,7 @@ class LogLevelTests(unittest.TestCase):
         lines = err.splitlines()
         self.assertEqual(lines[0], f"INFO tinarrative.cli: parse start save={self.save.name}")
         self.assertIn("DEBUG tinarrative.parsing.raw_save: json decoded root=dict", lines)
-        self.assertIn("DEBUG tinarrative.parsing.game_version: game_version absent, accepted", lines)
+        self.assertIn("DEBUG tinarrative.parsing.game_version: game_version detected source=none", lines)
         self.assertTrue(
             any(line.startswith("DEBUG tinarrative.parsing.normalization: domain normalized") for line in lines)
         )

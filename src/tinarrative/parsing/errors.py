@@ -21,7 +21,3 @@ class UnsupportedSaveShapeError(SaveLoadError):
 
 class UnsupportedSaveFormatError(SaveLoadError, ValueError):
     """Raised when no parser contract has been documented for a format."""
-
-
-class UnsupportedGameVersionError(SaveLoadError, ValueError):
-    """Raised for an explicit game build that has no documented support."""

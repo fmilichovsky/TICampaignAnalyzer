@@ -8,12 +8,7 @@ from typing import Any
 
 from ..log import fields, get_logger
 from .errors import MalformedSaveError, UnsupportedSaveShapeError
-from .game_version import (
-    DEFAULT_FORMAT,
-    detect_game_version,
-    require_supported_format,
-    require_supported_game_version,
-)
+from .game_version import DEFAULT_FORMAT, detect_game_version, require_supported_format
 
 ENVELOPE_KEYS = ("currentID", "gamestates")
 """Top-level members observed in every sample of ``terra_invicta_json_v1``."""
@@ -96,7 +91,6 @@ def parse_raw_save(data: bytes, *, source: str, format: str = DEFAULT_FORMAT) ->
     if not isinstance(root["gamestates"], dict):
         raise UnsupportedSaveShapeError("The save's 'gamestates' member is not an object.")
     logger.debug("envelope ok %s", fields(top_level_keys=len(root), state_types=len(root["gamestates"])))
-    require_supported_game_version(root)
     return RawSave(
         source=source,
         format=format,

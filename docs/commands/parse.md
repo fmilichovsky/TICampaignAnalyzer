@@ -8,8 +8,8 @@ Reads one save, validates it as a `terra_invicta_json_v1` raw save (see the
 [format note](../game-data-notes/terra_invicta_json_v1.md#loader-validation)), normalizes it
 into a `SaveSnapshot`, and prints a short summary:
 
-- envelope: source path, format identifier, game version (the envelope `game_version`, else
-  `TIGlobalValuesState.latestSaveVersion`, else `not serialized`), size in
+- envelope: source path, format identifier, game version (`TIGlobalValuesState.latestSaveVersion`,
+  else `not serialized`), size in
   bytes, top-level keys, and the number of state types;
 - snapshot: the game `date` (ISO-8601 from `TITimeState.currentDateTime`, no timezone),
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
@@ -48,5 +48,5 @@ led there, run with the global `--log-level debug` option (before `parse`); see 
 | 0 | The save was loaded, validated, and normalized. |
 | 2 | Usage error, including `--record-unknowns` without `--registry` or the environment variable (the summary is still printed). |
 | 4 | The path cannot be read (missing, unreadable, or a directory). |
-| 5 | The bytes are empty, compressed, not UTF-8 JSON, lack the documented envelope, carry an unsupported format or game version, or a normalized state collection does not follow the documented pair-map shape. |
+| 5 | The bytes are empty, compressed, not UTF-8 JSON, lack the documented envelope, carry an unsupported format, or a normalized state collection does not follow the documented pair-map shape. |
 | 7 | `--record-unknowns` was given but the registry cannot be read, is invalid, or cannot be written; the summary is still printed. |
