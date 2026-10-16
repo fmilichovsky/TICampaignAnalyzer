@@ -9,6 +9,7 @@ from tinarrative.diff.state_diff import ChangeKind, MapDetail, MembershipDetail,
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.evidence import SourceLocation
 from tinarrative.model.records import (
+    CombatEntry,
     ItemEntry,
     KeyedEntry,
     LedgerEntry,
@@ -497,3 +498,27 @@ def test_a_notification_with_the_same_key_but_another_outcome_is_changed_not_rep
     other_date = notification(0, "LogMissionOutcome", "2031-01-02T00:00:00")
     replaced = notification_change((old,), (other_date,))
     assert replaced is not None and replaced.detail == RecordsDetail(added=(other_date,), removed=(old,))
+
+
+def combat_entry(index: int, winner: EntityRef, attacks: Observed = ()) -> CombatEntry:
+    sides = ((FACTION, FrozenMap((("FixtureEscort", 2),))),)
+    return CombatEntry(index, None, sides, None, winner, attacks, "No")
+
+
+def test_combat_entries_are_a_multiset_of_their_content() -> None:
+    other = ref("16", EntityDomain.FACTION, "TIFactionState")
+    kept = combat_entry(0, FACTION)
+    dropped = combat_entry(1, other)
+    added = combat_entry(1, other, (FrozenMap((("WeaponDataName", "FixtureLaser"),)),))
+    twin = combat_entry(2, other, (FrozenMap((("WeaponDataName", "FixtureLaser"),)),))
+
+    def change_of(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...]) -> StateChange | None:
+        return record_change(
+            record(BEFORE, "CombatLogs", RecordKind.COMBAT_LOG, before),
+            record(AFTER, "CombatLogs", RecordKind.COMBAT_LOG, after),
+        )
+
+    change = change_of((kept, dropped), (kept, added, twin))
+    assert change is not None and change.kind is ChangeKind.RECORDS
+    assert change.detail == RecordsDetail(added=(added, twin), removed=(dropped,))
+    assert change_of((kept,), (combat_entry(7, FACTION),)) is None  # index aside

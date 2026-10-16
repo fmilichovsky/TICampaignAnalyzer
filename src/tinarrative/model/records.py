@@ -51,9 +51,20 @@ class RecordKind(StrEnum):
     NOTIFICATION_LOG = "notification_log"
     """``notificationSummaryQueue``: a list of dated typed entries (the game's own event log);
     ``NotificationEntry``."""
+    COMBAT_LOG = "combat_log"
+    """``CombatLogs``: a list of ``{Date, Ships, HabFaction, Attacks, winner, WasSurprising}``, one per combat;
+    ``CombatEntry``."""
 
 
-LOG_KINDS = frozenset((RecordKind.LEDGER, RecordKind.DESTRUCTION_LOG, RecordKind.NAME_LOG, RecordKind.NOTIFICATION_LOG))
+LOG_KINDS = frozenset(
+    (
+        RecordKind.LEDGER,
+        RecordKind.DESTRUCTION_LOG,
+        RecordKind.NAME_LOG,
+        RecordKind.NOTIFICATION_LOG,
+        RecordKind.COMBAT_LOG,
+    )
+)
 """Logs: entries are compared as multisets of their ``diff_key``, index aside (most grow by appending; see the
 field map)."""
 KEYED_KINDS = frozenset(
@@ -132,7 +143,27 @@ class NotificationEntry:
     summary_log_factions: Observed
 
 
-RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry | NotificationEntry
+@dataclass(frozen=True)
+class CombatEntry:
+    """``CombatLogs[index]``: one combat recorded by a faction.
+
+    ``date`` is the ISO-8601 ``Date`` or ``None`` (``null`` in every observed entry). ``sides`` is the resolved
+    ``Ships`` pair map in serialized order, as ``((faction EntityRef, FrozenMap(hull class -> ship count)), ...)``;
+    one unresolvable faction makes it ``Unknown``. Ship design names are campaign content (players name designs)
+    and are deliberately not kept. ``hab_faction`` and ``winner`` are resolved references or ``None``;
+    ``attacks`` is the raw ``Attacks`` list and ``surprising`` the raw ``WasSurprising`` label.
+    """
+
+    index: int
+    date: Observed
+    sides: Observed
+    hab_faction: Observed
+    winner: Observed
+    attacks: Observed
+    surprising: Observed
+
+
+RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry | NotificationEntry | CombatEntry
 
 
 def diff_key(entry: RecordEntry) -> Hashable:

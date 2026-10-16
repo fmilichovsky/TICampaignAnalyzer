@@ -9,6 +9,7 @@ from tinarrative.identity import STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.records import (
+    CombatEntry,
     DestructionEntry,
     ItemEntry,
     KeyedEntry,
@@ -334,7 +335,7 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
         )
     lines = [record.getMessage() for record in caplog.records if record.name == "tinarrative.parsing.records"]
     assert lines == [
-        "records normalized state_type=TIFactionState fields=17 entities=2 sets=34 known_sets=2 missing=32 entries=2 "
+        "records normalized state_type=TIFactionState fields=18 entities=2 sets=36 known_sets=2 missing=34 entries=2 "
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TINationState fields=2 entities=1 sets=2 known_sets=0 missing=2 entries=0 "
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
@@ -512,3 +513,108 @@ def test_a_notification_log_of_the_wrong_shape_is_unparseable_and_reported() -> 
     entries = record(snapshot, "80", "notificationSummaryQueue").entries
     assert isinstance(entries, Unknown) and entries.reason is UnknownReason.UNPARSEABLE
     assert keys(report) == [("unexpected_field_shape", "TINotificationQueueState", "notificationSummaryQueue", "array")]
+
+
+def ship(design: str, hull: str) -> dict[str, str]:
+    return {"Item1": design, "Item2": hull}
+
+
+def combat(sides: list[object], **members: object) -> dict[str, object]:
+    return {
+        "Date": None,
+        "Ships": sides,
+        "HabFaction": None,
+        "Attacks": [],
+        "winner": {"value": 15},
+        "WasSurprising": "No",
+        **members,
+    }
+
+
+def side(faction: int, *ships: dict[str, str]) -> dict[str, object]:
+    return {"Key": {"value": faction}, "Value": list(ships)}
+
+
+def test_the_combat_log_decodes_sides_as_hull_class_counts_with_provenance_and_a_null_date() -> None:
+    attack = {
+        "WeaponDataName": "FixtureLaser",
+        "Range_km": 80.5,
+        "ArmorFacing": "Nose",
+        "Angle": 1.0,
+        "TargetingBonus": 0.0,
+    }
+    first = combat(
+        [
+            side(15, ship("Fixture Design A", "FixtureEscort"), ship("Fixture Design B", "FixtureEscort")),
+            side(16, ship("Fixture Design C", "FixtureCruiser")),
+        ],
+        Attacks=[attack],
+    )
+    second = combat(
+        [side(16, ship("Fixture Design C", "FixtureCruiser"))], HabFaction={"value": 16}, winner={"value": 16}
+    )
+    snapshot, report = collect(faction_fragment(CombatLogs=[first, second]))
+    log = record(snapshot, "15", "CombatLogs")
+    assert log.kind is RecordKind.COMBAT_LOG
+    assert log.entries == (
+        CombatEntry(
+            0,
+            date=None,
+            sides=(
+                (FACTION_15, FrozenMap((("FixtureEscort", 2),))),
+                (FACTION_16, FrozenMap((("FixtureCruiser", 1),))),
+            ),
+            hab_faction=None,
+            winner=FACTION_15,
+            attacks=(
+                FrozenMap(
+                    (
+                        ("WeaponDataName", "FixtureLaser"),
+                        ("Range_km", 80.5),
+                        ("ArmorFacing", "Nose"),
+                        ("Angle", 1.0),
+                        ("TargetingBonus", 0.0),
+                    )
+                ),
+            ),
+            surprising="No",
+        ),
+        CombatEntry(1, None, ((FACTION_16, FrozenMap((("FixtureCruiser", 1),))),), FACTION_16, FACTION_16, (), "No"),
+    )
+    assert isinstance(log.entries, tuple)
+    assert log.entry_location(log.entries[1]).path == f"/gamestates/{FACTION_TYPE}/0/Value/CombatLogs/1"
+    assert "Fixture Design" not in repr(log.entries)  # design names are campaign content and are not kept
+    assert report.findings == ()
+
+
+def test_a_combat_date_is_decoded_and_a_side_absent_from_the_save_makes_the_sides_unresolved() -> None:
+    entry = combat([side(15, ship("Fixture Design A", "FixtureEscort")), side(999)], Date=DATE)
+    snapshot, report = collect(faction_fragment(CombatLogs=[entry]))
+    entries = record(snapshot, "15", "CombatLogs").entries
+    assert isinstance(entries, tuple) and isinstance(entries[0], CombatEntry)
+    assert entries[0].date == ISO
+    keys_only = (FrozenMap((("value", 15),)), FrozenMap((("value", 999),)))  # never the design names
+    assert entries[0].sides == Unknown(UnknownReason.UNRESOLVED_REFERENCE, keys_only)
+    assert report.findings == ()
+
+
+def test_an_unknown_combat_member_and_a_ships_value_of_the_wrong_shape_are_reported() -> None:
+    extended = combat([side(15, ship("Fixture Design A", "FixtureEscort"))], fixtureMember=1)
+    bad_ships = combat([{"Key": {"value": 15}, "Value": ["FixtureEscort"]}])
+    snapshot, report = collect(faction_fragment(CombatLogs=[extended, bad_ships, "not an object"]))
+    entries = record(snapshot, "15", "CombatLogs").entries
+    assert isinstance(entries, tuple) and len(entries) == 3
+    assert isinstance(entries[1], CombatEntry) and isinstance(entries[1].sides, Unknown)
+    assert entries[1].sides.reason is UnknownReason.UNPARSEABLE and entries[1].winner == FACTION_15
+    assert isinstance(entries[2], CombatEntry) and isinstance(entries[2].winner, Unknown)
+    assert keys(report) == [
+        ("unexpected_field_shape", "TIFactionState", "CombatLogs", "array_of_objects"),
+        ("unknown_field", "TIFactionState", "CombatLogs[].fixtureMember", ""),
+    ]
+
+
+def test_a_combat_log_of_the_wrong_shape_is_unparseable_and_reported() -> None:
+    snapshot, report = collect(faction_fragment(CombatLogs={"0": {}}))
+    entries = record(snapshot, "15", "CombatLogs").entries
+    assert isinstance(entries, Unknown) and entries.reason is UnknownReason.UNPARSEABLE
+    assert keys(report) == [("unexpected_field_shape", "TIFactionState", "CombatLogs", "array")]

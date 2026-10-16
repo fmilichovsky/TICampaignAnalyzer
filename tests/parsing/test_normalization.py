@@ -1170,3 +1170,14 @@ def test_a_second_notification_queue_entry_is_reported_and_kept() -> None:
     snapshot, report = collect(fragment_raw({NOTIFICATION_QUEUE_TYPE: [pair(80), pair(81)]}))
     assert [state.ref.entity_id.key for state in snapshot.notification_queue] == ["80", "81"]
     assert keys(report) == [("unexpected_singleton_count", "TINotificationQueueState", "", "")]
+
+
+@pytest.mark.fixture
+def test_the_combat_fixture_pair_normalizes_its_combat_logs_without_findings() -> None:
+    for name, sizes in (("combat_before.json", [2, 0, 0]), ("combat_after.json", [4, 1, 0])):
+        collector = UnknownCollector()
+        snapshot = normalize(load_raw_save(fixture_path(*FIXTURE_SET, name)), collector=collector)
+        assert collector.report().findings == ()
+        logs = [record for record in snapshot.records if record.field == "CombatLogs"]
+        assert [len(log.entries) for log in logs if not isinstance(log.entries, Unknown)] == sizes
+        assert "CombatLogs" not in dict(snapshot.factions[0].fields)

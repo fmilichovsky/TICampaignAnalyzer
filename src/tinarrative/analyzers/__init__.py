@@ -13,7 +13,7 @@ from .politics import (
     OrganizationAnalyzer,
     WarAnalyzer,
 )
-from .space import FleetAnalyzer, HabAnalyzer, ShipAnalyzer
+from .space import CombatAnalyzer, FleetAnalyzer, HabAnalyzer, ShipAnalyzer
 from .technology import TechnologyAnalyzer
 
 POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
@@ -26,7 +26,7 @@ POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
 )
 """The analyzers of the politics family, in the order they run (the output is sorted regardless)."""
 MILITARY_ANALYZERS: tuple[Analyzer, ...] = (ArmyAnalyzer(),)
-SPACE_ANALYZERS: tuple[Analyzer, ...] = (FleetAnalyzer(), ShipAnalyzer(), HabAnalyzer())
+SPACE_ANALYZERS: tuple[Analyzer, ...] = (FleetAnalyzer(), ShipAnalyzer(), HabAnalyzer(), CombatAnalyzer())
 TECHNOLOGY_ANALYZERS: tuple[Analyzer, ...] = (TechnologyAnalyzer(),)
 ALIEN_ANALYZERS: tuple[Analyzer, ...] = (RegionAlienAnalyzer(),)
 CAMPAIGN_ANALYZERS: tuple[Analyzer, ...] = (GlobalValuesAnalyzer(), NotificationAnalyzer())

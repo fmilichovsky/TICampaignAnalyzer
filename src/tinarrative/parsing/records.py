@@ -5,11 +5,12 @@ Each record field of an entity becomes exactly one :class:`~tinarrative.model.re
 have the documented shape gives ``Unknown(unparseable, raw)`` and an ``unexpected_field_shape`` finding. A
 problem inside one element (an unparseable date, an unresolvable reference) stays inside that entry, so
 the rest of the log remains evidence. Nothing read from a record is logged: ledger labels, milestone names,
-narrative-event names, kill lists and notification summaries are campaign content.
+narrative-event names, kill lists, notification summaries and ship design names are campaign content.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -19,6 +20,7 @@ from ..log import get_logger
 from ..model.entities import EntityRef
 from ..model.evidence import SourceLocation, pointer_path
 from ..model.records import (
+    CombatEntry,
     DestructionEntry,
     ItemEntry,
     KeyedEntry,
@@ -30,7 +32,7 @@ from ..model.records import (
     record_counts,
 )
 from ..model.snapshot import EntityState
-from ..model.values import Observed, Unknown, UnknownReason, freeze
+from ..model.values import FrozenMap, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_pair_map, entry_path
 from .dates import iso_date
 from .fields import RECORD_ENTRY_MEMBERS, RECORD_FIELDS, RECORD_MEMBER_TARGETS, RecordField, entry_member_name
@@ -248,6 +250,63 @@ def _notification_log(raw: Any, ctx: _Context) -> Entries:
     return tuple(entries)
 
 
+def _combat_log(raw: Any, ctx: _Context) -> Entries:
+    """A list of combat objects; a member outside ``RECORD_ENTRY_MEMBERS`` is reported as ``Field[].member``."""
+    if not isinstance(raw, list):
+        return ctx.unparseable(ARRAY, raw)
+    known = RECORD_ENTRY_MEMBERS.get(ctx.state_type, {}).get(ctx.field, frozenset())
+    entries: list[RecordEntry] = []
+    for position, item in enumerate(raw):
+        if not isinstance(item, dict):
+            bad = ctx.unparseable(ARRAY_OF_OBJECTS, item)
+            entries.append(CombatEntry(position, bad, bad, bad, bad, bad, bad))
+            continue
+        for name, value in item.items():
+            if name not in known:
+                ctx.collector.field(ctx.state_type, entry_member_name(ctx.field, str(name)), value)
+        entries.append(
+            CombatEntry(
+                position,
+                date=ctx.member_date(item, "Date"),
+                sides=_combat_sides(item, ctx),
+                hab_faction=ctx.member_reference(item, "HabFaction"),
+                winner=ctx.member_reference(item, "winner"),
+                attacks=ctx.member(item, "Attacks"),
+                surprising=ctx.member(item, "WasSurprising"),
+            )
+        )
+    return tuple(entries)
+
+
+def _combat_sides(item: dict[str, Any], ctx: _Context) -> Observed:
+    """``Ships`` (pair map faction -> list of ``{Item1, Item2}``) as faction -> hull class counts.
+
+    ``Item1`` is the ship design name, which players choose: it is never kept. One unresolvable faction makes
+    the member unknown, like a reference list; its raw value is the list of faction keys only.
+    """
+    if "Ships" not in item:
+        return Unknown()
+    raw = item["Ships"]
+    pairs = decode_pair_map(raw)
+    if pairs is None:
+        return ctx.unparseable(PAIR_MAP, raw)
+    name = f"{ctx.field}.Ships"
+    sides: list[tuple[EntityRef, FrozenMap]] = []
+    unresolved = False
+    for key, ships in pairs:
+        if not isinstance(ships, list) or not all(isinstance(ship, dict) and "Item2" in ship for ship in ships):
+            return ctx.unparseable(ARRAY_OF_OBJECTS, ships)
+        faction = ctx.reference(key, RECORD_MEMBER_TARGETS[name], name)
+        if not isinstance(faction, EntityRef):
+            unresolved = True
+            continue
+        hulls = Counter(str(ship["Item2"]) for ship in ships)
+        sides.append((faction, FrozenMap(tuple(hulls.items()))))
+    if unresolved:
+        return Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze([key for key, _ in pairs]))
+    return tuple(sides)
+
+
 def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
     kind = spec.kind
     if kind is RecordKind.LEDGER:
@@ -266,6 +325,8 @@ def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
         return _labelled_references(raw, spec, ctx)
     if kind is RecordKind.NOTIFICATION_LOG:
         return _notification_log(raw, ctx)
+    if kind is RecordKind.COMBAT_LOG:
+        return _combat_log(raw, ctx)
     if kind is RecordKind.COUNTER:
         return (ItemEntry(0, freeze(raw)),)
     if kind is RecordKind.DATE:

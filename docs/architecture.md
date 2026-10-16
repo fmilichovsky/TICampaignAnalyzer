@@ -297,12 +297,12 @@ Implemented contract (`model/records.py`, `parsing/records.py`):
 -   `parsing.fields.RECORD_FIELDS` lists the record fields per state type with a
     `RecordKind` (ledger, destruction log, name log, dated references, reference
     values, label values, dated labels, executive change, counter, date,
-    reference list, labelled references, notification log). They are known to the unknowns scan but are not copied into
+    reference list, labelled references, notification log, combat log). They are known to the unknowns scan but are not copied into
     the `EntityState`.
 -   Each record field of each entity becomes one `RecordSet(owner, field, kind,
     location, entries)` on `SaveSnapshot.records`, sorted by owner then field.
     Entries are typed (`LedgerEntry`, `DestructionEntry`, `KeyedEntry`,
-    `ItemEntry`, `NotificationEntry`), keep serialized order and their index, decode componentized
+    `ItemEntry`, `NotificationEntry`, `CombatEntry`), keep serialized order and their index, decode componentized
     dates to ISO-8601 text, and resolve references exactly like entity fields
     (an unresolvable reference is `Unknown(unresolved_reference, raw=...)`).
 -   A record of a campaign-wide singleton is owned by that singleton's entity
@@ -724,6 +724,17 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     `faction.hab_destruction_recorded` for every `HabDestructionLog` entry
     added (record-dated; it names a hab type and a space body, never a hab ID,
     so it is not linked to any `hab.disappeared`).
+-   `analyzers/space/combat.py` (`CombatAnalyzer`): `faction.combat_recorded`
+    for every `CombatLogs` entry added, citing the entry, naming the owning
+    faction, the side factions, the winner and the hab faction, with the sides
+    as hull-class counts per faction and the attack count as attributes. `Date`
+    is `null` in every observed entry, so the event is interval-dated (a
+    componentized date would date it by the record). `faction.combat_entry_removed`
+    is interval-dated and literal. One combat logged by two factions gives two
+    events; matching them is reconstruction. An unresolved side, winner or hab
+    faction gives low confidence. Lines name factions and ship counts, never
+    design names (player content) or hull classes (`Battleship` would read as a
+    claim).
 -   `analyzers/technology/research.py` (`TechnologyAnalyzer`; identity is the
     template-name key): `technology.completed` when a technology's `finished`
     goes from false to true or it appears already finished, corroborated by the

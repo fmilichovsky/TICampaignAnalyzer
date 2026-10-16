@@ -26,7 +26,7 @@ The work items derived from this page are issues #64 to #73, listed under the re
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
 | `TIOrgState` | Yes (`organization` domain, issue #66) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
 | `TINotificationQueueState` | Yes (`notification queue` domain, `notificationSummaryQueue` record, issue #68) | the game's own dated event log, player-centric | rolling five-year window with further pruning; subjects of kept entries rewritten |
-| `TIFactionState.CombatLogs` | Acknowledged as `runtime_internal` | space battles: sides, hull classes, winner | undated; grows mostly by appending |
+| `TIFactionState.CombatLogs` | Yes (`CombatLogs` record, issue #69) | space battles: sides, hull classes, winner | undated; grows mostly by appending |
 | Nation `tracker_*ChangeReason_AllTime` | Yes | cause attribution for metric shifts | per-cause deltas between saves |
 | Hab `barycenter` per faction | Yes | first presence on a body | 6 of 6 habs appearing in the last older interval were on a body new to their faction |
 
@@ -211,7 +211,7 @@ event attribute and is never rendered.
 
 ## `TIFactionState.CombatLogs`
 
-Currently in `ACKNOWLEDGED_FIELDS` as `runtime_internal`. Observed shape: a list of
+Was in `ACKNOWLEDGED_FIELDS` as `runtime_internal` until issue #69. Observed shape: a list of
 `{Date, Ships, HabFaction, Attacks, winner, WasSurprising}` where `Date` was `null` in all 106 entries of
 the largest list, `Ships` is a pair map faction → list of `{Item1, Item2}` (a ship design name and a hull
 class identifier), `HabFaction` a faction reference or `null`, `Attacks` a list of
@@ -221,6 +221,18 @@ in the latest older save: 0–106; empty on every faction in the newer sample. G
 changed) → 102 → 106; the earlier list was a prefix of the later one in the last interval but not in the
 first. It is the only per-battle record in the save and should become a save-carried record rather than an
 acknowledged field, with its undated nature stated.
+
+Re-checked on 2026-10-16 against the same eight saves (structure and counts only): 145, 145, 145, 146 and 150
+entries across all factions of the older saves, none in the newer; `Date` `null` in every entry; every side
+faction, `HabFaction` and `winner` resolved; no member outside the six above. Compared as a multiset of whole
+entries, the older intervals had 1 removed and 1 added, then 0, 1 and 4 added.
+
+Implemented as the `CombatLogs` record (`combat_log`, owned by each faction) and `CombatAnalyzer`
+(`analyzers/space/combat.py`). Each entry that appears becomes `faction.combat_recorded`, dated by the interval
+because `Date` is null (a componentized date would date it by the record). An entry that disappears becomes
+`faction.combat_entry_removed` and is never called pruned. The sides are kept as hull-class counts per faction;
+ship design names are not decoded. One combat logged by two factions yields two events; matching them is left to
+reconstruction (issue #73).
 
 ## Observations on already-normalized fields
 

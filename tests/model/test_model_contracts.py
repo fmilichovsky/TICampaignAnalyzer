@@ -10,6 +10,7 @@ from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, Identi
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, SourceRole
 from tinarrative.model.evidence import Evidence, SourceLocation, pointer_path
 from tinarrative.model.records import (
+    CombatEntry,
     DestructionEntry,
     ItemEntry,
     KeyedEntry,
@@ -240,6 +241,8 @@ def test_record_entries_locate_by_label_index_or_key() -> None:
     assert ledger.entry_location(ledger.entries[0]).provenance_key == "TIFactionState:15"  # type: ignore[index]
     destruction = _record("HabDestructionLog", RecordKind.DESTRUCTION_LOG, DestructionEntry(1, "Base", None, "d", None))
     assert destruction.entry_location(destruction.entries[0]).path.endswith("/HabDestructionLog/1")  # type: ignore[index]
+    combat = _record("CombatLogs", RecordKind.COMBAT_LOG, CombatEntry(4, None, (), None, FACTION, (), "No"))
+    assert combat.entry_location(combat.entries[0]).path.endswith("/CombatLogs/4")  # type: ignore[index]
     pair_map = _record("factionHate", RecordKind.REFERENCE_VALUES, KeyedEntry(3, FACTION, 0.5))
     assert pair_map.entry_location(pair_map.entries[0]).path.endswith("/factionHate/3")  # type: ignore[index]
     label_map = _record("armiesLost", RecordKind.LABEL_VALUES, KeyedEntry(0, "Human", 1))

@@ -34,6 +34,7 @@ NOTIFICATION_QUEUE_STATE_TYPE = "TINotificationQueueState"
 """The notification singleton, normalized as a one-entity collection (``SaveSnapshot.notification_queue``) that
 owns the notification log record."""
 NOTIFICATION_LOG = "notificationSummaryQueue"
+COMBAT_LOG = "CombatLogs"
 
 _ARMY_FIELDS = COMMON_FIELDS + (
     "currentRegion",
@@ -571,8 +572,8 @@ class RecordField:
 
     ``targets`` are the expected domains of the references a pair map is keyed by or a reference list holds.
     A ``labelled_references`` value may be one reference or a list of them; both resolve against ``targets``.
-    Kinds with fixed members (``destruction_log``, ``executive_change``, ``notification_log``) resolve each
-    member against ``RECORD_MEMBER_TARGETS`` instead.
+    Kinds with fixed members (``destruction_log``, ``executive_change``, ``notification_log``, ``combat_log``)
+    resolve each member against ``RECORD_MEMBER_TARGETS`` instead.
     """
 
     kind: RecordKind
@@ -586,6 +587,7 @@ _ALIEN_SITE = frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityD
 
 RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     "TIFactionState": {
+        COMBAT_LOG: RecordField(RecordKind.COMBAT_LOG),
         "HabDestructionLog": RecordField(RecordKind.DESTRUCTION_LOG),
         "Kills": _FACTION_KEYED,
         "Transactions": RecordField(RecordKind.LEDGER),
@@ -641,11 +643,15 @@ RECORD_MEMBER_TARGETS: dict[str, ExpectedDomains] = {
     ),
     f"{NOTIFICATION_LOG}.newsFeedFactions": EntityDomain.FACTION,
     f"{NOTIFICATION_LOG}.summaryLogFactions": EntityDomain.FACTION,
+    f"{COMBAT_LOG}.Ships": EntityDomain.FACTION,
+    f"{COMBAT_LOG}.HabFaction": EntityDomain.FACTION,
+    f"{COMBAT_LOG}.winner": EntityDomain.FACTION,
 }
 """Reference members inside record entries, as ``Field.member``, with their observed target domain.
 
 A notification's ``gotoGameState`` resolves against every in-save-ID domain (observed targets include fleets,
 regions, the alien sub-states, councilors, habs, hab sites, orbits, control points, nations, armies and a faction).
+``CombatLogs.Ships`` names the keys of the per-entry pair map faction -> ships.
 """
 
 UNTRACKED_REFERENCE_TARGETS: dict[str, frozenset[str]] = {
@@ -679,7 +685,13 @@ NOTIFICATION_ACKNOWLEDGED_MEMBERS = (
 )
 """Members of a notification log entry that are known and deliberately not decoded."""
 
+COMBAT_ENTRY_MEMBERS = ("Date", "Ships", "HabFaction", "Attacks", "winner", "WasSurprising")
+"""Members of a ``CombatLogs`` entry, all decoded into ``CombatEntry`` (``Ships`` without the design names)."""
+
 RECORD_ENTRY_MEMBERS: dict[str, dict[str, frozenset[str]]] = {
+    "TIFactionState": {
+        COMBAT_LOG: frozenset(COMBAT_ENTRY_MEMBERS),
+    },
     NOTIFICATION_QUEUE_STATE_TYPE: {
         NOTIFICATION_LOG: frozenset(NOTIFICATION_ENTRY_MEMBERS + NOTIFICATION_ACKNOWLEDGED_MEMBERS),
     },
@@ -859,7 +871,6 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
             UnsupportedReason.RUNTIME_INTERNAL,
             (
                 "AlienControlPointGiftHistory",
-                "CombatLogs",
                 "dailyResourceTransfers",
                 "factionOperationCompleteName",
                 "LastObjectiveProjectCompletionDate",

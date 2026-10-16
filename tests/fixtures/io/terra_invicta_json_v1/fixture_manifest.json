@@ -260,6 +260,28 @@
       "version_assumption": "Observed JSON envelope and observed field names.",
       "sha256": "c3e9fa856388784a4768bdc469eee1f009a83545f2fd28539e795493dc58b695",
       "purpose": "Later snapshot of the notification interval; pair with notifications_before.json. The kept sighting, the mission outcome now Success, and six new entries: a space battle naming fleet 50, two identical xenoforming entries (duplicates), a hab destroyed whose gotoGameState ID 999 is absent (unresolved), a project completion pointing at the mission-phase singleton (no domain, unresolved without a finding) and a nation joining a war with a null gotoGameState."
+    },
+    {
+      "path": "combat_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "ca79dd13bd6176ec05ca348cc19ad301e6c9163c5b36b3d1b0a20f039b5a7895",
+      "purpose": "Earlier snapshot of a synthetic interval for the combat-log analyzer; pair with combat_after.json. Factions 15, 16 and 17 with CombatLogs: faction 15 holds two entries (15 vs 16 with two attacks, winner 15; 15 vs 16 without attacks, winner 16, later removed), factions 16 and 17 hold none. Every Date is null, as observed; design names are synthetic."
+    },
+    {
+      "path": "combat_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "36256396803b4a04c3d7c87d0688c59dc23e2becada708be651361b0b87a1dfa",
+      "purpose": "Later snapshot of the combat-log interval; pair with combat_before.json. Faction 15 keeps its first entry, loses the second and gains three: 16 vs 17 at a hab of faction 17 (winner 16, one attack) and two identical one-sided entries (duplicates). Faction 16 gains the same 16 vs 17 entry, so one combat is logged by two factions."
     }
   ]
 }
