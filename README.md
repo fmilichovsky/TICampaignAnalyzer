@@ -23,8 +23,8 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 
 ## Commands
 
-- [`tinarrative events <save> <save>...`](docs/commands/events.md): order saves
-  of one campaign by game time and report the analyzer results (and, with
+- [`tinarrative events <path> <path>...`](docs/commands/events.md): order saves
+  of one campaign (files, or directories read one level deep) by game time and report the analyzer results (and, with
   `--inferred`, the inferred events; with `--changes`, the literal state changes)
   of every pair of consecutive saves. This is the only command that analyzes.
 - `tinarrative save COMMAND`: per-save evidence and debugging commands.

@@ -1,10 +1,10 @@
 # `tinarrative events`
 
 ```
-tinarrative events <save> <save> [<save>...] [--format markdown|json] [--min-significance <level>] [--inferred] [--changes]
+tinarrative events <path> <path> [<path>...] [--format markdown|json] [--min-significance <level>] [--inferred] [--changes]
 ```
 
-Reads two or more saves of one campaign, orders them by game time, and reports the analyzer
+Reads two or more saves of one campaign, given as files, directories or both, orders them by game time, and reports the analyzer
 results of every pair of consecutive saves (architecture section 15, Mode B). Each pair is
 diffed as [`save diff`](diff.md) does, and the diff is run through every objective analyzer, the
 significance rules and, with `--inferred`, the reconstruction rules. `events` is the only command
@@ -12,6 +12,23 @@ that runs analyzers, significance or reconstruction; given two saves it is the a
 the pair, and with `--changes` it also lists the literal changes that `save diff` reports. The command
 does not check that the saves belong to the same campaign. Mixing campaigns produces nonsense
 intervals, not an error.
+
+## Directory input
+
+A directory contributes its files one level deep, in sorted order, as [`unknowns`](unknowns.md)
+does; subdirectories are not entered. Files and directories can be mixed in any order. Only paths
+named on the command line can fail the run:
+
+- A named file that cannot be read or is not a usable save stops the run (exit 4 or 5).
+- A file found inside a named directory that cannot be read, is not a supported save or has no
+  parseable game time is skipped. It is listed in the report and never changes the exit code.
+- A named directory that holds no files, or whose every file is skipped, is an input error
+  (exit 4).
+
+The "at least two saves" check applies after expansion: fewer than two candidate files, or fewer
+than two usable saves once the skipped files are set aside, is a usage error (exit 2). A file
+found in a directory and a file named on the command line with the same bytes are merged by the
+rule below.
 
 ## Ordering and duplicates
 
@@ -53,7 +70,9 @@ The default report lists:
 
 - `## Saves`: the distinct saves in chronological order, each with its key and source path, its
   identical aliases, and a note when it has the same game time as the previous save. A summary
-  line follows with the number of paths given and the number of byte-identical copies merged.
+  line follows with the number of usable saves given, the number of byte-identical copies merged
+  and the number of skipped files. When files were skipped, a `Skipped` list follows, one line per
+  file with its path, error class and the loader's message; the file's content is never shown.
 - `## Intervals`: one `### <earlier date> to <later date>` section per interval, giving:
   - the number of state changes;
   - with `--inferred`, `#### Inferred events` (see below);
@@ -102,7 +121,9 @@ says `No events were inferred.`
 
 `--format json` prints one object:
 
-- `inputs`, `duplicates`;
+- `inputs` (usable saves given, after directory expansion), `duplicates`;
+- `skipped`: one object per file skipped inside a named directory, with `source`, `error_class` and
+  `error` (empty when none);
 - `saves`: one object per distinct save, with `key`, `source`, `aliases`, `sha256` and `date`;
 - `intervals`: one object per interval, with `index`, `key`, `before` and `after` (source paths),
   `not_before` and `date` (their game times), `changes` (state change count), `events` (the
@@ -116,15 +137,17 @@ The JSON report holds every event. It ignores `--min-significance`.
 `--changes` keeps every interval's changes, with their before and after values, in memory until
 the report is written, so a long sequence uses more memory with it than without it.
 
-Failures print one message to stderr naming the save that failed and no traceback. With
-`--log-level info`, the run logs the ordering summary (paths given, distinct saves, duplicates,
-tied game times, intervals) and per-interval event counts.
+Failures print one message to stderr naming the path that failed and no traceback. With
+`--log-level info`, the run logs the paths given and candidate files, the ordering summary
+(usable saves, distinct saves, duplicates, skipped files, tied game times, intervals) and
+per-interval event counts. `--log-level debug` adds one line per skipped file with its file name
+and error class; directory paths are never logged.
 
 ## Exit codes
 
 | Code | When |
 | --- | --- |
-| 0 | Every save was loaded and every interval was analyzed (including when only one distinct save remained). |
-| 2 | Usage error: fewer than two saves, or an unknown `--format` or `--min-significance`. |
-| 4 | A save path cannot be read (missing, unreadable, or a directory). |
-| 5 | A save is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |
+| 0 | Every named path was used and every interval was analyzed (including when only one distinct save remained). Files skipped inside a named directory do not change it. |
+| 2 | Usage error: fewer than two usable saves after directory expansion, or an unknown `--format` or `--min-significance`. |
+| 4 | A named path cannot be read (missing or unreadable), or a named directory holds no files or no usable save. |
+| 5 | A named file is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |

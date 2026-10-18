@@ -6,7 +6,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..io.save_discovery import discover_saves
+from ..io.save_discovery import SaveInput
 from ..io.save_loader import load_raw_save
 from ..log import fields as log_fields
 from ..log import get_logger, safe_path
@@ -18,15 +18,6 @@ logger = get_logger(__name__)
 
 EMPTY_DIRECTORY = "EmptyDirectory"
 """``ScanResult.error_class`` for an explicit directory that holds no files."""
-
-
-@dataclass(frozen=True)
-class ScanInput:
-    """One candidate file: given on the command line (``explicit``) or found inside a given directory."""
-
-    path: Path
-    explicit: bool
-    empty_directory: bool = False
 
 
 @dataclass(frozen=True)
@@ -101,24 +92,6 @@ class ScanRun:
         return [(result.report, result.game_version) for result in self.results if result.report is not None]
 
 
-def expand_inputs(paths: Sequence[Path]) -> tuple[ScanInput, ...]:
-    """Files stay as given; a directory contributes its files in ``discover_saves`` order, one level deep."""
-    inputs: list[ScanInput] = []
-    for path in paths:
-        if path.is_dir():
-            try:
-                files = discover_saves(path)
-            except OSError:
-                inputs.append(ScanInput(path, explicit=True))
-                continue
-            if not files:
-                inputs.append(ScanInput(path, explicit=True, empty_directory=True))
-            inputs.extend(ScanInput(file, explicit=False) for file in files)
-        else:
-            inputs.append(ScanInput(path, explicit=True))
-    return tuple(inputs)
-
-
 def scan_save(path: Path) -> tuple[UnknownReport, str | None]:
     """Normalize one save with a collector and return its findings and serialized game version."""
     raw = load_raw_save(path)
@@ -127,7 +100,7 @@ def scan_save(path: Path) -> tuple[UnknownReport, str | None]:
     return collector.report(), raw.game_version
 
 
-def scan_inputs(inputs: Sequence[ScanInput]) -> ScanRun:
+def scan_inputs(inputs: Sequence[SaveInput]) -> ScanRun:
     """Scan every input, recording per-file failures instead of stopping."""
     results: list[ScanResult] = []
     for item in inputs:

@@ -8,7 +8,7 @@ The top level holds the campaign-history command and the maintenance command:
 
 | Command | Status | Page |
 | --- | --- | --- |
-| `events <save> <save>...` | Implemented | [events.md](events.md) |
+| `events <path> <path>...` | Implemented | [events.md](events.md) |
 | `unknowns <path>...` | Implemented | [unknowns.md](unknowns.md) |
 
 The `save` group holds the per-save evidence and debugging commands. `tinarrative save`

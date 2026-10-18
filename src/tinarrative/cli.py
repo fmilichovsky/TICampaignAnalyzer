@@ -16,13 +16,14 @@ from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
+from .io.save_discovery import SaveInput, expand_inputs
 from .io.save_loader import load_raw_save, load_save
 from .log import DEFAULT_LEVEL, ENV_VAR, LEVELS, configure_logging, fields, get_logger, safe_path
 from .maintenance import REGISTRY_ENV_VAR
 from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
-from .maintenance.scan import ScanRun, expand_inputs, scan_inputs
+from .maintenance.scan import ScanRun, scan_inputs
 from .model.events import SIGNIFICANCE_ORDER, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
@@ -31,7 +32,7 @@ from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
 from .rendering.markdown import render_sequence
-from .sequence import IntervalResult, SaveRef, event_stream, plan_sequence, run_sequence, survey
+from .sequence import IntervalResult, SaveRef, SkippedSave, event_stream, plan_sequence, run_sequence, survey
 
 logger = get_logger(__name__)
 
@@ -299,20 +300,66 @@ def _load_sequence_snapshot(source: str) -> SaveSnapshot:
     return loaded
 
 
+def _survey_found(item: SaveInput) -> SaveRef | SkippedSave:
+    """Survey a file found inside a given directory; a failure skips it instead of stopping the run."""
+    try:
+        return survey(item.path)
+    except OSError as error:
+        reason, error_class = error.strerror or str(error), type(error).__name__
+    except SaveLoadError as error:
+        reason, error_class = str(error), type(error).__name__
+    logger.debug("events skipped %s", fields(save=safe_path(item.path), error=error_class))
+    return SkippedSave(str(item.path), error_class, reason)
+
+
+def _survey_inputs(inputs: Sequence[SaveInput]) -> tuple[list[SaveRef], list[SkippedSave]] | int:
+    """Survey every input; only a path named on the command line can fail the run (exit 4 beats nothing found)."""
+    surveyed: list[SaveRef] = []
+    skipped: list[SkippedSave] = []
+    usable: dict[Path, int] = {}
+    for item in inputs:
+        if item.empty_directory:
+            print(f"tinarrative events: {item.path}: the directory holds no files", file=sys.stderr)
+            return EXIT_INPUT_ERROR
+        if item.directory is None:
+            save = _survey(item.path)
+            if isinstance(save, int):
+                return save
+            surveyed.append(save)
+            continue
+        usable.setdefault(item.directory, 0)
+        found = _survey_found(item)
+        if isinstance(found, SkippedSave):
+            skipped.append(found)
+        else:
+            surveyed.append(found)
+            usable[item.directory] += 1
+    for directory, count in usable.items():
+        if count == 0:
+            print(f"tinarrative events: {directory}: the directory holds no usable save", file=sys.stderr)
+            return EXIT_INPUT_ERROR
+    return surveyed, skipped
+
+
 def _run_events(args: argparse.Namespace) -> int:
     """Order saves by game time and report the analyzer results of every consecutive pair."""
     paths = cast(list[Path], args.saves)
-    if len(paths) < 2:
+    inputs = expand_inputs(paths)
+    if len(inputs) < 2:
         print("tinarrative events: at least two saves are required", file=sys.stderr)
         return EXIT_USAGE_ERROR
-    logger.info("events start %s", fields(saves=len(paths)))
-    surveyed: list[SaveRef] = []
-    for path in paths:
-        save = _survey(path)
-        if isinstance(save, int):
-            return save
-        surveyed.append(save)
-    plan = plan_sequence(surveyed)
+    logger.info("events start %s", fields(inputs=len(paths), candidates=len(inputs)))
+    outcome = _survey_inputs(inputs)
+    if isinstance(outcome, int):
+        return outcome
+    surveyed, skipped = outcome
+    if len(surveyed) < 2:
+        print(
+            f"tinarrative events: at least two saves are required ({len(surveyed)} usable, {len(skipped)} skipped)",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
+    plan = plan_sequence(surveyed, skipped)
     try:
         intervals: list[IntervalResult] = list(
             run_sequence(plan, inferred=args.inferred, changes=args.changes, load=_load_sequence_snapshot)
@@ -335,6 +382,7 @@ def _run_events(args: argparse.Namespace) -> int:
         fields(
             saves=len(plan.saves),
             intervals=len(intervals),
+            skipped=len(plan.skipped),
             events=len(event_stream(intervals)),
             exit=EXIT_SUCCESS,
         ),
@@ -521,11 +569,19 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
             "campaign."
         ),
         epilog=(
-            "Exit codes: 0 success; 2 usage error (including fewer than two saves); 4 a save cannot be read; "
-            "5 a save is malformed, has an unsupported shape, format, or game version, or has no game time."
+            "Exit codes: 0 success; 2 usage error (including fewer than two usable saves after expanding "
+            "directories); 4 a given path cannot be read, or a given directory holds no files or no usable save; "
+            "5 a given file is malformed, has an unsupported shape, format, or game version, or has no game time. "
+            "Files found inside a given directory that fail are listed as skipped and never change the exit code."
         ),
     )
-    parser.add_argument("saves", type=Path, nargs="+", metavar="SAVE", help="Save files of one campaign, any order.")
+    parser.add_argument(
+        "saves",
+        type=Path,
+        nargs="+",
+        metavar="PATH",
+        help="Save files or directories of one campaign, any order; a directory is read one level deep.",
+    )
     parser.add_argument(
         "--format",
         choices=("markdown", "json"),

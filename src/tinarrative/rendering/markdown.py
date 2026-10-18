@@ -79,7 +79,12 @@ def render_sequence(
     summary = f"{plan.inputs} {'save' if plan.inputs == 1 else 'saves'} given"
     if plan.duplicates:
         summary += f", {plan.duplicates} byte-identical {'copy' if plan.duplicates == 1 else 'copies'} merged"
+    if plan.skipped:
+        summary += f", {len(plan.skipped)} skipped"
     lines.extend(["", summary + "; ordered by serialized game time."])
+    if plan.skipped:
+        lines.extend(["", "Skipped (inside a given directory, not a usable save):", ""])
+        lines.extend(f"- `{skipped.source}`: {skipped.error_class}: {skipped.error}" for skipped in plan.skipped)
 
     lines.extend(["", "## Intervals"])
     if not intervals:

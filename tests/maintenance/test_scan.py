@@ -8,8 +8,9 @@ from pathlib import Path
 import pytest
 
 from tests.fixtures import fixture_path
+from tinarrative.io.save_discovery import expand_inputs
 from tinarrative.maintenance.registry import dump, load_registry, record
-from tinarrative.maintenance.scan import EMPTY_DIRECTORY, expand_inputs, merge_reports, scan_inputs, scan_save
+from tinarrative.maintenance.scan import EMPTY_DIRECTORY, merge_reports, scan_inputs, scan_save
 from tinarrative.parsing.unknowns import ShapeSummary, UnknownCollector
 
 FIXTURE_SET = ("io", "terra_invicta_json_v1")
@@ -25,21 +26,6 @@ def save_dir(tmp_path: Path) -> Path:
         shutil.copy(fixture_path(*FIXTURE_SET, name), directory / name)
     shutil.copy(fixture_path(*FIXTURE_SET, "political_control.json"), directory / "nested" / "ignored.json")
     return directory
-
-
-@pytest.mark.fixture
-def test_expand_inputs_is_sorted_and_one_level_deep(save_dir: Path, tmp_path: Path) -> None:
-    empty = tmp_path / "empty"
-    empty.mkdir()
-    inputs = expand_inputs([save_dir, tmp_path / "missing.json", empty])
-    assert [(item.path.name, item.explicit, item.empty_directory) for item in inputs] == [
-        ("campaign_assets.json", False, False),
-        ("malformed_truncated.json", False, False),
-        ("political_control.json", False, False),
-        ("unknown_state_type.json", False, False),
-        ("missing.json", True, False),
-        ("empty", True, True),
-    ]
 
 
 @pytest.mark.fixture

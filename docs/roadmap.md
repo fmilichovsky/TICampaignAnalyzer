@@ -105,7 +105,7 @@ built from the developments catalogued in
   only, `events` is the single analyzed view (#90).
 - [x] Group per-save evidence commands under `tinarrative save`
   (`save inspect`, `save parse`, `save diff`) (#91).
-- [ ] Accept directories as `events` input, with the `unknowns` skip and
+- [x] Accept directories as `events` input, with the `unknowns` skip and
   exit-code policy (#92).
 - [ ] Group saves by campaign from continuity evidence inside `events`, with
   link verdicts reported as inference (#89).
