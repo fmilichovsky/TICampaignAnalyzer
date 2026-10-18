@@ -133,8 +133,7 @@ _MAJOR: tuple[str, ...] = (
     "hab.disappeared",
     "faction.hab_destruction_recorded",
     "technology.completed",
-    # Wars and federations: entities that appear with a ``startDate`` and vanish at peace; members grew
-    # 4 -> 5 -> 7 across the older sample (notes, ``TIWarState`` and ``TIFederationState``).
+    # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
     "war.appeared",
     "war.disappeared",
     "war.alliance_changed",
@@ -159,11 +158,15 @@ _MAJOR: tuple[str, ...] = (
     "nation.independence",
     "nation.unification",
     "nation.annexation",
+    # Inferred readings of space evidence: a new foothold, a hab lost to an enemy and a battle won are what a
+    # history reports about the ``hab.*`` and log events they cite.
+    "faction.first_hab_on_body",
+    "hab.destroyed",
+    "faction.battle_outcome",
 )
 
 _CAMPAIGN_DEFINING: tuple[str, ...] = (
-    # Campaign-wide firsts, nuclear use, climate stages and the birth or end of a nation (user review,
-    # 2026-10-16).
+    # Campaign-wide firsts, nuclear use, climate stages and the birth or end of a nation.
     "campaign.global_milestone_recorded",
     "campaign.nuclear_strikes_changed",
     "campaign.sea_level_rise_triggered",

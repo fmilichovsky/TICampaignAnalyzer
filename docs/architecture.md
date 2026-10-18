@@ -867,8 +867,13 @@ reports (a region's `isBeingAnnexed`/`annexingArmy`) is cited directly. A fact
 read from a snapshot alone, such as a nation holding no regions afterwards or
 the sides of a war, only qualifies evidence and is never evidence itself.
 
-The rules live in `reconstruction/rules.py`, with their evidence from
-[sources for higher-level events](game-data-notes/higher-level-event-sources.md).
+The rules live in `reconstruction/territorial.py` and
+`reconstruction/space.py`, with their evidence from
+[sources for higher-level events](game-data-notes/higher-level-event-sources.md);
+`reconstruction/common.py` holds the shared evidence bundle and citation.
+
+#### Territorial rules
+
 They are built on `region.nation_changed` events with a known nation on both
 sides, and on the tracker reasons that moved in the interval. A reason is cited
 through the `nation.statistic_shifted` event that already cites its tracker,
@@ -912,8 +917,49 @@ When more than one of independence, unification and annexation fits one
 gainer, every candidate is kept one confidence level lower, with
 `ambiguous = True` and the other candidates' IDs in `alternatives`. The
 territory aggregates rank `minor` and the three readings `major`
-(`narrative/significance.py`). `tinarrative diff` does not run
-reconstruction: its report is factual and shows inferred events only in
+(`narrative/significance.py`).
+
+#### Space rules
+
+The space analyzers keep their wording rule (a hab disappears, a log entry
+is recorded); only these rules name a destruction, a first presence or a
+battle outcome. A hab's `barycenter` is the body it sits on or orbits.
+
+-   `faction.first_hab_on_body`: one per faction and body where
+    `hab.appeared` events put habs of a faction that held none there in the
+    earlier snapshot; high (attributes `body`, `habs`, `hab_count`,
+    `first_of_any_faction`, `milestones`). A new `globalMilestones` label
+    starting with `First` and containing `Base`, recorded for the faction,
+    is cited only when no faction had a hab on the body before and it is the
+    faction's only such body in the interval: the labels name places, not
+    body IDs. `TIHabSiteState` is not normalized, so its `hab`/`pendingHab`
+    transitions are not used.
+-   `hab.destroyed`: a `hab.disappeared` joined to the
+    `faction.hab_destruction_recorded` entries of the same faction (the hab's
+    in the earlier snapshot, the log's owner), hab type and body. A
+    `notification.LogHabDestroyed` naming the hab and dated like one entry
+    pins that pair. One entry for one vanished hab, or a pinned pair, is high
+    and dated by the entry (`destroyer`, `recorded_on`). Otherwise every
+    vanished hab of the group is `ambiguous`, interval-dated and cites every
+    remaining entry (`destroyers`, `recorded_dates`, `candidates`,
+    `vanished`): medium when the entries cover every vanished hab, low when
+    fewer entries than habs remain. A hab no entry records stays
+    `hab.disappeared`.
+-   `faction.battle_outcome`: per killer and victim, growth of the killer's
+    `Kills` list against the victim (cited directly; only the count is kept,
+    never the names) together with a loss of the victim in the interval: a
+    vanished hab or fleet (`habs_lost`, `fleets_lost`) or a destruction entry
+    naming the killer (`destruction_entries`). Medium; high with a
+    `faction.combat_recorded` entry the killer won, or with a
+    `notification.LogSpaceBattleTakesPlace` about a fleet of either side
+    unless a combat entry has the victim winning. `combats_won`,
+    `combats_lost` and `battle_dates` (the notifications' dates) carry the
+    corroboration; the event is interval-dated because combat-log entries
+    have no date. Kills keyed by the killer itself are not a battle.
+
+The three space readings rank `major`.
+
+`tinarrative diff` does not run reconstruction: its report is factual and shows inferred events only in
 verbose rendering.
 
 ------------------------------------------------------------------------
@@ -1110,7 +1156,9 @@ terra-invicta-narrative/
 │       │   └── faction/
 │       │
 │       ├── reconstruction/
-│       │   ├── rules.py
+│       │   ├── common.py
+│       │   ├── territorial.py
+│       │   ├── space.py
 │       │   └── inference.py
 │       │
 │       ├── narrative/

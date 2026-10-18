@@ -6,8 +6,9 @@ carries as an attribute (for example a recorded cause string) is deliberately no
 the game's notification log: a ``notification.*`` line quotes the log template identifier, which is the game's
 own statement of what happened, so its wording is evidence, not inference (the summary text is still not echoed).
 The inferred types of the reconstruction stage (``nation.independence``, ``nation.unification``,
-``nation.annexation``, ``nation.territory_gained``/``lost``) do name their reading: it is the claim the inferred
-event makes, and a renderer marks such events as inferred. No objective type's line names one.
+``nation.annexation``, ``nation.territory_gained``/``lost``, ``faction.first_hab_on_body``, ``hab.destroyed``,
+``faction.battle_outcome``) do name their reading: it is the claim the inferred event makes, and a renderer marks
+such events as inferred. No objective type's line names one.
 """
 
 from __future__ import annotations
@@ -214,6 +215,38 @@ def _unification(event: Event) -> str:
 
 def _annexation(event: Event) -> str:
     return f"{_subject(event)} annexed {_regions(event)} of {_name(_entity(event, EntityDomain.NATION))}"
+
+
+def _first_hab_on_body(event: Event) -> str:
+    count = event.attribute("hab_count")
+    habs = f"{render_value(count)} hab{'' if count == 1 else 's'}"
+    first = ", the first of any faction there" if event.attribute("first_of_any_faction") is True else ""
+    return f"{_subject(event)} established its first presence on {_attr(event, 'body')} ({habs}{first})"
+
+
+def _hab_destroyed(event: Event) -> str:
+    where = f"(type {_attr(event, 'hab_type')} at {_attr(event, 'body')})"
+    if event.attribute("ambiguous") is True:
+        return (
+            f"{_subject(event)} {where} was destroyed by {_refs(event, 'destroyers')}: one of "
+            f"{_attr(event, 'candidates')} recorded destructions for {_attr(event, 'vanished')} vanished habs"
+        )
+    return f"{_subject(event)} {where} was destroyed by {_attr(event, 'destroyer')} on {_text(event, 'recorded_on')}"
+
+
+def _battle_outcome(event: Event) -> str:
+    text = f"{_subject(event)} inflicted {_attr(event, 'kill_count')} kills on {_attr(event, 'victim')}"
+    losses = [
+        f"{render_value(count)} {label}{'' if count == 1 else 's'}"
+        for name, label in (("habs_lost", "hab"), ("fleets_lost", "fleet"))
+        if (count := event.attribute(name))
+    ]
+    if losses:
+        text += f", which lost {' and '.join(losses)}"
+    won, lost = event.attribute("combats_won"), event.attribute("combats_lost")
+    if won or lost:
+        text += f"; recorded combats won {render_value(won)}, lost {render_value(lost)}"
+    return text
 
 
 def _with_context(label: str, domain: EntityDomain, prefix: str = "") -> Callable[[Event], str]:
@@ -475,4 +508,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.independence": _independence,
     "nation.unification": _unification,
     "nation.annexation": _annexation,
+    "faction.first_hab_on_body": _first_hab_on_body,
+    "hab.destroyed": _hab_destroyed,
+    "faction.battle_outcome": _battle_outcome,
 }
