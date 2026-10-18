@@ -162,3 +162,109 @@ def test_an_unorderable_or_unsupported_save_stops_the_run(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert message in captured.err
+
+
+def _directory(root: Path, *names: str) -> Path:
+    directory = root / "saves"
+    directory.mkdir()
+    for name in names:
+        shutil.copyfile(FIXTURE_DIR / name, directory / name)
+    return directory
+
+
+@pytest.mark.fixture
+def test_a_directory_is_expanded_and_its_invalid_files_are_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _directory(tmp_path, *SHUFFLED, "malformed_truncated.json", "representative_campaign.json")
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "saves"]) == EXIT_SUCCESS
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert "3 saves given, 2 skipped; ordered by serialized game time." in captured.out
+    assert "\n- `saves/malformed_truncated.json`: MalformedSaveError: " in captured.out
+    assert "\n- `saves/representative_campaign.json`: UnknownChronologyError: " in captured.out
+    assert captured.out.count("\n### ") == 2
+
+    assert main(["events", "--format", "json", "saves"]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
+    assert report["inputs"] == 3
+    assert [(skipped["source"], skipped["error_class"]) for skipped in report["skipped"]] == [
+        ("saves/malformed_truncated.json", "MalformedSaveError"),
+        ("saves/representative_campaign.json", "UnknownChronologyError"),
+    ]
+    assert [interval["after"] for interval in report["intervals"]] == [
+        "saves/politics_after.json",
+        "saves/politics_reverted.json",
+    ]
+
+
+@pytest.mark.fixture
+def test_files_and_directories_mix_and_identical_copies_merge(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _directory(tmp_path, "politics_before.json", "politics_after.json")
+    shutil.copyfile(FIXTURE_DIR / "politics_after.json", tmp_path / "Exitsave.json")
+    shutil.copyfile(FIXTURE_DIR / "politics_reverted.json", tmp_path / "reverted.json")
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "--format", "json", "reverted.json", "saves", "Exitsave.json"]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
+
+    assert (report["inputs"], report["duplicates"], report["skipped"]) == (4, 1, [])
+    assert [(save["source"], save["aliases"]) for save in report["saves"]] == [
+        ("saves/politics_before.json", []),
+        ("Exitsave.json", ["saves/politics_after.json"]),
+        ("reverted.json", []),
+    ]
+
+
+@pytest.mark.fixture
+def test_a_named_invalid_file_still_fails_beside_a_directory(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = _directory(tmp_path, *SHUFFLED)
+
+    assert main(["events", str(directory), str(FIXTURE_DIR / "malformed_truncated.json")]) == EXIT_UNSUPPORTED_INPUT
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize(
+    ("names", "message"),
+    [((), "the directory holds no files"), (("malformed_truncated.json",), "the directory holds no usable save")],
+)
+def test_a_directory_without_a_usable_save_is_an_input_error(
+    names: tuple[str, ...], message: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = _directory(tmp_path, *names)
+
+    assert main(["events", str(directory), str(FIXTURE_DIR / "politics_before.json")]) == EXIT_INPUT_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert message in captured.err
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("names", [("politics_after.json",), ("politics_after.json", "malformed_truncated.json")])
+def test_fewer_than_two_usable_saves_after_expansion_is_a_usage_error(
+    names: tuple[str, ...], tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = _directory(tmp_path, *names)
+
+    assert main(["events", str(directory)]) == EXIT_USAGE_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "at least two saves are required" in captured.err
+
+
+@pytest.mark.fixture
+def test_directory_runs_log_counts_and_no_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    directory = _directory(tmp_path, *SHUFFLED, "malformed_truncated.json")
+
+    assert main(["--log-level", "debug", "events", str(directory)]) == EXIT_SUCCESS
+    err = capsys.readouterr().err
+
+    assert "skipped=1" in err
+    assert str(tmp_path) not in err

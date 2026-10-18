@@ -68,6 +68,18 @@ class SaveRef:
 
 
 @dataclass(frozen=True)
+class SkippedSave:
+    """A file found inside a given directory that could not be used: its path and why, never its content."""
+
+    source: str
+    error_class: str
+    error: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"source": self.source, "error_class": self.error_class, "error": self.error}
+
+
+@dataclass(frozen=True)
 class SequencePlan:
     """The distinct saves in chronological order, each with its key, and the number of paths given.
 
@@ -78,6 +90,8 @@ class SequencePlan:
     saves: tuple[SaveRef, ...]
     keys: tuple[str, ...]
     inputs: int
+    skipped: tuple[SkippedSave, ...] = ()
+    """Files found inside given directories that were skipped; they are not counted in ``inputs``."""
 
     @property
     def duplicates(self) -> int:
@@ -88,6 +102,7 @@ class SequencePlan:
         return {
             "inputs": self.inputs,
             "duplicates": self.duplicates,
+            "skipped": [skipped.to_dict() for skipped in self.skipped],
             "saves": [{"key": key, **save.to_dict()} for key, save in zip(self.keys, self.saves, strict=True)],
         }
 
@@ -158,7 +173,7 @@ def survey(path: Path) -> SaveRef:
     return SaveRef(source=str(path), sha256=hashlib.sha256(data).hexdigest(), timestamp=timestamp)
 
 
-def plan_sequence(saves: Iterable[SaveRef]) -> SequencePlan:
+def plan_sequence(saves: Iterable[SaveRef], skipped: Iterable[SkippedSave] = ()) -> SequencePlan:
     """Merge byte-identical saves (the first path in sort order is the source) and sort by game time, then path."""
     surveyed = list(saves)
     by_hash: dict[str, list[SaveRef]] = defaultdict(list)
@@ -173,13 +188,14 @@ def plan_sequence(saves: Iterable[SaveRef]) -> SequencePlan:
     for position, save in enumerate(distinct):
         tied = sum(1 for earlier in distinct[:position] if earlier.timestamp == save.timestamp)
         keys.append(save.date if tied == 0 else f"{save.date}{TIE_SEPARATOR}{tied + 1}")
-    plan = SequencePlan(tuple(distinct), tuple(keys), len(surveyed))
+    plan = SequencePlan(tuple(distinct), tuple(keys), len(surveyed), tuple(skipped))
     logger.info(
         "sequence planned %s",
         fields(
             inputs=plan.inputs,
             saves=len(plan.saves),
             duplicates=plan.duplicates,
+            skipped=len(plan.skipped),
             tied=sum(TIE_SEPARATOR in key for key in plan.keys),
             intervals=max(len(plan.saves) - 1, 0),
         ),
