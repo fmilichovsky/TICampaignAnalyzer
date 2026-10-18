@@ -1,7 +1,7 @@
 # `tinarrative diff`
 
 ```
-tinarrative diff <before> <after> [--format text|json|markdown] [--min-significance <level>]
+tinarrative diff <before> <after> [--format text|json|markdown] [--min-significance <level>] [--inferred]
 ```
 
 Reads two saves, normalizes each exactly as [`parse`](parse.md) does, and prints every
@@ -92,8 +92,8 @@ transition from the first argument to the second.
 
 `--format markdown` renders the same literal diff for human reading. It also runs the
 objective domain analyzers and shows their already-structured results beside the raw changes;
-raw changes remain visible under their category. It does not reconstruct inferred events or
-infer any additional facts. The Markdown report includes both snapshot metadata and, for each
+raw changes remain visible under their category. Without `--inferred` it does not reconstruct
+inferred events or infer any additional facts. The Markdown report includes both snapshot metadata and, for each
 analyzer result, the affected entities. Use the programmatic renderer's verbose mode when
 forensic source locations and evidence values are required; it prints each result's
 `significance` beside its confidence.
@@ -104,6 +104,34 @@ section 12). `--min-significance <level>` lists only the results at that level o
 default `trivial` lists every result. When results are dropped, one line after the last category
 states how many were omitted and below which level, so the report never hides the omission.
 Raw changes are never filtered. The text and JSON formats run no analyzers and ignore the option.
+
+#### Inferred events
+
+`--inferred` also runs the reconstruction stage (`reconstruction.infer_events`, architecture
+sections 5.2 and 10) on the analyzer results and lists what it infers in a separate
+`## Inferred events` section between `## Snapshots` and `## Changes`, so inferences never mix
+with the objective results they rest on. Today the rules cover territory: `territory_gained` /
+`territory_lost`, `independence` (with its release reading), `unification` and `annexation`.
+Each line gives the event's reading and its `confidence`; an event whose evidence fits several
+readings is prefixed `[ambiguous]` and followed by an `alternatives:` line naming the competing
+event IDs. Below it, one `from` line per constituent names the objective result's ID and its
+description as listed under `## Changes` (the ID alone if that result is not among the analyzer
+results):
+
+```
+- nation:20 annexed 1 region of nation:21 (confidence: `medium`)
+  - from `nation.relation_changed/wars/nation:20/nation:21/added`: nation:20 and nation:21: wars entry added (listed by both)
+  - from `region.nation_changed/region:42`: region:42 nation: nation:21 -> nation:20
+```
+
+Inferred events get a significance by the same rules and `--min-significance` filters them the
+same way; the section states its own omitted count (`N inferred events below <level>
+significance omitted.`), separate from the objective one. When nothing was inferred the section
+says `No events were inferred.` Without the flag the report is byte-identical to before.
+
+The text and JSON formats ignore `--inferred`. The JSON report stays the serialized
+`StateDiff`: it carries no analyzer results, so an inferred event's constituents would have
+nothing to point at there.
 
 Failures print one message to stderr naming the save that failed and no traceback. To see
 how the two saves were normalized and the per-collection and record change counts, run with the global

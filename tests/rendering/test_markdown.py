@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
 
 from tinarrative.diff.state_diff import StateDiff
@@ -8,6 +9,7 @@ from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, Identi
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Significance
 from tinarrative.model.evidence import Evidence, SourceLocation
 from tinarrative.model.snapshot import SaveSnapshot
+from tinarrative.model.values import Observed
 from tinarrative.rendering.markdown import render_comparison
 
 
@@ -125,3 +127,76 @@ def test_minimum_significance_omits_lesser_results_and_counts_them_once() -> Non
     only_changes = render_comparison(_comparison(change), [trivial], min_significance=Significance.MINOR)
     assert "Objective analyzer results:" not in only_changes and "### Politics" in only_changes
     assert "1 objective analyzer result below minor significance omitted." in only_changes
+
+
+def _inferred_event(
+    change: StateChange,
+    *,
+    event_id: str,
+    constituents: tuple[str, ...],
+    attributes: tuple[tuple[str, Observed], ...] = (),
+) -> Event:
+    return Event(
+        id=event_id,
+        event_type="fixture.inferred",
+        status=EventStatus.INFERRED,
+        confidence=Confidence.MEDIUM,
+        date="2030-02-01",
+        date_basis=DateBasis.INTERVAL,
+        not_before="2030-01-01",
+        sources=(EventSource(change),),
+        entities=(_nation(),),
+        attributes=attributes,
+        significance=Significance.MAJOR,
+        constituents=constituents,
+    )
+
+
+def test_without_inferred_events_the_report_is_unchanged() -> None:
+    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+    event = _control_event(change)
+    plain = render_comparison(_comparison(change), [event])
+    assert render_comparison(_comparison(change), [event], inferred=None) == plain
+    assert "## Inferred events" not in plain
+
+
+def test_an_empty_inferred_section_says_nothing_was_inferred() -> None:
+    rendered = render_comparison(_comparison(), inferred=[])
+    assert "\n## Inferred events\n\nNo events were inferred.\n\n## Changes\n" in rendered
+
+
+def test_inferred_events_name_confidence_alternatives_and_constituents_before_the_changes() -> None:
+    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+    objective = _control_event(change)
+    plain = _inferred_event(change, event_id="i-1", constituents=("e-1", "e-missing"))
+    ambiguous = _inferred_event(
+        change, event_id="i-2", constituents=("e-1",), attributes=(("ambiguous", True), ("alternatives", ("i-1",)))
+    )
+    rendered = render_comparison(_comparison(change), [objective], inferred=[ambiguous, plain])
+    section = rendered.split("## Inferred events\n", 1)[1].split("\n## Changes\n", 1)[0]
+    lines = section.splitlines()
+    assert lines[1] == "Reconstructed from the objective results below; never observed directly."
+    first, second = (index for index, line in enumerate(lines) if line.startswith("- "))
+    assert lines[first].endswith(" (confidence: `medium`)") and not lines[first].startswith("- [ambiguous]")
+    assert lines[first + 1 : second] == [
+        '  - from `e-1`: nation:1 (null) controller: "Servants" -> "Resistance"',
+        "  - from `e-missing`",
+    ]
+    assert lines[second].startswith("- [ambiguous] ")
+    assert lines[second + 1 :] == [
+        "  - alternatives: `i-1`",
+        '  - from `e-1`: nation:1 (null) controller: "Servants" -> "Resistance"',
+    ]
+
+
+def test_inferred_events_below_the_minimum_are_counted_in_their_own_section() -> None:
+    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+    objective = _control_event(change, significance=Significance.TRIVIAL)
+    inferred = replace(_inferred_event(change, event_id="i-1", constituents=("e-1",)), significance=Significance.MINOR)
+    rendered = render_comparison(
+        _comparison(change), [objective], inferred=[inferred], min_significance=Significance.MAJOR, verbose=True
+    )
+    section = rendered.split("## Inferred events\n", 1)[1].split("\n## Changes\n", 1)[0]
+    assert "- " not in section
+    assert section.endswith("\n1 inferred event below major significance omitted.\n")
+    assert "1 objective analyzer result below major significance omitted." in rendered
