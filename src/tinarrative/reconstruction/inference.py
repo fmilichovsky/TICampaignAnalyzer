@@ -11,7 +11,8 @@ from ..log import get_logger
 from ..model.changes import StateDiff
 from ..model.events import Confidence, Event
 from ..model.snapshot import SaveSnapshot
-from .rules import territorial_events
+from .space import space_events
+from .territorial import territorial_events
 
 logger = get_logger(__name__)
 
@@ -22,7 +23,8 @@ def infer_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSnaps
     The snapshots and the diff are context, as for an analyzer; inferred events in ``events`` are ignored, so a
     rule never builds on another inference. A duplicate ID is a programming error.
     """
-    inferred = territorial_events(events, before, after, diff)
+    events = tuple(events)
+    inferred = territorial_events(events, before, after, diff) + space_events(events, before, after, diff)
     ids = Counter(event.id for event in inferred)
     duplicates = sorted(event_id for event_id, count in ids.items() if count > 1)
     if duplicates:

@@ -19,15 +19,13 @@ from tests.analyzers.support import (
     snapshot,
     state,
 )
-from tinarrative.analyzers import ALL_ANALYZERS, run_analyzers
+from tests.reconstruction.support import Scenario, assert_traceable, lines_of, only, run
 from tinarrative.analyzers.render import describe_event
-from tinarrative.model.changes import StateDiff
 from tinarrative.model.entities import EntityDomain, EntityRef
-from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Significance, SourceRole
+from tinarrative.model.events import Confidence, DateBasis, EventStatus, Significance, SourceRole
 from tinarrative.model.records import KeyedEntry, RecordKind, RecordSet
-from tinarrative.model.snapshot import EntityState, SaveSnapshot
+from tinarrative.model.snapshot import EntityState
 from tinarrative.model.values import Observed, Unknown, freeze
-from tinarrative.narrative import assign_significance
 from tinarrative.reconstruction import (
     ANNEXATION,
     INDEPENDENCE,
@@ -45,7 +43,6 @@ COHESION_TRACKER = "tracker_CohesionChangeReason_AllTime"
 DEMOCRACY_TRACKER = "tracker_DemocracyChangeReason_AllTime"
 
 Fields = Mapping[str, Mapping[str, Observed]]
-Scenario = tuple[SaveSnapshot, SaveSnapshot, StateDiff]
 
 
 def territory_pair(
@@ -97,18 +94,6 @@ def territory_pair(
         records=records_after,
     )
     return pair(before, after)
-
-
-def run(scenario: Scenario) -> tuple[tuple[Event, ...], list[Event]]:
-    before, after, diff = scenario
-    objective = run_analyzers(ALL_ANALYZERS, before, after, diff)
-    return objective, infer_events(objective, before, after, diff)
-
-
-def only(events: list[Event], event_type: str) -> Event:
-    matches = by_type(events, event_type)
-    assert len(matches) == 1, [event.id for event in events]
-    return matches[0]
 
 
 def ids(refs: Observed) -> list[str]:
@@ -511,34 +496,13 @@ def test_a_region_whose_nation_was_null_is_not_a_transfer() -> None:
 
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
 def test_inferred_events_cite_their_constituents_and_trace_to_the_diff(name: str) -> None:
-    scenario = SCENARIOS[name]()
-    objective, inferred = run(scenario)
-    assert inferred, name
-    by_id = {event.id: event for event in objective}
-    diff_changes = set(scenario[2].changes)
-    for event in inferred:
-        assert event.status is EventStatus.INFERRED
-        assert event.constituents and set(event.constituents) <= set(by_id)
-        cited = {source.change for source in event.sources}
-        assert cited <= diff_changes
-        for constituent in event.constituents:
-            assert {source.change for source in by_id[constituent].sources} <= cited
-        assert any(source.role is SourceRole.PRIMARY for source in event.sources)
-    assert infer_events(objective, *scenario) == inferred
+    assert_traceable(SCENARIOS[name]())
 
 
 def test_inferred_input_events_are_ignored() -> None:
     scenario = ambiguous()
     objective, inferred = run(scenario)
     assert infer_events((*objective, *inferred), *scenario) == inferred
-
-
-def lines_of(scenario: Scenario) -> dict[str, tuple[str, Significance]]:
-    before, after, _ = scenario
-    _, inferred = run(scenario)
-    return {
-        event.id: (describe_event(event), event.significance) for event in assign_significance(inferred, before, after)
-    }
 
 
 def test_lines_name_the_reading_and_significance_ranks_it() -> None:

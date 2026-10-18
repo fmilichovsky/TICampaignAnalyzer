@@ -26,14 +26,14 @@
 - [x] Add the politics analyzers (control-point control, nation ownership and
   relations, councilor membership) emitting objective, evidence-backed events.
 - [x] Add the army, space-object and technology analyzers.
-- [ ] Add rule-based reconstruction of higher-level events (evidence in
+- [x] Add rule-based reconstruction of higher-level events (evidence in
   [sources for higher-level events](game-data-notes/higher-level-event-sources.md)):
   - [x] Significance on events and the churn rules (recruit-pool councilors,
     routine fleet and councilor movement) (#70).
   - [x] Nation metric shifts with cause attribution from the
     `tracker_*ChangeReason_AllTime` maps (#71).
   - [x] Territorial reconstruction: unification, secession, annexation (#72).
-  - [ ] Space reconstruction: first presence on a body, hab losses joined to
+  - [x] Space reconstruction: first presence on a body, hab losses joined to
     the destruction log, battle outcomes (#73).
   - [x] Wars and federations as entities with a war analyzer (#64).
   - [x] Region alien substates and Earth anomaly events (#65).

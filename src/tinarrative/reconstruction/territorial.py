@@ -1,10 +1,9 @@
 """Explicit reconstruction rules: territorial changes read from region, tracker, executive and war evidence.
 
 Every rule here takes the objective events of one interval (plus the diff and the two snapshots for context) and
-returns inferred events. An inferred event names each objective event it rests on in ``constituents`` and cites
-all of their sources, so it never loses the evidence beneath it (architecture sections 6 and 10). A diff change
-that no analyzer reports (a region's annexation flags) is cited directly. A fact read from a snapshot alone (a
-nation holding no regions afterwards, the sides of a war) only qualifies evidence, it is never the evidence.
+returns inferred events, citing evidence as ``reconstruction.common`` describes. A diff change that no analyzer
+reports (a region's annexation flags) is cited directly. A fact read from a snapshot alone (a nation holding no
+regions afterwards, the sides of a war) only qualifies evidence, it is never the evidence.
 
 The evidence is the investigation of 2026-10-14 recorded in ``docs/game-data-notes/higher-level-event-sources.md``
 (eight private saves of two campaigns, structure and counts only). In one interval a nation gained many regions
@@ -49,12 +48,12 @@ from ..analyzers.politics.nations import (
     RELATION_CHANGED,
 )
 from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, side_members
-from ..model.changes import StateChange, StateDiff
+from ..model.changes import StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import Confidence, Event, EventSource, EventStatus, SourceRole
-from ..model.evidence import SourceLocation
+from ..model.events import Confidence, Event, EventStatus
 from ..model.snapshot import SaveSnapshot
-from ..model.values import FieldValue, FrozenMap, Observed, Unknown
+from ..model.values import FrozenMap, Observed, Unknown
+from .common import Support, inferred, lower
 
 TERRITORY_GAINED = "nation.territory_gained"
 TERRITORY_LOST = "nation.territory_lost"
@@ -88,21 +87,6 @@ MIN_UNIFIED = 2
 that hands over a parent's last region, or a plain conquest, looks the same."""
 
 _TRACKER_STATISTICS = {tracker: statistic for statistic, tracker in TRACKERS.items()}
-_LOWER = {Confidence.HIGH: Confidence.MEDIUM, Confidence.MEDIUM: Confidence.LOW, Confidence.LOW: Confidence.LOW}
-
-
-@dataclass(frozen=True)
-class Support:
-    """Evidence behind a rule: constituent events, and diff changes no event reports (cited directly)."""
-
-    events: tuple[Event, ...] = ()
-    changes: tuple[StateChange, ...] = ()
-
-    def __add__(self, other: Support) -> Support:
-        return Support(self.events + other.events, self.changes + other.changes)
-
-    def __bool__(self) -> bool:
-        return bool(self.events or self.changes)
 
 
 @dataclass(frozen=True)
@@ -457,7 +441,7 @@ def _resolve_conflicts(candidates: Sequence[Event]) -> list[Event]:
             resolved.append(
                 replace(
                     candidate,
-                    confidence=_LOWER[candidate.confidence],
+                    confidence=lower(candidate.confidence),
                     attributes=(*candidate.attributes, ("ambiguous", True), ("alternatives", alternatives)),
                 )
             )
@@ -475,39 +459,17 @@ def _inferred(
     attributes: Iterable[tuple[str, Observed]],
     confidence: Confidence,
 ) -> Event:
-    """An inferred event citing every source of its region events (roles kept) and of its support (corroborating)."""
-    region_events = tuple(transfer.event for transfer in transfers)
-    return context.build.event(
+    """An inferred event built on its region events, citing every source of them and of its support."""
+    return inferred(
+        context.build,
         event_type,
         id_parts=id_parts,
-        sources=_sources(region_events, support),
+        primary=[transfer.event for transfer in transfers],
+        support=support,
         entities=entities,
         attributes=attributes,
         confidence=confidence,
-        status=EventStatus.INFERRED,
-        constituents=[event.id for event in region_events + support.events],
     )
-
-
-def _sources(region_events: Sequence[Event], support: Support) -> list[EventSource]:
-    """The union of the cited sources, each change and member once; a primary citation wins over a corroborating one."""
-    cited: dict[tuple[StateChange, FieldValue | None, SourceLocation | None], EventSource] = {}
-
-    def add(source: EventSource) -> None:
-        key = (source.change, source.member, source.entry)
-        existing = cited.get(key)
-        if existing is None or (existing.role is not SourceRole.PRIMARY and source.role is SourceRole.PRIMARY):
-            cited[key] = source
-
-    for event in region_events:
-        for source in event.sources:
-            add(source)
-    for event in support.events:
-        for source in event.sources:
-            add(replace(source, role=SourceRole.CORROBORATING))
-    for change in support.changes:
-        add(EventSource(change, SourceRole.CORROBORATING))
-    return list(cited.values())
 
 
 def _regions(transfers: Iterable[Transfer]) -> tuple[EntityRef, ...]:

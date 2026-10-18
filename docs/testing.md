@@ -191,6 +191,12 @@ asserts each rule's confidence branch and the ambiguous case. For every
 scenario it also checks that the event is inferred, that its constituents are
 input event IDs, that it cites every constituent's sources, that every source
 is a change of the diff, and that the output is deterministic.
+`test_space_rules.py` builds synthetic habs on bodies (`space_pair`) with
+fleets, destruction logs, `Kills` lists, combat logs, notification entries and
+global milestones, and covers each space rule's confidence branches,
+including the ambiguous destruction join and the notification pin. Both files
+share `tests/reconstruction/support.py` (`run`, `assert_traceable`,
+`lines_of`).
 
 ### Deriving a safe structural fixture
 

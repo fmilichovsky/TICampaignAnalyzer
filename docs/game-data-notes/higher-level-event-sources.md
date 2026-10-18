@@ -260,7 +260,7 @@ reconstruction (issue #73).
   `DemReason_NearbyDemocracies`. Two nations changed GDP by more than two orders of magnitude within one
   interval, each with the delta under `GDPReason_TerritoryChange`, matching `region.nation_changed` events
   on their regions and `numControlPoints` changes.
-  The territorial rules in `reconstruction/rules.py` (issue #72) read these reasons together with the region
+  The territorial rules in `reconstruction/territorial.py` (issue #72) read these reasons together with the region
   events, executive causes, breakaway links and wars.
 - **Releases** (observed 2026-10-18 on the two `nation.independence` intervals of the older sample, structure
   and counts only). In both, the released nation's democracy tracker moved under `DemReason_AmicableRelease`
@@ -291,6 +291,23 @@ reconstruction (issue #73).
 - **Battle outcomes.** Faction `Kills` lists grew by up to 36 names in one older interval while the
   destruction log of the opposing faction gained 9 entries and 10 habs disappeared; `armiesLost` changed
   once (`AlienMegafauna`). Ship `kills` lists changed on 2–19 ships per interval.
+- **Space joins** (observed 2026-10-18, the five older and three newer private saves, structure and counts
+  only; read by the space rules in `reconstruction/space.py`, issue #73). A hab's `barycenter` is the body
+  it is on or orbits: it equalled the hab site's `parentBody` for 196 of 196 site-based habs and the orbit's
+  `barycenter` for 73 of 73 orbiting habs (latest older save). Every `HabDestructionLog` entry added in the
+  three older intervals that had any (3, 2, 10 entries) matched at least one hab absent from the later save
+  by owning faction (the log's owner, the hab's earlier `faction`), `HabType`/`habType` and
+  `SpaceBody`/`barycenter`; 9 of the 15 had two or three such candidates, and every entry's `Date` fell
+  inside its interval. One `LogHabDestroyed` notification named the vanished hab and carried the same
+  `dateTime` as its destruction entry, to the millisecond. Habs appearing on a body where their faction had
+  none before: 0, 0, 2, 5 in the older intervals, 0, 2 in the newer. `Kills` lists also grew under the
+  owning faction's own key (three factions); what they count is not known (*hypothesis:* assets of the
+  faction's own that it destroyed, or kills of unaligned targets). One faction's kills against another grew
+  in an interval in which the victim lost no hab and no fleet. `LogSpaceBattleTakesPlace` subjects were
+  fleets in all five observed entries. No `globalMilestones` label was added in any interval of either
+  sample; the labels of the latest older save (`FirstBaseOnLuna`, `FirstBaseOnMars`, `FirstAsteroidBase`,
+  `FirstMercuryBase`, `FirstKuiperBeltObjectBase`, `FirstJupiterSystemBase`, `FirstUranusSystemBase`,
+  `FirstWarship`, `FirstSpaceCombatVictoryAgainstAliens`) name places or achievements, never a body ID.
 - **Nuclear.** `numNuclearWeapons` went from 0 to 1 on two nations in the last older interval while
   `nuclearProgram` changed on two; `nuclearDetonations` stayed 0 everywhere.
 
