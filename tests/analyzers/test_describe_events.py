@@ -22,6 +22,7 @@ EXPECTED_INTERVAL = {
     "federation:80 members: +nation:20",
     "nation:20 and nation:21: allies entry removed (listed by nation:20 only)",
     "nation:20 and nation:22: allies entry added (listed by both)",
+    "nation:20 GDP: 1000.0 -> 1200.0",
 }
 
 EXPECTED_RECORDS = {

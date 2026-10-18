@@ -20,7 +20,7 @@ from tinarrative.analyzers import POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
-from tinarrative.analyzers.politics import CouncilorAnalyzer, OrganizationAnalyzer
+from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
 from tinarrative.analyzers.render import _TEMPLATES
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.model.entities import EntityDomain
@@ -166,6 +166,20 @@ def test_megafauna_presence_is_major_and_regular_army_presence_is_minor() -> Non
     events = classified(ArmyAnalyzer(), before, after)
     assert only(events, "army.disappeared").significance is Significance.MINOR
     assert only(events, "army.appeared").significance is Significance.MAJOR
+
+
+def test_a_discrete_statistic_shift_is_major_and_a_continuous_one_is_minor() -> None:
+    regions = (region_ref("40"),)
+    before = snapshot(BEFORE, state(NATION, "20", BEFORE, regions=regions, numNuclearWeapons=0, GDP=1.0e9))
+    after = snapshot(AFTER, state(NATION, "20", AFTER, regions=regions, numNuclearWeapons=1, GDP=2.0e9))
+    events = classified(NationMetricAnalyzer(), before, after)
+    levels = {event.attribute("statistic"): event.significance for event in events}
+    assert levels == {"numNuclearWeapons": Significance.MAJOR, "GDP": Significance.MINOR}
+    lookup = empty_lookup()
+    assert significance_of(bare_event("nation.statistic_shifted", statistic="numControlPoints"), lookup) is (
+        Significance.MAJOR
+    )
+    assert significance_of(bare_event("nation.statistic_shifted"), lookup) is Significance.MINOR
 
 
 # --- Table, defaults and the pass itself -------------------------------------------------------------------

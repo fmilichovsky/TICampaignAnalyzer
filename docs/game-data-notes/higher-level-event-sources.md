@@ -260,6 +260,17 @@ reconstruction (issue #73).
   `DemReason_NearbyDemocracies`. Two nations changed GDP by more than two orders of magnitude within one
   interval, each with the delta under `GDPReason_TerritoryChange`, matching `region.nation_changed` events
   on their regions and `numControlPoints` changes.
+- **Metric shift magnitudes** (observed 2026-10-18, six private saves of the two campaigns, intervals of 7,
+  21, 28, 92 and 113 days, aggregate counts only). Nations with an empty `regions` list (242 of 295 on the
+  older build, 121 of 295 on the newer) changed no statistic and no `publicOpinion` share in any interval.
+  When a statistic with a tracker changed, the tracker deltas summed to its change in every case but one;
+  a tracker changed without its statistic on 0-5 nations per interval. `publicOpinion` maps the same 8 keys
+  on every nation (`Appease`, `Cooperate`, `Destroy`, `Escape`, `Exploit`, `Resist`, `Submit`, `Undecided`)
+  to shares. Routine change arrives partly in steps: `cohesion` moved 1.1 on all 174 changed nations within
+  one week, dominated by `CohesionReason_Effect`, and `unrest` moves in 0.25 steps, mostly
+  `UnrestReason_MovementToRestValue` (also seen: `UnrestReason_StabilizeMission`,
+  `UnrestReason_OppressionPriority`). The per-statistic magnitudes are recorded beside the thresholds in
+  `analyzers/politics/nation_metrics.py`; with those thresholds 1-5 nation shift events remain per interval.
 - **First presence on a body.** Of the habs appearing in the four older intervals (6, 1, 3, 6), the ones on
   a body where the owning faction had no hab in the earlier save were 0, 0, 2 and 6. `TIHabSiteState.hab`
   and `pendingHab` changed in step (1–10 sites per interval).

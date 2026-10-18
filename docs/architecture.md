@@ -623,8 +623,8 @@ Analyzers should be independently testable.
 ### Implemented contract (`src/tinarrative/analyzers/`)
 
 The first family is `analyzers/politics/`: `ControlPointAnalyzer`,
-`NationAnalyzer`, `WarAnalyzer`, `FederationAnalyzer` and `CouncilorAnalyzer`,
-run together by
+`NationAnalyzer`, `NationMetricAnalyzer`, `WarAnalyzer`, `FederationAnalyzer`,
+`CouncilorAnalyzer` and `OrganizationAnalyzer`, run together by
 `analyzers.run_analyzers(POLITICS_ANALYZERS, before, after, diff)`. They read
 the `StateDiff` only (never re-deriving a fact from the snapshots; the
 snapshots supply context such as an entity's own reference or a control
@@ -647,6 +647,24 @@ Ownership and control are kept distinct by analyzer and type prefix:
     merged and marked `reciprocal`), presence, and the literal
     `lastExecutiveChange` record (`nation.executive_change_recorded`; its
     `cause` string is an attribute only).
+-   `nation.statistic_shifted` (`analyzers/politics/nation_metrics.py`,
+    `NationMetricAnalyzer`) reports a nation statistic (`GDP`, `inequality`,
+    `education`, `democracy`, `cohesion`, `unrest`, `sustainability`,
+    `militaryTechLevel`, `spaceFunding_year`, `numNuclearWeapons`,
+    `numControlPoints`, and each `publicOpinion` key on its own) that shifted
+    past its threshold. A threshold is `max(floor, rate × months)` over the
+    interval between the two save dates, so short intervals need a real step
+    and long ones more than routine drift; the two discrete counts fire on
+    any change. Attributes are `statistic` (and `key` for `publicOpinion`),
+    `before`, `after`, `relative_change` (`null` from zero) and
+    `interval_days`; for the six statistics with a
+    `tracker_<Statistic>ChangeReason_AllTime` map, `causes` maps each reason
+    whose cumulative value moved to its delta (the deltas sum to the shift),
+    and the tracker change is cited as corroboration. Nations without regions
+    on both sides are placeholders with frozen values and are skipped. The
+    thresholds and their evidence live in that module; the event never names
+    what the causes amount to (annexation, unification), which is
+    reconstruction.
 -   `war.*` (`analyzers/politics/wars.py`, `TIWarState` objects of the `war`
     domain) speaks about `war.appeared` (record-dated by the war's literal
     `startDate` when present) and `war.disappeared`, each citing every nation
@@ -684,8 +702,9 @@ for later. Members of the handled reference lists (`faction.controlPoints`,
 `members`) that no event explains are reported
 as `<owner>.<field>_changed`, so no literal change on them is dropped; a list
 unresolved on one side is one such event with `transition = unresolved`.
-Everything else (councilor `orgs`, `XP`, `priorLocation`; nation statistics
-and claims; control-point timers and priorities; region occupation and
+Everything else (councilor `orgs`, `XP`, `priorLocation`; nation statistic
+changes below their threshold, tracker maps that changed without their
+statistic, and claims; control-point timers and priorities; region occupation and
 annexation flags) stays in the diff and is left to other analyzers or to the
 diff report. Deliberately out of reach of every analyzer: naming a purge,
 coup, annexation or defection.
@@ -924,10 +943,14 @@ context rule for the event type (recruit-pool councilors whose `faction` is
 `null` on their existing side are `trivial`, a `nation.relation_changed` for
 `wars` or an executive change by `Coup`, `RegimeChange`, `Independence` or
 `Enthrall` is `major`, a tier-3 organization changing hands is `major`,
-megafauna presence is `major`), then a per-type table, then the default. Each
+megafauna presence is `major`, a `nation.statistic_shifted` of
+`numNuclearWeapons` or `numControlPoints` is `major` and of any other
+statistic `minor`), then a per-type table, then the default. Each
 entry and threshold carries its evidence from
 [sources for higher-level events](game-data-notes/higher-level-event-sources.md)
-or its rationale, and no threshold is tuned to one campaign. Routine churn
+or its rationale, and no threshold is tuned to one campaign. Thresholds that
+decide whether an event is emitted at all (the nation statistic shifts) live
+with their analyzer, so no analyzer depends on the narrative stage. Routine churn
 (councilor movement, ship reassignment, organization presence, log pruning,
 leftover lists that mirror an asset's owner field) is `trivial`; the leftover
 lists of geopolitical relations stay `minor` so the unexplained residue is never
