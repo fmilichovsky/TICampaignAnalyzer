@@ -169,6 +169,14 @@ def _nation_presence(event: Event) -> str:
     return f"{_subject(event)} {_presence(event)}"
 
 
+def _statistic_shifted(event: Event) -> str:
+    """``<nation> <statistic>[ <key>]: before -> after``; the cause map is evidence for readers, not echoed."""
+    label = _text(event, "statistic")
+    if not isinstance(event.attribute("key"), Unknown):
+        label += f" {_text(event, 'key')}"
+    return f"{_subject(event)} {_transition(event, label)}"
+
+
 def _with_context(label: str, domain: EntityDomain, prefix: str = "") -> Callable[[Event], str]:
     """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
 
@@ -347,6 +355,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.executive_change_recorded": _executive_change,
     "nation.appeared": _nation_presence,
     "nation.disappeared": _nation_presence,
+    "nation.statistic_shifted": _statistic_shifted,
     "councilor.faction_changed": _plain("faction"),
     "councilor.status_changed": _councilor_field("status"),
     "councilor.location_changed": _councilor_field("location"),

@@ -30,7 +30,7 @@
   [sources for higher-level events](game-data-notes/higher-level-event-sources.md)):
   - [x] Significance on events and the churn rules (recruit-pool councilors,
     routine fleet and councilor movement) (#70).
-  - [ ] Nation metric shifts with cause attribution from the
+  - [x] Nation metric shifts with cause attribution from the
     `tracker_*ChangeReason_AllTime` maps (#71).
   - [ ] Territorial reconstruction: unification, secession, annexation (#72).
   - [ ] Space reconstruction: first presence on a body, hab losses joined to

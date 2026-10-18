@@ -10,6 +10,7 @@ from .politics import (
     CouncilorAnalyzer,
     FederationAnalyzer,
     NationAnalyzer,
+    NationMetricAnalyzer,
     OrganizationAnalyzer,
     WarAnalyzer,
 )
@@ -19,6 +20,7 @@ from .technology import TechnologyAnalyzer
 POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
     ControlPointAnalyzer(),
     NationAnalyzer(),
+    NationMetricAnalyzer(),
     WarAnalyzer(),
     FederationAnalyzer(),
     CouncilorAnalyzer(),

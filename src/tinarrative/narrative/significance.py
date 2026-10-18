@@ -11,8 +11,9 @@ post-pass that copies every event with its level set. The level comes from, in o
 
 Every non-default entry states its evidence or rationale beside it. The evidence is the investigation of
 2026-10-14 recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (eight private saves of two
-campaigns, structure and counts only). No threshold below is tuned to a single campaign; the thresholds that
-later issues add (nation metric shifts, issue #71) belong in the ``Thresholds`` block of this module.
+campaigns, structure and counts only). No threshold below is tuned to a single campaign. Thresholds that decide
+whether an event exists at all live with the analyzer that emits it (the nation statistic shift thresholds are in
+``analyzers.politics.nation_metrics``); the ``Thresholds`` block here holds only what ranks emitted events.
 
 Known simplification: the issue text makes ``army.region_changed`` minor "without an accompanying strength
 change". Both cases are minor here, because ``army.strength_changed`` is its own minor event and a combined
@@ -41,7 +42,7 @@ DEFAULT = Significance.MINOR
 """An event type no rule or table entry names: worth a forensic line, not a history entry."""
 
 # --- Thresholds -------------------------------------------------------------------------------------------
-# Constants that rules compare against, with their evidence. Issue #71 adds the nation metric thresholds here.
+# Constants that rules compare against, with their evidence. Emission thresholds live with their analyzer.
 
 TOP_ORGANIZATION_TIER = 3
 """``TIOrgState.tier`` is 1-3 in every observed save; tier 3 is the top tier (notes, ``TIOrgState``)."""
@@ -52,6 +53,12 @@ UPHEAVAL_CAUSES = frozenset({"Coup", "RegimeChange", "Independence", "Enthrall"}
 
 WAR_RELATION = "wars"
 """The ``nation.relation_changed`` relation that names a war; ``allies`` and ``rivals`` are routine diplomacy."""
+
+DISCRETE_STATISTICS = frozenset({"numNuclearWeapons", "numControlPoints"})
+"""``nation.statistic_shifted`` statistics whose every change is a development: a nuclear arsenal (0 -> 1 on two
+nations in one older interval) and the number of control points, which changed alongside the region transfers
+of the sample. Continuous statistics shift past their threshold for routine reasons too (event effects,
+priorities), so they stay minor until reconstruction explains them (issue #72)."""
 
 # --- Per-type table ---------------------------------------------------------------------------------------
 
@@ -225,6 +232,11 @@ def _organization_assignment(event: Event, lookup: Lookup) -> Significance | Non
     return Significance.MINOR
 
 
+def _statistic_shifted(event: Event, lookup: Lookup) -> Significance | None:
+    """A nuclear arsenal or control-point count changing is major; a continuous statistic's shift is minor."""
+    return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.MINOR
+
+
 def _army_presence(event: Event, lookup: Lookup) -> Significance | None:
     """Megafauna appearing or vanishing (0 or 1 per save) is major; regular army presence is routine."""
     return Significance.MAJOR if event.attribute("megafauna") is True else Significance.MINOR
@@ -236,6 +248,7 @@ RULES: Mapping[str, Rule] = {
     "nation.relation_changed": _relation_changed,
     "nation.executive_change_recorded": _executive_change,
     "organization.assigned_councilor_changed": _organization_assignment,
+    "nation.statistic_shifted": _statistic_shifted,
     "army.appeared": _army_presence,
     "army.disappeared": _army_presence,
 }

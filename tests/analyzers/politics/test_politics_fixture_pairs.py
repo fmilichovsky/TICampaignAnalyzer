@@ -59,6 +59,7 @@ def test_interval_pair_yields_the_expected_events() -> None:
         "federation.members_changed/federation:80/nation:20/added",
         "nation.relation_changed/allies/nation:20/nation:21/removed",
         "nation.relation_changed/allies/nation:20/nation:22/added",
+        "nation.statistic_shifted/nation:20/GDP",
         "organization.assigned_councilor_changed/organization:70",
     ]
     by_id = {event.id: event for event in events}

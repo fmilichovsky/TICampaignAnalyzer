@@ -31,7 +31,9 @@ FORBIDDEN = (
     "battle",
     "merge",
 )
-FIELD_BACKED = {"destroy": ("destroyed", "HabDestructionLog"), "refit": ("lastRefitDate",)}
+FIELD_BACKED = {"destroy": ("destroyed", "HabDestructionLog", "publicOpinion"), "refit": ("lastRefitDate",)}
+"""Words allowed only when the event's primary source is the save field that literally carries them (the
+``Destroy`` ideology is a ``publicOpinion`` key)."""
 NOTIFICATION_LOG = "notificationSummaryQueue"
 COUNCILOR_PRESENCE = {"councilor.appeared": Side.AFTER, "councilor.disappeared": Side.BEFORE}
 
