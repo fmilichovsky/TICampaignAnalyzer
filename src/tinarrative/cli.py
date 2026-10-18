@@ -32,6 +32,7 @@ from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
+from .picker import pick_campaign
 from .rendering.markdown import render_sequence
 from .sequence import IntervalResult, SaveRef, SkippedSave, event_stream, plan_sequence, run_sequence, survey
 
@@ -411,8 +412,28 @@ def _file_time(path: str) -> float:
         return float("-inf")
 
 
+def _interactive() -> bool:
+    """Whether a person can answer the campaign picker: stdin and stderr are both terminals (stdout may be a file)."""
+    return sys.stdin.isatty() and sys.stderr.isatty()
+
+
+def _write_stderr(text: str) -> None:
+    sys.stderr.write(text)
+    sys.stderr.flush()
+
+
+def _prompt(text: str) -> str:
+    """``input`` that writes its prompt to stderr, so that a redirected report never holds it."""
+    _write_stderr(text)
+    line = sys.stdin.readline()
+    if not line:
+        raise EOFError
+    return line.rstrip("\n")
+
+
 def _choose_campaign(groups: Sequence[CampaignGroup], selector: str | None) -> CampaignGroup | int:
-    """The campaign to analyze; several without a selector, or a selector that matches none, is a usage error."""
+    """The campaign to analyze; several without a selector, or a selector that matches none, opens the picker in a
+    terminal and is a usage error otherwise (or when the picker is cancelled)."""
     if selector is None:
         if len(groups) == 1:
             return groups[0]
@@ -423,8 +444,17 @@ def _choose_campaign(groups: Sequence[CampaignGroup], selector: str | None) -> C
             logger.info("campaign selected %s", fields(index=selected.index, of=len(groups)))
             return selected
         message = selected
-    print(f"tinarrative events: {message}\n\n{render_listing(groups)}", end="", file=sys.stderr)
-    return EXIT_USAGE_ERROR
+    if not _interactive():
+        print(f"tinarrative events: {message}\n\n{render_listing(groups)}", end="", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    if selector is not None:
+        _write_stderr(f"tinarrative events: {message}\n")
+    picked = pick_campaign(groups, read=_prompt, write=_write_stderr, file_time=_file_time, initial=selector)
+    if picked is None:
+        print("tinarrative events: no campaign chosen", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    logger.info("campaign selected %s", fields(index=picked.index, of=len(groups), interactive=True))
+    return picked
 
 
 def _run_campaigns(args: argparse.Namespace) -> int:
@@ -629,8 +659,11 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
             "when they hold more than one campaign, --campaign chooses which one to report."
         ),
         epilog=(
+            "In a terminal, several campaigns without --campaign, or a --campaign that matches none or several, "
+            "open a picker that takes a listing number, a key or fuzzy search text. "
             "Exit codes: 0 success; 2 usage error (including fewer than two usable saves in the chosen campaign, "
-            "several campaigns without --campaign, or a --campaign that matches none); 4 a given path cannot be "
+            "several campaigns without --campaign or a --campaign that matches none when stdin or stderr is not a "
+            "terminal, or a cancelled picker); 4 a given path cannot be "
             "read, or a given directory holds no files or no usable save; "
             "5 a given file is malformed, has an unsupported shape, format, or game version, or has no game time. "
             "Files found inside a given directory that fail are listed as skipped and never change the exit code."
@@ -649,7 +682,7 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         help=(
             "The campaign to report when the saves hold several: a key or unique key prefix from "
             "'tinarrative campaigns', its listing index, or 'latest' (the campaign of the most recently "
-            "modified file)."
+            "modified file). In a terminal, a missing or unmatched selector opens a picker instead of failing."
         ),
     )
     parser.add_argument(

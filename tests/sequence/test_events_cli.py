@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import shutil
+import sys
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -12,7 +15,9 @@ import pytest
 
 from tests.fixtures import FIXTURES_ROOT
 from tests.sequence.campaign_variants import write_campaign, write_variant
+from tinarrative import cli
 from tinarrative.cli import EXIT_INPUT_ERROR, EXIT_SUCCESS, EXIT_UNSUPPORTED_INPUT, EXIT_USAGE_ERROR, main
+from tinarrative.picker import PROMPT
 
 FIXTURE_SET = "terra_invicta_json_v1"
 FIXTURE_DIR = FIXTURES_ROOT / "io" / FIXTURE_SET
@@ -360,3 +365,73 @@ def test_a_selected_campaign_with_one_save_is_a_usage_error(
 
     assert main(["events", "--campaign", "2", "saves"]) == EXIT_USAGE_ERROR
     assert "campaign fixture-resistance#2 has 1" in capsys.readouterr().err
+
+
+@pytest.fixture
+def interactive(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
+    """Make ``events`` treat the session as a terminal and answer the picker with ``answers``."""
+
+    def answer(answers: str) -> None:
+        monkeypatch.setattr(cli, "_interactive", lambda: True)
+        monkeypatch.setattr(sys, "stdin", io.StringIO(answers))
+
+    return answer
+
+
+@pytest.mark.fixture
+def test_several_campaigns_in_a_terminal_open_the_picker_and_continue(
+    interactive: Callable[[str], None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _two_campaigns(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    interactive("protector\n")
+
+    assert main(["events", "--format", "json", "saves"]) == EXIT_SUCCESS
+    captured = capsys.readouterr()
+
+    report = json.loads(captured.out)  # the prompt never reaches the report
+    assert report["campaign"]["key"].startswith("protectorate")
+    assert len(report["intervals"]) == 2
+    assert "2 campaigns:\n" in captured.err
+    assert PROMPT in captured.err
+
+
+@pytest.mark.fixture
+def test_an_unmatched_selector_in_a_terminal_opens_the_picker(
+    interactive: Callable[[str], None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _two_campaigns(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    interactive("1\n")
+
+    assert main(["events", "--format", "json", "--campaign", "academy", "saves"]) == EXIT_SUCCESS
+    captured = capsys.readouterr()
+
+    assert json.loads(captured.out)["campaign"]["key"].startswith("resistance")
+    assert "no campaign matches 'academy'" in captured.err
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("answers", ["\n", ""])
+def test_a_cancelled_picker_is_a_usage_error(
+    answers: str,
+    interactive: Callable[[str], None],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _two_campaigns(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    interactive(answers)
+
+    assert main(["events", "saves"]) == EXIT_USAGE_ERROR
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert "tinarrative events: no campaign chosen" in captured.err

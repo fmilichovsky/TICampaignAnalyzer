@@ -36,16 +36,36 @@ real-world campaign start all match. Grouping applies to files named on the comm
 to files found in directories.
 
 - With one group, `events` reports it and `--campaign` is not needed.
-- With several groups and no `--campaign`, the run stops with a usage error (exit 2). It prints
-  `the input holds N campaigns; choose one with --campaign` and the `campaigns` listing to stderr. It
-  never picks a group silently or mixes groups.
+- With several groups and no `--campaign`, `events` never picks a group silently or mixes groups.
+  In a terminal it opens the [campaign picker](#campaign-picker). Otherwise the run stops with a
+  usage error (exit 2) and prints
+  `the input holds N campaigns; choose one with --campaign` and the `campaigns` listing to stderr.
 - `--campaign <selector>` reports one group. The selector is a key or unique key prefix from the
   listing, the listing number, or `latest` (the group holding the most recently modified file;
   [selector keys](campaigns.md#selector-keys)). A selector that matches no group, or matches several,
-  is a usage error that prints the reason and the listing.
+  prints the reason, then opens the picker with the selector as its first search in a terminal, or
+  prints the listing and exits 2 otherwise.
 
 The "at least two saves" check also applies to the chosen campaign. A campaign with a single
 distinct save, such as an unclassified save, is a usage error.
+
+### Campaign picker
+
+The picker opens only when both stdin and stderr are terminals. It writes the listing and its prompt
+to stderr, so `events saves > report.md` still asks in the terminal and the file holds only the
+report. Scripts and pipes keep the exit-2 behavior above. The prompt
+`Campaign (number, key or search text; empty to cancel):` takes:
+
+- anything `--campaign` accepts: a listing number, a key or unique key prefix, or `latest`;
+- otherwise, fuzzy search text, matched against each group's key, faction name, scenario and
+  real-world start (never against paths). Each whitespace-separated term must appear in order,
+  not necessarily contiguously (`prot` matches `protectorate`), and case is ignored. A single match
+  is chosen. With several, the listing narrows to them, best match first, keeping their listing
+  numbers, and the prompt asks again. With none, the full listing is shown again.
+
+An empty answer, end of input or Ctrl-C cancels the picker. The run prints
+`no campaign chosen` and exits 2. Once a campaign is chosen, the run continues exactly as with
+`--campaign`.
 
 ## Ordering and duplicates
 
@@ -160,7 +180,7 @@ the report is written, so a long sequence uses more memory with it than without 
 
 Failures print one message to stderr naming the path that failed and no traceback. With
 `--log-level info`, the run logs the paths given and candidate files, the number of campaigns and
-the selected campaign's number, the ordering summary
+the selected campaign's number (with `interactive=True` when it was picked), the ordering summary
 (usable saves, distinct saves, duplicates, skipped files, tied game times, intervals) and
 per-interval event counts. `--log-level debug` adds one line per skipped file with its file name
 and error class; directory paths are never logged.
@@ -170,6 +190,6 @@ and error class; directory paths are never logged.
 | Code | When |
 | --- | --- |
 | 0 | Every named path was used and every interval was analyzed (including when only one distinct save remained). Files skipped inside a named directory do not change it. |
-| 2 | Usage error: fewer than two usable saves after directory expansion or in the chosen campaign; several campaigns without `--campaign`; a `--campaign` that matches no campaign or several; or an unknown `--format` or `--min-significance`. |
+| 2 | Usage error: fewer than two usable saves after directory expansion or in the chosen campaign; several campaigns without `--campaign`, or a `--campaign` that matches no campaign or several, when stdin or stderr is not a terminal; a cancelled campaign picker; or an unknown `--format` or `--min-significance`. |
 | 4 | A named path cannot be read (missing or unreadable), or a named directory holds no files or no usable save. |
 | 5 | A named file is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |

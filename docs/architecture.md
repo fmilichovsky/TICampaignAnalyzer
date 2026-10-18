@@ -1463,8 +1463,10 @@ forms its own group and is never merged.
 The grouping is inference with provenance (sections 3–5). Every `CampaignGroup` carries the
 signals it was formed on, and `events` reports them in its `## Campaign` section and in its JSON
 `campaign` member. Each group has a selector key: the faction slug plus the real-world start.
-`events` refuses to mix groups. With several groups it requires `--campaign` and prints the listing
-otherwise. File modification time is read only to resolve `--campaign latest`.
+`events` refuses to mix groups. With several groups it requires `--campaign`. Without a matching
+selector it prints the listing and exits 2, except in a terminal, where `picker.pick_campaign` asks
+for a selector or fuzzy search text on stderr. The picker only chooses among the groups; it never
+regroups. File modification time is read only to resolve `--campaign latest`.
 
 ## Mode D --- Incremental/watch-oriented analysis
 
