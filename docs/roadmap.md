@@ -103,7 +103,7 @@ built from the developments catalogued in
 
 - [x] Split `diff` and `events` by layer: `diff` reports literal state changes
   only, `events` is the single analyzed view (#90).
-- [ ] Group per-save evidence commands under `tinarrative save`
+- [x] Group per-save evidence commands under `tinarrative save`
   (`save inspect`, `save parse`, `save diff`) (#91).
 - [ ] Accept directories as `events` input, with the `unknowns` skip and
   exit-code policy (#92).

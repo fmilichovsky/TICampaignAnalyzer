@@ -1,4 +1,4 @@
-tinarrative inspect report
+tinarrative save inspect report
 file: unknown_state_type.json
   size_bytes: 295
   sha256: be080ea86e20ecc429b536e62dada015c54277b6a8bc9b47dcbfeba52c70f1e2

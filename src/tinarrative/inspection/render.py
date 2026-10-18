@@ -54,7 +54,7 @@ def _render_key_lines(lines: list[str], summaries: tuple[KeySummary, ...]) -> No
 def render_text(report: InspectReport) -> str:
     facts = report.file
     lines = [
-        "tinarrative inspect report",
+        "tinarrative save inspect report",
         f"file: {report.file_name}",
         f"  size_bytes: {facts.size_bytes}",
         f"  sha256: {facts.sha256}",

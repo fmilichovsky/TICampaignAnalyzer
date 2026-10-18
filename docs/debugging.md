@@ -8,14 +8,14 @@ into an issue without leaking campaign or machine details.
 
 ```sh
 # Everything the pipeline decided, to a file; the report stays on stdout.
-tinarrative --log-level debug parse Save.json 2> parse-debug.log
+tinarrative --log-level debug save parse Save.json 2> parse-debug.log
 
 # The same through the environment, here with pointer resolution included.
-TINARRATIVE_LOG_LEVEL=debug tinarrative inspect Save.json \
+TINARRATIVE_LOG_LEVEL=debug tinarrative save inspect Save.json \
   --path /gamestates/PavonisInteractive.TerraInvicta.TITimeState/0/Value
 
 # One line per stage only.
-tinarrative --log-level info parse Save.json
+tinarrative --log-level info save parse Save.json
 ```
 
 `--log-level` is a global option and must precede the subcommand. It accepts `debug`,
@@ -25,7 +25,7 @@ unrecognized value in either place is a usage error (exit code 2).
 ## What a line looks like
 
 ```text
-INFO tinarrative.cli: parse start save=Save.json
+INFO tinarrative.cli: save parse start save=Save.json
 DEBUG tinarrative.parsing.raw_save: format accepted format=terra_invicta_json_v1 bytes=84312715
 DEBUG tinarrative.parsing.raw_save: utf-8 decoded bytes=84312715 chars=84312715
 DEBUG tinarrative.parsing.raw_save: json decoded root=dict
@@ -38,7 +38,7 @@ DEBUG tinarrative.parsing.records: records normalized state_type=TIFactionState 
 DEBUG tinarrative.parsing.unknowns: unknown fields state_type=TIFactionState fields=124 entities=8
 INFO tinarrative.parsing.unknowns: unknown structures total=388 state_types=0 fields=386 envelope_keys=0 field_shapes=0 reference_domains=2 singletons=0 containers=0
 INFO tinarrative.parsing.normalization: normalized state_types=61 entities=3210 technologies=240 record_sets=726 record_entries=7326
-INFO tinarrative.cli: parse done save=Save.json state_types=61 game_version=0.4.99 unknowns=388 exit=0
+INFO tinarrative.cli: save parse done save=Save.json state_types=61 game_version=0.4.99 unknowns=388 exit=0
 ```
 
 Every line is `LEVEL logger: message key=value ...`. There are no timestamps, so two runs
@@ -49,20 +49,20 @@ Levels:
 
 | Level | Carries |
 | --- | --- |
-| `info` | One line per command stage: start, unknown-structure counts per kind, normalized, done; `unknowns` adds one line per scanned or skipped save; `diff` reports the total change count on its done line. |
-| `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, per-type record-set counts (sets, entries, unparseable dates, unresolved references; never a label or value), research counts, root shape, ID census totals, each `--path` resolution, registry load/update counts, and for `diff` one line per compared collection, one for the record sets and one for the singletons, with counts on each side and the number of changes per kind (never the entities or values themselves). |
+| `info` | One line per command stage: start, unknown-structure counts per kind, normalized, done; `unknowns` adds one line per scanned or skipped save; `save diff` reports the total change count on its done line. |
+| `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, per-type record-set counts (sets, entries, unparseable dates, unresolved references; never a label or value), research counts, root shape, ID census totals, each `--path` resolution, registry load/update counts, and for `save diff` one line per compared collection, one for the record sets and one for the singletons, with counts on each side and the number of changes per kind (never the entities or values themselves). |
 | `warning`, `error` | Nothing on the success path. The CLI promises an empty stderr there, so a warning in normal operation is a bug. |
 
-When `parse` rejects a save, the one-line stderr message is unchanged; at `debug` it is
-preceded by a `parse failed save=... error=<ErrorClass>` line and the traceback. `diff`
+When `save parse` rejects a save, the one-line stderr message is unchanged; at `debug` it is
+preceded by a `parse failed save=... error=<ErrorClass>` line and the traceback. `save diff`
 normalizes both saves with the same lines, then adds its own aggregates:
 
 ```text
-INFO tinarrative.cli: diff start before=Earlier.json after=Later.json
+INFO tinarrative.cli: save diff start before=Earlier.json after=Later.json
 DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=295 after=295 matched=295 appeared=0 disappeared=0 value=502 membership=42 map=0 unknown=0 records=0
 DEBUG tinarrative.diff.state_diff: records compared before=726 after=726 matched=726 appeared=0 disappeared=0 value=1 membership=0 map=0 unknown=0 records=36
 DEBUG tinarrative.diff.state_diff: singletons compared appeared=0 disappeared=0 value=4 membership=1 map=0 unknown=0 records=0
-INFO tinarrative.cli: diff done before=Earlier.json after=Later.json changes=1180 exit=0
+INFO tinarrative.cli: save diff done before=Earlier.json after=Later.json changes=1180 exit=0
 ```
 
 ## What is never logged
@@ -70,7 +70,7 @@ INFO tinarrative.cli: diff done before=Earlier.json after=Later.json changes=118
 Debug logs are meant to be shared, so they follow the rules in `src/tinarrative/log.py`:
 
 - **Paths**: only the file name (`save=Save.json`), never the directory. The regular
-  `parse` summary on stdout still prints the path you passed.
+  `save parse` summary on stdout still prints the path you passed.
 - **Save content**: no string value read from a save, so no faction, player, councilor,
   or campaign names. Where a value matters, the log gives its JSON shape
   (`value=object{7}`, `value=string[12]`) through `tinarrative.log.shape`, or a bounded

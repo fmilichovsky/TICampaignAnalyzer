@@ -1,4 +1,4 @@
-tinarrative inspect report
+tinarrative save inspect report
 file: political_control.json
   size_bytes: 14968
   sha256: b68746af5a423425553740eb56ec36a07fd158b61bd9ab2df23755539b979e67
