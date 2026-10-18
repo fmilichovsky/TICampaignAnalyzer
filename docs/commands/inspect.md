@@ -1,4 +1,4 @@
-# `tinarrative inspect <save>`
+# `tinarrative save inspect <save>`
 
 Report the raw structure of one save file without normalizing it. The report
 describes what is literally serialized; the only game-specific knowledge it
@@ -11,10 +11,10 @@ saves be diagnosed. It never imports from `tinarrative.parsing`.
 ## Usage
 
 ```sh
-tinarrative inspect Autosave.json
-tinarrative inspect Autosave.json --path /gamestates/PavonisInteractive.TerraInvicta.TIMetadataState/0/Value
-tinarrative inspect Autosave.json --path /currentID --max-items 5 --max-string 40
-tinarrative inspect Autosave.json --format json
+tinarrative save inspect Autosave.json
+tinarrative save inspect Autosave.json --path /gamestates/PavonisInteractive.TerraInvicta.TIMetadataState/0/Value
+tinarrative save inspect Autosave.json --path /currentID --max-items 5 --max-string 40
+tinarrative save inspect Autosave.json --format json
 ```
 
 ## Options
@@ -30,7 +30,7 @@ tinarrative inspect Autosave.json --format json
 
 All limits accept 0, which shows only the truncation marker.
 
-The global `--log-level debug` option (before `inspect`) explains the decode steps,
+The global `--log-level debug` option (before `save`) explains the decode steps,
 the ID census totals, and each pointer resolution on stderr; see the
 [debugging guide](../debugging.md). The report on stdout is unaffected.
 
@@ -71,7 +71,7 @@ any console.
 ### Example
 
 ```text
-tinarrative inspect report
+tinarrative save inspect report
 file: representative_campaign.json
   size_bytes: 2366
   sha256: c01379f493338b6016b04432a805ad1fbeb43918dee6de7b6d208a0534590911

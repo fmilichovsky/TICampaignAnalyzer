@@ -1,10 +1,10 @@
-# `tinarrative diff`
+# `tinarrative save diff`
 
 ```
-tinarrative diff <before> <after> [--format text|json]
+tinarrative save diff <before> <after> [--format text|json]
 ```
 
-Reads two saves, normalizes each exactly as [`parse`](parse.md) does, and prints every
+Reads two saves, normalizes each exactly as [`save parse`](parse.md) does, and prints every
 literal difference between the two `SaveSnapshot`s. The report is objective: it says what
 differs and where each value came from, and infers nothing about causes. An entity that is
 missing from one save is described as absent from that snapshot, never as destroyed, created,
@@ -12,7 +12,7 @@ purged or annexed; see the
 [snapshot-diff observations](../game-data-notes/diff-observations.md) for the project rules
 behind that wording.
 
-`diff` is the evidence layer only: it runs no analyzers, assigns no significance and
+`save diff` is the evidence layer only: it runs no analyzers, assigns no significance and
 reconstructs nothing. The analyzed view of the same two saves (analyzer results, significance,
 inferred events and, with `--changes`, these same literal changes) is
 [`events`](events.md) given both saves.
@@ -96,7 +96,7 @@ transition from the first argument to the second, so a diff can run backwards in
 
 Failures print one message to stderr naming the save that failed and no traceback. To see
 how the two saves were normalized and the per-collection and record change counts, run with the global
-`--log-level debug` option (before `diff`); see the [debugging guide](../debugging.md).
+`--log-level debug` option (before `save`); see the [debugging guide](../debugging.md).
 
 ## Exit codes
 

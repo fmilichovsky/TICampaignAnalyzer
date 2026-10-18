@@ -76,7 +76,7 @@ wrapper and state-type shapes needed by tests.
 ## Expected `inspect` reports
 
 `tests/fixtures/inspection/<fixture-set>/<fixture-name>.expected.txt` holds the
-exact text that `tinarrative inspect` must print for the fixture of the same
+exact text that `tinarrative save inspect` must print for the fixture of the same
 name under `tests/fixtures/io/<fixture-set>/`. These files live outside the
 manifest-governed directory on purpose; a test checks that every expected
 report maps to an existing fixture.
@@ -86,7 +86,7 @@ the command on the fixture, review the diff line by line, and commit both
 together:
 
 ```sh
-tinarrative inspect tests/fixtures/io/terra_invicta_json_v1/representative_campaign.json > tests/fixtures/inspection/terra_invicta_json_v1/representative_campaign.json.expected.txt
+tinarrative save inspect tests/fixtures/io/terra_invicta_json_v1/representative_campaign.json > tests/fixtures/inspection/terra_invicta_json_v1/representative_campaign.json.expected.txt
 ```
 
 Real saves must never be added here. The opt-in `real_save` test reads the
@@ -95,14 +95,14 @@ save location from the `TINARRATIVE_REAL_SAVE` environment variable instead.
 ## Expected `diff` reports
 
 `tests/fixtures/diff/<fixture-set>/<before-name>__<after-name>.expected.txt` and `.expected.json`
-hold the exact text and JSON that `tinarrative diff` must print for the fixture pair of
+hold the exact text and JSON that `tinarrative save diff` must print for the fixture pair of
 those names under `tests/fixtures/io/<fixture-set>/`. The goldens are produced from
 inside the fixture directory with bare file names, so they contain no machine paths:
 
 ```sh
 cd tests/fixtures/io/terra_invicta_json_v1
-tinarrative diff interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.txt
-tinarrative diff --format json interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.json
+tinarrative save diff interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.txt
+tinarrative save diff --format json interval_before.json interval_after.json > ../../diff/terra_invicta_json_v1/interval_before.json__interval_after.json.expected.json
 ```
 
 Review a regenerated golden line by line and commit it with the change that altered it.

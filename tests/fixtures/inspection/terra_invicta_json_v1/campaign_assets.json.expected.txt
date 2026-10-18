@@ -1,4 +1,4 @@
-tinarrative inspect report
+tinarrative save inspect report
 file: campaign_assets.json
   size_bytes: 27563
   sha256: 116006425064d2a7ce115b18d9da931c1b02d2ae916dbc4f8cbd6bf243647dbf

@@ -1,7 +1,7 @@
-# `tinarrative parse`
+# `tinarrative save parse`
 
 ```
-tinarrative parse <save> [--record-unknowns] [--registry PATH]
+tinarrative save parse <save> [--record-unknowns] [--registry PATH]
 ```
 
 Reads one save, validates it as a `terra_invicta_json_v1` raw save (see the
@@ -39,7 +39,7 @@ With `--record-unknowns`, those findings are also folded into the unknowns regis
 without `--record-unknowns` writes nothing.
 
 Failures print one message to stderr and no traceback. To see which parser decisions
-led there, run with the global `--log-level debug` option (before `parse`); see the
+led there, run with the global `--log-level debug` option (before `save`); see the
 [debugging guide](../debugging.md). The summary on stdout is unaffected.
 
 ## Exit codes

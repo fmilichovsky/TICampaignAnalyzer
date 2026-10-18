@@ -23,21 +23,22 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 
 ## Commands
 
-- [`tinarrative inspect <save>`](docs/commands/inspect.md): report one save's
-  raw serialized structure without interpreting it.
-- [`tinarrative parse <save>`](docs/commands/parse.md): load and validate one
-  save as a supported raw save and print an envelope summary, ending with the
-  number of unknown structures met.
-- [`tinarrative unknowns <path>...`](docs/commands/unknowns.md): scan saves for
-  structures the parser does not describe and record them in the
-  [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.
-- [`tinarrative diff <before> <after>`](docs/commands/diff.md): compare two saves and
-  list every literal state change between them, with before/after values and
-  evidence, without analyzing or inferring anything.
 - [`tinarrative events <save> <save>...`](docs/commands/events.md): order saves
   of one campaign by game time and report the analyzer results (and, with
   `--inferred`, the inferred events; with `--changes`, the literal state changes)
   of every pair of consecutive saves. This is the only command that analyzes.
+- `tinarrative save COMMAND`: per-save evidence and debugging commands.
+  - [`tinarrative save inspect <save>`](docs/commands/inspect.md): report one save's
+    raw serialized structure without interpreting it.
+  - [`tinarrative save parse <save>`](docs/commands/parse.md): load and validate one
+    save as a supported raw save and print an envelope summary, ending with the
+    number of unknown structures met.
+  - [`tinarrative save diff <before> <after>`](docs/commands/diff.md): compare two saves and
+    list every literal state change between them, with before/after values and
+    evidence, without analyzing or inferring anything.
+- [`tinarrative unknowns <path>...`](docs/commands/unknowns.md): scan saves for
+  structures the parser does not describe and record them in the
+  [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.
 
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.

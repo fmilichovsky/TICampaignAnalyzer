@@ -978,8 +978,8 @@ battle outcome. A hab's `barycenter` is the body it sits on or orbits.
 
 The three space readings rank `major`.
 
-`tinarrative diff` does not run reconstruction: its report is factual and shows inferred events only in
-verbose rendering.
+`tinarrative save diff` runs no analyzers and no reconstruction: its report lists literal state changes only.
+Inferred events are reported by `tinarrative events --inferred`.
 
 ------------------------------------------------------------------------
 
@@ -1289,7 +1289,7 @@ terra-invicta-narrative/
 ├── src/
 │   └── tinarrative/
 │       ├── cli.py
-│       ├── inspection/        # raw structural report (`tinarrative inspect`)
+│       ├── inspection/        # raw structural report (`tinarrative save inspect`)
 │       ├── identity.py        # entity-identity table and ID census
 │       │
 │       ├── io/

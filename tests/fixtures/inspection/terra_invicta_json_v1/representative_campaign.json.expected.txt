@@ -1,4 +1,4 @@
-tinarrative inspect report
+tinarrative save inspect report
 file: representative_campaign.json
   size_bytes: 2366
   sha256: c01379f493338b6016b04432a805ad1fbeb43918dee6de7b6d208a0534590911

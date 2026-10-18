@@ -33,7 +33,7 @@ export TINARRATIVE_UNKNOWNS_REGISTRY=docs/game-data-notes/unknowns/registry.json
 tinarrative unknowns ~/path/to/saves
 
 # Record while doing ordinary work.
-tinarrative parse Save.json --record-unknowns
+tinarrative save parse Save.json --record-unknowns
 
 # Report only, no file touched.
 tinarrative unknowns Save.json

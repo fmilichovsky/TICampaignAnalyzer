@@ -65,7 +65,7 @@ def _snapshot_lines(label: str, diff: StateDiff, side: str) -> list[str]:
 
 
 def render_text(diff: StateDiff) -> str:
-    lines = ["tinarrative diff report"]
+    lines = ["tinarrative save diff report"]
     lines += _snapshot_lines("before", diff, "before")
     lines += _snapshot_lines("after", diff, "after")
     lines.append(f"changes: {len(diff.changes)}")

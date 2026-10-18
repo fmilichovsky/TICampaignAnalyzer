@@ -1,4 +1,4 @@
-tinarrative inspect report
+tinarrative save inspect report
 file: malformed_truncated.json
   size_bytes: 183
   sha256: 60339ebba358a8dc00a988756babf204a0bf07bd8ad0c90741e103816fe96cd0

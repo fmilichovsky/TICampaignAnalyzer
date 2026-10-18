@@ -2,7 +2,7 @@
 
 Initial strategy for identifying the same game entity across snapshots. The
 machine-readable form is `ENTITY_DOMAINS` in `src/tinarrative/identity.py`; the
-census is printed by [`tinarrative inspect`](../commands/inspect.md) in its
+census is printed by [`tinarrative save inspect`](../commands/inspect.md) in its
 `identity:` section.
 
 ## Observed facts

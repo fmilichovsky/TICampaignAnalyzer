@@ -28,7 +28,7 @@ def real_save_path() -> Path:
 def test_inspect_reports_the_documented_envelope_deterministically(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    argv = ["inspect", str(real_save_path()), "--format", "json"]
+    argv = ["save", "inspect", str(real_save_path()), "--format", "json"]
 
     assert main(argv) == EXIT_SUCCESS
     first = capsys.readouterr().out

@@ -2,7 +2,7 @@
 
 Scan one or more saves for structures the parser does not describe and, optionally, fold
 them into the unknowns registry (`docs/game-data-notes/unknowns/registry.json`). This is a
-maintenance command: it normalizes each save exactly as `parse` does, has no effect on the
+maintenance command: it normalizes each save exactly as [`save parse`](parse.md) does, has no effect on the
 snapshot, and writes nothing unless `--registry` or the environment names a registry. The
 triage workflow and the registry format are in
 [docs/game-data-notes/unknowns/README.md](../game-data-notes/unknowns/README.md).
@@ -49,7 +49,7 @@ the registry can be shared. Detection is driven by the code-form schema in
 | `unexpected_singleton_count` | `TITimeState`, `TIMetadataState` or `TIGlobalResearchState` with more than one entry. | Entries. |
 | `unexpected_container_shape` | A pair-map violation in an entity-domain container that is not normalized (the reference index skips it); `detail` is `pair_map_violation`. | 1 |
 
-The same detection runs inside `parse`, whose summary ends with `unknown structures: N`.
+The same detection runs inside [`save parse`](parse.md), whose summary ends with `unknown structures: N`.
 
 ### Text report
 
@@ -67,7 +67,7 @@ findings: 2 across 2 saves
 registry: not updated
 ```
 
-Paths are printed as given, like the `source:` line of `parse`; they never enter the log or the
+Paths are printed as given, like the `source:` line of `save parse`; they never enter the log or the
 registry. Findings are merged across the scanned saves (occurrences summed, shapes unioned,
 saves counted) and sorted by kind, state type, field and detail, so the report is
 byte-identical across runs. Non-ASCII characters are escaped.

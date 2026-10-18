@@ -46,9 +46,9 @@ def test_inspect_matches_the_golden_report_for_each_fixture(
     save_path = fixture_path(*fixture_parts)
     expected = expected_output_path(fixture_parts).read_text(encoding="utf-8")
 
-    assert main(["inspect", str(save_path)]) == exit_code
+    assert main(["save", "inspect", str(save_path)]) == exit_code
     first = capsys.readouterr()
-    assert main(["inspect", str(save_path)]) == exit_code
+    assert main(["save", "inspect", str(save_path)]) == exit_code
     second = capsys.readouterr()
 
     assert first.out == expected
@@ -73,7 +73,7 @@ def test_selected_path_is_rendered_with_bounded_output(
 ) -> None:
     pointer = "/gamestates/PavonisInteractive.TerraInvicta.TITimeState/0/Key"
 
-    assert main(["inspect", str(fixture_path(*REPRESENTATIVE)), "-p", pointer]) == 0
+    assert main(["save", "inspect", str(fixture_path(*REPRESENTATIVE)), "-p", pointer]) == 0
 
     out = capsys.readouterr().out
     assert f"selected paths:\n  {pointer}: object (1 key)\n    {{\n" in out
@@ -86,6 +86,7 @@ def test_missing_paths_are_reported_and_change_the_exit_code(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     argv = [
+        "save",
         "inspect",
         str(fixture_path(*REPRESENTATIVE)),
         "--path",
@@ -105,7 +106,7 @@ def test_missing_paths_are_reported_and_change_the_exit_code(
 
 @pytest.mark.fixture
 def test_json_format_is_machine_readable(capsys: pytest.CaptureFixture[str]) -> None:
-    argv = ["inspect", str(fixture_path(*REPRESENTATIVE)), "--format", "json"]
+    argv = ["save", "inspect", str(fixture_path(*REPRESENTATIVE)), "--format", "json"]
 
     assert main(argv) == EXIT_SUCCESS
 
@@ -128,6 +129,7 @@ def test_render_limits_are_applied_to_selected_paths(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     argv = [
+        "save",
         "inspect",
         str(fixture_path(*REPRESENTATIVE)),
         "-p",
@@ -152,7 +154,7 @@ def test_render_limits_are_applied_to_selected_paths(
 
 def test_inspect_without_a_save_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as result:
-        main(["inspect"])
+        main(["save", "inspect"])
 
     assert result.value.code == EXIT_USAGE_ERROR
     assert capsys.readouterr().out == ""
@@ -161,17 +163,17 @@ def test_inspect_without_a_save_is_a_usage_error(capsys: pytest.CaptureFixture[s
 def test_unreadable_save_is_an_input_error_without_a_report(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     missing = tmp_path / "missing.json"
 
-    assert main(["inspect", str(missing)]) == EXIT_INPUT_ERROR
+    assert main(["save", "inspect", str(missing)]) == EXIT_INPUT_ERROR
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "cannot read" in captured.err
 
-    assert main(["inspect", str(tmp_path)]) == EXIT_INPUT_ERROR
+    assert main(["save", "inspect", str(tmp_path)]) == EXIT_INPUT_ERROR
     assert capsys.readouterr().out == ""
 
 
 def test_negative_limits_are_usage_errors(capsys: pytest.CaptureFixture[str]) -> None:
-    argv = ["inspect", str(fixture_path(*REPRESENTATIVE)), "--max-items", "-1"]
+    argv = ["save", "inspect", str(fixture_path(*REPRESENTATIVE)), "--max-items", "-1"]
 
     with pytest.raises(SystemExit) as result:
         main(argv)

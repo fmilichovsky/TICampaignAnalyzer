@@ -20,7 +20,7 @@ touching the model or pipeline.
   [README.md](README.md#package-layout).
 - `src/tinarrative/cli.py` — argparse entry point; stable exit codes are
   defined at the top of the file.
-- `src/tinarrative/inspection/` — `tinarrative inspect`: raw structural
+- `src/tinarrative/inspection/` — `tinarrative save inspect`: raw structural
   report of one save, plus the ID census from `src/tinarrative/identity.py`.
   It does not normalize anything and must not import from `parsing`.
 - `tests/` — loosely mirrors the package layout. Fixtures live in `tests/fixtures/`.

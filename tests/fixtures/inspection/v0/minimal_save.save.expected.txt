@@ -1,4 +1,4 @@
-tinarrative inspect report
+tinarrative save inspect report
 file: minimal_save.save
   size_bytes: 37
   sha256: 0f4ddf0bbe80c0ba2bde3250ebee62cf4ee51f3ef80294ada8edf5e224903e87

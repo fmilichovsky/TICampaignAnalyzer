@@ -42,8 +42,8 @@ EXIT_NOT_IMPLEMENTED = 3
 EXIT_INPUT_ERROR = 4
 """The save path could not be read (missing, unreadable, or a directory)."""
 EXIT_UNSUPPORTED_INPUT = 5
-"""Bytes were read but are not decodable JSON (``inspect``, report printed) or not a
-supported save: malformed, wrong shape, or unsupported format/version (``parse``)."""
+"""Bytes were read but are not decodable JSON (``save inspect``, report printed) or not a
+supported save: malformed, wrong shape, or unsupported format/version (``save parse``)."""
 EXIT_PATH_NOT_FOUND = 6
 """At least one ``--path`` did not resolve; the full report is still printed."""
 EXIT_REGISTRY_ERROR = 7
@@ -72,10 +72,10 @@ def _run_inspect(args: argparse.Namespace) -> int:
     except OSError as error:
         reason = error.strerror or str(error)
         logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
-        print(f"tinarrative inspect: cannot read {save_path}: {reason}", file=sys.stderr)
+        print(f"tinarrative save inspect: cannot read {save_path}: {reason}", file=sys.stderr)
         return EXIT_INPUT_ERROR
 
-    logger.info("inspect start %s", fields(save=save_name, bytes=len(data), pointers=len(args.path)))
+    logger.info("save inspect start %s", fields(save=save_name, bytes=len(data), pointers=len(args.path)))
     limits = RenderLimits(
         max_items=args.max_items,
         max_string=args.max_string,
@@ -98,7 +98,7 @@ def _run_inspect(args: argparse.Namespace) -> int:
         code = EXIT_PATH_NOT_FOUND
     else:
         code = EXIT_SUCCESS
-    logger.info("inspect done %s", fields(save=save_name, status=report.status, exit=code))
+    logger.info("save inspect done %s", fields(save=save_name, status=report.status, exit=code))
     return code
 
 
@@ -106,7 +106,7 @@ def _run_parse(args: argparse.Namespace) -> int:
     """Load and validate one save, then summarize it; failures never raise a traceback."""
     save_path = cast(Path, args.save)
     save_name = safe_path(save_path)
-    logger.info("parse start %s", fields(save=save_name))
+    logger.info("save parse start %s", fields(save=save_name))
     collector = UnknownCollector()
     try:
         raw = load_raw_save(save_path)
@@ -114,11 +114,11 @@ def _run_parse(args: argparse.Namespace) -> int:
     except OSError as error:
         reason = error.strerror or str(error)
         logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
-        print(f"tinarrative parse: cannot read {save_path}: {reason}", file=sys.stderr)
+        print(f"tinarrative save parse: cannot read {save_path}: {reason}", file=sys.stderr)
         return EXIT_INPUT_ERROR
     except SaveLoadError as error:
         logger.debug("parse failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
-        print(f"tinarrative parse: {save_path}: {error}", file=sys.stderr)
+        print(f"tinarrative save parse: {save_path}: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
 
     report = collector.report()
@@ -141,19 +141,22 @@ def _run_parse(args: argparse.Namespace) -> int:
     if args.record_unknowns:
         registry = _resolve_registry(args.registry)
         if registry is None:
-            print(f"tinarrative parse: --record-unknowns needs --registry PATH or {REGISTRY_ENV_VAR}", file=sys.stderr)
+            print(
+                f"tinarrative save parse: --record-unknowns needs --registry PATH or {REGISTRY_ENV_VAR}",
+                file=sys.stderr,
+            )
             code = EXIT_USAGE_ERROR
         else:
             try:
                 update = record(registry, [(report, raw.game_version)], format=raw.format, today=date.today())
             except RegistryError as error:
                 logger.debug("registry failed %s", fields(registry=safe_path(registry)), exc_info=True)
-                print(f"tinarrative parse: cannot update registry {registry}: {error}", file=sys.stderr)
+                print(f"tinarrative save parse: cannot update registry {registry}: {error}", file=sys.stderr)
                 code = EXIT_REGISTRY_ERROR
             else:
                 print(_registry_line(registry, update))
     logger.info(
-        "parse done %s",
+        "save parse done %s",
         fields(
             save=save_name,
             state_types=len(raw.root["gamestates"]),
@@ -247,11 +250,11 @@ def _run_diff(args: argparse.Namespace) -> int:
     """Compare two saves and report every literal state change between them."""
     before_path, after_path = cast(Path, args.before), cast(Path, args.after)
     before_name, after_name = safe_path(before_path), safe_path(after_path)
-    logger.info("diff start %s", fields(before=before_name, after=after_name))
-    before = _load_snapshot("diff", before_path)
+    logger.info("save diff start %s", fields(before=before_name, after=after_name))
+    before = _load_snapshot("save diff", before_path)
     if isinstance(before, int):
         return before
-    after = _load_snapshot("diff", after_path)
+    after = _load_snapshot("save diff", after_path)
     if isinstance(after, int):
         return after
     diff = diff_states(before, after)
@@ -259,7 +262,7 @@ def _run_diff(args: argparse.Namespace) -> int:
     sys.stdout.write(rendered)
     sys.stdout.flush()
     logger.info(
-        "diff done %s",
+        "save diff done %s",
         fields(before=before_name, after=after_name, changes=len(diff.changes), exit=EXIT_SUCCESS),
     )
     return EXIT_SUCCESS
@@ -391,7 +394,7 @@ def _add_unknowns_parser(subcommands: argparse._SubParsersAction[argparse.Argume
         "unknowns",
         help=summary,
         description=(
-            f"{summary} Each save is normalized exactly as 'parse' does, and every state type, field, "
+            f"{summary} Each save is normalized exactly as 'save parse' does, and every state type, field, "
             "envelope key, field shape or reference target outside the documented schema is reported with "
             "a content-free shape summary (type labels and member names only). With a registry, the findings "
             "are merged into it; entries the schema has since learned are pruned."
@@ -482,7 +485,7 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
         "diff",
         help=summary,
         description=(
-            f"{summary} Both saves are normalized exactly as 'parse' does, entities are matched by "
+            f"{summary} Both saves are normalized exactly as 'save parse' does, entities are matched by "
             "their in-save ID (technologies by name), and every differing field is listed with its "
             "before and after value and its location in each save. Entities present in only one save "
             "are reported as appeared or disappeared; no cause is inferred. The saves are compared in argument "
@@ -510,7 +513,7 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         "events",
         help=summary,
         description=(
-            f"{summary} Each save is normalized exactly as 'parse' does. Saves are ordered by their serialized "
+            f"{summary} Each save is normalized exactly as 'save parse' does. Saves are ordered by their serialized "
             "game time, never by file name or argument order; byte-identical saves are merged. Every pair of "
             "consecutive saves is diffed, run through every objective analyzer and the significance rules and, "
             "with --inferred, the reconstruction rules; every event ID is qualified by its interval so that IDs "
@@ -551,6 +554,29 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
     parser.set_defaults(handler=_run_events)
 
 
+def _add_save_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "Inspect, parse or diff individual save files."
+    parser = subcommands.add_parser(
+        "save",
+        help=summary,
+        description=(
+            f"{summary} These commands report the evidence of one save, or the literal changes between two, "
+            "without analyzing anything; campaign history is reported by 'events'."
+        ),
+        epilog="Exit codes: 2 usage error (including a missing COMMAND); each command documents its own codes.",
+    )
+    save_commands = parser.add_subparsers(
+        dest="save_command",
+        title="commands",
+        metavar="COMMAND",
+        required=True,
+        description="Use 'tinarrative save COMMAND --help' for command-specific help.",
+    )
+    _add_inspect_parser(save_commands)
+    _add_parse_parser(save_commands)
+    _add_diff_parser(save_commands)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tinarrative",
@@ -574,11 +600,9 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="COMMAND",
         description="Use 'tinarrative COMMAND --help' for command-specific help.",
     )
-    _add_inspect_parser(subcommands)
-    _add_parse_parser(subcommands)
-    _add_unknowns_parser(subcommands)
-    _add_diff_parser(subcommands)
     _add_events_parser(subcommands)
+    _add_save_parser(subcommands)
+    _add_unknowns_parser(subcommands)
     return parser
 
 

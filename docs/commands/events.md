@@ -6,10 +6,10 @@ tinarrative events <save> <save> [<save>...] [--format markdown|json] [--min-sig
 
 Reads two or more saves of one campaign, orders them by game time, and reports the analyzer
 results of every pair of consecutive saves (architecture section 15, Mode B). Each pair is
-diffed as [`diff`](diff.md) does, and the diff is run through every objective analyzer, the
+diffed as [`save diff`](diff.md) does, and the diff is run through every objective analyzer, the
 significance rules and, with `--inferred`, the reconstruction rules. `events` is the only command
 that runs analyzers, significance or reconstruction; given two saves it is the analyzed view of
-the pair, and with `--changes` it also lists the literal changes that `diff` reports. The command
+the pair, and with `--changes` it also lists the literal changes that `save diff` reports. The command
 does not check that the saves belong to the same campaign. Mixing campaigns produces nonsense
 intervals, not an error.
 
@@ -59,7 +59,7 @@ The default report lists:
   - with `--inferred`, `#### Inferred events` (see below);
   - `#### Objective analyzer results`, grouped by category, each result with its affected entities;
   - with `--changes`, `#### State changes`: every literal change of the interval, grouped by
-    domain, one line each in the form of `diff`'s text report (a `records` change shows entry
+    domain, one line each in the form of `save diff`'s text report (a `records` change shows entry
     counts only). When the interval has none, the section says `No state changes were recorded.`
 
 With fewer than two distinct saves, the report says that no interval was compared and the

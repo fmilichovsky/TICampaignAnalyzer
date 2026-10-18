@@ -94,7 +94,7 @@
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
       "sha256": "dcfcf1ad2071010e211041fb2aa6cef98ec2853ef1e350fa55ae873a2537c6ae",
-      "purpose": "Earlier snapshot of a synthetic campaign interval for `tinarrative diff`; pair with interval_after.json. Holds the entities and values that change, disappear (control point 12, councilor 101) or stay in a different order (nation regions) in the later snapshot; control points 9..12 exercise natural ID ordering."
+      "purpose": "Earlier snapshot of a synthetic campaign interval for `tinarrative save diff`; pair with interval_after.json. Holds the entities and values that change, disappear (control point 12, councilor 101) or stay in a different order (nation regions) in the later snapshot; control points 9..12 exercise natural ID ordering."
     },
     {
       "path": "interval_after.json",
