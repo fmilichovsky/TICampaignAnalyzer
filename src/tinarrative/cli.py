@@ -31,6 +31,7 @@ from .narrative import assign_significance
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
+from .reconstruction import infer_events
 from .rendering.markdown import render_comparison
 
 logger = get_logger(__name__)
@@ -259,8 +260,11 @@ def _run_diff(args: argparse.Namespace) -> int:
         rendered = render_diff_json(diff)
     elif args.format == "markdown":
         events = assign_significance(run_analyzers(ALL_ANALYZERS, before, after, diff), before, after)
+        inferred = (
+            assign_significance(infer_events(events, before, after, diff), before, after) if args.inferred else None
+        )
         minimum = Significance(cast(str, args.min_significance))
-        rendered = render_comparison(diff, events, min_significance=minimum)
+        rendered = render_comparison(diff, events, inferred=inferred, min_significance=minimum)
     else:
         rendered = render_diff_text(diff)
     sys.stdout.write(rendered)
@@ -440,6 +444,15 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
         help=(
             "Lowest significance an analyzer result needs to be listed in the markdown report "
             "(default %(default)s, which lists every result); the other formats ignore it."
+        ),
+    )
+    parser.add_argument(
+        "--inferred",
+        action="store_true",
+        help=(
+            "Also reconstruct inferred events from the analyzer results and list them, with their confidence "
+            "and the results they rest on, in their own section of the markdown report; the other formats "
+            "ignore it."
         ),
     )
     parser.set_defaults(handler=_run_diff)

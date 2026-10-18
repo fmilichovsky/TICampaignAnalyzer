@@ -1,7 +1,7 @@
 """Deterministic Markdown rendering for one already-analyzed comparison.
 
-This module presents a diff and analyzer output; it never compares snapshots or
-infers facts itself.
+This module presents a diff, analyzer output and, when supplied, already-reconstructed
+inferred events; it never compares snapshots or infers facts itself.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ def render_comparison(
     comparison: StateDiff,
     events: Iterable[Event] = (),
     *,
+    inferred: Iterable[Event] | None = None,
     verbose: bool = False,
     min_significance: Significance = Significance.TRIVIAL,
 ) -> str:
@@ -31,6 +32,9 @@ def render_comparison(
     Normal output includes only objective analyzer results of at least ``min_significance`` (the default
     keeps every level); the number omitted is stated once. Verbose output also identifies inferred results
     omitted from this factual comparison report.
+
+    ``inferred`` events, when supplied, get their own section before the changes, filtered by the same
+    ``min_significance`` with their own omitted count; each names the objective results it rests on.
     """
     event_list = list(events)
     objective = [event for event in event_list if event.status is EventStatus.OBJECTIVE]
@@ -49,6 +53,8 @@ def render_comparison(
     categories = sorted(set(grouped_changes) | set(grouped_events), key=str.casefold)
     lines = ["# Save comparison", "", "## Snapshots", *_snapshot_lines("Before", comparison.before)]
     lines.extend(_snapshot_lines("After", comparison.after))
+    if inferred is not None:
+        lines.extend(_inferred_section(inferred, objective, verbose=verbose, min_significance=min_significance))
     if not categories:
         lines.extend(["", "## Changes", "", "No state changes or objective analyzer results were recorded."])
     else:
@@ -89,6 +95,41 @@ def render_comparison(
             ]
         )
     return "\n".join(lines) + "\n"
+
+
+def _inferred_section(
+    inferred: Iterable[Event], objective: Iterable[Event], *, verbose: bool, min_significance: Significance
+) -> list[str]:
+    candidates = list(inferred)
+    listed = sorted(
+        (event for event in candidates if event.significance.rank >= min_significance.rank),
+        key=lambda event: event.sort_key,
+    )
+    by_id = {event.id: event for event in objective}
+    lines = ["", "## Inferred events", ""]
+    if not candidates:
+        return [*lines, "No events were inferred."]
+    lines.append("Reconstructed from the objective results below; never observed directly.")
+    if listed:
+        lines.append("")
+    for event in listed:
+        ambiguous = event.attribute("ambiguous") is True
+        marker = "[ambiguous] " if ambiguous else ""
+        lines.append(f"- {marker}{describe_event(event)} (confidence: `{event.confidence}`)")
+        alternatives = event.attribute("alternatives")
+        if ambiguous and isinstance(alternatives, tuple) and alternatives:
+            lines.append("  - alternatives: " + ", ".join(f"`{alternative}`" for alternative in alternatives))
+        for constituent in event.constituents:
+            source = by_id.get(constituent)
+            suffix = f": {describe_event(source)}" if source is not None else ""
+            lines.append(f"  - from `{constituent}`{suffix}")
+        if verbose:
+            lines.extend(_event_lines(event, verbose=True)[1:])
+    omitted = len(candidates) - len(listed)
+    if omitted:
+        noun = "event" if omitted == 1 else "events"
+        lines.extend(["", f"{omitted} inferred {noun} below {min_significance.value} significance omitted."])
+    return lines
 
 
 def render_events(events: list[Event]) -> str:
