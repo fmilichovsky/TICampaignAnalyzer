@@ -95,6 +95,19 @@ def test_every_interval_runs_the_diff_pipeline_and_qualifies_its_ids() -> None:
     assert [event.id for event in intervals[0].objective] == [f"{event.id}@{DATES[1]}" for event in direct.objective]
     assert direct.inferred is not None and intervals[0].inferred is not None
     assert len(intervals[0].inferred) == len(direct.inferred)
+    assert all(interval.state_changes is None for interval in intervals)
+
+
+@pytest.mark.fixture
+def test_literal_changes_are_kept_only_when_asked() -> None:
+    plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
+
+    intervals = list(run_sequence(plan, inferred=False, changes=True))
+
+    first_pair = [normalize(load_raw_save(fixture(name))) for name in SEQUENCE[:2]]
+    direct = analyze_interval(*first_pair, inferred=False)
+    assert intervals[0].state_changes == direct.diff.changes
+    assert [len(interval.state_changes or ()) for interval in intervals] == [interval.changes for interval in intervals]
 
 
 @pytest.mark.fixture

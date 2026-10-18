@@ -1,24 +1,53 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime
 
-from tinarrative.diff.state_diff import StateDiff
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Significance
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import Observed
-from tinarrative.rendering.markdown import render_comparison
+from tinarrative.rendering.markdown import render_sequence
+from tinarrative.sequence import IntervalResult, SaveRef, SequencePlan
+
+BEFORE = SaveRef("before.save", "a" * 64, datetime(2030, 1, 1))
+AFTER = SaveRef("after.save", "b" * 64, datetime(2030, 2, 1))
 
 
-def _comparison(*changes: StateChange) -> StateDiff:
-    return StateDiff(
-        before=SaveSnapshot("before.save", "2030-01-01", "0.4", campaign_day=12),
-        after=SaveSnapshot("after.save", "2030-02-01", "0.4", timestamp=datetime(2030, 2, 1), campaign_day=13),
-        changes=changes,
+def _render(
+    objective: Iterable[Event] = (),
+    *,
+    inferred: Iterable[Event] | None = None,
+    state_changes: Iterable[StateChange] | None = None,
+    verbose: bool = False,
+    min_significance: Significance = Significance.TRIVIAL,
+) -> str:
+    """Render one interval between ``BEFORE`` and ``AFTER``."""
+    changes = None if state_changes is None else tuple(state_changes)
+    interval = IntervalResult(
+        index=0,
+        key=AFTER.date,
+        before=BEFORE,
+        after=AFTER,
+        changes=len(changes or ()),
+        objective=tuple(objective),
+        inferred=None if inferred is None else tuple(inferred),
+        state_changes=changes,
     )
+    plan = SequencePlan((BEFORE, AFTER), (BEFORE.date, AFTER.date), 2)
+    return render_sequence(plan, [interval], verbose=verbose, min_significance=min_significance)
+
+
+def _section(rendered: str, heading: str) -> str:
+    """The body of one ``####`` section of the single interval."""
+    body = rendered.split(f"\n#### {heading}\n", 1)[1]
+    return body.split("\n#### ", 1)[0]
+
+
+def _control_change() -> StateChange:
+    return StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
 
 
 def _evidence() -> Evidence:
@@ -58,75 +87,65 @@ def _control_event(
     )
 
 
-def test_normal_markdown_golden_is_grouped_and_deterministic() -> None:
-    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+def test_sequence_golden_lists_results_and_changes_by_category_and_is_deterministic() -> None:
+    change = _control_change()
     event = _control_event(change)
     expected = (
-        "# Save comparison\n\n## Snapshots\n"
-        "- **Before:** date: `2030-01-01`; source: `before.save`; game version: `0.4`; "
-        "campaign day: `12`; campaign quarter: `unknown (missing)`; timestamp: `<unknown>`\n"
-        "- **After:** date: `2030-02-01`; source: `after.save`; game version: `0.4`; "
-        "campaign day: `13`; campaign quarter: `unknown (missing)`; timestamp: `2030-02-01 00:00:00`\n"
-        "\n## Changes\n\n### Politics\n\nObjective analyzer results:\n"
+        "# Save sequence\n\n## Saves\n\n"
+        "1. `2030-01-01T00:00:00`: `before.save`\n2. `2030-02-01T00:00:00`: `after.save`\n\n"
+        "2 saves given; ordered by serialized game time.\n\n## Intervals\n\n"
+        "### 2030-01-01T00:00:00 to 2030-02-01T00:00:00\n\n- 1 state change\n\n"
+        "#### Objective analyzer results\n\nPolitics:\n\n"
         '- nation:1 (null) controller: "Servants" -> "Resistance"\n\n'
-        'Observed state changes:\n- nation:1 controller: "Servants" -> "Resistance"\n'
+        "#### State changes\n\nPolitics:\n\n"
+        '- nation:1 controller: "Servants" -> "Resistance"\n'
     )
-    assert render_comparison(_comparison(change), [event]) == expected
-    assert render_comparison(_comparison(change), [event]) == render_comparison(_comparison(change), [event])
+    assert _render([event], state_changes=[change]) == expected
+    assert _render([event], state_changes=[change]) == _render([event], state_changes=[change])
 
 
-def test_verbose_markdown_golden_includes_traceable_evidence() -> None:
-    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
-    objective = _control_event(change)
-    inferred = Event(
-        id="e-2",
-        event_type="A purge occurred",
-        status=EventStatus.INFERRED,
-        confidence=Confidence.LOW,
-        date="2030-02-01",
-        date_basis=DateBasis.INTERVAL,
-        not_before="2030-01-01",
-        sources=(EventSource(change),),
-        entities=(_nation(),),
-        attributes=(("ambiguous", True),),
-    )
-    rendered = render_comparison(_comparison(change), [inferred, objective], verbose=True)
+def test_without_kept_changes_there_is_no_state_change_section() -> None:
+    rendered = _render([_control_event(_control_change())])
+    assert "#### State changes" not in rendered
+    assert "- 0 state changes\n" in rendered
+
+
+def test_an_empty_change_list_says_nothing_changed() -> None:
+    rendered = _render(state_changes=[])
+    assert rendered.endswith("\n#### State changes\n\nNo state changes were recorded.\n")
+    assert "No objective analyzer results were recorded." in rendered
+
+
+def test_state_changes_are_grouped_by_domain_and_never_filtered() -> None:
+    politics = _control_change()
+    economy = StateChange("nation_economy", "GDP", 1000.0, 1200.0, _evidence(), _nation().entity_id)
+    rendered = _render(state_changes=[politics, economy], min_significance=Significance.CAMPAIGN_DEFINING)
+    section = _section(rendered, "State changes")
+    assert section.index("Nation Economy:") < section.index("Politics:")
+    assert "- nation:1 GDP: 1000.0 -> 1200.0" in section
+    assert '- nation:1 controller: "Servants" -> "Resistance"' in section
+
+
+def test_verbose_output_includes_traceable_evidence() -> None:
+    change = _control_change()
+    rendered = _render([_control_event(change)], state_changes=[change], verbose=True)
     assert "event id: `e-1`" in rendered
     assert "  - significance: `minor`" in rendered
-    assert "before / TINationState / 1 / /control" in rendered
-    assert "[inferred, ambiguous] A purge occurred" in rendered
-    assert "`unknown (...)` marks unavailable or unresolved normalized data." in rendered
-
-
-def test_empty_diff_markdown_golden() -> None:
-    rendered = render_comparison(_comparison())
-    assert rendered.endswith("No state changes or objective analyzer results were recorded.\n")
-
-
-def test_partially_normalized_snapshot_golden() -> None:
-    comparison = StateDiff(SaveSnapshot("before.save", "<unknown>"), SaveSnapshot("after.save", "<unknown>"))
-    rendered = render_comparison(comparison, verbose=True)
-    assert "date: `<unknown>`" in rendered
-    assert "game version: `<unknown>`" in rendered
-    assert "campaign day: `unknown (missing)`" in rendered
+    changes = _section(rendered, "State changes")
+    assert "  - evidence: Control changed" in changes
+    assert "  - before source: `before / TINationState / 1 / /control`" in changes
 
 
 def test_minimum_significance_omits_lesser_results_and_counts_them_once() -> None:
-    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+    change = _control_change()
     trivial = _control_event(change, event_id="e-trivial", significance=Significance.TRIVIAL)
     major = _control_event(change, event_id="e-major", significance=Significance.MAJOR)
-    everything = render_comparison(_comparison(change), [trivial, major])
+    everything = _render([trivial, major])
     assert everything.count('- nation:1 (null) controller: "Servants" -> "Resistance"') == 2
     assert "omitted" not in everything
-    rendered = render_comparison(
-        _comparison(change), [trivial, major], min_significance=Significance.MAJOR, verbose=True
-    )
+    rendered = _render([trivial, major], min_significance=Significance.MAJOR, verbose=True)
     assert "event id: `e-major`" in rendered and "event id: `e-trivial`" not in rendered
-    assert "\n1 objective analyzer result below major significance omitted.\n" in rendered
-    assert rendered.index("Observed state changes:") < rendered.index("omitted") < rendered.index("## Rendering notes")
-    only_changes = render_comparison(_comparison(change), [trivial], min_significance=Significance.MINOR)
-    assert "Objective analyzer results:" not in only_changes and "### Politics" in only_changes
-    assert "1 objective analyzer result below minor significance omitted." in only_changes
+    assert rendered.endswith("\n1 objective analyzer result below major significance omitted.\n")
 
 
 def _inferred_event(
@@ -152,29 +171,24 @@ def _inferred_event(
     )
 
 
-def test_without_inferred_events_the_report_is_unchanged() -> None:
-    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
-    event = _control_event(change)
-    plain = render_comparison(_comparison(change), [event])
-    assert render_comparison(_comparison(change), [event], inferred=None) == plain
-    assert "## Inferred events" not in plain
+def test_without_inferred_events_there_is_no_inferred_section() -> None:
+    assert "#### Inferred events" not in _render([_control_event(_control_change())])
 
 
 def test_an_empty_inferred_section_says_nothing_was_inferred() -> None:
-    rendered = render_comparison(_comparison(), inferred=[])
-    assert "\n## Inferred events\n\nNo events were inferred.\n\n## Changes\n" in rendered
+    rendered = _render(inferred=[])
+    assert "\n#### Inferred events\n\nNo events were inferred.\n\n#### Objective analyzer results\n" in rendered
 
 
-def test_inferred_events_name_confidence_alternatives_and_constituents_before_the_changes() -> None:
-    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+def test_inferred_events_name_confidence_alternatives_and_constituents_before_the_results() -> None:
+    change = _control_change()
     objective = _control_event(change)
     plain = _inferred_event(change, event_id="i-1", constituents=("e-1", "e-missing"))
     ambiguous = _inferred_event(
         change, event_id="i-2", constituents=("e-1",), attributes=(("ambiguous", True), ("alternatives", ("i-1",)))
     )
-    rendered = render_comparison(_comparison(change), [objective], inferred=[ambiguous, plain])
-    section = rendered.split("## Inferred events\n", 1)[1].split("\n## Changes\n", 1)[0]
-    lines = section.splitlines()
+    rendered = _render([objective], inferred=[ambiguous, plain])
+    lines = _section(rendered, "Inferred events").rstrip("\n").splitlines()
     assert lines[1] == "Reconstructed from the objective results below; never observed directly."
     first, second = (index for index, line in enumerate(lines) if line.startswith("- "))
     assert lines[first].endswith(" (confidence: `medium`)") and not lines[first].startswith("- [ambiguous]")
@@ -190,13 +204,11 @@ def test_inferred_events_name_confidence_alternatives_and_constituents_before_th
 
 
 def test_inferred_events_below_the_minimum_are_counted_in_their_own_section() -> None:
-    change = StateChange("politics", "controller", "Servants", "Resistance", _evidence(), _nation().entity_id)
+    change = _control_change()
     objective = _control_event(change, significance=Significance.TRIVIAL)
     inferred = replace(_inferred_event(change, event_id="i-1", constituents=("e-1",)), significance=Significance.MINOR)
-    rendered = render_comparison(
-        _comparison(change), [objective], inferred=[inferred], min_significance=Significance.MAJOR, verbose=True
-    )
-    section = rendered.split("## Inferred events\n", 1)[1].split("\n## Changes\n", 1)[0]
+    rendered = _render([objective], inferred=[inferred], min_significance=Significance.MAJOR, verbose=True)
+    section = _section(rendered, "Inferred events")
     assert "- " not in section
     assert section.endswith("\n1 inferred event below major significance omitted.\n")
     assert "1 objective analyzer result below major significance omitted." in rendered

@@ -33,10 +33,11 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.
 - [`tinarrative diff <before> <after>`](docs/commands/diff.md): compare two saves and
   list every literal state change between them, with before/after values and
-  evidence, without inferring causes.
+  evidence, without analyzing or inferring anything.
 - [`tinarrative events <save> <save>...`](docs/commands/events.md): order saves
   of one campaign by game time and report the analyzer results (and, with
-  `--inferred`, the inferred events) of every pair of consecutive saves.
+  `--inferred`, the inferred events; with `--changes`, the literal state changes)
+  of every pair of consecutive saves. This is the only command that analyzes.
 
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.

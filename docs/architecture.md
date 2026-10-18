@@ -1195,8 +1195,8 @@ with their analyzer, so no analyzer depends on the narrative stage. Routine chur
 leftover lists that mirror an asset's owner field) is `trivial`; the leftover
 lists of geopolitical relations stay `minor` so the unexplained residue is never
 hidden; campaign-wide milestones, nuclear strikes, sea-level stages and nation
-presence are `campaign_defining`. `tinarrative diff --format markdown
---min-significance <level>` is the first consumer.
+presence are `campaign_defining`. `tinarrative events --min-significance
+<level>` is the first consumer.
 
 Narrative events (section 11) carry the same enum. Their level is assigned by
 the rule that builds them, defaulting to the highest level among their

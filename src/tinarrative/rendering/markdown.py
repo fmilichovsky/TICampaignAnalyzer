@@ -1,7 +1,7 @@
-"""Deterministic Markdown rendering for an already-analyzed comparison or save sequence.
+"""Deterministic Markdown rendering for an already-analyzed save sequence.
 
-This module presents a diff, analyzer output and, when supplied, already-reconstructed
-inferred events; it never compares snapshots or infers facts itself.
+This module presents analyzer output, already-reconstructed inferred events and, when supplied,
+the literal state changes of each interval; it never compares snapshots or infers facts itself.
 """
 
 from __future__ import annotations
@@ -12,93 +12,11 @@ from datetime import datetime
 
 from ..analyzers.render import describe_event
 from ..diff.render import render_change, render_value
-from ..diff.state_diff import StateDiff
 from ..model.changes import StateChange
 from ..model.entities import EntityRef
 from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
-from ..model.snapshot import SaveSnapshot
 from ..sequence import IntervalResult, SequencePlan
-
-
-def render_comparison(
-    comparison: StateDiff,
-    events: Iterable[Event] = (),
-    *,
-    inferred: Iterable[Event] | None = None,
-    verbose: bool = False,
-    min_significance: Significance = Significance.TRIVIAL,
-) -> str:
-    """Render one comparison and supplied analyzer results as deterministic Markdown.
-
-    Normal output includes only objective analyzer results of at least ``min_significance`` (the default
-    keeps every level); the number omitted is stated once. Verbose output also identifies inferred results
-    omitted from this factual comparison report.
-
-    ``inferred`` events, when supplied, get their own section before the changes, filtered by the same
-    ``min_significance`` with their own omitted count; each names the objective results it rests on.
-    """
-    event_list = list(events)
-    objective = [event for event in event_list if event.status is EventStatus.OBJECTIVE]
-    objective_events = sorted(
-        (event for event in objective if event.significance.rank >= min_significance.rank),
-        key=lambda event: event.sort_key,
-    )
-    omitted = len(objective) - len(objective_events)
-    grouped_changes: dict[str, list[StateChange]] = defaultdict(list)
-    grouped_events: dict[str, list[Event]] = defaultdict(list)
-    for change in comparison.changes:
-        grouped_changes[_change_category(change)].append(change)
-    for event in objective_events:
-        grouped_events[_event_category(event)].append(event)
-
-    categories = sorted(set(grouped_changes) | set(grouped_events), key=str.casefold)
-    lines = ["# Save comparison", "", "## Snapshots", *_snapshot_lines("Before", comparison.before)]
-    lines.extend(_snapshot_lines("After", comparison.after))
-    if inferred is not None:
-        by_id = {event.id: event for event in objective}
-        lines.extend(["", "## Inferred events", ""])
-        lines.extend(_inferred_lines(inferred, by_id, verbose=verbose, min_significance=min_significance))
-    if not categories:
-        lines.extend(["", "## Changes", "", "No state changes or objective analyzer results were recorded."])
-    else:
-        lines.extend(["", "## Changes"])
-        for category in categories:
-            lines.extend(["", f"### {category}"])
-            category_events = grouped_events.get(category, [])
-            if category_events:
-                lines.extend(["", "Objective analyzer results:"])
-                for event in category_events:
-                    lines.extend(_event_lines(event, verbose=verbose))
-            category_changes = sorted(grouped_changes.get(category, []), key=lambda change: change.sort_key)
-            if category_changes:
-                lines.extend(["", "Observed state changes:"])
-                for change in category_changes:
-                    lines.extend(_change_lines(change, verbose=verbose))
-    if omitted:
-        noun = "result" if omitted == 1 else "results"
-        lines.extend(["", f"{omitted} objective analyzer {noun} below {min_significance.value} significance omitted."])
-
-    if verbose:
-        inferred = sorted(
-            (event for event in event_list if event.status is not EventStatus.OBJECTIVE),
-            key=lambda event: event.sort_key,
-        )
-        if inferred:
-            lines.extend(["", "## Omitted non-objective results", ""])
-            for event in inferred:
-                marker = "[inferred, ambiguous]" if event.attribute("ambiguous") is True else "[inferred]"
-                lines.append(f"- {marker} {describe_event(event)}")
-        lines.extend(
-            [
-                "",
-                "## Rendering notes",
-                "",
-                "- `unknown (...)` marks unavailable or unresolved normalized data.",
-                "- `ambiguous` marks an analyzer result that needs interpretation.",
-            ]
-        )
-    return "\n".join(lines) + "\n"
 
 
 def _inferred_lines(
@@ -144,9 +62,9 @@ def render_sequence(
 ) -> str:
     """Render the saves of a sequence in chronological order and the analyzer results of each interval.
 
-    Each interval lists its inferred events (when they were reconstructed) and then its objective analyzer results
-    of at least ``min_significance``, grouped by category; literal state changes are left to ``diff``. Event IDs are
-    the sequence-qualified ones.
+    Each interval lists its inferred events (when they were reconstructed), its objective analyzer results of at least
+    ``min_significance`` grouped by category and, when they were kept, its literal state changes grouped by category.
+    State changes are never filtered. Event IDs are the sequence-qualified ones.
     """
     lines = ["# Save sequence", "", "## Saves", ""]
     previous: datetime | None = None
@@ -174,6 +92,8 @@ def render_sequence(
             lines.extend(["", "#### Inferred events", ""])
             lines.extend(_inferred_lines(interval.inferred, by_id, verbose=verbose, min_significance=min_significance))
         lines.extend(_objective_lines(interval.objective, verbose=verbose, min_significance=min_significance))
+        if interval.state_changes is not None:
+            lines.extend(_state_change_lines(interval.state_changes, verbose=verbose))
     return "\n".join(lines) + "\n"
 
 
@@ -200,25 +120,26 @@ def _objective_lines(events: Iterable[Event], *, verbose: bool, min_significance
     return lines
 
 
+def _state_change_lines(changes: Iterable[StateChange], *, verbose: bool) -> list[str]:
+    grouped: dict[str, list[StateChange]] = defaultdict(list)
+    for change in changes:
+        grouped[_change_category(change)].append(change)
+    lines = ["", "#### State changes"]
+    if not grouped:
+        lines.extend(["", "No state changes were recorded."])
+    for category in sorted(grouped, key=str.casefold):
+        lines.extend(["", f"{category}:", ""])
+        for change in sorted(grouped[category], key=lambda change: change.sort_key):
+            lines.extend(_change_lines(change, verbose=verbose))
+    return lines
+
+
 def render_events(events: list[Event]) -> str:
     """Render the original deterministic event-list API."""
     return "\n".join(
         f"- {render_value(event.date)}: {event.event_type}"
         for event in sorted(events, key=lambda event: event.sort_key)
     )
-
-
-def _snapshot_lines(label: str, snapshot: SaveSnapshot) -> list[str]:
-    details = [f"date: `{snapshot.date}`", f"source: `{snapshot.source}`"]
-    details.extend(
-        [
-            f"game version: `{_optional(snapshot.game_version)}`",
-            f"campaign day: `{render_value(snapshot.campaign_day)}`",
-            f"campaign quarter: `{render_value(snapshot.campaign_quarter)}`",
-            f"timestamp: `{_optional(snapshot.timestamp)}`",
-        ]
-    )
-    return [f"- **{label}:** " + "; ".join(details)]
 
 
 def _event_lines(event: Event, *, verbose: bool) -> list[str]:
@@ -298,7 +219,3 @@ def _event_category(event: Event) -> str:
 
 def _change_category(change: StateChange) -> str:
     return change.domain.replace("_", " ").title()
-
-
-def _optional(value: object | None) -> str:
-    return "<unknown>" if value is None else str(value)

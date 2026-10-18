@@ -16,7 +16,7 @@ FIXTURE_DIR = FIXTURES_ROOT / "io" / FIXTURE_SET
 EXPECTED_DIR = FIXTURES_ROOT / "sequence" / FIXTURE_SET
 SHUFFLED = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
 """The three-save politics sequence, out of order on purpose."""
-MARKDOWN_GOLDENS = [("md", []), ("inferred.md", ["--inferred"])]
+MARKDOWN_GOLDENS = [("md", []), ("inferred.md", ["--inferred"]), ("changes.md", ["--changes"])]
 
 
 @pytest.mark.fixture
@@ -81,6 +81,43 @@ def test_json_report_without_inferred_says_so(
     report = json.loads(capsys.readouterr().out)
 
     assert [interval["inferred"] for interval in report["intervals"]] == [None, None]
+
+
+@pytest.mark.fixture
+def test_json_report_carries_the_literal_changes_only_when_asked(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert main(["events", "--format", "json", "--changes", *SHUFFLED]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
+    assert main(["events", "--format", "json", *SHUFFLED]) == EXIT_SUCCESS
+    plain = json.loads(capsys.readouterr().out)
+
+    for interval in report["intervals"]:
+        assert len(interval["state_changes"]) == interval["changes"] > 0
+        for change in interval["state_changes"]:
+            assert set(change) >= {"domain", "entity_id", "field", "kind", "description", "before_location"}
+            assert change["after_location"]["save_id"] == interval["after"]
+    assert [interval["state_changes"] for interval in plain["intervals"]] == [None, None]
+
+
+@pytest.mark.fixture
+def test_inferred_events_are_listed_apart_and_filtered_by_significance(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    argv = ["events", "--inferred", "--min-significance", "major", "politics_before.json", "politics_after.json"]
+
+    assert main(argv) == EXIT_SUCCESS
+    out = capsys.readouterr().out
+
+    inferred = out.split("#### Inferred events\n", 1)[1].split("\n#### Objective analyzer results\n", 1)[0]
+    key = "@2032-04-01T00:00:00"
+    assert "- nation:20 annexed 1 region of nation:21 (confidence: `medium`)\n" in inferred
+    assert f"  - from `region.nation_changed/region:42{key}`: region:42 nation: nation:21 -> nation:20\n" in inferred
+    assert "gained" not in inferred
+    assert "2 inferred events below major significance omitted.\n" in inferred
 
 
 @pytest.mark.fixture

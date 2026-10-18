@@ -30,8 +30,8 @@ from .model.values import Observed, to_jsonable
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
-from .rendering.markdown import render_comparison, render_sequence
-from .sequence import IntervalResult, SaveRef, analyze_interval, event_stream, plan_sequence, run_sequence, survey
+from .rendering.markdown import render_sequence
+from .sequence import IntervalResult, SaveRef, event_stream, plan_sequence, run_sequence, survey
 
 logger = get_logger(__name__)
 
@@ -255,14 +255,7 @@ def _run_diff(args: argparse.Namespace) -> int:
     if isinstance(after, int):
         return after
     diff = diff_states(before, after)
-    if args.format == "json":
-        rendered = render_diff_json(diff)
-    elif args.format == "markdown":
-        analysis = analyze_interval(before, after, inferred=args.inferred)
-        minimum = Significance(cast(str, args.min_significance))
-        rendered = render_comparison(diff, analysis.objective, inferred=analysis.inferred, min_significance=minimum)
-    else:
-        rendered = render_diff_text(diff)
+    rendered = render_diff_json(diff) if args.format == "json" else render_diff_text(diff)
     sys.stdout.write(rendered)
     sys.stdout.flush()
     logger.info(
@@ -318,7 +311,9 @@ def _run_events(args: argparse.Namespace) -> int:
         surveyed.append(save)
     plan = plan_sequence(surveyed)
     try:
-        intervals: list[IntervalResult] = list(run_sequence(plan, inferred=args.inferred, load=_load_sequence_snapshot))
+        intervals: list[IntervalResult] = list(
+            run_sequence(plan, inferred=args.inferred, changes=args.changes, load=_load_sequence_snapshot)
+        )
     except _LoadFailed as failure:
         return failure.code
     if args.format == "json":
@@ -490,7 +485,8 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
             f"{summary} Both saves are normalized exactly as 'parse' does, entities are matched by "
             "their in-save ID (technologies by name), and every differing field is listed with its "
             "before and after value and its location in each save. Entities present in only one save "
-            "are reported as appeared or disappeared; no cause is inferred."
+            "are reported as appeared or disappeared; no cause is inferred. The saves are compared in argument "
+            "order, whatever their game dates. Analyzer results and inferred events are reported by 'events'."
         ),
         epilog=(
             "Exit codes: 0 success; 2 usage error; 4 a save cannot be read; "
@@ -501,27 +497,9 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
     parser.add_argument("after", type=Path, help="Path to the later save file.")
     parser.add_argument(
         "--format",
-        choices=("text", "json", "markdown"),
+        choices=("text", "json"),
         default="text",
         help="Report format (default %(default)s).",
-    )
-    parser.add_argument(
-        "--min-significance",
-        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
-        default=Significance.TRIVIAL.value,
-        help=(
-            "Lowest significance an analyzer result needs to be listed in the markdown report "
-            "(default %(default)s, which lists every result); the other formats ignore it."
-        ),
-    )
-    parser.add_argument(
-        "--inferred",
-        action="store_true",
-        help=(
-            "Also reconstruct inferred events from the analyzer results and list them, with their confidence "
-            "and the results they rest on, in their own section of the markdown report; the other formats "
-            "ignore it."
-        ),
     )
     parser.set_defaults(handler=_run_diff)
 
@@ -534,8 +512,9 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         description=(
             f"{summary} Each save is normalized exactly as 'parse' does. Saves are ordered by their serialized "
             "game time, never by file name or argument order; byte-identical saves are merged. Every pair of "
-            "consecutive saves is analyzed as 'diff --format markdown' does, and every event ID is qualified by "
-            "its interval so that IDs are unique across the sequence. The saves are assumed to belong to one "
+            "consecutive saves is diffed, run through every objective analyzer and the significance rules and, "
+            "with --inferred, the reconstruction rules; every event ID is qualified by its interval so that IDs "
+            "are unique across the sequence. The saves are assumed to belong to one "
             "campaign."
         ),
         epilog=(
@@ -563,6 +542,11 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         "--inferred",
         action="store_true",
         help="Also reconstruct inferred events in every interval and report them with the results they rest on.",
+    )
+    parser.add_argument(
+        "--changes",
+        action="store_true",
+        help="Also list every literal state change of each interval under that interval.",
     )
     parser.set_defaults(handler=_run_events)
 

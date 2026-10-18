@@ -12,9 +12,6 @@ FIXTURE_SET = "terra_invicta_json_v1"
 FIXTURE_DIR = FIXTURES_ROOT / "io" / FIXTURE_SET
 EXPECTED_ROOT = FIXTURES_ROOT / "diff"
 GOLDEN_PAIRS = [("interval_before.json", "interval_after.json"), ("records_before.json", "records_after.json")]
-MARKDOWN_GOLDENS = [("md", []), ("inferred.md", ["--inferred"])]
-"""Markdown goldens over the politics pair, whose region transfer the reconstruction stage reads."""
-MARKDOWN_PAIR = ("politics_before.json", "politics_after.json")
 
 
 def golden_path(before: str, after: str, suffix: str) -> Path:
@@ -42,24 +39,9 @@ def test_diff_matches_the_golden_report(
 
 
 @pytest.mark.fixture
-@pytest.mark.parametrize(("suffix", "flags"), MARKDOWN_GOLDENS)
-def test_markdown_diff_matches_the_golden_report(
-    suffix: str, flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.chdir(FIXTURE_DIR)
-    expected = golden_path(*MARKDOWN_PAIR, suffix).read_text(encoding="utf-8")
-
-    assert main(["diff", "--format", "markdown", *flags, *MARKDOWN_PAIR]) == EXIT_SUCCESS
-    captured = capsys.readouterr()
-
-    assert captured.out == expected
-    assert captured.err == ""
-
-
-@pytest.mark.fixture
 def test_every_golden_report_belongs_to_existing_fixtures() -> None:
     goldens = sorted(EXPECTED_ROOT.rglob("*.expected.*"))
-    assert len(goldens) == 2 * len(GOLDEN_PAIRS) + len(MARKDOWN_GOLDENS)
+    assert len(goldens) == 2 * len(GOLDEN_PAIRS)
     for golden in goldens:
         stem = golden.name.split(".expected.")[0]
         before, after = stem.split("__")
@@ -131,78 +113,21 @@ def test_diffing_a_save_with_itself_reports_no_changes(capsys: pytest.CaptureFix
     assert "changes:\n" not in out
 
 
-@pytest.mark.fixture
-def test_markdown_format_renders_objective_results_and_raw_changes(capsys: pytest.CaptureFixture[str]) -> None:
-    before = fixture_path("io", FIXTURE_SET, "interval_before.json")
-    after = fixture_path("io", FIXTURE_SET, "interval_after.json")
-    argv = ["diff", "--format", "markdown", str(before), str(after)]
-
-    assert main(argv) == EXIT_SUCCESS
-    first = capsys.readouterr()
-    assert main(argv) == EXIT_SUCCESS
-    second = capsys.readouterr()
-
-    assert first.out == second.out
-    assert first.err == second.err == ""
-    assert "# Save comparison\n" in first.out
-    assert "## Snapshots\n" in first.out
-    assert "Objective analyzer results:\n" in first.out
-    assert "Observed state changes:\n" in first.out
-
-
-@pytest.mark.fixture
-def test_minimum_significance_drops_lesser_results_from_the_markdown_report(capsys: pytest.CaptureFixture[str]) -> None:
-    before = fixture_path("io", FIXTURE_SET, "interval_before.json")
-    after = fixture_path("io", FIXTURE_SET, "interval_after.json")
-    assert main(["diff", "--format", "markdown", str(before), str(after)]) == EXIT_SUCCESS
-    everything = capsys.readouterr().out
-    argv = ["diff", "--format", "markdown", "--min-significance", "major", str(before), str(after)]
-    assert main(argv) == EXIT_SUCCESS
-    first = capsys.readouterr()
-    assert main(argv) == EXIT_SUCCESS
-    second = capsys.readouterr()
-    assert first.out == second.out and first.err == ""
-    assert "omitted" not in everything and " below major significance omitted.\n" in first.out
-    assert len(first.out) < len(everything)
-    assert main(["diff", "--min-significance", "major", str(before), str(after)]) == EXIT_SUCCESS
-    text = capsys.readouterr().out
-    assert "significance omitted" not in text and text.startswith("tinarrative diff report\n")
-
-
-@pytest.mark.fixture
-def test_inferred_events_are_listed_apart_and_filtered_by_significance(capsys: pytest.CaptureFixture[str]) -> None:
-    before, after = (str(fixture_path("io", FIXTURE_SET, name)) for name in MARKDOWN_PAIR)
-    argv = ["diff", "--format", "markdown", "--inferred", "--min-significance", "major", before, after]
-
-    assert main(argv) == EXIT_SUCCESS
-    out = capsys.readouterr().out
-
-    inferred = out.split("## Inferred events\n", 1)[1].split("\n## Changes\n", 1)[0]
-    assert "- nation:20 annexed 1 region of nation:21 (confidence: `medium`)\n" in inferred
-    assert "  - from `region.nation_changed/region:42`: region:42 nation: nation:21 -> nation:20\n" in inferred
-    assert "gained" not in inferred
-    assert "2 inferred events below major significance omitted.\n" in inferred
-
-
-@pytest.mark.fixture
-@pytest.mark.parametrize("fmt", ["text", "json"])
-def test_other_formats_ignore_the_inferred_flag(fmt: str, capsys: pytest.CaptureFixture[str]) -> None:
-    before, after = (str(fixture_path("io", FIXTURE_SET, name)) for name in MARKDOWN_PAIR)
-
-    assert main(["diff", "--format", fmt, before, after]) == EXIT_SUCCESS
-    plain = capsys.readouterr()
-    assert main(["diff", "--format", fmt, "--inferred", before, after]) == EXIT_SUCCESS
-    flagged = capsys.readouterr()
-
-    assert flagged.out == plain.out
-    assert flagged.err == plain.err == ""
-
-
-def test_an_unknown_significance_level_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize(
+    ("option", "message"),
+    [
+        (["--format", "markdown"], "invalid choice"),
+        (["--min-significance", "major"], "unrecognized arguments"),
+        (["--inferred"], "unrecognized arguments"),
+    ],
+)
+def test_analysis_options_are_a_usage_error(
+    option: list[str], message: str, capsys: pytest.CaptureFixture[str]
+) -> None:
     with pytest.raises(SystemExit) as result:
-        main(["diff", "--min-significance", "huge", "a.json", "b.json"])
+        main(["diff", *option, "a.json", "b.json"])
     assert result.value.code == EXIT_USAGE_ERROR
-    assert "invalid choice" in capsys.readouterr().err
+    assert message in capsys.readouterr().err
 
 
 @pytest.mark.fixture

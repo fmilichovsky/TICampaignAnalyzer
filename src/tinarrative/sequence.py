@@ -8,7 +8,7 @@ The saves are assumed to belong to one campaign; nothing here groups them. Order
 2. ``plan_sequence`` merges byte-identical saves into one ``SaveRef`` (every path kept as provenance) and sorts the
    rest by game time, then path. Equal times with different bytes are both kept. Argument order never matters.
 3. ``run_sequence`` normalizes the saves in that order, holding two snapshots at a time, and runs
-   ``analyze_interval`` (the ``diff`` pipeline) on each consecutive pair.
+   ``analyze_interval`` (diff, analyzers, significance and, when asked, reconstruction) on each consecutive pair.
 
 Consecutive intervals share their boundary snapshot, so every change is reported in exactly one interval and a
 save-carried log entry once. The events of an interval are qualified by its key (``narrative.chronology``) so that
@@ -30,7 +30,7 @@ from .analyzers import ALL_ANALYZERS, run_analyzers
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
 from .log import fields, get_logger
-from .model.changes import StateDiff
+from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
 from .narrative import assign_significance
@@ -103,7 +103,11 @@ class IntervalAnalysis:
 
 @dataclass(frozen=True)
 class IntervalResult:
-    """The events of one interval of a sequence, qualified by its key; the snapshots and the diff are not kept."""
+    """The events of one interval of a sequence, qualified by its key.
+
+    The snapshots are not kept. The diff's changes are kept in ``state_changes`` only when they were requested
+    (``None`` otherwise), because a long sequence would hold every interval's evidence values.
+    """
 
     index: int
     key: str
@@ -112,6 +116,7 @@ class IntervalResult:
     changes: int
     objective: tuple[Event, ...]
     inferred: tuple[Event, ...] | None
+    state_changes: tuple[StateChange, ...] | None = None
 
     def events(self) -> tuple[Event, ...]:
         return self.objective + (self.inferred or ())
@@ -127,6 +132,9 @@ class IntervalResult:
             "changes": self.changes,
             "events": [event.to_dict() for event in self.objective],
             "inferred": None if self.inferred is None else [event.to_dict() for event in self.inferred],
+            "state_changes": None
+            if self.state_changes is None
+            else [change.to_dict() for change in self.state_changes],
         }
 
 
@@ -184,9 +192,16 @@ def load_snapshot(source: str) -> SaveSnapshot:
 
 
 def run_sequence(
-    plan: SequencePlan, *, inferred: bool, load: Callable[[str], SaveSnapshot] = load_snapshot
+    plan: SequencePlan,
+    *,
+    inferred: bool,
+    changes: bool = False,
+    load: Callable[[str], SaveSnapshot] = load_snapshot,
 ) -> Iterator[IntervalResult]:
-    """The results of every interval in order; each save is normalized once and at most two are held at a time."""
+    """The results of every interval in order; each save is normalized once and at most two are held at a time.
+
+    With ``changes`` every result also keeps its literal state changes.
+    """
     if len(plan.saves) < 2:
         return
     before = load(plan.saves[0].source)
@@ -202,6 +217,7 @@ def run_sequence(
             changes=len(analysis.diff.changes),
             objective=tuple(qualify(event, key) for event in analysis.objective),
             inferred=None if analysis.inferred is None else tuple(qualify(event, key) for event in analysis.inferred),
+            state_changes=analysis.diff.changes if changes else None,
         )
         logger.info(
             "interval done %s",

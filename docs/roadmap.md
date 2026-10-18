@@ -101,7 +101,7 @@ built from the developments catalogued in
 
 ## CLI user experience
 
-- [ ] Split `diff` and `events` by layer: `diff` reports literal state changes
+- [x] Split `diff` and `events` by layer: `diff` reports literal state changes
   only, `events` is the single analyzed view (#90).
 - [ ] Group per-save evidence commands under `tinarrative save`
   (`save inspect`, `save parse`, `save diff`) (#91).

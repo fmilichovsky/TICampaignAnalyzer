@@ -1,13 +1,15 @@
 # `tinarrative events`
 
 ```
-tinarrative events <save> <save> [<save>...] [--format markdown|json] [--min-significance <level>] [--inferred]
+tinarrative events <save> <save> [<save>...] [--format markdown|json] [--min-significance <level>] [--inferred] [--changes]
 ```
 
 Reads two or more saves of one campaign, orders them by game time, and reports the analyzer
 results of every pair of consecutive saves (architecture section 15, Mode B). Each pair is
-analyzed exactly as [`diff --format markdown`](diff.md) does: the literal diff, every objective
-analyzer, the significance rules and, with `--inferred`, the reconstruction rules. The command
+diffed as [`diff`](diff.md) does, and the diff is run through every objective analyzer, the
+significance rules and, with `--inferred`, the reconstruction rules. `events` is the only command
+that runs analyzers, significance or reconstruction; given two saves it is the analyzed view of
+the pair, and with `--changes` it also lists the literal changes that `diff` reports. The command
 does not check that the saves belong to the same campaign. Mixing campaigns produces nonsense
 intervals, not an error.
 
@@ -54,13 +56,47 @@ The default report lists:
   line follows with the number of paths given and the number of byte-identical copies merged.
 - `## Intervals`: one `### <earlier date> to <later date>` section per interval, giving:
   - the number of state changes;
-  - with `--inferred`, `#### Inferred events` in the same layout as `diff`'s inferred section;
-  - `#### Objective analyzer results`, grouped by category. Literal state changes are not listed;
-    run `diff` on the pair for those.
+  - with `--inferred`, `#### Inferred events` (see below);
+  - `#### Objective analyzer results`, grouped by category, each result with its affected entities;
+  - with `--changes`, `#### State changes`: every literal change of the interval, grouped by
+    domain, one line each in the form of `diff`'s text report (a `records` change shows entry
+    counts only). When the interval has none, the section says `No state changes were recorded.`
 
-`--min-significance <level>` filters both lists as in `diff`, and each list states how many
-events it omitted. With fewer than two distinct saves, the report says that no interval was
-compared and the command exits 0.
+With fewer than two distinct saves, the report says that no interval was compared and the
+command exits 0.
+
+### Significance
+
+Every analyzer result carries a significance (`trivial`, `minor`, `major` or
+`campaign_defining`), assigned by the rules in `narrative/significance.py` (architecture
+section 12). `--min-significance <level>` lists only the results at that level or above; the
+default `trivial` lists every result. When results are dropped, one line after the interval's
+objective results states how many were omitted and below which level, so the report never hides
+the omission. State changes listed with `--changes` are never filtered.
+
+### Inferred events
+
+`--inferred` also runs the reconstruction stage (`reconstruction.infer_events`, architecture
+sections 5.2 and 10) on each interval's analyzer results and lists what it infers in a separate
+`#### Inferred events` section before the objective results, so inferences never mix with the
+results they rest on. Today the rules cover territory (`territory_gained` / `territory_lost`,
+`independence` with its release reading, `unification` and `annexation`) and space
+(`faction.first_hab_on_body`, `hab.destroyed`, `faction.battle_outcome`). Each line gives the event's reading and its `confidence`; an event whose evidence
+fits several readings is prefixed `[ambiguous]` and followed by an `alternatives:` line naming the
+competing event IDs. Below it, one `from` line per constituent names the objective result's ID and
+its description as listed under `#### Objective analyzer results` (the ID alone if that result is
+not among the analyzer results):
+
+```
+- nation:20 annexed 1 region of nation:21 (confidence: `medium`)
+  - from `nation.relation_changed/wars/nation:20/nation:21/added@2032-04-01T00:00:00`: nation:20 and nation:21: wars entry added (listed by both)
+  - from `region.nation_changed/region:42@2032-04-01T00:00:00`: region:42 nation: nation:21 -> nation:20
+```
+
+Inferred events get a significance by the same rules and `--min-significance` filters them the
+same way; the section states its own omitted count (`N inferred events below <level>
+significance omitted.`), separate from the objective one. When nothing was inferred the section
+says `No events were inferred.`
 
 ## JSON output
 
@@ -70,10 +106,15 @@ compared and the command exits 0.
 - `saves`: one object per distinct save, with `key`, `source`, `aliases`, `sha256` and `date`;
 - `intervals`: one object per interval, with `index`, `key`, `before` and `after` (source paths),
   `not_before` and `date` (their game times), `changes` (state change count), `events` (the
-  objective events, serialized as `Event.to_dict`) and `inferred` (the same for inferred events, or
-  `null` without `--inferred`).
+  objective events, serialized as `Event.to_dict`), `inferred` (the same for inferred events, or
+  `null` without `--inferred`) and `state_changes` (the literal changes, each serialized exactly as
+  a change in `diff --format json`, with values, detail and source locations, or `null` without
+  `--changes`).
 
 The JSON report holds every event. It ignores `--min-significance`.
+
+`--changes` keeps every interval's changes, with their before and after values, in memory until
+the report is written, so a long sequence uses more memory with it than without it.
 
 Failures print one message to stderr naming the save that failed and no traceback. With
 `--log-level info`, the run logs the ordering summary (paths given, distinct saves, duplicates,
@@ -86,4 +127,4 @@ tied game times, intervals) and per-interval event counts.
 | 0 | Every save was loaded and every interval was analyzed (including when only one distinct save remained). |
 | 2 | Usage error: fewer than two saves, or an unknown `--format` or `--min-significance`. |
 | 4 | A save path cannot be read (missing, unreadable, or a directory). |
-| 5 | A save is not a supported save (as for `diff`) or has no parseable game time. |
+| 5 | A save is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |
