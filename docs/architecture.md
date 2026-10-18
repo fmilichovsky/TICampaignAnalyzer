@@ -1222,6 +1222,38 @@ chronological sequence of events
 
 This enables campaign history generation.
 
+### Implemented contract (`src/tinarrative/sequence.py`, `tinarrative events`)
+
+The saves are assumed to be one campaign; grouping them is Mode C's job.
+`survey` hashes each save and reads its `TITimeState.currentDateTime`
+(`parsing.normalization.save_timestamp`). `plan_sequence` merges byte-identical
+saves into one `SaveRef` that keeps every path, and sorts the distinct saves by
+game time, then path. A save without a game time is rejected and never placed
+by file name. Each save gets a key: its game time, plus `#n` for the n-th
+distinct save with the same time. `run_sequence` normalizes the saves in order
+with at most two snapshots held, runs `analyze_interval` (diff, analyzers,
+significance, optional reconstruction; the same chain as `diff --format
+markdown`) on each consecutive pair, and keys the interval by its later save.
+
+Consecutive intervals share their boundary snapshot, so the per-interval
+results concatenate without overlap. Every change is reported once, and a
+save-carried log entry once, because logs are diffed as multisets. On five
+consecutive private saves (2026-10-18), no record-dated event fell outside its
+interval. What does not concatenate is identity: an event ID is a type and a
+subject, unique within an interval only. On the same saves, 19 % of IDs recurred
+in another interval, each time for a different real event. `narrative.chronology.qualify`
+therefore appends `@<interval key>` to every ID, to every constituent and to
+the ID-valued attributes that `reconstruction.ID_ATTRIBUTES` declares, and
+`chronological` merges the qualified events into one stream and rejects a
+duplicate ID.
+
+Rules still see one interval. Evidence split across a boundary (regions taken
+over two intervals, drift below a per-interval statistic threshold) is not
+combined. Joining events across intervals is narrative aggregation (section
+11). Running the pipeline per interval found more inferred events than one
+outer diff of the first and last save (40 against 26 on the same saves),
+because an outer diff hides intermediate states.
+
 ## Mode C --- Campaign directory
 
 Input:

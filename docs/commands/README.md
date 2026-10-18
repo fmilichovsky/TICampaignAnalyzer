@@ -10,6 +10,7 @@ option list of the installed version.
 | `parse <save>` | Implemented | [parse.md](parse.md) |
 | `unknowns <path>...` | Implemented | [unknowns.md](unknowns.md) |
 | `diff <before> <after>` | Implemented | [diff.md](diff.md) |
+| `events <save> <save>...` | Implemented | [events.md](events.md) |
 
 ## Global options
 

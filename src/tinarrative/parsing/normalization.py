@@ -46,7 +46,7 @@ from .records import decode_records
 from .references import ExpectedDomains, ReferenceIndex
 from .unknowns import PAIR_MAP, UnknownCollector, check_reference, scan_envelope, scan_fields
 
-__all__ = ["game_datetime", "normalize"]
+__all__ = ["game_datetime", "normalize", "save_timestamp"]
 
 logger = get_logger(__name__)
 
@@ -246,6 +246,19 @@ def _research(
         ),
     )
     return research, tuple(technologies.values())
+
+
+def save_timestamp(raw_save: RawSave) -> datetime | None:
+    """The game time of a save (``TITimeState.currentDateTime``, first entry); ``None`` when absent or unparseable.
+
+    The chronology key of a save sequence (``docs/game-data-notes/chronology-and-deduplication.md``). It reads
+    only the time singleton, so ordering saves does not require normalizing them; ``normalize`` derives
+    ``SaveSnapshot.timestamp`` from the same field.
+    """
+    entries = decode_state_map(raw_save.root["gamestates"], "TITimeState")
+    if not entries or "currentDateTime" not in entries[0].value:
+        return None
+    return game_datetime(entries[0].value["currentDateTime"])
 
 
 def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -> SaveSnapshot:

@@ -42,4 +42,6 @@
     nuclear and climate counters, serialized build version (#67).
   - [x] The game's notification log as a save-carried record (#68).
   - [x] `CombatLogs` reclassified from acknowledged to a record (#69).
-- [ ] Aggregate events across an ordered save sequence.
+- [x] Aggregate events across an ordered save sequence (`tinarrative events`):
+  chronological ordering, byte-identical merging, per-interval analysis and
+  reconstruction, interval-qualified event IDs.

@@ -63,6 +63,9 @@ ANNEXATION = "nation.annexation"
 INTERPRETATIONS = (INDEPENDENCE, UNIFICATION, ANNEXATION)
 """Competing readings of one gainer's territory; two of them on one gainer make every candidate ambiguous."""
 RULE_TYPES = (TERRITORY_GAINED, TERRITORY_LOST, *INTERPRETATIONS)
+ALTERNATIVES = "alternatives"
+ID_ATTRIBUTES = (ALTERNATIVES,)
+"""Attributes whose value is a tuple of event IDs (rewritten with the IDs when a sequence qualifies them)."""
 
 TERRITORY_REASONS = frozenset({"TerritoryChange", "Annexation", "RegionTransfer"})
 """Tracker reason suffixes that name a region transfer: ``GDPReason_TerritoryChange``, ``InqReason_Annexation``,
@@ -442,7 +445,7 @@ def _resolve_conflicts(candidates: Sequence[Event]) -> list[Event]:
                 replace(
                     candidate,
                     confidence=lower(candidate.confidence),
-                    attributes=(*candidate.attributes, ("ambiguous", True), ("alternatives", alternatives)),
+                    attributes=(*candidate.attributes, ("ambiguous", True), (ALTERNATIVES, alternatives)),
                 )
             )
     return resolved

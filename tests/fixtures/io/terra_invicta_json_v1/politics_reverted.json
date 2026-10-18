@@ -1,0 +1,692 @@
+{
+  "currentID": {
+    "value": 999
+  },
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIMetadataState": [
+      {
+        "Key": {
+          "value": 1
+        },
+        "Value": {
+          "ID": {
+            "value": 1
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "playerFactionName": "Fixture Resistance",
+          "gameTimeString": "7/1/2032 12:00:00 AM",
+          "difficulty": "Normal",
+          "playedWithMods": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMetadataState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TITimeState": [
+      {
+        "Key": {
+          "value": 2
+        },
+        "Value": {
+          "ID": {
+            "value": 2
+          },
+          "templateName": "FixtureTime",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "currentDateTime": {
+            "year": 2032,
+            "month": 7,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "daysInCampaign": 913,
+          "currentQuarterSinceStart": 10,
+          "masterMetaTemplateName": "FixtureMaster",
+          "scenarioMetaTemplateName": "FixtureScenario",
+          "$type": "PavonisInteractive.TerraInvicta.TITimeState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIPlayerState": [
+      {
+        "Key": {
+          "value": 60
+        },
+        "Value": {
+          "ID": {
+            "value": 60
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "isAI": false,
+          "faction": {
+            "value": 15
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIPlayerState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {
+          "value": 15
+        },
+        "Value": {
+          "ID": {
+            "value": 15
+          },
+          "templateName": "FixtureResistance",
+          "displayName": "Fixture Resistance",
+          "archived": false,
+          "exists": true,
+          "player": {
+            "value": 60
+          },
+          "councilors": [
+            {
+              "value": 999
+            }
+          ],
+          "knownSpies": [],
+          "fleets": [],
+          "habSectors": [],
+          "controlPoints": [],
+          "armies": [],
+          "resources": {
+            "Money": 5.0,
+            "Influence": 1.0
+          },
+          "finishedProjectNames": [],
+          "currentProjectProgress": [],
+          "researchWeights": [
+            1,
+            1,
+            1
+          ],
+          "intel": [],
+          "factionGoals": {},
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 16
+        },
+        "Value": {
+          "ID": {
+            "value": 16
+          },
+          "templateName": "FixtureServants",
+          "displayName": "Fixture Servants",
+          "archived": false,
+          "exists": true,
+          "player": null,
+          "councilors": [
+            {
+              "value": 100
+            }
+          ],
+          "knownSpies": [],
+          "fleets": [],
+          "habSectors": [],
+          "controlPoints": [
+            {
+              "value": 9
+            }
+          ],
+          "armies": [],
+          "resources": {
+            "Money": 5.0,
+            "Influence": 1.0
+          },
+          "finishedProjectNames": [],
+          "currentProjectProgress": [],
+          "researchWeights": [
+            1,
+            1,
+            1
+          ],
+          "intel": [],
+          "factionGoals": {},
+          "lostControlPoints": [
+            {
+              "Key": {
+                "value": 9
+              },
+              "Value": {
+                "year": 2032,
+                "month": 2,
+                "day": 15,
+                "hour": 0,
+                "minute": 0,
+                "second": 0,
+                "millisecond": 0
+              }
+            }
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TINationState": [
+      {
+        "Key": {
+          "value": 20
+        },
+        "Value": {
+          "ID": {
+            "value": 20
+          },
+          "templateName": "FixtureNorthland",
+          "displayName": "Fixture Northland",
+          "archived": false,
+          "exists": true,
+          "capital": {
+            "value": 41
+          },
+          "regions": [
+            {
+              "value": 40
+            },
+            {
+              "value": 41
+            }
+          ],
+          "allies": [],
+          "rivals": [],
+          "claims": [],
+          "wars": [
+            {
+              "value": 21
+            }
+          ],
+          "armies": [],
+          "publicOpinion": {
+            "Resist": 0.5,
+            "Submit": 0.5
+          },
+          "GDP": 900.0,
+          "inequality": 0.3,
+          "education": 7.0,
+          "democracy": 6.0,
+          "cohesion": 5.0,
+          "unrest": 1.0,
+          "militaryTechLevel": 4.0,
+          "controlPoints": [
+            {
+              "value": 9
+            },
+            {
+              "value": 10
+            },
+            {
+              "value": 11
+            }
+          ],
+          "federation": null,
+          "breakawayParent": null,
+          "breakaways": [
+            {
+              "value": 22
+            }
+          ],
+          "lastExecutiveChange": {
+            "newExecutive": {
+              "value": 15
+            },
+            "date": {
+              "year": 2032,
+              "month": 2,
+              "day": 15,
+              "hour": 0,
+              "minute": 0,
+              "second": 0,
+              "millisecond": 0
+            },
+            "cause": "Politics"
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 21
+        },
+        "Value": {
+          "ID": {
+            "value": 21
+          },
+          "templateName": "FixtureSouthland",
+          "displayName": "Fixture Southland",
+          "archived": false,
+          "exists": true,
+          "capital": {
+            "value": 42
+          },
+          "regions": [
+            {
+              "value": 42
+            }
+          ],
+          "allies": [],
+          "rivals": [
+            {
+              "value": 20
+            }
+          ],
+          "claims": [],
+          "wars": [
+            {
+              "value": 20
+            }
+          ],
+          "armies": [],
+          "publicOpinion": {
+            "Resist": 0.5,
+            "Submit": 0.5
+          },
+          "GDP": 900.0,
+          "inequality": 0.3,
+          "education": 7.0,
+          "democracy": 6.0,
+          "cohesion": 5.0,
+          "unrest": 1.0,
+          "militaryTechLevel": 4.0,
+          "controlPoints": [],
+          "federation": null,
+          "breakawayParent": null,
+          "breakaways": [],
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      },
+      {
+        "Key": {
+          "value": 22
+        },
+        "Value": {
+          "ID": {
+            "value": 22
+          },
+          "templateName": "FixtureEastland",
+          "displayName": "Fixture Eastland",
+          "archived": false,
+          "exists": true,
+          "capital": null,
+          "regions": [],
+          "allies": [],
+          "rivals": [],
+          "claims": [],
+          "wars": [],
+          "armies": [],
+          "publicOpinion": {
+            "Resist": 0.5,
+            "Submit": 0.5
+          },
+          "GDP": 900.0,
+          "inequality": 0.3,
+          "education": 7.0,
+          "democracy": 6.0,
+          "cohesion": 5.0,
+          "unrest": 1.0,
+          "militaryTechLevel": 4.0,
+          "controlPoints": [
+            {
+              "value": 10
+            }
+          ],
+          "federation": null,
+          "breakawayParent": {
+            "value": 20
+          },
+          "breakaways": [],
+          "$type": "PavonisInteractive.TerraInvicta.TINationState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIRegionState": [
+      {
+        "Key": {
+          "value": 40
+        },
+        "Value": {
+          "ID": {
+            "value": 40
+          },
+          "templateName": "FixtureNorth",
+          "displayName": "Fixture North",
+          "archived": false,
+          "exists": true,
+          "nation": {
+            "value": 20
+          },
+          "leadOccupier": null,
+          "occupations": {},
+          "populationInMillions": 10.0,
+          "armies": [],
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 41
+        },
+        "Value": {
+          "ID": {
+            "value": 41
+          },
+          "templateName": "FixtureEast",
+          "displayName": "Fixture East",
+          "archived": false,
+          "exists": true,
+          "nation": {
+            "value": 20
+          },
+          "leadOccupier": null,
+          "occupations": {},
+          "populationInMillions": 10.0,
+          "armies": [],
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 42
+        },
+        "Value": {
+          "ID": {
+            "value": 42
+          },
+          "templateName": "FixtureSouth",
+          "displayName": "Fixture South",
+          "archived": false,
+          "exists": true,
+          "nation": {
+            "value": 21
+          },
+          "leadOccupier": null,
+          "occupations": {},
+          "populationInMillions": 10.0,
+          "armies": [],
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIControlPoint": [
+      {
+        "Key": {
+          "value": 9
+        },
+        "Value": {
+          "ID": {
+            "value": 9
+          },
+          "templateName": "FixtureCP9",
+          "displayName": "Fixture CP 9",
+          "archived": false,
+          "exists": true,
+          "nation": {
+            "value": 20
+          },
+          "faction": {
+            "value": 16
+          },
+          "benefitsDisabled": false,
+          "defended": false,
+          "crackdownExpiration": null,
+          "defendExpiration": null,
+          "controlPointType": "Executive",
+          "positionInNation": 0,
+          "$type": "PavonisInteractive.TerraInvicta.TIControlPoint"
+        }
+      },
+      {
+        "Key": {
+          "value": 10
+        },
+        "Value": {
+          "ID": {
+            "value": 10
+          },
+          "templateName": "FixtureCP10",
+          "displayName": "Fixture CP 10",
+          "archived": false,
+          "exists": true,
+          "nation": {
+            "value": 20
+          },
+          "faction": null,
+          "benefitsDisabled": false,
+          "defended": false,
+          "crackdownExpiration": null,
+          "defendExpiration": null,
+          "controlPointType": "Legislative",
+          "positionInNation": 1,
+          "$type": "PavonisInteractive.TerraInvicta.TIControlPoint"
+        }
+      },
+      {
+        "Key": {
+          "value": 11
+        },
+        "Value": {
+          "ID": {
+            "value": 11
+          },
+          "templateName": "FixtureCP11",
+          "displayName": "Fixture CP 11",
+          "archived": false,
+          "exists": true,
+          "nation": {
+            "value": 20
+          },
+          "faction": null,
+          "benefitsDisabled": false,
+          "defended": false,
+          "crackdownExpiration": null,
+          "defendExpiration": null,
+          "controlPointType": "Executive",
+          "positionInNation": 0,
+          "$type": "PavonisInteractive.TerraInvicta.TIControlPoint"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TICouncilorState": [
+      {
+        "Key": {
+          "value": 100
+        },
+        "Value": {
+          "ID": {
+            "value": 100
+          },
+          "templateName": "FixtureCouncilor100",
+          "displayName": "Fixture Councilor 100",
+          "archived": false,
+          "exists": true,
+          "faction": {
+            "value": 16
+          },
+          "agentForFaction": null,
+          "location": {
+            "value": 40,
+            "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+          },
+          "priorLocation": null,
+          "homeRegion": {
+            "value": 40
+          },
+          "detainingFaction": {
+            "value": 16
+          },
+          "recruitDate": {
+            "year": 2031,
+            "month": 6,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "detainedReleaseDate": null,
+          "attributes": {
+            "Persuasion": 5,
+            "Loyalty": 5
+          },
+          "activeMission": null,
+          "completedMission": null,
+          "orgs": [],
+          "status": "FixtureStatusB",
+          "XP": 10,
+          "typeTemplateName": "FixtureOperative",
+          "traitTemplateNames": [
+            "FixtureTrait"
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TICouncilorState"
+        }
+      },
+      {
+        "Key": {
+          "value": 101
+        },
+        "Value": {
+          "ID": {
+            "value": 101
+          },
+          "templateName": "FixtureCouncilor101",
+          "displayName": "Fixture Councilor 101",
+          "archived": false,
+          "exists": true,
+          "faction": null,
+          "agentForFaction": null,
+          "location": {
+            "value": 140,
+            "$type": "PavonisInteractive.TerraInvicta.TIHabState"
+          },
+          "priorLocation": {
+            "value": 40,
+            "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+          },
+          "homeRegion": {
+            "value": 40
+          },
+          "detainingFaction": null,
+          "recruitDate": {
+            "year": 2031,
+            "month": 6,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "detainedReleaseDate": null,
+          "attributes": {
+            "Persuasion": 5,
+            "Loyalty": 5
+          },
+          "activeMission": null,
+          "completedMission": null,
+          "orgs": [],
+          "status": "Available",
+          "XP": 10,
+          "typeTemplateName": "FixtureOperative",
+          "traitTemplateNames": [
+            "FixtureTrait"
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TICouncilorState"
+        }
+      },
+      {
+        "Key": {
+          "value": 102
+        },
+        "Value": {
+          "ID": {
+            "value": 102
+          },
+          "templateName": "FixtureCouncilor102",
+          "displayName": "Fixture Councilor 102",
+          "archived": false,
+          "exists": true,
+          "faction": null,
+          "agentForFaction": null,
+          "location": {
+            "value": 41,
+            "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+          },
+          "priorLocation": null,
+          "homeRegion": {
+            "value": 40
+          },
+          "detainingFaction": null,
+          "recruitDate": {
+            "year": 2031,
+            "month": 6,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "detainedReleaseDate": null,
+          "attributes": {
+            "Persuasion": 5,
+            "Loyalty": 5
+          },
+          "activeMission": null,
+          "completedMission": null,
+          "orgs": [],
+          "status": "Available",
+          "XP": 10,
+          "typeTemplateName": "FixtureOperative",
+          "traitTemplateNames": [
+            "FixtureTrait"
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TICouncilorState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIHabState": [
+      {
+        "Key": {
+          "value": 140
+        },
+        "Value": {
+          "ID": {
+            "value": 140
+          },
+          "templateName": null,
+          "displayName": "Fixture Hab 140",
+          "archived": false,
+          "exists": true,
+          "faction": {
+            "value": 15
+          },
+          "orbitState": null,
+          "habSite": null,
+          "sectors": [],
+          "districts": null,
+          "dockedFleets": [],
+          "councilorsOnBoard": [],
+          "habType": "Station",
+          "tier": 1,
+          "inCombat": false,
+          "underAssault": false,
+          "underBombardment": false,
+          "anyCoreCompleted": true,
+          "staticHab": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIHabState"
+        }
+      }
+    ]
+  }
+}

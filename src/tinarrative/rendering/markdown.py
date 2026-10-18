@@ -1,4 +1,4 @@
-"""Deterministic Markdown rendering for one already-analyzed comparison.
+"""Deterministic Markdown rendering for an already-analyzed comparison or save sequence.
 
 This module presents a diff, analyzer output and, when supplied, already-reconstructed
 inferred events; it never compares snapshots or infers facts itself.
@@ -7,7 +7,8 @@ inferred events; it never compares snapshots or infers facts itself.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
+from datetime import datetime
 
 from ..analyzers.render import describe_event
 from ..diff.render import render_change, render_value
@@ -17,6 +18,7 @@ from ..model.entities import EntityRef
 from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
 from ..model.snapshot import SaveSnapshot
+from ..sequence import IntervalResult, SequencePlan
 
 
 def render_comparison(
@@ -54,7 +56,9 @@ def render_comparison(
     lines = ["# Save comparison", "", "## Snapshots", *_snapshot_lines("Before", comparison.before)]
     lines.extend(_snapshot_lines("After", comparison.after))
     if inferred is not None:
-        lines.extend(_inferred_section(inferred, objective, verbose=verbose, min_significance=min_significance))
+        by_id = {event.id: event for event in objective}
+        lines.extend(["", "## Inferred events", ""])
+        lines.extend(_inferred_lines(inferred, by_id, verbose=verbose, min_significance=min_significance))
     if not categories:
         lines.extend(["", "## Changes", "", "No state changes or objective analyzer results were recorded."])
     else:
@@ -97,19 +101,18 @@ def render_comparison(
     return "\n".join(lines) + "\n"
 
 
-def _inferred_section(
-    inferred: Iterable[Event], objective: Iterable[Event], *, verbose: bool, min_significance: Significance
+def _inferred_lines(
+    inferred: Iterable[Event], by_id: Mapping[str, Event], *, verbose: bool, min_significance: Significance
 ) -> list[str]:
+    """The body of an inferred-events section; ``by_id`` resolves the objective constituents."""
     candidates = list(inferred)
     listed = sorted(
         (event for event in candidates if event.significance.rank >= min_significance.rank),
         key=lambda event: event.sort_key,
     )
-    by_id = {event.id: event for event in objective}
-    lines = ["", "## Inferred events", ""]
     if not candidates:
-        return [*lines, "No events were inferred."]
-    lines.append("Reconstructed from the objective results below; never observed directly.")
+        return ["No events were inferred."]
+    lines = ["Reconstructed from the objective results below; never observed directly."]
     if listed:
         lines.append("")
     for event in listed:
@@ -129,6 +132,71 @@ def _inferred_section(
     if omitted:
         noun = "event" if omitted == 1 else "events"
         lines.extend(["", f"{omitted} inferred {noun} below {min_significance.value} significance omitted."])
+    return lines
+
+
+def render_sequence(
+    plan: SequencePlan,
+    intervals: Sequence[IntervalResult],
+    *,
+    verbose: bool = False,
+    min_significance: Significance = Significance.TRIVIAL,
+) -> str:
+    """Render the saves of a sequence in chronological order and the analyzer results of each interval.
+
+    Each interval lists its inferred events (when they were reconstructed) and then its objective analyzer results
+    of at least ``min_significance``, grouped by category; literal state changes are left to ``diff``. Event IDs are
+    the sequence-qualified ones.
+    """
+    lines = ["# Save sequence", "", "## Saves", ""]
+    previous: datetime | None = None
+    for position, (key, save) in enumerate(zip(plan.keys, plan.saves, strict=True), start=1):
+        details = f"{position}. `{key}`: `{save.source}`"
+        if save.aliases:
+            details += " (identical: " + ", ".join(f"`{alias}`" for alias in save.aliases) + ")"
+        if previous is not None and previous == save.timestamp:
+            details += " (same game time as the previous save, different bytes; ordered by path)"
+        lines.append(details)
+        previous = save.timestamp
+    summary = f"{plan.inputs} {'save' if plan.inputs == 1 else 'saves'} given"
+    if plan.duplicates:
+        summary += f", {plan.duplicates} byte-identical {'copy' if plan.duplicates == 1 else 'copies'} merged"
+    lines.extend(["", summary + "; ordered by serialized game time."])
+
+    lines.extend(["", "## Intervals"])
+    if not intervals:
+        lines.extend(["", "Fewer than two distinct saves; no interval was compared."])
+    for interval in intervals:
+        lines.extend(["", f"### {interval.before.date} to {interval.after.date}", ""])
+        lines.append(f"- {interval.changes} state {'change' if interval.changes == 1 else 'changes'}")
+        if interval.inferred is not None:
+            by_id = {event.id: event for event in interval.objective}
+            lines.extend(["", "#### Inferred events", ""])
+            lines.extend(_inferred_lines(interval.inferred, by_id, verbose=verbose, min_significance=min_significance))
+        lines.extend(_objective_lines(interval.objective, verbose=verbose, min_significance=min_significance))
+    return "\n".join(lines) + "\n"
+
+
+def _objective_lines(events: Iterable[Event], *, verbose: bool, min_significance: Significance) -> list[str]:
+    objective = [event for event in events if event.status is EventStatus.OBJECTIVE]
+    listed = sorted(
+        (event for event in objective if event.significance.rank >= min_significance.rank),
+        key=lambda event: event.sort_key,
+    )
+    grouped: dict[str, list[Event]] = defaultdict(list)
+    for event in listed:
+        grouped[_event_category(event)].append(event)
+    lines = ["", "#### Objective analyzer results"]
+    if not objective:
+        lines.extend(["", "No objective analyzer results were recorded."])
+    for category in sorted(grouped, key=str.casefold):
+        lines.extend(["", f"{category}:", ""])
+        for event in grouped[category]:
+            lines.extend(_event_lines(event, verbose=verbose))
+    omitted = len(objective) - len(listed)
+    if omitted:
+        noun = "result" if omitted == 1 else "results"
+        lines.extend(["", f"{omitted} objective analyzer {noun} below {min_significance.value} significance omitted."])
     return lines
 
 

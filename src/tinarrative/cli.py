@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from collections.abc import Callable, Sequence
@@ -11,7 +12,6 @@ from pathlib import Path
 from typing import cast
 
 from . import __version__
-from .analyzers import ALL_ANALYZERS, run_analyzers
 from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
@@ -27,12 +27,11 @@ from .model.events import SIGNIFICANCE_ORDER, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
-from .narrative import assign_significance
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
-from .reconstruction import infer_events
-from .rendering.markdown import render_comparison
+from .rendering.markdown import render_comparison, render_sequence
+from .sequence import IntervalResult, SaveRef, analyze_interval, event_stream, plan_sequence, run_sequence, survey
 
 logger = get_logger(__name__)
 
@@ -259,12 +258,9 @@ def _run_diff(args: argparse.Namespace) -> int:
     if args.format == "json":
         rendered = render_diff_json(diff)
     elif args.format == "markdown":
-        events = assign_significance(run_analyzers(ALL_ANALYZERS, before, after, diff), before, after)
-        inferred = (
-            assign_significance(infer_events(events, before, after, diff), before, after) if args.inferred else None
-        )
+        analysis = analyze_interval(before, after, inferred=args.inferred)
         minimum = Significance(cast(str, args.min_significance))
-        rendered = render_comparison(diff, events, inferred=inferred, min_significance=minimum)
+        rendered = render_comparison(diff, analysis.objective, inferred=analysis.inferred, min_significance=minimum)
     else:
         rendered = render_diff_text(diff)
     sys.stdout.write(rendered)
@@ -272,6 +268,78 @@ def _run_diff(args: argparse.Namespace) -> int:
     logger.info(
         "diff done %s",
         fields(before=before_name, after=after_name, changes=len(diff.changes), exit=EXIT_SUCCESS),
+    )
+    return EXIT_SUCCESS
+
+
+class _LoadFailed(Exception):
+    """A save of a sequence failed to load after ``_load_snapshot`` reported it; carries the exit code."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _survey(save_path: Path) -> SaveRef | int:
+    """Hash one save and read its game time, or print the failure and return the exit code."""
+    save_name = safe_path(save_path)
+    try:
+        return survey(save_path)
+    except OSError as error:
+        reason = error.strerror or str(error)
+        logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
+        print(f"tinarrative events: cannot read {save_path}: {reason}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    except SaveLoadError as error:
+        logger.debug("survey failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
+        print(f"tinarrative events: {save_path}: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+
+
+def _load_sequence_snapshot(source: str) -> SaveSnapshot:
+    loaded = _load_snapshot("events", Path(source))
+    if isinstance(loaded, int):
+        raise _LoadFailed(loaded)
+    return loaded
+
+
+def _run_events(args: argparse.Namespace) -> int:
+    """Order saves by game time and report the analyzer results of every consecutive pair."""
+    paths = cast(list[Path], args.saves)
+    if len(paths) < 2:
+        print("tinarrative events: at least two saves are required", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    logger.info("events start %s", fields(saves=len(paths)))
+    surveyed: list[SaveRef] = []
+    for path in paths:
+        save = _survey(path)
+        if isinstance(save, int):
+            return save
+        surveyed.append(save)
+    plan = plan_sequence(surveyed)
+    try:
+        intervals: list[IntervalResult] = list(run_sequence(plan, inferred=args.inferred, load=_load_sequence_snapshot))
+    except _LoadFailed as failure:
+        return failure.code
+    if args.format == "json":
+        document = {
+            **plan.to_dict(),
+            "intervals": [interval.to_dict() for interval in intervals],
+        }
+        rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
+    else:
+        minimum = Significance(cast(str, args.min_significance))
+        rendered = render_sequence(plan, intervals, min_significance=minimum)
+    sys.stdout.write(rendered)
+    sys.stdout.flush()
+    logger.info(
+        "events done %s",
+        fields(
+            saves=len(plan.saves),
+            intervals=len(intervals),
+            events=len(event_stream(intervals)),
+            exit=EXIT_SUCCESS,
+        ),
     )
     return EXIT_SUCCESS
 
@@ -458,6 +526,47 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
     parser.set_defaults(handler=_run_diff)
 
 
+def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "Order saves of one campaign by game time and report the events of every consecutive pair."
+    parser = subcommands.add_parser(
+        "events",
+        help=summary,
+        description=(
+            f"{summary} Each save is normalized exactly as 'parse' does. Saves are ordered by their serialized "
+            "game time, never by file name or argument order; byte-identical saves are merged. Every pair of "
+            "consecutive saves is analyzed as 'diff --format markdown' does, and every event ID is qualified by "
+            "its interval so that IDs are unique across the sequence. The saves are assumed to belong to one "
+            "campaign."
+        ),
+        epilog=(
+            "Exit codes: 0 success; 2 usage error (including fewer than two saves); 4 a save cannot be read; "
+            "5 a save is malformed, has an unsupported shape, format, or game version, or has no game time."
+        ),
+    )
+    parser.add_argument("saves", type=Path, nargs="+", metavar="SAVE", help="Save files of one campaign, any order.")
+    parser.add_argument(
+        "--format",
+        choices=("markdown", "json"),
+        default="markdown",
+        help="Report format (default %(default)s).",
+    )
+    parser.add_argument(
+        "--min-significance",
+        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
+        default=Significance.TRIVIAL.value,
+        help=(
+            "Lowest significance an event needs to be listed in the markdown report (default %(default)s, which "
+            "lists every event); the JSON report always holds every event."
+        ),
+    )
+    parser.add_argument(
+        "--inferred",
+        action="store_true",
+        help="Also reconstruct inferred events in every interval and report them with the results they rest on.",
+    )
+    parser.set_defaults(handler=_run_events)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="tinarrative",
@@ -485,6 +594,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_parse_parser(subcommands)
     _add_unknowns_parser(subcommands)
     _add_diff_parser(subcommands)
+    _add_events_parser(subcommands)
     return parser
 
 
