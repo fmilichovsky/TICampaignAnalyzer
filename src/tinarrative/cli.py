@@ -15,6 +15,7 @@ from . import __version__
 from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
+from .grouping import CampaignGroup, group_saves, listing_document, render_listing, select_campaign
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_discovery import SaveInput, expand_inputs
 from .io.save_loader import load_raw_save, load_save
@@ -277,19 +278,19 @@ class _LoadFailed(Exception):
         self.code = code
 
 
-def _survey(save_path: Path) -> SaveRef | int:
-    """Hash one save and read its game time, or print the failure and return the exit code."""
+def _survey(command: str, save_path: Path) -> SaveRef | int:
+    """Hash one save and read its game time and profile, or print the failure and return the exit code."""
     save_name = safe_path(save_path)
     try:
         return survey(save_path)
     except OSError as error:
         reason = error.strerror or str(error)
         logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
-        print(f"tinarrative events: cannot read {save_path}: {reason}", file=sys.stderr)
+        print(f"tinarrative {command}: cannot read {save_path}: {reason}", file=sys.stderr)
         return EXIT_INPUT_ERROR
     except SaveLoadError as error:
         logger.debug("survey failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
-        print(f"tinarrative events: {save_path}: {error}", file=sys.stderr)
+        print(f"tinarrative {command}: {save_path}: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
 
 
@@ -300,7 +301,7 @@ def _load_sequence_snapshot(source: str) -> SaveSnapshot:
     return loaded
 
 
-def _survey_found(item: SaveInput) -> SaveRef | SkippedSave:
+def _survey_found(command: str, item: SaveInput) -> SaveRef | SkippedSave:
     """Survey a file found inside a given directory; a failure skips it instead of stopping the run."""
     try:
         return survey(item.path)
@@ -308,27 +309,27 @@ def _survey_found(item: SaveInput) -> SaveRef | SkippedSave:
         reason, error_class = error.strerror or str(error), type(error).__name__
     except SaveLoadError as error:
         reason, error_class = str(error), type(error).__name__
-    logger.debug("events skipped %s", fields(save=safe_path(item.path), error=error_class))
+    logger.debug("%s skipped %s", command, fields(save=safe_path(item.path), error=error_class))
     return SkippedSave(str(item.path), error_class, reason)
 
 
-def _survey_inputs(inputs: Sequence[SaveInput]) -> tuple[list[SaveRef], list[SkippedSave]] | int:
+def _survey_inputs(command: str, inputs: Sequence[SaveInput]) -> tuple[list[SaveRef], list[SkippedSave]] | int:
     """Survey every input; only a path named on the command line can fail the run (exit 4 beats nothing found)."""
     surveyed: list[SaveRef] = []
     skipped: list[SkippedSave] = []
     usable: dict[Path, int] = {}
     for item in inputs:
         if item.empty_directory:
-            print(f"tinarrative events: {item.path}: the directory holds no files", file=sys.stderr)
+            print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
             return EXIT_INPUT_ERROR
         if item.directory is None:
-            save = _survey(item.path)
+            save = _survey(command, item.path)
             if isinstance(save, int):
                 return save
             surveyed.append(save)
             continue
         usable.setdefault(item.directory, 0)
-        found = _survey_found(item)
+        found = _survey_found(command, item)
         if isinstance(found, SkippedSave):
             skipped.append(found)
         else:
@@ -336,7 +337,7 @@ def _survey_inputs(inputs: Sequence[SaveInput]) -> tuple[list[SaveRef], list[Ski
             usable[item.directory] += 1
     for directory, count in usable.items():
         if count == 0:
-            print(f"tinarrative events: {directory}: the directory holds no usable save", file=sys.stderr)
+            print(f"tinarrative {command}: {directory}: the directory holds no usable save", file=sys.stderr)
             return EXIT_INPUT_ERROR
     return surveyed, skipped
 
@@ -349,7 +350,7 @@ def _run_events(args: argparse.Namespace) -> int:
         print("tinarrative events: at least two saves are required", file=sys.stderr)
         return EXIT_USAGE_ERROR
     logger.info("events start %s", fields(inputs=len(paths), candidates=len(inputs)))
-    outcome = _survey_inputs(inputs)
+    outcome = _survey_inputs("events", inputs)
     if isinstance(outcome, int):
         return outcome
     surveyed, skipped = outcome
@@ -359,7 +360,17 @@ def _run_events(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
-    plan = plan_sequence(surveyed, skipped)
+    campaign = _choose_campaign(group_saves(surveyed), cast("str | None", args.campaign))
+    if isinstance(campaign, int):
+        return campaign
+    if len(campaign.members) < 2:
+        print(
+            f"tinarrative events: at least two saves are required (campaign {campaign.key} has "
+            f"{len(campaign.members)})",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
+    plan = plan_sequence(campaign.members, skipped)
     try:
         intervals: list[IntervalResult] = list(
             run_sequence(plan, inferred=args.inferred, changes=args.changes, load=_load_sequence_snapshot)
@@ -368,13 +379,15 @@ def _run_events(args: argparse.Namespace) -> int:
         return failure.code
     if args.format == "json":
         document = {
+            "campaign": campaign.to_dict(),
             **plan.to_dict(),
             "intervals": [interval.to_dict() for interval in intervals],
         }
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
         minimum = Significance(cast(str, args.min_significance))
-        rendered = render_sequence(plan, intervals, min_significance=minimum)
+        left_out = len(surveyed) - len(campaign.members)
+        rendered = render_sequence(plan, intervals, min_significance=minimum, campaign=campaign, left_out=left_out)
     sys.stdout.write(rendered)
     sys.stdout.flush()
     logger.info(
@@ -387,6 +400,53 @@ def _run_events(args: argparse.Namespace) -> int:
             exit=EXIT_SUCCESS,
         ),
     )
+    return EXIT_SUCCESS
+
+
+def _file_time(path: str) -> float:
+    """A file's modification time for ``--campaign latest``; an unreadable file counts as oldest."""
+    try:
+        return os.stat(path).st_mtime
+    except OSError:
+        return float("-inf")
+
+
+def _choose_campaign(groups: Sequence[CampaignGroup], selector: str | None) -> CampaignGroup | int:
+    """The campaign to analyze; several without a selector, or a selector that matches none, is a usage error."""
+    if selector is None:
+        if len(groups) == 1:
+            return groups[0]
+        message = f"the input holds {len(groups)} campaigns; choose one with --campaign"
+    else:
+        selected = select_campaign(groups, selector, _file_time)
+        if isinstance(selected, CampaignGroup):
+            logger.info("campaign selected %s", fields(index=selected.index, of=len(groups)))
+            return selected
+        message = selected
+    print(f"tinarrative events: {message}\n\n{render_listing(groups)}", end="", file=sys.stderr)
+    return EXIT_USAGE_ERROR
+
+
+def _run_campaigns(args: argparse.Namespace) -> int:
+    """List the campaigns the saves belong to, without analyzing them."""
+    paths = cast(list[Path], args.saves)
+    inputs = expand_inputs(paths)
+    logger.info("campaigns start %s", fields(inputs=len(paths), candidates=len(inputs)))
+    outcome = _survey_inputs("campaigns", inputs)
+    if isinstance(outcome, int):
+        return outcome
+    surveyed, skipped = outcome
+    groups = group_saves(surveyed)
+    if args.format == "json":
+        rendered = json.dumps(listing_document(groups, skipped), indent=2, ensure_ascii=True) + "\n"
+    else:
+        rendered = render_listing(groups)
+        if skipped:
+            rendered += f"\n{len(skipped)} skipped (inside a given directory, not a usable save):\n"
+            rendered += "".join(f"- {save.source}: {save.error_class}: {save.error}\n" for save in skipped)
+    sys.stdout.write(rendered)
+    sys.stdout.flush()
+    logger.info("campaigns done %s", fields(campaigns=len(groups), skipped=len(skipped), exit=EXIT_SUCCESS))
     return EXIT_SUCCESS
 
 
@@ -556,7 +616,7 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
 
 
 def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Order saves of one campaign by game time and report the events of every consecutive pair."
+    summary = "Order the saves of a campaign by game time and report the events of every consecutive pair."
     parser = subcommands.add_parser(
         "events",
         help=summary,
@@ -565,12 +625,13 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
             "game time, never by file name or argument order; byte-identical saves are merged. Every pair of "
             "consecutive saves is diffed, run through every objective analyzer and the significance rules and, "
             "with --inferred, the reconstruction rules; every event ID is qualified by its interval so that IDs "
-            "are unique across the sequence. The saves are assumed to belong to one "
-            "campaign."
+            "are unique across the sequence. Saves are grouped by campaign first (see 'tinarrative campaigns'); "
+            "when they hold more than one campaign, --campaign chooses which one to report."
         ),
         epilog=(
-            "Exit codes: 0 success; 2 usage error (including fewer than two usable saves after expanding "
-            "directories); 4 a given path cannot be read, or a given directory holds no files or no usable save; "
+            "Exit codes: 0 success; 2 usage error (including fewer than two usable saves in the chosen campaign, "
+            "several campaigns without --campaign, or a --campaign that matches none); 4 a given path cannot be "
+            "read, or a given directory holds no files or no usable save; "
             "5 a given file is malformed, has an unsupported shape, format, or game version, or has no game time. "
             "Files found inside a given directory that fail are listed as skipped and never change the exit code."
         ),
@@ -580,7 +641,16 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         type=Path,
         nargs="+",
         metavar="PATH",
-        help="Save files or directories of one campaign, any order; a directory is read one level deep.",
+        help="Save files or directories, any order; a directory is read one level deep.",
+    )
+    parser.add_argument(
+        "--campaign",
+        metavar="SELECTOR",
+        help=(
+            "The campaign to report when the saves hold several: a key or unique key prefix from "
+            "'tinarrative campaigns', its listing index, or 'latest' (the campaign of the most recently "
+            "modified file)."
+        ),
     )
     parser.add_argument(
         "--format",
@@ -608,6 +678,39 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         help="Also list every literal state change of each interval under that interval.",
     )
     parser.set_defaults(handler=_run_events)
+
+
+def _add_campaigns_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "List the campaigns that saves belong to, with the selector for 'events --campaign'."
+    parser = subcommands.add_parser(
+        "campaigns",
+        help=summary,
+        description=(
+            f"{summary} Saves belong to one campaign when the human player's faction, the faction name, the "
+            "scenario and the real-world campaign start all match; a save without exactly one resolvable human "
+            "player is listed on its own. Only the time and identity of each save are read; nothing is analyzed."
+        ),
+        epilog=(
+            "Exit codes: 0 success; 2 usage error; 4 a given path cannot be read, or a given directory holds no "
+            "files or no usable save; 5 a given file is malformed, has an unsupported shape, format, or game "
+            "version, or has no game time. Files found inside a given directory that fail are listed as skipped "
+            "and never change the exit code."
+        ),
+    )
+    parser.add_argument(
+        "saves",
+        type=Path,
+        nargs="+",
+        metavar="PATH",
+        help="Save files or directories, any order; a directory is read one level deep.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="Report format (default %(default)s).",
+    )
+    parser.set_defaults(handler=_run_campaigns)
 
 
 def _add_save_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -656,6 +759,7 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="COMMAND",
         description="Use 'tinarrative COMMAND --help' for command-specific help.",
     )
+    _add_campaigns_parser(subcommands)
     _add_events_parser(subcommands)
     _add_save_parser(subcommands)
     _add_unknowns_parser(subcommands)

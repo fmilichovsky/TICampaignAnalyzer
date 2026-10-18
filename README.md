@@ -23,8 +23,11 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 
 ## Commands
 
-- [`tinarrative events <path> <path>...`](docs/commands/events.md): order saves
-  of one campaign (files, or directories read one level deep) by game time and report the analyzer results (and, with
+- [`tinarrative campaigns <path>...`](docs/commands/campaigns.md): list the campaigns
+  that saves belong to, with the selector for `events --campaign`.
+- [`tinarrative events <path> <path>...`](docs/commands/events.md): group saves
+  (files, or directories read one level deep) by campaign, order one campaign's saves
+  by game time and report the analyzer results (and, with
   `--inferred`, the inferred events; with `--changes`, the literal state changes)
   of every pair of consecutive saves. This is the only command that analyzes.
 - `tinarrative save COMMAND`: per-save evidence and debugging commands.
@@ -80,5 +83,7 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `reconstruction`: combine evidence into conservative inferred events.
 - `narrative`: group atomic events into narrative developments.
 - `rendering`: turn structured narrative output into user-facing formats.
+- `grouping`: split surveyed saves into campaigns by their continuity signals
+  (`tinarrative campaigns`, `events --campaign`).
 - `sequence`: order and merge the saves of one campaign and run the per-pair
   pipeline over every consecutive interval (`tinarrative events`).

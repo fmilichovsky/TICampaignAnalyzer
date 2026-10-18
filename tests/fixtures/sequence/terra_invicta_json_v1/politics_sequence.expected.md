@@ -1,5 +1,14 @@
 # Save sequence
 
+## Campaign
+
+- key: `fixture-resistance`
+- player faction: Fixture Resistance
+- scenario: `FixtureMaster/FixtureScenario`
+- real-world start: unknown
+
+Grouped by matching human faction, faction name and scenario; no real-world start was found.
+
 ## Saves
 
 1. `2032-01-01T00:00:00`: `politics_before.json`

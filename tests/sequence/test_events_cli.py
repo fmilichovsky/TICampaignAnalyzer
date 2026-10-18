@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 from tests.fixtures import FIXTURES_ROOT
+from tests.sequence.campaign_variants import write_campaign, write_variant
 from tinarrative.cli import EXIT_INPUT_ERROR, EXIT_SUCCESS, EXIT_UNSUPPORTED_INPUT, EXIT_USAGE_ERROR, main
 
 FIXTURE_SET = "terra_invicta_json_v1"
@@ -268,3 +271,92 @@ def test_directory_runs_log_counts_and_no_paths(tmp_path: Path, capsys: pytest.C
 
     assert "skipped=1" in err
     assert str(tmp_path) not in err
+
+
+def _two_campaigns(root: Path) -> Path:
+    directory = root / "saves"
+    write_campaign(directory, "r", faction_name="The Resistance", started=datetime(2026, 1, 4, 11, 37, 51))
+    write_campaign(directory, "p", faction_name="The Protectorate", started=datetime(2026, 10, 14, 15, 26, 24))
+    return directory
+
+
+@pytest.mark.fixture
+def test_one_campaign_needs_no_selector_and_is_reported(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _directory(tmp_path, *SHUFFLED)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "--format", "json", "saves"]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
+
+    assert report["campaign"]["key"] == "fixture-resistance"
+    assert report["campaign"]["saves"] == 3
+
+
+@pytest.mark.fixture
+def test_several_campaigns_without_a_selector_is_a_usage_error_with_the_listing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _two_campaigns(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "saves"]) == EXIT_USAGE_ERROR
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert "the input holds 2 campaigns; choose one with --campaign" in captured.err
+    assert "1. resistance-20260104-113751\n" in captured.err
+    assert "2. protectorate-20261014-152624\n" in captured.err
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize(("selector", "prefix"), [("protectorate", "p_"), ("1", "r_"), ("latest", "p_")])
+def test_a_selected_campaign_reports_only_its_own_saves(
+    selector: str,
+    prefix: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    directory = _two_campaigns(tmp_path)
+    for path in directory.iterdir():
+        os.utime(path, (1_000_000, 2_000_000 if path.name == "p_politics_before.json" else 1_000_000))
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "--format", "json", "--campaign", selector, "saves"]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
+
+    assert report["campaign"]["key"].startswith("protectorate" if prefix == "p_" else "resistance")
+    assert all(Path(save["source"]).name.startswith(prefix) for save in report["saves"])
+    assert len(report["intervals"]) == 2
+
+    assert main(["events", "--campaign", selector, "saves"]) == EXIT_SUCCESS
+    assert "3 given saves belong to other campaigns." in capsys.readouterr().out
+
+
+@pytest.mark.fixture
+def test_an_unknown_campaign_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _two_campaigns(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "--campaign", "academy", "saves"]) == EXIT_USAGE_ERROR
+    captured = capsys.readouterr()
+
+    assert captured.out == ""
+    assert "no campaign matches 'academy'" in captured.err
+    assert "2 campaigns:" in captured.err
+
+
+@pytest.mark.fixture
+def test_a_selected_campaign_with_one_save_is_a_usage_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _directory(tmp_path, *SHUFFLED)
+    write_variant(tmp_path / "saves", "odd.json", humans=0)
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["events", "--campaign", "2", "saves"]) == EXIT_USAGE_ERROR
+    assert "campaign fixture-resistance#2 has 1" in capsys.readouterr().err

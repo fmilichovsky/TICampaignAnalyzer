@@ -1,10 +1,11 @@
 """Ordered save sequences: the per-interval pipeline run over every pair of consecutive saves (architecture 15, Mode B).
 
-The saves are assumed to belong to one campaign; nothing here groups them. Ordering follows
-``docs/game-data-notes/chronology-and-deduplication.md``:
+The saves of a plan belong to one campaign: ``grouping.group_saves`` splits surveyed saves by campaign first. Ordering
+follows ``docs/game-data-notes/chronology-and-deduplication.md``:
 
-1. ``survey`` reads each save once for its SHA-256 and serialized game time (``TITimeState``); a save without one has
-   unknown chronology and is rejected, never placed by its file name or modification time.
+1. ``survey`` reads each save once for its SHA-256, serialized game time (``TITimeState``) and campaign profile
+   (``parsing.continuity``); a save without a game time has unknown chronology and is rejected, never placed by its
+   file name or modification time.
 2. ``plan_sequence`` merges byte-identical saves into one ``SaveRef`` (every path kept as provenance) and sorts the
    rest by game time, then path. Equal times with different bytes are both kept. Argument order never matters.
 3. ``run_sequence`` normalizes the saves in that order, holding two snapshots at a time, and runs
@@ -35,6 +36,7 @@ from .model.events import Event
 from .model.snapshot import SaveSnapshot
 from .narrative import assign_significance
 from .narrative.chronology import chronological, qualify
+from .parsing.continuity import CampaignProfile, campaign_profile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize, save_timestamp
 from .parsing.raw_save import parse_raw_save
@@ -52,12 +54,14 @@ class UnknownChronologyError(SaveLoadError):
 
 @dataclass(frozen=True)
 class SaveRef:
-    """One distinct snapshot of a sequence: its path, its byte-identical aliases, its hash and its game time."""
+    """One distinct snapshot of a sequence: its path, its byte-identical aliases, its hash, game time and profile."""
 
     source: str
     sha256: str
     timestamp: datetime
     aliases: tuple[str, ...] = ()
+    profile: CampaignProfile | None = None
+    """The campaign continuity signals; not part of ``to_dict`` (the campaign group reports them)."""
 
     @property
     def date(self) -> str:
@@ -164,26 +168,38 @@ def analyze_interval(before: SaveSnapshot, after: SaveSnapshot, *, inferred: boo
 
 
 def survey(path: Path) -> SaveRef:
-    """Hash a save and read its game time; ``OSError`` for the path, ``SaveLoadError`` for the content."""
+    """Hash a save and read its game time and campaign profile; ``OSError`` for the path, ``SaveLoadError`` for the
+    content."""
     data = load_save(path)
     raw = parse_raw_save(data, source=str(path))
     timestamp = save_timestamp(raw)
     if timestamp is None:
         raise UnknownChronologyError("no parseable TITimeState.currentDateTime; the save cannot be ordered")
-    return SaveRef(source=str(path), sha256=hashlib.sha256(data).hexdigest(), timestamp=timestamp)
+    return SaveRef(
+        source=str(path),
+        sha256=hashlib.sha256(data).hexdigest(),
+        timestamp=timestamp,
+        profile=campaign_profile(raw),
+    )
 
 
-def plan_sequence(saves: Iterable[SaveRef], skipped: Iterable[SkippedSave] = ()) -> SequencePlan:
+def merge_identical(saves: Iterable[SaveRef]) -> list[SaveRef]:
     """Merge byte-identical saves (the first path in sort order is the source) and sort by game time, then path."""
-    surveyed = list(saves)
     by_hash: dict[str, list[SaveRef]] = defaultdict(list)
-    for save in surveyed:
+    for save in saves:
         by_hash[save.sha256].append(save)
     distinct: list[SaveRef] = []
     for group in by_hash.values():
-        paths = sorted({save.source for save in group})
-        distinct.append(SaveRef(paths[0], group[0].sha256, group[0].timestamp, tuple(paths[1:])))
+        paths = sorted({path for save in group for path in (save.source, *save.aliases)})
+        distinct.append(SaveRef(paths[0], group[0].sha256, group[0].timestamp, tuple(paths[1:]), group[0].profile))
     distinct.sort(key=lambda save: (save.timestamp, save.source))
+    return distinct
+
+
+def plan_sequence(saves: Iterable[SaveRef], skipped: Iterable[SkippedSave] = ()) -> SequencePlan:
+    """Merge byte-identical saves (see ``merge_identical``) and key each distinct save by its game time."""
+    surveyed = list(saves)
+    distinct = merge_identical(surveyed)
     keys: list[str] = []
     for position, save in enumerate(distinct):
         tied = sum(1 for earlier in distinct[:position] if earlier.timestamp == save.timestamp)

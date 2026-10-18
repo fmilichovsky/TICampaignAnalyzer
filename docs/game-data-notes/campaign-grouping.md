@@ -21,61 +21,70 @@ The `TIPlayerState.isAI == false` faction reference is the primary player
 identity signal. The metadata faction name is a human-readable corroborating
 signal, not a unique identity: separate campaigns can use the same faction.
 
-## Recommended grouping algorithm
+## Observed campaign signals (2026-10-18)
 
-First deduplicate byte-identical files and extract the game timestamp as
-documented in [chronology and duplicate snapshots](chronology-and-deduplication.md).
-For every remaining save, construct a **campaign-continuity profile**:
+The following was checked against eight private saves of two campaigns. One campaign has five saves
+from 2045 to 2046 and the other has three saves from 2026. Both are on the same scenario.
+
+- `TIGlobalValuesState.realWorldCampaignStart` is a componentized date with milliseconds. It was
+  identical in every save of a campaign and different between the two campaigns. The
+  two starts were nine months apart. Hypothesis: it is the real-world time the campaign was
+  started.
+- In each save, exactly one `TIPlayerState` entry was non-AI. Its faction resolved to a
+  `TIFactionState` key, and the faction reference and `playerFactionName` were stable within each
+  campaign.
+- `TITimeState.masterMetaTemplateName` / `scenarioMetaTemplateName` were `FullScenario` /
+  `2026Scenario` in all eight saves. The scenario confirms a campaign but does not separate these
+  two.
+- A start date derived from the game clock (`currentDateTime` minus `daysInCampaign`) is **not**
+  usable. It gave the same day for both campaigns, and it was off by one day in one save.
+- The nation and region map-key sets (295 and 363 keys) were identical within each campaign and
+  different between the two. They are not used: the four signals below already separate the
+  campaigns.
+- File modification times did not follow game time. The latest game date of one campaign had the
+  oldest file time of that campaign.
+
+## Implemented grouping rule
+
+`tinarrative` groups by identity. Two saves belong to the same campaign when all four signals are
+equal:
 
 ```text
-profile = {
-  game_timestamp: TITimeState.currentDateTime,
-  human_faction_ref: the sole non-AI TIPlayerState.faction reference,
+identity = (
+  human_faction_ref:   the sole non-AI TIPlayerState.faction, resolved to a TIFactionState key,
   player_faction_name: TIMetadataState.playerFactionName,
-  scenario: TITimeState.masterMetaTemplateName + scenarioMetaTemplateName,
-  world_anchors: IDs from TIFactionState, TINationState, TIRegionState,
-  source_hash: SHA-256(raw bytes),
-}
+  scenario:            TITimeState.masterMetaTemplateName + scenarioMetaTemplateName,
+  started:             TIGlobalValuesState.realWorldCampaignStart,
+)
 ```
 
-Build directed candidate links only from an earlier timestamp to a later one.
-For saves in the same user-supplied directory, automatically group an ordered
-run when all of the following hold:
-
-1. exactly one non-AI player and a resolvable faction reference exist in both
-   saves;
-2. human-faction references match;
-3. player-faction names match when both are present;
-4. scenario metadata matches when both are present; and
-5. the nation and region anchor-ID sets have very high overlap (use exact
-   equality when available; otherwise retain the measured overlap and flag the
-   link for review).
-
-Within such a run, increasing internal game time is the chronology. This
-implements the practical assumption that a save directory normally contains
-continued play for the same chosen faction, while still making an independent
-campaign with the same faction visibly uncertain rather than silently merging
-it.
-
-## Confidence and boundary rules
+A missing signal counts as its own value. A save without a real-world start is therefore never
+merged with one that has a start. Within a group, increasing internal game time is the chronology.
+Byte-identical saves are deduplicated first, as described in
+[chronology and duplicate snapshots](chronology-and-deduplication.md).
 
 | Result | Rule | Handling |
 | --- | --- | --- |
 | Exact duplicate | Same SHA-256 | One snapshot, retain all paths as provenance |
-| High-confidence continuation | All five grouping signals match and time increases | Same campaign chain |
-| Plausible continuation | Player faction/name and time match, but an anchor is absent or changed | Same provisional chain; surface a warning |
-| Campaign boundary / incompatible | Player faction, scenario, or stable world anchors conflict | Separate chains |
-| Unclassified | Missing/malformed player or time state, or multiple human players | Do not auto-merge; require a caller choice |
+| Same campaign | All four signals equal | One group |
+| Separate campaigns | Any signal differs | Separate groups; `events` requires a choice |
+| Unclassified | No non-AI player, several, or an unresolvable faction | A group of its own; never merged |
 
-Never use filename order, save sequence number, filesystem timestamp, or
-`currentID.value` as a campaign identity. Filename numbers were observed out
-of chronological order, and `currentID` has no documented campaign semantics.
+The rule that requires all four signals to be equal is a project policy, not a game-format
+invariant. It is a **hypothesis** that `realWorldCampaignStart` is unique per started campaign
+beyond the two campaigns observed. Two campaigns started in the same second with the same faction
+and scenario would be merged.
+
+Never use filename order, save sequence number, filesystem timestamp, or `currentID.value` as a
+campaign identity. Filename numbers were observed out of chronological order, and `currentID` has
+no documented campaign semantics. The filesystem time is read only to resolve
+`events --campaign latest`.
 
 ## Limits
 
 - Numeric IDs may be allocated similarly in separately started campaigns;
   matching one ID alone is not sufficient evidence.
-- The anchor-overlap threshold is a project policy to be calibrated with
-  additional campaign directories. It is not a game-format invariant.
+- Hypothesis, not observed: a campaign reloaded from an earlier save and played differently keeps
+  all four signals, so its branches would form one group and interleave by game time.
 - Multiplayer, modded, migrated, or damaged saves may contain zero or more
   than one non-AI player. They intentionally fall into the unclassified path.

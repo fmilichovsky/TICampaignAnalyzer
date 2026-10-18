@@ -1392,9 +1392,10 @@ This enables campaign history generation.
 
 ### Implemented contract (`src/tinarrative/sequence.py`, `tinarrative events`)
 
-The saves are assumed to be one campaign; grouping them is Mode C's job.
-`survey` hashes each save and reads its `TITimeState.currentDateTime`
-(`parsing.normalization.save_timestamp`). `plan_sequence` merges byte-identical
+The saves of a plan are one campaign; the grouping step of Mode C selects
+them. `survey` hashes each save, reads its `TITimeState.currentDateTime`
+(`parsing.normalization.save_timestamp`) and its campaign profile
+(`parsing.continuity.campaign_profile`). `plan_sequence` merges byte-identical
 saves into one `SaveRef` that keeps every path, and sorts the distinct saves by
 game time, then path. A save without a game time is rejected and never placed
 by file name. Each save gets a key: its game time, plus `#n` for the n-th
@@ -1438,14 +1439,32 @@ Documents/My Games/TerraInvicta/saves/
 The application discovers saves, orders them, processes new snapshots,
 and produces/updates campaign history.
 
-Before ordering, discovery must partition files into campaign chains. The
-serialized format currently has no observed campaign identifier, so this step
-uses a documented continuity profile: internal game timestamp, the non-AI
-player's faction reference, readable player-faction metadata, scenario
-metadata, and stable world-anchor overlap. Byte-identical saves are aliases of
-one snapshot. A conflict or missing continuity evidence must produce separate
-or unclassified chains, not an invented chronology. See
+Before ordering, discovery must partition files into campaigns. The
+serialized format has no observed campaign identifier, so this step uses a
+documented continuity profile. Byte-identical saves are aliases of one
+snapshot. A conflict or missing continuity evidence must produce separate or
+unclassified groups, not an invented chronology. See
 [`game-data-notes/campaign-grouping.md`](game-data-notes/campaign-grouping.md).
+
+### Implemented grouping (`src/tinarrative/grouping.py`, `tinarrative campaigns`, `events --campaign`)
+
+`survey` attaches a `CampaignProfile` to every `SaveRef`:
+
+- the faction of the only non-AI `TIPlayerState`, kept only when it resolves to a `TIFactionState`;
+- `playerFactionName`;
+- the scenario template names;
+- `TIGlobalValuesState.realWorldCampaignStart`.
+
+`group_saves` buckets the surveyed saves by the equality of these four signals and compares
+nothing else. It runs between `survey` and `plan_sequence`, and `plan_sequence` then runs once on
+the chosen group, unchanged. A save without exactly one resolvable human player is unclassified: it
+forms its own group and is never merged.
+
+The grouping is inference with provenance (sections 3–5). Every `CampaignGroup` carries the
+signals it was formed on, and `events` reports them in its `## Campaign` section and in its JSON
+`campaign` member. Each group has a selector key: the faction slug plus the real-world start.
+`events` refuses to mix groups. With several groups it requires `--campaign` and prints the listing
+otherwise. File modification time is read only to resolve `--campaign latest`.
 
 ## Mode D --- Incremental/watch-oriented analysis
 

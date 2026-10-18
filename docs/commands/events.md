@@ -1,17 +1,15 @@
 # `tinarrative events`
 
 ```
-tinarrative events <path> <path> [<path>...] [--format markdown|json] [--min-significance <level>] [--inferred] [--changes]
+tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--inferred] [--changes]
 ```
 
-Reads two or more saves of one campaign, given as files, directories or both, orders them by game time, and reports the analyzer
+Reads two or more saves, given as files, directories or both, groups them by campaign, orders one campaign's saves by game time, and reports the analyzer
 results of every pair of consecutive saves (architecture section 15, Mode B). Each pair is
 diffed as [`save diff`](diff.md) does, and the diff is run through every objective analyzer, the
 significance rules and, with `--inferred`, the reconstruction rules. `events` is the only command
 that runs analyzers, significance or reconstruction; given two saves it is the analyzed view of
-the pair, and with `--changes` it also lists the literal changes that `save diff` reports. The command
-does not check that the saves belong to the same campaign. Mixing campaigns produces nonsense
-intervals, not an error.
+the pair, and with `--changes` it also lists the literal changes that `save diff` reports.
 
 ## Directory input
 
@@ -29,6 +27,25 @@ The "at least two saves" check applies after expansion: fewer than two candidate
 than two usable saves once the skipped files are set aside, is a usage error (exit 2). A file
 found in a directory and a file named on the command line with the same bytes are merged by the
 rule below.
+
+## Campaigns
+
+Before ordering, the saves are grouped by campaign exactly as [`campaigns`](campaigns.md) lists them.
+Saves belong to one campaign when the human player's faction, the faction name, the scenario and the
+real-world campaign start all match. Grouping applies to files named on the command line as well as
+to files found in directories.
+
+- With one group, `events` reports it and `--campaign` is not needed.
+- With several groups and no `--campaign`, the run stops with a usage error (exit 2). It prints
+  `the input holds N campaigns; choose one with --campaign` and the `campaigns` listing to stderr. It
+  never picks a group silently or mixes groups.
+- `--campaign <selector>` reports one group. The selector is a key or unique key prefix from the
+  listing, the listing number, or `latest` (the group holding the most recently modified file;
+  [selector keys](campaigns.md#selector-keys)). A selector that matches no group, or matches several,
+  is a usage error that prints the reason and the listing.
+
+The "at least two saves" check also applies to the chosen campaign. A campaign with a single
+distinct save, such as an unclassified save, is a usage error.
 
 ## Ordering and duplicates
 
@@ -68,6 +85,9 @@ is left to narrative aggregation.
 
 The default report lists:
 
+- `## Campaign`: the chosen campaign's key, player faction, scenario and real-world start, and the
+  signals it was grouped on. Grouping is inference, so the section names them. It also says how many
+  given saves belong to other campaigns.
 - `## Saves`: the distinct saves in chronological order, each with its key and source path, its
   identical aliases, and a note when it has the same game time as the previous save. A summary
   line follows with the number of usable saves given, the number of byte-identical copies merged
@@ -121,7 +141,8 @@ says `No events were inferred.`
 
 `--format json` prints one object:
 
-- `inputs` (usable saves given, after directory expansion), `duplicates`;
+- `campaign`: the chosen campaign, in the form `campaigns --format json` lists it;
+- `inputs` (the chosen campaign's saves given, after directory expansion), `duplicates`;
 - `skipped`: one object per file skipped inside a named directory, with `source`, `error_class` and
   `error` (empty when none);
 - `saves`: one object per distinct save, with `key`, `source`, `aliases`, `sha256` and `date`;
@@ -138,7 +159,8 @@ The JSON report holds every event. It ignores `--min-significance`.
 the report is written, so a long sequence uses more memory with it than without it.
 
 Failures print one message to stderr naming the path that failed and no traceback. With
-`--log-level info`, the run logs the paths given and candidate files, the ordering summary
+`--log-level info`, the run logs the paths given and candidate files, the number of campaigns and
+the selected campaign's number, the ordering summary
 (usable saves, distinct saves, duplicates, skipped files, tied game times, intervals) and
 per-interval event counts. `--log-level debug` adds one line per skipped file with its file name
 and error class; directory paths are never logged.
@@ -148,6 +170,6 @@ and error class; directory paths are never logged.
 | Code | When |
 | --- | --- |
 | 0 | Every named path was used and every interval was analyzed (including when only one distinct save remained). Files skipped inside a named directory do not change it. |
-| 2 | Usage error: fewer than two usable saves after directory expansion, or an unknown `--format` or `--min-significance`. |
+| 2 | Usage error: fewer than two usable saves after directory expansion or in the chosen campaign; several campaigns without `--campaign`; a `--campaign` that matches no campaign or several; or an unknown `--format` or `--min-significance`. |
 | 4 | A named path cannot be read (missing or unreadable), or a named directory holds no files or no usable save. |
 | 5 | A named file is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |

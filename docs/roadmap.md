@@ -107,8 +107,8 @@ built from the developments catalogued in
   (`save inspect`, `save parse`, `save diff`) (#91).
 - [x] Accept directories as `events` input, with the `unknowns` skip and
   exit-code policy (#92).
-- [ ] Group saves by campaign from continuity evidence inside `events`, with
-  link verdicts reported as inference (#89).
-- [ ] Select among several campaigns: `tinarrative campaigns` listing and
+- [x] Group saves by campaign from continuity evidence inside `events`, with
+  the grouping signals reported as inference (#89).
+- [x] Select among several campaigns: `tinarrative campaigns` listing and
   `events --campaign` (#93).
 

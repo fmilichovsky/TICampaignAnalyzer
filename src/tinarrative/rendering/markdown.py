@@ -12,6 +12,7 @@ from datetime import datetime
 
 from ..analyzers.render import describe_event
 from ..diff.render import render_change, render_value
+from ..grouping import CampaignGroup
 from ..model.changes import StateChange
 from ..model.entities import EntityRef
 from ..model.events import Event, EventSource, EventStatus, Significance
@@ -59,14 +60,21 @@ def render_sequence(
     *,
     verbose: bool = False,
     min_significance: Significance = Significance.TRIVIAL,
+    campaign: CampaignGroup | None = None,
+    left_out: int = 0,
 ) -> str:
     """Render the saves of a sequence in chronological order and the analyzer results of each interval.
 
-    Each interval lists its inferred events (when they were reconstructed), its objective analyzer results of at least
-    ``min_significance`` grouped by category and, when they were kept, its literal state changes grouped by category.
-    State changes are never filtered. Event IDs are the sequence-qualified ones.
+    With a ``campaign``, a section first names the campaign the saves were grouped into and the signals it rests on;
+    ``left_out`` counts the given saves that belong to other campaigns. Each interval lists its inferred events (when
+    they were reconstructed), its objective analyzer results of at least ``min_significance`` grouped by category and,
+    when they were kept, its literal state changes grouped by category. State changes are never filtered. Event IDs
+    are the sequence-qualified ones.
     """
-    lines = ["# Save sequence", "", "## Saves", ""]
+    lines = ["# Save sequence", ""]
+    if campaign is not None:
+        lines.extend(_campaign_lines(campaign, left_out))
+    lines.extend(["## Saves", ""])
     previous: datetime | None = None
     for position, (key, save) in enumerate(zip(plan.keys, plan.saves, strict=True), start=1):
         details = f"{position}. `{key}`: `{save.source}`"
@@ -100,6 +108,30 @@ def render_sequence(
         if interval.state_changes is not None:
             lines.extend(_state_change_lines(interval.state_changes, verbose=verbose))
     return "\n".join(lines) + "\n"
+
+
+def _campaign_lines(campaign: CampaignGroup, left_out: int) -> list[str]:
+    """The campaign the saves were grouped into; grouping is inference, so its signals are shown."""
+    started = "unknown" if campaign.started is None else f"`{campaign.started:%Y-%m-%d %H:%M:%S}`"
+    lines = [
+        "## Campaign",
+        "",
+        f"- key: `{campaign.key}`",
+        f"- player faction: {campaign.faction_name or 'unknown'}",
+        f"- scenario: `{campaign.scenario_label}`",
+        f"- real-world start: {started}",
+        "",
+    ]
+    if campaign.unclassified:
+        basis = f"Not grouped: {campaign.unclassified_reason}."
+    elif campaign.started is None:
+        basis = "Grouped by matching human faction, faction name and scenario; no real-world start was found."
+    else:
+        basis = "Grouped by matching human faction, faction name, scenario and real-world start."
+    if left_out:
+        basis += f" {left_out} given {'save belongs' if left_out == 1 else 'saves belong'} to other campaigns."
+    lines.extend([basis, ""])
+    return lines
 
 
 def _objective_lines(events: Iterable[Event], *, verbose: bool, min_significance: Significance) -> list[str]:
