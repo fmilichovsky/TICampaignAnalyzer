@@ -52,16 +52,23 @@ class CliSkeletonTests(unittest.TestCase):
         self.assertEqual(main([]), EXIT_SUCCESS)
 
     def test_subcommand_help_does_not_need_a_save_file(self) -> None:
-        for command in (["save", "inspect"], ["save", "parse"], ["save", "diff"], ["unknowns"], ["events"]):
+        for command in (
+            ["save", "inspect"],
+            ["save", "parse"],
+            ["save", "diff"],
+            ["unknowns"],
+            ["events"],
+            ["campaigns"],
+        ):
             with self.subTest(command=command), redirect_stdout(StringIO()):
                 with self.assertRaises(SystemExit) as result:
                     main([*command, "--help"])
             self.assertEqual(result.exception.code, EXIT_SUCCESS)
 
-    def test_top_level_lists_events_save_and_unknowns(self) -> None:
+    def test_top_level_lists_campaigns_events_save_and_unknowns(self) -> None:
         with redirect_stdout(StringIO()) as out, self.assertRaises(SystemExit):
             main(["--help"])
-        self.assertEqual(listed_commands(out.getvalue()), ["events", "save", "unknowns"])
+        self.assertEqual(listed_commands(out.getvalue()), ["campaigns", "events", "save", "unknowns"])
 
     def test_save_group_lists_inspect_parse_and_diff(self) -> None:
         with redirect_stdout(StringIO()) as out, self.assertRaises(SystemExit):

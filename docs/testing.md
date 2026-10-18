@@ -112,6 +112,15 @@ appeared, disappeared) occurs at least once; a test asserts that.
 The opt-in `real_save` diff test additionally needs `TINARRATIVE_REAL_SAVE_AFTER`, the later
 save of a consecutive pair; it checks determinism and evidence only and prints nothing.
 
+The opt-in `real_save` sequence tests read `TINARRATIVE_REAL_SAVE_SEQUENCE` (save paths separated by
+`os.pathsep`) and `TINARRATIVE_REAL_SAVE_DIRECTORY` (a directory of saves, possibly of several
+campaigns, which must split into classified groups with distinct keys).
+
+Campaign-grouping tests build their saves with `tests/sequence/campaign_variants.py`. It copies a
+`politics_*` fixture into `tmp_path` with the continuity signals edited: the human faction, the faction
+name, the scenario, an injected `realWorldCampaignStart`, or the number of human players. The
+checked-in fixtures stay unchanged.
+
 ## Analyzer fixtures and tests
 
 `tests/analyzers/` is a test package (it has `__init__.py` files) so that its

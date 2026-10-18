@@ -4,10 +4,11 @@ One page per implemented `tinarrative` subcommand. Each page covers purpose,
 options, output, and exit codes. Run `tinarrative COMMAND --help` (or
 `tinarrative save COMMAND --help`) for the authoritative option list of the installed version.
 
-The top level holds the campaign-history command and the maintenance command:
+The top level holds the campaign commands and the maintenance command:
 
 | Command | Status | Page |
 | --- | --- | --- |
+| `campaigns <path>...` | Implemented | [campaigns.md](campaigns.md) |
 | `events <path> <path>...` | Implemented | [events.md](events.md) |
 | `unknowns <path>...` | Implemented | [unknowns.md](unknowns.md) |
 

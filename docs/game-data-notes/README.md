@@ -28,8 +28,8 @@ The [state-type inventory](state-type-inventory.md) is the complete observed env
 
 [Chronology and duplicate snapshots](chronology-and-deduplication.md) defines the observed ordering and byte-level deduplication behavior needed before producing a campaign sequence.
 
-[Campaign grouping](campaign-grouping.md) describes the evidence-based
-heuristic for partitioning a mixed directory into campaign chains when no
+[Campaign grouping](campaign-grouping.md) records the observed campaign signals
+and the identity rule that partitions a mixed directory into campaigns when no
 explicit campaign identifier is serialized.
 
 [Sources for higher-level events](higher-level-event-sources.md) records the

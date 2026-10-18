@@ -8,12 +8,16 @@ from pathlib import Path
 
 import pytest
 
+from tinarrative.grouping import group_saves
 from tinarrative.model.events import DateBasis
+from tinarrative.parsing.errors import SaveLoadError
 from tinarrative.sequence import event_stream, plan_sequence, run_sequence, survey
 
 pytestmark = pytest.mark.real_save
 
 ENV_VAR = "TINARRATIVE_REAL_SAVE_SEQUENCE"
+CAMPAIGNS_ENV_VAR = "TINARRATIVE_REAL_SAVE_DIRECTORY"
+"""A directory of real saves, possibly of several campaigns."""
 
 
 def real_save_sequence() -> list[Path]:
@@ -39,3 +43,23 @@ def test_real_save_sequence_has_unique_ids_and_events_inside_their_interval() ->
             assert set(event.constituents) <= own
             if event.date_basis is DateBasis.RECORD:
                 assert interval.before.date[:10] <= str(event.date)[:10] <= interval.after.date[:10]
+
+
+def test_real_save_directory_splits_into_campaigns_with_distinct_keys() -> None:
+    value = os.environ.get(CAMPAIGNS_ENV_VAR, "")
+    if not value:
+        pytest.skip(f"{CAMPAIGNS_ENV_VAR} does not name a directory of saves")
+    saves = []
+    for path in sorted(Path(value).iterdir()):
+        try:
+            saves.append(survey(path))
+        except (OSError, SaveLoadError):
+            continue
+    groups = group_saves(saves)
+
+    assert groups
+    assert len({group.key for group in groups}) == len(groups)
+    assert sum(len(group.members) for group in groups) == len(saves)
+    for group in groups:
+        assert not group.unclassified
+        assert group.started is not None
