@@ -183,6 +183,15 @@ line. Like every pair, none is a `diff` golden.
 The opt-in `real_save` analyzer test reuses `TINARRATIVE_REAL_SAVE` and
 `TINARRATIVE_REAL_SAVE_AFTER` and prints nothing.
 
+`tests/reconstruction/` is a package too and reuses the same builders.
+`test_territorial_rules.py` builds synthetic region transfers
+(`territory_pair`) with tracker maps, executive records, breakaway links,
+annexation flags and wars. It runs `ALL_ANALYZERS`, then `infer_events`, and
+asserts each rule's confidence branch and the ambiguous case. For every
+scenario it also checks that the event is inferred, that its constituents are
+input event IDs, that it cites every constituent's sources, that every source
+is a change of the diff, and that the output is deterministic.
+
 ### Deriving a safe structural fixture
 
 1. Inspect a real save locally; never copy it into the repository or a shared

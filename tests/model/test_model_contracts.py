@@ -324,3 +324,25 @@ def test_event_sorts_its_parts_and_serializes_json_friendly() -> None:
     undated = Event(**{**event.__dict__, "date": Unknown(), "date_basis": DateBasis.RECORD})
     assert undated.sort_key[0] == "" and undated.sort_key < event.sort_key
     assert undated.to_dict()["date"] == {"unknown": "missing"}
+    assert event.constituents == () and data["constituents"] == []  # objective events cite no events
+
+
+def test_inferred_event_constituents_are_sorted_unique_and_serialized() -> None:
+    event = Event(
+        id="nation.independence/nation:20",
+        event_type="nation.independence",
+        status=EventStatus.INFERRED,
+        confidence=Confidence.MEDIUM,
+        date="2030-02-01",
+        date_basis=DateBasis.INTERVAL,
+        not_before="2030-01-01",
+        sources=(_event_source(),),
+        entities=(_ref("20"),),
+        constituents=(
+            "region.nation_changed/region:41",
+            "region.nation_changed/region:40",
+            "region.nation_changed/region:41",
+        ),
+    )
+    assert event.constituents == ("region.nation_changed/region:40", "region.nation_changed/region:41")
+    assert event.to_dict()["constituents"] == list(event.constituents)

@@ -3,7 +3,8 @@
 An event is a categorized claim about one transition between two snapshots (or about one save-carried
 record entry). Its ``sources`` are the literal :class:`StateChange` objects that support it, so every
 event traces back to the diff and, through each change's evidence, to the saves. Attributes are literal
-copies of normalized values and never a reinterpretation of them.
+copies of normalized values and never a reinterpretation of them. An inferred event also names the objective
+events it was reconstructed from in ``constituents``, and its ``sources`` include every source they cite.
 """
 
 from __future__ import annotations
@@ -117,6 +118,8 @@ class Event:
     the earlier snapshot of the interval; either may be ``Unknown`` when a snapshot has no date. ``entities``
     are the affected entities (subject first by domain order after sorting), ``attributes`` literal values
     keyed by name. ``significance`` is assigned by the narrative stage; analyzers leave the default.
+    ``constituents`` are the IDs of the events an inferred event was reconstructed from (empty for an objective
+    event); kept sorted and unique.
     """
 
     id: str
@@ -130,9 +133,11 @@ class Event:
     entities: tuple[EntityRef, ...]
     attributes: tuple[tuple[str, Observed], ...] = ()
     significance: Significance = Significance.MINOR
+    constituents: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sources", tuple(sorted(self.sources, key=lambda source: source.sort_key)))
+        object.__setattr__(self, "constituents", tuple(sorted(set(self.constituents))))
         object.__setattr__(self, "entities", _unique(self.entities))
         object.__setattr__(self, "attributes", tuple(sorted(self.attributes, key=lambda item: item[0])))
 
@@ -161,6 +166,7 @@ class Event:
             "entities": [to_jsonable(ref) for ref in self.entities],
             "attributes": {key: to_jsonable(value) for key, value in self.attributes},
             "sources": [source.to_dict() for source in self.sources],
+            "constituents": list(self.constituents),
         }
 
 

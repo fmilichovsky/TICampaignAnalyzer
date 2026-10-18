@@ -260,6 +260,20 @@ reconstruction (issue #73).
   `DemReason_NearbyDemocracies`. Two nations changed GDP by more than two orders of magnitude within one
   interval, each with the delta under `GDPReason_TerritoryChange`, matching `region.nation_changed` events
   on their regions and `numControlPoints` changes.
+  The territorial rules in `reconstruction/rules.py` (issue #72) read these reasons together with the region
+  events, executive causes, breakaway links and wars.
+- **Releases** (observed 2026-10-18 on the two `nation.independence` intervals of the older sample, structure
+  and counts only). In both, the released nation's democracy tracker moved under `DemReason_AmicableRelease`
+  (+4.5 and +5.0), and the parent's trackers moved under `CohesionReason_NationReleased` and
+  `UnrestReason_NationReleased`, which are reasons not listed above. The released nation also carried
+  `*Reason_Independence` on cohesion, GDP and unrest, and `InqReason_Annexation`, `CohesionReason_Annexation`
+  and `*RegionTransfer` deltas. So `AmicableRelease` marks the released side of a release, not a unification. In
+  both cases the faction holding the parent's `Executive` control point was the same before and after the
+  interval and was the released nation's new executive. In one case the released nation's previous
+  `lastExecutiveChange` already had cause `Independence`, and only its date moved into the interval. On the
+  parent, `breakaways` lost the released nation and a `hostileClaims` entry on the moved region was cleared. No
+  `policy_*` field and no notification entry added in the interval named the release (*hypothesis:* the game
+  logs it as `LogIndependence`, a template seen only in `panelSummaryQueue`).
 - **Metric shift magnitudes** (observed 2026-10-18, six private saves of the two campaigns, intervals of 7,
   21, 28, 92 and 113 days, aggregate counts only). Nations with an empty `regions` list (242 of 295 on the
   older build, 121 of 295 on the newer) changed no statistic and no `publicOpinion` share in any interval.

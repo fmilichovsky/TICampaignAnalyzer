@@ -117,6 +117,10 @@ _MINOR: tuple[str, ...] = (
     # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
     # it is not counted as a second major event.
     "control_point.loss_recorded",
+    # Inferred aggregates of the ``region.nation_changed`` events they cite, which are already major; ranking
+    # them major too would count one transfer twice.
+    "nation.territory_gained",
+    "nation.territory_lost",
 )
 
 _MAJOR: tuple[str, ...] = (
@@ -150,6 +154,11 @@ _MAJOR: tuple[str, ...] = (
     "region.alien_facility_changed",
     # A once-per-campaign narrative event.
     "campaign.narrative_event_triggered",
+    # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
+    # and a whole-nation unification or an independence is what a history reports about it.
+    "nation.independence",
+    "nation.unification",
+    "nation.annexation",
 )
 
 _CAMPAIGN_DEFINING: tuple[str, ...] = (

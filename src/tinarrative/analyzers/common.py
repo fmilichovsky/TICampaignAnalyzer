@@ -231,7 +231,10 @@ class MembershipLedger:
 
 
 class EventBuilder:
-    """Builds objective events dated by the interval of the diff, or by a record entry when one is given."""
+    """Builds events dated by the interval of the diff, or by a record entry when one is given.
+
+    Analyzers build objective events; the reconstruction stage passes ``status`` and ``constituents``.
+    """
 
     def __init__(self, before: SaveSnapshot, after: SaveSnapshot) -> None:
         self.not_before: Observed = before.date
@@ -247,8 +250,10 @@ class EventBuilder:
         attributes: Iterable[tuple[str, Observed]] = (),
         confidence: Confidence = Confidence.HIGH,
         recorded_on: Observed = None,
+        status: EventStatus = EventStatus.OBJECTIVE,
+        constituents: Iterable[str] = (),
     ) -> Event:
-        """An objective event; ``recorded_on`` (an ISO date string from a record entry) dates it by that record."""
+        """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it."""
         date: Observed = self.observed
         basis = DateBasis.INTERVAL
         if isinstance(recorded_on, str):
@@ -256,7 +261,7 @@ class EventBuilder:
         return Event(
             id=event_id(event_type, *id_parts),
             event_type=event_type,
-            status=EventStatus.OBJECTIVE,
+            status=status,
             confidence=confidence,
             date=date,
             date_basis=basis,
@@ -264,6 +269,7 @@ class EventBuilder:
             sources=tuple(sources),
             entities=tuple(ref for ref in entities if ref is not None),
             attributes=tuple(attributes),
+            constituents=tuple(constituents),
         )
 
 

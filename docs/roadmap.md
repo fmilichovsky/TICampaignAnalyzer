@@ -32,7 +32,7 @@
     routine fleet and councilor movement) (#70).
   - [x] Nation metric shifts with cause attribution from the
     `tracker_*ChangeReason_AllTime` maps (#71).
-  - [ ] Territorial reconstruction: unification, secession, annexation (#72).
+  - [x] Territorial reconstruction: unification, secession, annexation (#72).
   - [ ] Space reconstruction: first presence on a body, hab losses joined to
     the destruction log, battle outcomes (#73).
   - [x] Wars and federations as entities with a war analyzer (#64).
