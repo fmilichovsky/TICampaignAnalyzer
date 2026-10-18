@@ -254,6 +254,13 @@ The snippets above are conceptual; the implemented types differ as follows:
     the diff layer sees the limitation; ships keep their IDs across merges.
 -   Other space objects (bodies, orbits, hab sites, sectors, modules) resolve as
     reference targets only, and singular diplomacy and economy states are not modelled.
+    Planned (roadmap, *Narrative layer*): `TISpaceBodyState` becomes a named `space body`
+    reference target (`displayName`, parent body, body kind), because a hab, a destruction
+    entry or a milestone that names only `space object:235` cannot be narrated.
+-   Every normalized entity carries its `displayName`, and a resolved `EntityRef` carries it as
+    `name`; the renderer and the JSON currently print IDs only. Rendering names everywhere is
+    the first roadmap item of the narrative layer. Councilor names are player content: allowed
+    in the user's own output, never in logs or fixtures.
 -   Save-carried records (section 4.3) are compared per owning entity and field
     with `ChangeKind.records`: `before`/`after` are the entry counts and the
     `RecordsDetail` lists the entries added, removed and (for keyed records)
@@ -808,6 +815,18 @@ technology `progress` values (a missing progress entry is `Unknown`, which
 `armiesLost` records; region alien sub-state `currentHP`, `deployingArmy`,
 `supportingArmyBuildup`, `alienMissionsDetected` and sub-state presence.
 
+Some of what is left in the diff is needed by the narrative layer (section 11.3) and is
+scheduled as analyzer work in the roadmap's *Narrative layer* section: nation `claims` and
+`hostileClaims`; `displayName` and `federationName` changes of nations and federations (a
+rename on unification or on a federation's growth); faction `finishedProjectNames`; the hull
+class of a new ship; the home nation of an army (its `homeRegion`'s nation) on `army.*`
+events; the `factionUnrestAttempts` pair map and the `dateOfNewGovernment` record of a
+nation; alien-or-human kind and population as attributes; and the allow-listed entries of the
+`Transactions` ledger (bounds in 11.3). The nation-control reading itself (which faction holds
+a nation's executive, plurality or every control point) is reconstruction, not analysis: it
+combines control-point events with the `controlPointType`, `positionInNation` and the
+executive record's cause, and it is the anchor the takeover and breakaway developments need.
+
 ------------------------------------------------------------------------
 
 # 10. Event Reconstruction
@@ -966,52 +985,164 @@ verbose rendering.
 
 # 11. Narrative Aggregation
 
-Narrative aggregation operates on atomic events.
+Narrative aggregation operates on the atomic event stream of a save
+sequence. Its job is to state, once each, the human-scale developments a
+campaign history reports: a faction taking over a nation and consolidating
+its hold, a war from declaration to peace, a federation's life, a nation
+absorbing its neighbours over several years, a space campaign that
+destroyed a rival's bases. Each development carries its span, its actors
+by role and every piece of evidence beneath it.
 
-Its job is to identify clusters that form coherent human-scale
-developments.
+The layer is not implemented yet (`narrative/aggregation.py` returns its
+input). This section is the contract it is built against; the roadmap's
+*Narrative layer* section lists the steps. The design was revised on
+2026-10-18 after measuring the atomic stream on real saves: the earlier
+sketch (clusters by temporal proximity and shared entities, a `float`
+significance, a `title_hint`) is withdrawn in favour of a small set of
+explicit, named rules.
 
-Inputs:
+## 11.1 Inputs and scope
 
-``` text
-Atomic events
-  ├── temporal proximity
-  ├── shared entities
-  ├── shared locations
-  ├── causal relationships
-  ├── event types
-  └── strategic context
-```
+-   The qualified chronological event stream of one sequence (section 15,
+    Mode B): objective and inferred events of every interval, with
+    interval-qualified IDs.
+-   One *situation report* per save (11.4), which replaces the snapshots:
+    aggregation never holds a snapshot, so the two-snapshot memory bound of
+    `run_sequence` stands.
+-   It is the first stage allowed to see more than one interval. Every rule
+    declares its window: one interval, a number of consecutive intervals,
+    or the whole sequence. Windows are measured in game days, never in
+    saves, because save spacing is arbitrary (7 to 228 days in the sample).
+-   Grouping is conservative: a rule emits only when its *anchor* evidence
+    exists (an executive change record, a war present in one save and
+    absent in a later one, a federation member change), never from temporal
+    proximity or shared entities alone. Proximity and shared entities decide
+    which further events a rule attaches to an anchor, not whether a
+    development exists.
 
-Output:
+## 11.2 The narrative event
+
+A narrative event is an `Event` (section 5.1) with additional fields, not a
+parallel type, so it keeps `status`, `confidence`, `significance`,
+`sources`, `constituents`, `attributes` and goes through
+`narrative.chronology.qualify` like every other event.
 
 ``` python
 @dataclass
-class NarrativeEvent:
-    id: EventId
-    start_date: GameDate
-    end_date: GameDate
-    title_hint: str | None
-    event_type: NarrativeEventType
-    constituent_events: list[EventId]
-    significance: float
-    confidence: Confidence
-    sources: list[EvidenceRef]
-    entities: list[EntityRef]
-    attributes: dict[str, Any]
+class Event:  # narrative extension, conceptual
+    ...  # the atomic fields of section 5.1
+    start: GameDate  # earliest constituent not_before
+    start_basis: DateBasis
+    end: GameDate  # latest constituent date
+    end_basis: DateBasis
+    open: bool  # still running at the last save
+    intervals: tuple[str, ...]  # interval keys it spans
+    # roles: actor, target, beneficiary, assisting, location, body
+    roles: dict[Role, list[EntityRef]]
 ```
 
-Narrative aggregation should be conservative initially.
+-   **Constituents** name atomic and inferred events (qualified IDs);
+    `sources` is the union of their sources with roles kept, as in
+    reconstruction. The evidence beneath a development is never dropped.
+-   **Status** is objective when every constituent is objective and the
+    join is by a stable entity ID (a war, a federation, a nation across its
+    own events); inferred when the join is heuristic (a shared nation plus
+    a time window) or any constituent is inferred.
+-   **Confidence** is the minimum over the constituents, lowered one level
+    for a heuristic join; a rule that claims more states why.
+-   **Significance** is assigned by the rule (section 12), defaulting to
+    the maximum over the constituents.
+-   **Dating**: `start` is the earliest constituent `not_before`, `end` the
+    latest constituent date, each with the basis of the event it came from;
+    a record-dated constituent narrows the span. An event whose anchor is
+    still present in the last save is `open`, so incremental mode (Mode D)
+    can extend it instead of emitting a second one.
+-   **Roles** replace the earlier `title_hint`: the LLM or renderer needs
+    to know who acted, on whom, who benefited and who assisted, not a
+    suggested title. Attributes stay literal structured facts (counts,
+    name lists, durations, the metric shifts of the span). No prose.
+-   **Nesting**: one level, with an explicit rule order. A war arc may
+    contain an absorption that happened during the war; a rule never builds
+    on a rule of the same order, and there are no cycles.
 
-A simple first implementation can use:
+## 11.3 First catalogue
 
--   time windows,
--   shared faction,
--   shared nation/location,
--   event-type compatibility,
--   explicit causal links.
+The types below are the target for the first implementation, chosen
+against the format the project aims for (period-dated developments naming
+factions and nations) and against the evidence the normalized model already
+holds. Each names its anchor and constituents; "needs" lists the atomic
+facts no analyzer emits yet (roadmap items). Geopolitics first:
 
-Later implementations can add strategic and semantic reasoning.
+| Type | Says | Anchor and constituents | Window | Needs |
+| --- | --- | --- | --- | --- |
+| `faction.takeover` | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nation control event; `factionUnrestAttempts` and `dateOfNewGovernment` events |
+| `war.arc` | war between A and B and their allies from start to peace, with regions transferred | `war.appeared` (record-dated), `war.alliance_changed`, `nation.annexation`, `war.last_fighting_changed`, `war.disappeared` | sequence | army home nation for "assisted by" |
+| `federation.lifecycle` | federation formed, joined, left, renamed, dissolved | `federation.appeared`, `federation.members_changed`, `federation.renamed`, `federation.disappeared` | sequence | rename event |
+| `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war | consecutive `nation.unification` / `nation.annexation` / `nation.territory_gained` with one gainer, `nation.disappeared` of the losers, a rename | N intervals | rename event |
+| `nation.release` / `nation.breakaway` | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nation control event |
+| `nation.cession` | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
+| `nation.claims_declared` | N claims regions of M | `nation.claims_changed` | 1 interval | claims event |
+| `nation.transformation` | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | population attribute for per-capita GDP |
+
+Every geopolitical type carries `metric_shifts`: the nation statistic
+shifts of its nations inside its span, so a takeover or merger states what
+it did to democracy, GDP and inequality without a separate event. Band
+labels ("totalitarian", "democratic") are not assigned; the literal values
+and relative changes are.
+
+Space milestones second:
+
+| Type | Says | Anchor and constituents | Window | Needs |
+| --- | --- | --- | --- | --- |
+| `faction.space_campaign` | X destroyed k habs and fleets of Y over a period, winning n recorded battles | `faction.battle_outcome`, `hab.destroyed`, `faction.combat_recorded`, `notification.LogSpaceBattleTakesPlace` | N intervals | faction kind (alien or human) |
+| `faction.colonisation_wave` | X established habs on bodies B1..Bn in a period | `faction.first_hab_on_body`, `hab.appeared` | N intervals | named space bodies |
+| `campaign.first_milestone` | a campaign-wide first (first base on a body, first warship, first victory against the aliens), dated | `campaign.global_milestone_recorded`; a `Global Milestone` ledger entry of the same faction may date it | 1 interval | ledger events |
+| `faction.fleet_buildup` | X commissioned n ships of class C | `ship.appeared` with a hull class; `Ship Construction` ledger entries as corroboration | 1 interval | hull class attribute; ledger events |
+| `technology.milestone` | a technology or project from a curated list completed | `technology.completed`, `faction.project_completed` | 1 interval | project event; the curated list, documented as interpretation |
+
+Set aside for now: `economy.space_self_sufficient` (space income against
+Earth funding from the resource ledger), because the ledger's income
+labels are not understood; alien activity on Earth and councilor fates stay
+atomic until the geopolitical types exist.
+
+**Dated mission records as evidence.** Every faction, AI factions included,
+carries a `Transactions` ledger (section 4.3) from campaign start, whose
+labels include mission and operation names (`Coup`, `Purge`, `Crackdown`,
+`HostileTakeover`, `Ship Construction`, `FoundColonyOperation`, ...). It
+can attribute an action to a faction and narrow its date where a visible
+effect already exists, and it reaches further back than the notification
+log's five-year window. It is not the councilor's current mission field,
+which cycles faster than saves and is never used. Its limits set the
+bounds: an entry names no target; some labels are hashed; some label lists
+are rewritten rather than appended; an entry is a cost charged when the
+mission is assigned, zero days to about four weeks before it resolves
+(hypothesis from play experience, to be verified on private saves). So:
+(1) only a documented label allow-list, each label checked against a
+visible effect over several intervals; (2) entries are read by date from
+the later snapshot inside the window, never from diff presence; (3) the
+`faction.transaction_recorded` event is `minor` and cited only as
+corroboration of an event whose effect is already evidenced, within a
+window from the entry date to about four weeks later, never after the
+effect; (4) attribution only when exactly one faction's ledger carries the
+label in the window and that faction is the visible beneficiary, otherwise
+`candidates` and no attribution, as for `hab.destroyed`; (5) record-dating
+only in that single-candidate case; (6) confidence never above medium on
+ledger evidence alone; (7) `Unrest` entries are cross-checked against
+`factionUnrestAttempts` before either is trusted.
+
+## 11.4 Situation reports
+
+A situation report is the deterministic digest of one snapshot that the
+narrative layer and the narrator need as context: which faction holds each
+nation's executive and what share of its control points, federations with
+members, wars with sides, each nation's regime statistics as literal
+values, nation count and population; habs per faction per body, fleets and
+ships per faction, finished technologies and projects, global milestones,
+nuclear and climate counters. It is read from the snapshot alone, is
+snapshot-dated evidence rather than an event, and is what lets a
+development say "formerly held by faction Y" or "then a member of
+federation F". `run_sequence` keeps the reports and discards the
+snapshots.
 
 ------------------------------------------------------------------------
 
@@ -1067,12 +1198,19 @@ hidden; campaign-wide milestones, nuclear strikes, sea-level stages and nation
 presence are `campaign_defining`. `tinarrative diff --format markdown
 --min-significance <level>` is the first consumer.
 
+Narrative events (section 11) carry the same enum. Their level is assigned by
+the rule that builds them, defaulting to the highest level among their
+constituents, and the per-type table gains one entry per narrative type when
+it is implemented. A development is never ranked below its most significant
+constituent.
+
 ------------------------------------------------------------------------
 
 # 13. Narrative Rendering
 
-Rendering should consume narrative events rather than raw save
-differences.
+Rendering should consume the narrator package (13.1) rather than raw save
+differences. The Markdown renderer is one consumer of that package; an LLM
+narrator (section 20) is another.
 
 A renderer might produce:
 
@@ -1101,6 +1239,36 @@ Evidence:
 
 The prose generator should not be the authoritative source of event
 facts. Structured events remain canonical.
+
+Before narrative aggregation exists, the deterministic Markdown of
+`tinarrative events` lists atomic events per interval and names entities by
+ID; it is a forensic view, not a history. A narrative line in the package
+below reads, conceptually:
+
+``` text
+2046-03 to 2046-07 · faction.space_campaign · inferred, high · major
+  actor: <faction A>; target: <faction B>; bodies: <B1>, <B2>, <B3>
+  9 habs and 5 fleets of <faction B> lost; 3 recorded combats won by <faction A>
+  constituents: hab.destroyed/... (x9), faction.battle_outcome/..., faction.combat_recorded/... (x3)
+```
+
+## 13.1 Narrator input
+
+The product the project hands to an LLM, or to a reader who wants the
+facts without prose, is a *narrator package*, built deterministically from
+one save sequence:
+
+1.  the narrative events in chronological order, each with its span, roles,
+    attributes, confidence, significance and constituent IDs;
+2.  the situation reports (11.4), one per save;
+3.  an entity glossary: every referenced ID with its name and domain, and
+    for a nation the names of its regions, so prose never has to invent a
+    name and never meets a bare ID;
+4.  the atomic stream at a chosen significance, for drill-down and audit.
+
+Every line carries event IDs so that generated prose can cite them (section
+20). The package has a JSON form (canonical) and a Markdown digest grouped
+by period. `tinarrative history` is the planned command that produces it.
 
 ------------------------------------------------------------------------
 
@@ -1253,6 +1421,11 @@ combined. Joining events across intervals is narrative aggregation (section
 11). Running the pipeline per interval found more inferred events than one
 outer diff of the first and last save (40 against 26 on the same saves),
 because an outer diff hides intermediate states.
+
+Narrative aggregation runs after `run_sequence`, over the qualified stream of
+the whole sequence. It needs one situation report per save (11.4) rather than
+the snapshots, so `run_sequence` builds the report of each save while it holds
+the snapshot and keeps only the reports; the two-snapshot memory bound stands.
 
 ## Mode C --- Campaign directory
 
@@ -1448,6 +1621,14 @@ LLM-assisted prose
 
 LLM output should reference structured event IDs so generated prose can
 be audited.
+
+The contract between the two halves is the narrator package (13.1): the LLM
+receives narrative events, situation reports and the glossary, and returns
+prose whose claims cite event IDs. It may group, order and phrase; it does
+not get the raw atomic stream as its primary input, and it never supplies a
+fact the package does not contain. Anything the package cannot state
+(motives, "assisted by" when no army evidence exists, the public framing of
+a move) is the LLM's, and is recognisable as such because it cites nothing.
 
 ------------------------------------------------------------------------
 

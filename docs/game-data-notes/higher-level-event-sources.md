@@ -310,6 +310,36 @@ reconstruction (issue #73).
   `FirstWarship`, `FirstSpaceCombatVictoryAgainstAliens`) name places or achievements, never a body ID.
 - **Nuclear.** `numNuclearWeapons` went from 0 to 1 on two nations in the last older interval while
   `nuclearProgram` changed on two; `nuclearDetonations` stayed 0 everywhere.
+- **Nation control** (observed 2026-10-18, the five older saves, counts only; evidence for the
+  narrative layer's nation-control reconstruction). Every one of the 295 nations with control
+  points has exactly one control point with `positionInNation = 0` (295 of 540 points); its
+  `controlPointType` is `Executive` on 177 points and another type (`TheParty`, `Aristocracy`,
+  `SecurityApparatus`, ...) on the rest, so position 0 identifies the executive seat and the type
+  describes the regime (*hypothesis*). Between consecutive saves the faction holding the position-0
+  point changed on 1, 2, 5 and 4 nations (faction to faction on 1, 2, 3 and 2); the plurality
+  controller changed on 3, 2, 4 and 3; a nation went from one sole controller to another on 1, 2, 2
+  and 2. Nothing in the pipeline reports these per nation today.
+- **Resource ledger** (observed 2026-10-18, the latest older save, structure and counts only). All
+  eight factions, AI factions and the alien faction included, carry a `Transactions` ledger whose
+  entries run from the campaign's first day to the save date (1606 to 2209 entries per faction, 37 to
+  88 distinct labels). Labels are mission and operation identifiers (`Coup`, `Purge`, `Crackdown`,
+  `Assassinate`, `Detain`, `HostileTakeover`, `Propaganda`, `Offer Alliance`, `Stabilize`, `Unrest`,
+  `Ship Construction`, `FoundColonyOperation`, `Project Completion`, `Global Milestone`,
+  `Daily Income`, `Sell Space Resources To Earth`, `Direct Invest`, ...), faction-council transfer
+  labels, and about twenty hashed numeric labels. An entry carries a label, a resource, an amount and
+  a date, never a target. *Hypotheses* (from play experience, not yet checked against effects): an
+  entry is charged when a mission is assigned, zero days to about four weeks before the mission
+  resolves, and a charge does not mean the mission succeeded. The ledger is diffed but not read by
+  any analyzer; architecture 11.3 bounds its planned use.
+- **Names and bodies** (observed 2026-10-18, the latest older save). `displayName` is a string on
+  every nation, region, hab, faction and control point, and resolved references carry it as
+  `EntityRef.name`; the renderer and the JSON print IDs only. `TISpaceBodyState` is not normalized,
+  so a hab's `barycenter` and a destruction entry's `SpaceBody` resolve to unnamed `space object`
+  IDs.
+- **Projects and technologies** (observed 2026-10-18, the latest older save). `finishedProjectNames`
+  held 480 names on one faction and is left in the diff; `technologies` held 148 states, all
+  finished, and no `technology.completed` event occurred in the four older intervals, so late in a
+  campaign the project list, not the technology list, is where completions appear.
 
 ## Structures looked at and set aside
 
