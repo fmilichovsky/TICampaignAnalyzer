@@ -34,6 +34,9 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 - [`tinarrative diff <before> <after>`](docs/commands/diff.md): compare two saves and
   list every literal state change between them, with before/after values and
   evidence, without inferring causes.
+- [`tinarrative events <save> <save>...`](docs/commands/events.md): order saves
+  of one campaign by game time and report the analyzer results (and, with
+  `--inferred`, the inferred events) of every pair of consecutive saves.
 
 Each page documents the command's options, output, and exit codes. See the
 [command index](docs/commands/README.md) for the shared exit-code conventions.
@@ -75,3 +78,5 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `reconstruction`: combine evidence into conservative inferred events.
 - `narrative`: group atomic events into narrative developments.
 - `rendering`: turn structured narrative output into user-facing formats.
+- `sequence`: order and merge the saves of one campaign and run the per-pair
+  pipeline over every consecutive interval (`tinarrative events`).

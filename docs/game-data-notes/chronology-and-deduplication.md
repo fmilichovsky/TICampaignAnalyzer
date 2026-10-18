@@ -23,6 +23,24 @@ non-sensitive structural comparisons of the private save directory on
   files but a different SHA-256 hash. Equal game time alone does not prove
   identical serialized state.
 
+### Sequence observations (2026-10-18)
+
+Observed on five consecutive manual saves of one private campaign (four
+intervals), structure and counts only:
+
+- Every one of the 256 events dated by a save-carried record entry (ledger,
+  destruction log, notification, executive change) had a date between the
+  game times of its interval's two saves. No entry first appeared in a later
+  interval than the one its date belongs to.
+- The index of a `notificationSummaryQueue` entry is not stable across saves:
+  the same index held entries with different dates in different saves. A
+  queue index identifies an entry within one save only.
+- No log entry was reported as new in two consecutive intervals.
+
+Hypothesis: the first point holds for every log the game appends at the time
+of the event. A save written in the middle of a combat or a turn could split
+an event's evidence between two intervals; no such case has been observed.
+
 ## Recommended campaign-input contract
 
 1. Discover candidate files without assigning chronology from their names.

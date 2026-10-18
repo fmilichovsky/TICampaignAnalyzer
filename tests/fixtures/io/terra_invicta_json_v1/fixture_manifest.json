@@ -152,6 +152,17 @@
       "purpose": "Later snapshot of the same synthetic interval: a control point whose controller changes faction (with both rosters and a dated lostControlPoints entry) and one that becomes uncontrolled; a control point and a region that move to another nation; a capital change; a breakaway link; a reciprocal war entry and a one-sided rival removal; a re-dated executive change; a councilor that changes faction, status and detaining faction; a councilor that moves from a region to a hab (priorLocation set); a councilor whose faction becomes null; a nation control-point list with an unmirrored member; a faction councilor list with a stale ID."
     },
     {
+      "path": "politics_reverted.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "f91b6025c46b0ec5edc9cfc82ef58da5d6fe51e8dcc2f44245d78531dfa5ced8",
+      "purpose": "Third snapshot after politics_after.json for save-sequence tests: region 42 returns to nation 21 and control point 9 returns to faction 16 (with both nations' region lists and both factions' control-point rosters), so the same subjects change in two consecutive intervals."
+    },
+    {
       "path": "wars_before.json",
       "kind": "synthetic_analyzer_fixture",
       "json_valid": true,
