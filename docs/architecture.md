@@ -853,6 +853,69 @@ Where multiple explanations fit the evidence, the model should permit:
 The analyzer should not invent unsupported causality simply to produce
 nicer prose.
 
+### Implemented contract (`src/tinarrative/reconstruction/`)
+
+`reconstruction.infer_events(events, before, after, diff)` takes one
+interval's objective events, with the snapshots and the diff as context (as
+for an analyzer), and returns inferred events sorted like `run_analyzers`
+output. Inferred events in its input are ignored, so no rule builds on another
+inference. An inferred event has status `inferred`, is dated by the interval,
+names the IDs of the objective events it rests on in `Event.constituents`, and
+cites every source of those events: the region events' sources keep their
+roles and every other source is corroborating. A diff change that no analyzer
+reports (a region's `isBeingAnnexed`/`annexingArmy`) is cited directly. A fact
+read from a snapshot alone, such as a nation holding no regions afterwards or
+the sides of a war, only qualifies evidence and is never evidence itself.
+
+The rules live in `reconstruction/rules.py`, with their evidence from
+[sources for higher-level events](game-data-notes/higher-level-event-sources.md).
+They are built on `region.nation_changed` events with a known nation on both
+sides, and on the tracker reasons that moved in the interval. A reason is cited
+through the `nation.statistic_shifted` event that already cites its tracker,
+or directly when the statistic stayed below its threshold.
+
+-   `nation.territory_gained` / `nation.territory_lost`: one per nation that
+    gained or lost regions (attributes `regions`, `region_count`,
+    `counterparts`, `territory_causes`). High when the nation's trackers moved
+    under `*Reason_TerritoryChange`, `*Reason_Annexation` or
+    `*Reason_RegionTransfer`, medium on the region events alone.
+-   `nation.independence`: a gainer with any of the signals `executive_cause`
+    (a `lastExecutiveChange` with cause `Independence`), `tracker_cause` (an
+    `*Reason_Independence` delta on the gainer or a nation it gained from),
+    `breakaway_parent` (a breakaway-parent change), `amicable_release`
+    (`DemReason_AmicableRelease` on the gainer) or `nation_released`
+    (`*Reason_NationReleased` on a nation it gained from, counted only when
+    all of that nation's moved regions went to the gainer: a parent that
+    lost regions to several nations does not say which one it released;
+    observed when one parent released one nation and lost a region to
+    another in the same interval). High with two
+    signals, medium with one. Either release reason sets `released = True`,
+    meaning the parent decided the release, and adds `release_causes`,
+    `releasing_nation`, `releasing_basis` and `releasing_executive_faction`.
+    The releasing nation is the earlier holder of the new nation's capital
+    when the capital is among the regions that moved (`capital`), else the
+    only nation it gained from (`only_parent`), else `null`. The executive
+    faction is whoever controlled that nation's `Executive` control point in
+    the earlier snapshot. It is context only and never a claim that the
+    faction decided. `infer_events` sees one pair of snapshots, so the
+    earlier snapshot is the earliest it can consult.
+-   `nation.unification`: a gainer that took every region of two or more
+    nations is medium. A nation is whole when it disappears (that event is
+    cited) or holds no regions afterwards. One whole nation is not enough,
+    because a release of a parent's last region or a conquest looks the same.
+-   `nation.annexation`: per gainer and loser, medium on an annexation flag
+    change of a transferred region (`annexation_flags`), or on a war event or
+    `wars` relation event in the interval about a war that has the two nations
+    on opposite sides (`war`). An unchanged war is not evidence.
+
+When more than one of independence, unification and annexation fits one
+gainer, every candidate is kept one confidence level lower, with
+`ambiguous = True` and the other candidates' IDs in `alternatives`. The
+territory aggregates rank `minor` and the three readings `major`
+(`narrative/significance.py`). `tinarrative diff` does not run
+reconstruction: its report is factual and shows inferred events only in
+verbose rendering.
+
 ------------------------------------------------------------------------
 
 # 11. Narrative Aggregation

@@ -5,6 +5,9 @@ literal transition and names the entities; it never names a cause. A literal sav
 carries as an attribute (for example a recorded cause string) is deliberately not echoed here. The exception is
 the game's notification log: a ``notification.*`` line quotes the log template identifier, which is the game's
 own statement of what happened, so its wording is evidence, not inference (the summary text is still not echoed).
+The inferred types of the reconstruction stage (``nation.independence``, ``nation.unification``,
+``nation.annexation``, ``nation.territory_gained``/``lost``) do name their reading: it is the claim the inferred
+event makes, and a renderer marks such events as inferred. No objective type's line names one.
 """
 
 from __future__ import annotations
@@ -175,6 +178,42 @@ def _statistic_shifted(event: Event) -> str:
     if not isinstance(event.attribute("key"), Unknown):
         label += f" {_text(event, 'key')}"
     return f"{_subject(event)} {_transition(event, label)}"
+
+
+def _refs(event: Event, name: str) -> str:
+    """A tuple attribute of references as a comma-separated list of IDs."""
+    value = event.attribute(name)
+    if not isinstance(value, tuple):
+        return render_value(value)
+    return ", ".join(str(item.entity_id) if isinstance(item, EntityRef) else render_value(item) for item in value)
+
+
+def _regions(event: Event) -> str:
+    count = event.attribute("region_count")
+    return f"{render_value(count)} region{'' if count == 1 else 's'}"
+
+
+def _territory_gained(event: Event) -> str:
+    return f"{_subject(event)} gained {_regions(event)} from {_refs(event, 'counterparts')}"
+
+
+def _territory_lost(event: Event) -> str:
+    return f"{_subject(event)} lost {_regions(event)} to {_refs(event, 'counterparts')}"
+
+
+def _independence(event: Event) -> str:
+    releaser = event.attribute("releasing_nation")
+    if event.attribute("released") is True and isinstance(releaser, EntityRef):
+        return f"{_subject(event)} was released by {releaser.entity_id}"
+    return f"{_subject(event)} became independent of {_refs(event, 'parents')}"
+
+
+def _unification(event: Event) -> str:
+    return f"{_subject(event)} unified with {_refs(event, 'unified')}"
+
+
+def _annexation(event: Event) -> str:
+    return f"{_subject(event)} annexed {_regions(event)} of {_name(_entity(event, EntityDomain.NATION))}"
 
 
 def _with_context(label: str, domain: EntityDomain, prefix: str = "") -> Callable[[Event], str]:
@@ -431,4 +470,9 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "notification.queue_value_changed": _global_value_changed,
     "notification.entry_removed": _notification_removed,
     "notification.entry_changed": _notification_changed,
+    "nation.territory_gained": _territory_gained,
+    "nation.territory_lost": _territory_lost,
+    "nation.independence": _independence,
+    "nation.unification": _unification,
+    "nation.annexation": _annexation,
 }
