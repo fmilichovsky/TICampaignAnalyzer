@@ -186,9 +186,12 @@ def select_campaign(
     return f"no campaign matches {selector!r}"
 
 
-def render_listing(groups: Sequence[CampaignGroup]) -> str:
-    """One block per group: index and key, then its signals, then its saves and game-time span."""
-    lines = [f"{len(groups)} {'campaign' if len(groups) == 1 else 'campaigns'}:"]
+def render_listing(groups: Sequence[CampaignGroup], heading: str | None = None) -> str:
+    """One block per group: index and key, then its signals, then its saves and game-time span.
+
+    ``heading`` replaces the ``N campaigns:`` first line, for a listing narrowed to some of the groups.
+    """
+    lines = [heading if heading is not None else f"{len(groups)} {'campaign' if len(groups) == 1 else 'campaigns'}:"]
     for group in groups:
         started = "real-world start unknown" if group.started is None else f"started {group.started:%Y-%m-%d %H:%M:%S}"
         count = len(group.saves)

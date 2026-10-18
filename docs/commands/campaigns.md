@@ -48,6 +48,9 @@ last), then by their first game time, then by path. Unclassified saves follow in
   the campaign being played. This is the only place where file times are used. They do not follow
   game time and never order or group saves.
 
+In a terminal, `events` without a matching `--campaign` shows this listing and asks for one of these
+selectors or for fuzzy search text instead ([campaign picker](events.md#campaign-picker)).
+
 ## Text output
 
 ```

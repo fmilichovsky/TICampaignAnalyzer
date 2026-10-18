@@ -111,4 +111,6 @@ built from the developments catalogued in
   the grouping signals reported as inference (#89).
 - [x] Select among several campaigns: `tinarrative campaigns` listing and
   `events --campaign` (#93).
+- [x] Pick the campaign interactively, with fuzzy search, when `events` runs in
+  a terminal without a matching `--campaign`.
 
