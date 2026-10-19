@@ -1,8 +1,8 @@
-"""Federation events: presence and members, corroborated by the members' federation references."""
+"""Federation events: presence, members (corroborated by the members' federation references) and renames."""
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, federation_ref, named, nation_ref, snapshot, state
 from tinarrative.analyzers.politics import FederationAnalyzer
-from tinarrative.analyzers.politics.federations import APPEARED, FEDERATION_CHANGED, MEMBERS_CHANGED
+from tinarrative.analyzers.politics.federations import APPEARED, FEDERATION_CHANGED, MEMBERS_CHANGED, RENAMED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
 from tinarrative.model.values import Unknown, UnknownReason, freeze
@@ -85,3 +85,33 @@ def test_unexplained_federation_references_and_unresolved_member_lists_are_repor
     assert dict(reference.attributes) == {"transition": "set", "before": None, "after": named(federation_ref("80"))}
     leftover = next(event for event in events if event.event_type == MEMBERS_CHANGED)
     assert leftover.confidence is Confidence.LOW
+
+
+def named_federation(save: str, display: str, name: str | None) -> object:
+    return state(FEDERATION, "80", save, members=(), displayName=display, federationName=name)
+
+
+def test_a_rename_is_one_event_citing_every_changed_name_field() -> None:
+    before = snapshot(BEFORE, named_federation(BEFORE, "Old", "Old"))
+    after = snapshot(AFTER, named_federation(AFTER, "New", "New Formal"))
+    (event,) = analyze(ANALYZER, before, after)
+    assert (event.id, event.event_type) == ("federation.renamed/federation:80", RENAMED)
+    assert sources(event) == [
+        (SourceRole.PRIMARY, "federation:80", "displayName"),
+        (SourceRole.PRIMARY, "federation:80", "federationName"),
+    ]
+    assert dict(event.attributes) == {
+        "transition": "changed",
+        "before": "Old",
+        "after": "New",
+        "federation_name_before": "Old",
+        "federation_name_after": "New Formal",
+    }
+
+
+def test_a_federation_name_set_alone_is_a_rename_by_that_field() -> None:
+    before = snapshot(BEFORE, named_federation(BEFORE, "Same", None))
+    after = snapshot(AFTER, named_federation(AFTER, "Same", "Formal"))
+    (event,) = analyze(ANALYZER, before, after)
+    assert sources(event) == [(SourceRole.PRIMARY, "federation:80", "federationName")]
+    assert dict(event.attributes) == {"transition": "set", "before": None, "after": "Formal"}

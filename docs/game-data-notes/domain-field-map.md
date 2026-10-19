@@ -46,6 +46,10 @@ Further 2026-10-09 observations (structure only):
   `nuclearDetonations` `0` everywhere, so their non-default shapes are not observed. *Hypothesis:* a set
   `annexationBeginDate` is a componentized date like `TIControlPoint.crackdownExpiration`. `oceanType` is a string with
   two distinct values; the remaining flags and counters held both default and non-default values.
+- Observed on 2026-10-19 in eight private saves of two campaigns (363 regions each, structure and counts only):
+  `populationInMillions` is a float on every region, from 0.046 to about 300. Summed over a nation's `regions` (or
+  over the regions a territory event moved) it is the `population` attribute of `nation.appeared`/`disappeared` and
+  `nation.territory_gained`/`lost`; a region without a number makes the sum unknown.
 - Ship `templateName` is a design name shared by many ships; hab `templateName` was null in 267 of 269 habs. Neither is a secondary key.
 - Observed on 2026-10-14 in five private complete saves of one campaign (structure only): every `TIArmyState` (19 per save) and `TIMegafaunaArmyState` (0 or 1 per save) carried `currentOperations` as an empty list, `destinationSeaDate` and `embarkDate` as `null`, and `huntingXenofauna` as `false`. All four are copied as-is. *Hypothesis:* army operation elements share the fleet element keys (`operationDataName`, `target`, `startDate`, `completionDate`) and the two transit dates use the componentized date object; neither was seen on an army.
 
@@ -56,6 +60,12 @@ Faction fields observed on 2026-10-14 in five private complete saves of one camp
 - `unassignedOrgs` is a list of `{"value": id}` references (63–73 in total per save); every ID resolved to a `TIOrgState` entry.
 - `shipsBuiltInClass` is an object: design name -> integer count (0–91 keys per faction). `techNameContributionHistory` is an object: tech name -> float (148 keys on 7 factions, empty on the eighth).
 - `shipDesigns` is a list of design objects (0–117 per faction, 334–405 per save), each with the same 25 members, among them `dataName` (string), `_displayName` (string), `friendlyName` (`null` in all 1,765 designs inspected), `hullName`, `driveName`, `powerPlantName`, `radiatorName`, `noseArmor`/`lateralArmor`/`tailArmor` (objects), the weapon/module template-entry lists and `_unnormalizedCombatValue` (float). No design contained `$id`/`$ref`. `dataName` was unique within each faction and across all factions of a save, and every ship `templateName` (545–588 ships per save) matched a design `dataName`. Between consecutive saves designs were added and removed (up to 111 added and 44 removed per interval); a design kept under the same `dataName` changed only in `_unnormalizedCombatValue` (0–293 per interval). *Hypothesis:* that member is a recomputed rating, not a player edit. Some `shipsBuiltInClass` keys (7 of 8 factions) name no current design of the faction; *hypothesis:* they are designs since removed.
+
+Observed on 2026-10-19 in eight private complete saves of two campaigns (structure, counts and game identifiers only), for issue #96:
+
+- `templateName` of `TIFactionState` names the faction's council: `ResistCouncil`, `DestroyCouncil`, `ExploitCouncil`, `SubmitCouncil`, `AppeaseCouncil`, `CooperateCouncil`, `EscapeCouncil` and `AlienCouncil`, one faction each in every save (8 factions). The analyzers name a faction `alien` when its template is `AlienCouncil` and `human` otherwise (`faction_kinds`).
+- `hullName` of every design (78–405 per save) is a string game identifier, 14–26 distinct per save; the alien faction's hulls are prefixed `Alien` (`AlienGunship`, `AlienFrigate`, ...), the councils' are not (`Escort`, `Corvette`, `Titan`, ...). In three intervals every ship present in one save only (0–71 per interval) resolved its hull through its fleet's faction.
+- `finishedProjectNames` is a list of project-name strings (57–1,223 per save). A name may repeat: one faction of the older campaign listed `Project_ManagementResearch` 48 times in the earliest save and 64 times in the latest, growing between saves. *Hypothesis:* a repeatable project is listed once per completion.
 
 The normalizer copies `shipDesigns` as a map from `dataName` to the whole design object (`KEYED_LIST_FIELDS` in `fields.py`), so the diff compares designs by name; a list that is not made of objects with unique string `dataName` members stays raw as `unparseable` and is reported as `unexpected_field_shape` with detail `array_of_keyed_objects`. Design display names may be player-authored free text (*hypothesis*); like every save string they are never logged or documented.
 

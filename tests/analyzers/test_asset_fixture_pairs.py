@@ -62,6 +62,7 @@ def test_interval_pair_yields_the_expected_events() -> None:
         "army.appeared/army:112",
         "army.region_changed/army:110",
         "army.strength_changed/army:110",
+        "faction.project_completed/faction:15/Project_Fixture",
         "fleet.appeared/fleet:121",
         "fleet.docked_location_changed/fleet:120",
         "fleet.orbit_changed/fleet:120",
@@ -127,6 +128,12 @@ def test_assets_pair_covers_every_transition_once() -> None:
         (SourceRole.CORROBORATING, "nation:20"),
         (SourceRole.CORROBORATING, "region:41"),
     ]
+    # The army's home nation (of home region 41) is context: an entity and an attribute.
+    assert str(gone.attribute("home_nation").entity_id) == "nation:20"  # type: ignore[union-attr]
+    assert "nation:20" in [str(ref.entity_id) for ref in gone.entities]
+    # The hull is looked up in the fleet faction's designs on the side where the ship exists.
+    assert by_id["ship.appeared/ship:133"].attribute("hull") == "Frigate"
+    assert by_id["ship.disappeared/ship:132"].attribute("hull") == "Frigate"
     assert len(by_id["ship.fleet_changed/ship:131"].sources) == 3
     assert len(by_id["fleet.appeared/fleet:122"].sources) == 3
     recorded = by_id["faction.hab_destruction_recorded/faction:15/1"]

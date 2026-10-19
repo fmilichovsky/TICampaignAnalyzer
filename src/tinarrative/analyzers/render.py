@@ -3,7 +3,8 @@
 This is the message catalog: the wording per event type that a renderer may reuse. It describes the
 literal transition and names the entities, as ``Name (domain:id)`` where the save gave a name; it never names
 a cause. A literal save value that an event carries as an attribute (for example a recorded cause string) is
-deliberately not echoed here. The exception is
+deliberately not echoed here. A rename line quotes the literal names before and after: the name is
+the fact the event reports. The other exception is
 the game's notification log: a ``notification.*`` line quotes the log template identifier, which is the game's
 own statement of what happened, so its wording is evidence, not inference (the summary text is still not echoed).
 The inferred types of the reconstruction stage (``nation.independence``, ``nation.unification``,
@@ -134,6 +135,55 @@ def _executive_change(event: Event) -> str:
     if not isinstance(previous, Unknown):
         text += f" (previously {render_event_value(previous)})"
     return text
+
+
+def _claims_changed(label: str) -> Callable[[Event], str]:
+    """``<nation> <label> list: +[regions] -[regions]``, an empty side left out; an unresolved list as a transition."""
+
+    def describe(event: Event) -> str:
+        if not isinstance(event.attribute("transition"), Unknown):
+            return f"{_subject(event)} {_transition(event, f'{label} list')}"
+        parts = [
+            f"{sign}{_attr(event, name)}" for sign, name in (("+", "added"), ("-", "removed")) if event.attribute(name)
+        ]
+        return f"{_subject(event)} {label} list: {' '.join(parts)}"
+
+    return describe
+
+
+def _renamed(event: Event) -> str:
+    text = f"{_subject(event)} renamed: {_attr(event, 'before')} -> {_attr(event, 'after')}"
+    if not isinstance(event.attribute("federation_name_before"), Unknown):
+        text += (
+            f" (federation name {_attr(event, 'federation_name_before')} -> {_attr(event, 'federation_name_after')})"
+        )
+    return text
+
+
+def _unrest_attempts_changed(event: Event) -> str:
+    if not isinstance(event.attribute("transition"), Unknown):
+        return f"{_subject(event)} {_transition(event, 'faction unrest attempts')}"
+    label = f"unrest attempts by {_attr(event, 'faction')}"
+    return f"{_subject(event)} {_transition(event, label)}"
+
+
+def _new_government_recorded(event: Event) -> str:
+    if not isinstance(event.attribute("after"), str):
+        return f"{_subject(event)} {_transition(event, 'new government date')}"
+    text = f"{_subject(event)} records a new government dated {_text(event, 'after')}"
+    if isinstance(event.attribute("before"), str):
+        text += f" (previously {_text(event, 'before')})"
+    return text
+
+
+def _project_completed(event: Event) -> str:
+    return f"{_subject(event)} lists project {_attr(event, 'project')} as finished"
+
+
+def _finished_projects_changed(event: Event) -> str:
+    if isinstance(event.attribute("member"), Unknown):
+        return f"{_subject(event)} {_transition(event, 'finished project list')}"
+    return f"{_subject(event)} finished project list: -{_attr(event, 'member')}"
 
 
 def _councilor_field(label: str) -> Callable[[Event], str]:
@@ -438,6 +488,12 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.appeared": _nation_presence,
     "nation.disappeared": _nation_presence,
     "nation.statistic_shifted": _statistic_shifted,
+    "nation.claims_changed": _claims_changed("claims"),
+    "nation.hostile_claims_changed": _claims_changed("hostile claims"),
+    "nation.renamed": _renamed,
+    "federation.renamed": _renamed,
+    "nation.unrest_attempts_changed": _unrest_attempts_changed,
+    "nation.new_government_recorded": _new_government_recorded,
     "councilor.faction_changed": _plain("faction"),
     "councilor.status_changed": _councilor_field("status"),
     "councilor.location_changed": _councilor_field("location"),
@@ -499,6 +555,8 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "technology.appeared": _technology_presence,
     "technology.disappeared": _technology_presence,
     "research.finished_techs_changed": _list_changed,
+    "faction.project_completed": _project_completed,
+    "faction.finished_project_names_changed": _finished_projects_changed,
     "campaign.global_values_appeared": _global_values_presence,
     "campaign.global_values_disappeared": _global_values_presence,
     "campaign.global_milestone_recorded": _milestone_recorded,

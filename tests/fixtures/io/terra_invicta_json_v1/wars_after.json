@@ -361,7 +361,7 @@
             "value": 80
           },
           "templateName": null,
-          "displayName": "Fixture Federation",
+          "displayName": "Fixture Grand Federation",
           "archived": false,
           "exists": true,
           "members": [
@@ -372,7 +372,7 @@
               "value": 20
             }
           ],
-          "federationName": "Fixture Federation",
+          "federationName": "Fixture Grand Federation",
           "adjective": "Fixture",
           "displayNameWithArticle": "the Fixture Federation",
           "displayNameWithArticleCapitalized": "The Fixture Federation",

@@ -137,8 +137,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "646e2294c98a8149661c81e65dab2d764f5c9fef85ba0dd784be0ca03176ef66",
-      "purpose": "Earlier snapshot of a synthetic interval for the politics analyzers; pair with politics_after.json. Factions 15/16 with councilor and control-point rosters (faction 16 with an empty lostControlPoints record), nations 20..22 with regions, rivals, control points and an executive-change record on nation 20, control points 9..11, councilors 100..102 and a hab as a councilor location."
+      "sha256": "5898adb4be0b88301a058a01f725bfac5f4fca0e6c7c43bbc562164abada3ef7",
+      "purpose": "Earlier snapshot of a synthetic interval for the politics analyzers; pair with politics_after.json. Factions 15/16 with councilor and control-point rosters (faction 16 with an empty lostControlPoints record), nations 20..22 with regions, rivals, control points and an executive-change record on nation 20, control points 9..11, councilors 100..102 and a hab as a councilor location. Nations 20..22 carry empty claims and hostileClaims lists, and nation 20 a factionUnrestAttempts pair map with one attempt by faction 16."
     },
     {
       "path": "politics_after.json",
@@ -148,8 +148,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "c205775cfc6bd257acee341980130c5195b98ea9afe875c32b859ca5fd88b040",
-      "purpose": "Later snapshot of the same synthetic interval: a control point whose controller changes faction (with both rosters and a dated lostControlPoints entry) and one that becomes uncontrolled; a control point and a region that move to another nation; a capital change; a breakaway link; a reciprocal war entry and a one-sided rival removal; a re-dated executive change; a councilor that changes faction, status and detaining faction; a councilor that moves from a region to a hab (priorLocation set); a councilor whose faction becomes null; a nation control-point list with an unmirrored member; a faction councilor list with a stale ID."
+      "sha256": "96d5055b3fbda63e66a958b6bff689ce732af083e575397d4100d69cd0d7d24b",
+      "purpose": "Later snapshot of the same synthetic interval: a control point whose controller changes faction (with both rosters and a dated lostControlPoints entry) and one that becomes uncontrolled; a control point and a region that move to another nation; a capital change; a breakaway link; a reciprocal war entry and a one-sided rival removal; a re-dated executive change; a councilor that changes faction, status and detaining faction; a councilor that moves from a region to a hab (priorLocation set); a councilor whose faction becomes null; a nation control-point list with an unmirrored member; a faction councilor list with a stale ID. Nation 21 gains a claim on region 40 and nation 22 a hostile claim on region 42 (both held by nation 20); nation 20's factionUnrestAttempts count for faction 16 rises and one for faction 15 is added."
     },
     {
       "path": "politics_reverted.json",
@@ -159,8 +159,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "f91b6025c46b0ec5edc9cfc82ef58da5d6fe51e8dcc2f44245d78531dfa5ced8",
-      "purpose": "Third snapshot after politics_after.json for save-sequence tests: region 42 returns to nation 21 and control point 9 returns to faction 16 (with both nations' region lists and both factions' control-point rosters), so the same subjects change in two consecutive intervals."
+      "sha256": "f4fbc269521cc67212d4bf68dd9ecd93c34fb09ef3ce3cdd98e067d1e58f0e3c",
+      "purpose": "Third snapshot after politics_after.json for save-sequence tests: region 42 returns to nation 21 and control point 9 returns to faction 16 (with both nations' region lists and both factions' control-point rosters), so the same subjects change in two consecutive intervals. Claims, hostile claims and unrest attempts stay as in politics_after.json."
     },
     {
       "path": "wars_before.json",
@@ -181,8 +181,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "25bb9e196eb4823f2be98612d0fc43b5b42b6154be333e50db31ecc14697b34a",
-      "purpose": "Later snapshot of the same synthetic interval: war 91 is absent, war 92 (23 against 25) is present with a start date inside the interval, war 90 gains nation 22 on the attacking side and a later last-fighting date, federation 80 gains nation 20 and loses nation 25 (mirrored by their federation references), and nation 24 lists a wars entry no war explains."
+      "sha256": "802a154e55be4a283112e7d508c4fc377ad659c395c379d9e0be2581110a765d",
+      "purpose": "Later snapshot of the same synthetic interval: war 91 is absent, war 92 (23 against 25) is present with a start date inside the interval, war 90 gains nation 22 on the attacking side and a later last-fighting date, federation 80 gains nation 20 and loses nation 25 (mirrored by their federation references), and nation 24 lists a wars entry no war explains. Federation 80 is renamed (displayName and federationName change together)."
     },
     {
       "path": "assets_before.json",
@@ -192,8 +192,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "8a5569b543ac4beeecf083559983e1bc3ec5cd4ff840374759610ebd96e87221",
-      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, a space body 50 with a moon 51 whose barycenter points at it, and a research singleton with two finished techs and one progress entry."
+      "sha256": "626cccbcd08ed79a9c82af305714d973465ba43e1e67bac920bf6247803418bd",
+      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, a space body 50 with a moon 51 whose barycenter points at it, and a research singleton with two finished techs and one progress entry. Faction 15 carries shipDesigns (dataName, hullName) for every ship template; faction 16 an empty list."
     },
     {
       "path": "assets_after.json",
@@ -203,8 +203,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "83850f0fff6c6f8883374eca666bdb3982195deadd75febd74cfb503411c686b",
-      "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed."
+      "sha256": "a536468eca01cd13090a50621b2264fcdac7c4786d038ddd44de4abbb6e7bb10",
+      "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed. The ship designs are unchanged, so the hulls of the ship present only here and of the absent one both resolve."
     },
     {
       "path": "aliens_before.json",

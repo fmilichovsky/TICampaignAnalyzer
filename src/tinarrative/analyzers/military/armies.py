@@ -6,12 +6,16 @@ it was disbanded, lost in battle or merged is a reconstruction question. A prese
 ``TIMegafaunaArmyState`` army carries ``megafauna = True``; regular armies carry no such attribute.
 ``priorRegion``, ``operationTarget``, ``destinationQueue``, ``currentOperations``, the transit dates,
 ``huntingXenofauna`` and ``bonusTechLevel`` stay in the diff.
+
+Every army event names the army's home nation, when known (the ``nation`` of its ``homeRegion``, read from the
+later snapshot, else the earlier one), as an entity and as attribute ``home_nation``: context for which nation's
+army it is, never evidence and never cited.
 """
 
 from __future__ import annotations
 
 from ...model.changes import ChangeKind, StateChange, StateDiff
-from ...model.entities import EntityDomain, EntityRef
+from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
@@ -76,7 +80,16 @@ class ArmyAnalyzer:
                     events.append(event)
         for field_name, event_type in VALUE_FIELDS:
             for change in index.fields(EntityDomain.ARMY, field_name):
-                event = value_transition_event(event_type, change, lookup, build, context=_context(change, lookup))
+                assert change.entity_id is not None
+                home = _home_nation(change.entity_id, lookup)
+                event = value_transition_event(
+                    event_type,
+                    change,
+                    lookup,
+                    build,
+                    context=(*_context(change, lookup), home),
+                    attributes=_home_attribute(home),
+                )
                 if event is not None:
                     events.append(event)
         for change in index.presence(EntityDomain.ARMY):
@@ -91,6 +104,16 @@ def _context(change: StateChange, lookup: Lookup) -> tuple[EntityRef | None, ...
     return (lookup.context_ref(change.entity_id, "faction"), lookup.context_ref(change.entity_id, "currentRegion"))
 
 
+def _home_nation(army_id: EntityId, lookup: Lookup) -> EntityRef | None:
+    """The nation of the army's ``homeRegion`` (context only)."""
+    home_region = lookup.context_ref(army_id, "homeRegion")
+    return lookup.context_ref(home_region.entity_id, "nation") if home_region is not None else None
+
+
+def _home_attribute(home: EntityRef | None) -> tuple[tuple[str, Observed], ...]:
+    return (("home_nation", home),) if home is not None else ()
+
+
 def _mirrored(
     event_type: str, change: StateChange, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder
 ) -> Event | None:
@@ -99,6 +122,7 @@ def _mirrored(
         return None
     army_id = change.entity_id
     other = "currentRegion" if change.field == "faction" else "faction"
+    home = _home_nation(army_id, lookup)
     return build.event(
         event_type,
         id_parts=(army_id,),
@@ -108,8 +132,9 @@ def _mirrored(
             lookup.context_ref(army_id, other),
             lookup.resolve(change.before),
             lookup.resolve(change.after),
+            home,
         ),
-        attributes=transition_attributes(change, transition),
+        attributes=(*transition_attributes(change, transition), *_home_attribute(home)),
         confidence=confidence_for(transition),
     )
 
@@ -128,13 +153,19 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
             if cited is not None:
                 sources.append(cited)
     army = lookup.ref(army_id)
-    attributes: list[tuple[str, Observed]] = [("side", side.value)]
+    home = _home_nation(army_id, lookup)
+    attributes: list[tuple[str, Observed]] = [("side", side.value), *_home_attribute(home)]
     if army is not None and army.state_type == MEGAFAUNA_STATE_TYPE:
         attributes.append(("megafauna", True))
     return build.event(
         APPEARED if appeared else DISAPPEARED,
         id_parts=(army_id,),
         sources=sources,
-        entities=(army, lookup.ref_field(army_id, "faction", side), lookup.ref_field(army_id, "currentRegion", side)),
+        entities=(
+            army,
+            lookup.ref_field(army_id, "faction", side),
+            lookup.ref_field(army_id, "currentRegion", side),
+            home,
+        ),
         attributes=attributes,
     )

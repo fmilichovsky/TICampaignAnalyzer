@@ -28,12 +28,14 @@ EXPECTED_INTERVAL = {
     "Fixture Northland Union (nation:20) and Fixture Eastland (nation:22): allies entry added (listed by both)",
     "Fixture Northland Union (nation:20) GDP: 1000.0 -> 1200.0",
     "Fixture Org (organization:70) assigned councilor: Fixture Councilor 100 (councilor:100) -> null",
+    'Fixture Northland Union (nation:20) renamed: "Fixture Northland" -> "Fixture Northland Union"',
 }
 
 EXPECTED_RECORDS = {
     "Fixture Resistance (faction:15) records Fixture CP 9 (control point:9) as lost on 2031-04-10T00:00:00",
     "Fixture Northland (nation:20) records an executive change dated 2031-04-20T00:00:00: "
     "new executive Fixture Resistance (faction:15) (previously null)",
+    "Fixture Northland (nation:20) records a new government dated 2031-04-20T00:00:00",
 }
 
 EXPECTED_POLITICS = {
@@ -63,6 +65,10 @@ EXPECTED_POLITICS = {
     "(listed by Fixture Northland (nation:20) only)",
     "Fixture Northland (nation:20) and Fixture Southland (nation:21): wars entry added (listed by both)",
     "Fixture South (region:42) nation: Fixture Southland (nation:21) -> Fixture Northland (nation:20)",
+    "Fixture Southland (nation:21) claims list: +[Fixture North (region:40)]",
+    "Fixture Eastland (nation:22) hostile claims list: +[Fixture South (region:42)]",
+    "Fixture Northland (nation:20) unrest attempts by Fixture Resistance (faction:15): null -> 1",
+    "Fixture Northland (nation:20) unrest attempts by Fixture Servants (faction:16): 1 -> 2",
 }
 
 EXPECTED_INTERVAL_ASSETS = {
@@ -84,6 +90,7 @@ EXPECTED_INTERVAL_ASSETS = {
     '(unresolved_reference, raw={"value": 999})',
     "technology:FixtureTechC (finished false) is present only in the after snapshot",
     "technology:FixtureTechB is listed as finished",
+    'Fixture Resistance (faction:15) lists project "Project_Fixture" as finished',
 }
 
 EXPECTED_ASSETS = {
@@ -139,8 +146,9 @@ EXPECTED_WARS = {
     "Fixture War 92 (war:92) (Fixture Nation 23 (nation:23), Fixture Nation 25 "
     "(nation:25)) is present only in the after snapshot; start date 2032-02-20T00:00:00",
     'Fixture War 90 (war:90) date of last fighting: "2031-12-10T00:00:00" -> "2032-03-15T00:00:00"',
-    "Fixture Federation (federation:80) members: +Fixture Nation 20 (nation:20)",
-    "Fixture Federation (federation:80) members: -Fixture Nation 25 (nation:25)",
+    "Fixture Grand Federation (federation:80) members: +Fixture Nation 20 (nation:20)",
+    "Fixture Grand Federation (federation:80) members: -Fixture Nation 25 (nation:25)",
+    'Fixture Grand Federation (federation:80) renamed: "Fixture Federation" -> "Fixture Grand Federation"',
     "Fixture Nation 21 (nation:21) and Fixture Nation 24 (nation:24): wars entry added "
     "(listed by Fixture Nation 24 (nation:24) only)",
     "Fixture War 90 (war:90) attacking side: +Fixture Nation 22 (nation:22)",

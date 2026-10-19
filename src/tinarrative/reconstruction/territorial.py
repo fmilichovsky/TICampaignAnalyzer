@@ -18,7 +18,8 @@ Rules:
 
 - ``nation.territory_gained`` / ``nation.territory_lost``: one per nation that gained or lost regions, aggregating
   every ``region.nation_changed`` with a known nation on both sides; high when the nation's tracker maps moved under
-  a territory reason, medium on the region events alone.
+  a territory reason, medium on the region events alone. ``population`` is the summed ``populationInMillions`` of
+  the moved regions, read after the interval for a gain and before it for a loss (context, not evidence).
 - ``nation.independence``: a gainer with an ``Independence`` executive cause, an ``*Reason_Independence`` tracker
   delta (on it or on a nation it gained from), a breakaway-parent change, ``DemReason_AmicableRelease`` on it or
   ``*Reason_NationReleased`` on a nation whose moved regions all went to it; high with two signals, medium with
@@ -273,6 +274,8 @@ def _territory(
     regions = _regions(transfers)
     counterparts = _unique_refs(context, (counterpart(transfer) for transfer in transfers))
     causes, support = context.reasons(nation, _territory_reason)
+    side = Side.AFTER if event_type == TERRITORY_GAINED else Side.BEFORE
+    population = context.lookup.population((region.entity_id for region in regions), side)
     return _inferred(
         context,
         event_type,
@@ -283,6 +286,7 @@ def _territory(
         attributes=(
             ("regions", regions),
             ("region_count", len(regions)),
+            ("population", population),
             ("counterparts", counterparts),
             ("territory_causes", causes),
         ),

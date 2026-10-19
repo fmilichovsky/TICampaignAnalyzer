@@ -59,10 +59,14 @@ def test_interval_pair_yields_the_expected_events() -> None:
         "federation.members_changed/federation:80/nation:20/added",
         "nation.relation_changed/allies/nation:20/nation:21/removed",
         "nation.relation_changed/allies/nation:20/nation:22/added",
+        "nation.renamed/nation:20",
         "nation.statistic_shifted/nation:20/GDP",
         "organization.assigned_councilor_changed/organization:70",
     ]
     by_id = {event.id: event for event in events}
+    renamed = by_id["nation.renamed/nation:20"]
+    assert [(s.role, s.change.field) for s in renamed.sources] == [(SourceRole.PRIMARY, "displayName")]
+    assert (renamed.attribute("before"), renamed.attribute("after")) == ("Fixture Northland", "Fixture Northland Union")
     gone = by_id["control_point.disappeared/control point:12"]
     assert [source.role for source in gone.sources] == [SourceRole.PRIMARY] + [SourceRole.CORROBORATING] * 2
     assert by_id["councilor.appeared/councilor:102"].sources[1].change.field == "councilors"
@@ -85,13 +89,17 @@ def test_records_pair_yields_record_dated_events() -> None:
     assert ids(events) == [
         "control_point.loss_recorded/faction:15/control point:9",
         "nation.executive_change_recorded/nation:20",
+        "nation.new_government_recorded/nation:20",
     ]
-    loss, executive = events
+    loss, executive, new_government = events
     assert (loss.date, loss.date_basis) == ("2031-04-10T00:00:00", DateBasis.RECORD)
     assert loss.sources[0].entry is not None and loss.sources[0].entry.path.endswith("/lostControlPoints/0")  # type: ignore[union-attr]
     assert (executive.date, executive.date_basis) == ("2031-04-20T00:00:00", DateBasis.RECORD)
     assert executive.attribute("cause") == "Coup"
     assert {source.member for source in executive.sources} == {"cause", "date", "newExecutive"}
+    assert (new_government.date, new_government.date_basis) == (executive.date, DateBasis.RECORD)
+    assert [(s.role, s.change.field) for s in new_government.sources] == [(SourceRole.PRIMARY, "dateOfNewGovernment")]
+    assert (new_government.attribute("transition"), new_government.attribute("before")) == ("set", None)
 
 
 @pytest.mark.fixture
@@ -113,8 +121,29 @@ def test_politics_pair_covers_every_transition_once() -> None:
         "councilor.detaining_faction_changed": 1,
         "councilor.location_changed": 1,
         "faction.councilors_changed": 1,
+        "nation.claims_changed": 1,
+        "nation.hostile_claims_changed": 1,
+        "nation.unrest_attempts_changed": 2,
     }
     by_id = {event.id: event for event in events}
+    claims = by_id["nation.claims_changed/nation:21"]
+    assert [str(value.entity_id) for value in claims.attribute("added")] == ["region:40"]  # type: ignore[union-attr]
+    assert claims.attribute("removed") == ()
+    assert [(s.role, s.change.field, str(s.member.entity_id)) for s in claims.sources] == [  # type: ignore[union-attr]
+        (SourceRole.PRIMARY, "claims", "region:40")
+    ]
+    assert [str(ref.entity_id) for ref in claims.entities] == ["nation:21", "region:40", "nation:20"]
+    hostile = by_id["nation.hostile_claims_changed/nation:22"]
+    assert [str(ref.entity_id) for ref in hostile.entities] == ["nation:22", "region:42", "nation:20"]
+    attempts = {
+        event_id: (event.attribute("before"), event.attribute("after"))
+        for event_id, event in by_id.items()
+        if event.event_type == "nation.unrest_attempts_changed"
+    }
+    assert attempts == {
+        "nation.unrest_attempts_changed/nation:20/faction:15": (None, 1),
+        "nation.unrest_attempts_changed/nation:20/faction:16": (1, 2),
+    }
     transfer = by_id["control_point.controller_changed/control point:9"]
     assert transfer.attribute("loss_recorded_on") == "2032-02-15T00:00:00"
     assert [(s.role, s.change.field) for s in transfer.sources] == [
@@ -139,6 +168,7 @@ def test_wars_pair_yields_war_and_federation_events_corroborated_by_the_nations(
     assert sorted(ids(events)) == [
         "federation.members_changed/federation:80/nation:20/added",
         "federation.members_changed/federation:80/nation:25/removed",
+        "federation.renamed/federation:80",
         "nation.relation_changed/wars/nation:21/nation:24/added",
         "war.alliance_changed/war:90/attacking/nation:22/added",
         "war.appeared/war:92",
@@ -160,6 +190,16 @@ def test_wars_pair_yields_war_and_federation_events_corroborated_by_the_nations(
     ]
     start = next(s for s in appeared.sources if s.member == "startDate")
     assert start.entry is not None and start.entry.path.endswith("/startDate")  # type: ignore[union-attr]
+    renamed = by_id["federation.renamed/federation:80"]
+    assert cited("federation.renamed/federation:80") == [
+        (SourceRole.PRIMARY, "federation:80", "displayName"),
+        (SourceRole.PRIMARY, "federation:80", "federationName"),
+    ]
+    assert (renamed.attribute("before"), renamed.attribute("after")) == (
+        "Fixture Federation",
+        "Fixture Grand Federation",
+    )
+    assert isinstance(renamed.attribute("federation_name_before"), Unknown)  # same values as the display names
     gone = by_id["war.disappeared/war:91"]
     assert gone.date_basis is DateBasis.INTERVAL
     assert cited("war.disappeared/war:91") == [

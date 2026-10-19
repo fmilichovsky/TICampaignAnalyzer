@@ -1,8 +1,12 @@
-"""Federations as the save shows them: presence and the ``members`` list.
+"""Federations as the save shows them: presence, the ``members`` list and the literal names.
 
 A nation's ``federation`` reference mirrors the ``members`` list of that federation (observed in every inspected
 save), so a member change cites the matching ``nation.federation`` change as corroboration. A ``nation.federation``
 change no member change or presence explains is reported on its own as ``nation.federation_changed``.
+
+A change of ``displayName`` or ``federationName`` is one ``federation.renamed`` per federation citing each changed
+field; ``before``/``after`` are the display names when those changed, else the federation names, and federation
+names that differ from changed display names are carried as ``federation_name_before``/``federation_name_after``.
 """
 
 from __future__ import annotations
@@ -11,6 +15,7 @@ from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
+from ...model.values import Observed
 from ..common import (
     ChangeIndex,
     EventBuilder,
@@ -18,6 +23,7 @@ from ..common import (
     MembershipLedger,
     Side,
     Transition,
+    classify,
     confidence_for,
     list_changed_event,
     primary,
@@ -29,6 +35,9 @@ APPEARED = "federation.appeared"
 DISAPPEARED = "federation.disappeared"
 MEMBERS_CHANGED = "federation.members_changed"
 FEDERATION_CHANGED = "nation.federation_changed"
+RENAMED = "federation.renamed"
+NAME_FIELDS = ("displayName", "federationName")
+"""The name fields of a federation, in the order their values are preferred for ``before``/``after``."""
 
 HANDLED_LISTS = ((EntityDomain.FEDERATION, "members"),)
 
@@ -67,7 +76,41 @@ class FederationAnalyzer:
             event = value_transition_event(FEDERATION_CHANGED, change, lookup, build)
             if event is not None:
                 events.append(event)
+        events.extend(_renames(index, lookup, build))
         return events
+
+
+def _renames(index: ChangeIndex, lookup: Lookup, build: EventBuilder) -> list[Event]:
+    """One event per federation whose display or federation name changed, citing every changed name field."""
+    by_federation: dict[EntityId, list[StateChange]] = {}
+    for field_name in NAME_FIELDS:
+        for change in index.fields(EntityDomain.FEDERATION, field_name):
+            if change.entity_id is not None and classify(change.before, change.after) is not None:
+                by_federation.setdefault(change.entity_id, []).append(change)
+    events: list[Event] = []
+    for federation_id, changes in sorted(by_federation.items(), key=lambda item: item[0].sort_key):
+        shown = changes[0]
+        transition = classify(shown.before, shown.after)
+        assert transition is not None
+        attributes: list[tuple[str, Observed]] = [
+            ("transition", transition.value),
+            ("before", shown.before),
+            ("after", shown.after),
+        ]
+        for change in changes[1:]:
+            if (change.before, change.after) != (shown.before, shown.after):
+                attributes += [("federation_name_before", change.before), ("federation_name_after", change.after)]
+        events.append(
+            build.event(
+                RENAMED,
+                id_parts=(federation_id,),
+                sources=[primary(change) for change in changes],
+                entities=(lookup.ref(federation_id),),
+                attributes=attributes,
+                confidence=confidence_for(transition),
+            )
+        )
+    return events
 
 
 class _NationFederations:

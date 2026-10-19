@@ -20,6 +20,7 @@ from tests.analyzers.support import (
 )
 from tinarrative.analyzers import POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.common import (
+    FACTION_KINDS,
     ChangeIndex,
     EventBuilder,
     Lookup,
@@ -212,3 +213,20 @@ def test_run_analyzers_sorts_events_logs_aggregates_only_and_rejects_duplicate_i
 
     with pytest.raises(ValueError, match="duplicate event IDs"):
         run_analyzers([Twice()], before, after, diff)  # type: ignore[list-item]
+
+
+def test_every_event_naming_a_faction_carries_its_kind_by_template() -> None:
+    faction = EntityDomain.FACTION
+    before = snapshot(BEFORE, state(faction, "16", BEFORE, templateName="AlienCouncil"))
+    after = snapshot(
+        AFTER,
+        state(faction, "15", AFTER, templateName="ResistCouncil"),
+        state(faction, "17", AFTER),
+        state(EntityDomain.NATION, "20", AFTER),
+    )
+    build = EventBuilder(before, after)
+    refs = (nation_ref("20"), faction_ref("15"), faction_ref("16"), faction_ref("17"))
+    event = build.event("test.event", id_parts=("x",), sources=(), entities=refs)
+    assert dict(event.attribute(FACTION_KINDS).items) == {"faction:15": "human", "faction:16": "alien"}  # type: ignore[union-attr]
+    plain = build.event("test.event", id_parts=("y",), sources=(), entities=(nation_ref("20"), faction_ref("17")))
+    assert plain.attributes == ()  # no faction of known template: no attribute

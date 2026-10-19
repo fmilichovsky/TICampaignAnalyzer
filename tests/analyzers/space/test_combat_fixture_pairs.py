@@ -4,9 +4,10 @@ import pytest
 
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import ALL_ANALYZERS, SPACE_ANALYZERS, run_analyzers
+from tinarrative.analyzers.common import FACTION_KINDS
 from tinarrative.analyzers.render import describe_event
 from tinarrative.model.events import Confidence, DateBasis, Event
-from tinarrative.model.values import FrozenMap
+from tinarrative.model.values import FrozenMap, Observed
 
 PAIR = ("combat_before.json", "combat_after.json")
 LOG_PATH = "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/{index}/Value/CombatLogs/{entry}"
@@ -56,9 +57,18 @@ def test_an_added_entry_with_a_null_date_is_interval_dated_and_cites_the_entry()
 def test_one_combat_logged_by_two_factions_and_duplicates_are_separate_events() -> None:
     events = run()
     shared = [events["faction.combat_recorded/faction:15/1"], events["faction.combat_recorded/faction:16/0"]]
-    assert shared[0].attributes == shared[1].attributes
+    # The logging faction is an entity of its own event only, so the kinds differ by that one faction.
+    assert _without_kinds(shared[0]) == _without_kinds(shared[1])
+    assert [dict(event.attribute("faction_kinds").items) for event in shared] == [  # type: ignore[union-attr]
+        {"faction:15": "human", "faction:16": "human", "faction:17": "human"},
+        {"faction:16": "human", "faction:17": "human"},
+    ]
     twins = [events[f"faction.combat_recorded/faction:15/{index}"] for index in (2, 3)]
     assert twins[0].attributes == twins[1].attributes
+
+
+def _without_kinds(event: Event) -> tuple[tuple[str, Observed], ...]:
+    return tuple(item for item in event.attributes if item[0] != FACTION_KINDS)
 
 
 @pytest.mark.fixture

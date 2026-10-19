@@ -4,7 +4,7 @@ A technology's identity is its template name (``name-key`` confidence; see ``ent
 enters ``finishedTechsNames`` is a completion: the technology's own ``finished`` value (or its appearance already
 finished) is the primary source and the research singleton's membership change corroborates it. A progress-only
 technology that appears or vanishes is reported as present in / absent from one snapshot. ``progress`` values
-(accumulated research, contributions) and project-name lists stay in the diff.
+(accumulated research, contributions) stay in the diff; faction project names are ``ProjectAnalyzer``'s.
 """
 
 from __future__ import annotations

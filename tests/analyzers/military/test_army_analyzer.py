@@ -171,3 +171,41 @@ def test_unresolved_region_is_low_confidence_and_identical_snapshots_produce_not
         == []
     )
     assert nation_ref("20").entity_id.domain is NATION
+
+
+def test_every_army_event_names_the_home_regions_nation_as_context() -> None:
+    region, nation = EntityDomain.REGION, EntityDomain.NATION
+    home = {"homeRegion": region_ref("40")}
+    before = snapshot(
+        BEFORE,
+        state(ARMY, "110", BEFORE, currentRegion=region_ref("40"), faction=faction_ref("15"), strength=1.0, **home),
+        state(ARMY, "111", BEFORE, currentRegion=region_ref("40"), faction=faction_ref("15"), **home),
+        state(region, "40", BEFORE, nation=nation_ref("20")),
+        state(region, "41", BEFORE, nation=nation_ref("21")),
+        state(nation, "20", BEFORE),
+    )
+    after = snapshot(
+        AFTER,
+        state(ARMY, "110", AFTER, currentRegion=region_ref("41"), faction=faction_ref("15"), strength=0.5, **home),
+        state(region, "40", AFTER, nation=nation_ref("20")),
+        state(region, "41", AFTER, nation=nation_ref("21")),
+        state(nation, "20", AFTER),
+    )
+    events = analyze(ANALYZER, before, after)
+    assert [event.id for event in events] == [
+        "army.region_changed/army:110",
+        "army.strength_changed/army:110",
+        "army.disappeared/army:111",
+    ]
+    for event in events:
+        assert event.attribute("home_nation") == named(nation_ref("20")), event.id
+        assert str(event.entities[-1].entity_id) == "nation:20", event.id
+        assert all(source.change.domain != "region" or source.change.field == "armies" for source in event.sources)
+    moved = only(events, REGION_CHANGED)
+    assert [str(ref.entity_id) for ref in moved.entities] == [
+        "army:110",
+        "faction:15",
+        "region:40",
+        "region:41",
+        "nation:20",
+    ]

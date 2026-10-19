@@ -322,6 +322,20 @@ def test_region_events_alone_give_medium_confidence() -> None:
     assert only(inferred, TERRITORY_LOST).confidence is Confidence.MEDIUM
 
 
+def test_territory_events_carry_the_population_of_the_moved_regions_on_the_holding_side() -> None:
+    scenario = territory_pair(
+        {"40": ("21", "20"), "41": ("21", "20")},
+        kept={"21": ("42",)},
+        region_before={"40": {"populationInMillions": 3.0}, "41": {"populationInMillions": 4.5}},
+        region_after={"40": {"populationInMillions": 3.5}, "41": {"populationInMillions": 4.5}},
+    )
+    _, inferred = run(scenario)
+    assert only(inferred, TERRITORY_GAINED).attribute("population") == 8.0  # after the interval
+    assert only(inferred, TERRITORY_LOST).attribute("population") == 7.5  # before it
+    _, inferred = run(plain_transfer())
+    assert isinstance(only(inferred, TERRITORY_GAINED).attribute("population"), Unknown)  # no population field
+
+
 def test_a_tracker_change_below_the_statistic_threshold_is_cited_directly() -> None:
     objective, inferred = run(small_inequality_tracker())
     assert not by_type(list(objective), "nation.statistic_shifted")

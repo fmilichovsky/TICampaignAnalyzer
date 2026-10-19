@@ -4,14 +4,20 @@ Ships keep their IDs across fleet merges, so a ship's ``fleet`` reference is the
 cannot give; a ``fleet`` that no longer resolves is reported as an unresolved transition. ``lastRefitDate`` is the
 only place this analyzer uses the word refit, because the save carries it literally. Propellant, armor, damaged
 parts and systems, delta-v, mass and ``kills`` stay in the diff.
+
+A presence event carries the ship's ``hull`` when it resolves: the ``hullName`` of the design its ``templateName``
+names, looked up in the ``shipDesigns`` of its fleet's faction on the side where the ship exists (a ship
+``templateName`` matched a design ``dataName`` in every save inspected). The design name itself is player content
+and is never carried.
 """
 
 from __future__ import annotations
 
 from ...model.changes import ChangeKind, StateChange, StateDiff
-from ...model.entities import EntityDomain
+from ...model.entities import EntityDomain, EntityId
 from ...model.events import Event, SourceRole
 from ...model.snapshot import SaveSnapshot
+from ...model.values import FrozenMap, Observed
 from ..common import (
     ChangeIndex,
     EventBuilder,
@@ -92,5 +98,19 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         id_parts=(ship_id,),
         sources=sources,
         entities=(lookup.ref(ship_id), fleet),
-        attributes=(("side", side.value),),
+        attributes=(("side", side.value), *_hull(ship_id, fleet.entity_id if fleet else None, lookup, side)),
     )
+
+
+def _hull(ship_id: EntityId, fleet_id: EntityId | None, lookup: Lookup, side: Side) -> tuple[tuple[str, Observed], ...]:
+    """The ``hullName`` of the ship's design in its fleet faction's ``shipDesigns``; nothing when any step fails."""
+    ship = lookup.state(ship_id, side)
+    template = ship.get("templateName") if ship is not None else None
+    faction = lookup.ref_field(fleet_id, "faction", side) if fleet_id is not None else None
+    faction_state = lookup.state(faction.entity_id, side) if faction is not None else None
+    designs = faction_state.get("shipDesigns") if faction_state is not None else None
+    if not isinstance(template, str) or not isinstance(designs, FrozenMap):
+        return ()
+    design = dict(designs.items).get(template)
+    hull = dict(design.items).get("hullName") if isinstance(design, FrozenMap) else None
+    return (("hull", hull),) if isinstance(hull, str) else ()

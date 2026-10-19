@@ -8,6 +8,7 @@ entity named by a change, the owner of a councilor, the nation of a control poin
 from __future__ import annotations
 
 import logging
+import math
 from collections import Counter
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
@@ -20,10 +21,16 @@ from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, DateBasis, Event, EventSource, EventStatus, SourceRole
 from ..model.records import RecordSet
 from ..model.snapshot import STATE_COLLECTIONS, EntityState, SaveSnapshot
-from ..model.values import FieldValue, Observed, Unknown, UnknownReason
+from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason
 from .base import Analyzer
 
 logger = get_logger(__name__)
+
+ALIEN_FACTION_TEMPLATE = "AlienCouncil"
+"""The faction ``templateName`` of the aliens; every other faction template seen is a human council
+(``domain-field-map.md``)."""
+FACTION_KINDS = "faction_kinds"
+"""The attribute naming each faction entity of an event ``alien`` or ``human``, by its ``templateName``."""
 
 
 class Side(StrEnum):
@@ -152,6 +159,26 @@ class Lookup:
     def record_set(self, owner: EntityId, field_name: str, side: Side) -> RecordSet | None:
         return self._records[side].get((owner, field_name))
 
+    def faction_kind(self, faction_id: EntityId) -> str | None:
+        """``alien`` or ``human`` by the faction's ``templateName`` (later snapshot first); ``None`` when unknown."""
+        for side in (Side.AFTER, Side.BEFORE):
+            state = self.state(faction_id, side)
+            template = state.get("templateName") if state is not None else None
+            if isinstance(template, str):
+                return "alien" if template == ALIEN_FACTION_TEMPLATE else "human"
+        return None
+
+    def population(self, regions: Iterable[EntityId], side: Side) -> Observed:
+        """The summed ``populationInMillions`` of ``regions`` on one side; unknown when any region's value is."""
+        values: list[float] = []
+        for region_id in regions:
+            state = self.state(region_id, side)
+            value = state.get("populationInMillions") if state is not None else Unknown()
+            if isinstance(value, bool) or not isinstance(value, int | float):
+                return Unknown()
+            values.append(value)
+        return math.fsum(values)
+
 
 def _index_states(snapshot: SaveSnapshot) -> dict[EntityId, EntityState]:
     index: dict[EntityId, EntityState] = {}
@@ -266,11 +293,20 @@ class EventBuilder:
         status: EventStatus = EventStatus.OBJECTIVE,
         constituents: Iterable[str] = (),
     ) -> Event:
-        """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it."""
+        """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it.
+
+        Every event naming a faction entity carries ``faction_kinds`` (see :meth:`Lookup.faction_kind`): context for
+        a narrator telling alien and human factions apart, read from the snapshots, never evidence.
+        """
         date: Observed = self.observed
         basis = DateBasis.INTERVAL
         if isinstance(recorded_on, str):
             date, basis = recorded_on, DateBasis.RECORD
+        refs = tuple(ref for ref in entities if ref is not None)
+        named = [(name, self._named(value)) for name, value in attributes]
+        kinds = self._faction_kinds(refs)
+        if kinds.items:
+            named.append((FACTION_KINDS, kinds))
         return Event(
             id=event_id(event_type, *id_parts),
             event_type=event_type,
@@ -280,10 +316,20 @@ class EventBuilder:
             date_basis=basis,
             not_before=self.not_before,
             sources=tuple(sources),
-            entities=tuple(ref for ref in entities if ref is not None),
-            attributes=tuple((name, self._named(value)) for name, value in attributes),
+            entities=refs,
+            attributes=tuple(named),
             constituents=tuple(constituents),
         )
+
+    def _faction_kinds(self, refs: Iterable[EntityRef]) -> FrozenMap:
+        """Each faction entity's kind, keyed by its ID text; a faction whose template is unknown is left out."""
+        kinds: dict[str, FieldValue] = {}
+        for ref in refs:
+            if ref.entity_id.domain is EntityDomain.FACTION:
+                kind = self._lookup.faction_kind(ref.entity_id)
+                if kind is not None:
+                    kinds[str(ref.entity_id)] = kind
+        return FrozenMap(tuple(kinds.items()))
 
 
 def primary(change: StateChange, member: FieldValue | None = None) -> EventSource:
@@ -326,12 +372,14 @@ def value_transition_event(
     build: EventBuilder,
     *,
     context: Iterable[EntityRef | None] = (),
+    attributes: Iterable[tuple[str, Observed]] = (),
     recorded_on: Observed = None,
 ) -> Event | None:
     """One field of an entity changed: the literal transition, the subject, ``context`` and both values' entities.
 
     ``None`` when a side is missing or unparseable (a schema gap, not a transition) or the change has no entity.
-    ``recorded_on`` dates the event by a record (see ``EventBuilder.event``).
+    ``attributes`` are added to the transition's own; ``recorded_on`` dates the event by a record (see
+    ``EventBuilder.event``).
     """
     transition = classify(change.before, change.after)
     if transition is None or change.entity_id is None:
@@ -342,7 +390,7 @@ def value_transition_event(
         id_parts=(subject,),
         sources=(primary(change),),
         entities=(lookup.ref(subject), *context, lookup.resolve(change.before), lookup.resolve(change.after)),
-        attributes=transition_attributes(change, transition),
+        attributes=(*transition_attributes(change, transition), *attributes),
         confidence=confidence_for(transition),
         recorded_on=recorded_on,
     )
