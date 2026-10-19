@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
-from tinarrative.narrative.chronology import chronological, qualified_id, qualify
+from tinarrative.narrative.chronology import chronological, interval_of, interval_sort_key, qualified_id, qualify
 from tinarrative.reconstruction import ID_ATTRIBUTES
 
 KEY = "2032-04-01T00:00:00"
@@ -62,3 +62,23 @@ def test_the_same_raw_id_in_two_intervals_stays_distinct_in_the_stream() -> None
 def test_a_duplicate_id_in_the_stream_is_a_programming_error() -> None:
     with pytest.raises(ValueError, match="duplicate event IDs"):
         chronological([event("region.nation_changed/region:42"), event("region.nation_changed/region:42")])
+
+
+def test_qualify_leaves_a_narrative_event_alone() -> None:
+    later = "2032-07-01T00:00:00"
+    narrative = event(
+        f"nation.changed.arc/nation:1@{KEY}",
+        constituents=(qualified_id("nation.changed/nation:1", KEY), qualified_id("nation.changed/nation:1", later)),
+        intervals=(KEY, later),
+        start="2032-01-01T00:00:00",
+        start_basis=DateBasis.INTERVAL,
+    )
+
+    assert qualify(narrative, later) is narrative
+
+
+def test_interval_keys_sort_by_time_then_tie_position() -> None:
+    keys = [f"{KEY}#10", "2032-07-01T00:00:00", f"{KEY}#2", KEY]
+
+    assert sorted(keys, key=interval_sort_key) == [KEY, f"{KEY}#2", f"{KEY}#10", "2032-07-01T00:00:00"]
+    assert interval_of(qualified_id("nation.changed/nation:1", f"{KEY}#2")) == f"{KEY}#2"

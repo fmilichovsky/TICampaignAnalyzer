@@ -23,8 +23,9 @@ from datetime import datetime
 from typing import Any
 
 from .log import fields, get_logger
+from .narrative.chronology import TIE_SEPARATOR
 from .parsing.continuity import CampaignIdentity
-from .sequence import TIE_SEPARATOR, SaveRef, SkippedSave, merge_identical
+from .sequence import SaveRef, SkippedSave, merge_identical
 
 logger = get_logger(__name__)
 

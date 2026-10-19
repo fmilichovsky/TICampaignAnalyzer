@@ -15,14 +15,14 @@ follows ``docs/game-data-notes/chronology-and-deduplication.md``:
 Consecutive intervals share their boundary snapshot, so every change is reported in exactly one interval and a
 save-carried log entry once. The events of an interval are qualified by its key (``narrative.chronology``) so that
 IDs stay unique across the sequence. Rules still see one interval: evidence that straddles a boundary is not
-combined (that is narrative aggregation).
+combined. ``narrative_events`` runs narrative aggregation over the whole stream and the situation reports.
 """
 
 from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -35,8 +35,8 @@ from .log import fields, get_logger
 from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
-from .narrative import SituationReport, assign_significance, build_situation
-from .narrative.chronology import chronological, qualify
+from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
+from .narrative.chronology import TIE_SEPARATOR, chronological, qualify
 from .parsing.continuity import CampaignProfile, campaign_profile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize, save_timestamp
@@ -44,9 +44,6 @@ from .parsing.raw_save import parse_raw_save
 from .reconstruction import infer_events
 
 logger = get_logger(__name__)
-
-TIE_SEPARATOR = "#"
-"""Joins a game time and the position of a save among distinct saves with the same time (``...T00:00:00#2``)."""
 
 
 class UnknownChronologyError(SaveLoadError):
@@ -289,3 +286,10 @@ def situations(intervals: Iterable[IntervalResult]) -> tuple[SituationReport, ..
         if interval.after_situation is not None:
             reports.append(interval.after_situation)
     return tuple(reports)
+
+
+def narrative_events(
+    intervals: Sequence[IntervalResult], rules: Sequence[NarrativeRule] = NARRATIVE_RULES
+) -> list[Event]:
+    """The narrative events the rules build over the stream and situation reports (``narrative.aggregate``)."""
+    return aggregate(event_stream(intervals), situations(intervals), rules)

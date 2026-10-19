@@ -1047,8 +1047,9 @@ absorbing its neighbours over several years, a space campaign that
 destroyed a rival's bases. Each development carries its span, its actors
 by role and every piece of evidence beneath it.
 
-The layer is not implemented yet (`narrative/aggregation.py` returns its
-input). This section is the contract it is built against; the roadmap's
+The framework is implemented (11.2, implemented contract); the rules of
+the catalogue (11.3) are not yet, so aggregation builds no narrative event
+today. This section is the contract they are built against; the roadmap's
 *Narrative layer* section lists the steps. The design was revised
 after measuring the atomic stream on real saves: the earlier
 sketch (clusters by temporal proximity and shared entities, a `float`
@@ -1118,6 +1119,44 @@ class Event:  # narrative extension, conceptual
 -   **Nesting**: one level, with an explicit rule order. A war arc may
     contain an absorption that happened during the war; a rule never builds
     on a rule of the same order, and there are no cycles.
+
+### Implemented contract (`src/tinarrative/narrative/aggregation.py`)
+
+`Event` carries the narrative fields as optional fields: `start`,
+`start_basis`, `end`, `end_basis`, `open`, `intervals` and `roles`. An event
+is narrative when `intervals` is not empty, and `to_dict` emits the fields
+only then, so atomic and inferred events serialize as before. A rule is a
+`NarrativeRule` (`name`, `order`, `window_days`, `apply(stream, situations,
+build)`). `aggregate(stream, situations, rules)` runs the rules by order,
+then name, and returns the narrative events sorted. `NarrativeBuilder.event`
+applies the policy above to the constituents a rule joins, with the join
+declared as `Join.ENTITY` or `Join.HEURISTIC`. `open` means the rule's
+anchor entity is listed in the last situation report. `days_between`
+measures windows in game days. `NARRATIVE_RULES` is empty until the
+catalogue lands. `sequence.narrative_events` runs aggregation over a
+sequence, and `events --narrative` reports it
+([command](commands/events.md#narrative-events)).
+
+Deviations from the sketch above:
+
+-   `roles` is a tuple of `(Role, EntityRef)` pairs sorted by role, then
+    entity, not a dict, so the event stays hashable. `entities` lists the
+    role entities in that order.
+-   A narrative event's ID is `<type>/<parts>@<first interval key>`. It is
+    born qualified, so `chronology.qualify` returns it unchanged, and an
+    open event keeps its ID when later intervals extend it.
+-   `date` is `end` and `not_before` the earliest constituent `not_before`,
+    but a narrative event is ordered by `start`, where the development
+    begins.
+-   Significance is the rule's level raised to the most significant
+    constituent's, so a development is never ranked below that constituent
+    (section 12). `assign_significance` does not rank narrative events: it
+    works one interval at a time, with that interval's snapshots as context.
+-   Nesting by order is enforced. A rule of order k sees the stream plus the
+    narrative events of lower orders. Citing a narrative event of its own
+    order, or an ID it cannot see, raises `ValueError`, as do a duplicate ID
+    and a reused rule name.
+-   A start tie on date prefers the record basis, and so does an end tie.
 
 ## 11.3 First catalogue
 
@@ -1315,9 +1354,10 @@ Evidence:
 The prose generator should not be the authoritative source of event
 facts. Structured events remain canonical.
 
-Before narrative aggregation exists, the deterministic Markdown of
-`tinarrative events` lists atomic events per interval and names entities as
-`Name (domain:key)`; it is a forensic view, not a history. A narrative line in the package
+The deterministic Markdown of `tinarrative events` lists atomic events per
+interval and names entities as `Name (domain:key)`; it is a forensic view,
+not a history. With `--narrative` it lists the narrative events by the year
+they start in, above the intervals. A narrative line in the package
 below reads, conceptually:
 
 ``` text
@@ -1503,6 +1543,8 @@ Narrative aggregation runs after `run_sequence`, over the qualified stream of
 the whole sequence. It needs one situation report per save (11.4) rather than
 the snapshots, so `run_sequence` builds the report of each save while it holds
 the snapshot and keeps only the reports; the two-snapshot memory bound stands.
+`sequence.narrative_events` runs `narrative.aggregate` over `event_stream` and
+`situations`.
 
 ## Mode C --- Campaign directory
 

@@ -6,9 +6,9 @@ from datetime import datetime
 
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Significance
+from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.values import Observed
+from tinarrative.model.values import Observed, Unknown
 from tinarrative.rendering.markdown import render_sequence
 from tinarrative.sequence import IntervalResult, SaveRef, SequencePlan
 
@@ -212,3 +212,69 @@ def test_inferred_events_below_the_minimum_are_counted_in_their_own_section() ->
     assert "- " not in section
     assert section.endswith("\n1 inferred event below major significance omitted.\n")
     assert "1 objective analyzer result below major significance omitted." in rendered
+
+
+def _narrative_render(narrative: list[Event], min_significance: Significance = Significance.TRIVIAL) -> str:
+    plan = SequencePlan((BEFORE, AFTER), (BEFORE.date, AFTER.date), 2)
+    interval = IntervalResult(0, AFTER.date, BEFORE, AFTER, 0, (), None)
+    return render_sequence(plan, [interval], min_significance=min_significance, narrative=narrative)
+
+
+def _arc(key: str, start: Observed, significance: Significance = Significance.MAJOR, **overrides: object) -> Event:
+    fields: dict[str, object] = {
+        "id": f"nation.changed.arc/nation:{key}@{AFTER.date}",
+        "event_type": "nation.changed.arc",
+        "status": EventStatus.INFERRED,
+        "confidence": Confidence.MEDIUM,
+        "date": "2031-03-01T00:00:00",
+        "date_basis": DateBasis.INTERVAL,
+        "not_before": start,
+        "sources": (),
+        "entities": (_nation(),),
+        "significance": significance,
+        "constituents": (f"nation.changed/nation:{key}@{AFTER.date}",),
+        "start": start,
+        "start_basis": DateBasis.INTERVAL,
+        "end": "2031-03-01T00:00:00",
+        "end_basis": DateBasis.RECORD,
+        "intervals": (AFTER.date,),
+        "roles": ((Role.ACTOR, _nation()),),
+    }
+    fields.update(overrides)
+    return Event(**fields)  # type: ignore[arg-type]
+
+
+def test_without_narrative_there_is_no_narrative_section() -> None:
+    assert "## Narrative" not in _render()
+
+
+def test_an_empty_narrative_says_nothing_was_built_before_the_intervals() -> None:
+    rendered = _narrative_render([])
+
+    assert "## Narrative\n\nNo narrative events were built.\n\n## Intervals" in rendered
+
+
+def test_narrative_events_are_listed_by_the_year_they_start_with_roles_and_constituents() -> None:
+    rendered = _narrative_render(
+        [_arc("2", "2031-01-01T00:00:00", open=True), _arc("1", "2030-01-01T00:00:00"), _arc("3", Unknown())]
+    )
+    section = rendered.split("## Narrative\n", 1)[1].split("\n## Intervals", 1)[0]
+
+    assert section.index("### Undated") < section.index("### 2030") < section.index("### 2031")
+    assert (
+        f"- `2031-01-01T00:00:00` to `2031-03-01T00:00:00` (open): nation.changed.arc: {_nation().label()} "
+        "(inferred, confidence `medium`, significance `major`)\n"
+        f"  - roles: actor: {_nation().label()}\n"
+        f"  - from `nation.changed/nation:2@{AFTER.date}`"
+    ) in section
+    assert "`unknown (missing)` to" in section
+
+
+def test_narrative_events_below_the_minimum_are_counted() -> None:
+    rendered = _narrative_render(
+        [_arc("1", "2030-01-01T00:00:00"), _arc("2", "2030-02-01T00:00:00", Significance.MINOR)],
+        min_significance=Significance.MAJOR,
+    )
+
+    assert "nation:2@" not in rendered
+    assert "1 narrative event below major significance omitted." in rendered

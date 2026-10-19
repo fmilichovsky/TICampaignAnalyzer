@@ -53,6 +53,36 @@ def test_every_golden_report_has_a_test() -> None:
 
 
 @pytest.mark.fixture
+def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
+
+    assert main(["events", "--narrative", *SHUFFLED]) == EXIT_SUCCESS
+
+    assert capsys.readouterr().out == inferred.replace(
+        "\n## Intervals\n", "\n## Narrative\n\nNo narrative events were built.\n\n## Intervals\n", 1
+    )
+
+
+@pytest.mark.fixture
+def test_json_report_lists_narrative_events_only_when_asked(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert main(["events", "--format", "json", *SHUFFLED]) == EXIT_SUCCESS
+    plain = json.loads(capsys.readouterr().out)
+    assert main(["events", "--format", "json", "--narrative", *SHUFFLED]) == EXIT_SUCCESS
+    narrative = json.loads(capsys.readouterr().out)
+
+    assert plain["narrative"] is None
+    assert narrative["narrative"] == []
+    assert all(interval["inferred"] is not None for interval in narrative["intervals"])
+
+
+@pytest.mark.fixture
 def test_json_report_lists_saves_and_intervals_with_unique_qualified_ids(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

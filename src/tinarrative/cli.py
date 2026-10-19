@@ -39,6 +39,7 @@ from .sequence import (
     SaveRef,
     SkippedSave,
     event_stream,
+    narrative_events,
     plan_sequence,
     run_sequence,
     situations,
@@ -383,10 +384,13 @@ def _run_events(args: argparse.Namespace) -> int:
     plan = plan_sequence(campaign.members, skipped)
     try:
         intervals: list[IntervalResult] = list(
-            run_sequence(plan, inferred=args.inferred, changes=args.changes, load=_load_sequence_snapshot)
+            run_sequence(
+                plan, inferred=args.inferred or args.narrative, changes=args.changes, load=_load_sequence_snapshot
+            )
         )
     except _LoadFailed as failure:
         return failure.code
+    narrative = narrative_events(intervals) if args.narrative else None
     if args.format == "json":
         document = {"campaign": campaign.to_dict(), **plan.to_dict()}
         reports = situations(intervals)
@@ -394,12 +398,15 @@ def _run_events(args: argparse.Namespace) -> int:
             {**save, "situation": reports[position].to_dict() if position < len(reports) else None}
             for position, save in enumerate(document["saves"])
         ]
+        document["narrative"] = None if narrative is None else [event.to_dict() for event in narrative]
         document["intervals"] = [interval.to_dict() for interval in intervals]
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
         minimum = Significance(cast(str, args.min_significance))
         left_out = len(surveyed) - len(campaign.members)
-        rendered = render_sequence(plan, intervals, min_significance=minimum, campaign=campaign, left_out=left_out)
+        rendered = render_sequence(
+            plan, intervals, min_significance=minimum, campaign=campaign, left_out=left_out, narrative=narrative
+        )
     sys.stdout.write(rendered)
     sys.stdout.flush()
     logger.info(
@@ -409,6 +416,7 @@ def _run_events(args: argparse.Namespace) -> int:
             intervals=len(intervals),
             skipped=len(plan.skipped),
             events=len(event_stream(intervals)),
+            narrative=None if narrative is None else len(narrative),
             exit=EXIT_SUCCESS,
         ),
     )
@@ -720,6 +728,14 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         "--changes",
         action="store_true",
         help="Also list every literal state change of each interval under that interval.",
+    )
+    parser.add_argument(
+        "--narrative",
+        action="store_true",
+        help=(
+            "Also aggregate the events of the whole sequence into narrative events and list them by period above "
+            "the intervals; implies --inferred."
+        ),
     )
     parser.set_defaults(handler=_run_events)
 
