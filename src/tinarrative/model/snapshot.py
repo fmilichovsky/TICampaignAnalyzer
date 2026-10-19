@@ -79,6 +79,7 @@ STATE_COLLECTIONS = (
     "fleets",
     "ships",
     "habs",
+    "space_bodies",
     "organizations",
     "technologies",
     "wars",
@@ -99,6 +100,7 @@ NORMALIZED_COLLECTION_LABELS = (
     ("fleets", "fleets"),
     ("ships", "ships"),
     ("habs", "habs"),
+    ("space_bodies", "space bodies"),
     ("organizations", "organizations"),
     ("technologies", "technologies"),
     ("wars", "wars"),
@@ -120,7 +122,8 @@ class SaveSnapshot:
 
     ``date`` is the ISO-8601 game timestamp (no timezone; game-calendar time) or ``Unknown``.
     ``campaign_day`` and ``campaign_quarter`` are the serialized turn-like counters.
-    ``habs`` holds ``TIHabState`` objects (domain ``space object``); ``technologies`` are name-keyed
+    ``habs`` holds ``TIHabState`` objects (domain ``space object``); ``space_bodies`` holds ``TISpaceBodyState``
+    objects (domain ``space body``, the target of every ``barycenter``); ``technologies`` are name-keyed
     states derived from ``research``; ``global_values`` holds the ``TIGlobalValuesState`` singleton as one
     in-save-ID entity, so its fields and records have an owner like any other entity's; ``notification_queue``
     holds the ``TINotificationQueueState`` singleton the same way (the owner of the notification log).
@@ -144,6 +147,7 @@ class SaveSnapshot:
     fleets: tuple[EntityState, ...] = ()
     ships: tuple[EntityState, ...] = ()
     habs: tuple[EntityState, ...] = ()
+    space_bodies: tuple[EntityState, ...] = ()
     organizations: tuple[EntityState, ...] = ()
     technologies: tuple[EntityState, ...] = ()
     wars: tuple[EntityState, ...] = ()

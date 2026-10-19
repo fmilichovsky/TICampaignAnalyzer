@@ -42,10 +42,10 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
     IdentityStrategy(EntityDomain.ARMY, ("TIArmyState", "TIMegafaunaArmyState"), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(EntityDomain.FLEET, ("TISpaceFleetState",), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(EntityDomain.SHIP, ("TISpaceShipState",), _NUMERIC_ID, _IN_SAVE, None),
+    IdentityStrategy(EntityDomain.SPACE_BODY, ("TISpaceBodyState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(
         EntityDomain.SPACE_OBJECT,
         (
-            "TISpaceBodyState",
             "TILagrangePointState",
             "TIOrbitState",
             "TIAdHocOrbitState",
@@ -54,7 +54,7 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
         ),
         _NUMERIC_ID,
         _IN_SAVE,
-        "Value.templateName (space bodies)",
+        None,
     ),
     IdentityStrategy(EntityDomain.ORGANIZATION, ("TIOrgState",), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(

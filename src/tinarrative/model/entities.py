@@ -16,6 +16,7 @@ class EntityDomain(StrEnum):
     FLEET = "fleet"
     SHIP = "ship"
     SPACE_OBJECT = "space object"
+    SPACE_BODY = "space body"
     ORGANIZATION = "organization"
     TECHNOLOGY = "technology"
     WAR = "war"

@@ -527,6 +527,21 @@ def test_army_operations_transit_dates_and_hunting_flag_are_copied_raw() -> None
 
 
 @pytest.mark.fixture
+def test_space_bodies_are_named_reference_targets_with_a_parent() -> None:
+    assets = load("assets_after.json")
+    assert [str(state.ref.entity_id) for state in assets.space_bodies] == ["space body:50", "space body:51"]
+    body, moon = by_id(assets.space_bodies, "50"), by_id(assets.space_bodies, "51")
+    assert (body.ref.name, body.ref.state_type, body.get("templateName")) == (
+        "Fixture Body",
+        "TISpaceBodyState",
+        "FixtureBody",
+    )
+    assert body.get("barycenter") is None
+    assert moon.ref.name == "Fixture Moon"
+    assert moon.get("barycenter") == ref(EntityDomain.SPACE_BODY, "50", "TISpaceBodyState")
+
+
+@pytest.mark.fixture
 def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSnapshot) -> None:
     fleet = by_id(assets.fleets, "120")
     assert fleet.get("ships") == (
@@ -536,7 +551,7 @@ def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSn
     assert fleet.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
     assert fleet.get("parentFleet") is None
     assert fleet.get("orbitState") == ref(EntityDomain.SPACE_OBJECT, "60", "TIOrbitState")
-    assert fleet.get("barycenter") == ref(EntityDomain.SPACE_OBJECT, "50", "TISpaceBodyState")
+    assert fleet.get("barycenter") == ref(EntityDomain.SPACE_BODY, "50", "TISpaceBodyState")
     assert fleet.get("dockedLocation") == ref(EntityDomain.SPACE_OBJECT, "140", "TIHabState")
     assert fleet.get("inCombat") is False
     assert fleet.get("inAccelerationPhase") is False

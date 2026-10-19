@@ -192,8 +192,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "337b3aeee74f79f1003ad1968b51cefe758f6d4b83c12fb7526d5f1d2baf85d8",
-      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, and a research singleton with two finished techs and one progress entry."
+      "sha256": "8a5569b543ac4beeecf083559983e1bc3ec5cd4ff840374759610ebd96e87221",
+      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, a space body 50 with a moon 51 whose barycenter points at it, and a research singleton with two finished techs and one progress entry."
     },
     {
       "path": "assets_after.json",
@@ -203,7 +203,7 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "d65cedacb2a9667781fd4451616f45fce157606a3daa10a3c4d6f63fb9218f51",
+      "sha256": "83850f0fff6c6f8883374eca666bdb3982195deadd75febd74cfb503411c686b",
       "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed."
     },
     {

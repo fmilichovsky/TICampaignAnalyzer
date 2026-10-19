@@ -14,7 +14,7 @@ into a `SaveSnapshot`, and prints a short summary:
 - snapshot: the game `date` (ISO-8601 from `TITimeState.currentDateTime`, no timezone),
   `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
   `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
-  `ships`, `habs`, `technologies` (name-keyed, derived from the research singleton),
+  `ships`, `habs`, `space bodies`, `technologies` (name-keyed, derived from the research singleton),
   `organizations`, `wars`, `federations`, `region alien states` (the five per-region alien sub-state types together),
   `global values` (the `TIGlobalValuesState` singleton as one entity), and `notification queue` (the
   `TINotificationQueueState` singleton, owner of the notification log);

@@ -55,8 +55,8 @@ built from the developments catalogued in
 
 - [x] Names in every output: render `EntityRef.name` in `describe_event`, the
   Markdown and the JSON for every domain that carries a `displayName` (#94).
-- [ ] Normalize `TISpaceBodyState` as a `space body` reference target
-  (`displayName`, parent body, body kind) so habs, fleets, destruction entries
+- [x] Normalize `TISpaceBodyState` as a `space body` reference target
+  (`displayName`, parent body; the save serializes no body kind) so habs, fleets, destruction entries
   and milestones name their body (#95).
 - [ ] Close the atomic gaps the narrative needs: `nation.claims_changed` and
   `hostileClaims`; `nation.renamed` / `federation.renamed` from `displayName`

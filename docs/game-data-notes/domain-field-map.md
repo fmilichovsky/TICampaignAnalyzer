@@ -18,6 +18,7 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 | Fleets | `TISpaceFleetState` | `ships`, `trajectory`, `inAccelerationPhase`, `inDecelerationPhase`, `homeport`, `barycenter`, `combatState`, `parentFleet`, `faction`, `orbitState`, `dockedLocation`, `inCombat`, `globalPosition`, `displayNameByFaction` (pair map in `PAIR_MAP_FIELDS`: faction -> the name that faction uses for the fleet, copied as a map from the faction's entity ID text), `currentOperations` (list of `{operationDataName, target, startDate, completionDate}`, copied raw, see below), `huntingXenofauna`, `unavailableForOperations`, `bombardmentTarget` (copied raw), `bombardmentTargetBracketStatus`, `endBombardmentReason`, `timeOfLastFireMission` (componentized date or `null`, copied raw like `recruitDate`) |
 | Ships | `TISpaceShipState` | `fleet`, `launchDate`, `lastRefitDate`, `propellant_tons`, `kills` (list of strings), `officers`, `storedFaction`, `cruiseAcceleration_mps2`, `combatAcceleration_mps2`, `currentDeltaV_kps`, `currentMaxDeltaV_kps`, `currentMass_kg`, `armor` (`Nose`/`Left`/`Right`/`Tail`, each `armorValue`, `chippedPct`, `maxArmor`), `damagedParts`, `damagedSystems`, `isDamageControlSuspended` |
 | Habs | `TIHabState` | `faction`, `orbitState`, `habSite`, `barycenter`, `sectors`, `districts`, `dockedFleets`, `councilorsOnBoard`, `officersOnBoard`, `advisingCouncilors`, `habType`, `tier`, `inCombat`, `underAssault`, `underBombardment`, `anyCoreCompleted`, `coreDefended`, `coreDefendExpiration`, `staticHab`, `inEarthLEO`, `globalPosition` |
+| Space bodies | `TISpaceBodyState` | `barycenter` (the parent body: `null` on Sol only, Sol on about two thirds of the rest, otherwise a planet; 2026-10-19, eight private saves, 240 and 373 bodies) alongside `templateName`/`displayName`. No kind member is serialized, so a moon is told from a planet by its parent. `habSites`, `nations`, `orbits`, `maxHabTier`, `playerTag`, `currentModelResource`, `solarMirrorBonus`, `HohmannDates` and the vectors are acknowledged, not normalized |
 | Hab modules | `TIHabModuleState` | `sector`, `slot`, `constructionCompleted`, `decommissioning`, `destroyed`, `powered`, `priorModuleCompleted`, `startBuildDate`, `completionDate`, `decommissionDate` (strings), `destroyedTime`, `buildCost`; not normalized |
 | Research | `TIGlobalResearchState` | `finishedTechsNames`, `finishedOneTimeOnlyProjectNames`, `techProgress` (elements: `techTemplateName`, `accumulatedResearch`, `factionContributions`, `selector`), `campaignStartYear`, `endGameTechsCompletedByCategory` |
 | Wars | `TIWarState` | `attacker`, `defender`, `originalAttacker`, `originalDefender`, `_attackingAlliance`, `_defendingAlliance`, `nukedRegions`, `annexedRegions` (empty in every observed war; copied raw), `defensiveNukes`, `peaceOfferHistory`, `cohesionGainByNation` (pair maps, see below); `startDate` and `dateOfLastFighting` are save-carried records. The container was an empty `{}` in the first inspected sample |
@@ -129,7 +130,9 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TISpaceShipState` | `storedFaction` | `null` in every inspected ship | not observed |
 | `TIHabState` | `faction` | reference | `TIFactionState` |
 | `TIHabState` | `orbitState`, `habSite` | reference or `null` | `TIOrbitState`, `TIHabSiteState` |
-| `TIHabState` | `barycenter` | typed reference | `TISpaceBodyState` |
+| `TIHabState` | `barycenter` | typed reference (269 of 269 in one save) | `TISpaceBodyState` |
+| `TISpaceBodyState` | `barycenter` | typed reference or `null` (Sol only) | `TISpaceBodyState` |
+| `TIOrbitState` | `barycenter` | typed reference, not normalized (451 bodies and 71 Lagrange points in one save) | `TISpaceBodyState`, `TILagrangePointState` |
 | `TIHabState` | `sectors` | list of references | `TISectorState` |
 | `TIHabState` | `dockedFleets` | list of references | `TISpaceFleetState` |
 | `TIHabState` | `councilorsOnBoard` | list of references | `TICouncilorState` |
@@ -206,6 +209,7 @@ TIOrgState            -> organizations
 TISpaceFleetState     -> fleets
 TISpaceShipState      -> ships
 TIHabState            -> habs (domain: space object)
+TISpaceBodyState      -> space_bodies (domain: space body)
 TIGlobalResearchState -> research (singleton) + technologies (name-keyed)
 TIGlobalValuesState   -> global_values (singleton as one in-save-ID entity)
 TINotificationQueueState -> notification_queue (singleton; owns the notification log record)

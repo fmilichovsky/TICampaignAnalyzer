@@ -450,6 +450,26 @@
           },
           "templateName": "FixtureBody",
           "displayName": "Fixture Body",
+          "barycenter": null,
+          "archived": false,
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TISpaceBodyState"
+        }
+      },
+      {
+        "Key": {
+          "value": 51
+        },
+        "Value": {
+          "ID": {
+            "value": 51
+          },
+          "templateName": "FixtureMoon",
+          "displayName": "Fixture Moon",
+          "barycenter": {
+            "value": 50,
+            "$type": "PavonisInteractive.TerraInvicta.TISpaceBodyState"
+          },
           "archived": false,
           "exists": true,
           "$type": "PavonisInteractive.TerraInvicta.TISpaceBodyState"

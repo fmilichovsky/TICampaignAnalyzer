@@ -68,10 +68,13 @@ identity:
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none
     TISpaceShipState: 3 entries, ids 130..132, key==id 3, mismatch 0, missing 0, duplicate 0
+  space body: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: Value.templateName
+    TISpaceBodyState: 1 entries, ids 50..50, key==id 1, mismatch 0, missing 0, duplicate 0
   space object: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
-    secondary_key: Value.templateName (space bodies)
-    TISpaceBodyState: 1 entries, ids 50..50, key==id 1, mismatch 0, missing 0, duplicate 0
+    secondary_key: none
     TILagrangePointState: absent
     TIOrbitState: 1 entries, ids 60..60, key==id 1, mismatch 0, missing 0, duplicate 0
     TIAdHocOrbitState: absent

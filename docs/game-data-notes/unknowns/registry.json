@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "format": "terra_invicta_json_v1",
-  "last_scan": "2026-10-16",
+  "last_scan": "2026-10-19",
   "privacy_note": "Schema-level facts only: state-type names, field names, JSON shapes, counts and dates. Never values, player or file names, paths or hashes.",
   "entries": []
 }

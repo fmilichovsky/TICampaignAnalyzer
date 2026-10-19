@@ -125,7 +125,7 @@ def test_ledger_and_destruction_log_are_dated_entries_with_resolved_references(b
         DestructionEntry(
             0,
             "Station",
-            ref(EntityDomain.SPACE_OBJECT, "50", "TISpaceBodyState"),
+            ref(EntityDomain.SPACE_BODY, "50", "TISpaceBodyState"),
             "2031-01-15T00:00:00",
             FACTION_16,
         ),
@@ -179,7 +179,7 @@ def test_label_maps_counters_dates_and_reference_lists(before: SaveSnapshot, aft
     assert record(after, "15", "HabDestructionLog").entries[1:] == (
         DestructionEntry(1, "Base", unresolved(999), "2031-04-02T00:00:00", FACTION_16),
         DestructionEntry(
-            2, "Station", ref(EntityDomain.SPACE_OBJECT, "50", "TISpaceBodyState"), "2031-05-20T00:00:00", None
+            2, "Station", ref(EntityDomain.SPACE_BODY, "50", "TISpaceBodyState"), "2031-05-20T00:00:00", None
         ),
     )
 

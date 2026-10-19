@@ -121,7 +121,7 @@
             "index": 2,
             "hab_type": "Station",
             "space_body": {
-              "ref": "space object:50",
+              "ref": "space body:50",
               "state_type": "TISpaceBodyState",
               "confidence": "in-save-id"
             },
