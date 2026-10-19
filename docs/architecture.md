@@ -234,7 +234,8 @@ The snippets above are conceptual; the implemented types differ as follows:
     cites state type, map ID and path on each side. The parser fills the faction, nation, region, control-point,
     councilor, organization, army (both army state types), fleet, ship, hab, war, federation and region alien state
     collections (`parsing.fields` lists the observed fields it copies; habs are `TIHabState`
-    objects in the `space object` domain; the five `TIRegion*State` alien sub-states share the
+    objects in the `space object` domain; `TISpaceBodyState` objects form the `space body` domain
+    (`SaveSnapshot.space_bodies`: `displayName`, `templateName` and the parent `barycenter`); the five `TIRegion*State` alien sub-states share the
     `region alien state` domain and `SaveSnapshot.region_alien_states`, told apart by state type). The
     `TIGlobalValuesState` singleton is normalized as one in-save-ID entity of the `global values` domain
     (`SaveSnapshot.global_values`), so its fields, references and records have an owner and provenance like any
@@ -252,11 +253,12 @@ The snippets above are conceptual; the implemented types differ as follows:
     fleet's `parentFleet` often names an ID absent from the save. The parser keeps
     that as `Unknown(unresolved_reference, raw=...)` rather than dropping it, so
     the diff layer sees the limitation; ships keep their IDs across merges.
--   Other space objects (bodies, orbits, hab sites, sectors, modules) resolve as
-    reference targets only, and singular diplomacy and economy states are not modelled.
-    Planned (roadmap, *Narrative layer*): `TISpaceBodyState` becomes a named `space body`
-    reference target (`displayName`, parent body, body kind), because a hab, a destruction
-    entry or a milestone that names only `space object:235` cannot be narrated.
+-   Space bodies are a named reference target: a hab's or fleet's `barycenter` and a destruction
+    entry's `SpaceBody` resolve to the `space body` domain with `name` set (`Luna (space body:7)`)
+    and a parent body, which is what narration needs ("a base on Ceres"). The save serializes no
+    body kind; a moon is a body whose parent is not Sol. The other space objects (orbits, hab
+    sites, Lagrange points, sectors, modules) resolve as reference targets only, and singular
+    diplomacy and economy states are not modelled.
 -   Every normalized entity carries its `displayName`, and a resolved `EntityRef` carries it as
     `name`. `describe_event`, the Markdown and the JSON of `tinarrative events` render it as
     `Name (domain:key)` (`EntityRef.label`), keeping the ID for audit; the `diff` text report stays

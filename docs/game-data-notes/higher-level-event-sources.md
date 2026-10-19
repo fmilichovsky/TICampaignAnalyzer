@@ -333,9 +333,8 @@ reconstruction (issue #73).
   any analyzer; architecture 11.3 bounds its planned use.
 - **Names and bodies** (observed 2026-10-18, the latest older save). `displayName` is a string on
   every nation, region, hab, faction and control point, and resolved references carry it as
-  `EntityRef.name`; the renderer and the JSON print IDs only. `TISpaceBodyState` is not normalized,
-  so a hab's `barycenter` and a destruction entry's `SpaceBody` resolve to unnamed `space object`
-  IDs.
+  `EntityRef.name`. `TISpaceBodyState` is normalized as the `space body` domain (#95), so a hab's
+  or fleet's `barycenter` and a destruction entry's `SpaceBody` resolve to a named body with a parent.
 - **Projects and technologies** (observed 2026-10-18, the latest older save). `finishedProjectNames`
   held 480 names on one faction and is left in the diff; `technologies` held 148 states, all
   finished, and no `technology.completed` event occurred in the four older intervals, so late in a
@@ -353,6 +352,7 @@ reconstruction (issue #73).
   prompts, scheduled ticks, effect tables.
 - `TIOfficerState` (353–380 per older save, none in the newer): ship officers with `rank`, `maxRank`,
   `ship`/`hab` references and JSON.NET-linked dates; promotions appear in the notification queue instead.
-- `TISpaceBodyState` (`habSites`, `nations`, `orbits` lists, `playerTag` string, `maxHabTier`) and
+- `TISpaceBodyState` (normalized as `space body`: name and parent; `habSites`, `nations`, `orbits` lists,
+  `playerTag` string and `maxHabTier` are acknowledged only) and
   `TIHabSiteState` (`parentBody`, `hab`, `pendingHab`, `landedFleets`, daily yields, coordinates):
   reference targets and colonization corroboration only.

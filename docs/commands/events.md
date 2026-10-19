@@ -105,8 +105,7 @@ is left to narrative aggregation.
 
 The Markdown lines and the "affected entities" list name an entity as `Name (domain:key)`, for
 example `Germany (nation:3857)`: the display name the save gives it, with the ID kept for audit.
-An entity the save gives no name, or one that is not normalized (a space body until it is a
-reference target), keeps the bare `domain:key`. A name-keyed entity whose name is its key, such as
+An entity the save gives no name, or one that is not normalized (an orbit or a hab site), keeps the bare `domain:key`. A name-keyed entity whose name is its key, such as
 a technology, is not repeated. This holds for the subject, the context in parentheses and any
 reference an event carries as an attribute. The `#### State changes` section stays literal and
 prints IDs only, as `save diff` does. Names are save content, so they appear in this report and

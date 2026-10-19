@@ -33,6 +33,7 @@ STATE_TYPES = {
     EntityDomain.FLEET: ("TISpaceFleetState", "fleets"),
     EntityDomain.SHIP: ("TISpaceShipState", "ships"),
     EntityDomain.SPACE_OBJECT: ("TIHabState", "habs"),
+    EntityDomain.SPACE_BODY: ("TISpaceBodyState", "space_bodies"),
     EntityDomain.ORGANIZATION: ("TIOrgState", "organizations"),
     EntityDomain.TECHNOLOGY: ("TIGlobalResearchState", "technologies"),
     EntityDomain.WAR: ("TIWarState", "wars"),

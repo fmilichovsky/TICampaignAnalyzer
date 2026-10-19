@@ -74,6 +74,7 @@ def test_every_documented_domain_is_present() -> None:
         "army",
         "fleet",
         "ship",
+        "space body",
         "space object",
         "organization",
         "technology",

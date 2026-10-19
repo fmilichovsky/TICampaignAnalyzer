@@ -93,8 +93,8 @@ def test_presence_has_no_corroboration_and_never_says_destroyed() -> None:
 
 def test_destruction_log_entries_added_are_record_dated_events() -> None:
     owner = faction_ref("15")
-    kept = DestructionEntry(0, "Station", ref(HAB, "50"), "2032-01-10T00:00:00", faction_ref("16"))
-    added = DestructionEntry(1, "Base", ref(HAB, "50"), "2032-05-20T00:00:00", faction_ref("16"))
+    kept = DestructionEntry(0, "Station", ref(EntityDomain.SPACE_BODY, "50"), "2032-01-10T00:00:00", faction_ref("16"))
+    added = DestructionEntry(1, "Base", ref(EntityDomain.SPACE_BODY, "50"), "2032-05-20T00:00:00", faction_ref("16"))
     unresolved = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze({"value": 998}))
     vague = DestructionEntry(2, "Base", unresolved, "2032-06-02T00:00:00", None)
     field = "HabDestructionLog"
@@ -126,11 +126,11 @@ def test_destruction_log_entries_added_are_record_dated_events() -> None:
     )
     assert dict(first.attributes) == {
         "hab_type": "Base",
-        "space_body": named(ref(HAB, "50")),
+        "space_body": ref(EntityDomain.SPACE_BODY, "50"),
         "destroyer": named(faction_ref("16")),
         "recorded_on": "2032-05-20T00:00:00",
     }
-    assert [str(r.entity_id) for r in first.entities] == ["faction:15", "space object:50", "faction:16"]
+    assert [str(r.entity_id) for r in first.entities] == ["faction:15", "space body:50", "faction:16"]
     assert first.sources[0].change.field == field  # the only evidence that may be worded "destruction"
     assert first.sources[0].entry is not None and first.sources[0].entry.path.endswith(f"/{field}/1")  # type: ignore[union-attr]
     assert second.confidence is Confidence.LOW and second.attribute("destroyer") is None

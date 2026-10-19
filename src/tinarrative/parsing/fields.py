@@ -306,6 +306,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     "TIRegionAlienFacilityState": COMMON_FIELDS + ("region", "built", "currentHP"),
     "TIRegionXenoformingState": COMMON_FIELDS + ("region", "xenoformingLevel"),
     "TIRegionAlienActivityState": COMMON_FIELDS + ("region", "alienMissionsDetected"),
+    "TISpaceBodyState": COMMON_FIELDS + ("barycenter",),
     "TIHabState": COMMON_FIELDS
     + (
         "faction",
@@ -400,6 +401,7 @@ _COUNCILOR = (EntityDomain.COUNCILOR, False)
 _NATION = (EntityDomain.NATION, False)
 _NATION_LIST = (EntityDomain.NATION, True)
 _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
+_SPACE_BODY = (EntityDomain.SPACE_BODY, False)
 _ALIEN_STATE = (EntityDomain.REGION_ALIEN_STATE, False)
 _PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP)), False)
 """A councilor location: observed to point at a ``TIRegionState``, a ``TIHabState`` or (once) a ``TISpaceShipState``."""
@@ -484,17 +486,18 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "parentFleet": (EntityDomain.FLEET, False),
         "faction": _FACTION,
         "orbitState": _SPACE_OBJECT,
-        "barycenter": _SPACE_OBJECT,
+        "barycenter": _SPACE_BODY,
         "dockedLocation": _SPACE_OBJECT,
     },
     "TISpaceShipState": {
         "fleet": (EntityDomain.FLEET, False),
     },
+    "TISpaceBodyState": {"barycenter": _SPACE_BODY},
     "TIHabState": {
         "faction": _FACTION,
         "orbitState": _SPACE_OBJECT,
         "habSite": _SPACE_OBJECT,
-        "barycenter": _SPACE_OBJECT,
+        "barycenter": _SPACE_BODY,
         "dockedFleets": (EntityDomain.FLEET, True),
         "councilorsOnBoard": (EntityDomain.COUNCILOR, True),
     },
@@ -545,6 +548,7 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.FLEET, "TISpaceFleetState", "fleets"),
     (EntityDomain.SHIP, "TISpaceShipState", "ships"),
     (EntityDomain.SPACE_OBJECT, "TIHabState", "habs"),
+    (EntityDomain.SPACE_BODY, "TISpaceBodyState", "space_bodies"),
     (EntityDomain.WAR, "TIWarState", "wars"),
     (EntityDomain.FEDERATION, "TIFederationState", "federations"),
     (EntityDomain.ORGANIZATION, "TIOrgState", "organizations"),
@@ -635,7 +639,7 @@ Observed in private saves (``domain-field-map.md``, "Save-carried records"); dec
 """
 
 RECORD_MEMBER_TARGETS: dict[str, ExpectedDomains] = {
-    "HabDestructionLog.SpaceBody": EntityDomain.SPACE_OBJECT,
+    "HabDestructionLog.SpaceBody": EntityDomain.SPACE_BODY,
     "HabDestructionLog.Destroyer": EntityDomain.FACTION,
     "lastExecutiveChange.newExecutive": EntityDomain.FACTION,
     f"{NOTIFICATION_LOG}.gotoGameState": frozenset(
@@ -1081,6 +1085,14 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
                 "thrustersActive",
             ),
         ),
+    ),
+    "TISpaceBodyState": _reasons(
+        (UnsupportedReason.VECTOR, ("_rnd_rotationOffset_Deg", "epoch_DateTime", "globalPosition")),
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            ("HohmannDates", "habSites", "maxHabTier", "nations", "orbits", "solarMirrorBonus"),
+        ),
+        (UnsupportedReason.UI_CACHE, ("currentModelResource", "playerTag")),
     ),
     "TIHabState": _reasons(
         (

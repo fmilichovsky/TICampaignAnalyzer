@@ -50,8 +50,10 @@ Hab = tuple[str, str, str]
 
 
 def body(key: str) -> EntityRef:
-    """A space body: a reference target only (``TISpaceBodyState`` is not normalized)."""
-    return EntityRef(EntityId(HAB, key), IdentityConfidence.IN_SAVE_ID, state_type="TISpaceBodyState")
+    """A space body (``TISpaceBodyState``)."""
+    return EntityRef(
+        EntityId(EntityDomain.SPACE_BODY, key), IdentityConfidence.IN_SAVE_ID, state_type="TISpaceBodyState"
+    )
 
 
 def space_pair(
@@ -248,14 +250,14 @@ SCENARIOS: dict[str, Callable[[], Scenario]] = {
 def test_habs_on_a_body_new_to_their_faction_are_one_high_first_presence() -> None:
     _, inferred = run(new_body())
     event = only(inferred, FIRST_HAB_ON_BODY)
-    assert event.id == "faction.first_hab_on_body/faction:15/space object:900"
+    assert event.id == "faction.first_hab_on_body/faction:15/space body:900"
     assert event.confidence is Confidence.HIGH
     assert ids(event.attribute("habs")) == ["space object:51", "space object:52"]
     assert event.attribute("hab_count") == 2
     assert event.attribute("first_of_any_faction") is False  # faction 16 was there before
     assert event.attribute("milestones") == ()
     assert set(event.constituents) == {"hab.appeared/space object:51", "hab.appeared/space object:52"}
-    assert [str(ref.entity_id) for ref in event.entities[:2]] == ["faction:15", "space object:900"]
+    assert [str(ref.entity_id) for ref in event.entities[:2]] == ["faction:15", "space body:900"]
 
 
 def test_a_hab_on_a_body_the_faction_already_held_is_no_first_presence() -> None:
@@ -401,21 +403,21 @@ def test_inferred_events_cite_their_constituents_and_trace_to_the_diff(name: str
 
 
 def test_lines_name_the_reading_and_significance_ranks_it() -> None:
-    assert lines_of(new_body())["faction.first_hab_on_body/faction:15/space object:900"] == (
-        "Fixture faction 15 (faction:15) established its first presence on space object:900 (2 habs)",
+    assert lines_of(new_body())["faction.first_hab_on_body/faction:15/space body:900"] == (
+        "Fixture faction 15 (faction:15) established its first presence on space body:900 (2 habs)",
         Significance.MAJOR,
     )
-    assert lines_of(first_of_any_faction())["faction.first_hab_on_body/faction:15/space object:902"][0] == (
-        "Fixture faction 15 (faction:15) established its first presence on space object:902 (1 "
+    assert lines_of(first_of_any_faction())["faction.first_hab_on_body/faction:15/space body:902"][0] == (
+        "Fixture faction 15 (faction:15) established its first presence on space body:902 (1 "
         "hab, the first of any faction there)"
     )
     assert lines_of(unique_destruction())["hab.destroyed/space object:70"] == (
-        f'Fixture space object 70 (space object:70) (type "Base" at space object:900) was '
+        f'Fixture space object 70 (space object:70) (type "Base" at space body:900) was '
         f"destroyed by Fixture faction 15 (faction:15) on {IN_INTERVAL}",
         Significance.MAJOR,
     )
     assert lines_of(ambiguous_destruction(2))["hab.destroyed/space object:72"][0] == (
-        'Fixture space object 72 (space object:72) (type "Base" at space object:900) was '
+        'Fixture space object 72 (space object:72) (type "Base" at space body:900) was '
         "destroyed by Fixture faction 15 (faction:15): "
         "one of 2 recorded destructions for 2 vanished habs"
     )

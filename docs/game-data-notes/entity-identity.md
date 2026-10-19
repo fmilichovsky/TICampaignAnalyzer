@@ -52,7 +52,8 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | army | `TIArmyState`, `TIMegafaunaArmyState` | numeric ID | `in-save-id` | none |
 | fleet | `TISpaceFleetState` | numeric ID | `in-save-id` | none |
 | ship | `TISpaceShipState` | numeric ID | `in-save-id` | none |
-| space object | space body, Lagrange point, orbit, ad hoc orbit, hab site, hab | numeric ID | `in-save-id` | `templateName` (space bodies) |
+| space body | `TISpaceBodyState` | numeric ID | `in-save-id` | `templateName` |
+| space object | Lagrange point, orbit, ad hoc orbit, hab site, hab | numeric ID | `in-save-id` | none |
 | organization | `TIOrgState` | numeric ID | `in-save-id` | none |
 | technology | `TIGlobalResearchState` | template name string | `name-key` | none |
 | war | `TIWarState` | numeric ID | `in-save-id` | none (`templateName` is `null`) |
