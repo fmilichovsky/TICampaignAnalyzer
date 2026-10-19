@@ -93,9 +93,13 @@ built from the developments catalogued in
   `faction.colonisation_wave`, `campaign.first_milestone` dating,
   `faction.fleet_buildup`, `technology.milestone` with its curated,
   documented list (#102).
-- [ ] `tinarrative history <saves>`: the narrator package as JSON (narrative
-  events, situation reports, glossary, atomic stream at `--min-significance`)
-  and a Markdown digest grouped by period; `docs/commands/history.md` (#103).
+- [ ] Complete the narrator package in `events --narrative` rather than a
+  separate `history` command: a `glossary` in the JSON (every referenced ID
+  with its name and kind, a nation's regions), `--min-significance` applied to
+  the JSON with omitted counts, `--period year|half|quarter` for the narrative
+  section, key attributes on narrative lines, and collapsed empty intervals so
+  the Markdown reads as a digest; the package schema in
+  `docs/commands/events.md` (#103).
 - [ ] LLM narrator, outside this repository's deterministic scope for now: a
   prompt contract over the narrator package and prose that cites event IDs
   (#104).

@@ -1448,7 +1448,12 @@ one save sequence:
 
 Every line carries event IDs so that generated prose can cite them (section
 20). The package has a JSON form (canonical) and a Markdown digest grouped
-by period. `tinarrative history` is the planned command that produces it.
+by period. It is not a separate command: `tinarrative events --narrative`
+produces it, `--format json` being the canonical form and the Markdown
+report's narrative section, above the per-interval drill-down, the digest.
+`--min-significance` sets the level of the atomic stream in both forms. The
+forensic per-interval view and the package are therefore one report at
+different filter settings, and they cannot drift apart.
 
 ------------------------------------------------------------------------
 
