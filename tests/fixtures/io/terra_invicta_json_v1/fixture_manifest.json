@@ -293,6 +293,28 @@
       "version_assumption": "Observed JSON envelope and observed field names.",
       "sha256": "36256396803b4a04c3d7c87d0688c59dc23e2becada708be651361b0b87a1dfa",
       "purpose": "Later snapshot of the combat-log interval; pair with combat_before.json. Faction 15 keeps its first entry, loses the second and gains three: 16 vs 17 at a hab of faction 17 (winner 16, one attack) and two identical one-sided entries (duplicates). Faction 16 gains the same 16 vs 17 entry, so one combat is logged by two factions."
+    },
+    {
+      "path": "ledger_before.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "48a00c954ec98cc684535882c07aa0030d9dbfb45202c1be6d26d420f13bc60d",
+      "purpose": "Earlier snapshot of a synthetic interval for the ledger analyzer; pair with ledger_after.json. Faction 15's Transactions holds a Coup charge (later pruned, as observed for mission labels), a Propaganda charge dated before the interval that stays, a Daily Income entry and a hashed label; faction 16's ledger is null."
+    },
+    {
+      "path": "ledger_after.json",
+      "kind": "synthetic_analyzer_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "2df913d18143fea39a99a9eed30c02d81ad4a8e4750001d05a2e2380d9a1717c",
+      "purpose": "Later snapshot of the same synthetic interval: the Coup list is gone; Stabilize (inside the interval), FoundOutpostOperation (two resources, inside), Ship Construction (dated exactly on the later save day, inside) and Crackdown (dated exactly on the earlier save day, outside) are added; Daily Income and the hashed label gain entries inside the interval but are not allow-listed."
     }
   ]
 }

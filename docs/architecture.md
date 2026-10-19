@@ -845,9 +845,9 @@ technology `progress` values (a missing progress entry is `Unknown`, which
 The atomic facts the narrative layer (section 11.3) needed from the diff are now
 emitted by the analyzers above (issue #96): claims and hostile claims, nation and
 federation renames, finished projects, the hull of a ship, an army's home nation, unrest
-attempts, the new-government record, faction kinds and population. Still left in the diff
-and scheduled in the roadmap's *Narrative layer* section: the allow-listed entries of the
-`Transactions` ledger (bounds in 11.3). The nation-control reading itself (which faction holds
+attempts, the new-government record, faction kinds and population. The allow-listed entries of the
+`Transactions` ledger are emitted as `faction.transaction_recorded` by the faction family
+(bounds in 11.3, issue #98); the other labels stay in the diff. The nation-control reading itself (which faction holds
 a nation's executive, plurality or every control point) is reconstruction, not analysis: the
 `faction.nation_control_changed` rule of section 10 combines control-point events with
 `positionInNation` and the executive record, and it is the anchor the takeover and breakaway
@@ -1164,17 +1164,19 @@ labels are not understood; alien activity on Earth and councilor fates stay
 atomic until the geopolitical types exist.
 
 **Dated mission records as evidence.** Every faction, AI factions included,
-carries a `Transactions` ledger (section 4.3) from campaign start, whose
-labels include mission and operation names (`Coup`, `Purge`, `Crackdown`,
-`HostileTakeover`, `Ship Construction`, `FoundColonyOperation`, ...). It
-can attribute an action to a faction and narrow its date where a visible
-effect already exists, and it reaches further back than the notification
-log's five-year window. It is not the councilor's current mission field,
-which cycles faster than saves and is never used. Its limits set the
-bounds: an entry names no target; some labels are hashed; some label lists
-are rewritten rather than appended; an entry is a cost charged when the
-mission is assigned, zero days to about four weeks before it resolves
-(hypothesis from play experience, to be verified on private saves). So:
+carries a `Transactions` ledger (section 4.3) whose labels include mission
+and operation names (`Coup`, `Purge`, `Crackdown`, `HostileTakeover`,
+`Ship Construction`, `FoundColonyOperation`, ...). It can attribute an
+action to a faction and narrow its date where a visible effect already
+exists. It is not the councilor's current mission field, which cycles
+faster than saves and is never used. Its limits set the bounds: an entry
+names no target; some labels are hashed; each label's list is pruned (never
+rewritten; every pruned entry was dated at or before the earlier save), so
+the ledger is not a full history and does not reach further back than the
+notification log for mission labels; an entry is a cost charged when the
+mission is assigned, zero days to about four weeks before it resolves (one
+testable coup in the private sample was charged 9 days before the executive
+record, by the new executive alone; game-data notes, 2026-10-19). So:
 (1) only a documented label allow-list, each label checked against a
 visible effect over several intervals; (2) entries are read by date from
 the later snapshot inside the window, never from diff presence; (3) the
@@ -1185,8 +1187,12 @@ effect; (4) attribution only when exactly one faction's ledger carries the
 label in the window and that faction is the visible beneficiary, otherwise
 `candidates` and no attribution, as for `hab.destroyed`; (5) record-dating
 only in that single-candidate case; (6) confidence never above medium on
-ledger evidence alone; (7) `Unrest` entries are cross-checked against
-`factionUnrestAttempts` before either is trusted.
+ledger evidence alone (the atomic `faction.transaction_recorded` event
+records a literal entry and is itself high confidence; the cap binds the
+narrative events that cite it); (7) `Unrest` entries are cross-checked
+against `factionUnrestAttempts` before either is trusted. The analyzer
+(`analyzers/faction/ledger.py`) reads the allow-listed entries of the later
+snapshot by date and cites the ledger's `records` change as the source.
 
 ## 11.4 Situation reports
 

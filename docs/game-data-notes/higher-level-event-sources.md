@@ -27,6 +27,7 @@ The work items derived from this page are issues #64 to #73, listed under the re
 | `TIOrgState` | Yes (`organization` domain, issue #66) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
 | `TINotificationQueueState` | Yes (`notification queue` domain, `notificationSummaryQueue` record, issue #68) | the game's own dated event log, player-centric | rolling five-year window with further pruning; subjects of kept entries rewritten |
 | `TIFactionState.CombatLogs` | Yes (`CombatLogs` record, issue #69) | space battles: sides, hull classes, winner | undated; grows mostly by appending |
+| `TIFactionState.Transactions` | Yes (`Transactions` record, `LedgerAnalyzer`, issue #98) | dated mission and operation charges per faction: corroboration and dating only | per-label pruning of entries dated at or before the earlier save; entries never rewritten |
 | Nation `tracker_*ChangeReason_AllTime` | Yes | cause attribution for metric shifts | per-cause deltas between saves |
 | Hab `barycenter` per faction | Yes | first presence on a body | 6 of 6 habs appearing in the last older interval were on a body new to their faction |
 
@@ -234,6 +235,59 @@ because `Date` is null (a componentized date would date it by the record). An en
 ship design names are not decoded. One combat logged by two factions yields two events; matching them is left to
 reconstruction (issue #73).
 
+## `TIFactionState.Transactions`
+
+Observed on 2026-10-19 on the eight private saves of two campaigns (Appease: 7 and 21 day intervals; Resist: 92,
+21, 92 and 228 day intervals), structure, dates and counts only; this is the evidence step of issue #98.
+
+- **Shape.** An object label -> list of `{Resource, Amount, Date}`; every faction carries it, the alien faction
+  included (0-6 labels on campaign day 1, 37-88 labels and 460-2200 entries per faction two decades in). A label
+  is a cause string (`Daily Income`, `Spoils`, `Flat Mission Cost`, `GainInfluence`, `Trade Credit`, `Trade
+  Debit`, `Transfer to <council>` / `Transfer from <council>`, `Effect.*`, `Narrative Event`, `Project
+  Completion`, `Objective Completed`, `Global Milestone`), a councilor mission template name (`Coup`, `Purge`,
+  `Crackdown`, `HostileTakeover`, `Propaganda`, `Stabilize`, `Inspire`, `Unrest`, `Assassinate`, `Detain`,
+  `Turn`, `Advise`, `Extract`, `Augmentation`, `SetNationalPolicy`, `DefendInterests`, `InvestigateCouncilor`,
+  `StealProject`, `SabotageProject`, `SabotageFacilities`, `Abductions`, `EnthrallElites`, `TerrorizeRegion`,
+  `Xenoform`, `AssaultAlienAsset`, `Contact`), a space operation name (`FoundColonyOperation`,
+  `FoundOrbitalOperation`, `FoundOutpostOperation`, `FoundPlatformOperation`, `FoundRingOperation`,
+  `FoundSettlementOperation`, `LaunchProbeOperation`, `LaunchAllProbeOperation`, `RepairFleetOperation`,
+  `ResupplyOperation`, `ResupplyAndRepairOperation`, `TransferOfficersOperation`), an asset charge (`Ship
+  Construction`, `Hire Councilor`, `Purchase Org`, `Sell Org`, `Cancel Ship`, `Salvage`, `Scuttle`, ...) or one of
+  66 hashed numeric labels. A charge that costs several resources is several entries with the same date (`Ship
+  Construction` 3-6, `FoundColonyOperation` 2). No entry names a target.
+- **Never rewritten, pruned per label.** Compared as (resource, amount, date) across the six consecutive pairs, no
+  entry changed; the earlier "rewritten labels" reading was pruning. Of the 3443, 2004, 3522 and 3462 entries
+  dropped in the Resist intervals (0 in the Appease intervals), **every one was dated at or before the earlier
+  save's timestamp**, and none was dated inside the interval. So an entry dated inside `(earlier save, later
+  save]` is reliably present in the later save and can be read by date from it. The pruning rule is not known
+  (*hypothesis:* a label is pruned when it is next charged, keeping a bounded recent set): `Coup` entries from
+  2043 survived two years and vanished when the same faction was charged for a new `Coup`; `Daily Income` kept
+  about one month (122 days in the last save); `Objective Completed`, the early council transfers and a few
+  singletons were still dated at campaign start.
+- **Not a full history.** Because of that pruning, the ledger does *not* reach further back than the
+  notification log for mission labels: in the latest Resist save, 8 of the 9 nations whose `lastExecutiveChange`
+  cause is `Coup` are older than any surviving `Coup` charge.
+- **Charge before effect** (the 0 to about 4 week hypothesis). For the one testable coup, the new executive's
+  ledger carried a `Coup` charge 9 days before the executive record's date and no other faction's ledger had a
+  `Coup` in the 28 days before it (1 of 1, unique attribution). One `Coup` charge by another faction on the last
+  save day was followed by no coup-caused executive change within 400 days: a charge does not mean success.
+  Countable labels agreed with visible effects in all four Resist intervals: `Ship Construction` entries dated
+  inside an interval occurred exactly for the factions whose fleets gained ships; `Found*Operation` entries only
+  for factions that gained a hab; `Hire Councilor` entries matched the councilors that gained a faction (1 and
+  2); `Global Milestone` gained no entry while `globalMilestones` gained none.
+- **Boundary.** The saves were written at midnight and charges carry the time of day, so charges made later on
+  the earlier save's day fall inside the next interval when timestamps are compared (23 of the 121 events of
+  the 21-day Resist interval).
+- **Volume** with the allow-list of `analyzers/faction/ledger.py` (missions, operations, `Ship Construction`,
+  `Hire Councilor`, `Global Milestone`): 6 and 19 events in the Appease intervals; 130, 121, 245 and 730 in the
+  Resist intervals (the last over 228 days), out of 587-14194 ledger entries per later save; `Ship Construction`
+  and the operations dominate because each charge is one entry per resource.
+
+Implemented as `LedgerAnalyzer` (`analyzers/faction/ledger.py`): every allow-listed entry of the later save dated
+inside the interval becomes `faction.transaction_recorded`, dated by the entry, with the ledger's `records` change
+as its source; `minor`, corroboration and dating only under architecture 11.3. Income, spoils, trade, transfers,
+`Effect.*`, org trades, rewards and hashed labels are left in the diff.
+
 ## Observations on already-normalized fields
 
 - **Recruit pool.** In the latest older save 110 of 158 councilors had `faction = null`, and exactly those
@@ -328,9 +382,11 @@ reconstruction (issue #73).
   control point to another nation in the same interval, which the rule skips as territory: so
   executive 1, 2, 4, 3, plurality 3, 2, 3, 4, sole 1, 2, 3, 3. 23 of the 31 events were high
   (dated by an agreeing `lastExecutiveChange`), the rest medium, none low.
-- **Resource ledger** (observed 2026-10-18, the latest older save, structure and counts only). All
+- **Resource ledger** (observed 2026-10-18, the latest older save, structure and counts only;
+  superseded by the `TIFactionState.Transactions` section above on 2026-10-19: the ledger is pruned
+  per label and only a few labels still reach back to campaign start). All
   eight factions, AI factions and the alien faction included, carry a `Transactions` ledger whose
-  entries run from the campaign's first day to the save date (1606 to 2209 entries per faction, 37 to
+  oldest entries are dated on the campaign's first day (1606 to 2209 entries per faction, 37 to
   88 distinct labels). Labels are mission and operation identifiers (`Coup`, `Purge`, `Crackdown`,
   `Assassinate`, `Detain`, `HostileTakeover`, `Propaganda`, `Offer Alliance`, `Stabilize`, `Unrest`,
   `Ship Construction`, `FoundColonyOperation`, `Project Completion`, `Global Milestone`,
@@ -338,8 +394,8 @@ reconstruction (issue #73).
   labels, and about twenty hashed numeric labels. An entry carries a label, a resource, an amount and
   a date, never a target. *Hypotheses* (from play experience, not yet checked against effects): an
   entry is charged when a mission is assigned, zero days to about four weeks before the mission
-  resolves, and a charge does not mean the mission succeeded. The ledger is diffed but not read by
-  any analyzer; architecture 11.3 bounds its planned use.
+  resolves, and a charge does not mean the mission succeeded. Both were checked on 2026-10-19 (see
+  above); `LedgerAnalyzer` reads the allow-listed labels under the bounds of architecture 11.3.
 - **Names and bodies** (observed 2026-10-18, the latest older save). `displayName` is a string on
   every nation, region, hab, faction and control point, and resolved references carry it as
   `EntityRef.name`. `TISpaceBodyState` is normalized as the `space body` domain (#95), so a hab's

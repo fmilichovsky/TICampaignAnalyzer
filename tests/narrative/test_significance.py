@@ -220,6 +220,11 @@ def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
     assert {event_type: significance_of(bare_event(event_type), lookup) for event_type in expected} == expected
 
 
+def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
+    assert "faction.transaction_recorded" in BASE  # corroboration only (architecture 11.3, issue #98)
+    assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
+
+
 def test_every_known_event_type_resolves_and_every_rule_names_a_known_type() -> None:
     lookup = empty_lookup()
     for event_type in _TEMPLATES:

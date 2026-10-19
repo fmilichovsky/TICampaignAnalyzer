@@ -70,7 +70,7 @@ built from the developments catalogued in
   control-point events, `controlPointType`, `positionInNation` and the
   executive record's cause, dated by the executive record when it agrees;
   significance major (#97).
-- [ ] Ledger mission records: `faction.transaction_recorded` for an
+- [x] Ledger mission records: `faction.transaction_recorded` for an
   allow-listed set of `Transactions` labels, record-dated by the assignment,
   minor, corroboration only, under the bounds of architecture 11.3; the
   zero-to-four-week assignment-to-outcome window is verified on private saves
