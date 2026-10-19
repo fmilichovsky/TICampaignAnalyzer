@@ -192,7 +192,14 @@ RELEASED = (
 
 
 def executive_point(save: str) -> EntityState:
-    return state(EntityDomain.CONTROL_POINT, "9", save, controlPointType="Executive", faction=faction_ref("15"))
+    return state(
+        EntityDomain.CONTROL_POINT,
+        "9",
+        save,
+        controlPointType="TheParty",
+        positionInNation=0,
+        faction=faction_ref("15"),
+    )
 
 
 def capital_release() -> Scenario:

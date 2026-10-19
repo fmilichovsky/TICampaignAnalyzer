@@ -205,9 +205,12 @@ is a change of the diff, and that the output is deterministic.
 `test_space_rules.py` builds synthetic habs on bodies (`space_pair`) with
 fleets, destruction logs, `Kills` lists, combat logs, notification entries and
 global milestones, and covers each space rule's confidence branches,
-including the ambiguous destruction join and the notification pin. Both files
-share `tests/reconstruction/support.py` (`run`, `assert_traceable`,
-`lines_of`).
+including the ambiguous destruction join and the notification pin.
+`test_control_rules.py` builds one nation's control points by position
+(`control_pair`) with executive and loss records, and covers each control
+scope, the record-dated case, the plurality tie, an unresolved controller and
+a point moving between nations. The files share
+`tests/reconstruction/support.py` (`run`, `assert_traceable`, `lines_of`).
 
 ### Deriving a safe structural fixture
 

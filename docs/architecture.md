@@ -848,9 +848,10 @@ federation renames, finished projects, the hull of a ship, an army's home nation
 attempts, the new-government record, faction kinds and population. Still left in the diff
 and scheduled in the roadmap's *Narrative layer* section: the allow-listed entries of the
 `Transactions` ledger (bounds in 11.3). The nation-control reading itself (which faction holds
-a nation's executive, plurality or every control point) is reconstruction, not analysis: it
-combines control-point events with the `controlPointType`, `positionInNation` and the
-executive record's cause, and it is the anchor the takeover and breakaway developments need.
+a nation's executive, plurality or every control point) is reconstruction, not analysis: the
+`faction.nation_control_changed` rule of section 10 combines control-point events with
+`positionInNation` and the executive record, and it is the anchor the takeover and breakaway
+developments need.
 
 ------------------------------------------------------------------------
 
@@ -911,10 +912,11 @@ reports (a region's `isBeingAnnexed`/`annexingArmy`) is cited directly. A fact
 read from a snapshot alone, such as a nation holding no regions afterwards or
 the sides of a war, only qualifies evidence and is never evidence itself.
 
-The rules live in `reconstruction/territorial.py` and
-`reconstruction/space.py`, with their evidence from
+The rules live in `reconstruction/territorial.py`, `reconstruction/control.py`
+and `reconstruction/space.py`, with their evidence from
 [sources for higher-level events](game-data-notes/higher-level-event-sources.md);
-`reconstruction/common.py` holds the shared evidence bundle and citation.
+`reconstruction/common.py` holds the shared evidence bundle, citation and the
+executive-seat lookup.
 
 #### Territorial rules
 
@@ -944,8 +946,9 @@ or directly when the statistic stayed below its threshold.
     The releasing nation is the earlier holder of the new nation's capital
     when the capital is among the regions that moved (`capital`), else the
     only nation it gained from (`only_parent`), else `null`. The executive
-    faction is whoever controlled that nation's `Executive` control point in
-    the earlier snapshot. It is context only and never a claim that the
+    faction is whoever controlled that nation's executive seat (its control
+    point at `positionInNation` 0, whatever its type) in the earlier
+    snapshot. It is context only and never a claim that the
     faction decided. `infer_events` sees one pair of snapshots, so the
     earlier snapshot is the earliest it can consult.
 -   `nation.unification`: a gainer that took every region of two or more
@@ -962,6 +965,36 @@ gainer, every candidate is kept one confidence level lower, with
 `ambiguous = True` and the other candidates' IDs in `alternatives`. The
 territory aggregates rank `minor` and the three readings `major`
 (`narrative/significance.py`).
+
+#### Control rule
+
+The control-point analyzer reports each point's controller; only this rule
+says that a faction's hold on a nation changed. Position 0 is the executive
+seat: every nation with control points has exactly one point there, typed
+`Executive` or after its regime.
+
+-   `faction.nation_control_changed`: one per nation and scope whose holder
+    differs between the two snapshots, for a nation with at least one
+    `control_point.controller_changed` (the primary constituents). The
+    scope (`scope`) is `executive` (the faction holding the position-0
+    point), `plurality` (the faction holding most points; a tie or no
+    controlled point is `null`) or `sole` (the faction holding every point,
+    else `null`); gaining or losing every point is a `sole` change. Attributes
+    `before`, `after`, `shares_before` / `shares_after` (points per faction
+    ID), `point_count_before` / `point_count_after`, `population` (the
+    nation's regions after the interval, context) and `cause`, `recorded_on`
+    and `new_executive` from a `nation.executive_change_recorded` of the
+    nation in the interval. That record, `control_point.loss_recorded` and
+    control-point presence events of the nation corroborate. High, and dated
+    by the record, when the record's new executive holds the seat afterwards
+    and is the scope's new holder; medium otherwise; low when any point of
+    the nation is unresolved on either side (the dependent holder is then
+    `Unknown`, and a scope unknown on both sides is not reported). A nation
+    with a point whose `nation` changed in the interval is skipped: that is
+    territory, not control. The line says control changed and never names a
+    coup or purge; the cause stays an attribute, and the reading belongs to
+    the `faction.takeover` narrative rule (section 11.3). Significance
+    `major`, a tie included.
 
 #### Space rules
 
@@ -1100,11 +1133,11 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 
 | Type | Says | Anchor and constituents | Window | Needs |
 | --- | --- | --- | --- | --- |
-| `faction.takeover` | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nation control event |
+| `faction.takeover` | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nothing |
 | `war.arc` | war between A and B and their allies from start to peace, with regions transferred | `war.appeared` (record-dated), `war.alliance_changed`, `nation.annexation`, `war.last_fighting_changed`, `war.disappeared` | sequence | nothing |
 | `federation.lifecycle` | federation formed, joined, left, renamed, dissolved | `federation.appeared`, `federation.members_changed`, `federation.renamed`, `federation.disappeared` | sequence | nothing |
 | `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war | consecutive `nation.unification` / `nation.annexation` / `nation.territory_gained` with one gainer, `nation.disappeared` of the losers, a rename | N intervals | nothing |
-| `nation.release` / `nation.breakaway` | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nation control event |
+| `nation.release` / `nation.breakaway` | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nothing |
 | `nation.cession` | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
 | `nation.claims_declared` | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
 | `nation.transformation` | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | nothing |

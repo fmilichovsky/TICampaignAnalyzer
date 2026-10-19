@@ -149,7 +149,8 @@ the omission. State changes listed with `--changes` are never filtered.
 sections 5.2 and 10) on each interval's analyzer results and lists what it infers in a separate
 `#### Inferred events` section before the objective results, so inferences never mix with the
 results they rest on. Today the rules cover territory (`territory_gained` / `territory_lost`,
-`independence` with its release reading, `unification` and `annexation`) and space
+`independence` with its release reading, `unification` and `annexation`), nation control
+(`faction.nation_control_changed` per `executive`, `plurality` and `sole` scope) and space
 (`faction.first_hab_on_body`, `hab.destroyed`, `faction.battle_outcome`). Each line gives the event's reading and its `confidence`; an event whose evidence
 fits several readings is prefixed `[ambiguous]` and followed by an `alternatives:` line naming the
 competing event IDs. Below it, one `from` line per constituent names the objective result's ID and

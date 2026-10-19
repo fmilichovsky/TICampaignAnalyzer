@@ -65,11 +65,11 @@ built from the developments catalogued in
   on `army.*` events; `nation.unrest_attempts_changed` from
   `factionUnrestAttempts`; `nation.new_government_recorded` from
   `dateOfNewGovernment`; alien-or-human kind and population as attributes (#96).
-- [ ] Reconstruct nation control per interval:
+- [x] Reconstruct nation control per interval:
   `faction.nation_control_changed` (executive, plurality, sole controller) from
   control-point events, `controlPointType`, `positionInNation` and the
-  executive record's cause, dated by the executive or new-government record
-  when it falls in the interval; significance major (#97).
+  executive record's cause, dated by the executive record when it agrees;
+  significance major (#97).
 - [ ] Ledger mission records: `faction.transaction_recorded` for an
   allow-listed set of `Transactions` labels, record-dated by the assignment,
   minor, corroboration only, under the bounds of architecture 11.3; the
