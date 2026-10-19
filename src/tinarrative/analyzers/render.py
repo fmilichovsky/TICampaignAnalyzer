@@ -383,6 +383,14 @@ def _combat_recorded(event: Event) -> str:
     return _combat_line(event, "records")
 
 
+def _transaction_recorded(event: Event) -> str:
+    """The label is a mission or operation template name read from the ledger, never a reading of what it did."""
+    return (
+        f"{_subject(event)} ledger records a {_text(event, 'label')} charge: "
+        f"{_attr(event, 'amount')} {_text(event, 'resource')} (dated {_text(event, 'recorded_on')})"
+    )
+
+
 def _combat_entry_removed(event: Event) -> str:
     return _combat_line(event, "no longer lists")
 
@@ -555,6 +563,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "faction.hab_destruction_recorded": _destruction_recorded,
     "faction.combat_recorded": _combat_recorded,
     "faction.combat_entry_removed": _combat_entry_removed,
+    "faction.transaction_recorded": _transaction_recorded,
     "technology.completed": _technology_completed,
     "technology.finished_changed": _plain("finished"),
     "technology.appeared": _technology_presence,

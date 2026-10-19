@@ -183,7 +183,12 @@ opt-in real-save test): the log is the game's own account of what happened, so a
 entry, loses one and gains a 16 vs 17 entry at a hab of faction 17 plus two identical one-sided entries
 (duplicates), and faction 16 gains the same 16 vs 17 entry (one combat in two logs). Every `Date` is `null`, as
 observed, and design names are synthetic; `tests/analyzers/space/` checks that no line echoes a design or hull
-name. `aliens_before.json` / `aliens_after.json` is the region
+name. `ledger_before.json` / `ledger_after.json` is the resource-ledger pair for the faction family: faction 15's
+`Transactions` loses a `Coup` list (pruned, as observed for mission labels), keeps a `Propaganda` charge dated
+before the interval, and gains `Stabilize`, a two-resource `FoundOutpostOperation`, a `Ship Construction` charge
+dated on the later save day (inside) and a `Crackdown` charge dated on the earlier save day (outside), plus
+`Daily Income` and hashed-label entries that are not allow-listed; `tests/analyzers/faction/` asserts the four
+record-dated events, the pruned entry left in the diff, and the evidence invariants. `aliens_before.json` / `aliens_after.json` is the region
 alien pair: three regions with all five alien sub-states, a crashdown that
 appears with a `crashdownTime` inside the interval, xenoforming rising from
 zero in one region and dropping to zero in another, a facility built, a landing

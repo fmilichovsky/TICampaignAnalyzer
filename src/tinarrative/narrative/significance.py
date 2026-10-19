@@ -132,6 +132,9 @@ _MINOR: tuple[str, ...] = (
     # new-government date, which corroborates the executive record and control-point events (issue #96).
     "nation.unrest_attempts_changed",
     "nation.new_government_recorded",
+    # A dated mission or operation charge from the resource ledger: corroboration and dating for an effect that
+    # is evidenced elsewhere, never a development on its own (architecture 11.3, issue #98).
+    "faction.transaction_recorded",
 )
 
 _MAJOR: tuple[str, ...] = (
