@@ -1,6 +1,18 @@
 """Fleet events: faction and docking with mirrored lists, orbit, parent fleet, combat flag, presence, leftovers."""
 
-from tests.analyzers.support import AFTER, BEFORE, analyze, faction_ref, fleet_ref, hab_ref, only, ref, snapshot, state
+from tests.analyzers.support import (
+    AFTER,
+    BEFORE,
+    analyze,
+    faction_ref,
+    fleet_ref,
+    hab_ref,
+    named,
+    only,
+    ref,
+    snapshot,
+    state,
+)
 from tinarrative.analyzers.space import FleetAnalyzer
 from tinarrative.analyzers.space.fleets import (
     APPEARED,
@@ -46,7 +58,7 @@ def test_faction_and_docking_changes_cite_the_mirroring_lists() -> None:
         (SourceRole.CORROBORATING, "faction:16", "fleets"),
     ]
     assert [str(r.entity_id) for r in faction.entities] == ["fleet:120", "faction:15", "faction:16"]
-    assert dict(docked.attributes) == {"transition": "set", "before": None, "after": hab_ref("140")}
+    assert dict(docked.attributes) == {"transition": "set", "before": None, "after": named(hab_ref("140"))}
     assert [(s.role, str(s.change.entity_id), s.change.field) for s in docked.sources] == [
         (SourceRole.PRIMARY, "fleet:120", "dockedLocation"),
         (SourceRole.CORROBORATING, "space object:140", "dockedFleets"),
@@ -71,7 +83,7 @@ def test_orbit_parent_and_combat_are_literal_with_the_faction_as_context() -> No
     events = analyze(ANALYZER, before, after)
     assert [event.event_type for event in events] == [ORBIT_CHANGED, PARENT_FLEET_CHANGED, IN_COMBAT_CHANGED]
     orbit, parent, combat = events
-    assert dict(orbit.attributes) == {"transition": "cleared", "before": ref(HAB, "60"), "after": None}
+    assert dict(orbit.attributes) == {"transition": "cleared", "before": named(ref(HAB, "60")), "after": None}
     assert [str(r.entity_id) for r in orbit.entities] == ["fleet:120", "faction:15", "space object:60"]
     assert parent.confidence is Confidence.LOW and parent.attribute("transition") == "unresolved"
     assert "merge" not in parent.event_type

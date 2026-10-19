@@ -66,7 +66,8 @@ def to_jsonable(value: Observed) -> Any:
             return {"unknown": value.reason.value}
         return {"unknown": value.reason.value, "raw": to_jsonable(value.raw)}
     if isinstance(value, EntityRef):
-        return {"ref": str(value.entity_id), "state_type": value.state_type, "confidence": value.confidence.value}
+        rendered = {"ref": str(value.entity_id), "state_type": value.state_type, "confidence": value.confidence.value}
+        return rendered if value.name is None else {**rendered, "name": value.name}
     if isinstance(value, FrozenMap):
         return {key: to_jsonable(item) for key, item in value.items}
     if isinstance(value, tuple):

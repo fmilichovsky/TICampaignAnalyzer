@@ -10,7 +10,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 
-from ..analyzers.render import describe_event
+from ..analyzers.render import describe_event, render_event_value
 from ..diff.render import render_change, render_value
 from ..grouping import CampaignGroup
 from ..model.changes import StateChange
@@ -193,7 +193,7 @@ def _event_lines(event: Event, *, verbose: bool) -> list[str]:
         lines.extend(_entity_lines(event.entities, indent="  "))
         lines.extend(_event_source_lines(event.sources, indent="  "))
         if event.attributes:
-            attributes = "; ".join(f"{name}: `{render_value(value)}`" for name, value in event.attributes)
+            attributes = "; ".join(f"{name}: `{render_event_value(value)}`" for name, value in event.attributes)
             lines.append(f"  - attributes: {attributes}")
     return lines
 
@@ -213,7 +213,7 @@ def _entity_lines(entities: Iterable[EntityRef], *, indent: str) -> list[str]:
 
 def _entities(entities: Iterable[EntityRef]) -> str:
     ordered = sorted(entities, key=lambda entity: entity.entity_id.sort_key)
-    return ", ".join(str(entity.entity_id) for entity in ordered)
+    return ", ".join(entity.label() for entity in ordered)
 
 
 def _event_source_lines(sources: Iterable[EventSource], *, indent: str) -> list[str]:

@@ -71,13 +71,13 @@ def test_the_build_string_is_detected_but_not_gated() -> None:
 def test_campaign_events_are_described_literally() -> None:
     lines = {describe_event(event) for event in run_analyzers(CAMPAIGN_ANALYZERS, *fixture_pair(*PAIR))}
     assert lines == {
-        f"{SINGLETON} records global milestone FirstBaseOnLuna for faction:15",
+        f"{SINGLETON} records global milestone FirstBaseOnLuna for Fixture Resistance (faction:15)",
         f"{SINGLETON} earthAtmosphericCO2_ppm: 420.0 -> 421.5",
         f'{SINGLETON} latestSaveVersion: "fixture-build-1" -> "fixture-build-2"',
         f"{SINGLETON} narrativeEventsOnCooldown_months records changed: 0 added, 0 removed, 1 changed",
         f"{SINGLETON} removedNarrativeEvents records changed: 1 added, 1 removed, 0 changed",
         f"{SINGLETON} lists narrative event event_FixtureSecond as triggered once per campaign",
-        f"{SINGLETON} lists narrative event event_FixtureTarget as triggered for [faction:15]",
+        f"{SINGLETON} lists narrative event event_FixtureTarget as triggered for [Fixture Resistance (faction:15)]",
         f"{SINGLETON} nuclear strikes: 0 -> 2",
         f"{SINGLETON} sea level rise 1 flag set",
     }

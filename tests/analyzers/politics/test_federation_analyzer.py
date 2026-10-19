@@ -1,6 +1,6 @@
 """Federation events: presence and members, corroborated by the members' federation references."""
 
-from tests.analyzers.support import AFTER, BEFORE, analyze, federation_ref, nation_ref, snapshot, state
+from tests.analyzers.support import AFTER, BEFORE, analyze, federation_ref, named, nation_ref, snapshot, state
 from tinarrative.analyzers.politics import FederationAnalyzer
 from tinarrative.analyzers.politics.federations import APPEARED, FEDERATION_CHANGED, MEMBERS_CHANGED
 from tinarrative.model.entities import EntityDomain
@@ -40,7 +40,7 @@ def test_members_added_and_removed_cite_the_mirrored_nation_reference() -> None:
     ]
     added, removed = events
     assert added.event_type == MEMBERS_CHANGED and added.confidence is Confidence.HIGH
-    assert dict(removed.attributes) == {"member": nation_ref("21"), "transition": "removed"}
+    assert dict(removed.attributes) == {"member": named(nation_ref("21")), "transition": "removed"}
     assert sources(removed) == [
         (SourceRole.PRIMARY, "federation:80", "members"),
         (SourceRole.CORROBORATING, "nation:21", "federation"),
@@ -82,6 +82,6 @@ def test_unexplained_federation_references_and_unresolved_member_lists_are_repor
         "nation.federation_changed/nation:21",
     ]
     reference = next(event for event in events if event.event_type == FEDERATION_CHANGED)
-    assert dict(reference.attributes) == {"transition": "set", "before": None, "after": federation_ref("80")}
+    assert dict(reference.attributes) == {"transition": "set", "before": None, "after": named(federation_ref("80"))}
     leftover = next(event for event in events if event.event_type == MEMBERS_CHANGED)
     assert leftover.confidence is Confidence.LOW

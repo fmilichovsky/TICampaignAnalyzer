@@ -11,92 +11,124 @@ from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
 from tinarrative.model.values import Unknown
 
 EXPECTED_INTERVAL = {
-    "control point:9 (nation:20) controller: null -> faction:15",
-    "control point:12 (nation:21, controller faction:16) is absent from the after snapshot",
-    "councilor:102 (faction faction:15) is present only in the after snapshot",
-    "councilor:101 (faction null) is absent from the after snapshot",
-    'councilor:100 (faction:15) location: region:40 -> unknown (unresolved_reference, raw={"$type": '
+    "Fixture CP 9 (control point:9) (Fixture Northland Union (nation:20)) controller: null "
+    "-> Fixture Resistance (faction:15)",
+    "Fixture CP 12 (control point:12) (Fixture Southland (nation:21), controller Fixture "
+    "Servants (faction:16)) is absent from the after snapshot",
+    "Fixture Councilor 102 (councilor:102) (faction Fixture Resistance (faction:15)) is "
+    "present only in the after snapshot",
+    "Fixture Councilor 101 (councilor:101) (faction null) is absent from the after snapshot",
+    "Fixture Councilor 100 (councilor:100) (Fixture Resistance (faction:15)) location: "
+    'Fixture North (region:40) -> unknown (unresolved_reference, raw={"$type": '
     '"PavonisInteractive.TerraInvicta.TIRegionState", "value": 999})',
-    "faction:15 councilors list: -councilor:101",
-    "organization:70 assigned councilor: councilor:100 -> null",
-    "federation:80 members: +nation:20",
-    "nation:20 and nation:21: allies entry removed (listed by nation:20 only)",
-    "nation:20 and nation:22: allies entry added (listed by both)",
-    "nation:20 GDP: 1000.0 -> 1200.0",
+    "Fixture Resistance (faction:15) councilors list: -Fixture Councilor 101 (councilor:101)",
+    "Fixture Federation (federation:80) members: +Fixture Northland Union (nation:20)",
+    "Fixture Northland Union (nation:20) and Fixture Southland (nation:21): allies entry "
+    "removed (listed by Fixture Northland Union (nation:20) only)",
+    "Fixture Northland Union (nation:20) and Fixture Eastland (nation:22): allies entry added (listed by both)",
+    "Fixture Northland Union (nation:20) GDP: 1000.0 -> 1200.0",
+    "Fixture Org (organization:70) assigned councilor: Fixture Councilor 100 (councilor:100) -> null",
 }
 
 EXPECTED_RECORDS = {
-    "faction:15 records control point:9 as lost on 2031-04-10T00:00:00",
-    "nation:20 records an executive change dated 2031-04-20T00:00:00: new executive faction:15 (previously null)",
+    "Fixture Resistance (faction:15) records Fixture CP 9 (control point:9) as lost on 2031-04-10T00:00:00",
+    "Fixture Northland (nation:20) records an executive change dated 2031-04-20T00:00:00: "
+    "new executive Fixture Resistance (faction:15) (previously null)",
 }
 
 EXPECTED_POLITICS = {
-    "control point:9 (nation:20) controller: faction:16 -> faction:15; "
-    "loss recorded by faction:16 on 2032-02-15T00:00:00",
-    "control point:10 (nation:20) controller: faction:15 -> null",
-    "faction:16 records control point:9 as lost on 2032-02-15T00:00:00",
-    "control point:11 nation: nation:21 -> nation:20",
-    "region:42 nation: nation:21 -> nation:20",
-    "nation:20 capital: region:40 -> region:41",
-    "nation:22 breakaway parent: null -> nation:20",
-    "nation:20 and nation:21: rivals entry removed (listed by nation:20 only)",
-    "nation:20 and nation:21: wars entry added (listed by both)",
-    "nation:22 controlPoints list: +control point:10",
-    "nation:20 records an executive change dated 2032-02-15T00:00:00: new executive faction:15 (previously faction:16)",
-    "councilor:100 faction: faction:15 -> faction:16",
-    'councilor:100 (faction:16) status: "Available" -> "FixtureStatusB"',
-    "councilor:100 (faction:16) detaining faction: null -> faction:16",
-    "councilor:101 (null) location: region:40 -> space object:140",
-    "councilor:102 faction: faction:16 -> null",
-    'faction:15 councilors list: [councilor:100] -> unknown (unresolved_reference, raw=[{"value": 999}])',
+    "Fixture Servants (faction:16) records Fixture CP 9 (control point:9) as lost on 2032-02-15T00:00:00",
+    "Fixture Northland (nation:20) records an executive change dated 2032-02-15T00:00:00: "
+    "new executive Fixture Resistance (faction:15) (previously Fixture Servants "
+    "(faction:16))",
+    "Fixture CP 10 (control point:10) (Fixture Northland (nation:20)) controller: Fixture "
+    "Resistance (faction:15) -> null",
+    "Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture "
+    "Servants (faction:16) -> Fixture Resistance (faction:15); loss recorded by Fixture "
+    "Servants (faction:16) on 2032-02-15T00:00:00",
+    "Fixture CP 11 (control point:11) nation: Fixture Southland (nation:21) -> Fixture Northland (nation:20)",
+    "Fixture Councilor 100 (councilor:100) (Fixture Servants (faction:16)) detaining "
+    "faction: null -> Fixture Servants (faction:16)",
+    "Fixture Councilor 100 (councilor:100) faction: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)",
+    "Fixture Councilor 102 (councilor:102) faction: Fixture Servants (faction:16) -> null",
+    "Fixture Councilor 101 (councilor:101) (null) location: Fixture North (region:40) -> "
+    "Fixture Hab 140 (space object:140)",
+    'Fixture Councilor 100 (councilor:100) (Fixture Servants (faction:16)) status: "Available" -> "FixtureStatusB"',
+    "Fixture Resistance (faction:15) councilors list: [Fixture Councilor 100 "
+    '(councilor:100)] -> unknown (unresolved_reference, raw=[{"value": 999}])',
+    "Fixture Eastland (nation:22) breakaway parent: null -> Fixture Northland (nation:20)",
+    "Fixture Northland (nation:20) capital: Fixture North (region:40) -> Fixture East (region:41)",
+    "Fixture Eastland (nation:22) controlPoints list: +Fixture CP 10 (control point:10)",
+    "Fixture Northland (nation:20) and Fixture Southland (nation:21): rivals entry removed "
+    "(listed by Fixture Northland (nation:20) only)",
+    "Fixture Northland (nation:20) and Fixture Southland (nation:21): wars entry added (listed by both)",
+    "Fixture South (region:42) nation: Fixture Southland (nation:21) -> Fixture Northland (nation:20)",
 }
 
 EXPECTED_INTERVAL_ASSETS = {
-    "army:112 (faction faction:16, region region:41) is present only in the after snapshot (megafauna)",
-    "army:110 (faction:15) region: region:40 -> region:42",
-    "army:110 (faction:15) strength: 3.5 -> 2.0",
-    "fleet:121 (faction faction:15) is present only in the after snapshot",
-    "fleet:120 (faction:15) docked location: null -> space object:140",
-    "fleet:120 (faction:15) orbit: space object:61 -> null",
-    "fleet:120 ships list: [ship:130, ship:131] -> unknown (unresolved_reference, "
-    'raw=[{"value": 130}, {"value": 999}])',
-    "space object:140 (faction:15) tier: 1 -> 2",
-    "nation:20 armies list: -army:110",
-    "nation:21 armies list: +army:110",
-    'ship:131 fleet: fleet:120 -> unknown (unresolved_reference, raw={"value": 999})',
+    "Fixture Megafauna (army:112) (faction Fixture Servants (faction:16), region Fixture "
+    "East (region:41)) is present only in the after snapshot (megafauna)",
+    "Fixture Army (army:110) (Fixture Resistance (faction:15)) region: Fixture North "
+    "(region:40) -> Fixture South (region:42)",
+    "Fixture Army (army:110) (Fixture Resistance (faction:15)) strength: 3.5 -> 2.0",
+    "Fixture Fleet 121 (fleet:121) (faction Fixture Resistance (faction:15)) is present only in the after snapshot",
+    "Fixture Fleet 120 (fleet:120) (Fixture Resistance (faction:15)) docked location: null "
+    "-> Fixture Hab 140 (space object:140)",
+    "Fixture Fleet 120 (fleet:120) (Fixture Resistance (faction:15)) orbit: space object:61 -> null",
+    "Fixture Fleet 120 (fleet:120) ships list: [Fixture Ship 130 (ship:130), Fixture Ship "
+    '131 (ship:131)] -> unknown (unresolved_reference, raw=[{"value": 130}, {"value": 999}])',
+    "Fixture Hab 140 (space object:140) (Fixture Resistance (faction:15)) tier: 1 -> 2",
+    "Fixture Northland Union (nation:20) armies list: -Fixture Army (army:110)",
+    "Fixture Southland (nation:21) armies list: +Fixture Army (army:110)",
+    "Fixture Ship 131 (ship:131) fleet: Fixture Fleet 120 (fleet:120) -> unknown "
+    '(unresolved_reference, raw={"value": 999})',
     "technology:FixtureTechC (finished false) is present only in the after snapshot",
     "technology:FixtureTechB is listed as finished",
 }
 
 EXPECTED_ASSETS = {
-    'faction:15 records a hab destruction dated 2032-05-20T00:00:00: type "Base" at space object:50 by faction:16',
-    'faction:15 records a hab destruction dated 2032-06-02T00:00:00: type "Base" at unknown (unresolved_reference, '
-    'raw={"value": 998}) by null',
-    "army:112 (faction faction:16, region region:41) is present only in the after snapshot (megafauna)",
-    "army:111 (faction:16) destroyed flag: false -> true",
-    "army:113 (faction faction:15, region region:41) is absent from the after snapshot",
-    "army:111 (in region:40) faction: faction:15 -> faction:16",
-    "army:110 (faction:15) region: region:40 -> region:42",
-    "army:110 (faction:15) strength: 3.5 -> 2.0",
-    'army:111 (faction:16) type: "FixtureInfantry" -> "FixtureArmor"',
-    "fleet:122 (faction faction:15) is present only in the after snapshot",
-    "fleet:120 (faction:15) docked location: null -> space object:140",
-    "fleet:121 faction: faction:15 -> faction:16",
-    "fleet:121 (faction:16) in-combat flag: false -> true",
-    "fleet:120 (faction:15) orbit: space object:60 -> space object:62",
-    'fleet:120 (faction:15) parent fleet: null -> unknown (unresolved_reference, raw={"value": 999})',
-    "space object:141 (faction faction:15) is absent from the after snapshot",
-    "space object:140 dockedFleets list: +fleet:121",
-    "space object:140 faction: faction:16 -> faction:15",
-    "space object:140 (faction:15) tier: 1 -> 2",
-    "space object:140 (faction:15) under-assault flag: false -> true",
-    "nation:20 armies list: -army:110",
-    "nation:21 armies list: +army:110",
-    "ship:133 (fleet fleet:122) is present only in the after snapshot",
-    "ship:132 (fleet fleet:121) is absent from the after snapshot",
-    "ship:131 fleet: fleet:121 -> fleet:120",
-    'ship:130 (fleet fleet:120) last refit date: null -> {"day": 1, "hour": 0, "millisecond": 0, "minute": 0, '
-    '"month": 5, "second": 0, "year": 2032}',
+    "Fixture Resistance (faction:15) records a hab destruction dated 2032-05-20T00:00:00: "
+    'type "Base" at space object:50 by Fixture Servants (faction:16)',
+    "Fixture Resistance (faction:15) records a hab destruction dated 2032-06-02T00:00:00: "
+    'type "Base" at unknown (unresolved_reference, raw={"value": 998}) by null',
+    "Fixture Megafauna (army:112) (faction Fixture Servants (faction:16), region Fixture "
+    "East (region:41)) is present only in the after snapshot (megafauna)",
+    "Fixture ArmyState 111 (army:111) (Fixture Servants (faction:16)) destroyed flag: false -> true",
+    "Fixture ArmyState 113 (army:113) (faction Fixture Resistance (faction:15), region "
+    "Fixture East (region:41)) is absent from the after snapshot",
+    "Fixture ArmyState 111 (army:111) (in Fixture North (region:40)) faction: Fixture "
+    "Resistance (faction:15) -> Fixture Servants (faction:16)",
+    "Fixture ArmyState 110 (army:110) (Fixture Resistance (faction:15)) region: Fixture "
+    "North (region:40) -> Fixture South (region:42)",
+    "Fixture ArmyState 110 (army:110) (Fixture Resistance (faction:15)) strength: 3.5 -> 2.0",
+    'Fixture ArmyState 111 (army:111) (Fixture Servants (faction:16)) type: "FixtureInfantry" -> "FixtureArmor"',
+    "Fixture SpaceFleetState 122 (fleet:122) (faction Fixture Resistance (faction:15)) is "
+    "present only in the after snapshot",
+    "Fixture SpaceFleetState 120 (fleet:120) (Fixture Resistance (faction:15)) docked "
+    "location: null -> Fixture HabState 140 (space object:140)",
+    "Fixture SpaceFleetState 121 (fleet:121) faction: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)",
+    "Fixture SpaceFleetState 121 (fleet:121) (Fixture Servants (faction:16)) in-combat flag: false -> true",
+    "Fixture SpaceFleetState 120 (fleet:120) (Fixture Resistance (faction:15)) orbit: "
+    "space object:60 -> space object:62",
+    "Fixture SpaceFleetState 120 (fleet:120) (Fixture Resistance (faction:15)) parent "
+    'fleet: null -> unknown (unresolved_reference, raw={"value": 999})',
+    "Fixture HabState 141 (space object:141) (faction Fixture Resistance (faction:15)) is "
+    "absent from the after snapshot",
+    "Fixture HabState 140 (space object:140) dockedFleets list: +Fixture SpaceFleetState 121 (fleet:121)",
+    "Fixture HabState 140 (space object:140) faction: Fixture Servants (faction:16) -> Fixture Resistance (faction:15)",
+    "Fixture HabState 140 (space object:140) (Fixture Resistance (faction:15)) tier: 1 -> 2",
+    "Fixture HabState 140 (space object:140) (Fixture Resistance (faction:15)) under-assault flag: false -> true",
+    "Fixture Northland (nation:20) armies list: -Fixture ArmyState 110 (army:110)",
+    "Fixture Southland (nation:21) armies list: +Fixture ArmyState 110 (army:110)",
+    "Fixture SpaceShipState 133 (ship:133) (fleet Fixture SpaceFleetState 122 (fleet:122)) "
+    "is present only in the after snapshot",
+    "Fixture SpaceShipState 132 (ship:132) (fleet Fixture SpaceFleetState 121 (fleet:121)) "
+    "is absent from the after snapshot",
+    "Fixture SpaceShipState 131 (ship:131) fleet: Fixture SpaceFleetState 121 (fleet:121) "
+    "-> Fixture SpaceFleetState 120 (fleet:120)",
+    "Fixture SpaceShipState 130 (ship:130) (fleet Fixture SpaceFleetState 120 (fleet:120)) "
+    'last refit date: null -> {"day": 1, "hour": 0, "millisecond": 0, "minute": 0, "month": 5, '
+    '"second": 0, "year": 2032}',
     "technology:FixtureTechE (finished false) is present only in the after snapshot",
     "technology:FixtureTechB is listed as finished",
     "technology:FixtureTechC is listed as finished (no earlier research state)",
@@ -104,13 +136,16 @@ EXPECTED_ASSETS = {
 }
 
 EXPECTED_WARS = {
-    "war:92 (nation:23, nation:25) is present only in the after snapshot; start date 2032-02-20T00:00:00",
-    "war:91 (nation:22, nation:23) is absent from the after snapshot",
-    "war:90 attacking side: +nation:22",
-    'war:90 date of last fighting: "2031-12-10T00:00:00" -> "2032-03-15T00:00:00"',
-    "federation:80 members: +nation:20",
-    "federation:80 members: -nation:25",
-    "nation:21 and nation:24: wars entry added (listed by nation:24 only)",
+    "Fixture War 92 (war:92) (Fixture Nation 23 (nation:23), Fixture Nation 25 "
+    "(nation:25)) is present only in the after snapshot; start date 2032-02-20T00:00:00",
+    'Fixture War 90 (war:90) date of last fighting: "2031-12-10T00:00:00" -> "2032-03-15T00:00:00"',
+    "Fixture Federation (federation:80) members: +Fixture Nation 20 (nation:20)",
+    "Fixture Federation (federation:80) members: -Fixture Nation 25 (nation:25)",
+    "Fixture Nation 21 (nation:21) and Fixture Nation 24 (nation:24): wars entry added "
+    "(listed by Fixture Nation 24 (nation:24) only)",
+    "Fixture War 90 (war:90) attacking side: +Fixture Nation 22 (nation:22)",
+    "Fixture War 91 (war:91) (Fixture Nation 22 (nation:22), Fixture Nation 23 "
+    "(nation:23)) is absent from the after snapshot",
 }
 
 
@@ -161,7 +196,7 @@ def test_unknown_event_types_fall_back_to_type_and_entities_and_escape_non_ascii
         entities=(after.nations[0].ref,),
         attributes=(("after", "café"),),
     )
-    assert describe_event(event) == "army.fixture_unknown: nation:20"
+    assert describe_event(event) == "army.fixture_unknown: Fixture nation 20 (nation:20)"
     plain = Event(**{**event.__dict__, "event_type": "nation.capital_changed", "attributes": (("after", "café"),)})
     described = describe_event(plain)
     assert described.isascii() and json.loads(described.split("-> ")[1]) == "café"

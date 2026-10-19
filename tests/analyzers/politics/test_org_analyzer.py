@@ -6,6 +6,7 @@ from tests.analyzers.support import (
     analyze,
     councilor_ref,
     faction_ref,
+    named,
     org_ref,
     region_ref,
     snapshot,
@@ -58,7 +59,7 @@ def test_an_assignment_cites_the_councilor_list_and_the_faction_pool() -> None:
     (event,) = analyze(ANALYZER, before, after)
     assert event.id == "organization.assigned_councilor_changed/organization:70"
     assert event.event_type == ASSIGNED_COUNCILOR_CHANGED and event.confidence is Confidence.HIGH
-    assert dict(event.attributes) == {"transition": "set", "before": None, "after": councilor_ref("100")}
+    assert dict(event.attributes) == {"transition": "set", "before": None, "after": named(councilor_ref("100"))}
     assert sources(event) == [
         (SourceRole.PRIMARY, "organization:70", "assignedCouncilor"),
         (SourceRole.CORROBORATING, "councilor:100", "orgs"),
@@ -71,7 +72,7 @@ def test_a_release_cites_the_councilor_list_and_the_faction_pool() -> None:
     before = snapshot(BEFORE, org(BEFORE, councilor="100"), councilor(BEFORE, "100", "70"), faction(BEFORE))
     after = snapshot(AFTER, org(AFTER), councilor(AFTER, "100"), faction(AFTER, "70"))
     (event,) = analyze(ANALYZER, before, after)
-    assert dict(event.attributes) == {"transition": "cleared", "before": councilor_ref("100"), "after": None}
+    assert dict(event.attributes) == {"transition": "cleared", "before": named(councilor_ref("100")), "after": None}
     assert sources(event) == [
         (SourceRole.PRIMARY, "organization:70", "assignedCouncilor"),
         (SourceRole.CORROBORATING, "councilor:100", "orgs"),

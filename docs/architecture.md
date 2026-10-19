@@ -258,8 +258,9 @@ The snippets above are conceptual; the implemented types differ as follows:
     reference target (`displayName`, parent body, body kind), because a hab, a destruction
     entry or a milestone that names only `space object:235` cannot be narrated.
 -   Every normalized entity carries its `displayName`, and a resolved `EntityRef` carries it as
-    `name`; the renderer and the JSON currently print IDs only. Rendering names everywhere is
-    the first roadmap item of the narrative layer. Councilor names are player content: allowed
+    `name`. `describe_event`, the Markdown and the JSON of `tinarrative events` render it as
+    `Name (domain:key)` (`EntityRef.label`), keeping the ID for audit; the `diff` text report stays
+    literal. Councilor names are player content: allowed
     in the user's own output, never in logs or fixtures.
 -   Save-carried records (section 4.3) are compared per owning entity and field
     with `ChangeKind.records`: `before`/`after` are the entry counts and the
@@ -1241,8 +1242,8 @@ The prose generator should not be the authoritative source of event
 facts. Structured events remain canonical.
 
 Before narrative aggregation exists, the deterministic Markdown of
-`tinarrative events` lists atomic events per interval and names entities by
-ID; it is a forensic view, not a history. A narrative line in the package
+`tinarrative events` lists atomic events per interval and names entities as
+`Name (domain:key)`; it is a forensic view, not a history. A narrative line in the package
 below reads, conceptually:
 
 ``` text

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from tests.fixtures import fixture_path
 from tinarrative.analyzers.base import Analyzer
 from tinarrative.diff.state_diff import diff_states
@@ -46,6 +48,11 @@ RESEARCH_ID = 150
 def ref(domain: EntityDomain, key: str) -> EntityRef:
     """A reference as the normalizer produces it inside a field: no display name."""
     return EntityRef(EntityId(domain, key), IdentityConfidence.IN_SAVE_ID, state_type=STATE_TYPES[domain][0])
+
+
+def named(value: EntityRef) -> EntityRef:
+    """The reference with the display name that ``state`` gives its entity: how an event attribute reads."""
+    return replace(value, name=f"Fixture {value.entity_id.domain.value} {value.entity_id.key}")
 
 
 def faction_ref(key: str) -> EntityRef:

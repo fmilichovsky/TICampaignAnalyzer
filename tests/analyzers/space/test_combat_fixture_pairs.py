@@ -76,16 +76,19 @@ def test_lines_name_sides_and_winner_but_never_design_or_hull_names() -> None:
     events = run_analyzers(ALL_ANALYZERS, *fixture_pair(*PAIR))
     lines = sorted(describe_event(event) for event in events)
     assert lines == [
-        "faction:15 no longer lists a combat entry (undated): faction:15 (1 ship) vs faction:16 (1 ship); "
-        "winner faction:16, hab faction null, attacks 0",
-        "faction:15 records a combat entry (undated): faction:15 (1 ship); "
-        "winner faction:15, hab faction null, attacks 0",
-        "faction:15 records a combat entry (undated): faction:15 (1 ship); "
-        "winner faction:15, hab faction null, attacks 0",
-        "faction:15 records a combat entry (undated): faction:16 (2 ships) vs faction:17 (1 ship); "
-        "winner faction:16, hab faction faction:17, attacks 1",
-        "faction:16 records a combat entry (undated): faction:16 (2 ships) vs faction:17 (1 ship); "
-        "winner faction:16, hab faction faction:17, attacks 1",
+        "Fixture Aliens (faction:16) records a combat entry (undated): Fixture Aliens "
+        "(faction:16) (2 ships) vs Fixture Servants (faction:17) (1 ship); "
+        "winner Fixture Aliens (faction:16), hab faction Fixture Servants (faction:17), attacks 1",
+        "Fixture Resistance (faction:15) no longer lists a combat entry (undated): Fixture "
+        "Resistance (faction:15) (1 ship) vs Fixture Aliens (faction:16) (1 ship); "
+        "winner Fixture Aliens (faction:16), hab faction null, attacks 0",
+        "Fixture Resistance (faction:15) records a combat entry (undated): Fixture Aliens "
+        "(faction:16) (2 ships) vs Fixture Servants (faction:17) (1 ship); "
+        "winner Fixture Aliens (faction:16), hab faction Fixture Servants (faction:17), attacks 1",
+        "Fixture Resistance (faction:15) records a combat entry (undated): Fixture Resistance (faction:15) (1 ship); "
+        "winner Fixture Resistance (faction:15), hab faction null, attacks 0",
+        "Fixture Resistance (faction:15) records a combat entry (undated): Fixture Resistance (faction:15) (1 ship); "
+        "winner Fixture Resistance (faction:15), hab faction null, attacks 0",
     ]
     text = " ".join(lines)
     assert "Fixture Design" not in text and "FixtureEscort" not in text

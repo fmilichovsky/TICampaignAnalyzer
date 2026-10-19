@@ -239,6 +239,19 @@ class EventBuilder:
     def __init__(self, before: SaveSnapshot, after: SaveSnapshot) -> None:
         self.not_before: Observed = before.date
         self.observed: Observed = after.date
+        self._lookup = Lookup(before, after)
+
+    def _named(self, value: Observed) -> Observed:
+        """The value with every reference replaced by the entity's own (named) reference, where it is normalized."""
+        if isinstance(value, EntityRef):
+            return self._lookup.resolve(value)
+        if isinstance(value, tuple):
+            return tuple(self._named_field(item) for item in value)
+        return value
+
+    def _named_field(self, value: FieldValue) -> FieldValue:
+        named = self._named(value)
+        return None if isinstance(named, Unknown) else named
 
     def event(
         self,
@@ -268,7 +281,7 @@ class EventBuilder:
             not_before=self.not_before,
             sources=tuple(sources),
             entities=tuple(ref for ref in entities if ref is not None),
-            attributes=tuple(attributes),
+            attributes=tuple((name, self._named(value)) for name, value in attributes),
             constituents=tuple(constituents),
         )
 

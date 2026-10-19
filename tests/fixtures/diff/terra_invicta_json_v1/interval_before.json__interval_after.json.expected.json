@@ -97,7 +97,8 @@
       "after": {
         "ref": "army:112",
         "state_type": "TIMegafaunaArmyState",
-        "confidence": "in-save-id"
+        "confidence": "in-save-id",
+        "name": "Fixture Megafauna"
       },
       "detail": null,
       "description": "present only in the after snapshot",
@@ -356,7 +357,8 @@
       "before": {
         "ref": "control point:12",
         "state_type": "TIControlPoint",
-        "confidence": "in-save-id"
+        "confidence": "in-save-id",
+        "name": "Fixture CP 12"
       },
       "after": {
         "unknown": "missing"
@@ -581,7 +583,8 @@
       "before": {
         "ref": "councilor:101",
         "state_type": "TICouncilorState",
-        "confidence": "in-save-id"
+        "confidence": "in-save-id",
+        "name": "Fixture Councilor 101"
       },
       "after": {
         "unknown": "missing"
@@ -612,7 +615,8 @@
       "after": {
         "ref": "councilor:102",
         "state_type": "TICouncilorState",
-        "confidence": "in-save-id"
+        "confidence": "in-save-id",
+        "name": "Fixture Councilor 102"
       },
       "detail": null,
       "description": "present only in the after snapshot",
@@ -1057,7 +1061,8 @@
       "after": {
         "ref": "fleet:121",
         "state_type": "TISpaceFleetState",
-        "confidence": "in-save-id"
+        "confidence": "in-save-id",
+        "name": "Fixture Fleet 121"
       },
       "detail": null,
       "description": "present only in the after snapshot",
@@ -1913,7 +1918,8 @@
       "after": {
         "ref": "technology:FixtureTechC",
         "state_type": "TIGlobalResearchState",
-        "confidence": "name-key"
+        "confidence": "name-key",
+        "name": "FixtureTechC"
       },
       "detail": null,
       "description": "present only in the after snapshot",
