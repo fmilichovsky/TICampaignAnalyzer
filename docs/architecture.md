@@ -1203,6 +1203,22 @@ development say "formerly held by faction Y" or "then a member of
 federation F". `run_sequence` keeps the reports and discards the
 snapshots.
 
+### Implemented contract (`src/tinarrative/narrative/situation.py`)
+
+`build_situation(snapshot)` returns a frozen `SituationReport` with a
+`to_dict()`; equal snapshots give equal reports. Every value is literal: a
+nation's executive is the faction holding its position-0 control point
+(section 10, control rule) and its points are counted per faction, but no
+faction is said to control it, since that is the control rule's inference.
+Wars per nation come from the wars' alliances. Technologies are one
+campaign-wide research state in the model, so the finished-technology count
+is campaign-wide; projects are counted per faction. Habs, fleets and ships
+no faction of the snapshot owns are counted, not dropped. A value the
+snapshot does not establish is `Unknown`, never zero or empty. `run_sequence`
+attaches the reports of both saves to each `IntervalResult`, and
+`sequence.situations` lists one per save. `events --format json` shows them
+as `saves[].situation` ([schema](commands/events.md#situation-report)).
+
 ------------------------------------------------------------------------
 
 # 12. Significance
@@ -1391,6 +1407,7 @@ terra-invicta-narrative/
 │       ├── narrative/
 │       │   ├── aggregation.py
 │       │   ├── significance.py
+│       │   ├── situation.py       # per-save situation reports (11.4)
 │       │   └── chronology.py
 │       │
 │       └── rendering/

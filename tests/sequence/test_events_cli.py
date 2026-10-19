@@ -87,6 +87,10 @@ def test_json_report_lists_saves_and_intervals_with_unique_qualified_ids(
         if isinstance(value, dict) and "ref" in value
     ]
     assert attribute_refs and all("name" in ref for ref in attribute_refs)
+    dates = [save["situation"]["date"] for save in report["saves"]]
+    assert dates == [save["date"] for save in report["saves"]]
+    assert all(save["situation"]["nations"] for save in report["saves"])
+    assert all("situation" not in interval for interval in report["intervals"])
 
 
 @pytest.mark.fixture
@@ -157,6 +161,11 @@ def test_duplicates_are_merged_and_one_distinct_save_compares_nothing(
     assert "2 saves given, 1 byte-identical copy merged" in out
     assert "(identical: " in out
     assert "no interval was compared" in out
+
+    assert main(["events", "--format", "json", str(FIXTURE_DIR / "politics_after.json"), str(copy)]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
+    assert [save["situation"] for save in report["saves"]] == [None]
+    assert report["intervals"] == []
 
 
 @pytest.mark.fixture

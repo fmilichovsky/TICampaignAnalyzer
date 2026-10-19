@@ -176,7 +176,9 @@ says `No events were inferred.`
 - `inputs` (the chosen campaign's saves given, after directory expansion), `duplicates`;
 - `skipped`: one object per file skipped inside a named directory, with `source`, `error_class` and
   `error` (empty when none);
-- `saves`: one object per distinct save, with `key`, `source`, `aliases`, `sha256` and `date`;
+- `saves`: one object per distinct save, with `key`, `source`, `aliases`, `sha256`, `date` and
+  `situation` (its [situation report](#situation-report), or `null` when fewer than two distinct
+  saves were given, because then no save is normalized);
 - `intervals`: one object per interval, with `index`, `key`, `before` and `after` (source paths),
   `not_before` and `date` (their game times), `changes` (state change count), `events` (the
   objective events, serialized as `Event.to_dict`), `inferred` (the same for inferred events, or
@@ -192,6 +194,60 @@ The JSON report holds every event. It ignores `--min-significance`.
 
 `--changes` keeps every interval's changes, with their before and after values, in memory until
 the report is written, so a long sequence uses more memory with it than without it.
+
+### Situation report
+
+A save's `situation` is the digest of that one save that narrative aggregation and the narrator
+read as context ([architecture 11.4](../architecture.md#114-situation-reports)). It is read from
+the save alone, states literal values and counts, and is not an event. A reference is an object
+as above. A value the save does not establish is `{"unknown": <reason>}` (with `raw` when
+something was serialized), never `0`, `[]` or `null`. `null` is a known null.
+
+- `date`: the save's game time.
+- `player_faction_name`: `playerFactionName` from the campaign metadata.
+- `nations`: one object per nation, in ID order:
+  - `nation`: the nation;
+  - `executive`: the faction holding the nation's executive seat, the control point at
+    `positionInNation` 0. It is `null` when the seat is uncontrolled or the nation has no
+    control points, and unknown when the point list is unknown, no point sits at position 0, or the
+    seat's controller is unresolved;
+  - `control_points`: the number of points; `shares`: points held per faction, keyed by faction ID
+    (`faction:12`), without uncontrolled or unresolved points; `unresolved_points`: points whose
+    controller is unresolved. All four are unknown when the point list is. The report never says
+    which faction controls a nation; that is an inference (`faction.nation_control_changed`);
+  - `federation`: the nation's federation, or `null`;
+  - `wars`: `{"war", "side"}` for every war whose attacking or defending alliance lists the
+    nation, `side` being `attacker` or `defender`, in war ID order;
+  - `regions`: the number of regions; `population`: the summed `populationInMillions` of those
+    regions (unknown when any region's value is);
+  - `statistics`: `democracy`, `cohesion`, `unrest`, `inequality`, `GDP` and `spaceFunding_year`,
+    as serialized.
+- `federations`: `federation`, `name` (`federationName`) and `members`, in ID order.
+- `wars`: `war`, `attacker`, `defender`, `attacking_alliance`, `defending_alliance`,
+  `start_date` (`startDate`) and `last_fighting` (`dateOfLastFighting`), in ID order.
+- `factions`: one object per faction, in ID order:
+  - `faction`, and `kind` (`alien` or `human` by its template, `null` without one);
+  - `habs`: every hab it owns; `habs_by_body`: `{"body", "habs"}` per space body (the hab's
+    `barycenter`), in body ID order. A hab without a known body counts in `habs` only;
+  - `fleets`: fleets whose `faction` it is; `ships`: ships whose `fleet` is one of those fleets;
+  - `finished_projects`: the entries of `finishedProjectNames`, a repeated project counted per
+    completion.
+- `unattributed`: `habs`, `fleets` and `ships` whose owner is `null`, unresolved or not a faction
+  of the save. They are counted here rather than dropped.
+- `world`:
+  - `nations`: the number of nation states, including those that hold no region;
+    `nations_with_regions`: those whose region list is not empty (unknown when any nation's list
+    is); `population`: the summed population of every region;
+  - `finished_technologies`: the length of `finishedTechsNames`. Research is campaign-wide, so this
+    count is not per faction;
+  - `milestones`: `{"milestone", "faction"}` per `globalMilestones` entry, in serialized order;
+  - `nuclear`: `nuclearStrikes`, `looseNukes`, `currentNuclearExchanges`;
+  - `climate`: `earthAtmosphericCO2_ppm`, `earthAtmosphericCH4_ppm`, `earthAtmosphericN2O_ppm`,
+    `stratosphericAerosols_ppm`, `globalSeaLevelAnomaly_cm`, `globalSeaLevelRise1Triggered`,
+    `globalSeaLevelRise2Triggered`.
+
+A report is built while its save is normalized, so it adds no third snapshot to memory. The
+same save always gives the same report.
 
 Failures print one message to stderr naming the path that failed and no traceback. With
 `--log-level info`, the run logs the paths given and candidate files, the number of campaigns and

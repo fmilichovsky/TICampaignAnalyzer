@@ -81,7 +81,8 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `diff`: derive literal state transitions.
 - `analyzers`: emit domain-specific atomic events.
 - `reconstruction`: combine evidence into conservative inferred events.
-- `narrative`: group atomic events into narrative developments.
+- `narrative`: group atomic events into narrative developments; per-save situation
+  reports as their context.
 - `rendering`: turn structured narrative output into user-facing formats.
 - `grouping`: split surveyed saves into campaigns by their continuity signals
   (`tinarrative campaigns`, `events --campaign`).

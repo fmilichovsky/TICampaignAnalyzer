@@ -75,7 +75,7 @@ built from the developments catalogued in
   minor, corroboration only, under the bounds of architecture 11.3; the
   zero-to-four-week assignment-to-outcome window is verified on private saves
   first (#98).
-- [ ] Situation reports: `narrative/situation.py` builds the per-save digest
+- [x] Situation reports: `narrative/situation.py` builds the per-save digest
   of architecture 11.4 from one snapshot; `run_sequence` keeps the reports,
   not the snapshots (#99).
 - [ ] Narrative aggregation framework: the narrative fields on `Event`,
