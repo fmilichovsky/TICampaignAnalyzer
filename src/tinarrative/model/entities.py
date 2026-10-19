@@ -58,3 +58,12 @@ class EntityRef:
     confidence: IdentityConfidence
     state_type: str | None = None
     name: str | None = None
+
+    def label(self) -> str:
+        """``Name (nation:3857)``: the display name with the ID kept for audit; the bare ID without a name.
+
+        A name-keyed entity whose name is its key (a technology) is not repeated.
+        """
+        if not self.name or self.name == self.entity_id.key:
+            return str(self.entity_id)
+        return f"{self.name} ({self.entity_id})"

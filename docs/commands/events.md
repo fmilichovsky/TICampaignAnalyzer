@@ -101,6 +101,17 @@ as a nation taking another nation's regions over two intervals, is reported as o
 `territory_gained` per interval and never as one `unification`. Combining events across intervals
 is left to narrative aggregation.
 
+## Naming entities
+
+The Markdown lines and the "affected entities" list name an entity as `Name (domain:key)`, for
+example `Germany (nation:3857)`: the display name the save gives it, with the ID kept for audit.
+An entity the save gives no name, or one that is not normalized (a space body until it is a
+reference target), keeps the bare `domain:key`. A name-keyed entity whose name is its key, such as
+a technology, is not repeated. This holds for the subject, the context in parentheses and any
+reference an event carries as an attribute. The `#### State changes` section stays literal and
+prints IDs only, as `save diff` does. Names are save content, so they appear in this report and
+never in the diagnostic log.
+
 ## Markdown output
 
 The default report lists:
@@ -172,6 +183,10 @@ says `No events were inferred.`
   `null` without `--inferred`) and `state_changes` (the literal changes, each serialized exactly as
   a change in `diff --format json`, with values, detail and source locations, or `null` without
   `--changes`).
+
+Every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
+(`domain:key`), `state_type`, `confidence` and, when the save gives the entity a display name,
+`name`.
 
 The JSON report holds every event. It ignores `--min-significance`.
 

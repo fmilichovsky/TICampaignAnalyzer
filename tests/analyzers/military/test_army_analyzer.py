@@ -8,6 +8,7 @@ from tests.analyzers.support import (
     army_ref,
     by_type,
     faction_ref,
+    named,
     nation_ref,
     only,
     region_ref,
@@ -60,7 +61,11 @@ def test_region_change_cites_both_region_lists_and_leaves_nation_lists_as_leftov
     moved = only(events, REGION_CHANGED)
     assert moved.confidence is Confidence.HIGH
     assert [str(r.entity_id) for r in moved.entities] == ["army:110", "faction:15", "region:40", "region:42"]
-    assert dict(moved.attributes) == {"transition": "changed", "before": region_ref("40"), "after": region_ref("42")}
+    assert dict(moved.attributes) == {
+        "transition": "changed",
+        "before": named(region_ref("40")),
+        "after": named(region_ref("42")),
+    }
     assert [(s.role, str(s.change.entity_id), s.member) for s in moved.sources] == [
         (SourceRole.PRIMARY, "army:110", None),
         (SourceRole.CORROBORATING, "region:40", army_ref("110")),

@@ -7,6 +7,7 @@ from tests.analyzers.support import (
     by_type,
     councilor_ref,
     faction_ref,
+    named,
     only,
     ref,
     region_ref,
@@ -48,7 +49,11 @@ def test_faction_change_cites_both_rosters() -> None:
     (event,) = analyze(ANALYZER, before, after)
     assert event.event_type == FACTION_CHANGED and event.confidence is Confidence.HIGH
     assert [str(r.entity_id) for r in event.entities] == ["councilor:100", "faction:15", "faction:16"]
-    assert dict(event.attributes) == {"transition": "changed", "before": faction_ref("15"), "after": faction_ref("16")}
+    assert dict(event.attributes) == {
+        "transition": "changed",
+        "before": named(faction_ref("15")),
+        "after": named(faction_ref("16")),
+    }
     assert [(s.role, str(s.change.entity_id), s.member) for s in event.sources] == [
         (SourceRole.PRIMARY, "councilor:100", None),
         (SourceRole.CORROBORATING, "faction:15", councilor_ref("100")),

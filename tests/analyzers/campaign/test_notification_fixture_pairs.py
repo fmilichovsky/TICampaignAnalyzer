@@ -88,15 +88,15 @@ def test_lines_name_the_template_and_subject_but_never_the_summary() -> None:
     events = run_analyzers(ALL_ANALYZERS, *fixture_pair(*PAIR))
     lines = {describe_event(event) for event in events}
     assert lines == {
-        f"{QUEUE} logs LogSpaceBattleTakesPlace dated 2032-01-15T00:00:00 about fleet:50",
-        f"{QUEUE} logs LogXenoformingDetected dated 2032-02-01T00:00:00 about region:40",
+        f"{QUEUE} logs LogSpaceBattleTakesPlace dated 2032-01-15T00:00:00 about Fixture Fleet 50 (fleet:50)",
+        f"{QUEUE} logs LogXenoformingDetected dated 2032-02-01T00:00:00 about NorthCoast (region:40)",
         f"{QUEUE} logs LogHabDestroyed dated 2032-02-10T00:00:00 about unknown "
         '(unresolved_reference, raw={"$type": "PavonisInteractive.TerraInvicta.TIHabState", "value": 999})',
         f"{QUEUE} logs LogProjectComplete dated 2032-02-20T00:00:00 about unknown "
         '(unresolved_reference, raw={"$type": "PavonisInteractive.TerraInvicta.TIMissionPhaseState", "value": 300})',
         f"{QUEUE} logs LogNationJoinsWar dated 2032-02-25T00:00:00 about null",
         f"{QUEUE} entry LogMissionOutcome dated 2031-12-28T00:00:00 changed: "
-        'subject region:40 -> region:40, outcome "None" -> "Success"',
+        'subject NorthCoast (region:40) -> NorthCoast (region:40), outcome "None" -> "Success"',
         f"{QUEUE} no longer lists LogMyCouncilorDetained dated 2031-12-25T00:00:00 about null",
     }
     text = " ".join(lines)

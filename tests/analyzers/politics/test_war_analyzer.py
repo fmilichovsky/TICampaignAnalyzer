@@ -5,6 +5,7 @@ from tests.analyzers.support import (
     AFTER_DATE,
     BEFORE,
     analyze,
+    named,
     nation_ref,
     only,
     record_set,
@@ -113,7 +114,7 @@ def test_an_alliance_member_leaving_cites_its_wars_entries_against_the_earlier_o
     (event,) = analyze(ANALYZER, before, after)
     assert event.id == "war.alliance_changed/war:90/defending/nation:23/removed"
     assert event.event_type == ALLIANCE_CHANGED
-    assert dict(event.attributes) == {"side": "defending", "member": nation_ref("23"), "transition": "removed"}
+    assert dict(event.attributes) == {"side": "defending", "member": named(nation_ref("23")), "transition": "removed"}
     assert sources(event) == [
         (SourceRole.PRIMARY, "war:90", "_defendingAlliance"),
         (SourceRole.CORROBORATING, "nation:20", "wars"),

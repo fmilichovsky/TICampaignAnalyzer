@@ -13,6 +13,7 @@ from tests.analyzers.support import (
     faction_ref,
     fleet_ref,
     hab_ref,
+    named,
     pair,
     record_set,
     snapshot,
@@ -289,7 +290,7 @@ def test_one_vanished_hab_and_one_matching_entry_is_a_high_destruction_dated_by_
     assert event.id == "hab.destroyed/space object:70"
     assert event.confidence is Confidence.HIGH
     assert (event.date, event.date_basis) == (IN_INTERVAL, DateBasis.RECORD)
-    assert event.attribute("destroyer") == PLAYER and event.attribute("ambiguous") is False
+    assert event.attribute("destroyer") == named(PLAYER) and event.attribute("ambiguous") is False
     assert event.attribute("signals") == ("destruction_log",)
     assert set(event.constituents) == {
         "hab.disappeared/space object:70",
@@ -401,21 +402,25 @@ def test_inferred_events_cite_their_constituents_and_trace_to_the_diff(name: str
 
 def test_lines_name_the_reading_and_significance_ranks_it() -> None:
     assert lines_of(new_body())["faction.first_hab_on_body/faction:15/space object:900"] == (
-        "faction:15 established its first presence on space object:900 (2 habs)",
+        "Fixture faction 15 (faction:15) established its first presence on space object:900 (2 habs)",
         Significance.MAJOR,
     )
     assert lines_of(first_of_any_faction())["faction.first_hab_on_body/faction:15/space object:902"][0] == (
-        "faction:15 established its first presence on space object:902 (1 hab, the first of any faction there)"
+        "Fixture faction 15 (faction:15) established its first presence on space object:902 (1 "
+        "hab, the first of any faction there)"
     )
     assert lines_of(unique_destruction())["hab.destroyed/space object:70"] == (
-        f'space object:70 (type "Base" at space object:900) was destroyed by faction:15 on {IN_INTERVAL}',
+        f'Fixture space object 70 (space object:70) (type "Base" at space object:900) was '
+        f"destroyed by Fixture faction 15 (faction:15) on {IN_INTERVAL}",
         Significance.MAJOR,
     )
     assert lines_of(ambiguous_destruction(2))["hab.destroyed/space object:72"][0] == (
-        'space object:72 (type "Base" at space object:900) was destroyed by faction:15: '
+        'Fixture space object 72 (space object:72) (type "Base" at space object:900) was '
+        "destroyed by Fixture faction 15 (faction:15): "
         "one of 2 recorded destructions for 2 vanished habs"
     )
     assert lines_of(battle(winners=(PLAYER,)))["faction.battle_outcome/faction:15/faction:16"] == (
-        "faction:15 inflicted 4 kills on faction:16, which lost 1 hab; recorded combats won 1, lost 0",
+        "Fixture faction 15 (faction:15) inflicted 4 kills on Fixture faction 16 (faction:16), "
+        "which lost 1 hab; recorded combats won 1, lost 0",
         Significance.MAJOR,
     )

@@ -6,6 +6,7 @@ from tests.analyzers.support import (
     analyze,
     by_type,
     faction_ref,
+    named,
     only,
     record_set,
     snapshot,
@@ -136,7 +137,7 @@ def test_an_interstate_wars_member_no_war_explains_is_a_leftover_of_the_war_anal
         snapshot(AFTER, war_after, singleton(AFTER, interstateWars=(war_ref("90"),))),
     )
     event = only(events, "campaign.interstate_wars_changed")
-    assert event.attribute("transition") == "added" and event.attribute("member") == war_ref("90")
+    assert event.attribute("transition") == "added" and event.attribute("member") == named(war_ref("90"))
     assert analyze(GlobalValuesAnalyzer(), *_war_pair()) == []
 
 

@@ -8,6 +8,7 @@ from tests.analyzers.support import (
     analyze,
     by_type,
     faction_ref,
+    named,
     nation_ref,
     only,
     point_ref,
@@ -79,8 +80,8 @@ def test_controller_transfer_cites_both_rosters_and_the_loss_record() -> None:
     assert event.entities[0].name == "Fixture control point 9"
     assert dict(event.attributes) == {
         "transition": "changed",
-        "before": losing,
-        "after": faction_ref("15"),
+        "before": named(losing),
+        "after": named(faction_ref("15")),
         "loss_recorded_on": LOST_ON,
     }
     cited = [(s.role, str(s.change.entity_id), s.change.field, s.member) for s in event.sources]

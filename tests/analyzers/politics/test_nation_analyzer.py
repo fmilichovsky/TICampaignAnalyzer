@@ -8,6 +8,7 @@ from tests.analyzers.support import (
     by_type,
     faction_ref,
     federation_ref,
+    named,
     nation_ref,
     only,
     record_set,
@@ -51,7 +52,11 @@ def test_region_ownership_change_cites_both_nations_region_lists() -> None:
     (event,) = analyze(ANALYZER, before, after)
     assert event.event_type == REGION_NATION_CHANGED and event.confidence is Confidence.HIGH
     assert [str(ref.entity_id) for ref in event.entities] == ["region:42", "nation:21", "nation:20"]
-    assert dict(event.attributes) == {"transition": "changed", "before": nation_ref("21"), "after": nation_ref("20")}
+    assert dict(event.attributes) == {
+        "transition": "changed",
+        "before": named(nation_ref("21")),
+        "after": named(nation_ref("20")),
+    }
     assert [(s.role, str(s.change.entity_id), s.member) for s in event.sources] == [
         (SourceRole.PRIMARY, "region:42", None),
         (SourceRole.CORROBORATING, "nation:20", region_ref("42")),

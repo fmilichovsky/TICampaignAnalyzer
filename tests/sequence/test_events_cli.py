@@ -77,6 +77,16 @@ def test_json_report_lists_saves_and_intervals_with_unique_qualified_ids(
         for event in interval["events"] + interval["inferred"]:
             assert event["id"].endswith("@" + interval["key"])
             assert set(event["constituents"]) <= own
+    refs = [ref for interval in report["intervals"] for event in interval["events"] for ref in event["entities"]]
+    assert refs and all(ref["name"].startswith("Fixture ") for ref in refs)
+    attribute_refs = [
+        value
+        for interval in report["intervals"]
+        for event in interval["events"]
+        for value in event["attributes"].values()
+        if isinstance(value, dict) and "ref" in value
+    ]
+    assert attribute_refs and all("name" in ref for ref in attribute_refs)
 
 
 @pytest.mark.fixture
@@ -122,8 +132,14 @@ def test_inferred_events_are_listed_apart_and_filtered_by_significance(
 
     inferred = out.split("#### Inferred events\n", 1)[1].split("\n#### Objective analyzer results\n", 1)[0]
     key = "@2032-04-01T00:00:00"
-    assert "- nation:20 annexed 1 region of nation:21 (confidence: `medium`)\n" in inferred
-    assert f"  - from `region.nation_changed/region:42{key}`: region:42 nation: nation:21 -> nation:20\n" in inferred
+    assert (
+        "- Fixture Northland (nation:20) annexed 1 region of Fixture Southland (nation:21) (confidence: `medium`)\n"
+        in inferred
+    )
+    assert (
+        f"  - from `region.nation_changed/region:42{key}`: Fixture South (region:42) nation: "
+        f"Fixture Southland (nation:21) -> Fixture Northland (nation:20)\n" in inferred
+    )
     assert "gained" not in inferred
     assert "2 inferred events below major significance omitted.\n" in inferred
 

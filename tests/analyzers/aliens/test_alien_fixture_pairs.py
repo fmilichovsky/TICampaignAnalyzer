@@ -48,11 +48,11 @@ def test_megafauna_army_appears_marked_and_lines_avoid_inferred_wording() -> Non
     assert army.attribute("megafauna") is True
     lines = {describe_event(event) for event in events if event.event_type.startswith("region.")}
     assert lines >= {
-        "region:40 crashdown present: false -> true; crashdown time 2032-02-14T00:00:00",
-        "region:40 xenoforming level: 0.0 -> 2.5",
-        "region:41 xenoforming level: 3.0 -> 0.0",
-        "region:41 alien facility built: false -> true",
-        "region:42 landing present: false -> true",
+        "NorthCoast (region:40) crashdown present: false -> true; crashdown time 2032-02-14T00:00:00",
+        "NorthCoast (region:40) xenoforming level: 0.0 -> 2.5",
+        "SouthPlain (region:41) xenoforming level: 3.0 -> 0.0",
+        "SouthPlain (region:41) alien facility built: false -> true",
+        "EastHills (region:42) landing present: false -> true",
     }
     assert describe_event(army).endswith("(megafauna)")
     for line in lines:

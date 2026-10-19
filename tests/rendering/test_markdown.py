@@ -96,7 +96,7 @@ def test_sequence_golden_lists_results_and_changes_by_category_and_is_determinis
         "2 saves given; ordered by serialized game time.\n\n## Intervals\n\n"
         "### 2030-01-01T00:00:00 to 2030-02-01T00:00:00\n\n- 1 state change\n\n"
         "#### Objective analyzer results\n\nPolitics:\n\n"
-        '- nation:1 (null) controller: "Servants" -> "Resistance"\n\n'
+        '- Germany (nation:1) (null) controller: "Servants" -> "Resistance"\n\n'
         "#### State changes\n\nPolitics:\n\n"
         '- nation:1 controller: "Servants" -> "Resistance"\n'
     )
@@ -141,7 +141,7 @@ def test_minimum_significance_omits_lesser_results_and_counts_them_once() -> Non
     trivial = _control_event(change, event_id="e-trivial", significance=Significance.TRIVIAL)
     major = _control_event(change, event_id="e-major", significance=Significance.MAJOR)
     everything = _render([trivial, major])
-    assert everything.count('- nation:1 (null) controller: "Servants" -> "Resistance"') == 2
+    assert everything.count('- Germany (nation:1) (null) controller: "Servants" -> "Resistance"') == 2
     assert "omitted" not in everything
     rendered = _render([trivial, major], min_significance=Significance.MAJOR, verbose=True)
     assert "event id: `e-major`" in rendered and "event id: `e-trivial`" not in rendered
@@ -193,13 +193,13 @@ def test_inferred_events_name_confidence_alternatives_and_constituents_before_th
     first, second = (index for index, line in enumerate(lines) if line.startswith("- "))
     assert lines[first].endswith(" (confidence: `medium`)") and not lines[first].startswith("- [ambiguous]")
     assert lines[first + 1 : second] == [
-        '  - from `e-1`: nation:1 (null) controller: "Servants" -> "Resistance"',
+        '  - from `e-1`: Germany (nation:1) (null) controller: "Servants" -> "Resistance"',
         "  - from `e-missing`",
     ]
     assert lines[second].startswith("- [ambiguous] ")
     assert lines[second + 1 :] == [
         "  - alternatives: `i-1`",
-        '  - from `e-1`: nation:1 (null) controller: "Servants" -> "Resistance"',
+        '  - from `e-1`: Germany (nation:1) (null) controller: "Servants" -> "Resistance"',
     ]
 
 

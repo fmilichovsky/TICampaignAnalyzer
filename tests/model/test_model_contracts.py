@@ -1,7 +1,7 @@
 """Construction, equality, unknown-vs-empty and deterministic ordering of the model contracts."""
 
 import json
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 
 import pytest
 
@@ -59,6 +59,17 @@ def test_to_jsonable_keeps_unknown_visible() -> None:
     assert to_jsonable(Unknown()) == {"unknown": "missing"}
     assert to_jsonable(()) == []
     assert to_jsonable(None) is None
+
+
+def test_a_reference_reads_as_its_name_and_id_and_serializes_the_name_only_when_it_has_one() -> None:
+    bare = _ref("3857")
+    named = replace(bare, name="Germany")
+    assert bare.label() == "nation:3857"
+    assert named.label() == "Germany (nation:3857)"
+    assert "name" not in to_jsonable(bare)
+    assert to_jsonable(named)["name"] == "Germany"
+    keyed = EntityRef(EntityId(EntityDomain.TECHNOLOGY, "FixtureTech"), IdentityConfidence.NAME_KEY, name="FixtureTech")
+    assert keyed.label() == "technology:FixtureTech"
 
 
 def test_unresolved_reference_keeps_its_raw_value() -> None:

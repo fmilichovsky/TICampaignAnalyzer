@@ -6,6 +6,7 @@ from tests.analyzers.support import (
     analyze,
     by_type,
     faction_ref,
+    named,
     only,
     record_set,
     ref,
@@ -125,8 +126,8 @@ def test_destruction_log_entries_added_are_record_dated_events() -> None:
     )
     assert dict(first.attributes) == {
         "hab_type": "Base",
-        "space_body": ref(HAB, "50"),
-        "destroyer": faction_ref("16"),
+        "space_body": named(ref(HAB, "50")),
+        "destroyer": named(faction_ref("16")),
         "recorded_on": "2032-05-20T00:00:00",
     }
     assert [str(r.entity_id) for r in first.entities] == ["faction:15", "space object:50", "faction:16"]

@@ -53,7 +53,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
 built from the developments catalogued in
 [architecture 11.3](architecture.md#113-first-catalogue).
 
-- [ ] Names in every output: render `EntityRef.name` in `describe_event`, the
+- [x] Names in every output: render `EntityRef.name` in `describe_event`, the
   Markdown and the JSON for every domain that carries a `displayName` (#94).
 - [ ] Normalize `TISpaceBodyState` as a `space body` reference target
   (`displayName`, parent body, body kind) so habs, fleets, destruction entries

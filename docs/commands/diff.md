@@ -50,7 +50,8 @@ Lists that are not reference or name lists (numeric lists such as `researchWeigh
 of objects such as `techProgress`) are one `value`; a reorder of such a list is a change.
 A reference list with one stale ID is `unknown (unresolved_reference)` as a whole, because the
 normalizer could not resolve it; its raw IDs stay visible. Values and references print as
-`domain:key`, `unknown (<reason>)`, or compact JSON.
+`domain:key`, `unknown (<reason>)`, or compact JSON. The text report never prints display names;
+`tinarrative events` names entities as `Name (domain:key)`.
 
 ### Save-carried records
 
@@ -87,6 +88,8 @@ for appeared/disappeared), `kind`, `before`, `after`, `detail` (`added`/`removed
 `added`/`removed`/`changed` keys, or for `records` the `added`/`removed` entries and
 `changed` `{before, after}` entry pairs), `description`, `before_location` and
 `after_location`.
+A reference serializes as `{"ref": "domain:key", "state_type": ..., "confidence": ...}` plus
+`"name"` when the save gives the entity a display name.
 Unknown values serialize as `{"unknown": "<reason>"}` with the raw value when there is one.
 
 The output is deterministic: the same two saves always give byte-identical reports. The

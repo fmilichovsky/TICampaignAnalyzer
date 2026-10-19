@@ -1,8 +1,9 @@
 """One-line, conservative text for an :class:`Event`.
 
 This is the message catalog: the wording per event type that a renderer may reuse. It describes the
-literal transition and names the entities; it never names a cause. A literal save value that an event
-carries as an attribute (for example a recorded cause string) is deliberately not echoed here. The exception is
+literal transition and names the entities, as ``Name (domain:id)`` where the save gave a name; it never names
+a cause. A literal save value that an event carries as an attribute (for example a recorded cause string) is
+deliberately not echoed here. The exception is
 the game's notification log: a ``notification.*`` line quotes the log template identifier, which is the game's
 own statement of what happened, so its wording is evidence, not inference (the summary text is still not echoed).
 The inferred types of the reconstruction stage (``nation.independence``, ``nation.unification``,
@@ -18,7 +19,7 @@ from collections.abc import Callable
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
-from ..model.values import FrozenMap, Unknown
+from ..model.values import FrozenMap, Observed, Unknown
 from .campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 
 ABSENT = "is absent from the after snapshot"
@@ -34,7 +35,7 @@ def describe_event(event: Event) -> str:
     if template is None and event.event_type.startswith(NOTIFICATION_PREFIX):
         template = _notification_logged
     if template is None:
-        entities = ", ".join(str(ref.entity_id) for ref in event.entities)
+        entities = ", ".join(ref.label() for ref in event.entities)
         return _ascii(f"{event.event_type}: {entities}")
     return _ascii(template(event))
 
@@ -46,7 +47,7 @@ def _ascii(text: str) -> str:
 
 
 def _subject(event: Event) -> str:
-    return str(event.entities[0].entity_id) if event.entities else event.id
+    return event.entities[0].label() if event.entities else event.id
 
 
 def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
@@ -55,17 +56,26 @@ def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | No
 
 
 def _name(ref: EntityRef | None) -> str:
-    return str(ref.entity_id) if ref is not None else "null"
+    return ref.label() if ref is not None else "null"
+
+
+def render_event_value(value: Observed) -> str:
+    """Like :func:`render_value`, but a reference reads as ``Name (domain:id)``, also inside a list."""
+    if isinstance(value, EntityRef):
+        return value.label()
+    if isinstance(value, tuple):
+        return "[" + ", ".join(render_event_value(item) for item in value) + "]"
+    return render_value(value)
 
 
 def _attr(event: Event, name: str) -> str:
-    return render_value(event.attribute(name))
+    return render_event_value(event.attribute(name))
 
 
 def _text(event: Event, name: str) -> str:
     """A date, relation name or transition label as plain text; anything else like a value."""
     value = event.attribute(name)
-    return value if isinstance(value, str) else render_value(value)
+    return value if isinstance(value, str) else render_event_value(value)
 
 
 def _transition(event: Event, label: str) -> str:
@@ -108,7 +118,7 @@ def _list_changed(event: Event) -> str:
 
 
 def _relation_changed(event: Event) -> str:
-    pair = " and ".join(str(ref.entity_id) for ref in event.entities)
+    pair = " and ".join(ref.label() for ref in event.entities)
     listing = (
         "listed by both" if event.attribute("reciprocal") is True else f"listed by {_attr(event, 'listed_by')} only"
     )
@@ -122,7 +132,7 @@ def _executive_change(event: Event) -> str:
     )
     previous = event.attribute("previous_executive")
     if not isinstance(previous, Unknown):
-        text += f" (previously {render_value(previous)})"
+        text += f" (previously {render_event_value(previous)})"
     return text
 
 
@@ -142,7 +152,7 @@ def _plain(label: str) -> Callable[[Event], str]:
 
 
 def _side_list(event: Event) -> str:
-    nations = ", ".join(str(ref.entity_id) for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.NATION)
+    nations = ", ".join(ref.label() for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.NATION)
     return nations or "no nations"
 
 
@@ -185,8 +195,8 @@ def _refs(event: Event, name: str) -> str:
     """A tuple attribute of references as a comma-separated list of IDs."""
     value = event.attribute(name)
     if not isinstance(value, tuple):
-        return render_value(value)
-    return ", ".join(str(item.entity_id) if isinstance(item, EntityRef) else render_value(item) for item in value)
+        return render_event_value(value)
+    return ", ".join(render_event_value(item) for item in value)
 
 
 def _regions(event: Event) -> str:
@@ -205,7 +215,7 @@ def _territory_lost(event: Event) -> str:
 def _independence(event: Event) -> str:
     releaser = event.attribute("releasing_nation")
     if event.attribute("released") is True and isinstance(releaser, EntityRef):
-        return f"{_subject(event)} was released by {releaser.entity_id}"
+        return f"{_subject(event)} was released by {releaser.label()}"
     return f"{_subject(event)} became independent of {_refs(event, 'parents')}"
 
 
@@ -286,7 +296,7 @@ def _destruction_recorded(event: Event) -> str:
 
 
 def _combat_sides(event: Event) -> str:
-    """``faction:15 (3 ships) vs faction:16 (2 ships)``; the unknown value when the sides are.
+    """``A (faction:15) (3 ships) vs B (faction:16) (2 ships)``; the unknown value when the sides are.
 
     Hull class names stay in the ``sides`` attribute: they are game identifiers such as ``Battleship``, which
     would read as a claim the line does not make.
@@ -300,7 +310,7 @@ def _combat_sides(event: Event) -> str:
             parts.append(render_value(side))
             continue
         ships = sum(count for _, count in side[1].items if isinstance(count, int))
-        parts.append(f"{render_value(side[0])} ({ships} {'ship' if ships == 1 else 'ships'})")
+        parts.append(f"{render_event_value(side[0])} ({ships} {'ship' if ships == 1 else 'ships'})")
     return " vs ".join(parts) if parts else "no sides"
 
 
@@ -370,7 +380,7 @@ def _global_value_changed(event: Event) -> str:
 def _notification_subject(event: Event) -> str:
     """The resolved subject, ``null`` for none, or the literal unresolved value; never the summary text."""
     subject = event.attribute("subject")
-    return str(subject.entity_id) if isinstance(subject, EntityRef) else render_value(subject)
+    return render_event_value(subject)
 
 
 def _notification_logged(event: Event) -> str:
@@ -387,7 +397,7 @@ def _notification_removed(event: Event) -> str:
 
 def _notification_changed(event: Event) -> str:
     before_subject = event.attribute("before_subject")
-    before = str(before_subject.entity_id) if isinstance(before_subject, EntityRef) else render_value(before_subject)
+    before = render_event_value(before_subject)
     return (
         f"{_subject(event)} entry {_text(event, 'template')} dated {_text(event, 'logged_on')} changed: "
         f"subject {before} -> {_notification_subject(event)}, "

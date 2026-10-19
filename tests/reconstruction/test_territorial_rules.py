@@ -374,7 +374,7 @@ def test_a_release_names_the_earlier_holder_of_the_capital_and_its_executive_fac
     assert isinstance(faction, EntityRef) and str(faction.entity_id) == "faction:15"
     cited = {(str(s.change.entity_id), s.change.field) for s in event.sources}
     assert {("nation:25", DEMOCRACY_TRACKER), ("nation:21", COHESION_TRACKER)} <= cited
-    assert describe_event(event) == "nation:25 was released by nation:21"
+    assert describe_event(event) == "Fixture nation 25 (nation:25) was released by Fixture nation 21 (nation:21)"
 
 
 def test_a_parents_release_reason_is_not_attributed_when_it_lost_regions_to_several_nations() -> None:
@@ -401,7 +401,10 @@ def test_a_release_from_several_parents_without_a_moved_capital_names_no_release
     event = only(inferred, INDEPENDENCE)
     assert event.attribute("released") is True
     assert event.attribute("releasing_nation") is None and event.attribute("releasing_basis") is None
-    assert describe_event(event) == "nation:25 became independent of nation:21, nation:22"
+    assert (
+        describe_event(event) == "Fixture nation 25 (nation:25) became independent of Fixture nation 21 (nation:21), "
+        "Fixture nation 22 (nation:22)"
+    )
 
 
 # --- Unification ------------------------------------------------------------------------------------------
@@ -508,19 +511,22 @@ def test_inferred_input_events_are_ignored() -> None:
 def test_lines_name_the_reading_and_significance_ranks_it() -> None:
     territory = lines_of(gdp_territory())
     assert territory["nation.territory_gained/nation:20"] == (
-        "nation:20 gained 2 regions from nation:21",
+        "Fixture nation 20 (nation:20) gained 2 regions from Fixture nation 21 (nation:21)",
         Significance.MINOR,
     )
-    assert territory["nation.territory_lost/nation:21"] == ("nation:21 lost 2 regions to nation:20", Significance.MINOR)
+    assert territory["nation.territory_lost/nation:21"] == (
+        "Fixture nation 21 (nation:21) lost 2 regions to Fixture nation 20 (nation:20)",
+        Significance.MINOR,
+    )
     assert lines_of(executive_independence())["nation.independence/nation:25"] == (
-        "nation:25 became independent of nation:21",
+        "Fixture nation 25 (nation:25) became independent of Fixture nation 21 (nation:21)",
         Significance.MAJOR,
     )
     assert lines_of(two_nation_unification())["nation.unification/nation:20"] == (
-        "nation:20 unified with nation:22, nation:23",
+        "Fixture nation 20 (nation:20) unified with Fixture nation 22 (nation:22), Fixture nation 23 (nation:23)",
         Significance.MAJOR,
     )
     assert lines_of(flagged_annexation())["nation.annexation/nation:20/nation:21"] == (
-        "nation:20 annexed 1 region of nation:21",
+        "Fixture nation 20 (nation:20) annexed 1 region of Fixture nation 21 (nation:21)",
         Significance.MAJOR,
     )
