@@ -1,7 +1,8 @@
 """Deterministic Markdown rendering for an already-analyzed save sequence.
 
-This module presents analyzer output, already-reconstructed inferred events and, when supplied,
-the literal state changes of each interval; it never compares snapshots or infers facts itself.
+This module presents analyzer output, already-reconstructed inferred events, already-aggregated narrative
+events and, when supplied, the literal state changes of each interval; it never compares snapshots or infers
+facts itself.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from ..model.changes import StateChange
 from ..model.entities import EntityRef
 from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
+from ..model.values import Observed
 from ..sequence import IntervalResult, SequencePlan
 
 
@@ -62,6 +64,7 @@ def render_sequence(
     min_significance: Significance = Significance.TRIVIAL,
     campaign: CampaignGroup | None = None,
     left_out: int = 0,
+    narrative: Sequence[Event] | None = None,
 ) -> str:
     """Render the saves of a sequence in chronological order and the analyzer results of each interval.
 
@@ -69,7 +72,8 @@ def render_sequence(
     ``left_out`` counts the given saves that belong to other campaigns. Each interval lists its inferred events (when
     they were reconstructed), its objective analyzer results of at least ``min_significance`` grouped by category and,
     when they were kept, its literal state changes grouped by category. State changes are never filtered. Event IDs
-    are the sequence-qualified ones.
+    are the sequence-qualified ones. With ``narrative``, a section above the intervals lists the narrative events of
+    at least ``min_significance`` by the year they start in.
     """
     lines = ["# Save sequence", ""]
     if campaign is not None:
@@ -94,6 +98,10 @@ def render_sequence(
         lines.extend(["", "Skipped (inside a given directory, not a usable save):", ""])
         lines.extend(f"- `{skipped.source}`: {skipped.error_class}: {skipped.error}" for skipped in plan.skipped)
 
+    if narrative is not None:
+        lines.extend(["", "## Narrative", ""])
+        lines.extend(_narrative_lines(narrative, verbose=verbose, min_significance=min_significance))
+
     lines.extend(["", "## Intervals"])
     if not intervals:
         lines.extend(["", "Fewer than two distinct saves; no interval was compared."])
@@ -108,6 +116,40 @@ def render_sequence(
         if interval.state_changes is not None:
             lines.extend(_state_change_lines(interval.state_changes, verbose=verbose))
     return "\n".join(lines) + "\n"
+
+
+def _narrative_lines(narrative: Sequence[Event], *, verbose: bool, min_significance: Significance) -> list[str]:
+    """Narrative events by the year they start in (undated first), each with its span, roles and constituents."""
+    if not narrative:
+        return ["No narrative events were built."]
+    listed = sorted(
+        (event for event in narrative if event.significance.rank >= min_significance.rank),
+        key=lambda event: event.sort_key,
+    )
+    lines = ["Aggregated from the events of every interval below."]
+    period: str | None = None
+    for event in listed:
+        year = event.start[:4] if isinstance(event.start, str) else "Undated"
+        if year != period:
+            lines.extend(["", f"### {year}", ""])
+            period = year
+        span = f"`{_date(event.start)}` to `{_date(event.end)}`"
+        state = f"{event.status.value}, confidence `{event.confidence}`, significance `{event.significance}`"
+        lines.append(f"- {span}{' (open)' if event.open else ''}: {describe_event(event)} ({state})")
+        if event.roles:
+            lines.append("  - roles: " + "; ".join(f"{role.value}: {ref.label()}" for role, ref in event.roles))
+        lines.extend(f"  - from `{constituent}`" for constituent in event.constituents)
+        if verbose:
+            lines.extend(_event_lines(event, verbose=True)[1:])
+    omitted = len(narrative) - len(listed)
+    if omitted:
+        noun = "event" if omitted == 1 else "events"
+        lines.extend(["", f"{omitted} narrative {noun} below {min_significance.value} significance omitted."])
+    return lines
+
+
+def _date(value: Observed) -> str:
+    return value if isinstance(value, str) else render_value(value)
 
 
 def _campaign_lines(campaign: CampaignGroup, left_out: int) -> list[str]:

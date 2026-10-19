@@ -6,6 +6,10 @@ that means a different entry in each save. ``qualify`` makes an ID unique by app
 (``@2045-11-01T00:00:00``), and rewrites every reference to an ID of the same interval with it (the
 ``constituents`` of an inferred event and its ID-valued attributes). Consecutive intervals report disjoint
 changes, so no event is merged with another: the stream is the qualified events of every interval, sorted.
+
+A narrative event (``narrative.aggregation``) is built from that stream, so it is born qualified: its ID carries the
+key of its first interval and its constituents, which may come from several intervals, carry their own. ``qualify``
+leaves it unchanged.
 """
 
 from __future__ import annotations
@@ -18,6 +22,8 @@ from ..model.events import Event
 from ..reconstruction import ID_ATTRIBUTES
 
 INTERVAL_SEPARATOR = "@"
+TIE_SEPARATOR = "#"
+"""Joins a game time and the position of a save among distinct saves with the same time (``...T00:00:00#2``)."""
 
 
 def qualified_id(event_id: str, key: str) -> str:
@@ -25,8 +31,22 @@ def qualified_id(event_id: str, key: str) -> str:
     return f"{event_id}{INTERVAL_SEPARATOR}{key}"
 
 
+def interval_of(event_id: str) -> str:
+    """The interval key of a qualified event ID."""
+    return event_id.rpartition(INTERVAL_SEPARATOR)[2]
+
+
+def interval_sort_key(key: str) -> tuple[str, int]:
+    """Interval keys in sequence order: by game time, then by the ``#n`` tie position (the bare time is first)."""
+    time, _, tie = key.partition(TIE_SEPARATOR)
+    return (time, int(tie) if tie.isdigit() else 1)
+
+
 def qualify(event: Event, key: str) -> Event:
-    """The event with its ID, its constituents and its ID-valued attributes qualified by the interval ``key``."""
+    """The event with its ID, its constituents and its ID-valued attributes qualified by the interval ``key``; a
+    narrative event is already qualified and is returned unchanged."""
+    if event.is_narrative:
+        return event
     attributes = tuple(
         (name, tuple(qualified_id(str(item), key) for item in value))
         if name in ID_ATTRIBUTES and isinstance(value, tuple)

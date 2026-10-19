@@ -70,6 +70,32 @@ class DateBasis(StrEnum):
     """The date carried by a save-carried record entry cited among the sources."""
 
 
+class Role(StrEnum):
+    """What part an entity plays in a narrative event (architecture 11.2); ``ROLE_ORDER`` is the ranking."""
+
+    ACTOR = "actor"
+    TARGET = "target"
+    BENEFICIARY = "beneficiary"
+    ASSISTING = "assisting"
+    LOCATION = "location"
+    BODY = "body"
+
+    @property
+    def rank(self) -> int:
+        return ROLE_ORDER.index(self)
+
+
+ROLE_ORDER: tuple[Role, ...] = (
+    Role.ACTOR,
+    Role.TARGET,
+    Role.BENEFICIARY,
+    Role.ASSISTING,
+    Role.LOCATION,
+    Role.BODY,
+)
+"""The order roles are listed in; compare through ``Role.rank``."""
+
+
 class SourceRole(StrEnum):
     PRIMARY = "primary"
     """The change the event is directly about; every event has at least one."""
@@ -120,6 +146,10 @@ class Event:
     keyed by name. ``significance`` is assigned by the narrative stage; analyzers leave the default.
     ``constituents`` are the IDs of the events an inferred event was reconstructed from (empty for an objective
     event); kept sorted and unique.
+
+    A narrative event (architecture 11.2) also carries its span (``start`` and ``end``, each with its basis), whether
+    it is ``open`` at the last save, the interval keys it spans and its entities by role; ``intervals`` is empty for
+    every other event, and the other narrative fields then keep their defaults. ``roles`` are kept sorted and unique.
     """
 
     id: str
@@ -134,17 +164,32 @@ class Event:
     attributes: tuple[tuple[str, Observed], ...] = ()
     significance: Significance = Significance.MINOR
     constituents: tuple[str, ...] = ()
+    start: Observed = None
+    start_basis: DateBasis | None = None
+    end: Observed = None
+    end_basis: DateBasis | None = None
+    open: bool = False
+    intervals: tuple[str, ...] = ()
+    roles: tuple[tuple[Role, EntityRef], ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "sources", tuple(sorted(self.sources, key=lambda source: source.sort_key)))
         object.__setattr__(self, "constituents", tuple(sorted(set(self.constituents))))
         object.__setattr__(self, "entities", _unique(self.entities))
         object.__setattr__(self, "attributes", tuple(sorted(self.attributes, key=lambda item: item[0])))
+        roles = sorted(set(self.roles), key=lambda item: (item[0].rank, item[1].entity_id.sort_key))
+        object.__setattr__(self, "roles", tuple(roles))
+
+    @property
+    def is_narrative(self) -> bool:
+        return bool(self.intervals)
 
     @property
     def sort_key(self) -> tuple[str, str, str]:
-        """Dated events in date order (undated first), then by type and ID."""
-        date = "" if isinstance(self.date, Unknown) else str(self.date)
+        """Dated events in date order (undated first), then by type and ID; a narrative event is placed by its start,
+        since a history lists a development where it begins."""
+        placed = self.start if self.is_narrative else self.date
+        date = "" if isinstance(placed, Unknown) else str(placed)
         return (date, self.event_type, self.id)
 
     def attribute(self, name: str) -> Observed:
@@ -154,7 +199,8 @@ class Event:
         return Unknown()
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        """The event as JSON; the narrative fields only for a narrative event."""
+        document = {
             "id": self.id,
             "event_type": self.event_type,
             "status": self.status.value,
@@ -168,6 +214,19 @@ class Event:
             "sources": [source.to_dict() for source in self.sources],
             "constituents": list(self.constituents),
         }
+        if self.is_narrative:
+            document.update(
+                {
+                    "start": to_jsonable(self.start),
+                    "start_basis": None if self.start_basis is None else self.start_basis.value,
+                    "end": to_jsonable(self.end),
+                    "end_basis": None if self.end_basis is None else self.end_basis.value,
+                    "open": self.open,
+                    "intervals": list(self.intervals),
+                    "roles": [{"role": role.value, "entity": to_jsonable(ref)} for role, ref in self.roles],
+                }
+            )
+        return document
 
 
 def _unique(refs: tuple[EntityRef, ...]) -> tuple[EntityRef, ...]:

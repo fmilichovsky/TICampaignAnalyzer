@@ -78,7 +78,7 @@ built from the developments catalogued in
 - [x] Situation reports: `narrative/situation.py` builds the per-save digest
   of architecture 11.4 from one snapshot; `run_sequence` keeps the reports,
   not the snapshots (#99).
-- [ ] Narrative aggregation framework: the narrative fields on `Event`,
+- [x] Narrative aggregation framework: the narrative fields on `Event`,
   `narrative.aggregate(stream, situations)` with a named-rule protocol,
   windows over consecutive intervals in game days, the confidence and
   significance policy, and synthetic event-stream fixtures in

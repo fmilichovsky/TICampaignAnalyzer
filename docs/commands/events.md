@@ -1,7 +1,7 @@
 # `tinarrative events`
 
 ```
-tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--inferred] [--changes]
+tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--inferred] [--narrative] [--changes]
 ```
 
 Reads two or more saves, given as files, directories or both, groups them by campaign, orders one campaign's saves by game time, and reports the analyzer
@@ -168,6 +168,33 @@ same way; the section states its own omitted count (`N inferred events below <le
 significance omitted.`), separate from the objective one. When nothing was inferred the section
 says `No events were inferred.`
 
+## Narrative events
+
+`--narrative` joins the events of the whole sequence into narrative events: developments that
+span intervals, such as a takeover and its consolidation or a war from start to peace
+([architecture 11](../architecture.md#11-narrative-aggregation)). It implies `--inferred`,
+because rules build on inferred events. The narrative rules are not implemented yet, so the
+section is always empty for now.
+
+The Markdown report gains `## Narrative` between `## Saves` and `## Intervals`. Events are grouped
+under `### <year>` headings, using the year each event starts in, with `### Undated` first. Each
+line gives the event's span, `(open)` when its anchor is still present in the last save, its
+description, status, confidence and significance. A `roles:` line follows, then one `from` line
+per constituent ID:
+
+```
+- `2032-01-01T00:00:00` to `2032-07-01T00:00:00` (open): <description> (inferred, confidence `medium`, significance `major`)
+  - roles: actor: Fixture Faction (faction:7); target: Fixture Nation (nation:20)
+  - from `faction.nation_control_changed/executive/nation:20@2032-04-01T00:00:00`
+```
+
+`--min-significance` filters the section and states how many events it omitted
+(`N narrative events below <level> significance omitted.`). When nothing was built the section says
+`No narrative events were built.`
+
+A narrative event's ID is qualified by its first interval. Its constituents keep their own
+intervals' keys.
+
 ## JSON output
 
 `--format json` prints one object:
@@ -184,7 +211,12 @@ says `No events were inferred.`
   objective events, serialized as `Event.to_dict`), `inferred` (the same for inferred events, or
   `null` without `--inferred`) and `state_changes` (the literal changes, each serialized exactly as
   a change in `diff --format json`, with values, detail and source locations, or `null` without
-  `--changes`).
+  `--changes`);
+- `narrative`: the narrative events in order, or `null` without `--narrative`. Each is serialized
+  as an event, plus `start` and `end` (game dates), `start_basis` and `end_basis` (`interval` or
+  `record`), `open`, `intervals` (the keys of the intervals it spans) and `roles` (`{"role",
+  "entity"}` pairs, the role being one of `actor`, `target`, `beneficiary`, `assisting`, `location`
+  or `body`). Atomic and inferred events never carry these fields.
 
 Every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
 (`domain:key`), `state_type`, `confidence` and, when the save gives the entity a display name,
@@ -253,7 +285,7 @@ Failures print one message to stderr naming the path that failed and no tracebac
 `--log-level info`, the run logs the paths given and candidate files, the number of campaigns and
 the selected campaign's number (with `interactive=True` when it was picked), the ordering summary
 (usable saves, distinct saves, duplicates, skipped files, tied game times, intervals) and
-per-interval event counts. `--log-level debug` adds one line per skipped file with its file name
+per-interval event counts, and with `--narrative` the number of narrative events. `--log-level debug` adds one line per skipped file with its file name
 and error class; directory paths are never logged.
 
 ## Exit codes

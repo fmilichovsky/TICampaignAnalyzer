@@ -14,6 +14,10 @@ Every non-default entry states its rationale beside it; the evidence is recorded
 that decide whether an event exists at all live with the analyzer that emits it (the nation statistic shift thresholds
 are in ``analyzers.politics.nation_metrics``); the ``Thresholds`` block here holds only what ranks emitted events.
 
+Narrative events (``narrative.aggregation``) are not ranked here. Their rule assigns the level, never below the most
+significant constituent, and ``assign_significance`` is never run over them: it judges one interval with that
+interval's two snapshots as context, while a narrative event spans intervals and no snapshot is kept for it.
+
 Known simplification: ``army.region_changed`` is minor with or without an accompanying strength change, because
 ``army.strength_changed`` is its own minor event and a combined reading of the two is reconstruction work.
 """

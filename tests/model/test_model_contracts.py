@@ -7,7 +7,16 @@ import pytest
 
 from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Significance, SourceRole
+from tinarrative.model.events import (
+    Confidence,
+    DateBasis,
+    Event,
+    EventSource,
+    EventStatus,
+    Role,
+    Significance,
+    SourceRole,
+)
 from tinarrative.model.evidence import Evidence, SourceLocation, pointer_path
 from tinarrative.model.records import (
     CombatEntry,
@@ -357,3 +366,64 @@ def test_inferred_event_constituents_are_sorted_unique_and_serialized() -> None:
     )
     assert event.constituents == ("region.nation_changed/region:40", "region.nation_changed/region:41")
     assert event.to_dict()["constituents"] == list(event.constituents)
+
+
+def _narrative_event(**overrides: object) -> Event:
+    fields: dict[str, object] = {
+        "id": "nation.changed.arc/nation:1@2032-04-01T00:00:00",
+        "event_type": "nation.changed.arc",
+        "status": EventStatus.OBJECTIVE,
+        "confidence": Confidence.HIGH,
+        "date": "2032-07-01T00:00:00",
+        "date_basis": DateBasis.INTERVAL,
+        "not_before": "2032-01-01T00:00:00",
+        "sources": (),
+        "entities": (),
+        "start": "2032-01-01T00:00:00",
+        "start_basis": DateBasis.INTERVAL,
+        "end": "2032-07-01T00:00:00",
+        "end_basis": DateBasis.RECORD,
+        "intervals": ("2032-04-01T00:00:00", "2032-07-01T00:00:00"),
+    }
+    fields.update(overrides)
+    return Event(**fields)  # type: ignore[arg-type]
+
+
+def test_an_atomic_event_serializes_without_narrative_fields() -> None:
+    atomic = replace(_narrative_event(), intervals=())
+
+    assert not atomic.is_narrative
+    assert not {"start", "start_basis", "end", "end_basis", "open", "intervals", "roles"} & set(atomic.to_dict())
+
+
+def test_a_narrative_event_serializes_its_span_and_sorted_unique_roles() -> None:
+    narrative = _narrative_event(
+        open=True,
+        roles=(
+            (Role.TARGET, _ref("2")),
+            (Role.ACTOR, _ref("10", EntityDomain.FACTION)),
+            (Role.TARGET, _ref("2")),
+            (Role.ACTOR, _ref("9", EntityDomain.FACTION)),
+        ),
+    )
+
+    document = narrative.to_dict()
+
+    assert narrative.is_narrative
+    assert (document["start"], document["start_basis"], document["end"], document["end_basis"]) == (
+        "2032-01-01T00:00:00",
+        "interval",
+        "2032-07-01T00:00:00",
+        "record",
+    )
+    assert document["open"] is True
+    assert document["intervals"] == ["2032-04-01T00:00:00", "2032-07-01T00:00:00"]
+    assert [(role["role"], role["entity"]["ref"]) for role in document["roles"]] == [
+        ("actor", "faction:9"),
+        ("actor", "faction:10"),
+        ("target", "nation:2"),
+    ]
+
+
+def test_a_narrative_event_is_placed_by_its_start() -> None:
+    assert _narrative_event().sort_key[0] == "2032-01-01T00:00:00"
