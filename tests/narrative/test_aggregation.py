@@ -35,7 +35,7 @@ def only(stream: Sequence[Event], rule: GroupRule = RULE, situations: Sequence[S
 
 
 def test_no_rules_build_no_narrative_events() -> None:
-    assert aggregate([changed(K1)], [situation(K1)]) == []
+    assert aggregate([changed(K1)], [situation(K1)], ()) == []
 
 
 def test_span_runs_from_the_earliest_not_before_to_the_latest_date_with_their_bases() -> None:

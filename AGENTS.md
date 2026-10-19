@@ -20,6 +20,9 @@ touching the model or pipeline.
   [README.md](README.md#package-layout).
 - `src/tinarrative/cli.py` — argparse entry point; stable exit codes are
   defined at the top of the file.
+- `src/tinarrative/config.py` — runtime settings (TOML via `--config` /
+  `TINARRATIVE_CONFIG`) for the narrative rules' thresholds and windows; keys
+  and defaults in [docs/configuration.md](docs/configuration.md).
 - `src/tinarrative/inspection/` — `tinarrative save inspect`: raw structural
   report of one save, plus the ID census from `src/tinarrative/identity.py`.
   It does not normalize anything and must not import from `parsing`.

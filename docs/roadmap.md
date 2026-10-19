@@ -83,11 +83,12 @@ built from the developments catalogued in
   windows over consecutive intervals in game days, the confidence and
   significance policy, and synthetic event-stream fixtures in
   `tests/narrative/` (#100).
-- [ ] Geopolitical narrative rules: `faction.takeover` with precursors and
+- [x] Geopolitical narrative rules: `faction.takeover` with precursors and
   consolidation, `war.arc`, `federation.lifecycle`, `nation.expansion`,
   `nation.cession`, `nation.release` / `nation.breakaway`,
   `nation.claims_declared`, `nation.transformation`, each carrying the nation
-  statistic shifts of its span as `metric_shifts` (#101).
+  statistic shifts of its span as `metric_shifts`, with the thresholds and windows as runtime
+  settings (`--config`, [configuration](configuration.md)) (#101).
 - [ ] Space narrative rules: `faction.space_campaign`,
   `faction.colonisation_wave`, `campaign.first_milestone` dating,
   `faction.fleet_buildup`, `technology.milestone` with its curated,

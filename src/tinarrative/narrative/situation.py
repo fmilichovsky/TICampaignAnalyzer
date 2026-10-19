@@ -4,9 +4,9 @@ A report is read from one snapshot alone and is snapshot-dated evidence, not an 
 literal values and counts, never a reading:
 
 - per nation: the faction holding the executive seat (the control point at ``positionInNation`` 0), the points held
-  per faction, the federation, the wars it is a party to (from the wars' alliances), the region count, the summed
-  region population and the regime statistics as literal values. Which faction *controls* a nation is never stated;
-  that is inference (``reconstruction.control``);
+  per faction, the federation, the allies, the wars it is a party to (from the wars' alliances), the region count,
+  the summed region population and the regime statistics as literal values. Which faction *controls* a nation is
+  never stated; that is inference (``reconstruction.control``);
 - federations with members; wars with both leaders, both alliances, ``startDate`` and ``dateOfLastFighting``;
 - per faction: habs in total and per body (the hab's ``barycenter``), fleets (by the fleet's ``faction``), ships (by
   the ship's ``fleet``) and finished projects (entries of ``finishedProjectNames``, repeats counted);
@@ -81,6 +81,8 @@ class NationSituation:
     """Points held per faction, keyed by the faction's ID text; uncontrolled and unresolved points are not keys."""
     unresolved_points: Count
     federation: Observed
+    allies: Observed
+    """The nation's ``allies`` list, as references with their names."""
     wars: tuple[WarParty, ...]
     regions: Count
     population: Observed
@@ -94,6 +96,7 @@ class NationSituation:
             "shares": to_jsonable(self.shares),
             "unresolved_points": to_jsonable(self.unresolved_points),
             "federation": to_jsonable(self.federation),
+            "allies": to_jsonable(self.allies),
             "wars": [party.to_dict() for party in self.wars],
             "regions": to_jsonable(self.regions),
             "population": to_jsonable(self.population),
@@ -340,6 +343,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         shares=shares,
         unresolved_points=unresolved,
         federation=reader.resolved(state.get("federation")),
+        allies=reader.resolved(state.get("allies")),
         wars=tuple(sorted(wars, key=lambda party: (party.war.entity_id.sort_key, party.side))),
         regions=_count(regions),
         population=population,

@@ -1,0 +1,735 @@
+"""The geopolitical narrative rules over synthetic qualified streams and situation reports."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+
+import pytest
+
+from tests.narrative.support import (
+    atomic,
+    faction,
+    federation_row,
+    nation,
+    nation_row,
+    ref,
+    situation,
+    state_change,
+    war,
+    war_row,
+)
+from tinarrative.analyzers.render import describe_event
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tinarrative.model.entities import EntityDomain, EntityRef
+from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
+from tinarrative.model.values import FrozenMap, Observed
+from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
+from tinarrative.narrative.situation import SituationReport
+
+K0 = "2032-01-01T00:00:00"
+K1 = "2032-04-01T00:00:00"
+K2 = "2032-07-01T00:00:00"
+K3 = "2032-10-01T00:00:00"
+PREVIOUS = {K1: K0, K2: K1, K3: K2}
+NORTH = nation("20", "Northland")
+SOUTH = nation("21", "Southland")
+EAST = nation("22", "Eastland")
+WEST = nation("23", "Westland")
+RESISTANCE = faction("15", "Resistance")
+SERVANTS = faction("16", "Servants")
+ACADEMY = faction("17", "Academy")
+UNION = ref(EntityDomain.FEDERATION, "60", "Union")
+WAR = war("70")
+POINT = ref(EntityDomain.CONTROL_POINT, "9")
+COUNCILOR = ref(EntityDomain.COUNCILOR, "30")
+NORTH_REGION = ref(EntityDomain.REGION, "40", "North")
+EAST_REGION = ref(EntityDomain.REGION, "41", "East")
+SOUTH_REGION = ref(EntityDomain.REGION, "42", "South")
+FORBIDDEN = (
+    "purg", "coup", "annex", "defect", "destroy", "kill", "recruit", "join", "conquer", "captur", "seiz",
+    "assassin", "died", "death", "creat", "declar", "won", "lost", "peace", "victor", "defeat", "surrender",
+)  # fmt: skip
+"""The objective analyzers' cause words (``tests/analyzers/politics/test_politics_fixture_pairs.py``)."""
+RELAXED = {"nation.expansion": {"annex"}, "nation.claims_declared": {"declar"}}
+"""Stems a narrative type may use: an expansion echoes its literal ``mode``, which can be ``annexation``, and the
+claims type names the declaration it reports (the claim list changed is the declaration)."""
+
+
+def event(
+    raw_type: str,
+    key: str,
+    subject: EntityRef,
+    *parts: object,
+    entities: Sequence[EntityRef] = (),
+    attributes: Sequence[tuple[str, Observed]] = (),
+    status: EventStatus = EventStatus.OBJECTIVE,
+    **overrides: object,
+) -> Event:
+    """An event of interval ``key`` about ``subject``, dated by the interval, citing one change of the subject."""
+    raw_id = "/".join([raw_type, str(subject.entity_id), *map(str, parts)])
+    fields: dict[str, object] = {
+        "not_before": PREVIOUS[key],
+        "entities": (subject, *entities),
+        "attributes": attributes,
+        "status": status,
+        "sources": (EventSource(state_change(subject)),) if subject.entity_id.key.isdigit() else (),
+    }
+    fields.update(overrides)
+    return atomic(raw_id, key, **fields)  # type: ignore[arg-type]
+
+
+def control(
+    key: str,
+    scope: str,
+    before: EntityRef | None,
+    after: EntityRef | None,
+    subject: EntityRef = NORTH,
+    cause: str | None = "Politics",
+    **overrides: object,
+) -> Event:
+    return event(
+        "faction.nation_control_changed",
+        key,
+        subject,
+        scope,
+        entities=[holder for holder in (before, after) if holder is not None],
+        attributes=(("scope", scope), ("before", before), ("after", after), ("cause", cause)),
+        status=EventStatus.INFERRED,
+        **overrides,
+    )
+
+
+def point(key: str, after: EntityRef, subject: EntityRef = NORTH, point_ref: EntityRef = POINT) -> Event:
+    return event(
+        "control_point.controller_changed",
+        key,
+        point_ref,
+        entities=[subject, after],
+        attributes=(("transition", "changed"), ("after", after)),
+    )
+
+
+def shift(key: str, statistic: str, subject: EntityRef = NORTH, before: float = 1.0, after: float = 2.0) -> Event:
+    return event(
+        "nation.statistic_shifted",
+        key,
+        subject,
+        statistic,
+        attributes=(
+            ("statistic", statistic),
+            ("before", before),
+            ("after", after),
+            ("relative_change", abs(after - before) / before),
+            ("causes", FrozenMap(((f"{statistic}Reason_Test", after - before),))),
+        ),
+    )
+
+
+def territory(
+    raw_type: str, key: str, subject: EntityRef, counterparts: Sequence[EntityRef], regions: Sequence[EntityRef]
+) -> Event:
+    return event(
+        raw_type,
+        key,
+        subject,
+        entities=[*counterparts, *regions],
+        attributes=(("counterparts", tuple(counterparts)), ("regions", tuple(regions)), ("region_count", len(regions))),
+        status=EventStatus.INFERRED,
+        confidence=Confidence.HIGH,
+    )
+
+
+def transfer(key: str, gainer: EntityRef, loser: EntityRef, region: EntityRef) -> list[Event]:
+    """The territory aggregates of one region moving from ``loser`` to ``gainer``."""
+    return [
+        territory("nation.territory_gained", key, gainer, [loser], [region]),
+        territory("nation.territory_lost", key, loser, [gainer], [region]),
+    ]
+
+
+def annexation(key: str, gainer: EntityRef, loser: EntityRef, region: EntityRef) -> list[Event]:
+    reading = event(
+        "nation.annexation",
+        key,
+        gainer,
+        loser.entity_id,
+        entities=[loser, region],
+        attributes=(("regions", (region,)), ("region_count", 1), ("signals", ("war",))),
+        status=EventStatus.INFERRED,
+        confidence=Confidence.MEDIUM,
+        significance=Significance.MAJOR,
+    )
+    return [reading, *transfer(key, gainer, loser, region)]
+
+
+def reports(*rows: SituationReport) -> list[SituationReport]:
+    return list(rows)
+
+
+def plain(*keys: str, **kwargs: object) -> list[SituationReport]:
+    return [situation(key, **kwargs) for key in keys]  # type: ignore[arg-type]
+
+
+def built(
+    stream: Sequence[Event],
+    situations: Sequence[SituationReport],
+    settings: GeopoliticsSettings | None = None,
+) -> list[Event]:
+    rules = NARRATIVE_RULES if settings is None else narrative_rules(NarrativeSettings(settings))
+    return aggregate(stream, situations, rules)
+
+
+def of_type(events: Sequence[Event], event_type: str) -> list[Event]:
+    return [item for item in events if item.event_type == event_type]
+
+
+def only(events: Sequence[Event], event_type: str) -> Event:
+    [found] = of_type(events, event_type)
+    return found
+
+
+def roles(item: Event) -> list[tuple[Role, str]]:
+    return [(role, str(entity.entity_id)) for role, entity in item.roles]
+
+
+def shift_ids(item: Event) -> list[str]:
+    entries = item.attribute("metric_shifts")
+    assert isinstance(entries, tuple)
+    return [str(value) for entry in entries for name, ids in entry.items if name == "events" for value in ids]  # type: ignore[union-attr]
+
+
+# --- faction.takeover --------------------------------------------------------------------------------------------
+
+
+def test_no_executive_or_sole_change_to_a_faction_is_no_takeover() -> None:
+    stream = [
+        control(K1, "plurality", RESISTANCE, SERVANTS),
+        control(K1, "executive", SERVANTS, None),
+        point(K1, SERVANTS),
+    ]
+
+    assert of_type(built(stream, plain(K0, K1)), "faction.takeover") == []
+
+
+def test_an_executive_change_is_a_takeover_with_its_points_records_and_the_loser() -> None:
+    anchor = control(K1, "executive", RESISTANCE, SERVANTS)
+    gained = point(K1, SERVANTS)
+    record = event("nation.executive_change_recorded", K1, NORTH, entities=[SERVANTS])
+    defector = event("councilor.faction_changed", K1, COUNCILOR, entities=[RESISTANCE, SERVANTS])
+    elsewhere = event("councilor.faction_changed", K2, ref(EntityDomain.COUNCILOR, "31"), entities=[RESISTANCE])
+    other_nation = point(K1, SERVANTS, subject=SOUTH, point_ref=ref(EntityDomain.CONTROL_POINT, "8"))
+    stream = [anchor, gained, record, defector, elsewhere, other_nation]
+
+    takeover = only(built(stream, plain(K0, K1, K2)), "faction.takeover")
+
+    assert roles(takeover) == [(Role.ACTOR, "faction:16"), (Role.TARGET, "nation:20"), (Role.LOSER, "faction:15")]
+    assert takeover.constituents == tuple(sorted(item.id for item in (anchor, gained, record, defector)))
+    assert dict(takeover.attributes) | {"metric_shifts": ()} == {
+        "scopes": ("executive",),
+        "cause": "Politics",
+        "consolidated": False,
+        "gdp_rank": None,
+        "metric_shifts": (),
+    }
+    assert (takeover.status, takeover.confidence, takeover.significance) == (
+        EventStatus.INFERRED,
+        Confidence.MEDIUM,
+        Significance.MAJOR,
+    )
+    assert takeover.id == f"faction.takeover/nation:20/faction:16@{K1}"
+    assert describe_event(takeover) == (
+        "Servants (faction:16) took control of Northland (nation:20) from Resistance (faction:15)"
+    )
+
+
+def test_executive_then_every_point_is_one_takeover_and_a_late_one_is_a_second() -> None:
+    stream = [control(K1, "executive", RESISTANCE, SERVANTS), control(K2, "sole", None, SERVANTS)]
+
+    consolidated = only(built(stream, plain(K0, K1, K2)), "faction.takeover")
+    assert consolidated.attribute("scopes") == ("executive", "sole")
+    assert consolidated.attribute("consolidated") is True
+    assert describe_event(consolidated).endswith(" and holds every control point")
+
+    late = [control(K1, "executive", RESISTANCE, SERVANTS), control(K3, "sole", None, SERVANTS)]
+    short = GeopoliticsSettings(takeover_consolidation_days=30)
+    assert len(of_type(built(late, plain(K0, K1, K2, K3), short), "faction.takeover")) == 2
+    assert len(of_type(built(late, plain(K0, K1, K2, K3)), "faction.takeover")) == 1
+
+
+def test_losing_the_seat_in_between_starts_a_new_takeover() -> None:
+    stream = [
+        control(K1, "executive", RESISTANCE, SERVANTS),
+        control(K2, "executive", SERVANTS, ACADEMY),
+        control(K3, "executive", ACADEMY, SERVANTS),
+    ]
+
+    found = of_type(built(stream, plain(K0, K1, K2, K3)), "faction.takeover")
+
+    assert [(item.intervals[0], str(item.roles[0][1].entity_id)) for item in found] == [
+        (K1, "faction:16"),
+        (K2, "faction:17"),
+        (K3, "faction:16"),
+    ]
+
+
+def test_an_independence_control_change_is_left_to_the_release_rule() -> None:
+    stream = [control(K1, "executive", None, SERVANTS, cause="Independence")]
+
+    assert of_type(built(stream, plain(K0, K1)), "faction.takeover") == []
+
+
+def test_a_top_economy_takeover_is_campaign_defining_by_the_configured_rank() -> None:
+    stream = [control(K1, "executive", RESISTANCE, SERVANTS)]
+    after = situation(
+        K1, nations=[nation_row(SOUTH, gdp=900.0), nation_row(NORTH, gdp=500.0), nation_row(EAST, gdp=1.0)]
+    )
+    situations = [situation(K0), after]
+
+    takeover = only(built(stream, situations), "faction.takeover")
+    assert (takeover.attribute("gdp_rank"), takeover.significance) == (2, Significance.CAMPAIGN_DEFINING)
+    strict = only(built(stream, situations, GeopoliticsSettings(top_gdp_nations=1)), "faction.takeover")
+    assert strict.significance is Significance.MAJOR
+
+
+@pytest.mark.parametrize(
+    ("shares", "expected"),
+    [([(SERVANTS, 2), (RESISTANCE, 1)], True), ([(SERVANTS, 3)], False)],
+)
+def test_a_takeover_is_open_while_the_faction_holds_the_executive_but_not_every_point(
+    shares: list[tuple[EntityRef, int]], expected: bool
+) -> None:
+    last = situation(K1, nations=[nation_row(NORTH, executive=SERVANTS, shares=shares, control_points=3)])
+
+    takeover = only(built([control(K1, "executive", RESISTANCE, SERVANTS)], [situation(K0), last]), "faction.takeover")
+
+    assert takeover.open is expected
+
+
+def charge(key: str, holder: EntityRef, label: str, date: str) -> Event:
+    return event(
+        "faction.transaction_recorded",
+        key,
+        holder,
+        label,
+        date,
+        attributes=(("label", label), ("recorded_on", date)),
+        date=date,
+        date_basis=DateBasis.RECORD,
+    )
+
+
+def test_a_mission_charge_corroborates_only_when_the_faction_is_the_only_candidate() -> None:
+    anchor = control(K2, "executive", RESISTANCE, SERVANTS)
+    alone = charge(K2, SERVANTS, "Coup", "2032-04-10T00:00:00")
+    early = charge(K1, SERVANTS, "Purge", "2032-02-01T00:00:00")
+    shared = [
+        charge(K2, SERVANTS, "Crackdown", "2032-05-01T00:00:00"),
+        charge(K2, ACADEMY, "Crackdown", "2032-05-02T00:00:00"),
+    ]
+    situations = plain(K0, K1, K2)
+
+    takeover = only(built([anchor, alone, early, *shared], situations), "faction.takeover")
+
+    assert takeover.constituents == tuple(sorted([anchor.id, alone.id]))
+    assert takeover.start == "2032-04-01T00:00:00"
+    assert takeover.confidence is Confidence.MEDIUM
+
+
+def test_precursors_are_the_factions_unrest_attempts_and_the_nations_unrest_shifts_before_it() -> None:
+    anchor = control(K2, "executive", RESISTANCE, SERVANTS)
+    attempts = event("nation.unrest_attempts_changed", K1, NORTH, "faction:16", attributes=(("faction", SERVANTS),))
+    rival = event("nation.unrest_attempts_changed", K1, NORTH, "faction:17", attributes=(("faction", ACADEMY),))
+    unrest = shift(K1, "unrest")
+    gdp = shift(K1, "GDP")
+
+    takeover = only(built([anchor, attempts, rival, unrest, gdp], plain(K0, K1, K2)), "faction.takeover")
+
+    assert set(takeover.constituents) == {anchor.id, attempts.id, unrest.id}
+    assert takeover.start == K0
+    late = control(K3, "executive", RESISTANCE, SERVANTS)
+    narrow = GeopoliticsSettings(takeover_precursor_days=0)
+    assert only(built([late, attempts], plain(K0, K1, K2, K3), narrow), "faction.takeover").constituents == (late.id,)
+
+
+def test_metric_shifts_are_attributes_citing_the_shift_events_and_never_constituents() -> None:
+    anchor = control(K1, "executive", RESISTANCE, SERVANTS, date="2032-03-01T00:00:00", date_basis=DateBasis.RECORD)
+    first = shift(K1, "democracy", before=5.0, after=3.0)
+    second = shift(K2, "democracy", before=3.0, after=2.0)
+    other = shift(K1, "GDP", subject=SOUTH)
+    takeover = only(built([anchor, first, second, other], plain(K0, K1, K2)), "faction.takeover")
+
+    assert takeover.constituents == (anchor.id,)
+    assert takeover.start == "2032-03-01T00:00:00"
+    (entry,) = takeover.attribute("metric_shifts")  # type: ignore[misc]
+    assert dict(entry.items) == {
+        "nation": NORTH,
+        "statistic": "democracy",
+        "before": 5.0,
+        "after": 3.0,
+        "relative_change": 0.4,
+        "causes": FrozenMap((("democracyReason_Test", -2.0),)),
+        "events": (first.id,),
+    }
+
+
+# --- war.arc -----------------------------------------------------------------------------------------------------
+
+
+def war_event(raw_type: str, key: str, *, entities: Sequence[EntityRef] = (), **attributes: Observed) -> Event:
+    return event(
+        raw_type,
+        key,
+        WAR,
+        *attributes.get("_parts", ()),
+        entities=entities,
+        attributes=tuple((name, value) for name, value in attributes.items() if name != "_parts"),
+        significance=Significance.MAJOR,
+    )
+
+
+def test_a_war_neither_appearing_nor_present_at_the_start_or_without_events_is_no_arc() -> None:
+    fighting = war_event("war.last_fighting_changed", K2)
+    later = [situation(K0), situation(K1, wars=[WAR]), situation(K2, wars=[WAR])]
+
+    assert of_type(built([fighting], later), "war.arc") == []
+    assert of_type(built([], plain(K0, K1, wars=[WAR])), "war.arc") == []
+
+
+def test_a_war_arc_joins_its_events_by_war_id_and_states_sides_duration_and_strikes() -> None:
+    row = war_row(WAR, [NORTH], [SOUTH], start_date="2032-02-01T00:00:00")
+    situations = [
+        situation(K0, nuclear_strikes=2),
+        situation(K1, wars=[row], nuclear_strikes=3),
+        situation(K2, wars=[war_row(WAR, [NORTH, WEST], [SOUTH])], nuclear_strikes=5),
+        situation(K3, nuclear_strikes=6),
+    ]
+    appeared = war_event(
+        "war.appeared",
+        K1,
+        entities=[NORTH, SOUTH],
+        started_on="2032-02-01T00:00:00",
+        date="2032-02-01T00:00:00",
+        date_basis=DateBasis.RECORD,
+    )  # type: ignore[arg-type]
+    joined = war_event("war.alliance_changed", K2, entities=[WEST], side="attacking", member=WEST, _parts=("west",))
+    ended = war_event("war.disappeared", K3)
+
+    arc = only(built([appeared, joined, ended], situations), "war.arc")
+
+    assert arc.constituents == tuple(sorted(item.id for item in (appeared, joined, ended)))
+    assert (arc.status, arc.confidence, arc.significance, arc.open) == (
+        EventStatus.OBJECTIVE,
+        Confidence.HIGH,
+        Significance.MAJOR,
+        False,
+    )
+    assert roles(arc) == [(Role.ACTOR, "nation:20"), (Role.ACTOR, "nation:23"), (Role.TARGET, "nation:21")]
+    assert arc.attribute("duration_days") == 243.0
+    assert arc.attribute("nuclear_strikes") == 4
+    assert arc.attribute("war") == WAR
+    assert describe_event(arc) == "war:70 between Northland (nation:20), Westland (nation:23) and Southland (nation:21)"
+
+
+def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_inside_it() -> None:
+    sides = war_row(WAR, [NORTH], [SOUTH, EAST])
+    situations = [situation(key, wars=[sides]) for key in (K0, K1, K2)]
+    first = annexation(K1, NORTH, SOUTH, SOUTH_REGION)
+    second = annexation(K2, NORTH, EAST, EAST_REGION)
+    unrelated = annexation(K2, WEST, SOUTH, ref(EntityDomain.REGION, "43"))
+
+    events = built([*first, *second, *unrelated], situations)
+    expansion = only(of_type(events, "nation.expansion"), "nation.expansion")
+    arc = only(events, "war.arc")
+
+    assert expansion.attribute("mode") == "annexation"
+    assert arc.constituents == (expansion.id,)
+    assert arc.status is EventStatus.INFERRED and arc.open
+    assert arc.attribute("regions_transferred") == (EAST_REGION, SOUTH_REGION)
+
+    alone = built(first, situations)
+    assert only(alone, "war.arc").constituents == (first[0].id,)
+
+
+# --- federation.lifecycle ----------------------------------------------------------------------------------------
+
+
+def federation_event(raw_type: str, key: str, member: EntityRef | None = None, transition: str = "added") -> Event:
+    attributes = (("member", member), ("transition", transition)) if member is not None else ()
+    parts = (str(member.entity_id), transition) if member is not None else ()
+    return event(raw_type, key, UNION, *parts, entities=[member] if member else [], attributes=attributes,
+                 significance=Significance.MAJOR)  # fmt: skip
+
+
+def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> None:
+    situations = [
+        situation(K0, federations=[federation_row(UNION, [NORTH])]),
+        situation(K1, federations=[federation_row(UNION, [NORTH, SOUTH])]),
+        situation(K2, federations=[federation_row(UNION, [SOUTH])]),
+    ]
+    added = federation_event("federation.members_changed", K1, SOUTH)
+    removed = federation_event("federation.members_changed", K2, NORTH, "removed")
+
+    lifecycle = only(built([added, removed, shift(K2, "GDP", SOUTH)], situations), "federation.lifecycle")
+
+    assert (lifecycle.status, lifecycle.significance, lifecycle.open) == (
+        EventStatus.OBJECTIVE,
+        Significance.MAJOR,
+        True,
+    )
+    assert lifecycle.attribute("members_initial") == (NORTH,)
+    assert lifecycle.attribute("members_final") == (SOUTH,)
+    assert [dict(change.items)["transition"] for change in lifecycle.attribute("member_changes")] == [
+        "added",
+        "removed",
+    ]  # type: ignore[union-attr]
+    assert len(shift_ids(lifecycle)) == 1
+    assert describe_event(lifecycle) == (
+        "Union (federation:60) members [Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
+    )
+
+
+def test_a_federation_without_its_anchor_is_no_lifecycle() -> None:
+    added = federation_event("federation.members_changed", K2, SOUTH)
+    situations = [situation(K0), situation(K1, federations=[UNION]), situation(K2, federations=[UNION])]
+
+    assert of_type(built([added], situations), "federation.lifecycle") == []
+    appeared = federation_event("federation.appeared", K1)
+    assert len(of_type(built([appeared, added], situations), "federation.lifecycle")) == 1
+
+
+# --- nation.expansion and nation.cession -------------------------------------------------------------------------
+
+
+def test_one_gain_is_no_expansion_and_its_territory_aggregate_does_not_count_twice() -> None:
+    events = built(annexation(K1, NORTH, SOUTH, SOUTH_REGION), plain(K0, K1))
+
+    assert of_type(events, "nation.expansion") == []
+
+
+def test_gains_chained_within_the_gap_are_one_expansion_with_cessions_nested() -> None:
+    situations = plain(K0, K1, K2, K3)
+    ceded = transfer(K1, NORTH, SOUTH, SOUTH_REGION)
+    taken = annexation(K2, NORTH, EAST, EAST_REGION)
+    gone = event("nation.disappeared", K2, EAST, significance=Significance.CAMPAIGN_DEFINING)
+
+    events = built([*ceded, *taken, gone], situations)
+    cession = only(events, "nation.cession")
+    expansion = only(events, "nation.expansion")
+
+    assert set(expansion.constituents) == {cession.id, taken[0].id, taken[1].id, gone.id}
+    assert expansion.attribute("mode") == "mixed"
+    assert expansion.attribute("losers") == (SOUTH, EAST)
+    assert expansion.attribute("regions") == (EAST_REGION, SOUTH_REGION)
+    assert (expansion.status, expansion.significance) == (EventStatus.INFERRED, Significance.CAMPAIGN_DEFINING)
+    assert expansion.open
+    short = GeopoliticsSettings(expansion_gap_days=30)
+    assert not only(built([*ceded, *taken], situations, short), "nation.expansion").open  # the last save is too late
+    far = [*ceded, *annexation(K3, NORTH, EAST, EAST_REGION)]
+    assert of_type(built(far, situations, short), "nation.expansion") == []
+    assert describe_event(expansion) == (
+        "Northland (nation:20) expanded over Southland (nation:21), Eastland (nation:22): 2 regions (mixed)"
+    )
+
+
+def test_a_cession_is_a_transfer_no_reading_or_war_explains_with_allies_as_context() -> None:
+    before = situation(
+        K0,
+        nations=[nation_row(NORTH, federation=UNION, allies=[SOUTH]), nation_row(SOUTH, federation=UNION)],
+    )
+    stream = transfer(K1, SOUTH, NORTH, SOUTH_REGION)
+
+    cession = only(built(stream, [before, situation(K1)]), "nation.cession")
+
+    assert roles(cession) == [(Role.ACTOR, "nation:20"), (Role.BENEFICIARY, "nation:21"), (Role.LOCATION, "region:42")]
+    assert (cession.attribute("allied"), cession.attribute("shared_federation")) == (True, UNION)
+    assert (cession.confidence, cession.significance, cession.open) == (Confidence.MEDIUM, Significance.MAJOR, False)
+    assert describe_event(cession) == "Northland (nation:20) ceded 1 region to Southland (nation:21)"
+
+
+def test_no_cession_with_a_reading_a_war_between_the_two_or_an_unmatched_loss() -> None:
+    at_war = [situation(K0, wars=[war_row(WAR, [SOUTH], [NORTH])]), situation(K1)]
+    unmatched = [
+        territory("nation.territory_gained", K1, SOUTH, [NORTH], [SOUTH_REGION]),
+        territory("nation.territory_lost", K1, NORTH, [EAST], [SOUTH_REGION]),
+    ]
+
+    assert of_type(built(annexation(K1, SOUTH, NORTH, SOUTH_REGION), plain(K0, K1)), "nation.cession") == []
+    assert of_type(built(transfer(K1, SOUTH, NORTH, SOUTH_REGION), at_war), "nation.cession") == []
+    assert of_type(built(unmatched, plain(K0, K1)), "nation.cession") == []
+
+
+# --- nation.release / nation.breakaway ---------------------------------------------------------------------------
+
+
+def independence(key: str, released: bool, releasing: EntityRef | None = NORTH) -> Event:
+    attributes: list[tuple[str, Observed]] = [("parents", (NORTH,)), ("released", released)]
+    if released:
+        attributes.append(("releasing_nation", releasing))
+    return event("nation.independence", key, EAST, entities=[NORTH], attributes=attributes,
+                 status=EventStatus.INFERRED, significance=Significance.MAJOR)  # fmt: skip
+
+
+def test_a_release_attaches_the_new_nations_control_event_within_the_window() -> None:
+    anchor = independence(K1, True)
+    control_after = control(K2, "executive", None, SERVANTS, subject=EAST, cause="Independence")
+    parent = event("nation.breakaway_parent_changed", K1, EAST, entities=[NORTH])
+
+    release = only(built([anchor, control_after, parent], plain(K0, K1, K2)), "nation.release")
+
+    assert set(release.constituents) == {anchor.id, control_after.id, parent.id}
+    assert roles(release) == [(Role.ACTOR, "nation:20"), (Role.BENEFICIARY, "nation:22")]
+    assert release.attribute("executive_faction") == SERVANTS
+    assert release.confidence is Confidence.HIGH and release.status is EventStatus.INFERRED
+    assert describe_event(release) == "Northland (nation:20) released Eastland (nation:22)"
+    later = control(K3, "executive", None, SERVANTS, subject=EAST, cause="Independence")
+    situations = plain(K0, K1, K2, K3)
+    assert later.id in only(built([anchor, later], situations), "nation.release").constituents
+    narrow = built([anchor, later], situations, GeopoliticsSettings(release_window_days=30))
+    assert only(narrow, "nation.release").constituents == (anchor.id,)
+
+
+def test_a_breakaway_names_the_parents_and_is_open_while_the_window_reaches_past_the_last_save() -> None:
+    breakaway = only(built([independence(K2, False)], plain(K0, K1, K2)), "nation.breakaway")
+
+    assert roles(breakaway) == [(Role.ACTOR, "nation:22"), (Role.TARGET, "nation:20")]
+    assert breakaway.open
+    assert not only(built([independence(K1, False)], plain(K0, K1, K2, K3)), "nation.breakaway").open
+    assert describe_event(breakaway) == "Eastland (nation:22) broke away from Northland (nation:20)"
+
+
+# --- nation.claims_declared --------------------------------------------------------------------------------------
+
+
+def claims(key: str, added: Sequence[EntityRef], owners: Sequence[EntityRef]) -> Event:
+    return event(
+        "nation.claims_changed",
+        key,
+        SOUTH,
+        entities=[*added, *owners],
+        attributes=(("added", tuple(added)), ("removed", ()), ("added_owners", tuple(owners))),
+        significance=Significance.MAJOR,
+    )
+
+
+def test_claims_on_another_nations_regions_are_declared_and_on_its_own_are_not() -> None:
+    declared = only(built([claims(K1, [NORTH_REGION], [NORTH])], plain(K0, K1)), "nation.claims_declared")
+
+    assert roles(declared) == [(Role.ACTOR, "nation:21"), (Role.TARGET, "nation:20")]
+    assert (declared.status, declared.significance, declared.open) == (EventStatus.OBJECTIVE, Significance.MAJOR, False)
+    assert describe_event(declared) == "Southland (nation:21) claimed regions of Northland (nation:20)"
+    assert of_type(built([claims(K1, [SOUTH_REGION], [SOUTH])], plain(K0, K1)), "nation.claims_declared") == []
+    assert of_type(built([claims(K1, [], [])], plain(K0, K1)), "nation.claims_declared") == []
+
+
+# --- nation.transformation ---------------------------------------------------------------------------------------
+
+
+def test_two_statistics_shifting_together_are_a_transformation() -> None:
+    stream = [shift(K1, "democracy"), shift(K1, "inequality"), shift(K1, "spaceFunding_year")]
+
+    transformation = only(built(stream, plain(K0, K1, K2, K3)), "nation.transformation")
+
+    assert transformation.attribute("statistics") == ("democracy", "inequality")
+    assert (transformation.status, transformation.confidence, transformation.significance) == (
+        EventStatus.OBJECTIVE,
+        Confidence.HIGH,
+        Significance.MINOR,
+    )
+    assert not transformation.open
+    assert len(shift_ids(transformation)) == 3  # every statistic of the span, not only the joined ones
+    assert describe_event(transformation) == "Northland (nation:20): democracy, inequality shifted together"
+
+
+def test_one_statistic_or_shifts_beyond_the_window_are_no_transformation() -> None:
+    assert of_type(built([shift(K1, "GDP"), shift(K2, "GDP")], plain(K0, K1, K2)), "nation.transformation") == []
+    far = [shift(K1, "GDP"), shift(K3, "democracy")]
+    situations = plain(K0, K1, K2, K3)
+    short = GeopoliticsSettings(transformation_window_days=30)
+    assert of_type(built(far, situations, short), "nation.transformation") == []
+    assert len(of_type(built(far, situations), "nation.transformation")) == 1
+
+
+def test_a_development_that_carries_the_shifts_suppresses_the_transformation() -> None:
+    stream = [shift(K1, "democracy"), shift(K1, "GDP"), control(K1, "executive", RESISTANCE, SERVANTS)]
+    other = [shift(K1, "democracy"), shift(K1, "GDP"), control(K1, "executive", RESISTANCE, SERVANTS, subject=SOUTH)]
+
+    events = built(stream, plain(K0, K1))
+    assert of_type(events, "nation.transformation") == []
+    assert len(shift_ids(only(events, "faction.takeover"))) == 2
+    assert len(of_type(built(other, plain(K0, K1)), "nation.transformation")) == 1
+
+
+# --- Across rules ------------------------------------------------------------------------------------------------
+
+
+def scenario() -> tuple[list[Event], list[SituationReport]]:
+    """One stream that builds every geopolitical type, each with at least one metric shift."""
+    sides = war_row(WAR, [NORTH], [SOUTH, EAST])
+    situations = [
+        situation(K0, wars=[sides], federations=[federation_row(UNION, [NORTH])]),
+        situation(K1, wars=[sides], federations=[federation_row(UNION, [NORTH, WEST])]),
+        situation(K2, wars=[sides], federations=[federation_row(UNION, [NORTH, WEST])]),
+        situation(K3, federations=[federation_row(UNION, [NORTH, WEST])]),
+    ]
+    stream = [
+        control(K1, "executive", RESISTANCE, SERVANTS, subject=WEST),
+        shift(K1, "democracy", WEST),
+        *annexation(K1, NORTH, SOUTH, SOUTH_REGION),
+        *annexation(K2, NORTH, EAST, EAST_REGION),
+        shift(K2, "GDP", NORTH),
+        shift(K2, "GDP", SOUTH),
+        war_event("war.disappeared", K3),
+        federation_event("federation.members_changed", K1, WEST),
+        *transfer(K3, WEST, SOUTH, ref(EntityDomain.REGION, "44")),
+        shift(K3, "unrest", WEST),
+        independence(K3, False),
+        shift(K3, "cohesion", EAST),
+        claims(K3, [NORTH_REGION], [NORTH]),
+        shift(K3, "GDP", SOUTH),
+        shift(K1, "cohesion", ref(EntityDomain.NATION, "24", "Farland")),
+        shift(K1, "unrest", ref(EntityDomain.NATION, "24", "Farland")),
+    ]
+    return stream, situations
+
+
+def test_every_geopolitical_type_is_built_and_carries_metric_shifts() -> None:
+    stream, situations = scenario()
+
+    events = built(stream, situations)
+
+    by_type = {item.event_type: item for item in events}
+    assert set(by_type) == {
+        "faction.takeover",
+        "war.arc",
+        "federation.lifecycle",
+        "nation.expansion",
+        "nation.cession",
+        "nation.breakaway",
+        "nation.claims_declared",
+        "nation.transformation",
+    }
+    for item in events:
+        assert shift_ids(item), item.event_type
+
+
+def test_traceability_holds_and_the_result_does_not_depend_on_stream_order() -> None:
+    stream, situations = scenario()
+    events = built(stream, situations)
+    visible = {item.id: item for item in [*stream, *events]}
+
+    for item in events:
+        assert item.is_narrative
+        assert all(constituent in visible for constituent in item.constituents)
+        assert all(shift_id in {event.id for event in stream} for shift_id in shift_ids(item))
+        assert set(item.sources) >= {source for c in item.constituents for source in visible[c].sources}
+        assert set(shift_ids(item)).isdisjoint(item.constituents) or item.event_type == "nation.transformation"
+    assert built(list(reversed(stream)), situations) == events
+
+
+def test_no_narrative_line_names_a_cause_word_beyond_its_relaxation() -> None:
+    stream, situations = scenario()
+
+    for item in built(stream, situations):
+        text = f"{item.event_type} {describe_event(item)}".lower()
+        allowed = RELAXED.get(item.event_type, set())
+        assert [word for word in FORBIDDEN if word in text and word not in allowed] == [], text

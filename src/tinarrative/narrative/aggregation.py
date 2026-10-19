@@ -7,7 +7,7 @@ applies the shared policy to what it joins:
 
 - span: ``start`` is the earliest constituent start (its ``not_before``, or its record date when it is record-dated,
   which narrows the span), ``end`` the latest constituent date, each with the basis it came from;
-- ``open`` when the rule's anchor entity is still present in the last save;
+- ``open`` when the rule's anchor entity is still present in the last save, unless the rule states it;
 - confidence: the minimum over the constituents, lowered one level for a heuristic join;
 - significance: the rule's level, never below the most significant constituent;
 - status: objective only when every constituent is objective and the join is by entity ID.
@@ -37,7 +37,7 @@ from ..model.events import (
 )
 from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
-from .chronology import chronological, interval_of, interval_sort_key, qualified_id
+from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
 from .situation import SituationReport
 
 logger = get_logger(__name__)
@@ -119,6 +119,13 @@ def days_between(earlier: Observed, later: Observed) -> float | None:
         return None
 
 
+def interval_reports(situations: Sequence[SituationReport]) -> dict[str, tuple[SituationReport, SituationReport]]:
+    """The reports before and after each interval, by interval key (the keys ``sequence.plan_sequence`` gives)."""
+    dates = [str(report.date) for report in situations]
+    keys = interval_keys(dates)
+    return {keys[index]: (situations[index - 1], situations[index]) for index in range(1, len(situations))}
+
+
 def present_in(report: SituationReport, ref: EntityRef) -> bool:
     """Whether the report lists the entity as a nation, federation, war or faction."""
     listed = (
@@ -148,10 +155,12 @@ class NarrativeBuilder:
         anchor: EntityRef | None = None,
         significance: Significance | None = None,
         confidence: Confidence | None = None,
+        open: bool | None = None,
     ) -> Event:
         """A narrative event over ``constituents``; the ID is qualified by its first interval.
 
-        ``confidence`` overrides the minimum-over-constituents policy; a rule that passes it documents why.
+        ``confidence`` overrides the minimum-over-constituents policy and ``open`` the anchor-presence policy; a rule
+        that passes either documents why.
         """
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
@@ -179,10 +188,13 @@ class NarrativeBuilder:
             start_basis=start.basis if start else None,
             end=end.date if end else Unknown(),
             end_basis=end.basis if end else None,
-            open=anchor is not None and self._last is not None and present_in(self._last, anchor),
+            open=self._open(anchor) if open is None else open,
             intervals=intervals,
             roles=role_list,
         )
+
+    def _open(self, anchor: EntityRef | None) -> bool:
+        return anchor is not None and self._last is not None and present_in(self._last, anchor)
 
     @staticmethod
     def _status(constituents: Sequence[Event], join: Join) -> EventStatus:
@@ -202,14 +214,10 @@ class NarrativeBuilder:
         return max(levels, key=lambda level: level.rank)
 
 
-NARRATIVE_RULES: tuple[NarrativeRule, ...] = ()
-"""The rules ``aggregate`` runs by default; the geopolitical and space catalogue (architecture 11.3) adds them."""
-
-
 def aggregate(
     stream: Sequence[Event],
     situations: Sequence[SituationReport],
-    rules: Sequence[NarrativeRule] = NARRATIVE_RULES,
+    rules: Sequence[NarrativeRule],
 ) -> list[Event]:
     """The narrative events the rules build over a qualified chronological stream, sorted.
 

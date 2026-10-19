@@ -1,7 +1,7 @@
 # `tinarrative events`
 
 ```
-tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--inferred] [--narrative] [--changes]
+tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--inferred] [--narrative] [--changes] [--config <file>]
 ```
 
 Reads two or more saves, given as files, directories or both, groups them by campaign, orders one campaign's saves by game time, and reports the analyzer
@@ -173,8 +173,16 @@ says `No events were inferred.`
 `--narrative` joins the events of the whole sequence into narrative events: developments that
 span intervals, such as a takeover and its consolidation or a war from start to peace
 ([architecture 11](../architecture.md#11-narrative-aggregation)). It implies `--inferred`,
-because rules build on inferred events. The narrative rules are not implemented yet, so the
-section is always empty for now.
+because rules build on inferred events. The geopolitical rules of
+[architecture 11.3](../architecture.md#113-first-catalogue) are implemented: `faction.takeover`,
+`war.arc`, `federation.lifecycle`, `nation.expansion`, `nation.cession`, `nation.release` /
+`nation.breakaway`, `nation.claims_declared` and `nation.transformation`. Each carries the nation
+statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
+
+Their thresholds and windows come from a settings file: `--config <file>`, else the file named by
+`TINARRATIVE_CONFIG`, else the built-in defaults ([configuration](../configuration.md)). An empty
+variable counts as unset. The file is read and validated on every run, with or without
+`--narrative`.
 
 The Markdown report gains `## Narrative` between `## Saves` and `## Intervals`. Events are grouped
 under `### <year>` headings, using the year each event starts in, with `### Undated` first. Each
@@ -188,7 +196,9 @@ per constituent ID:
   - from `faction.nation_control_changed/executive/nation:20@2032-04-01T00:00:00`
 ```
 
-`--min-significance` filters the section and states how many events it omitted
+When the settings differ from the defaults, the section opens with
+``Built with non-default settings: `narrative.geopolitics.top_gdp_nations = 3`.``, listing every
+changed key. `--min-significance` filters the section and states how many events it omitted
 (`N narrative events below <level> significance omitted.`). When nothing was built the section says
 `No narrative events were built.`
 
@@ -215,8 +225,10 @@ intervals' keys.
 - `narrative`: the narrative events in order, or `null` without `--narrative`. Each is serialized
   as an event, plus `start` and `end` (game dates), `start_basis` and `end_basis` (`interval` or
   `record`), `open`, `intervals` (the keys of the intervals it spans) and `roles` (`{"role",
-  "entity"}` pairs, the role being one of `actor`, `target`, `beneficiary`, `assisting`, `location`
-  or `body`). Atomic and inferred events never carry these fields.
+  "entity"}` pairs, the role being one of `actor`, `target`, `beneficiary`, `loser`, `assisting`,
+  `location` or `body`). Atomic and inferred events never carry these fields;
+- `settings`: the effective settings the narrative was built with, every key included, as nested
+  tables (`{"narrative": {"geopolitics": {...}}}`), or `null` without `--narrative`.
 
 Every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
 (`domain:key`), `state_type`, `confidence` and, when the save gives the entity a display name,
@@ -247,7 +259,7 @@ something was serialized), never `0`, `[]` or `null`. `null` is a known null.
     (`faction:12`), without uncontrolled or unresolved points; `unresolved_points`: points whose
     controller is unresolved. All four are unknown when the point list is. The report never says
     which faction controls a nation; that is an inference (`faction.nation_control_changed`);
-  - `federation`: the nation's federation, or `null`;
+  - `federation`: the nation's federation, or `null`; `allies`: its `allies` list;
   - `wars`: `{"war", "side"}` for every war whose attacking or defending alliance lists the
     nation, `side` being `attacker` or `defender`, in war ID order;
   - `regions`: the number of regions; `population`: the summed `populationInMillions` of those
@@ -296,3 +308,4 @@ and error class; directory paths are never logged.
 | 2 | Usage error: fewer than two usable saves after directory expansion or in the chosen campaign; several campaigns without `--campaign`, or a `--campaign` that matches no campaign or several, when stdin or stderr is not a terminal; a cancelled campaign picker; or an unknown `--format` or `--min-significance`. |
 | 4 | A named path cannot be read (missing or unreadable), or a named directory holds no files or no usable save. |
 | 5 | A named file is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |
+| 8 | The settings file (`--config` or `TINARRATIVE_CONFIG`) cannot be read, is not valid TOML, or names an unknown key or an invalid value. Nothing is printed on stdout. |

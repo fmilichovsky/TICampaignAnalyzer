@@ -1047,10 +1047,10 @@ absorbing its neighbours over several years, a space campaign that
 destroyed a rival's bases. Each development carries its span, its actors
 by role and every piece of evidence beneath it.
 
-The framework is implemented (11.2, implemented contract); the rules of
-the catalogue (11.3) are not yet, so aggregation builds no narrative event
-today. This section is the contract they are built against; the roadmap's
-*Narrative layer* section lists the steps. The design was revised
+The framework is implemented (11.2, implemented contract), and so are the
+geopolitical rules of the catalogue (11.3, implemented contract); the space
+rules are not yet. This section is the contract they are built against; the
+roadmap's *Narrative layer* section lists the steps. The design was revised
 after measuring the atomic stream on real saves: the earlier
 sketch (clusters by temporal proximity and shared entities, a `float`
 significance, a `title_hint`) is withdrawn in favour of a small set of
@@ -1092,7 +1092,7 @@ class Event:  # narrative extension, conceptual
     end_basis: DateBasis
     open: bool  # still running at the last save
     intervals: tuple[str, ...]  # interval keys it spans
-    # roles: actor, target, beneficiary, assisting, location, body
+    # roles: actor, target, beneficiary, loser, assisting, location, body
     roles: dict[Role, list[EntityRef]]
 ```
 
@@ -1132,9 +1132,14 @@ then name, and returns the narrative events sorted. `NarrativeBuilder.event`
 applies the policy above to the constituents a rule joins, with the join
 declared as `Join.ENTITY` or `Join.HEURISTIC`. `open` means the rule's
 anchor entity is listed in the last situation report. `days_between`
-measures windows in game days. `NARRATIVE_RULES` is empty until the
-catalogue lands. `sequence.narrative_events` runs aggregation over a
-sequence, and `events --narrative` reports it
+measures windows in game days, and `interval_reports` gives a rule the
+reports before and after each interval. A rule may state `open` itself
+(`NarrativeBuilder.event(open=...)`) when its window, not the anchor's
+presence, decides whether a later save can extend it. `NARRATIVE_RULES`
+(`narrative/catalogue.py`) is the catalogue under the default settings, and
+`narrative_rules(settings)` builds it under runtime settings
+([configuration](configuration.md)). `sequence.narrative_events` runs
+aggregation over a sequence, and `events --narrative` reports it
 ([command](commands/events.md#narrative-events)).
 
 Deviations from the sketch above:
@@ -1168,20 +1173,81 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 
 | Type | Says | Anchor and constituents | Window | Needs |
 | --- | --- | --- | --- | --- |
-| `faction.takeover` | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nothing |
-| `war.arc` | war between A and B and their allies from start to peace, with regions transferred | `war.appeared` (record-dated), `war.alliance_changed`, `nation.annexation`, `war.last_fighting_changed`, `war.disappeared` | sequence | nothing |
-| `federation.lifecycle` | federation formed, joined, left, renamed, dissolved | `federation.appeared`, `federation.members_changed`, `federation.renamed`, `federation.disappeared` | sequence | nothing |
-| `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war | consecutive `nation.unification` / `nation.annexation` / `nation.territory_gained` with one gainer, `nation.disappeared` of the losers, a rename | N intervals | nothing |
-| `nation.release` / `nation.breakaway` | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nothing |
-| `nation.cession` | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
-| `nation.claims_declared` | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
-| `nation.transformation` | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | nothing |
+| `faction.takeover` (implemented) | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nothing |
+| `war.arc` (implemented) | war between A and B and their allies from start to peace, with regions transferred | `war.appeared` (record-dated), `war.alliance_changed`, `nation.annexation`, `war.last_fighting_changed`, `war.disappeared` | sequence | nothing |
+| `federation.lifecycle` (implemented) | federation formed, joined, left, renamed, dissolved | `federation.appeared`, `federation.members_changed`, `federation.renamed`, `federation.disappeared` | sequence | nothing |
+| `nation.expansion` (implemented) | N absorbed M1..Mk over a period, peacefully or by war | consecutive `nation.unification` / `nation.annexation` / `nation.territory_gained` with one gainer, `nation.disappeared` of the losers, a rename | N intervals | nothing |
+| `nation.release` / `nation.breakaway` (implemented) | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nothing |
+| `nation.cession` (implemented) | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
+| `nation.claims_declared` (implemented) | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
+| `nation.transformation` (implemented) | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | nothing |
 
 Every geopolitical type carries `metric_shifts`: the nation statistic
 shifts of its nations inside its span, so a takeover or merger states what
 it did to democracy, GDP and inequality without a separate event. Band
 labels ("totalitarian", "democratic") are not assigned; the literal values
 and relative changes are.
+
+### Implemented contract (`src/tinarrative/narrative/geopolitics.py`)
+
+The geopolitical rules read their thresholds and windows from
+`config.GeopoliticsSettings` ([configuration](configuration.md)); the
+evidence for the defaults is in
+[sources for higher-level events](game-data-notes/higher-level-event-sources.md)
+(*Narrative rules (geopolitics)*). A window is measured from the earliest
+date an event can have had: its record date, else its `not_before`. So
+consecutive intervals always touch, and a long interval never splits one
+development. *Anchored* windows count from the first member (takeover,
+release, transformation), *chained* windows from the latest (expansion).
+
+-   `faction.takeover` (order 0, heuristic). Anchor: an executive or sole
+    control change to a faction. Anchors of one nation and faction within
+    the consolidation window are one takeover until the faction loses the
+    seat; a change caused by `Independence` is left to the release rule.
+    Attached: the faction's control-point gains in the nation, the
+    nation's executive records, councilor changes naming the losing faction
+    in the anchor intervals, the faction's unrest attempts and the nation's
+    unrest and opinion shifts in the precursor window, and `Coup`, `Purge`
+    or `Crackdown` charges of the faction from the ledger window before an
+    anchor to its date when no other faction carries the label then.
+    Roles actor, target, loser. Open while the last report has the faction
+    holding the executive but not every point. Major; campaign-defining
+    when the nation ranks within `top_gdp_nations` by `GDP` in the report
+    after the anchor's interval.
+-   `federation.lifecycle` (order 0, by ID, major). Members at the first
+    and last report and the member changes; open by presence.
+-   `nation.cession` (order 0, heuristic, so medium at most, major). A
+    gained/lost pair with no reading of the gainer in the interval and no
+    war with the two on opposite sides in a report around it. Allies and a
+    shared federation from the earlier report are context.
+-   `nation.release` / `nation.breakaway` (order 0, by the new nation's
+    ID). The new nation's appearance, breakaway parent and control events
+    within the release window; `executive_faction` is context only.
+-   `nation.claims_declared` (order 0, by ID). Additions to a claim list on
+    regions other nations hold (`added_owners` of `nation.claims_changed`).
+-   `nation.expansion` (order 1, heuristic, major). Two or more gains of
+    one nation, chained within the gap. A gain is a unification, an
+    annexation, a cession to it (nested) or a territory aggregate in an
+    interval without a reading and outside any cession. `mode` is
+    `unification`, `annexation`, `mixed` or `null`.
+-   `war.arc` (order 2, by war ID, major). Anchor: `war.appeared` or
+    presence in the first report. Attached: the war's alliance,
+    last-fighting and disappearance events, annexations between its
+    belligerents, and the expansions they belong to (nested, in place of
+    their annexations). `nuclear_strikes` is the campaign-wide counter's
+    change over the war's intervals, not an attribution.
+-   `nation.transformation` (order 2, by ID). Two or more distinct
+    statistics among democracy, GDP, inequality, cohesion and unrest of one
+    nation within the window. It is skipped when a takeover, expansion,
+    cession, release or breakaway naming the nation spans one of its
+    intervals. Its level comes from the shifts (minor).
+
+`metric_shifts` is a tuple of entries, one per nation, statistic and key,
+over the rule's nations and the intervals it spans. Each entry holds the
+earliest shift's `before`, the latest shift's `after`, the unsigned
+`relative_change`, the summed `causes` and the shift `events` by ID. The
+shifts are context, not constituents, so they never widen a span or change
+status, confidence or significance.
 
 Space milestones second:
 
@@ -1314,9 +1380,8 @@ presence are `campaign_defining`. `tinarrative events --min-significance
 
 Narrative events (section 11) carry the same enum. Their level is assigned by
 the rule that builds them, defaulting to the highest level among their
-constituents, and the per-type table gains one entry per narrative type when
-it is implemented. A development is never ranked below its most significant
-constituent.
+constituents (11.3, implemented contract), not by the per-type table. A
+development is never ranked below its most significant constituent.
 
 ------------------------------------------------------------------------
 

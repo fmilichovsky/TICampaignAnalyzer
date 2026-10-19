@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import cast
 
 from . import __version__
+from .config import CONFIG_ENV_VAR, DEFAULT_SETTINGS, ConfigError, Settings, load_settings
 from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
@@ -29,6 +30,7 @@ from .model.events import SIGNIFICANCE_ORDER, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
+from .narrative import narrative_rules
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
@@ -62,6 +64,9 @@ EXIT_PATH_NOT_FOUND = 6
 EXIT_REGISTRY_ERROR = 7
 """The unknowns registry could not be read, is not a registry document, or could not be written; the report
 or summary is still printed."""
+EXIT_CONFIG_ERROR = 8
+"""The settings file (``--config`` or ``TINARRATIVE_CONFIG``) could not be read or is not valid settings; nothing is
+printed on stdout."""
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -353,8 +358,39 @@ def _survey_inputs(command: str, inputs: Sequence[SaveInput]) -> tuple[list[Save
     return surveyed, skipped
 
 
+def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
+    """``--config`` wins over ``TINARRATIVE_CONFIG``; an empty variable counts as unset, and neither gives the
+    defaults. An unreadable or invalid file is ``EXIT_CONFIG_ERROR``."""
+    from_env = os.environ.get(CONFIG_ENV_VAR, "").strip()
+    path = flag if flag is not None else (Path(from_env) if from_env else None)
+    source = "flag" if flag is not None else ("env" if from_env else "default")
+    shown = None if path is None else safe_path(path)
+    try:
+        settings = load_settings(path)
+    except OSError as error:
+        logger.debug("settings failed %s", fields(source=source, path=shown), exc_info=True)
+        print(f"tinarrative {command}: cannot read settings {path}: {error.strerror or error}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    except ConfigError as error:
+        logger.debug("settings invalid %s", fields(source=source, path=shown))
+        print(f"tinarrative {command}: settings {path}: {error}", file=sys.stderr)
+        return EXIT_CONFIG_ERROR
+    logger.debug(
+        "settings resolved %s",
+        fields(
+            source=source,
+            path=None if path is None else safe_path(path),
+            changed=len(settings.differences(DEFAULT_SETTINGS)),
+        ),
+    )
+    return settings
+
+
 def _run_events(args: argparse.Namespace) -> int:
     """Order saves by game time and report the analyzer results of every consecutive pair."""
+    settings = _resolve_settings("events", cast("Path | None", args.config))
+    if isinstance(settings, int):
+        return settings
     paths = cast(list[Path], args.saves)
     inputs = expand_inputs(paths)
     if len(inputs) < 2:
@@ -390,7 +426,7 @@ def _run_events(args: argparse.Namespace) -> int:
         )
     except _LoadFailed as failure:
         return failure.code
-    narrative = narrative_events(intervals) if args.narrative else None
+    narrative = narrative_events(intervals, narrative_rules(settings.narrative)) if args.narrative else None
     if args.format == "json":
         document = {"campaign": campaign.to_dict(), **plan.to_dict()}
         reports = situations(intervals)
@@ -398,6 +434,7 @@ def _run_events(args: argparse.Namespace) -> int:
             {**save, "situation": reports[position].to_dict() if position < len(reports) else None}
             for position, save in enumerate(document["saves"])
         ]
+        document["settings"] = None if narrative is None else settings.to_dict()
         document["narrative"] = None if narrative is None else [event.to_dict() for event in narrative]
         document["intervals"] = [interval.to_dict() for interval in intervals]
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
@@ -405,7 +442,13 @@ def _run_events(args: argparse.Namespace) -> int:
         minimum = Significance(cast(str, args.min_significance))
         left_out = len(surveyed) - len(campaign.members)
         rendered = render_sequence(
-            plan, intervals, min_significance=minimum, campaign=campaign, left_out=left_out, narrative=narrative
+            plan,
+            intervals,
+            min_significance=minimum,
+            campaign=campaign,
+            left_out=left_out,
+            narrative=narrative,
+            changed_settings=settings.differences(DEFAULT_SETTINGS),
         )
     sys.stdout.write(rendered)
     sys.stdout.flush()
@@ -735,6 +778,15 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         help=(
             "Also aggregate the events of the whole sequence into narrative events and list them by period above "
             "the intervals; implies --inferred."
+        ),
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        metavar="FILE",
+        help=(
+            f"A TOML settings file for the narrative rules' thresholds and windows (default: ${CONFIG_ENV_VAR} if "
+            "set, else the built-in defaults; see docs/configuration.md)."
         ),
     )
     parser.set_defaults(handler=_run_events)

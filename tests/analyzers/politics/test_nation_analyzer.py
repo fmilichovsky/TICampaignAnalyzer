@@ -223,6 +223,7 @@ def test_claims_are_one_event_per_nation_and_list_with_the_regions_owners_as_con
     assert dict(claims.attributes) == {
         "added": (named(region_ref("40")),),
         "removed": (named(region_ref("41")),),
+        "added_owners": (named(nation_ref("21")),),
     }
     assert [(s.role, s.change.field, s.member) for s in claims.sources] == [
         (SourceRole.PRIMARY, "claims", region_ref("40")),

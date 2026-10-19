@@ -147,6 +147,24 @@ catalog to a level and checks that every table or rule entry names a known type.
 The opt-in `real_save` politics test also asserts that a councilor presence event
 is `trivial` exactly when the councilor's `faction` is `null` on its existing side.
 
+`tests/narrative/support.py` builds synthetic qualified streams (`atomic`) and
+situation reports (`situation`, with `nation_row`, `federation_row` and `war_row`
+for the context a rule reads). `test_aggregation.py` covers the framework with
+trivial rules. `test_geopolitics.py` covers every geopolitical rule. It checks the
+missing-anchor case, the window boundary through `GeopoliticsSettings`, the
+`open` case, nesting (a war arc around an expansion, an expansion around
+cessions, a transformation stepping aside) and `metric_shifts`. A combined
+scenario builds every type and asserts the traceability invariants: every
+constituent is visible, every `metric_shifts` ID is in the stream, the sources
+cover the constituents' sources, and the result does not depend on stream order.
+The same scenario runs the cause-word check over every narrative
+`describe_event` line, with the objective analyzers' word list. The check is
+relaxed only for the narrative types, and only by the stems listed in the test's
+`RELAXED`: `annex` for `nation.expansion` (it echoes its literal `mode`) and
+`declar` for `nation.claims_declared` (its type names the claim it reports). A
+narrative type names its reading, as an inferred type does, so only those stems
+are allowed. Every other stem stays forbidden.
+
 `politics_before.json` / `politics_after.json` is the politics analyzer pair: it
 holds only political state types and exercises each political transition once,
 including claims, hostile claims and unrest attempts

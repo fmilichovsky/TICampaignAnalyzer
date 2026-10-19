@@ -61,6 +61,7 @@ def campaign() -> SaveSnapshot:
             AFTER,
             controlPoints=tuple(point_ref(key) for key in ("100", "101", "102", "103")),
             federation=federation_ref("60"),
+            allies=(nation_ref("21"),),
             regions=(region_ref("40"), region_ref("41")),
             democracy=6.5,
             cohesion=5.0,
@@ -140,6 +141,7 @@ def test_a_nation_reports_its_executive_holder_and_point_shares() -> None:
     assert northland.shares == FrozenMap((("faction:1", 2), ("faction:2", 1)))
     assert northland.unresolved_points == 0
     assert northland.federation == named(federation_ref("60"))
+    assert northland.allies == (named(nation_ref("21")),)
     assert northland.regions == 2
     assert northland.population == 15.0
     assert dict(northland.statistics) == {
@@ -159,6 +161,7 @@ def test_unknown_control_and_regions_stay_unknown() -> None:
     assert southland.executive == UNRESOLVED
     assert (southland.control_points, southland.unresolved_points, southland.shares) == (1, 1, FrozenMap())
     assert southland.federation is None
+    assert southland.allies == Unknown()
     assert (southland.regions, southland.population) == (Unknown(), Unknown())
 
     empty = nation(report, "22")

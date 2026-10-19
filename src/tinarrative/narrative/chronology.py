@@ -15,7 +15,7 @@ leaves it unchanged.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import replace
 
 from ..model.events import Event
@@ -29,6 +29,15 @@ TIE_SEPARATOR = "#"
 def qualified_id(event_id: str, key: str) -> str:
     """The ID of an event of the interval ``key`` within a sequence."""
     return f"{event_id}{INTERVAL_SEPARATOR}{key}"
+
+
+def interval_keys(dates: Sequence[str]) -> list[str]:
+    """The keys of saves in sequence order: the game time, with ``#n`` for the n-th distinct save of that time."""
+    keys: list[str] = []
+    for position, date in enumerate(dates):
+        tied = sum(1 for earlier in dates[:position] if earlier == date)
+        keys.append(date if tied == 0 else f"{date}{TIE_SEPARATOR}{tied + 1}")
+    return keys
 
 
 def interval_of(event_id: str) -> str:
