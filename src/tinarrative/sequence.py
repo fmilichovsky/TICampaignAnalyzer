@@ -8,8 +8,9 @@ follows ``docs/game-data-notes/chronology-and-deduplication.md``:
    file name or modification time.
 2. ``plan_sequence`` merges byte-identical saves into one ``SaveRef`` (every path kept as provenance) and sorts the
    rest by game time, then path. Equal times with different bytes are both kept. Argument order never matters.
-3. ``run_sequence`` normalizes the saves in that order, holding two snapshots at a time, and runs
-   ``analyze_interval`` (diff, analyzers, significance and, when asked, reconstruction) on each consecutive pair.
+3. ``run_sequence`` normalizes the saves in that order, holding two snapshots at a time, builds each save's situation
+   report (``narrative.situation``) while it holds the snapshot, and runs ``analyze_interval`` (diff, analyzers,
+   significance and, when asked, reconstruction) on each consecutive pair. The reports are kept, the snapshots not.
 
 Consecutive intervals share their boundary snapshot, so every change is reported in exactly one interval and a
 save-carried log entry once. The events of an interval are qualified by its key (``narrative.chronology``) so that
@@ -34,7 +35,7 @@ from .log import fields, get_logger
 from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
-from .narrative import assign_significance
+from .narrative import SituationReport, assign_significance, build_situation
 from .narrative.chronology import chronological, qualify
 from .parsing.continuity import CampaignProfile, campaign_profile
 from .parsing.errors import SaveLoadError
@@ -124,8 +125,9 @@ class IntervalAnalysis:
 class IntervalResult:
     """The events of one interval of a sequence, qualified by its key.
 
-    The snapshots are not kept. The diff's changes are kept in ``state_changes`` only when they were requested
-    (``None`` otherwise), because a long sequence would hold every interval's evidence values.
+    The snapshots are not kept; their situation reports are, and consecutive intervals share the boundary save's
+    report. The diff's changes are kept in ``state_changes`` only when they were requested (``None`` otherwise),
+    because a long sequence would hold every interval's evidence values.
     """
 
     index: int
@@ -136,6 +138,9 @@ class IntervalResult:
     objective: tuple[Event, ...]
     inferred: tuple[Event, ...] | None
     state_changes: tuple[StateChange, ...] | None = None
+    before_situation: SituationReport | None = None
+    after_situation: SituationReport | None = None
+    """The situation reports of ``before`` and ``after``; not part of ``to_dict`` (the saves carry them)."""
 
     def events(self) -> tuple[Event, ...]:
         return self.objective + (self.inferred or ())
@@ -232,13 +237,16 @@ def run_sequence(
 ) -> Iterator[IntervalResult]:
     """The results of every interval in order; each save is normalized once and at most two are held at a time.
 
-    With ``changes`` every result also keeps its literal state changes.
+    With ``changes`` every result also keeps its literal state changes. Every result carries the situation reports of
+    its two saves.
     """
     if len(plan.saves) < 2:
         return
     before = load(plan.saves[0].source)
+    before_situation = build_situation(before)
     for index in range(1, len(plan.saves)):
         after = load(plan.saves[index].source)
+        after_situation = build_situation(after)
         analysis = analyze_interval(before, after, inferred=inferred)
         key = plan.keys[index]
         result = IntervalResult(
@@ -250,6 +258,8 @@ def run_sequence(
             objective=tuple(qualify(event, key) for event in analysis.objective),
             inferred=None if analysis.inferred is None else tuple(qualify(event, key) for event in analysis.inferred),
             state_changes=analysis.diff.changes if changes else None,
+            before_situation=before_situation,
+            after_situation=after_situation,
         )
         logger.info(
             "interval done %s",
@@ -260,10 +270,22 @@ def run_sequence(
                 inferred=None if result.inferred is None else len(result.inferred),
             ),
         )
+        del analysis  # its diff holds both snapshots; the next load must find only ``after`` alive
         yield result
-        before = after
+        before, before_situation = after, after_situation
 
 
 def event_stream(intervals: Iterable[IntervalResult]) -> list[Event]:
     """Every event of every interval in one chronological stream; IDs are unique because they are qualified."""
     return chronological(event for interval in intervals for event in interval.events())
+
+
+def situations(intervals: Iterable[IntervalResult]) -> tuple[SituationReport, ...]:
+    """One situation report per save of the sequence, in its order; empty when no interval ran."""
+    reports: list[SituationReport] = []
+    for interval in intervals:
+        if not reports and interval.before_situation is not None:
+            reports.append(interval.before_situation)
+        if interval.after_situation is not None:
+            reports.append(interval.after_situation)
+    return tuple(reports)

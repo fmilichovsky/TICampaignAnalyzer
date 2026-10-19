@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import gc
 import shutil
+import weakref
 from datetime import datetime
 from pathlib import Path
 
@@ -11,14 +13,18 @@ import pytest
 from tests.fixtures import fixture_path
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.events import EventStatus
+from tinarrative.model.snapshot import SaveSnapshot
+from tinarrative.narrative.situation import build_situation
 from tinarrative.parsing.normalization import normalize
 from tinarrative.sequence import (
     SaveRef,
     UnknownChronologyError,
     analyze_interval,
     event_stream,
+    load_snapshot,
     plan_sequence,
     run_sequence,
+    situations,
     survey,
 )
 
@@ -96,6 +102,31 @@ def test_every_interval_runs_the_diff_pipeline_and_qualifies_its_ids() -> None:
     assert direct.inferred is not None and intervals[0].inferred is not None
     assert len(intervals[0].inferred) == len(direct.inferred)
     assert all(interval.state_changes is None for interval in intervals)
+    reports = situations(intervals)
+    assert reports == tuple(build_situation(normalize(load_raw_save(fixture(name)))) for name in SEQUENCE)
+    assert intervals[0].after_situation is intervals[1].before_situation
+    assert "situation" not in intervals[0].to_dict()
+
+
+@pytest.mark.fixture
+def test_at_most_two_snapshots_are_held_while_reports_are_kept() -> None:
+    plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
+    loaded: list[weakref.ref[SaveSnapshot]] = []
+    held: list[int] = []
+
+    def load(source: str) -> SaveSnapshot:
+        gc.collect()
+        held.append(sum(snapshot() is not None for snapshot in loaded))
+        result = load_snapshot(source)
+        loaded.append(weakref.ref(result))
+        return result
+
+    intervals = list(run_sequence(plan, inferred=True, load=load))
+
+    assert held == [0, 1, 1]  # with the one being loaded, never more than two
+    gc.collect()
+    assert all(snapshot() is None for snapshot in loaded)
+    assert len(situations(intervals)) == len(SEQUENCE)
 
 
 @pytest.mark.fixture
@@ -136,3 +167,4 @@ def test_fewer_than_two_distinct_saves_produce_no_interval() -> None:
 
     assert (len(plan.saves), plan.duplicates) == (1, 1)
     assert list(run_sequence(plan, inferred=False)) == []
+    assert situations([]) == ()

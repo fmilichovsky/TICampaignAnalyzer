@@ -34,7 +34,16 @@ from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
 from .picker import pick_campaign
 from .rendering.markdown import render_sequence
-from .sequence import IntervalResult, SaveRef, SkippedSave, event_stream, plan_sequence, run_sequence, survey
+from .sequence import (
+    IntervalResult,
+    SaveRef,
+    SkippedSave,
+    event_stream,
+    plan_sequence,
+    run_sequence,
+    situations,
+    survey,
+)
 
 logger = get_logger(__name__)
 
@@ -379,11 +388,13 @@ def _run_events(args: argparse.Namespace) -> int:
     except _LoadFailed as failure:
         return failure.code
     if args.format == "json":
-        document = {
-            "campaign": campaign.to_dict(),
-            **plan.to_dict(),
-            "intervals": [interval.to_dict() for interval in intervals],
-        }
+        document = {"campaign": campaign.to_dict(), **plan.to_dict()}
+        reports = situations(intervals)
+        document["saves"] = [
+            {**save, "situation": reports[position].to_dict() if position < len(reports) else None}
+            for position, save in enumerate(document["saves"])
+        ]
+        document["intervals"] = [interval.to_dict() for interval in intervals]
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
         minimum = Significance(cast(str, args.min_significance))
