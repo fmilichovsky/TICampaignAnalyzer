@@ -78,6 +78,10 @@ Nation:
 
 Reconstructed from the objective results below; never observed directly.
 
+- Fixture Northland (nation:20) executive control changed: Fixture Resistance (faction:15) -> Fixture Servants (faction:16) (confidence: `medium`)
+  - from `control_point.controller_changed/control point:9@2032-07-01T00:00:00`: Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)
+- Fixture Northland (nation:20) plurality control changed: Fixture Resistance (faction:15) -> Fixture Servants (faction:16) (confidence: `medium`)
+  - from `control_point.controller_changed/control point:9@2032-07-01T00:00:00`: Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)
 - Fixture Southland (nation:21) gained 1 region from Fixture Northland (nation:20) (confidence: `medium`)
   - from `region.nation_changed/region:42@2032-07-01T00:00:00`: Fixture South (region:42) nation: Fixture Northland (nation:20) -> Fixture Southland (nation:21)
 - Fixture Northland (nation:20) lost 1 region to Fixture Southland (nation:21) (confidence: `medium`)

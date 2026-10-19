@@ -318,7 +318,16 @@ reconstruction (issue #73).
   describes the regime (*hypothesis*). Between consecutive saves the faction holding the position-0
   point changed on 1, 2, 5 and 4 nations (faction to faction on 1, 2, 3 and 2); the plurality
   controller changed on 3, 2, 4 and 3; a nation went from one sole controller to another on 1, 2, 2
-  and 2. Nothing in the pipeline reports these per nation today.
+  and 2. Re-checked on 2026-10-19 on the same saves, reading each scope from the control points'
+  own `nation` and `faction`: the executive counts reproduce (1, 2, 5, 4), the plurality
+  controller changed on 3, 2, 3 and 4 nations and the sole controller (gaining or losing every
+  point included) on 1, 2, 3 and 3, of which sole controller to another sole controller on 1, 2, 0
+  and 0; the earlier plurality and sole-to-sole figures are superseded. `events --inferred`
+  (`faction.nation_control_changed`, issue #97) reports exactly these per nation and scope except
+  two executive changes, one in each of the last two intervals, on nations that gained or lost a
+  control point to another nation in the same interval, which the rule skips as territory: so
+  executive 1, 2, 4, 3, plurality 3, 2, 3, 4, sole 1, 2, 3, 3. 23 of the 31 events were high
+  (dated by an agreeing `lastExecutiveChange`), the rest medium, none low.
 - **Resource ledger** (observed 2026-10-18, the latest older save, structure and counts only). All
   eight factions, AI factions and the alien faction included, carry a `Transactions` ledger whose
   entries run from the campaign's first day to the save date (1606 to 2209 entries per faction, 37 to

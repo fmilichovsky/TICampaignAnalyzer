@@ -174,6 +174,9 @@ _MAJOR: tuple[str, ...] = (
     "nation.independence",
     "nation.unification",
     "nation.annexation",
+    # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
+    # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major (issue #97).
+    "faction.nation_control_changed",
     # Inferred readings of space evidence: a new foothold, a hab lost to an enemy and a battle won are what a
     # history reports about the ``hab.*`` and log events they cite.
     "faction.first_hab_on_body",

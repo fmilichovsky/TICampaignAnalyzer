@@ -12,12 +12,17 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
 
-from ..analyzers.common import EventBuilder
+from ..analyzers.common import EventBuilder, Lookup, Side
 from ..model.changes import StateChange
-from ..model.entities import EntityRef
+from ..model.entities import EntityId, EntityRef
 from ..model.events import Confidence, Event, EventSource, EventStatus, SourceRole
 from ..model.evidence import SourceLocation
+from ..model.snapshot import EntityState
 from ..model.values import FieldValue, Observed
+
+EXECUTIVE_POSITION = 0
+"""The ``positionInNation`` of a nation's executive seat: every nation with control points has exactly one point
+there, typed ``Executive`` or after its regime (``TheParty``, ``Aristocracy``, ...) (notes, nation control)."""
 
 _LOWER = {Confidence.HIGH: Confidence.MEDIUM, Confidence.MEDIUM: Confidence.LOW, Confidence.LOW: Confidence.LOW}
 
@@ -25,6 +30,25 @@ _LOWER = {Confidence.HIGH: Confidence.MEDIUM, Confidence.MEDIUM: Confidence.LOW,
 def lower(confidence: Confidence) -> Confidence:
     """One confidence level lower; low stays low."""
     return _LOWER[confidence]
+
+
+def control_points(lookup: Lookup, nation: EntityId, side: Side) -> tuple[EntityRef, ...] | None:
+    """The references in ``nation``'s ``controlPoints`` list on one side; ``None`` when the list is not known."""
+    state = lookup.state(nation, side)
+    points = state.get("controlPoints") if state is not None else None
+    if not isinstance(points, tuple):
+        return None
+    return tuple(point for point in points if isinstance(point, EntityRef))
+
+
+def executive_seat(lookup: Lookup, nation: EntityId, side: Side) -> EntityState | None:
+    """The state of ``nation``'s control point at the executive position on one side, if it is found."""
+    for point in control_points(lookup, nation, side) or ():
+        point_state = lookup.state(point.entity_id, side)
+        position = point_state.get("positionInNation") if point_state is not None else None
+        if position == EXECUTIVE_POSITION and not isinstance(position, bool):
+            return point_state
+    return None
 
 
 @dataclass(frozen=True)

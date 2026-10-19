@@ -54,7 +54,7 @@ from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event, EventStatus
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown
-from .common import Support, inferred, lower
+from .common import Support, executive_seat, inferred, lower
 
 TERRITORY_GAINED = "nation.territory_gained"
 TERRITORY_LOST = "nation.territory_lost"
@@ -80,8 +80,6 @@ AMICABLE_RELEASE = "DemReason_AmicableRelease"
 NATION_RELEASED_REASON = "NationReleased"
 """The tracker reason suffix (``CohesionReason_``, ``UnrestReason_NationReleased``) observed on the parent in both
 independences of the older sample: the game's attribution of the change to releasing a nation."""
-EXECUTIVE_POINT = "Executive"
-"""The ``controlPointType`` of a nation's executive control point."""
 ANNEXATION_FIELDS = ("isBeingAnnexed", "annexingArmy")
 """Region fields that track an annexation in progress; left in the diff by every analyzer."""
 WAR_PREFIX = "war."
@@ -172,18 +170,13 @@ class Context:
         return None
 
     def executive_faction(self, nation: EntityId) -> Observed:
-        """The faction controlling ``nation``'s executive control point in the earlier snapshot (``null`` when none
-        does); ``Unknown`` when the nation or the point is not found."""
-        state = self.lookup.state(nation, Side.BEFORE)
-        points = state.get("controlPoints") if state is not None else None
-        for point in points if isinstance(points, tuple) else ():
-            if not isinstance(point, EntityRef):
-                continue
-            point_state = self.lookup.state(point.entity_id, Side.BEFORE)
-            if point_state is not None and point_state.get("controlPointType") == EXECUTIVE_POINT:
-                faction = point_state.get("faction")
-                return self.lookup.resolve(faction) or faction
-        return Unknown()
+        """The faction controlling ``nation``'s executive seat (the control point at position 0) in the earlier
+        snapshot (``null`` when none does); ``Unknown`` when the nation or the point is not found."""
+        seat = executive_seat(self.lookup, nation, Side.BEFORE)
+        if seat is None:
+            return Unknown()
+        faction = seat.get("faction")
+        return self.lookup.resolve(faction) or faction
 
     def war_support(self, gainer: EntityId, loser: EntityId) -> Support:
         """War events of the interval about a war with the two nations on opposite sides, and their ``wars`` entries."""
