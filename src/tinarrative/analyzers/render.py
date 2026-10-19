@@ -12,6 +12,10 @@ The inferred types of the reconstruction stage (``nation.independence``, ``natio
 ``faction.first_hab_on_body``, ``hab.destroyed``, ``faction.battle_outcome``) do name their reading: it is the
 claim the inferred event makes, and a renderer marks such events as inferred. The control line says only that
 control changed; the recorded cause stays an attribute. No objective type's line names one.
+
+The narrative types of ``narrative.geopolitics`` name their development the same way, from their roles and
+attributes: the reading is the claim, the renderer prints its status (a heuristic join is always ``inferred``), and
+the line still names no cause, motive or public framing. ``nation.expansion`` echoes its literal ``mode``.
 """
 
 from __future__ import annotations
@@ -20,7 +24,7 @@ from collections.abc import Callable
 
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
-from ..model.events import Event
+from ..model.events import Event, Role
 from ..model.values import FrozenMap, Observed, Unknown
 from .campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 
@@ -251,7 +255,10 @@ def _refs(event: Event, name: str) -> str:
 
 
 def _regions(event: Event) -> str:
-    count = event.attribute("region_count")
+    return _region_count(event.attribute("region_count"))
+
+
+def _region_count(count: Observed) -> str:
     return f"{render_value(count)} region{'' if count == 1 else 's'}"
 
 
@@ -468,6 +475,68 @@ def _notification_changed(event: Event) -> str:
     )
 
 
+def _role(event: Event, role: Role) -> str:
+    refs = [ref.label() for found, ref in event.roles if found is role]
+    return ", ".join(refs) if refs else "null"
+
+
+def _takeover(event: Event) -> str:
+    text = f"{_role(event, Role.ACTOR)} took control of {_role(event, Role.TARGET)}"
+    if any(role is Role.LOSER for role, _ in event.roles):
+        text += f" from {_role(event, Role.LOSER)}"
+    if event.attribute("consolidated") is True:
+        text += " and holds every control point"
+    return text
+
+
+def _war_arc(event: Event) -> str:
+    text = f"{_attr(event, 'war')} between {_role(event, Role.ACTOR)} and {_role(event, Role.TARGET)}"
+    regions = event.attribute("regions_transferred")
+    if isinstance(regions, tuple) and regions:
+        text += f"; {_region_count(len(regions))} changed hands between the sides"
+    return text
+
+
+def _federation_lifecycle(event: Event) -> str:
+    changes = event.attribute("member_changes")
+    count = len(changes) if isinstance(changes, tuple) else 0
+    return (
+        f"{_role(event, Role.ACTOR)} members {_attr(event, 'members_initial')} -> {_attr(event, 'members_final')} "
+        f"({count} member change{'' if count == 1 else 's'})"
+    )
+
+
+def _expansion(event: Event) -> str:
+    regions = _regions(event)
+    text = f"{_role(event, Role.ACTOR)} expanded over {_role(event, Role.TARGET)}: {regions}"
+    mode = event.attribute("mode")
+    return f"{text} ({mode})" if isinstance(mode, str) else text
+
+
+def _cession(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} ceded {_regions(event)} to {_role(event, Role.BENEFICIARY)}"
+
+
+def _release(event: Event) -> str:
+    if any(role is Role.ACTOR for role, _ in event.roles):
+        return f"{_role(event, Role.ACTOR)} released {_role(event, Role.BENEFICIARY)}"
+    return f"{_role(event, Role.BENEFICIARY)} was released by one of {_refs(event, 'parents')}"
+
+
+def _breakaway(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} broke away from {_role(event, Role.TARGET)}"
+
+
+def _claims_declared(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} claimed regions of {_role(event, Role.TARGET)}"
+
+
+def _transformation(event: Event) -> str:
+    statistics = event.attribute("statistics")
+    names = ", ".join(str(name) for name in statistics) if isinstance(statistics, tuple) else "statistics"
+    return f"{_role(event, Role.ACTOR)}: {names} shifted together"
+
+
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "control_point.controller_changed": _controller_changed,
     "control_point.nation_changed": _plain("nation"),
@@ -594,4 +663,13 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "faction.first_hab_on_body": _first_hab_on_body,
     "hab.destroyed": _hab_destroyed,
     "faction.battle_outcome": _battle_outcome,
+    "faction.takeover": _takeover,
+    "war.arc": _war_arc,
+    "federation.lifecycle": _federation_lifecycle,
+    "nation.expansion": _expansion,
+    "nation.cession": _cession,
+    "nation.release": _release,
+    "nation.breakaway": _breakaway,
+    "nation.claims_declared": _claims_declared,
+    "nation.transformation": _transformation,
 }

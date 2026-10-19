@@ -16,7 +16,15 @@ import pytest
 from tests.fixtures import FIXTURES_ROOT
 from tests.sequence.campaign_variants import write_campaign, write_variant
 from tinarrative import cli
-from tinarrative.cli import EXIT_INPUT_ERROR, EXIT_SUCCESS, EXIT_UNSUPPORTED_INPUT, EXIT_USAGE_ERROR, main
+from tinarrative.cli import (
+    EXIT_CONFIG_ERROR,
+    EXIT_INPUT_ERROR,
+    EXIT_SUCCESS,
+    EXIT_UNSUPPORTED_INPUT,
+    EXIT_USAGE_ERROR,
+    main,
+)
+from tinarrative.config import CONFIG_ENV_VAR, DEFAULT_SETTINGS
 from tinarrative.picker import PROMPT
 
 FIXTURE_SET = "terra_invicta_json_v1"
@@ -24,7 +32,12 @@ FIXTURE_DIR = FIXTURES_ROOT / "io" / FIXTURE_SET
 EXPECTED_DIR = FIXTURES_ROOT / "sequence" / FIXTURE_SET
 SHUFFLED = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
 """The three-save politics sequence, out of order on purpose."""
-MARKDOWN_GOLDENS = [("md", []), ("inferred.md", ["--inferred"]), ("changes.md", ["--changes"])]
+MARKDOWN_GOLDENS = [
+    ("md", []),
+    ("inferred.md", ["--inferred"]),
+    ("changes.md", ["--changes"]),
+    ("narrative.md", ["--narrative"]),
+]
 
 
 @pytest.mark.fixture
@@ -53,17 +66,54 @@ def test_every_golden_report_has_a_test() -> None:
 
 
 @pytest.mark.fixture
-def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals() -> None:
+    inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
+    narrative = (EXPECTED_DIR / "politics_sequence.expected.narrative.md").read_text(encoding="utf-8")
+
+    head, _, tail = inferred.partition("\n## Intervals\n")
+    assert narrative.startswith(head + "\n## Narrative\n")
+    assert narrative.endswith("\n## Intervals\n" + tail)
+
+
+@pytest.mark.fixture
+def test_non_default_settings_are_named_in_the_narrative_section(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
-    inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
+    golden = (EXPECTED_DIR / "politics_sequence.expected.narrative.md").read_text(encoding="utf-8")
+    config = tmp_path / "settings.toml"
+    config.write_text("[narrative.geopolitics]\ntop_gdp_nations = 1\nledger_window_days = 0\n", encoding="utf-8")
 
-    assert main(["events", "--narrative", *SHUFFLED]) == EXIT_SUCCESS
+    assert main(["events", "--narrative", "--config", str(config), *SHUFFLED]) == EXIT_SUCCESS
 
-    assert capsys.readouterr().out == inferred.replace(
-        "\n## Intervals\n", "\n## Narrative\n\nNo narrative events were built.\n\n## Intervals\n", 1
+    line = (
+        "Built with non-default settings: `narrative.geopolitics.ledger_window_days = 0`, "
+        "`narrative.geopolitics.top_gdp_nations = 1`.\n\n"
     )
+    assert capsys.readouterr().out == golden.replace("## Narrative\n\n", f"## Narrative\n\n{line}", 1)
+
+
+@pytest.mark.fixture
+def test_the_config_flag_wins_over_the_environment_and_a_bad_file_exits_with_the_config_code(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    good = tmp_path / "good.toml"
+    good.write_text("[narrative.geopolitics]\ntop_gdp_nations = 3\n", encoding="utf-8")
+    bad = tmp_path / "bad.toml"
+    bad.write_text("[narrative.geopolitics]\ntop_gdp_nation = 3\n", encoding="utf-8")
+
+    monkeypatch.setenv(CONFIG_ENV_VAR, str(bad))
+    assert main(["events", "--format", "json", "--narrative", "--config", str(good), *SHUFFLED]) == EXIT_SUCCESS
+    assert json.loads(capsys.readouterr().out)["settings"]["narrative"]["geopolitics"]["top_gdp_nations"] == 3
+
+    assert main(["events", *SHUFFLED]) == EXIT_CONFIG_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "unknown setting 'narrative.geopolitics.top_gdp_nation'" in captured.err
+
+    assert main(["events", "--config", str(tmp_path / "missing.toml"), *SHUFFLED]) == EXIT_CONFIG_ERROR
+    assert "cannot read settings" in capsys.readouterr().err
 
 
 @pytest.mark.fixture
@@ -77,8 +127,13 @@ def test_json_report_lists_narrative_events_only_when_asked(
     assert main(["events", "--format", "json", "--narrative", *SHUFFLED]) == EXIT_SUCCESS
     narrative = json.loads(capsys.readouterr().out)
 
-    assert plain["narrative"] is None
-    assert narrative["narrative"] == []
+    assert plain["narrative"] is None and plain["settings"] is None
+    assert [event["event_type"] for event in narrative["narrative"]] == [
+        "faction.takeover",
+        "nation.claims_declared",
+        "nation.cession",
+    ]
+    assert narrative["settings"] == DEFAULT_SETTINGS.to_dict()
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
 
 

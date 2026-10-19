@@ -413,6 +413,62 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   held 480 names on one faction and is left in the diff; `technologies` held 148 states, all
   finished, and no `technology.completed` event occurred in the four older intervals, so late in a
   campaign the project list, not the technology list, is where completions appear.
+- **Narrative rules (geopolitics)** (observed 2026-10-19, the eight private saves of both campaigns
+  (Resist: 92, 21, 92 and 228 day intervals; Appease: 7 and 20 day intervals), counts only, read from
+  `events --inferred`; evidence for the geopolitical narrative rules and the defaults of
+  `config.GeopoliticsSettings`).
+  - *Takeovers.* Executive or sole `faction.nation_control_changed` with a faction as the new
+    holder: 8 nation-and-faction pairs in Resist and 32 in Appease. In 5 and 9 of those pairs the
+    executive and sole changes fell in the same interval. In 1 and 4 pairs they fell in
+    consecutive intervals, so consolidation is seen across intervals. The Resist case straddled
+    the 228-day interval. A window that measures the gap between interval dates would split it, so
+    windows measure from the earliest date an event can have had (its record date, else its
+    `not_before`). 2 of the Resist pairs had `Independence` as the executive cause, on the two newly
+    independent nations. They are left to the release rule, which leaves 6 takeovers in Resist and
+    32 in Appease. By `GDP` in the report after the anchor's interval, none of the
+    38 takeovers was on a nation ranked in the top 10 and 2 (both Appease) were on one ranked 11 to 20, so the default
+    threshold of 10 promotes none of the takeovers in these samples. `nation.unrest_attempts_changed` occurred 3 times in Resist and 0
+    times in Appease. `Coup` / `Purge` / `Crackdown` charges dated inside an interval numbered
+    1 to 23 per interval. Several factions usually carry the same label, so the single-candidate
+    bound attaches a charge rarely: 2 Appease takeovers carry one.
+  - *Wars.* Resist: one war was present in every save without any event of its own, so no arc is
+    reported for it. One war was record-dated by `startDate`, appeared, and disappeared 257 days
+    later; one annexation of the sample fell between its belligerents, on opposite sides in the
+    report. Appease: one war was present throughout, and only its `dateOfLastFighting` moved
+    (2 events). That is a `major` arc, like the war's presence. `nuclearStrikes` stayed at 0.
+  - *Federations.* Resist: one federation with 5 member changes (4 added, 1 removed) and no
+    appearance, rename or disappearance. Appease: two federations, with no events.
+  - *Gains.* Resist: 7 `nation.territory_gained`, 4 without a reading. Every one of those 4 is a
+    gained/lost pair with no war between the two, and every one carries `*Reason_Annexation`
+    tracker causes. A transfer without a war or an annexation flag can therefore still be
+    annexation-like in the game's bookkeeping, which is why a cession stays at medium confidence
+    at most. Two of the 4 pairs had the same gainer in consecutive intervals. They are an expansion
+    made of cessions, so the expansion rule nests cessions instead of citing their territory
+    aggregates. No other gainer had two gains. A territory aggregate accompanies every
+    annexation, unification and independence of its gainer, so a gain is counted once per reading.
+    Appease had no territory change.
+  - *Independence.* Resist: 2, both `released`. The new nation's control event fell in the same
+    interval both times, and neither nation appeared (*hypothesis:* it existed before without regions).
+  - *Claims.* `nation.claims_changed` occurred 0 times and `nation.hostile_claims_changed` 4 times,
+    so `nation.claims_declared` is covered by synthetic tests only.
+  - *Transformations.* In Resist, 4 nation-intervals had 2 or more distinct statistics among
+    democracy, GDP, inequality, cohesion and unrest. Three of those 4 belong to a nation with a
+    release, cession or takeover in the same interval, which already carries the shifts. The
+    rules built 2 standalone transformations, one of them spanning two intervals. Appease had no
+    shifts of these statistics.
+
+  Implemented as the rules of `narrative/geopolitics.py`. Under the defaults the rules build:
+
+  | Rule | Resist | Appease |
+  | --- | --- | --- |
+  | `faction.takeover` | 6 | 32 |
+  | `war.arc` | 1 | 1 |
+  | `federation.lifecycle` | 1 | 0 |
+  | `nation.expansion` | 1 (of 2 cessions) | 0 |
+  | `nation.cession` | 4 | 0 |
+  | `nation.release` | 2 | 0 |
+  | `nation.claims_declared` | 0 | 0 |
+  | `nation.transformation` | 2 | 0 |
 
 ## Structures looked at and set aside
 

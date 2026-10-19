@@ -18,7 +18,7 @@ from tinarrative.model.events import (
     Significance,
 )
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.values import Observed, Unknown
+from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder
 from tinarrative.narrative.chronology import qualified_id
 from tinarrative.narrative.situation import (
@@ -30,6 +30,9 @@ from tinarrative.narrative.situation import (
     WarSituation,
     WorldSituation,
 )
+
+UNKNOWN = Unknown()
+"""A shared unknown value for argument defaults (``Unknown`` is frozen, so one instance serves every caller)."""
 
 
 def ref(domain: EntityDomain, key: str, name: str | None = None) -> EntityRef:
@@ -74,6 +77,7 @@ def atomic(
     significance: Significance = Significance.MINOR,
     entities: Sequence[EntityRef] = (),
     sources: Sequence[EventSource] = (),
+    attributes: Sequence[tuple[str, Observed]] = (),
 ) -> Event:
     """An event of the interval ``key``, already qualified as ``run_sequence`` yields it; dated by ``key`` unless a
     ``date`` is given."""
@@ -87,6 +91,7 @@ def atomic(
         not_before=not_before,
         sources=tuple(sources),
         entities=tuple(entities),
+        attributes=tuple(attributes),
         significance=significance,
     )
 
@@ -94,26 +99,77 @@ def atomic(
 def situation(
     date: Observed,
     *,
-    nations: Sequence[EntityRef] = (),
-    federations: Sequence[EntityRef] = (),
-    wars: Sequence[EntityRef] = (),
+    nations: Sequence[EntityRef | NationSituation] = (),
+    federations: Sequence[EntityRef | FederationSituation] = (),
+    wars: Sequence[EntityRef | WarSituation] = (),
     factions: Sequence[EntityRef] = (),
+    nuclear_strikes: Observed = UNKNOWN,
 ) -> SituationReport:
-    """A report listing the given entities and nothing else; every other value is unknown or empty."""
+    """A report listing the given entities and nothing else; every other value is unknown or empty. A bare reference
+    stands for a row with unknown values; ``nation_row``, ``federation_row`` and ``war_row`` build fuller ones."""
     return SituationReport(
         date=date,
         player_faction_name=Unknown(),
-        nations=tuple(
-            NationSituation(item, Unknown(), Unknown(), Unknown(), Unknown(), None, (), Unknown(), Unknown(), ())
-            for item in nations
+        nations=tuple(item if isinstance(item, NationSituation) else nation_row(item) for item in nations),
+        federations=tuple(
+            item if isinstance(item, FederationSituation) else FederationSituation(item, Unknown(), Unknown())
+            for item in federations
         ),
-        federations=tuple(FederationSituation(item, Unknown(), Unknown()) for item in federations),
-        wars=tuple(
-            WarSituation(item, Unknown(), Unknown(), Unknown(), Unknown(), Unknown(), Unknown()) for item in wars
-        ),
+        wars=tuple(item if isinstance(item, WarSituation) else war_row(item) for item in wars),
         factions=tuple(FactionSituation(item, None, 0, (), 0, 0, Unknown()) for item in factions),
         unattributed=Unattributed(0, 0, 0),
-        world=WorldSituation(len(nations), Unknown(), Unknown(), Unknown(), Unknown(), (), ()),
+        world=WorldSituation(
+            len(nations), Unknown(), Unknown(), Unknown(), Unknown(), (("nuclearStrikes", nuclear_strikes),), ()
+        ),
+    )
+
+
+def nation_row(
+    item: EntityRef,
+    *,
+    gdp: Observed = UNKNOWN,
+    executive: Observed = UNKNOWN,
+    shares: Sequence[tuple[EntityRef, int]] | None = None,
+    control_points: Observed = UNKNOWN,
+    federation: Observed = None,
+    allies: Sequence[EntityRef] = (),
+) -> NationSituation:
+    """A nation row; ``shares`` are points held per faction."""
+    return NationSituation(
+        nation=item,
+        executive=executive,  # type: ignore[arg-type]
+        control_points=control_points,  # type: ignore[arg-type]
+        shares=Unknown()
+        if shares is None
+        else FrozenMap(tuple((str(holder.entity_id), count) for holder, count in shares)),
+        unresolved_points=0,
+        federation=federation,
+        allies=tuple(allies),
+        wars=(),
+        regions=Unknown(),
+        population=Unknown(),
+        statistics=(("GDP", gdp),),
+    )
+
+
+def federation_row(item: EntityRef, members: Sequence[EntityRef]) -> FederationSituation:
+    return FederationSituation(item, Unknown(), tuple(members))
+
+
+def war_row(
+    item: EntityRef,
+    attackers: Sequence[EntityRef] = (),
+    defenders: Sequence[EntityRef] = (),
+    start_date: Observed = UNKNOWN,
+) -> WarSituation:
+    return WarSituation(
+        item,
+        attackers[0] if attackers else Unknown(),
+        defenders[0] if defenders else Unknown(),
+        tuple(attackers),
+        tuple(defenders),
+        start_date,
+        Unknown(),
     )
 
 

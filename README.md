@@ -29,7 +29,9 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   (files, or directories read one level deep) by campaign, order one campaign's saves
   by game time and report the analyzer results (and, with
   `--inferred`, the inferred events; with `--changes`, the literal state changes)
-  of every pair of consecutive saves. This is the only command that analyzes.
+  of every pair of consecutive saves; with `--narrative`, the developments that span
+  intervals (takeovers, wars, federations, expansions, ...), tuned by an optional
+  [settings file](docs/configuration.md). This is the only command that analyzes.
 - `tinarrative save COMMAND`: per-save evidence and debugging commands.
   - [`tinarrative save inspect <save>`](docs/commands/inspect.md): report one save's
     raw serialized structure without interpreting it.
@@ -88,3 +90,4 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
   (`tinarrative campaigns`, `events --campaign`).
 - `sequence`: order and merge the saves of one campaign and run the per-pair
   pipeline over every consecutive interval (`tinarrative events`).
+- `config`: runtime settings for the narrative rules (`--config`, `TINARRATIVE_CONFIG`).

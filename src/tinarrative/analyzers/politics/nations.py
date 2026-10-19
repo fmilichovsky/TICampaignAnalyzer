@@ -168,7 +168,8 @@ def relation_events(field_name: str, lookup: Lookup, ledger: MembershipLedger, b
 
 
 def _claims(event_type: str, change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
-    """The regions a nation's claim list gained and lost, each cited; the regions' nations are context."""
+    """The regions a nation's claim list gained and lost, each cited; the regions' nations are context, and
+    ``added_owners`` names the nations holding the added regions (later snapshot first)."""
     if change.entity_id is None:
         return []
     nation_id = change.entity_id
@@ -190,13 +191,23 @@ def _claims(event_type: str, change: StateChange, lookup: Lookup, build: EventBu
     removed = tuple(value for value in change.detail.removed if isinstance(value, EntityRef))
     regions = [lookup.resolve(value) for value in (*added, *removed)]
     owners = [lookup.context_ref(region.entity_id, "nation") for region in regions if region is not None]
+    owned = {
+        owner.entity_id: owner
+        for owner in (lookup.context_ref(region.entity_id, "nation") for region in added)
+        if owner is not None
+    }
+    added_owners = tuple(owned[key] for key in sorted(owned, key=lambda entity_id: entity_id.sort_key))
     return [
         build.event(
             event_type,
             id_parts=(nation_id,),
             sources=[primary(change, value) for value in (*added, *removed)],
             entities=(lookup.ref(nation_id), *regions, *owners),
-            attributes=(("added", added), ("removed", removed)),
+            attributes=(
+                ("added", added),
+                ("removed", removed),
+                ("added_owners", added_owners),
+            ),
         )
     ]
 

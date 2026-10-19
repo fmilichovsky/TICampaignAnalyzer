@@ -36,7 +36,7 @@ from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
 from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
-from .narrative.chronology import TIE_SEPARATOR, chronological, qualify
+from .narrative.chronology import TIE_SEPARATOR, chronological, interval_keys, qualify
 from .parsing.continuity import CampaignProfile, campaign_profile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize, save_timestamp
@@ -202,10 +202,7 @@ def plan_sequence(saves: Iterable[SaveRef], skipped: Iterable[SkippedSave] = ())
     """Merge byte-identical saves (see ``merge_identical``) and key each distinct save by its game time."""
     surveyed = list(saves)
     distinct = merge_identical(surveyed)
-    keys: list[str] = []
-    for position, save in enumerate(distinct):
-        tied = sum(1 for earlier in distinct[:position] if earlier.timestamp == save.timestamp)
-        keys.append(save.date if tied == 0 else f"{save.date}{TIE_SEPARATOR}{tied + 1}")
+    keys = interval_keys([save.date for save in distinct])
     plan = SequencePlan(tuple(distinct), tuple(keys), len(surveyed), tuple(skipped))
     logger.info(
         "sequence planned %s",

@@ -65,6 +65,7 @@ def render_sequence(
     campaign: CampaignGroup | None = None,
     left_out: int = 0,
     narrative: Sequence[Event] | None = None,
+    changed_settings: Mapping[str, object] | None = None,
 ) -> str:
     """Render the saves of a sequence in chronological order and the analyzer results of each interval.
 
@@ -73,7 +74,8 @@ def render_sequence(
     they were reconstructed), its objective analyzer results of at least ``min_significance`` grouped by category and,
     when they were kept, its literal state changes grouped by category. State changes are never filtered. Event IDs
     are the sequence-qualified ones. With ``narrative``, a section above the intervals lists the narrative events of
-    at least ``min_significance`` by the year they start in.
+    at least ``min_significance`` by the year they start in, and names the ``changed_settings`` (dotted key to value)
+    it was built with when they differ from the defaults.
     """
     lines = ["# Save sequence", ""]
     if campaign is not None:
@@ -100,6 +102,9 @@ def render_sequence(
 
     if narrative is not None:
         lines.extend(["", "## Narrative", ""])
+        if changed_settings:
+            listed = ", ".join(f"`{key} = {value}`" for key, value in sorted(changed_settings.items()))
+            lines.extend([f"Built with non-default settings: {listed}.", ""])
         lines.extend(_narrative_lines(narrative, verbose=verbose, min_significance=min_significance))
 
     lines.extend(["", "## Intervals"])
