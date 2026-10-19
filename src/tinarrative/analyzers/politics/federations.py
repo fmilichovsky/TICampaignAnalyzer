@@ -1,8 +1,8 @@
 """Federations as the save shows them: presence, the ``members`` list and the literal names.
 
-A nation's ``federation`` reference mirrors the ``members`` list of that federation (observed in every inspected
-save), so a member change cites the matching ``nation.federation`` change as corroboration. A ``nation.federation``
-change no member change or presence explains is reported on its own as ``nation.federation_changed``.
+A nation's ``federation`` reference mirrors the ``members`` list of that federation, so a member change cites the
+matching ``nation.federation`` change as corroboration. A ``nation.federation`` change no member change or presence
+explains is reported on its own as ``nation.federation_changed``.
 
 A change of ``displayName`` or ``federationName`` is one ``federation.renamed`` per federation citing each changed
 field; ``before``/``after`` are the display names when those changed, else the federation names, and federation

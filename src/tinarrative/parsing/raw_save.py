@@ -11,7 +11,7 @@ from .errors import MalformedSaveError, UnsupportedSaveShapeError
 from .game_version import DEFAULT_FORMAT, detect_game_version, require_supported_format
 
 ENVELOPE_KEYS = ("currentID", "gamestates")
-"""Top-level members observed in every sample of ``terra_invicta_json_v1``."""
+"""Top-level members of ``terra_invicta_json_v1``."""
 
 _UTF8_BOM = b"\xef\xbb\xbf"
 _UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")

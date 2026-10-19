@@ -221,7 +221,7 @@ def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
 
 
 def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
-    assert "faction.transaction_recorded" in BASE  # corroboration only (architecture 11.3, issue #98)
+    assert "faction.transaction_recorded" in BASE  # corroboration only (architecture 11.3)
     assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
 
 

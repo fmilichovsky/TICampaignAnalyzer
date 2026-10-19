@@ -9,15 +9,13 @@ post-pass that copies every event with its level set. The level comes from, in o
 3. ``DEFAULT`` (minor) for every other type, including every ``notification.<template>`` entry (the game's
    own log is player-centric and open-ended, so no template is ranked).
 
-Every non-default entry states its evidence or rationale beside it. The evidence is the investigation of
-2026-10-14 recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (eight private saves of two
-campaigns, structure and counts only). No threshold below is tuned to a single campaign. Thresholds that decide
-whether an event exists at all live with the analyzer that emits it (the nation statistic shift thresholds are in
-``analyzers.politics.nation_metrics``); the ``Thresholds`` block here holds only what ranks emitted events.
+Every non-default entry states its rationale beside it; the evidence is recorded in
+``docs/game-data-notes/higher-level-event-sources.md``. No threshold below is tuned to a single campaign. Thresholds
+that decide whether an event exists at all live with the analyzer that emits it (the nation statistic shift thresholds
+are in ``analyzers.politics.nation_metrics``); the ``Thresholds`` block here holds only what ranks emitted events.
 
-Known simplification: the issue text makes ``army.region_changed`` minor "without an accompanying strength
-change". Both cases are minor here, because ``army.strength_changed`` is its own minor event and a combined
-reading of the two is reconstruction work.
+Known simplification: ``army.region_changed`` is minor with or without an accompanying strength change, because
+``army.strength_changed`` is its own minor event and a combined reading of the two is reconstruction work.
 """
 
 from __future__ import annotations
@@ -45,32 +43,29 @@ DEFAULT = Significance.MINOR
 # Constants that rules compare against, with their evidence. Emission thresholds live with their analyzer.
 
 TOP_ORGANIZATION_TIER = 3
-"""``TIOrgState.tier`` is 1-3 in every observed save; tier 3 is the top tier (notes, ``TIOrgState``)."""
+"""``TIOrgState.tier`` runs 1-3; tier 3 is the top tier (notes, ``TIOrgState``)."""
 
 UPHEAVAL_CAUSES = frozenset({"Coup", "RegimeChange", "Independence", "Enthrall"})
-"""``lastExecutiveChange.cause`` values that replace a government outside normal politics. Observed values are
-``None``, ``Politics``, ``Independence``, ``Coup``, ``RegimeChange`` and ``Enthrall`` (field map, nations)."""
+"""``lastExecutiveChange.cause`` values that replace a government outside normal politics (field map, nations)."""
 
 WAR_RELATION = "wars"
 """The ``nation.relation_changed`` relation that names a war; ``allies`` and ``rivals`` are routine diplomacy."""
 
 DISCRETE_STATISTICS = frozenset({"numNuclearWeapons", "numControlPoints"})
-"""``nation.statistic_shifted`` statistics whose every change is a development: a nuclear arsenal (0 -> 1 on two
-nations in one older interval) and the number of control points, which changed alongside the region transfers
-of the sample. Continuous statistics shift past their threshold for routine reasons too (event effects,
-priorities), so they stay minor until reconstruction explains them (issue #72)."""
+"""``nation.statistic_shifted`` statistics whose every change is a development: a nuclear arsenal and the number of
+control points, which changes alongside region transfers. Continuous statistics shift past their threshold for
+routine reasons too (event effects, priorities), so they stay minor until reconstruction explains them."""
 
 # --- Per-type table ---------------------------------------------------------------------------------------
 
 _TRIVIAL: tuple[str, ...] = (
-    # Councilor movement and ship reassignment happen constantly between saves and say nothing on their own
-    # (user review of the real sample, 2026-10-16; the issue listed both as minor).
+    # Councilor movement and ship reassignment happen constantly between saves and say nothing on their own.
     "councilor.location_changed",
     "ship.fleet_changed",
-    # Organizations are created and removed in bulk: 12-58 added and 0-57 removed per older interval.
+    # Organizations are created and removed in bulk.
     "organization.appeared",
     "organization.disappeared",
-    # Log housekeeping: the game prunes and rewrites kept entries (79-126 notification entries per interval).
+    # Log housekeeping: the game prunes and rewrites kept entries.
     "notification.entry_removed",
     "notification.entry_changed",
     "faction.combat_entry_removed",
@@ -94,7 +89,7 @@ _TRIVIAL: tuple[str, ...] = (
 )
 
 _MINOR: tuple[str, ...] = (
-    # Routine movement named minor by the issue: fleets change orbit and dock constantly, armies redeploy.
+    # Routine movement: fleets change orbit and dock constantly, armies redeploy.
     "fleet.orbit_changed",
     "fleet.barycenter_changed",
     "fleet.docked_location_changed",
@@ -121,24 +116,24 @@ _MINOR: tuple[str, ...] = (
     # them major too would count one transfer twice.
     "nation.territory_gained",
     "nation.territory_lost",
-    # Hostile claims mark regions a nation may take by force: frequent (11-12 nations per save) and only a
-    # precursor; the war or annexation that follows is the major event (issue #96).
+    # Hostile claims mark regions a nation may take by force: frequent and only a
+    # precursor; the war or annexation that follows is the major event.
     "nation.hostile_claims_changed",
-    # A finished project is minor until a curated, documented milestone list promotes some (issue #102); many
-    # projects are routine unlocks.
+    # A finished project is minor until a curated, documented milestone list promotes some; many projects are routine
+    # unlocks.
     "faction.project_completed",
     "faction.finished_project_names_changed",
     # Precursors of a takeover, named by the reconstruction it feeds: unrest attempts per faction and the
-    # new-government date, which corroborates the executive record and control-point events (issue #96).
+    # new-government date, which corroborates the executive record and control-point events.
     "nation.unrest_attempts_changed",
     "nation.new_government_recorded",
     # A dated mission or operation charge from the resource ledger: corroboration and dating for an effect that
-    # is evidenced elsewhere, never a development on its own (architecture 11.3, issue #98).
+    # is evidenced elsewhere, never a development on its own (architecture 11.3).
     "faction.transaction_recorded",
 )
 
 _MAJOR: tuple[str, ...] = (
-    # Named major by the issue.
+    # Core political and asset-ownership changes.
     "control_point.controller_changed",
     "region.nation_changed",
     "nation.federation_changed",
@@ -155,7 +150,7 @@ _MAJOR: tuple[str, ...] = (
     "federation.disappeared",
     "federation.members_changed",
     # A declared claim redraws a nation's intent, and a rename marks a unification or a federation's growth;
-    # both appear verbatim in the target history (issue #96).
+    # both are what a history reports.
     "nation.claims_changed",
     "nation.renamed",
     "federation.renamed",
@@ -178,7 +173,7 @@ _MAJOR: tuple[str, ...] = (
     "nation.unification",
     "nation.annexation",
     # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
-    # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major (issue #97).
+    # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major.
     "faction.nation_control_changed",
     # Inferred readings of space evidence: a new foothold, a hab lost to an enemy and a battle won are what a
     # history reports about the ``hab.*`` and log events they cite.
@@ -222,10 +217,9 @@ def _side(event: Event) -> Side | None:
 def _councilor_presence(event: Event, lookup: Lookup) -> Significance | None:
     """Recruit-pool churn is trivial; a councilor with a faction that is gone is a development.
 
-    Evidence (notes, "Recruit pool"): all 52 councilors absent from the later save and all 60 present only
-    there had ``faction = null`` on their existing side, in every older interval checked, and null-faction
-    councilors were exactly those with no orgs and no prior mission. A councilor whose faction is unknown on
-    its existing side defers to the default.
+    Evidence (notes, "Recruit pool"): councilors that appear or vanish are the ones with ``faction = null`` on
+    their existing side, and null-faction councilors are those with no orgs and no prior mission. A councilor whose
+    faction is unknown on its existing side defers to the default.
     """
     subject, side = _subject(event), _side(event)
     if subject is None or side is None:

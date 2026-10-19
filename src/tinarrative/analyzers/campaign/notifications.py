@@ -6,8 +6,8 @@ development inside a long interval. The log is player-centric and pruned (``doma
 supplement, not a complete history, and an absent entry says nothing about what did not happen.
 
 An entry present only in the earlier save is reported literally as ``notification.entry_removed``, never
-assumed pruned; an entry with the same template, date and summary whose other members differ (the game was
-observed to rewrite the subject of kept entries) is ``notification.entry_changed``. The summary text is
+assumed pruned; an entry with the same template, date and summary whose other members differ (the game
+rewrites the subject of kept entries) is ``notification.entry_changed``. The summary text is
 campaign content: it is carried as an attribute and never rendered or logged.
 """
 

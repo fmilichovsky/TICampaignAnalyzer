@@ -282,17 +282,13 @@ The snippets above are conceptual; the implemented types differ as follows:
 
 Between objective snapshot state and inferred events sits a layer the save
 carries literally: dated logs and cumulative counters that no field of the
-same snapshot can re-derive. Observed examples (2026-10-13, five
-private saves of one campaign, structure only): a faction's resource ledger
+same snapshot can re-derive. Examples: a faction's resource ledger
 since campaign start (`Transactions`), its hab destruction log, the control
 points it lost with the date last lost, the alien sites it knows with the date
 last updated, its kill lists and milestones, cumulative counters such as
 `abductions` and `atrocities`, and a nation's last executive change with its
-cause. Across the four consecutive intervals of the sample (checked 2026-10-14),
-the destruction logs, milestones and kill lists only grew (the earlier value was
-a strict prefix of the later one), the keyed records never lost a key, and the
-ledger grew by appending for most labels while a minority of labels were
-rewritten wholesale (see the field map). These fill the gaps between sparse
+cause. Most of these only grow, but not all (the observed lifecycle of each is in
+the field map and the higher-level event sources). These fill the gaps between sparse
 saves with exact dates, so they must be kept as evidence in their own right:
 never folded into inferred events and never acknowledged as `derived_history`.
 
@@ -335,7 +331,7 @@ Implemented contract (`model/records.py`, `parsing/records.py`):
     key) stays inside that entry, so the rest of the log remains evidence.
 -   The diff stage treats new entries since the previous save as evidence and
     never re-derives them: a `records` change lists the entries added and, when
-    entries of the earlier save are gone (observed for some ledger labels), the
+    entries of the earlier save are gone (some ledger labels), the
     entries removed, literally; it never assumes a log is append-only. Downstream
     stages may date an objective event by a record entry itself rather than by
     the save interval, but must cite the entry as evidence.
@@ -775,7 +771,7 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     for every `CombatLogs` entry added, citing the entry, naming the owning
     faction, the side factions, the winner and the hab faction, with the sides
     as hull-class counts per faction and the attack count as attributes. `Date`
-    is `null` in every observed entry, so the event is interval-dated (a
+    is `null` in the entries seen so far, so the event is interval-dated (a
     componentized date would date it by the record). `faction.combat_entry_removed`
     is interval-dated and literal. One combat logged by two factions gives two
     events; matching them is reconstruction. An unresolved side, winner or hab
@@ -843,11 +839,11 @@ technology `progress` values (a missing progress entry is `Unknown`, which
 `supportingArmyBuildup`, `alienMissionsDetected` and sub-state presence.
 
 The atomic facts the narrative layer (section 11.3) needed from the diff are now
-emitted by the analyzers above (issue #96): claims and hostile claims, nation and
+emitted by the analyzers above: claims and hostile claims, nation and
 federation renames, finished projects, the hull of a ship, an army's home nation, unrest
 attempts, the new-government record, faction kinds and population. The allow-listed entries of the
 `Transactions` ledger are emitted as `faction.transaction_recorded` by the faction family
-(bounds in 11.3, issue #98); the other labels stay in the diff. The nation-control reading itself (which faction holds
+(bounds in 11.3); the other labels stay in the diff. The nation-control reading itself (which faction holds
 a nation's executive, plurality or every control point) is reconstruction, not analysis: the
 `faction.nation_control_changed` rule of section 10 combines control-point events with
 `positionInNation` and the executive record, and it is the anchor the takeover and breakaway
@@ -938,8 +934,8 @@ or directly when the statistic stayed below its threshold.
     (`*Reason_NationReleased` on a nation it gained from, counted only when
     all of that nation's moved regions went to the gainer: a parent that
     lost regions to several nations does not say which one it released;
-    observed when one parent released one nation and lost a region to
-    another in the same interval). High with two
+    a parent can release one nation and lose a region to another in the
+    same interval). High with two
     signals, medium with one. Either release reason sets `released = True`,
     meaning the parent decided the release, and adds `release_causes`,
     `releasing_nation`, `releasing_basis` and `releasing_executive_faction`.
@@ -1053,8 +1049,8 @@ by role and every piece of evidence beneath it.
 
 The layer is not implemented yet (`narrative/aggregation.py` returns its
 input). This section is the contract it is built against; the roadmap's
-*Narrative layer* section lists the steps. The design was revised on
-2026-10-18 after measuring the atomic stream on real saves: the earlier
+*Narrative layer* section lists the steps. The design was revised
+after measuring the atomic stream on real saves: the earlier
 sketch (clusters by temporal proximity and shared entities, a `float`
 significance, a `title_hint`) is withdrawn in favour of a small set of
 explicit, named rules.
@@ -1070,7 +1066,7 @@ explicit, named rules.
 -   It is the first stage allowed to see more than one interval. Every rule
     declares its window: one interval, a number of consecutive intervals,
     or the whole sequence. Windows are measured in game days, never in
-    saves, because save spacing is arbitrary (7 to 228 days in the sample).
+    saves, because save spacing is arbitrary.
 -   Grouping is conservative: a rule emits only when its *anchor* evidence
     exists (an executive change record, a war present in one save and
     absent in a later one, a federation member change), never from temporal
@@ -1171,12 +1167,11 @@ action to a faction and narrow its date where a visible effect already
 exists. It is not the councilor's current mission field, which cycles
 faster than saves and is never used. Its limits set the bounds: an entry
 names no target; some labels are hashed; each label's list is pruned (never
-rewritten; every pruned entry was dated at or before the earlier save), so
+rewritten), so
 the ledger is not a full history and does not reach further back than the
 notification log for mission labels; an entry is a cost charged when the
-mission is assigned, zero days to about four weeks before it resolves (one
-testable coup in the private sample was charged 9 days before the executive
-record, by the new executive alone; game-data notes, 2026-10-19). So:
+mission is assigned, some days to weeks before it resolves (evidence: the
+`Transactions` section of the higher-level event sources). So:
 (1) only a documented label allow-list, each label checked against a
 visible effect over several intervals; (2) entries are read by date from
 the later snapshot inside the window, never from diff presence; (3) the
@@ -1470,11 +1465,11 @@ markdown`) on each consecutive pair, and keys the interval by its later save.
 
 Consecutive intervals share their boundary snapshot, so the per-interval
 results concatenate without overlap. Every change is reported once, and a
-save-carried log entry once, because logs are diffed as multisets. On five
-consecutive private saves (2026-10-18), no record-dated event fell outside its
-interval. What does not concatenate is identity: an event ID is a type and a
-subject, unique within an interval only. On the same saves, 19 % of IDs recurred
-in another interval, each time for a different real event. `narrative.chronology.qualify`
+save-carried log entry once, because logs are diffed as multisets, and a
+record-dated event never falls outside its interval. What does not concatenate is
+identity: an event ID is a type and a subject, unique within an interval only, so
+an ID can recur in another interval for a different real event
+(see `game-data-notes/chronology-and-deduplication.md`). `narrative.chronology.qualify`
 therefore appends `@<interval key>` to every ID, to every constituent and to
 the ID-valued attributes that `reconstruction.ID_ATTRIBUTES` declares, and
 `chronological` merges the qualified events into one stream and rejects a

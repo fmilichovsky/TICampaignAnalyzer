@@ -12,22 +12,22 @@ long-running campaign (2045-08 to 2046-10, four intervals, an older game build) 
 saves of a campaign begun under a newer build (2026-02 to 2026-03, two intervals). "Older" and "newer"
 below refer to these two samples. Nothing here is a claim about other builds.
 
-The work items derived from this page are issues #64 to #73, listed under the reconstruction item in the
+The work items derived from this page are listed under the reconstruction item in the
 [roadmap](../roadmap.md).
 
 ## Summary
 
 | Source | Normalized today? | Supports | Lifecycle observed |
 | --- | --- | --- | --- |
-| `TIWarState` | Yes (`war` domain, issue #64) | war declared, nation joins, peace | appears with `startDate` in the interval, disappears at peace |
-| `TIFederationState` | Yes (`federation` domain, issue #64) | nation joins or leaves a federation | `members` grew 4 → 5 → 7 across the older sample |
-| `TIGlobalValuesState` | Yes (`global values` domain, issue #67) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
-| Five `TIRegion*State` alien substates | Yes (`region alien state` domain, issue #65) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
+| `TIWarState` | Yes (`war` domain) | war declared, nation joins, peace | appears with `startDate` in the interval, disappears at peace |
+| `TIFederationState` | Yes (`federation` domain) | nation joins or leaves a federation | `members` grew 4 → 5 → 7 across the older sample |
+| `TIGlobalValuesState` | Yes (`global values` domain) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
+| Five `TIRegion*State` alien substates | Yes (`region alien state` domain) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
-| `TIOrgState` | Yes (`organization` domain, issue #66) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
-| `TINotificationQueueState` | Yes (`notification queue` domain, `notificationSummaryQueue` record, issue #68) | the game's own dated event log, player-centric | rolling five-year window with further pruning; subjects of kept entries rewritten |
-| `TIFactionState.CombatLogs` | Yes (`CombatLogs` record, issue #69) | space battles: sides, hull classes, winner | undated; grows mostly by appending |
-| `TIFactionState.Transactions` | Yes (`Transactions` record, `LedgerAnalyzer`, issue #98) | dated mission and operation charges per faction: corroboration and dating only | per-label pruning of entries dated at or before the earlier save; entries never rewritten |
+| `TIOrgState` | Yes (`organization` domain) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
+| `TINotificationQueueState` | Yes (`notification queue` domain, `notificationSummaryQueue` record) | the game's own dated event log, player-centric | rolling five-year window with further pruning; subjects of kept entries rewritten |
+| `TIFactionState.CombatLogs` | Yes (`CombatLogs` record) | space battles: sides, hull classes, winner | undated; grows mostly by appending |
+| `TIFactionState.Transactions` | Yes (`Transactions` record, `LedgerAnalyzer`) | dated mission and operation charges per faction: corroboration and dating only | per-label pruning of entries dated at or before the earlier save; entries never rewritten |
 | Nation `tracker_*ChangeReason_AllTime` | Yes | cause attribution for metric shifts | per-cause deltas between saves |
 | Hab `barycenter` per faction | Yes | first presence on a body | 6 of 6 habs appearing in the last older interval were on a body new to their faction |
 
@@ -212,7 +212,7 @@ event attribute and is never rendered.
 
 ## `TIFactionState.CombatLogs`
 
-Was in `ACKNOWLEDGED_FIELDS` as `runtime_internal` until issue #69. Observed shape: a list of
+Was in `ACKNOWLEDGED_FIELDS` as `runtime_internal` until it became a record. Observed shape: a list of
 `{Date, Ships, HabFaction, Attacks, winner, WasSurprising}` where `Date` was `null` in all 106 entries of
 the largest list, `Ships` is a pair map faction → list of `{Item1, Item2}` (a ship design name and a hull
 class identifier), `HabFaction` a faction reference or `null`, `Attacks` a list of
@@ -233,12 +233,12 @@ Implemented as the `CombatLogs` record (`combat_log`, owned by each faction) and
 because `Date` is null (a componentized date would date it by the record). An entry that disappears becomes
 `faction.combat_entry_removed` and is never called pruned. The sides are kept as hull-class counts per faction;
 ship design names are not decoded. One combat logged by two factions yields two events; matching them is left to
-reconstruction (issue #73).
+reconstruction.
 
 ## `TIFactionState.Transactions`
 
 Observed on 2026-10-19 on the eight private saves of two campaigns (Appease: 7 and 21 day intervals; Resist: 92,
-21, 92 and 228 day intervals), structure, dates and counts only; this is the evidence step of issue #98.
+21, 92 and 228 day intervals), structure, dates and counts only; this is the evidence step for the ledger mission records in the [roadmap](../roadmap.md).
 
 - **Shape.** An object label -> list of `{Resource, Amount, Date}`; every faction carries it, the alien faction
   included (0-6 labels on campaign day 1, 37-88 labels and 460-2200 entries per faction two decades in). A label
@@ -295,7 +295,7 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   All 52 councilors absent from the later save and all 60 present only there had `faction = null` on their
   existing side, in every older interval checked. Councilor presence changes with a null faction are the
   candidate pool, not councilor fates. Implemented as the `trivial` rule for `councilor.appeared` /
-  `councilor.disappeared` in `narrative/significance.py` (issue #70). Checked again on 2026-10-16 on the
+  `councilor.disappeared` in `narrative/significance.py`. Checked again on 2026-10-16 on the
   first newer interval (one week, a month into the campaign): 84 of 116 councilors had a null faction, and
   4 councilors absent from the later save had a faction, an empty `orgs` list, no `priorMissionTemplateName`
   and `status = Active`, so the rule ranks them major; that early in a campaign 31 of 32 faction councilors
@@ -314,7 +314,7 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   `DemReason_NearbyDemocracies`. Two nations changed GDP by more than two orders of magnitude within one
   interval, each with the delta under `GDPReason_TerritoryChange`, matching `region.nation_changed` events
   on their regions and `numControlPoints` changes.
-  The territorial rules in `reconstruction/territorial.py` (issue #72) read these reasons together with the region
+  The territorial rules in `reconstruction/territorial.py` read these reasons together with the region
   events, executive causes, breakaway links and wars.
 - **Releases** (observed 2026-10-18 on the two `nation.independence` intervals of the older sample, structure
   and counts only). In both, the released nation's democracy tracker moved under `DemReason_AmicableRelease`
@@ -337,8 +337,17 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   to shares. Routine change arrives partly in steps: `cohesion` moved 1.1 on all 174 changed nations within
   one week, dominated by `CohesionReason_Effect`, and `unrest` moves in 0.25 steps, mostly
   `UnrestReason_MovementToRestValue` (also seen: `UnrestReason_StabilizeMission`,
-  `UnrestReason_OppressionPriority`). The per-statistic magnitudes are recorded beside the thresholds in
-  `analyzers/politics/nation_metrics.py`; with those thresholds 1-5 nation shift events remain per interval.
+  `UnrestReason_OppressionPriority`). Routine magnitudes per statistic, which the thresholds in
+  `analyzers/politics/nation_metrics.py` sit above: `GDP` stayed within 3.3% per interval up to 28 days and
+  reached 13.9-14.6% over 92-113 days (about 4.6% a month at most), while the territory changes moved it by
+  more than 100x; inequality, education and democracy (0-10 scales) moved at most 0.2 per interval, except
+  one 0.43 in 21 days and one 0.6 in 92 days; `cohesion` moved up to 1.46 per interval apart from the 1.1
+  step above, and 2.47 once in 28 days; `unrest` moved at most 0.5 up to 28 days, p90 0.75-1.0 and at most
+  3.47 over 92-113 days; `sustainability` at most 0.31 in 113 days; `militaryTechLevel` at most 0.2 per
+  interval; `spaceFunding_year` 4-17% per interval on large budgets and 2.6x once on a small one in 21 days;
+  per `publicOpinion` key, the largest change of a nation had p90 0.06-0.10 per interval and reached 0.12 in
+  7 days, 0.19 in 21 days and 0.43 in 113 days. With those thresholds 1-5 nation shift events remain per
+  interval.
 - **First presence on a body.** Of the habs appearing in the four older intervals (6, 1, 3, 6), the ones on
   a body where the owning faction had no hab in the earlier save were 0, 0, 2 and 6. `TIHabSiteState.hab`
   and `pendingHab` changed in step (1–10 sites per interval).
@@ -346,7 +355,7 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   destruction log of the opposing faction gained 9 entries and 10 habs disappeared; `armiesLost` changed
   once (`AlienMegafauna`). Ship `kills` lists changed on 2–19 ships per interval.
 - **Space joins** (observed 2026-10-18, the five older and three newer private saves, structure and counts
-  only; read by the space rules in `reconstruction/space.py`, issue #73). A hab's `barycenter` is the body
+  only; read by the space rules in `reconstruction/space.py`). A hab's `barycenter` is the body
   it is on or orbits: it equalled the hab site's `parentBody` for 196 of 196 site-based habs and the orbit's
   `barycenter` for 73 of 73 orbiting habs (latest older save). Every `HabDestructionLog` entry added in the
   three older intervals that had any (3, 2, 10 entries) matched at least one hab absent from the later save
@@ -377,7 +386,7 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   controller changed on 3, 2, 3 and 4 nations and the sole controller (gaining or losing every
   point included) on 1, 2, 3 and 3, of which sole controller to another sole controller on 1, 2, 0
   and 0; the earlier plurality and sole-to-sole figures are superseded. `events --inferred`
-  (`faction.nation_control_changed`, issue #97) reports exactly these per nation and scope except
+  (`faction.nation_control_changed`) reports exactly these per nation and scope except
   two executive changes, one in each of the last two intervals, on nations that gained or lost a
   control point to another nation in the same interval, which the rule skips as territory: so
   executive 1, 2, 4, 3, plurality 3, 2, 3, 4, sole 1, 2, 3, 3. 23 of the 31 events were high
@@ -398,7 +407,7 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   above); `LedgerAnalyzer` reads the allow-listed labels under the bounds of architecture 11.3.
 - **Names and bodies** (observed 2026-10-18, the latest older save). `displayName` is a string on
   every nation, region, hab, faction and control point, and resolved references carry it as
-  `EntityRef.name`. `TISpaceBodyState` is normalized as the `space body` domain (#95), so a hab's
+  `EntityRef.name`. `TISpaceBodyState` is normalized as the `space body` domain, so a hab's
   or fleet's `barycenter` and a destruction entry's `SpaceBody` resolve to a named body with a parent.
 - **Projects and technologies** (observed 2026-10-18, the latest older save). `finishedProjectNames`
   held 480 names on one faction and is left in the diff; `technologies` held 148 states, all

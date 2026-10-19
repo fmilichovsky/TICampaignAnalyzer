@@ -34,7 +34,7 @@ TECHNOLOGY_ANALYZERS: tuple[Analyzer, ...] = (TechnologyAnalyzer(), ProjectAnaly
 ALIEN_ANALYZERS: tuple[Analyzer, ...] = (RegionAlienAnalyzer(),)
 CAMPAIGN_ANALYZERS: tuple[Analyzer, ...] = (GlobalValuesAnalyzer(), NotificationAnalyzer())
 FACTION_ANALYZERS: tuple[Analyzer, ...] = (LedgerAnalyzer(),)
-"""The faction records read by date: the ``Transactions`` ledger (issue #98)."""
+"""The faction records read by date: the ``Transactions`` ledger."""
 ALL_ANALYZERS: tuple[Analyzer, ...] = (
     POLITICS_ANALYZERS
     + MILITARY_ANALYZERS

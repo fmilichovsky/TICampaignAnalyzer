@@ -634,7 +634,7 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
 }
 """Save-carried record fields per state type: dated logs and cumulative counters not derivable from the snapshot.
 
-Observed in private saves (``domain-field-map.md``, "Save-carried records"); decoded by ``parsing.records`` into
+Listed in ``domain-field-map.md`` ("Save-carried records"); decoded by ``parsing.records`` into
 ``SaveSnapshot.records`` rather than copied into the entity state.
 """
 
@@ -716,7 +716,7 @@ def record_reference_domains(state_type: str, field: str) -> frozenset[EntityDom
 
 
 class UnsupportedReason(StrEnum):
-    """Why an observed field is deliberately not normalized (the classification issue #8 asks for)."""
+    """Why an observed field is deliberately not normalized."""
 
     VECTOR = "vector"
     """Spatial or physics values: ``{x, y, z}`` and ``{w, x, y, z}`` vectors, orbital elements, epochs."""

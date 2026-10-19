@@ -76,7 +76,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
 
 
 def _destructions_recorded(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
-    """One record-dated event per log entry added; a removed entry stays in the diff (logs are observed to grow)."""
+    """One record-dated event per log entry added; a removed entry stays in the diff (logs grow)."""
     if change.kind is not ChangeKind.RECORDS or not isinstance(change.detail, RecordsDetail):
         return []
     if change.entity_id is None:

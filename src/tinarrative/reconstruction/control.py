@@ -3,12 +3,9 @@
 The control-point analyzer reports each point's controller and nothing more; only the rule here says that a
 faction's hold on a nation changed. Evidence is cited as ``reconstruction.common`` describes.
 
-The evidence is the investigation of 2026-10-18 recorded in ``docs/game-data-notes/higher-level-event-sources.md``
-(nation control; the five older private saves, counts only). Every one of the 295 nations with control points has
-exactly one point with ``positionInNation = 0`` (295 of 540 points), typed ``Executive`` on 177 of them and after
-the regime on the rest, so position 0 is the executive seat. Between consecutive saves (re-checked 2026-10-19)
-the faction holding it changed on 1, 2, 5 and 4 nations, the plurality controller on 3, 2, 3 and 4 and the sole
-controller on 1, 2, 3 and 3.
+The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (nation control). Every nation
+with control points has exactly one point with ``positionInNation = 0``, typed ``Executive`` or after the regime,
+so position 0 is the executive seat.
 
 Rule:
 

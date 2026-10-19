@@ -1,6 +1,6 @@
 """Code form of the observed ``gamestates`` key inventory.
 
-This mirrors ``docs/game-data-notes/state-type-inventory.md``: the exact keys seen in the inspected saves. It
+This mirrors ``docs/game-data-notes/state-type-inventory.md``: the exact keys seen so far. It
 exists so that the parser can *report* a key it has never seen; it is never used to reject a save, because a
 new game build may add state types that must be preserved rather than refused.
 """
@@ -93,7 +93,7 @@ _BARE_KEYS: tuple[str, ...] = ("TIHistoricalData",)
 KNOWN_STATE_TYPES: frozenset[str] = frozenset(STATE_PREFIX + short for short in _PREFIXED_SHORT_TYPES) | frozenset(
     _BARE_KEYS
 )
-"""Every ``gamestates`` key observed on 2026-09-08; a key outside this set is reported as an unknown state type."""
+"""Every known ``gamestates`` key; a key outside this set is reported as an unknown state type."""
 
 
 def short_state_type(key: str) -> str:

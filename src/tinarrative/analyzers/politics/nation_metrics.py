@@ -1,21 +1,20 @@
 """Nation statistic shifts above a threshold, with the per-cause deltas the game itself tracked.
 
-A nation's statistics (GDP, inequality, cohesion, ...) change on 50-170 nations per interval, nearly all of it
+A nation's statistics (GDP, inequality, cohesion, ...) change on many nations per interval, nearly all of it
 routine drift and periodic steps (``docs/game-data-notes/higher-level-event-sources.md``). This analyzer
 reports a change only when it exceeds the statistic's threshold, and copies the matching
 ``tracker_<Statistic>ChangeReason_AllTime`` map as per-reason deltas: the game's own attribution, whose deltas
 sum to the statistic's change. ``causes`` is the one computed attribute here (after minus before per reason
 key, of two literal maps); it is arithmetic over evidence, not a reinterpretation, and reading the causes as
-an annexation or a unification is reconstruction work (issue #72).
+an annexation or a unification is reconstruction work.
 
 Saves can be any distance apart, so a threshold scales with the interval: ``max(floor, rate × months)``. The
-floor is the smallest one-off step that counts (routine change partly arrives in steps: cohesion moved 1.1 on
-every nation within one week); the rate covers sustained drift over a long interval. Without a known interval
-the floor alone applies. Every threshold below cites the routine magnitudes it sits above, measured on
-2026-10-18 over intervals of 7, 21, 28, 92 and 113 days in two private campaigns (aggregate counts only).
+floor is the smallest one-off step that counts (routine change partly arrives in steps); the rate covers sustained
+drift over a long interval. Without a known interval the floor alone applies. Every threshold below sits above the
+routine magnitudes recorded in ``docs/game-data-notes/higher-level-event-sources.md`` ("Metric shift magnitudes").
 
-Nations without regions are placeholders: none of 121-242 of them changed any statistic in any interval
-observed, so they are skipped. A tracker change without a statistic change stays in the diff.
+Nations without regions are placeholders: none of them changes any statistic, so they are skipped. A tracker change
+without a statistic change stays in the diff.
 """
 
 from __future__ import annotations
@@ -61,34 +60,29 @@ class StatisticThreshold:
 
 
 GDP = StatisticThreshold(Measure.RELATIVE, 0.05, 0.04)
-"""Routine GDP change stayed within 3.3% per interval up to 28 days and reached 13.9-14.6% over 92-113 days
-(about 4.6% a month at most); the territory changes of the sample moved GDP by more than 100x."""
+"""Relative: routine GDP drift is a few percent a month; territory changes move it by orders of magnitude."""
 
 SOCIAL_SCORE = StatisticThreshold(Measure.ABSOLUTE, 0.5, 0.2)
-"""Inequality, education and democracy (0-10 scales) moved at most 0.2 per interval, except one 0.43 in 21
-days and one 0.6 in 92 days (about 0.2 a month)."""
+"""Inequality, education and democracy (0-10 scales) drift by about 0.2 a month at most."""
 
 COHESION = StatisticThreshold(Measure.ABSOLUTE, 2.0, 0.75)
-"""Cohesion moves in steps under ``CohesionReason_Effect``: 1.1 on every changed nation in one 7-day interval,
-up to 1.46 per interval otherwise, 2.47 once in 28 days."""
+"""Cohesion moves in steps under ``CohesionReason_Effect``, so the floor sits above a single step."""
 
 UNREST = StatisticThreshold(Measure.ABSOLUTE, 1.0, 0.5)
-"""Unrest moves in 0.25 steps (mostly ``UnrestReason_MovementToRestValue``): at most 0.5 up to 28 days, p90
-0.75-1.0 and at most 3.47 over 92-113 days."""
+"""Unrest moves in 0.25 steps (mostly ``UnrestReason_MovementToRestValue``)."""
 
 SUSTAINABILITY = StatisticThreshold(Measure.ABSOLUTE, 0.5, 0.15)
-"""At most 0.31 in 113 days (0.084 a month)."""
+"""Sustainability drifts slowly (under 0.1 a month)."""
 
 MILITARY_TECH = StatisticThreshold(Measure.ABSOLUTE, 0.25, 0.1)
-"""At most 0.2 per interval."""
+"""Military tech level moves in small steps."""
 
 SPACE_FUNDING = StatisticThreshold(Measure.RELATIVE, 0.5, 0.25)
-"""4-17% per interval on large budgets, 2.6x once on a small one in 21 days; a budget from zero always counts."""
+"""Relative: large budgets drift by a few percent, small ones jump; a budget from zero always counts."""
 
 DISCRETE = StatisticThreshold(Measure.ABSOLUTE, 1)
-"""``numNuclearWeapons`` and ``numControlPoints`` are counts that rarely change (one control-point count in the
-newer sample, none of the nuclear counts; the notes record nuclear counts going 0 -> 1 on two nations), so any
-change counts, whatever the interval."""
+"""``numNuclearWeapons`` and ``numControlPoints`` are counts that rarely change, so any change counts, whatever the
+interval."""
 
 STATISTIC_THRESHOLDS: Mapping[str, StatisticThreshold] = {
     "GDP": GDP,
@@ -106,9 +100,8 @@ STATISTIC_THRESHOLDS: Mapping[str, StatisticThreshold] = {
 """The scalar statistics and their thresholds, in the order they are analyzed."""
 
 PUBLIC_OPINION_THRESHOLD = StatisticThreshold(Measure.ABSOLUTE, 0.15, 0.05)
-"""``publicOpinion`` maps each of 8 keys (the faction ideologies and ``Undecided``) to a share. Per key, the
-largest change of a nation had p90 0.06-0.10 per interval and reached 0.12 in 7 days, 0.19 in 21 days and 0.43
-in 113 days. Each key is judged on its own."""
+"""``publicOpinion`` maps each of 8 keys (the faction ideologies and ``Undecided``) to a share. Each key is
+judged on its own."""
 
 TRACKERS: Mapping[str, str] = {
     "GDP": "tracker_GDPChangeReason_AllTime",

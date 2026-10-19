@@ -2,10 +2,9 @@
 
 A faction's ``finishedProjectNames`` is a list of project template names. A name that enters it is a completion,
 one event per faction and name with the name as its identity (projects are templates, not save entities, as
-technologies are). A repeatable project is listed once per completion (``Project_ManagementResearch`` 48 to 64 times
-on one faction of the private sample, 2026-10-19), so a name added more than once in an interval is still one
-event, with ``completions`` giving the count. A name that leaves the list is not a completion; it is reported
-literally as a list change (with ``count`` when repeated), as is a list that changed shape.
+technologies are). A repeatable project is listed once per completion, so a name added more than once in an interval
+is still one event, with ``completions`` giving the count. A name that leaves the list is not a completion; it is
+reported literally as a list change (with ``count`` when repeated), as is a list that changed shape.
 ``currentProjectProgress`` stays in the diff.
 """
 

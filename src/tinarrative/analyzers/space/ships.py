@@ -7,7 +7,7 @@ parts and systems, delta-v, mass and ``kills`` stay in the diff.
 
 A presence event carries the ship's ``hull`` when it resolves: the ``hullName`` of the design its ``templateName``
 names, looked up in the ``shipDesigns`` of its fleet's faction on the side where the ship exists (a ship
-``templateName`` matched a design ``dataName`` in every save inspected). The design name itself is player content
+``templateName`` matches a design ``dataName``). The design name itself is player content
 and is never carried.
 """
 

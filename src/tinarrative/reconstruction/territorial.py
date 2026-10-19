@@ -5,13 +5,10 @@ returns inferred events, citing evidence as ``reconstruction.common`` describes.
 reports (a region's annexation flags) is cited directly. A fact read from a snapshot alone (a nation holding no
 regions afterwards, the sides of a war) only qualifies evidence, it is never the evidence.
 
-The evidence is the investigation of 2026-10-14 recorded in ``docs/game-data-notes/higher-level-event-sources.md``
-(eight private saves of two campaigns, structure and counts only). In one interval a nation gained many regions
-while its GDP delta sat under ``GDPReason_TerritoryChange``, its inequality under ``InqReason_Annexation`` and its
-democracy under ``DemReason_AmicableRelease``, and the counterpart lost the same regions; in another a nation's
-cohesion delta was under ``CohesionReason_Independence`` with ``lastExecutiveChange.cause = Independence`` and its
-control-point count rising from 1 to 4. Re-checked on 2026-10-18 on the two independences of the older sample: both
-released nations carried ``DemReason_AmicableRelease`` and both parents ``CohesionReason_NationReleased`` and
+The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md``. A nation that gains regions
+carries ``GDPReason_TerritoryChange`` and ``InqReason_Annexation`` deltas and the counterpart loses the same
+regions; an independence carries ``CohesionReason_Independence`` with ``lastExecutiveChange.cause = Independence``.
+A released nation carries ``DemReason_AmicableRelease`` and its parent ``CohesionReason_NationReleased`` and
 ``UnrestReason_NationReleased``, so the pair marks a release decided by the parent, not a unification.
 
 Rules:
@@ -74,12 +71,12 @@ TERRITORY_REASONS = frozenset({"TerritoryChange", "Annexation", "RegionTransfer"
 metric cause attribution)."""
 INDEPENDENCE_REASON = "Independence"
 """The tracker reason suffix (``GDPReason_``, ``CohesionReason_``, ``UnrestReason_Independence``) and the
-``lastExecutiveChange.cause`` value observed together on a nation gaining regions."""
+``lastExecutiveChange.cause`` value that appear together on a nation gaining regions."""
 AMICABLE_RELEASE = "DemReason_AmicableRelease"
-"""Observed on the released nation in both independences of the older sample (+4.5 and +5.0 democracy)."""
+"""The democracy tracker reason on the released nation of a release."""
 NATION_RELEASED_REASON = "NationReleased"
-"""The tracker reason suffix (``CohesionReason_``, ``UnrestReason_NationReleased``) observed on the parent in both
-independences of the older sample: the game's attribution of the change to releasing a nation."""
+"""The tracker reason suffix (``CohesionReason_``, ``UnrestReason_NationReleased``) on the parent of a release: the
+game's attribution of the change to releasing a nation."""
 ANNEXATION_FIELDS = ("isBeingAnnexed", "annexingArmy")
 """Region fields that track an annexation in progress; left in the diff by every analyzer."""
 WAR_PREFIX = "war."

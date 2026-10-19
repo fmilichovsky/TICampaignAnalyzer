@@ -3,13 +3,11 @@
 The space analyzers keep their wording rule (a hab disappears, a log entry is recorded); only the rules here name
 a destruction, a first presence or a battle outcome. Evidence is cited as ``reconstruction.common`` describes.
 
-The evidence is the investigation of 2026-10-14 recorded in ``docs/game-data-notes/higher-level-event-sources.md``
-(eight private saves of two campaigns, structure and counts only), re-checked on 2026-10-18. A hab's
-``barycenter`` is the body it sits on or orbits (the hab site's ``parentBody`` for 196 of 196 bases, the orbit's
-``barycenter`` for 73 of 73 stations). Every ``HabDestructionLog`` entry added in an interval matched at least one
-hab gone from the later save by owning faction, hab type and body, often two or three. One ``LogHabDestroyed``
-notification named the vanished hab with the entry's date to the millisecond. Faction ``Kills`` lists grew by up
-to 36 names in an interval in which the victim's destruction log gained 9 entries and 10 of its habs vanished.
+The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins). A hab's
+``barycenter`` is the body it sits on or orbits (the hab site's ``parentBody`` for a base, the orbit's
+``barycenter`` for a station). A ``HabDestructionLog`` entry added in an interval matches a hab gone from the later
+save by owning faction, hab type and body, though not always uniquely. A ``LogHabDestroyed`` notification carries
+the entry's date. Faction ``Kills`` lists can grow by many names in one interval.
 
 Rules:
 

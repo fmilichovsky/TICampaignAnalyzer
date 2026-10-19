@@ -2,25 +2,21 @@
 
 Each entry of the later snapshot whose label is allow-listed and whose date falls inside the interval becomes one
 objective ``faction.transaction_recorded`` event, dated by the entry. The entry is a cost charged when a mission or
-operation is assigned, zero days to about four weeks before it resolves (one testable coup in the private sample:
-charged 9 days before the executive record, by the new executive alone), and a charge does not mean the mission
-succeeded. It names no target. So the event is corroborating and dating evidence for an effect that is already
-evidenced, under the bounds of architecture 11.3; no rule anchors on it, and confidence on ledger evidence alone
-stays at most medium in the consumers. This event itself records a literal entry and is high confidence, like
-``faction.combat_recorded``.
+operation is assigned, some days to weeks before it resolves, and a charge does not mean the mission succeeded. It
+names no target. So the event is corroborating and dating evidence for an effect that is already evidenced, under the
+bounds of architecture 11.3; no rule anchors on it, and confidence on ledger evidence alone stays at most medium in
+the consumers. This event itself records a literal entry and is high confidence, like ``faction.combat_recorded``.
 
 Entries are read **by date from the later snapshot**, not from the diff's ``added`` list, as the architecture asks;
 the ledger's ``records`` change of the interval is still the cited source, so every event is backed by a literal
-change. Evidence (``higher-level-event-sources.md``, ``TIFactionState.Transactions``, 2026-10-19): entries are
-never rewritten, and every entry pruned between two saves was dated at or before the earlier save, so an entry
-dated inside ``(before, after]`` is reliably present in the later save. Dates are compared as full timestamps:
-the observed saves were written at midnight and charges carry the time of day, so a charge made later on the
-earlier save's day belongs to this interval (23 of 121 entries in one 21-day interval). The allow-list holds
-the labels whose charges agreed with a visible effect in the sample; income, spoils, trade, council transfers,
-``Effect.*`` bookkeeping, org purchases, project and objective rewards and the hashed numeric labels are never
-emitted. Labels are game identifiers (mission and operation template names, like
-notification template names), not player text, so they appear in IDs and rendered lines; amounts and labels are
-never logged.
+change. Entries are never rewritten, and an entry pruned between two saves is dated at or before the earlier save, so an
+entry dated inside ``(before, after]`` is reliably present in the later save (evidence:
+``higher-level-event-sources.md``, ``TIFactionState.Transactions``). Dates are compared as full timestamps: saves
+are written at midnight and charges carry the time of day, so a charge made later on the earlier save's day
+belongs to this interval. The allow-list holds the labels whose charges agree with a visible effect; income, spoils,
+trade, council transfers, ``Effect.*`` bookkeeping, org purchases, project and objective rewards and the hashed
+numeric labels are never emitted. Labels are game identifiers (mission and operation template names, like notification
+template names), not player text, so they appear in IDs and rendered lines; amounts and labels are never logged.
 """
 
 from __future__ import annotations
@@ -73,10 +69,8 @@ COUNCILOR_MISSIONS: frozenset[str] = frozenset(
         "Contact",
     }
 )
-"""Councilor mission labels observed in the private sample (eight saves, two campaigns, 2026-10-19). Every
-mission label gained entries only by appending, and the one coup recent enough to test was charged by the new
-executive 9 days before ``lastExecutiveChange`` and by nobody else in the 28 days before it. ``Unrest`` entries
-are cross-checked against ``factionUnrestAttempts`` by the consumers (bound 7)."""
+"""Councilor mission labels (evidence in ``higher-level-event-sources.md``). ``Unrest`` entries are cross-checked
+against ``factionUnrestAttempts`` by the consumers (bound 7)."""
 
 SPACE_OPERATIONS: frozenset[str] = frozenset(
     {
@@ -94,14 +88,12 @@ SPACE_OPERATIONS: frozenset[str] = frozenset(
         "TransferOfficersOperation",
     }
 )
-"""Space operation labels observed in the sample, listed by name rather than by suffix so that an unseen label
-is reviewed before it is emitted. ``Found*Operation`` charges occurred in the four older intervals only for
-factions that gained a hab in the same interval."""
+"""Space operation labels, listed by name rather than by suffix so that an unseen label is reviewed before it is
+emitted. ``Found*Operation`` charges accompany a hab gained in the same interval."""
 
 ASSET_CHARGES: frozenset[str] = frozenset({"Ship Construction", "Hire Councilor", "Global Milestone"})
-"""``Ship Construction`` charges (one entry per resource) occurred exactly for the factions that gained ships in
-each of the four older intervals; ``Hire Councilor`` matched the councilors that gained a faction (1 and 2);
-``Global Milestone`` gained no entry while ``globalMilestones`` gained none."""
+"""``Ship Construction`` charges (one entry per resource) accompany ships gained by the faction; ``Hire Councilor``
+matches councilors that gained a faction; ``Global Milestone`` accompanies a global milestone."""
 
 ALLOWED_LABELS: frozenset[str] = COUNCILOR_MISSIONS | SPACE_OPERATIONS | ASSET_CHARGES
 """The labels whose entries become events. Everything else is left in the diff."""

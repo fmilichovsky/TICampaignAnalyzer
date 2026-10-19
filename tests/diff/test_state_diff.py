@@ -492,7 +492,7 @@ def test_a_notification_with_the_same_key_but_another_outcome_is_changed_not_rep
     new = notification(4, "LogMissionOutcome", "2031-01-01T00:00:00", outcome="Success")
     change = notification_change((old,), (new,))
     assert change is not None and change.detail == RecordsDetail(changed=((old, new),))
-    rewritten = notification(0, "LogMissionOutcome", "2031-01-01T00:00:00", subject=FACTION)  # observed in saves
+    rewritten = notification(0, "LogMissionOutcome", "2031-01-01T00:00:00", subject=FACTION)
     change = notification_change((rewritten,), (old,))
     assert change is not None and change.detail == RecordsDetail(changed=((rewritten, old),))
     other_date = notification(0, "LogMissionOutcome", "2031-01-02T00:00:00")

@@ -1,10 +1,10 @@
 """Organizations as the save shows them: presence, the assigned councilor and the faction orbit.
 
 A councilor's ``orgs`` list mirrors the ``assignedCouncilor`` of each organization, and a faction's
-``unassignedOrgs`` lists the organizations of its councilors that no councilor holds (observed in every inspected
-save). An assignment change therefore cites the matching list entries as corroboration. List changes no
-organization change explains are reported on their own as ``councilor.orgs_changed`` and
-``faction.unassigned_orgs_changed``. Which acquisitions are notable is a reconstruction question.
+``unassignedOrgs`` lists the organizations of its councilors that no councilor holds. An assignment change therefore
+cites the matching list entries as corroboration. List changes no organization change explains are reported on their
+own as ``councilor.orgs_changed`` and ``faction.unassigned_orgs_changed``. Which acquisitions are notable is a
+reconstruction question.
 """
 
 from __future__ import annotations

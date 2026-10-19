@@ -36,6 +36,7 @@ intervals), structure and counts only:
   the same index held entries with different dates in different saves. A
   queue index identifies an entry within one save only.
 - No log entry was reported as new in two consecutive intervals.
+- Event IDs (a type and a subject) are unique within one interval only: on the same five consecutive saves (2026-10-18), 19 % of IDs recurred in another interval, each time for a different real event.
 
 Hypothesis: the first point holds for every log the game appends at the time
 of the event. A save written in the middle of a combat or a turn could split

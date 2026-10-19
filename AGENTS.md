@@ -65,6 +65,14 @@ must pass before a change is considered done; CI runs exactly that
 - **Save format claims must be observed, not assumed.** Only document a format
   fact in `docs/game-data-notes/` if it was checked against real data, and
   label it as observed vs. hypothesis per that directory's README.
+- **Comments state rules, not evidence.** Code comments and docstrings must not cite
+  specific save samples (sample sizes, campaign counts, investigation dates, interval
+  lengths, "observed in every inspected save"). That belongs in `docs/game-data-notes/`;
+  state the rule and point at the note if needed.
+- **Each doc has its altitude.** Specific observations live in `docs/game-data-notes/`
+  only. `docs/architecture.md` stays high-level: no save samples, counts or dates; link
+  to the notes instead. Issue and PR numbers appear only in `docs/roadmap.md` (and
+  explicit `TODO`s); never in code comments, architecture or the notes.
 - **Never ignore an undocumented structure silently.** The normalizer reports
   everything outside `parsing/fields.py` and `parsing/inventory.py` through
   `UnknownCollector`. After adding a field to `ENTITY_FIELDS`, `RECORD_FIELDS` or

@@ -1,12 +1,11 @@
 """Interstate wars as the save shows them: presence, the two alliances, the leading nations, last fighting.
 
-A ``TIWarState`` lists both sides (``_attackingAlliance``, ``_defendingAlliance``, observed to include the
-``attacker`` and ``defender``), and every nation of one side lists every nation of the other in its ``wars``
-(observed in every inspected save). Those ``wars`` entries, and the war's entry in the global-values
-``interstateWars`` list, are cited as corroboration of the war events; a pair no war explains is reported as
-``nation.relation_changed`` exactly like ``allies`` and ``rivals``, and an ``interstateWars`` member no war presence
-explains as ``campaign.interstate_wars_changed``. Nothing here
-says a war was declared, won or lost, or that peace was made: those are reconstruction questions.
+A ``TIWarState`` lists both sides (``_attackingAlliance``, ``_defendingAlliance``, which include the
+``attacker`` and ``defender``), and every nation of one side lists every nation of the other in its ``wars``. Those
+``wars`` entries, and the war's entry in the global-values ``interstateWars`` list, are cited as corroboration of the
+war events; a pair no war explains is reported as ``nation.relation_changed`` exactly like ``allies`` and ``rivals``,
+and an ``interstateWars`` member no war presence explains as ``campaign.interstate_wars_changed``. Nothing here says a
+war was declared, won or lost, or that peace was made: those are reconstruction questions.
 """
 
 from __future__ import annotations
