@@ -121,6 +121,17 @@ _MINOR: tuple[str, ...] = (
     # them major too would count one transfer twice.
     "nation.territory_gained",
     "nation.territory_lost",
+    # Hostile claims mark regions a nation may take by force: frequent (11-12 nations per save) and only a
+    # precursor; the war or annexation that follows is the major event (issue #96).
+    "nation.hostile_claims_changed",
+    # A finished project is minor until a curated, documented milestone list promotes some (issue #102); many
+    # projects are routine unlocks.
+    "faction.project_completed",
+    "faction.finished_project_names_changed",
+    # Precursors of a takeover, named by the reconstruction it feeds: unrest attempts per faction and the
+    # new-government date, which corroborates the executive record and control-point events (issue #96).
+    "nation.unrest_attempts_changed",
+    "nation.new_government_recorded",
 )
 
 _MAJOR: tuple[str, ...] = (
@@ -140,6 +151,11 @@ _MAJOR: tuple[str, ...] = (
     "federation.appeared",
     "federation.disappeared",
     "federation.members_changed",
+    # A declared claim redraws a nation's intent, and a rename marks a unification or a federation's growth;
+    # both appear verbatim in the target history (issue #96).
+    "nation.claims_changed",
+    "nation.renamed",
+    "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
     "councilor.detaining_faction_changed",
     "army.faction_changed",

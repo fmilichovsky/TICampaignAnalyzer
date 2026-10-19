@@ -204,6 +204,22 @@ def test_table_entries_resolve_without_context() -> None:
     assert significance_of(bare_event("nation.disappeared"), lookup) is Significance.CAMPAIGN_DEFINING
 
 
+def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
+    lookup = empty_lookup()
+    expected = {
+        "nation.claims_changed": Significance.MAJOR,
+        "nation.renamed": Significance.MAJOR,
+        "federation.renamed": Significance.MAJOR,
+        "nation.hostile_claims_changed": Significance.MINOR,
+        "faction.project_completed": Significance.MINOR,
+        "faction.finished_project_names_changed": Significance.MINOR,
+        "nation.unrest_attempts_changed": Significance.MINOR,
+        "nation.new_government_recorded": Significance.MINOR,
+    }
+    assert set(expected) <= set(BASE)  # named with a rationale, not left to the default
+    assert {event_type: significance_of(bare_event(event_type), lookup) for event_type in expected} == expected
+
+
 def test_every_known_event_type_resolves_and_every_rule_names_a_known_type() -> None:
     lookup = empty_lookup()
     for event_type in _TEMPLATES:

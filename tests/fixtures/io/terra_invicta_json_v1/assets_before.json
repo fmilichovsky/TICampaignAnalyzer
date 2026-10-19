@@ -118,6 +118,24 @@
             "Money": 5.0
           },
           "finishedProjectNames": [],
+          "shipDesigns": [
+            {
+              "dataName": "FixtureSpaceShipState130",
+              "hullName": "Escort"
+            },
+            {
+              "dataName": "FixtureSpaceShipState131",
+              "hullName": "Escort"
+            },
+            {
+              "dataName": "FixtureSpaceShipState132",
+              "hullName": "Frigate"
+            },
+            {
+              "dataName": "FixtureSpaceShipState133",
+              "hullName": "Frigate"
+            }
+          ],
           "currentProjectProgress": [],
           "researchWeights": [
             1,
@@ -172,6 +190,7 @@
             "Money": 5.0
           },
           "finishedProjectNames": [],
+          "shipDesigns": [],
           "currentProjectProgress": [],
           "researchWeights": [
             1,

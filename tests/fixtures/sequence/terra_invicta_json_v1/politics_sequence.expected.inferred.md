@@ -21,7 +21,7 @@ Grouped by matching human faction, faction name and scenario; no real-world star
 
 ### 2032-01-01T00:00:00 to 2032-04-01T00:00:00
 
-- 31 state changes
+- 34 state changes
 
 #### Inferred events
 
@@ -62,9 +62,13 @@ Nation:
 - Fixture Northland (nation:20) records an executive change dated 2032-02-15T00:00:00: new executive Fixture Resistance (faction:15) (previously Fixture Servants (faction:16))
 - Fixture Eastland (nation:22) breakaway parent: null -> Fixture Northland (nation:20)
 - Fixture Northland (nation:20) capital: Fixture North (region:40) -> Fixture East (region:41)
+- Fixture Southland (nation:21) claims list: +[Fixture North (region:40)]
 - Fixture Eastland (nation:22) controlPoints list: +Fixture CP 10 (control point:10)
+- Fixture Eastland (nation:22) hostile claims list: +[Fixture South (region:42)]
 - Fixture Northland (nation:20) and Fixture Southland (nation:21): rivals entry removed (listed by Fixture Northland (nation:20) only)
 - Fixture Northland (nation:20) and Fixture Southland (nation:21): wars entry added (listed by both)
+- Fixture Northland (nation:20) unrest attempts by Fixture Resistance (faction:15): null -> 1
+- Fixture Northland (nation:20) unrest attempts by Fixture Servants (faction:16): 1 -> 2
 
 ### 2032-04-01T00:00:00 to 2032-07-01T00:00:00
 

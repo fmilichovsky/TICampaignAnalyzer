@@ -1,20 +1,22 @@
-"""Nation territory, structure, relations and the recorded executive change.
+"""Nation territory, structure, relations, claims, names and the recorded government changes.
 
 Events here speak about which nation a region belongs to, a nation's capital, breakaway links, the
-``allies`` and ``rivals`` lists, and the literal ``lastExecutiveChange`` record. A nation's ``wars`` list
-and ``federation`` belong to the war and federation analyzers, which cite them as corroboration. They never say
-which faction controls a nation: that is a reconstruction question, and control-point control is reported
-separately.
+``allies`` and ``rivals`` lists, the ``claims`` and ``hostileClaims`` region lists, the literal ``displayName``,
+the per-faction ``factionUnrestAttempts`` counts, and the literal ``lastExecutiveChange`` and
+``dateOfNewGovernment`` records. A nation's ``wars`` list and ``federation`` belong to the war and federation
+analyzers, which cite them as corroboration. They never say which faction controls a nation: that is a
+reconstruction question, and control-point control is reported separately. A presence event carries the nation's
+``population`` (the summed ``populationInMillions`` of its regions on the side where it exists) as context.
 """
 
 from __future__ import annotations
 
-from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
-from ...model.entities import EntityDomain, EntityRef
+from ...model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
+from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import KeyedEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
-from ...model.values import Observed, Unknown
+from ...model.values import FrozenMap, Observed, Unknown
 from ..common import (
     ChangeIndex,
     EventBuilder,
@@ -28,6 +30,7 @@ from ..common import (
     mirrored_sources,
     primary,
     transition_attributes,
+    value_transition_event,
 )
 
 REGION_NATION_CHANGED = "region.nation_changed"
@@ -37,6 +40,11 @@ BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
 EXECUTIVE_CHANGE_RECORDED = "nation.executive_change_recorded"
 APPEARED = "nation.appeared"
 DISAPPEARED = "nation.disappeared"
+CLAIMS_CHANGED = "nation.claims_changed"
+HOSTILE_CLAIMS_CHANGED = "nation.hostile_claims_changed"
+RENAMED = "nation.renamed"
+UNREST_ATTEMPTS_CHANGED = "nation.unrest_attempts_changed"
+NEW_GOVERNMENT_RECORDED = "nation.new_government_recorded"
 
 RELATION_FIELDS = ("allies", "rivals")
 """Nation-to-nation reference lists; an entry is expected on both nations, which is checked, not assumed.
@@ -44,6 +52,10 @@ RELATION_FIELDS = ("allies", "rivals")
 ``wars`` has the same shape and is reported the same way by ``WarAnalyzer`` for pairs no war explains."""
 HANDLED_LISTS = tuple((EntityDomain.NATION, name) for name in ("regions", "breakaways", *RELATION_FIELDS))
 EXECUTIVE_FIELD = "lastExecutiveChange"
+CLAIM_FIELDS = (("claims", CLAIMS_CHANGED), ("hostileClaims", HOSTILE_CLAIMS_CHANGED))
+"""Region lists of a nation, reported per nation and list: the regions added and removed in the interval."""
+UNREST_FIELD = "factionUnrestAttempts"
+NEW_GOVERNMENT_FIELD = "dateOfNewGovernment"
 
 
 def list_event_type(field_name: str) -> str:
@@ -68,6 +80,17 @@ class NationAnalyzer:
             events.extend(relation_events(field_name, lookup, ledger, build))
         for change in index.fields(EntityDomain.NATION, EXECUTIVE_FIELD):
             event = _executive_change(change, lookup, build)
+            if event is not None:
+                events.append(event)
+        for field_name, event_type in CLAIM_FIELDS:
+            for change in index.fields(EntityDomain.NATION, field_name):
+                events.extend(_claims(event_type, change, lookup, build))
+        for change in index.fields(EntityDomain.NATION, "displayName"):
+            events.extend(_value_transition(RENAMED, change, lookup, build))
+        for change in index.fields(EntityDomain.NATION, UNREST_FIELD):
+            events.extend(_unrest_attempts(change, lookup, build))
+        for change in index.fields(EntityDomain.NATION, NEW_GOVERNMENT_FIELD):
+            event = value_transition_event(NEW_GOVERNMENT_RECORDED, change, lookup, build, recorded_on=change.after)
             if event is not None:
                 events.append(event)
         for change in index.presence(EntityDomain.NATION):
@@ -144,6 +167,90 @@ def relation_events(field_name: str, lookup: Lookup, ledger: MembershipLedger, b
     return events
 
 
+def _claims(event_type: str, change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
+    """The regions a nation's claim list gained and lost, each cited; the regions' nations are context."""
+    if change.entity_id is None:
+        return []
+    nation_id = change.entity_id
+    if change.kind is not ChangeKind.MEMBERSHIP or not isinstance(change.detail, MembershipDetail):
+        transition = classify(change.before, change.after)
+        if transition is None:
+            return []
+        return [
+            build.event(
+                event_type,
+                id_parts=(nation_id,),
+                sources=(primary(change),),
+                entities=(lookup.ref(nation_id),),
+                attributes=transition_attributes(change, transition),
+                confidence=confidence_for(transition),
+            )
+        ]
+    added = tuple(value for value in change.detail.added if isinstance(value, EntityRef))
+    removed = tuple(value for value in change.detail.removed if isinstance(value, EntityRef))
+    regions = [lookup.resolve(value) for value in (*added, *removed)]
+    owners = [lookup.context_ref(region.entity_id, "nation") for region in regions if region is not None]
+    return [
+        build.event(
+            event_type,
+            id_parts=(nation_id,),
+            sources=[primary(change, value) for value in (*added, *removed)],
+            entities=(lookup.ref(nation_id), *regions, *owners),
+            attributes=(("added", added), ("removed", removed)),
+        )
+    ]
+
+
+def _unrest_attempts(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
+    """One event per faction whose count in the nation's ``factionUnrestAttempts`` differs; absent is ``None``."""
+    if change.entity_id is None:
+        return []
+    nation_id = change.entity_id
+    if not (
+        change.kind is ChangeKind.MAP
+        and isinstance(change.detail, MapDetail)
+        and isinstance(change.before, FrozenMap)
+        and isinstance(change.after, FrozenMap)
+    ):
+        transition = classify(change.before, change.after)
+        if transition is None:
+            return []
+        return [
+            build.event(
+                UNREST_ATTEMPTS_CHANGED,
+                id_parts=(nation_id, transition.value),
+                sources=(primary(change),),
+                entities=(lookup.ref(nation_id),),
+                attributes=transition_attributes(change, transition),
+                confidence=confidence_for(transition),
+            )
+        ]
+    before, after = dict(change.before.items), dict(change.after.items)
+    events: list[Event] = []
+    for key in sorted((*change.detail.added, *change.detail.removed, *change.detail.changed)):
+        faction_id = _faction_id(key)
+        events.append(
+            build.event(
+                UNREST_ATTEMPTS_CHANGED,
+                id_parts=(nation_id, faction_id or key),
+                sources=(primary(change, key),),
+                entities=(lookup.ref(nation_id), lookup.ref(faction_id) if faction_id is not None else None),
+                attributes=(
+                    ("faction", lookup.ref(faction_id) if faction_id is not None else key),
+                    ("before", before.get(key)),
+                    ("after", after.get(key)),
+                ),
+            )
+        )
+    return events
+
+
+def _faction_id(key: str) -> EntityId | None:
+    """The faction a pair-map key names (``faction:<id>``, as the normalizer writes it)."""
+    domain, _, entity_key = key.partition(":")
+    return EntityId(EntityDomain.FACTION, entity_key) if domain == EntityDomain.FACTION.value and entity_key else None
+
+
 def _entry_values(record_set: RecordSet | None) -> dict[str, KeyedEntry]:
     if record_set is None or isinstance(record_set.entries, Unknown):
         return {}
@@ -218,10 +325,17 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     nation_id = change.entity_id
     assert nation_id is not None
     side = Side.AFTER if appeared else Side.BEFORE
+    state = lookup.state(nation_id, side)
+    regions = state.get("regions") if state is not None else Unknown()
+    population = (
+        lookup.population((value.entity_id for value in regions if isinstance(value, EntityRef)), side)
+        if isinstance(regions, tuple)
+        else Unknown()
+    )
     return build.event(
         APPEARED if appeared else DISAPPEARED,
         id_parts=(nation_id,),
         sources=(primary(change),),
         entities=(lookup.ref(nation_id),),
-        attributes=(("side", side.value),),
+        attributes=(("side", side.value), ("population", population)),
     )

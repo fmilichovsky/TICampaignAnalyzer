@@ -1,6 +1,6 @@
 """Ship events: the fleet reference with mirrored lists, the literal refit date, presence, fleet-list leftovers."""
 
-from tests.analyzers.support import AFTER, BEFORE, analyze, fleet_ref, only, ship_ref, snapshot, state
+from tests.analyzers.support import AFTER, BEFORE, analyze, faction_ref, fleet_ref, only, ship_ref, snapshot, state
 from tinarrative.analyzers.space import ShipAnalyzer
 from tinarrative.analyzers.space.ships import (
     APPEARED,
@@ -11,7 +11,7 @@ from tinarrative.analyzers.space.ships import (
 )
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
-from tinarrative.model.values import Unknown, UnknownReason, freeze
+from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze
 
 ANALYZER = ShipAnalyzer()
 SHIP = EntityDomain.SHIP
@@ -91,3 +91,35 @@ def test_refit_date_is_literal_and_presence_cites_the_fleet_list() -> None:
     assert [str(r.entity_id) for r in new.entities] == ["ship:133"] and len(new.sources) == 1
     assert len(events) == 3
     assert analyze(ANALYZER, before, before) == []
+
+
+def designs(*pairs: tuple[str, str]) -> FrozenMap:
+    """``shipDesigns`` as the normalizer keys it: ``dataName`` -> the whole design object."""
+    return FrozenMap(
+        tuple(
+            (name, FrozenMap((("dataName", name), ("hullName", hull), ("_displayName", "Player text"))))
+            for name, hull in pairs
+        )
+    )
+
+
+def test_presence_carries_the_hull_of_the_ship_design_and_never_the_design_name() -> None:
+    faction = EntityDomain.FACTION
+    before = snapshot(
+        BEFORE,
+        state(SHIP, "132", BEFORE, fleet=fleet_ref("121"), templateName="Design B"),
+        state(FLEET, "121", BEFORE, ships=(ship_ref("132"),), faction=faction_ref("16")),
+        state(faction, "16", BEFORE, shipDesigns=designs(("Design B", "Frigate"))),
+    )
+    after = snapshot(
+        AFTER,
+        state(SHIP, "133", AFTER, fleet=fleet_ref("122"), templateName="Design A"),
+        state(SHIP, "134", AFTER, fleet=fleet_ref("122"), templateName="Unknown design"),
+        state(FLEET, "122", AFTER, ships=(ship_ref("133"), ship_ref("134")), faction=faction_ref("15")),
+        state(faction, "15", AFTER, shipDesigns=designs(("Design A", "Escort"))),
+        state(faction, "16", AFTER, shipDesigns=designs(("Design B", "Frigate"))),
+    )
+    events = {event.id: event for event in analyze(ANALYZER, before, after)}
+    assert dict(events["ship.appeared/ship:133"].attributes) == {"side": "after", "hull": "Escort"}
+    assert dict(events["ship.disappeared/ship:132"].attributes) == {"side": "before", "hull": "Frigate"}
+    assert dict(events["ship.appeared/ship:134"].attributes) == {"side": "after"}  # no design of that name

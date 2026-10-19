@@ -58,7 +58,7 @@ built from the developments catalogued in
 - [x] Normalize `TISpaceBodyState` as a `space body` reference target
   (`displayName`, parent body; the save serializes no body kind) so habs, fleets, destruction entries
   and milestones name their body (#95).
-- [ ] Close the atomic gaps the narrative needs: `nation.claims_changed` and
+- [x] Close the atomic gaps the narrative needs: `nation.claims_changed` and
   `hostileClaims`; `nation.renamed` / `federation.renamed` from `displayName`
   and `federationName`; `faction.project_completed` from
   `finishedProjectNames`; hull class on `ship.appeared`; the army's home nation

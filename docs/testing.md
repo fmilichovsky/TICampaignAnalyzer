@@ -148,10 +148,12 @@ The opt-in `real_save` politics test also asserts that a councilor presence even
 is `trivial` exactly when the councilor's `faction` is `null` on its existing side.
 
 `politics_before.json` / `politics_after.json` is the politics analyzer pair: it
-holds only political state types and exercises each political transition once
+holds only political state types and exercises each political transition once,
+including claims, hostile claims and unrest attempts
 (see the manifest `purpose` fields). `assets_before.json` / `assets_after.json`
 is the pair for the army, space and technology analyzers (armies of both state
-types, fleets, ships, habs, a hab destruction log and the research singleton);
+types, fleets, ships with the faction's ship designs and hulls, habs, a hab destruction log and the research
+singleton);
 `tests/analyzers/test_asset_fixture_pairs.py` runs those families over it and
 over the `interval_*` pair with the same invariants, allows the words
 *destroy* and *refit* only when the primary source is the save field that
@@ -160,7 +162,7 @@ event IDs never collide. `wars_before.json` / `wars_after.json` is the war and
 federation pair: nations with mirrored `wars` lists and `federation`
 references, a war that disappears, one that appears with a `startDate` inside
 the interval, one that gains an alliance member and a later
-`dateOfLastFighting`, a federation that gains and loses a member, and one
+`dateOfLastFighting`, a federation that gains and loses a member and is renamed, and one
 `wars` entry no war explains. The politics fixture-pair test also keeps the
 words *declared*, *won*, *lost* and *peace* out of every `war.*` and
 `federation.*` line. `global_values_before.json` / `global_values_after.json` is

@@ -197,6 +197,15 @@
             }
           ],
           "claims": [],
+          "hostileClaims": [],
+          "factionUnrestAttempts": [
+            {
+              "Key": {
+                "value": 16
+              },
+              "Value": 1
+            }
+          ],
           "wars": [],
           "armies": [],
           "publicOpinion": {
@@ -266,6 +275,8 @@
             }
           ],
           "claims": [],
+          "hostileClaims": [],
+          "factionUnrestAttempts": {},
           "wars": [],
           "armies": [],
           "publicOpinion": {
@@ -307,6 +318,8 @@
           "allies": [],
           "rivals": [],
           "claims": [],
+          "hostileClaims": [],
+          "factionUnrestAttempts": {},
           "wars": [],
           "armies": [],
           "publicOpinion": {

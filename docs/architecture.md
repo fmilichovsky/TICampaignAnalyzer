@@ -643,7 +643,9 @@ changes (section 5.2). Shared machinery for every family lives in
 `analyzers/common.py`: a change index, the `Transition` classifier (`set`,
 `cleared`, `changed`, `unresolved`; a side that is `missing` or `unparseable`
 is a schema gap and emits nothing), snapshot lookup, the membership ledger and
-the event builder.
+the event builder. The builder adds `faction_kinds` to every event that names a
+faction entity: each faction's ID mapped to `alien` (`templateName`
+`AlienCouncil`) or `human`, read from the snapshots as context, never evidence.
 
 Ownership and control are kept distinct by analyzer and type prefix:
 
@@ -654,9 +656,18 @@ Ownership and control are kept distinct by analyzer and type prefix:
 -   `region.nation_changed` and `nation.*` speak about territory, capital,
     breakaway links, one `nation.relation_changed` per nation pair and
     direction for `allies`/`rivals` (the mirrored entry on the other nation is
-    merged and marked `reciprocal`), presence, and the literal
-    `lastExecutiveChange` record (`nation.executive_change_recorded`; its
-    `cause` string is an attribute only).
+    merged and marked `reciprocal`), presence (with `population`, the summed
+    `populationInMillions` of the nation's regions on the existing side), and the
+    literal `lastExecutiveChange` record (`nation.executive_change_recorded`; its
+    `cause` string is an attribute only). Also from `NationAnalyzer`:
+    `nation.claims_changed` and `nation.hostile_claims_changed`, one per nation
+    and list with the regions `added` and `removed` (each cited; the regions'
+    current nations are context entities); `nation.renamed` for a `displayName`
+    change, carrying both literal names; `nation.unrest_attempts_changed`, one
+    per nation and faction whose `factionUnrestAttempts` count differs (`before`/
+    `after`, `null` where the faction is not listed); and
+    `nation.new_government_recorded`, dated by the new `dateOfNewGovernment`
+    value.
 -   `nation.statistic_shifted` (`analyzers/politics/nation_metrics.py`,
     `NationMetricAnalyzer`) reports a nation statistic (`GDP`, `inequality`,
     `education`, `democracy`, `cohesion`, `unrest`, `sustainability`,
@@ -693,6 +704,9 @@ Ownership and control are kept distinct by analyzer and type prefix:
     `nation.federation` change, and `federation.appeared`/`disappeared`, citing
     the members' `federation` changes. A `nation.federation` change no member
     change or presence explains is `nation.federation_changed`.
+    `federation.renamed` is one event per federation whose `displayName` or
+    `federationName` changed, citing each changed field and carrying the
+    literal names.
 -   `organization.*` (`analyzers/politics/organizations.py`) speaks about
     `organization.assigned_councilor_changed`, citing the councilors' `orgs`
     entries (and the faction `unassignedOrgs` entry) as corroboration,
@@ -713,8 +727,8 @@ for later. Members of the handled reference lists (`faction.controlPoints`,
 as `<owner>.<field>_changed`, so no literal change on them is dropped; a list
 unresolved on one side is one such event with `transition = unresolved`.
 Everything else (councilor `orgs`, `XP`, `priorLocation`; nation statistic
-changes below their threshold, tracker maps that changed without their
-statistic, and claims; control-point timers and priorities; region occupation and
+changes below their threshold and tracker maps that changed without their
+statistic; control-point timers and priorities; region occupation and
 annexation flags) stays in the diff and is left to other analyzers or to the
 diff report. Deliberately out of reach of every analyzer: naming a purge,
 coup, annexation or defection.
@@ -736,7 +750,9 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     has no mirroring army field, so a region move leaves its nation entries as
     leftovers rather than guessing which nation an army belongs to. A presence
     event of a `TIMegafaunaArmyState` army carries `megafauna = True` (regular
-    armies carry no such attribute).
+    armies carry no such attribute). Every `army.*` event names the army's home
+    nation (the `nation` of its `homeRegion`), when known, as an entity and as
+    attribute `home_nation`: context, never cited.
 -   `analyzers/space/fleets.py` (`FleetAnalyzer`): `fleet.faction_changed`
     (mirrored by faction `fleets`), `fleet.docked_location_changed` (mirrored
     by hab `dockedFleets`), `fleet.orbit_changed`, `fleet.barycenter_changed`,
@@ -744,7 +760,9 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     leftovers `faction.fleets_changed`, `hab.docked_fleets_changed`.
 -   `analyzers/space/ships.py` (`ShipAnalyzer`): `ship.fleet_changed`
     (mirrored by fleet `ships`), `ship.last_refit_date_changed`, presence and
-    the leftover `fleet.ships_changed`.
+    the leftover `fleet.ships_changed`. A presence event carries `hull`, the
+    `hullName` of the design the ship's `templateName` names in its fleet
+    faction's `shipDesigns`, when that resolves; the design name never appears.
 -   `analyzers/space/habs.py` (`HabAnalyzer`, prefix `hab.` for `TIHabState`
     objects of the `space object` domain): `hab.faction_changed`,
     `hab.type_changed`, `hab.tier_changed`, `hab.in_combat_changed`,
@@ -771,6 +789,12 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     for any other literal transition; `technology.appeared` /
     `technology.disappeared` for progress-only or vanished states; the leftover
     `research.finished_techs_changed` for a name no technology event claimed.
+-   `analyzers/technology/projects.py` (`ProjectAnalyzer`; identity is the
+    project name): `faction.project_completed` per name added to a faction's
+    `finishedProjectNames` (a repeatable project is listed once per completion,
+    so a name added more than once is one event with `completions`), and
+    `faction.finished_project_names_changed` for a removed name or a list that
+    changed shape.
 -   `analyzers/campaign/global_values.py` (`GlobalValuesAnalyzer`, `global values`
     domain): `campaign.global_milestone_recorded` per milestone label added
     (citing the record entry, naming the faction), `campaign.global_milestone_changed`
@@ -814,17 +838,15 @@ diff on purpose: army `priorRegion`, operations and transit dates; fleet
 `trajectory`, position, operations and bombardment fields; ship propellant,
 armor, damage and `kills`; hab `sectors`, `councilorsOnBoard` and orbit data;
 technology `progress` values (a missing progress entry is `Unknown`, which
-`classify` treats as a schema gap); project-name lists; faction `Kills` and
+`classify` treats as a schema gap); faction `currentProjectProgress`, `Kills` and
 `armiesLost` records; region alien sub-state `currentHP`, `deployingArmy`,
 `supportingArmyBuildup`, `alienMissionsDetected` and sub-state presence.
 
-Some of what is left in the diff is needed by the narrative layer (section 11.3) and is
-scheduled as analyzer work in the roadmap's *Narrative layer* section: nation `claims` and
-`hostileClaims`; `displayName` and `federationName` changes of nations and federations (a
-rename on unification or on a federation's growth); faction `finishedProjectNames`; the hull
-class of a new ship; the home nation of an army (its `homeRegion`'s nation) on `army.*`
-events; the `factionUnrestAttempts` pair map and the `dateOfNewGovernment` record of a
-nation; alien-or-human kind and population as attributes; and the allow-listed entries of the
+The atomic facts the narrative layer (section 11.3) needed from the diff are now
+emitted by the analyzers above (issue #96): claims and hostile claims, nation and
+federation renames, finished projects, the hull of a ship, an army's home nation, unrest
+attempts, the new-government record, faction kinds and population. Still left in the diff
+and scheduled in the roadmap's *Narrative layer* section: the allow-listed entries of the
 `Transactions` ledger (bounds in 11.3). The nation-control reading itself (which faction holds
 a nation's executive, plurality or every control point) is reconstruction, not analysis: it
 combines control-point events with the `controlPointType`, `positionInNation` and the
@@ -1078,14 +1100,14 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 
 | Type | Says | Anchor and constituents | Window | Needs |
 | --- | --- | --- | --- | --- |
-| `faction.takeover` | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nation control event; `factionUnrestAttempts` and `dateOfNewGovernment` events |
-| `war.arc` | war between A and B and their allies from start to peace, with regions transferred | `war.appeared` (record-dated), `war.alliance_changed`, `nation.annexation`, `war.last_fighting_changed`, `war.disappeared` | sequence | army home nation for "assisted by" |
-| `federation.lifecycle` | federation formed, joined, left, renamed, dissolved | `federation.appeared`, `federation.members_changed`, `federation.renamed`, `federation.disappeared` | sequence | rename event |
-| `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war | consecutive `nation.unification` / `nation.annexation` / `nation.territory_gained` with one gainer, `nation.disappeared` of the losers, a rename | N intervals | rename event |
+| `faction.takeover` | faction X took control of nation N (coup, regime change or politics) and consolidated it | `faction.nation_control_changed` (executive, plurality or sole controller), the `lastExecutiveChange` cause, later `control_point.controller_changed` of the same nation and faction, councilor changes of the losing faction; precursors from `factionUnrestAttempts` and unrest or opinion shifts | 1 to 3 intervals | nation control event |
+| `war.arc` | war between A and B and their allies from start to peace, with regions transferred | `war.appeared` (record-dated), `war.alliance_changed`, `nation.annexation`, `war.last_fighting_changed`, `war.disappeared` | sequence | nothing |
+| `federation.lifecycle` | federation formed, joined, left, renamed, dissolved | `federation.appeared`, `federation.members_changed`, `federation.renamed`, `federation.disappeared` | sequence | nothing |
+| `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war | consecutive `nation.unification` / `nation.annexation` / `nation.territory_gained` with one gainer, `nation.disappeared` of the losers, a rename | N intervals | nothing |
 | `nation.release` / `nation.breakaway` | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nation control event |
 | `nation.cession` | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
-| `nation.claims_declared` | N claims regions of M | `nation.claims_changed` | 1 interval | claims event |
-| `nation.transformation` | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | population attribute for per-capita GDP |
+| `nation.claims_declared` | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
+| `nation.transformation` | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | nothing |
 
 Every geopolitical type carries `metric_shifts`: the nation statistic
 shifts of its nations inside its span, so a takeover or merger states what
@@ -1097,11 +1119,11 @@ Space milestones second:
 
 | Type | Says | Anchor and constituents | Window | Needs |
 | --- | --- | --- | --- | --- |
-| `faction.space_campaign` | X destroyed k habs and fleets of Y over a period, winning n recorded battles | `faction.battle_outcome`, `hab.destroyed`, `faction.combat_recorded`, `notification.LogSpaceBattleTakesPlace` | N intervals | faction kind (alien or human) |
+| `faction.space_campaign` | X destroyed k habs and fleets of Y over a period, winning n recorded battles | `faction.battle_outcome`, `hab.destroyed`, `faction.combat_recorded`, `notification.LogSpaceBattleTakesPlace` | N intervals | nothing |
 | `faction.colonisation_wave` | X established habs on bodies B1..Bn in a period | `faction.first_hab_on_body`, `hab.appeared` | N intervals | named space bodies |
 | `campaign.first_milestone` | a campaign-wide first (first base on a body, first warship, first victory against the aliens), dated | `campaign.global_milestone_recorded`; a `Global Milestone` ledger entry of the same faction may date it | 1 interval | ledger events |
-| `faction.fleet_buildup` | X commissioned n ships of class C | `ship.appeared` with a hull class; `Ship Construction` ledger entries as corroboration | 1 interval | hull class attribute; ledger events |
-| `technology.milestone` | a technology or project from a curated list completed | `technology.completed`, `faction.project_completed` | 1 interval | project event; the curated list, documented as interpretation |
+| `faction.fleet_buildup` | X commissioned n ships of class C | `ship.appeared` with a hull class; `Ship Construction` ledger entries as corroboration | 1 interval | ledger events |
+| `technology.milestone` | a technology or project from a curated list completed | `technology.completed`, `faction.project_completed` | 1 interval | the curated list, documented as interpretation |
 
 Set aside for now: `economy.space_self_sufficient` (space income against
 Earth funding from the resource ledger), because the ledger's income
