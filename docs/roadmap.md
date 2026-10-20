@@ -114,21 +114,25 @@ built from the developments catalogued in
     `lastExecutiveChange.newExecutive` follows that point, so the situation
     report's `executive` (position 0) and the control events disagree; settle
     the seat in `docs/game-data-notes/` and in the situation report and
-    control rule;
+    control rule (#124);
   - executive changes in a nation whose control points move to another nation
-    in the same interval are skipped as territory and reported nowhere;
+    in the same interval are skipped as territory and reported nowhere (#125);
   - `faction.space_campaign` lists as `bodies` only the bodies of its
     directly joined `hab.destroyed` events, not those of the losses its
-    battle outcomes count;
+    battle outcomes count (#126);
   - `war.arc` `duration_days` runs to an interval-based end without saying it
     is an upper bound, and its `start` is its first fighting record even when
-    the war's own `started_on` is earlier;
+    the war's own `started_on` is earlier (#127);
   - a corroborating ledger charge can set a takeover's `end` and its `record`
-    basis;
+    basis (#128);
   - `metric_shifts` carry no per-shift dates, and `federation.lifecycle`
-    attaches the shifts of a nation from before it joined;
+    attaches the shifts of a nation from before it joined (#129);
   - one `--min-significance` filters both the narrative and the atomic stream,
-    so `minor` developments bring the whole `minor` stream with them.
+    so `minor` developments bring the whole `minor` stream with them (#130);
+  - the glossary keeps one name for control points whose display name
+    changes between saves, and a few alien faction refs carry no name (#131).
+- [ ] Narrator prompt: faction briefs stated as fact, public-audience front
+  leaks on smaller models, uncited statements about the record (#132).
 
 ## CLI user experience
 
