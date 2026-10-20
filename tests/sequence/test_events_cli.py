@@ -133,6 +133,7 @@ def test_json_report_lists_narrative_events_only_when_asked(
     assert plain["narrative"] is None and plain["settings"] is None
     assert [event["event_type"] for event in narrative["narrative"]] == [
         "faction.takeover",
+        "faction.takeover",
         "nation.claims_declared",
         "nation.cession",
     ]
@@ -632,8 +633,8 @@ def test_the_json_drops_events_below_the_minimum_and_counts_them(
     defining = _json(capsys, "--narrative", "--min-significance", "campaign_defining")
 
     assert major["min_significance"] == "major" and major["narrative_omitted"] == 0
-    assert [event["event_type"] for event in defining["narrative"]] == ["faction.takeover"]
-    assert defining["narrative_omitted"] == len(everything["narrative"]) - 1
+    assert [event["event_type"] for event in defining["narrative"]] == ["faction.takeover"] * 2
+    assert defining["narrative_omitted"] == len(everything["narrative"]) - 2
     assert major["intervals"][0]["omitted"]["objective"] > 0
     for full, kept in zip(everything["intervals"], major["intervals"], strict=True):
         assert kept["omitted"]["objective"] == len(full["events"]) - len(kept["events"])
@@ -671,7 +672,7 @@ def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
     assert "###" not in intervals
     assert [line for line in intervals.splitlines() if line] == [
         "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(34 state changes; 24 events below campaign_defining significance omitted)",
+        "(34 state changes; 26 events below campaign_defining significance omitted)",
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
         "(10 state changes; 6 events below campaign_defining significance omitted)",
     ]

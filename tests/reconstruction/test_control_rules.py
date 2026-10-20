@@ -46,11 +46,12 @@ def control_pair(
     records_before: tuple[RecordSet, ...] = (),
     records_after: tuple[RecordSet, ...] = (),
     moved_point: str | None = None,
+    moved_away: bool = False,
     executive_position: int | None = 0,
 ) -> Scenario:
     """Nation 20 with one control point per position (keys ``9``, ``10``, ...), the ``Executive`` point at
     ``executive_position`` (``None``: no such point, and position 0 is typed after the regime); factions 15 to 17
-    exist. ``moved_point`` belongs to nation 21 before and to nation 20 after."""
+    exist. ``moved_point`` belongs to nation 21 before and to nation 20 after (``moved_away``: the reverse)."""
 
     def side(save: str, holders: Holders, records: tuple[RecordSet, ...], moved_to: str) -> SaveSnapshot:
         keys = [str(9 + position) for position in range(len(holders))]
@@ -87,8 +88,8 @@ def control_pair(
         return snapshot(save, *points, *nations, *regions, *factions, records=records)
 
     return pair(
-        side(BEFORE, before, records_before, OTHER_NATION),
-        side(AFTER, after, records_after, NATION),
+        side(BEFORE, before, records_before, NATION if moved_away else OTHER_NATION),
+        side(AFTER, after, records_after, OTHER_NATION if moved_away else NATION),
     )
 
 
@@ -341,11 +342,31 @@ def test_an_unresolved_point_makes_every_scope_low() -> None:
     assert isinstance(control(inferred, "plurality").attribute("after"), Unknown)
 
 
-def test_a_nation_whose_points_moved_between_nations_is_skipped() -> None:
+def test_a_point_moving_in_is_left_out_but_the_seat_change_is_reported_lower() -> None:
     objective, inferred = run(moved_point())
     assert by_type(list(objective), "control_point.nation_changed")
-    assert by_type(list(objective), "control_point.controller_changed")
-    assert not by_type(inferred, NATION_CONTROL_CHANGED)
+    event = control(inferred, "executive")
+    assert faction_key(event.attribute("after")) == "16"
+    assert event.attribute("points_moved") == 1
+    assert event.attribute("point_count_after") == 2  # the moved point is not compared
+    assert event.confidence is Confidence.LOW  # medium (no record), one lower for territory
+    assert faction_key(control(inferred, "sole").attribute("before")) == "15"  # read over the two stable points
+
+
+def test_a_breakaway_taking_a_point_does_not_hide_the_seat_change() -> None:
+    scenario = control_pair(["15", "15", "15"], ["16", "15", "16"], moved_point="11", moved_away=True)
+    objective, inferred = run(scenario)
+    assert by_type(list(objective), "control_point.nation_changed")
+    event = control(inferred, "executive")
+    assert (faction_key(event.attribute("before")), faction_key(event.attribute("after"))) == ("15", "16")
+    assert event.attribute("points_moved") == 1
+    assert event.constituents == ("control_point.controller_changed/control point:9",)
+
+
+def test_a_moved_executive_point_gives_no_executive_change() -> None:
+    scenario = control_pair(["15", "15", "15"], ["16", "15", "16"], moved_point="9", moved_away=True)
+    _, inferred = run(scenario)
+    assert "executive" not in scopes(inferred)
 
 
 def test_no_controller_change_means_no_control_event() -> None:
