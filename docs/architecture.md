@@ -1833,11 +1833,13 @@ be audited.
 
 The contract between the two halves is the narrator package (13.1): the LLM
 receives narrative events, situation reports and the glossary, and returns
-prose whose claims cite event IDs. It may group, order and phrase; it does
-not get the raw atomic stream as its primary input, and it never supplies a
-fact the package does not contain. Anything the package cannot state
-(motives, "assisted by" when no army evidence exists, the public framing of
-a move) is the LLM's, and is recognisable as such because it cites nothing.
+prose whose claims cite event IDs. It may order and phrase, but does not
+merge narrative events the rules kept apart; it does not get the raw atomic
+stream as its primary input, and it never supplies a fact the package does
+not contain. Anything the package cannot state (motives, "assisted by" when
+no army evidence exists, the public framing of a move) is the LLM's, is
+worded as interpretation, cites nothing, and never becomes the premise of a
+later factual claim. The prompt is [narrator](narrator.md).
 
 ------------------------------------------------------------------------
 
