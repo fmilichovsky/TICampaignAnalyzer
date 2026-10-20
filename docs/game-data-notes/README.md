@@ -37,3 +37,8 @@ observed shape and lifecycle of the structures that carry wars, federations,
 alien activity on Earth, the game's own notification log, combat logs and the
 other evidence the reconstruction and narrative stages need but the normalizer
 does not read yet.
+
+[Factions](factions/) holds the game's own descriptions of the seven human
+factions (ideology, goal, relations). They are game text, not save
+observations; the [narrator prompt](../narrator.md) condenses them into its
+faction briefs.
