@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, replace
+from enum import StrEnum
 
 from ..analyzers.common import EventBuilder, Lookup, Side
 from ..model.changes import StateChange
@@ -21,8 +22,10 @@ from ..model.snapshot import EntityState
 from ..model.values import FieldValue, Observed
 
 EXECUTIVE_POSITION = 0
-"""The ``positionInNation`` of a nation's executive seat: every nation with control points has exactly one point
-there, typed ``Executive`` or after its regime (``TheParty``, ``Aristocracy``, ...) (notes, nation control)."""
+"""The ``positionInNation`` of the fallback executive seat: every nation with control points has exactly one point
+there, typed after its regime (``TheParty``, ``Aristocracy``, ...) or ``Executive`` (notes, nation control)."""
+EXECUTIVE_TYPE = "Executive"
+"""The ``controlPointType`` of the point whose controller the nation's ``lastExecutiveChange`` record follows."""
 
 _LOWER = {Confidence.HIGH: Confidence.MEDIUM, Confidence.MEDIUM: Confidence.LOW, Confidence.LOW: Confidence.LOW}
 
@@ -41,14 +44,38 @@ def control_points(lookup: Lookup, nation: EntityId, side: Side) -> tuple[Entity
     return tuple(point for point in points if isinstance(point, EntityRef))
 
 
-def executive_seat(lookup: Lookup, nation: EntityId, side: Side) -> EntityState | None:
-    """The state of ``nation``'s control point at the executive position on one side, if it is found."""
+class SeatBasis(StrEnum):
+    """Why a control point is the executive seat."""
+
+    EXECUTIVE_POINT = "executive_point"
+    """The nation's point typed ``Executive``, wherever it sits; ``lastExecutiveChange`` follows its controller."""
+    POSITION_ZERO = "position_0"
+    """The nation has no ``Executive`` point; the point at position 0 stands in. ``lastExecutiveChange`` is no
+    cross-check there: it is a record that nothing keeps current."""
+
+
+@dataclass(frozen=True)
+class ExecutiveSeat:
+    """A nation's executive seat: the control point's state and the basis it was chosen on."""
+
+    state: EntityState
+    basis: SeatBasis
+
+
+def executive_seat(lookup: Lookup, nation: EntityId, side: Side) -> ExecutiveSeat | None:
+    """``nation``'s executive seat on one side, if it is found: its ``Executive``-typed point, else the point at the
+    fallback position."""
+    fallback: EntityState | None = None
     for point in control_points(lookup, nation, side) or ():
         point_state = lookup.state(point.entity_id, side)
-        position = point_state.get("positionInNation") if point_state is not None else None
-        if position == EXECUTIVE_POSITION and not isinstance(position, bool):
-            return point_state
-    return None
+        if point_state is None:
+            continue
+        if point_state.get("controlPointType") == EXECUTIVE_TYPE:
+            return ExecutiveSeat(point_state, SeatBasis.EXECUTIVE_POINT)
+        position = point_state.get("positionInNation")
+        if fallback is None and position == EXECUTIVE_POSITION and not isinstance(position, bool):
+            fallback = point_state
+    return ExecutiveSeat(fallback, SeatBasis.POSITION_ZERO) if fallback is not None else None
 
 
 @dataclass(frozen=True)

@@ -109,12 +109,10 @@ built from the developments catalogued in
   key, and write the prose beside the package with the model and prompt
   version in its header.
 - [ ] Narrator package gaps found by the trials:
-  - executive-seat semantics: where a nation has a control point typed
-    `Executive` that is not at `positionInNation` 0,
-    `lastExecutiveChange.newExecutive` follows that point, so the situation
-    report's `executive` (position 0) and the control events disagree; settle
-    the seat in `docs/game-data-notes/` and in the situation report and
-    control rule (#124);
+  - [x] executive-seat semantics: the seat is the nation's `Executive`-typed
+    control point, wherever it sits, with the point at `positionInNation` 0
+    standing in for a nation that has none; the report and the control rule
+    name which (#124);
   - executive changes in a nation whose control points move to another nation
     in the same interval are skipped as territory and reported nowhere (#125);
   - `faction.space_campaign` lists as `bodies` only the bodies of its

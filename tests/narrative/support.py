@@ -129,6 +129,7 @@ def nation_row(
     *,
     gdp: Observed = UNKNOWN,
     executive: Observed = UNKNOWN,
+    seat_basis: str | None = None,
     shares: Sequence[tuple[EntityRef, int]] | None = None,
     control_points: Observed = UNKNOWN,
     federation: Observed = None,
@@ -138,6 +139,7 @@ def nation_row(
     return NationSituation(
         nation=item,
         executive=executive,  # type: ignore[arg-type]
+        seat_basis=seat_basis,
         control_points=control_points,  # type: ignore[arg-type]
         shares=Unknown()
         if shares is None

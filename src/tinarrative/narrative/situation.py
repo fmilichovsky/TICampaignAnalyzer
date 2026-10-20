@@ -3,10 +3,11 @@
 A report is read from one snapshot alone and is snapshot-dated evidence, not an event (architecture 11.4). It holds
 literal values and counts, never a reading:
 
-- per nation: the faction holding the executive seat (the control point at ``positionInNation`` 0), the points held
-  per faction, the federation, the allies, the wars it is a party to (from the wars' alliances), the region count,
-  the summed region population and the regime statistics as literal values. Which faction *controls* a nation is
-  never stated; that is inference (``reconstruction.control``);
+- per nation: the faction holding the executive seat (its ``Executive``-typed control point, else the one at
+  ``positionInNation`` 0) and which of the two it is, the points held per faction, the federation, the allies, the
+  wars it is a party to (from the wars' alliances), the region count, the summed region population and the regime
+  statistics as literal values. Which faction *controls* a nation is never stated; that is inference
+  (``reconstruction.control``);
 - federations with members; wars with both leaders, both alliances, ``startDate`` and ``dateOfLastFighting``;
 - per faction: habs in total and per body (the hab's ``barycenter``), fleets (by the fleet's ``faction``), ships (by
   the ship's ``fleet``) and finished projects (entries of ``finishedProjectNames``, repeats counted);
@@ -76,6 +77,9 @@ class NationSituation:
 
     nation: EntityRef
     executive: Holder
+    seat_basis: str | None
+    """``executive_point`` or ``position_0`` (no ``Executive`` point: only then can the nation's executive-change record
+    be a stale one); ``None`` when no seat is found."""
     control_points: Count
     shares: FrozenMap | Unknown
     """Points held per faction, keyed by the faction's ID text; uncontrolled and unresolved points are not keys."""
@@ -95,6 +99,7 @@ class NationSituation:
         return {
             "nation": to_jsonable(self.nation),
             "executive": to_jsonable(self.executive),
+            "seat_basis": self.seat_basis,
             "control_points": to_jsonable(self.control_points),
             "shares": to_jsonable(self.shares),
             "unresolved_points": to_jsonable(self.unresolved_points),
@@ -311,6 +316,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
     nation_id = state.ref.entity_id
     points = control_points(reader.lookup, nation_id, Side.AFTER)
     executive: Holder
+    seat_basis: str | None = None
     count: Count
     shares: FrozenMap | Unknown
     unresolved: Count
@@ -327,7 +333,8 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         elif seat is None:
             executive = Unknown()
         else:
-            executive = reader.controller(seat.ref.entity_id)
+            executive = reader.controller(seat.state.ref.entity_id)
+            seat_basis = seat.basis.value
         count = len(controllers)
         held = Counter(str(ref.entity_id) for ref in controllers if isinstance(ref, EntityRef))
         shares = FrozenMap(tuple(held.items()))
@@ -342,6 +349,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
     return NationSituation(
         nation=state.ref,
         executive=executive,
+        seat_basis=seat_basis,
         control_points=count,
         shares=shares,
         unresolved_points=unresolved,

@@ -3,21 +3,23 @@
 The control-point analyzer reports each point's controller and nothing more; only the rule here says that a
 faction's hold on a nation changed. Evidence is cited as ``reconstruction.common`` describes.
 
-The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (nation control). Every nation
-with control points has exactly one point with ``positionInNation = 0``, typed ``Executive`` or after the regime,
-so position 0 is the executive seat.
+The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (nation control). The executive
+seat is the nation's ``Executive``-typed control point, wherever it sits; a nation without one has the point at
+``positionInNation = 0`` (typed after the regime) stand in. Only the first kind is what the nation's
+``lastExecutiveChange`` record follows.
 
 Rule:
 
 - ``faction.nation_control_changed``: one per nation and scope whose holder differs between the two snapshots,
   for a nation with at least one ``control_point.controller_changed`` (primary). The scopes are ``executive``
-  (the faction holding the position-0 point), ``plurality`` (the faction holding most points; a tie or no
+  (the faction holding the executive seat), ``plurality`` (the faction holding most points; a tie or no
   controlled point is ``null``) and ``sole`` (the faction holding every point, else ``null``). ``shares_before`` and
   ``shares_after`` count the points per faction. The nation's ``nation.executive_change_recorded``,
   ``control_point.loss_recorded`` and control-point presence events corroborate. High when the executive record
   names the new executive holder and that faction is the scope's new holder, and then dated by the record;
-  medium otherwise; low when any point of the nation is unresolved on either side, the scope's holder then
-  ``Unknown``. A nation with a point whose ``nation`` changed is skipped: that is territory, not control.
+  medium otherwise, and always medium on a position-0 seat, which the record does not follow; low when any point of
+  the nation is unresolved on either side, the scope's holder then ``Unknown``. A nation with a point whose
+  ``nation`` changed is skipped: that is territory, not control.
 
 The line says control changed; the recorded cause is an attribute, never a reading (coup, purge): that is the
 ``faction.takeover`` narrative rule's work.
@@ -43,7 +45,7 @@ from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, UnknownReason
-from .common import ObjectiveIndex, Support, control_points, executive_seat, inferred
+from .common import ObjectiveIndex, SeatBasis, Support, control_points, executive_seat, inferred
 
 NATION_CONTROL_CHANGED = "faction.nation_control_changed"
 RULE_TYPES = (NATION_CONTROL_CHANGED,)
@@ -65,6 +67,7 @@ class Holdings:
 
     controllers: tuple[Holder, ...]
     executive: Holder
+    seat_basis: SeatBasis | None
 
     @property
     def unresolved(self) -> bool:
@@ -121,8 +124,8 @@ class ControlContext:
             return None
         controllers = tuple(self._controller(point.entity_id, side) for point in points)
         seat = executive_seat(self.lookup, nation, side)
-        executive = self._controller(seat.ref.entity_id, side) if seat is not None else _UNRESOLVED
-        return Holdings(controllers, executive)
+        executive = self._controller(seat.state.ref.entity_id, side) if seat is not None else _UNRESOLVED
+        return Holdings(controllers, executive, seat.basis if seat is not None else None)
 
     def _controller(self, point: EntityId, side: Side) -> Holder:
         state = self.lookup.state(point, side)
@@ -202,8 +205,10 @@ def _nation_control(
         was, now = earlier.holder(scope), later.holder(scope)
         if (isinstance(was, Unknown) and isinstance(now, Unknown)) or _same(was, now):
             continue
-        agrees = _same(new_executive if isinstance(new_executive, EntityRef) else None, later.executive) and _same(
-            later.executive, now
+        agrees = (
+            later.seat_basis is SeatBasis.EXECUTIVE_POINT
+            and _same(new_executive if isinstance(new_executive, EntityRef) else None, later.executive)
+            and _same(later.executive, now)
         )
         if unresolved:
             confidence = Confidence.LOW
@@ -220,6 +225,7 @@ def _nation_control(
             ("cause", cause),
             ("recorded_on", recorded_on),
             ("new_executive", new_executive),
+            ("seat", later.seat_basis.value if later.seat_basis is not None else None),
             ("population", population),
         ]
         events.append(

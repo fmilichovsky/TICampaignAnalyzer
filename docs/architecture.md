@@ -942,9 +942,9 @@ or directly when the statistic stayed below its threshold.
     The releasing nation is the earlier holder of the new nation's capital
     when the capital is among the regions that moved (`capital`), else the
     only nation it gained from (`only_parent`), else `null`. The executive
-    faction is whoever controlled that nation's executive seat (its control
-    point at `positionInNation` 0, whatever its type) in the earlier
-    snapshot. It is context only and never a claim that the
+    faction is whoever controlled that nation's executive seat (its
+    `Executive`-typed control point, else the one at `positionInNation` 0)
+    in the earlier snapshot. It is context only and never a claim that the
     faction decided. `infer_events` sees one pair of snapshots, so the
     earlier snapshot is the earliest it can consult.
 -   `nation.unification`: a gainer that took every region of two or more
@@ -965,15 +965,16 @@ territory aggregates rank `minor` and the three readings `major`
 #### Control rule
 
 The control-point analyzer reports each point's controller; only this rule
-says that a faction's hold on a nation changed. Position 0 is the executive
-seat: every nation with control points has exactly one point there, typed
-`Executive` or after its regime.
+says that a faction's hold on a nation changed. The executive seat is the
+nation's `Executive`-typed point; a nation without one has its position-0
+point stand in, and the event names which (`seat`). Only the first kind is
+what the nation's executive-change record follows.
 
 -   `faction.nation_control_changed`: one per nation and scope whose holder
     differs between the two snapshots, for a nation with at least one
     `control_point.controller_changed` (the primary constituents). The
-    scope (`scope`) is `executive` (the faction holding the position-0
-    point), `plurality` (the faction holding most points; a tie or no
+    scope (`scope`) is `executive` (the faction holding the executive
+    seat), `plurality` (the faction holding most points; a tie or no
     controlled point is `null`) or `sole` (the faction holding every point,
     else `null`); gaining or losing every point is a `sole` change. Attributes
     `before`, `after`, `shares_before` / `shares_after` (points per faction
@@ -983,7 +984,8 @@ seat: every nation with control points has exactly one point there, typed
     nation in the interval. That record, `control_point.loss_recorded` and
     control-point presence events of the nation corroborate. High, and dated
     by the record, when the record's new executive holds the seat afterwards
-    and is the scope's new holder; medium otherwise; low when any point of
+    and is the scope's new holder, and the seat is the `Executive` point;
+    medium otherwise; low when any point of
     the nation is unresolved on either side (the dependent holder is then
     `Unknown`, and a scope unknown on both sides is not reported). A nation
     with a point whose `nation` changed in the interval is skipped: that is
@@ -1336,9 +1338,9 @@ snapshots.
 
 `build_situation(snapshot)` returns a frozen `SituationReport` with a
 `to_dict()`; equal snapshots give equal reports. Every value is literal: a
-nation's executive is the faction holding its position-0 control point
-(section 10, control rule) and its points are counted per faction, but no
-faction is said to control it, since that is the control rule's inference.
+nation's executive is the faction holding its executive-seat control point,
+with the seat's basis named (section 10, control rule), and its points are
+counted per faction, but no faction is said to control it, since that is the control rule's inference.
 Wars per nation come from the wars' alliances. Technologies are one
 campaign-wide research state in the model, so the finished-technology count
 is campaign-wide; projects are counted per faction. Habs, fleets and ships

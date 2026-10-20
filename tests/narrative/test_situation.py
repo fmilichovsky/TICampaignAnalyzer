@@ -45,8 +45,9 @@ def body_ref(key: str) -> EntityRef:
     return ref(EntityDomain.SPACE_BODY, key)
 
 
-def point(key: str, nation: str, position: int, faction: Observed) -> EntityState:
-    return state(POINT, key, AFTER, nation=nation_ref(nation), positionInNation=position, faction=faction)
+def point(key: str, nation: str, position: int, faction: Observed, kind: str | None = None) -> EntityState:
+    fields = {} if kind is None else {"controlPointType": kind}
+    return state(POINT, key, AFTER, nation=nation_ref(nation), positionInNation=position, faction=faction, **fields)
 
 
 def campaign() -> SaveSnapshot:
@@ -54,7 +55,7 @@ def campaign() -> SaveSnapshot:
         state(EntityDomain.FACTION, "1", AFTER, templateName="ResistCouncil", finishedProjectNames=("P1", "P1", "P2")),
         state(EntityDomain.FACTION, "2", AFTER, templateName="AlienCouncil"),
         state(EntityDomain.FACTION, "3", AFTER),
-        # nation 20: executive seat held by faction 1, one point uncontrolled
+        # nation 20: the Executive point (position 2) held by faction 2, position 0 by faction 1, one point uncontrolled
         state(
             NATION,
             "20",
@@ -71,9 +72,9 @@ def campaign() -> SaveSnapshot:
         ),
         point("100", "20", 0, faction_ref("1")),
         point("101", "20", 1, faction_ref("1")),
-        point("102", "20", 2, faction_ref("2")),
+        point("102", "20", 2, faction_ref("2"), "Executive"),
         point("103", "20", 3, None),
-        # nation 21: the executive point's controller is unresolved; no regions field
+        # nation 21: no Executive point, so position 0 stands in and its controller is unresolved; no regions field
         state(NATION, "21", AFTER, controlPoints=(point_ref("104"),), federation=None),
         point("104", "21", 0, UNRESOLVED),
         # nation 22: a known empty point list
@@ -136,7 +137,8 @@ def test_a_nation_reports_its_executive_holder_and_point_shares() -> None:
     report = build_situation(campaign())
 
     northland = nation(report, "20")
-    assert northland.executive == named(faction_ref("1"))
+    assert northland.executive == named(faction_ref("2"))  # the Executive point, not the position-0 one
+    assert northland.seat_basis == "executive_point"
     assert northland.control_points == 4
     assert northland.shares == FrozenMap((("faction:1", 2), ("faction:2", 1)))
     assert northland.unresolved_points == 0
@@ -159,6 +161,7 @@ def test_unknown_control_and_regions_stay_unknown() -> None:
 
     southland = nation(report, "21")
     assert southland.executive == UNRESOLVED
+    assert southland.seat_basis == "position_0"
     assert (southland.control_points, southland.unresolved_points, southland.shares) == (1, 1, FrozenMap())
     assert southland.federation is None
     assert southland.allies == Unknown()
@@ -166,6 +169,7 @@ def test_unknown_control_and_regions_stay_unknown() -> None:
 
     empty = nation(report, "22")
     assert (empty.executive, empty.control_points, empty.shares) == (None, 0, FrozenMap())
+    assert empty.seat_basis is None
     assert (empty.regions, empty.population) == (0, 0.0)
 
     unlisted = nation(report, "23")
@@ -283,7 +287,7 @@ def test_two_builds_are_identical_and_serialize_to_json() -> None:
         "world",
     ]
     northland = document["nations"][0]
-    assert northland["executive"]["ref"] == "faction:1"
+    assert northland["executive"]["ref"] == "faction:2" and northland["seat_basis"] == "executive_point"
     assert northland["shares"] == {"faction:1": 2, "faction:2": 1}
     assert northland["wars"] == [{"war": document["wars"][0]["war"], "side": "attacker"}]
     assert document["nations"][3]["control_points"] == {"unknown": "missing"}

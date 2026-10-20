@@ -167,12 +167,12 @@ class Context:
         return None
 
     def executive_faction(self, nation: EntityId) -> Observed:
-        """The faction controlling ``nation``'s executive seat (the control point at position 0) in the earlier
-        snapshot (``null`` when none does); ``Unknown`` when the nation or the point is not found."""
+        """The faction controlling ``nation``'s executive seat in the earlier snapshot (``null`` when none does);
+        ``Unknown`` when the nation or the point is not found."""
         seat = executive_seat(self.lookup, nation, Side.BEFORE)
         if seat is None:
             return Unknown()
-        faction = seat.get("faction")
+        faction = seat.state.get("faction")
         return self.lookup.resolve(faction) or faction
 
     def war_support(self, gainer: EntityId, loser: EntityId) -> Support:

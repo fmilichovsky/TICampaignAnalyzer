@@ -114,9 +114,13 @@ Reading the fields:
 - `combats_won` and `combats_lost` count from the actor's side; `habs_lost`
   and `fleets_lost` are the losses of the `victim` (the target).
 - `new_executive` and `recorded_on` on a control change come from the
-  nation's own record of its latest executive change.  That record can name a
-  different faction than the event's `after` or a situation report's
-  executive seat; report both.
+  nation's own record of its latest executive change.  The record follows the
+  nation's `Executive`-typed control point only: where a control event's `seat`
+  (or a report's `seat_basis`) is `position_0`, the nation has no such point and
+  the record can be a stale one, so it can name a different faction than the
+  event's `after` or the report's executive; report both and do not read the
+  record as a correction.  Where the basis is `executive_point` a difference is
+  a real discrepancy.
 - `ambiguous`, `alternatives` and `candidates` mean the evidence fits several
   readings.  Present the reading as one possibility, or not at all.
 - `faction.transaction_recorded` is a ledger charge made when a mission was

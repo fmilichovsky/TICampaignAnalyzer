@@ -46,9 +46,11 @@ def control_pair(
     records_before: tuple[RecordSet, ...] = (),
     records_after: tuple[RecordSet, ...] = (),
     moved_point: str | None = None,
+    executive_position: int | None = 0,
 ) -> Scenario:
-    """Nation 20 with one control point per position (keys ``9``, ``10``, ...), position 0 its executive seat typed
-    after the regime; factions 15 to 17 exist. ``moved_point`` belongs to nation 21 before and to nation 20 after."""
+    """Nation 20 with one control point per position (keys ``9``, ``10``, ...), the ``Executive`` point at
+    ``executive_position`` (``None``: no such point, and position 0 is typed after the regime); factions 15 to 17
+    exist. ``moved_point`` belongs to nation 21 before and to nation 20 after."""
 
     def side(save: str, holders: Holders, records: tuple[RecordSet, ...], moved_to: str) -> SaveSnapshot:
         keys = [str(9 + position) for position in range(len(holders))]
@@ -60,7 +62,9 @@ def control_pair(
                 nation=nation_ref(moved_to if key == moved_point else NATION),
                 faction=_controller(holder),
                 positionInNation=position,
-                controlPointType="TheParty" if position == 0 else "Legislative",
+                controlPointType=(
+                    "Executive" if position == executive_position else "TheParty" if position == 0 else "Legislative"
+                ),
             )
             for position, (key, holder) in enumerate(zip(keys, holders, strict=True))
         ]
@@ -227,9 +231,42 @@ def test_an_executive_seat_changing_hands_is_the_executive_scope_only() -> None:
     )
 
 
-def test_the_position_zero_point_is_the_seat_whatever_its_type() -> None:
+def test_a_point_that_is_not_the_seat_does_not_change_the_executive_scope() -> None:
     _, inferred = run(control_pair(["15", "15", "15", None], ["15", "15", "16", None]))
     assert scopes(inferred) == []  # point 11 is not the seat and 15 keeps the plurality and the seat
+
+
+def test_the_executive_typed_point_is_the_seat_wherever_it_sits() -> None:
+    scenario = control_pair(
+        ["15", "15", "15", None],
+        ["15", "15", "16", None],
+        records_before=(executive_record(BEFORE, "15", "Politics", "2029-05-01T00:00:00"),),
+        records_after=(executive_record(AFTER, "16", "Coup", "2031-04-12T00:00:00"),),
+        executive_position=2,
+    )
+    _, inferred = run(scenario)
+    assert scopes(inferred) == ["executive"]  # position 0 is untouched; 15 keeps the plurality
+    event = control(inferred, "executive")
+    assert faction_key(event.attribute("before")) == "15" and faction_key(event.attribute("after")) == "16"
+    assert event.attribute("seat") == "executive_point"
+    assert event.confidence is Confidence.HIGH and event.attribute("recorded_on") == "2031-04-12T00:00:00"
+
+
+def test_without_an_executive_point_position_zero_stands_in_and_the_record_is_no_cross_check() -> None:
+    scenario = control_pair(
+        ["15", "15", "15", None],
+        ["16", "15", "15", None],
+        records_before=(executive_record(BEFORE, "15", "Politics", "2029-05-01T00:00:00"),),
+        records_after=(executive_record(AFTER, "16", "Coup", "2031-04-12T00:00:00"),),
+        executive_position=None,
+    )
+    _, inferred = run(scenario)
+    assert scopes(inferred) == ["executive"]
+    event = control(inferred, "executive")
+    assert faction_key(event.attribute("after")) == "16" and event.attribute("seat") == "position_0"
+    assert event.confidence is Confidence.MEDIUM  # the agreeing record is not trusted to date the change
+    assert event.attribute("recorded_on") == "2031-04-12T00:00:00"  # still quoted literally
+    assert event.date_basis is DateBasis.INTERVAL
 
 
 def test_a_plurality_change_names_the_new_largest_holder() -> None:
@@ -320,6 +357,8 @@ def _states(scenario: Scenario) -> Mapping[str, EntityState]:
     return {str(item.ref.entity_id): item for item in scenario[1].control_points}
 
 
-def test_the_scenario_builder_types_the_seat_after_the_regime() -> None:
+def test_the_scenario_builder_types_the_seat_executive_or_after_the_regime() -> None:
     seat = _states(executive_flip())["control point:9"]
+    assert seat.get("positionInNation") == 0 and seat.get("controlPointType") == "Executive"
+    seat = _states(control_pair(["15"], ["15"], executive_position=None))["control point:9"]
     assert seat.get("positionInNation") == 0 and seat.get("controlPointType") == "TheParty"
