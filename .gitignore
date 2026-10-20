@@ -1,5 +1,6 @@
-# Locally available real save samples
-real_saves
+# Locally available non-synthetic sample data
+real_saves/
+output_samples/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
