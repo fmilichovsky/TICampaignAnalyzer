@@ -11,7 +11,7 @@ from tinarrative.analyzers.common import Lookup, Side
 from tinarrative.analyzers.render import describe_event
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.io.save_loader import load_raw_save
-from tinarrative.model.events import SIGNIFICANCE_ORDER, EventStatus, Significance, SourceRole
+from tinarrative.model.events import SIGNIFICANCE_ORDER, Event, EventStatus, Significance, SourceRole
 from tinarrative.narrative import assign_significance
 from tinarrative.parsing.normalization import normalize
 
@@ -36,6 +36,7 @@ FIELD_BACKED = {"destroy": ("destroyed", "HabDestructionLog", "publicOpinion"), 
 ``Destroy`` ideology is a ``publicOpinion`` key)."""
 NOTIFICATION_LOG = "notificationSummaryQueue"
 COUNCILOR_PRESENCE = {"councilor.appeared": Side.AFTER, "councilor.disappeared": Side.BEFORE}
+TRANSACTION_RECORDED = "faction.transaction_recorded"
 
 
 def real_save_pair() -> tuple[Path, Path]:
@@ -44,6 +45,16 @@ def real_save_pair() -> tuple[Path, Path]:
     if not before or not after:
         pytest.skip("TINARRATIVE_REAL_SAVE and TINARRATIVE_REAL_SAVE_AFTER are not both set")
     return Path(before), Path(after)
+
+
+def asserted_wording(event: Event) -> str:
+    """Return analyzer wording, excluding a literal ledger template label."""
+    description = describe_event(event)
+    if event.event_type == TRANSACTION_RECORDED:
+        label = event.attribute("label")
+        if isinstance(label, str):
+            description = description.replace(f"a {label} charge", "a charge")
+    return f"{event.event_type} {description}".lower()
 
 
 def test_real_save_pair_analyzes_deterministically_with_evidence_on_every_event() -> None:
@@ -63,7 +74,7 @@ def test_real_save_pair_analyzes_deterministically_with_evidence_on_every_event(
         assert event.entities and event.not_before == before.date
         if event.sources[0].change.field == NOTIFICATION_LOG:
             continue  # the game's own event log says what happened: its wording is evidence, not inference
-        text = f"{event.event_type} {describe_event(event)}".lower()
+        text = asserted_wording(event)
         assert not any(word in text for word in FORBIDDEN), event.id
         for word, fields in FIELD_BACKED.items():
             if word in text:
