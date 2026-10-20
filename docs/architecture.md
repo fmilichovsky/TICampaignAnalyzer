@@ -987,9 +987,11 @@ what the nation's executive-change record follows.
     and is the scope's new holder, and the seat is the `Executive` point;
     medium otherwise; low when any point of
     the nation is unresolved on either side (the dependent holder is then
-    `Unknown`, and a scope unknown on both sides is not reported). A nation
-    with a point whose `nation` changed in the interval is skipped: that is
-    territory, not control. The line says control changed and never names a
+    `Unknown`, and a scope unknown on both sides is not reported). A point
+    whose `nation` changed in the interval is territory, not control: it
+    is left out of the comparison (`points_moved` counts them), the
+    `executive` scope is compared only when the same point is the seat on
+    both sides, and every confidence is one level lower. The line says control changed and never names a
     coup or purge; the cause stays an attribute, and the reading belongs to
     the `faction.takeover` narrative rule (section 11.3). Significance
     `major`, a tie included.

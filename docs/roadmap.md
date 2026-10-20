@@ -113,8 +113,9 @@ built from the developments catalogued in
     control point, wherever it sits, with the point at `positionInNation` 0
     standing in for a nation that has none; the report and the control rule
     name which (#124);
-  - executive changes in a nation whose control points move to another nation
-    in the same interval are skipped as territory and reported nowhere (#125);
+  - [x] executive changes in a nation whose control points move to another
+    nation in the same interval: only the moved points are left out of the
+    control rule, which reports the rest at lower confidence (#125);
   - `faction.space_campaign` lists as `bodies` only the bodies of its
     directly joined `hab.destroyed` events, not those of the losses its
     battle outcomes count (#126);

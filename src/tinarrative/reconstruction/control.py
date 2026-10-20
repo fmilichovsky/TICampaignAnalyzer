@@ -18,8 +18,10 @@ Rule:
   ``control_point.loss_recorded`` and control-point presence events corroborate. High when the executive record
   names the new executive holder and that faction is the scope's new holder, and then dated by the record;
   medium otherwise, and always medium on a position-0 seat, which the record does not follow; low when any point of
-  the nation is unresolved on either side, the scope's holder then ``Unknown``. A nation with a point whose
-  ``nation`` changed is skipped: that is territory, not control.
+  the nation is unresolved on either side, the scope's holder then ``Unknown``. A point whose ``nation`` changed
+  in the interval is territory, not control: it is left out of the comparison (shares, plurality, sole, point
+  counts; ``points_moved`` counts them), the executive scope is compared only when the same point is the seat on
+  both sides, and every confidence is one level lower.
 
 The line says control changed; the recorded cause is an attribute, never a reading (coup, purge): that is the
 ``faction.takeover`` narrative rule's work.
@@ -40,12 +42,14 @@ from ..analyzers.politics.control_points import (
     NATION_CHANGED,
 )
 from ..analyzers.politics.nations import EXECUTIVE_CHANGE_RECORDED
+from ..log import fields as log_fields
+from ..log import get_logger
 from ..model.changes import StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, UnknownReason
-from .common import ObjectiveIndex, SeatBasis, Support, control_points, executive_seat, inferred
+from .common import ObjectiveIndex, SeatBasis, Support, control_points, executive_seat, inferred, lower
 
 NATION_CONTROL_CHANGED = "faction.nation_control_changed"
 RULE_TYPES = (NATION_CONTROL_CHANGED,)
@@ -54,6 +58,8 @@ EXECUTIVE = "executive"
 PLURALITY = "plurality"
 SOLE = "sole"
 SCOPES = (EXECUTIVE, PLURALITY, SOLE)
+
+logger = get_logger(__name__)
 
 _UNRESOLVED = Unknown(UnknownReason.UNRESOLVED_REFERENCE)
 
@@ -68,6 +74,7 @@ class Holdings:
     controllers: tuple[Holder, ...]
     executive: Holder
     seat_basis: SeatBasis | None
+    seat_point: EntityId | None
 
     @property
     def unresolved(self) -> bool:
@@ -117,15 +124,21 @@ class ControlContext:
         refs = (self.lookup.ref_field(point, "nation", side) for side in (Side.BEFORE, Side.AFTER))
         return {ref.entity_id for ref in refs if ref is not None}
 
-    def holdings(self, nation: EntityId, side: Side) -> Holdings | None:
-        """The nation's control points on one side; ``None`` when the nation or its point list is not there."""
+    def holdings(self, nation: EntityId, side: Side, moved: frozenset[EntityId] = frozenset()) -> Holdings | None:
+        """The nation's control points on one side, without the ``moved`` ones; ``None`` when the nation or its
+        point list is not there. The seat is read from all of the nation's points."""
         points = control_points(self.lookup, nation, side)
         if points is None:
             return None
-        controllers = tuple(self._controller(point.entity_id, side) for point in points)
+        controllers = tuple(self._controller(point.entity_id, side) for point in points if point.entity_id not in moved)
         seat = executive_seat(self.lookup, nation, side)
         executive = self._controller(seat.state.ref.entity_id, side) if seat is not None else _UNRESOLVED
-        return Holdings(controllers, executive, seat.basis if seat is not None else None)
+        return Holdings(
+            controllers,
+            executive,
+            seat.basis if seat is not None else None,
+            seat.state.ref.entity_id if seat is not None else None,
+        )
 
     def _controller(self, point: EntityId, side: Side) -> Holder:
         state = self.lookup.state(point, side)
@@ -147,20 +160,27 @@ def _point(event: Event) -> EntityId | None:
 def control_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
     """Every nation-control inference of one interval (unsorted); the diff is not read, the analyzers cite it."""
     context = ControlContext(events, before, after)
-    skipped: set[EntityId] = set()
+    moved: set[EntityId] = set()  # points listed under two nations moved between them: territory, not control
     for event in context.of_type(NATION_CHANGED):
         point = _point(event)
         if point is not None:
-            skipped |= context.nations_of(point)
-
+            moved.add(point)
     changed: dict[EntityId, list[Event]] = defaultdict(list)
     for event in context.of_type(CONTROLLER_CHANGED):
         point = _point(event)
         nations = context.nations_of(point) if point is not None else set()
-        if len(nations) != 1:
-            skipped |= nations  # a point listed under two nations moved between them
-            continue
-        changed[next(iter(nations))].append(event)
+        if point is not None and len(nations) > 1:
+            moved.add(point)
+        if point is not None and len(nations) == 1 and point not in moved:
+            changed[next(iter(nations))].append(event)
+    territorial: dict[EntityId, set[EntityId]] = defaultdict(set)
+    for point in moved:
+        for nation in context.nations_of(point):
+            territorial[nation].add(point)
+    logger.debug(
+        "control points moved between nations: %s",
+        log_fields(points=len(moved), nations=len(territorial)),
+    )
 
     corroborating: dict[EntityId, list[Event]] = defaultdict(list)
     for event_type in (LOSS_RECORDED, APPEARED, DISAPPEARED):
@@ -174,15 +194,22 @@ def control_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSna
 
     inferred_events: list[Event] = []
     for nation, primary in sorted(changed.items(), key=lambda item: item[0].sort_key):
-        if nation not in skipped:
-            inferred_events.extend(_nation_control(context, nation, primary, corroborating[nation]))
+        primary = [event for event in primary if _point(event) not in moved]
+        if primary:
+            inferred_events.extend(
+                _nation_control(context, nation, primary, corroborating[nation], frozenset(territorial.get(nation, ())))
+            )
     return inferred_events
 
 
 def _nation_control(
-    context: ControlContext, nation: EntityId, primary: list[Event], corroborating: list[Event]
+    context: ControlContext,
+    nation: EntityId,
+    primary: list[Event],
+    corroborating: list[Event],
+    moved: frozenset[EntityId],
 ) -> list[Event]:
-    earlier, later = context.holdings(nation, Side.BEFORE), context.holdings(nation, Side.AFTER)
+    earlier, later = context.holdings(nation, Side.BEFORE, moved), context.holdings(nation, Side.AFTER, moved)
     if earlier is None or later is None:
         return []  # a nation appearing or vanishing is presence, not control
     records = [event for event in corroborating if event.event_type == EXECUTIVE_CHANGE_RECORDED]
@@ -201,7 +228,12 @@ def _nation_control(
     support = Support(events=tuple(corroborating))
 
     events: list[Event] = []
+    seat_comparable = not moved or (
+        earlier.seat_point is not None and earlier.seat_point == later.seat_point and earlier.seat_point not in moved
+    )
     for scope in SCOPES:
+        if scope == EXECUTIVE and not seat_comparable:
+            continue  # the seat itself moved between nations, or is another point afterwards
         was, now = earlier.holder(scope), later.holder(scope)
         if (isinstance(was, Unknown) and isinstance(now, Unknown)) or _same(was, now):
             continue
@@ -214,6 +246,8 @@ def _nation_control(
             confidence = Confidence.LOW
         else:
             confidence = Confidence.HIGH if agrees else Confidence.MEDIUM
+            if moved:
+                confidence = lower(confidence)
         attributes: list[tuple[str, Observed]] = [
             ("scope", scope),
             ("before", was),
@@ -222,6 +256,7 @@ def _nation_control(
             ("shares_after", later.shares()),
             ("point_count_before", len(earlier.controllers)),
             ("point_count_after", len(later.controllers)),
+            ("points_moved", len(moved)),
             ("cause", cause),
             ("recorded_on", recorded_on),
             ("new_executive", new_executive),

@@ -91,7 +91,11 @@ def test_a_sample_keeps_what_overlaps_its_period(
 
     assert [interval["key"] for interval in first["intervals"]] == ["2032-04-01T00:00:00"]
     assert [save["key"] for save in first["saves"]] == ["2032-01-01T00:00:00", "2032-04-01T00:00:00"]
-    assert [event["event_type"] for event in first["narrative"]] == ["faction.takeover", "nation.claims_declared"]
+    assert [event["event_type"] for event in first["narrative"]] == [
+        "faction.takeover",
+        "faction.takeover",
+        "nation.claims_declared",
+    ]
     assert [interval["key"] for interval in second["intervals"]] == ["2032-07-01T00:00:00"]
     assert "nation.cession" in [event["event_type"] for event in second["narrative"]]
     listed = {entry["ref"] for entry in second["glossary"]}
