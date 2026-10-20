@@ -35,7 +35,8 @@ from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
 from .picker import pick_campaign
-from .rendering.markdown import render_sequence
+from .rendering.json_report import build_document
+from .rendering.markdown import PERIODS, Period, render_sequence
 from .sequence import (
     IntervalResult,
     SaveRef,
@@ -44,7 +45,6 @@ from .sequence import (
     narrative_events,
     plan_sequence,
     run_sequence,
-    situations,
     survey,
 )
 
@@ -428,15 +428,14 @@ def _run_events(args: argparse.Namespace) -> int:
         return failure.code
     narrative = narrative_events(intervals, narrative_rules(settings.narrative)) if args.narrative else None
     if args.format == "json":
-        document = {"campaign": campaign.to_dict(), **plan.to_dict()}
-        reports = situations(intervals)
-        document["saves"] = [
-            {**save, "situation": reports[position].to_dict() if position < len(reports) else None}
-            for position, save in enumerate(document["saves"])
-        ]
-        document["settings"] = None if narrative is None else settings.to_dict()
-        document["narrative"] = None if narrative is None else [event.to_dict() for event in narrative]
-        document["intervals"] = [interval.to_dict() for interval in intervals]
+        document = build_document(
+            plan,
+            intervals,
+            campaign=campaign,
+            settings=settings,
+            narrative=narrative,
+            min_significance=Significance(cast(str, args.min_significance)),
+        )
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
         minimum = Significance(cast(str, args.min_significance))
@@ -449,6 +448,7 @@ def _run_events(args: argparse.Namespace) -> int:
             left_out=left_out,
             narrative=narrative,
             changed_settings=settings.differences(DEFAULT_SETTINGS),
+            period=cast(Period, args.period),
         )
     sys.stdout.write(rendered)
     sys.stdout.flush()
@@ -758,8 +758,17 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
         default=Significance.TRIVIAL.value,
         help=(
-            "Lowest significance an event needs to be listed in the markdown report (default %(default)s, which "
-            "lists every event); the JSON report always holds every event."
+            "Lowest significance an event needs to be listed (default %(default)s, which lists every event); "
+            "applies to the markdown and the JSON report, and omitted events are counted."
+        ),
+    )
+    parser.add_argument(
+        "--period",
+        choices=PERIODS,
+        default="year",
+        help=(
+            "The period the markdown narrative section groups events by: year, half (H1, H2) or quarter "
+            "(default %(default)s); the JSON report is not grouped."
         ),
     )
     parser.add_argument(

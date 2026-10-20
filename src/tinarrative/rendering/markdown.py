@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
+from typing import Final, Literal
 
 from ..analyzers.render import describe_event, render_event_value
 from ..diff.render import render_change, render_value
@@ -18,8 +19,26 @@ from ..model.changes import StateChange
 from ..model.entities import EntityRef
 from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
-from ..model.values import Observed
+from ..model.values import Observed, Unknown
 from ..sequence import IntervalResult, SequencePlan
+
+Period = Literal["year", "half", "quarter"]
+PERIODS: Final[tuple[Period, ...]] = ("year", "half", "quarter")
+
+_ATTRIBUTE_NAMES: Final = (
+    "war",
+    "shared_federation",
+    "cause",
+    "mode",
+    "region_count",
+    "duration_days",
+    "milestone",
+    "hull",
+    "count",
+    "template",
+)
+"""The attributes a narrative line summarises, in order; ``metric_shifts`` leads as a count. Reference lists are left
+to the roles and the JSON."""
 
 
 def _inferred_lines(
@@ -66,6 +85,7 @@ def render_sequence(
     left_out: int = 0,
     narrative: Sequence[Event] | None = None,
     changed_settings: Mapping[str, object] | None = None,
+    period: Period = "year",
 ) -> str:
     """Render the saves of a sequence in chronological order and the analyzer results of each interval.
 
@@ -74,8 +94,9 @@ def render_sequence(
     they were reconstructed), its objective analyzer results of at least ``min_significance`` grouped by category and,
     when they were kept, its literal state changes grouped by category. State changes are never filtered. Event IDs
     are the sequence-qualified ones. With ``narrative``, a section above the intervals lists the narrative events of
-    at least ``min_significance`` by the year they start in, and names the ``changed_settings`` (dotted key to value)
-    it was built with when they differ from the defaults.
+    at least ``min_significance`` by the ``period`` (year, half or quarter) they start in, and names the
+    ``changed_settings`` (dotted key to value) it was built with when they differ from the defaults. An interval with
+    nothing to list at ``min_significance`` (and no state changes) is a single line.
     """
     lines = ["# Save sequence", ""]
     if campaign is not None:
@@ -105,12 +126,16 @@ def render_sequence(
         if changed_settings:
             listed = ", ".join(f"`{key} = {value}`" for key, value in sorted(changed_settings.items()))
             lines.extend([f"Built with non-default settings: {listed}.", ""])
-        lines.extend(_narrative_lines(narrative, verbose=verbose, min_significance=min_significance))
+        lines.extend(_narrative_lines(narrative, verbose=verbose, min_significance=min_significance, period=period))
 
     lines.extend(["", "## Intervals"])
     if not intervals:
         lines.extend(["", "Fewer than two distinct saves; no interval was compared."])
     for interval in intervals:
+        if _collapsed(interval, min_significance):
+            line = _collapsed_line(interval, min_significance)
+            lines.extend([line] if lines[-1].startswith("- `") else ["", line])
+            continue
         lines.extend(["", f"### {interval.before.date} to {interval.after.date}", ""])
         lines.append(f"- {interval.changes} state {'change' if interval.changes == 1 else 'changes'}")
         if interval.inferred is not None:
@@ -123,8 +148,57 @@ def render_sequence(
     return "\n".join(lines) + "\n"
 
 
-def _narrative_lines(narrative: Sequence[Event], *, verbose: bool, min_significance: Significance) -> list[str]:
-    """Narrative events by the year they start in (undated first), each with its span, roles and constituents."""
+def _listed(events: Iterable[Event] | None, min_significance: Significance) -> int:
+    return sum(event.significance.rank >= min_significance.rank for event in events or ())
+
+
+def _collapsed(interval: IntervalResult, min_significance: Significance) -> bool:
+    """Whether a filtered interval lists nothing: no inferred or objective event at the level, no changes.
+
+    Without a filter (``trivial``) every interval keeps its section, so an empty one still says what was not found."""
+    return (
+        min_significance is not Significance.TRIVIAL
+        and interval.state_changes is None
+        and not _listed(interval.inferred, min_significance)
+        and not _listed(interval.objective, min_significance)
+    )
+
+
+def _collapsed_line(interval: IntervalResult, min_significance: Significance) -> str:
+    omitted = len(interval.objective) + len(interval.inferred or ())
+    changes = f"{interval.changes} state {'change' if interval.changes == 1 else 'changes'}"
+    events = f"{omitted} {'event' if omitted == 1 else 'events'} below {min_significance.value} significance omitted"
+    return f"- `{interval.before.date}` to `{interval.after.date}`: nothing listed ({changes}; {events})"
+
+
+def _period_heading(start: Observed, period: Period) -> str:
+    """``2032``, ``2032 H1`` or ``2032 Q1`` for a start date; ``Undated`` when the start is not a date."""
+    if not isinstance(start, str) or len(start) < 7 or not start[:4].isdigit() or not start[5:7].isdigit():
+        return "Undated"
+    month = int(start[5:7])
+    if period == "half":
+        return f"{start[:4]} H{(month - 1) // 6 + 1}"
+    if period == "quarter":
+        return f"{start[:4]} Q{(month - 1) // 3 + 1}"
+    return start[:4]
+
+
+def _attribute_summary(event: Event) -> str:
+    parts: list[str] = []
+    shifts = event.attribute("metric_shifts")
+    if isinstance(shifts, tuple) and shifts:
+        parts.append(f"metric_shifts: {len(shifts)}")
+    for name in _ATTRIBUTE_NAMES:
+        value = event.attribute(name)
+        if not isinstance(value, Unknown) and value is not None and value != ():
+            parts.append(f"{name}: `{render_event_value(value)}`")
+    return "; ".join(parts)
+
+
+def _narrative_lines(
+    narrative: Sequence[Event], *, verbose: bool, min_significance: Significance, period: Period = "year"
+) -> list[str]:
+    """Narrative events by the period they start in (undated first), each with span, roles, attributes and sources."""
     if not narrative:
         return ["No narrative events were built."]
     listed = sorted(
@@ -132,17 +206,20 @@ def _narrative_lines(narrative: Sequence[Event], *, verbose: bool, min_significa
         key=lambda event: event.sort_key,
     )
     lines = ["Aggregated from the events of every interval below."]
-    period: str | None = None
+    heading: str | None = None
     for event in listed:
-        year = event.start[:4] if isinstance(event.start, str) else "Undated"
-        if year != period:
-            lines.extend(["", f"### {year}", ""])
-            period = year
+        current = _period_heading(event.start, period)
+        if current != heading:
+            lines.extend(["", f"### {current}", ""])
+            heading = current
         span = f"`{_date(event.start)}` to `{_date(event.end)}`"
         state = f"{event.status.value}, confidence `{event.confidence}`, significance `{event.significance}`"
         lines.append(f"- {span}{' (open)' if event.open else ''}: {describe_event(event)} ({state})")
         if event.roles:
             lines.append("  - roles: " + "; ".join(f"{role.value}: {ref.label()}" for role, ref in event.roles))
+        summary = _attribute_summary(event)
+        if summary and not verbose:
+            lines.append(f"  - attributes: {summary}")
         lines.extend(f"  - from `{constituent}`" for constituent in event.constituents)
         if verbose:
             lines.extend(_event_lines(event, verbose=True)[1:])
