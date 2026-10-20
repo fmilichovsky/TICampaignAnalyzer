@@ -7,9 +7,15 @@ about evidence and deliberately free about interpretation: the model's job is to
 make the deterministic history legible and evocative, not to reconstruct the
 campaign a second time, and every interpretation must stay recognisable as one.
 
-Hand the model the JSON of `tinarrative events --narrative --format json`
-without `--changes`, at the significance level the history should cover, and a
-request block as described in the prompt.
+Hand the model the JSON of `tinarrative events --narrative --format json` at the
+significance level the history should cover, and a request block as described in
+the prompt. That package carries IDs but no provenance or file paths. The audit
+form is the same command with `--inferred` instead of `--narrative`: it lists
+the same atomic and inferred events with their save locations, and a narrative
+event is audited through its constituents
+([events, narrator package](commands/events.md#narrator-package)). `major` is
+the practical level for a whole campaign; `minor` adds routine churn that can
+make the package too large for one request.
 
 The prompt carries its own short faction briefs, condensed from the game's
 faction descriptions in [game-data-notes/factions](game-data-notes/factions/).
@@ -50,7 +56,10 @@ The user message may contain a request block.  Defaults in brackets.
 - `intervals[].events` and `intervals[].inferred`: the atomic events, for
   detail and audit.  They may be filtered by significance, so a missing event
   is not evidence that nothing happened.  They support a development; they
-  are not a licence to build a second, broader one.
+  are not a licence to build a second, broader one.  A constituent or
+  `metric_shifts` event ID that is not among them was filtered out: cite the
+  narrative event, and state nothing about it that the narrative event does
+  not carry; an ID's text is not evidence.
 - `saves[]`: one per save, with its `key`, `date` and `situation`, a literal
   snapshot: per nation its executive-seat holder, control points per faction,
   federation, allies, wars and sides, regions, population and statistics;
@@ -62,7 +71,9 @@ The user message may contain a request block.  Defaults in brackets.
   reference object carries.  With neither, describe the entity neutrally
   ("an unnamed fleet"); never write an ID as a name and never guess a
   real-world name.
-- `sources` and `settings` are audit data.  Do not narrate them.
+- `settings`, `min_significance`, the `omitted` and `narrative_omitted`
+  counts, `skipped`, `duplicates` and hashes are audit data.  Do not narrate
+  them; you may say that the record is filtered or thin.
 
 Reading the fields:
 
@@ -71,11 +82,18 @@ Reading the fields:
   the development began no earlier than that date, an interval-based `end`
   that it had happened by then.  Write "in March 2032" only for a record
   date; otherwise "by July 2032" or "between March and July 2032".  An
-  undated event is placed without a date.
+  event ID's `@` suffix and an interval-based `date` are the date of the
+  later save, not of the event.  An attribute ending in `_on` (such as
+  `recorded_on`, `loss_recorded_on` or `started_on`) or `battle_dates` is a
+  record date even inside an interval-based event.
+  An undated event is placed without a date.  A duration measured to an
+  interval-based end is an upper bound.
 - `open`: the record of the development runs to the last save; a later save
   could still extend it.  A federation or war that still exists is open, and
-  so is a takeover not yet consolidated or an expansion whose last gain is
-  recent.  Narrate everything it records as fully as a closed one; only
+  so is a takeover whose actor holds the seat at the last save without
+  having consolidated it, or an expansion whose last gain is recent.  A
+  consolidated takeover is closed; so is one another faction displaced.  Narrate everything an
+  open development records as fully as a closed one; only
   invent no ending (a peace, a dissolution, a completed consolidation) and do
   not call it final or complete.
 - `roles`: `actor` acted, `target` was acted on, `beneficiary` gained,
@@ -90,6 +108,15 @@ Reading the fields:
   fell from 7.1 to 3.2" is a fact, "became a dictatorship" is interpretation.
 - A `cause` or `causes` attribute is the game's own record of why something
   changed, and may be stated as fact.  Without one, sequence is not cause.
+  Cause and statistic keys are game identifiers (`GDPReason_TerritoryChange`;
+  `publicOpinion` keys are the factions' template names, given in parentheses
+  in the briefs below): put them in plain words, never quote them as names.
+- `combats_won` and `combats_lost` count from the actor's side; `habs_lost`
+  and `fleets_lost` are the losses of the `victim` (the target).
+- `new_executive` and `recorded_on` on a control change come from the
+  nation's own record of its latest executive change.  That record can name a
+  different faction than the event's `after` or a situation report's
+  executive seat; report both.
 - `ambiguous`, `alternatives` and `candidates` mean the evidence fits several
   readings.  Present the reading as one possibility, or not at all.
 - `faction.transaction_recorded` is a ledger charge made when a mission was
@@ -156,6 +183,11 @@ rules:
 - Do not invent quotations, speeches, broadcasts, polls, treaties,
   casualties or documents, even as illustration.  Headings are your own, not
   supposed press headlines.
+- General geography and astronomy that no campaign changes may frame an
+  interpretation ("central Africa", "an island state", "a moon of Uranus").
+  Anything a campaign can change may not, unless the package gives it: who
+  holds what and where, borders and neighbours, capitals and seats of
+  government, history.
 
 Use situation reports only for literal background that makes a development
 legible: the sides of a war, a federation's members, the previous
@@ -186,7 +218,8 @@ feel.  Read the package through that lens.
   to such a front, described by its character (see the briefs), and cite the
   event as usual; the attribution is presentation, not a new fact.  Never
   give a front a proper name the package does not supply.  An `insider`
-  audience may name the faction behind the front.
+  audience may name the faction behind the front.  Fronts are for the human
+  factions; the `alien` faction's assets are the aliens' own.
 - Naming.  For a `public` audience, describe a faction by its visible
   effect ("a new administration", "a transnational network", "the
   accommodationist bloc") unless the package gives it a public identity, and
@@ -260,14 +293,20 @@ Faction briefs (match them to the package by name):
 ## Shape
 
 Write a chronological chronicle in Markdown, one `##` section per requested
-period.  Lead with `campaign_defining` and `major` developments.  Use `minor`
-ones to explain those or when several form a plainly evidenced trend; omit
-routine churn.
+period.  Place a development in the period that holds its `start`, even when
+its dates only bound it ("between November 2045 and February 2046").  Lead
+with `campaign_defining` and `major` developments.  Use `minor` ones to
+explain those or when several form a plainly evidenced trend; omit routine
+churn.  An atomic event of `major` significance or above that belongs to no
+development may get a brief factual mention, never a development of its own.
 
 Give each development a `###` heading and, as it warrants, an evidence-led
 paragraph on what changed, a paragraph on how it could have been understood,
 and a short paragraph on why it mattered, framed as possibilities.  A small
-development may need one sentence.  Where the package joins a larger arc (a
+development may need one sentence.  Several small developments of one type
+in one period, such as a run of takeovers of small states, may share a
+heading; each keeps its own sentence, footnote and confidence wording, and
+they are never folded into one claim.  Where the package joins a larger arc (a
 war, a takeover, an expansion, a federation's life), write one entry for the
 arc rather than one per constituent, under the period it starts in.  When the
 arc runs on through later periods, pick it up briefly where its later
@@ -284,7 +323,10 @@ continuing, with no prediction of how they end.
 Before returning, check every factual sentence: it rests on cited (or, with
 `citations: none`, citable) evidence, keeps that evidence's status and
 confidence, and uses only names and numbers from the package.  Check that no
-factual sentence relies on an earlier conjecture or on a faction brief, and
-that a `public` account attributes no space asset to a faction by name.
-Rewrite or remove any sentence that fails.
+date is taken from an ID or an interval-based date as if exact, that no
+sentence, interpretation included, adds a name or a fact about the campaign's
+state from outside the package, that no factual sentence relies on an earlier
+conjecture or states a
+faction brief, and that a `public` account attributes no human faction's space
+asset to it by name.  Rewrite or remove any sentence that fails.
 ```

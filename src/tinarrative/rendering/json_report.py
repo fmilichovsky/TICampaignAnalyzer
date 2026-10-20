@@ -11,8 +11,10 @@ from typing import Any
 
 from ..config import Settings
 from ..grouping import CampaignGroup
+from ..model.entities import IdentityConfidence
 from ..model.events import Event, Significance
 from ..narrative.glossary import build_glossary
+from ..narrative.situation import SituationReport
 from ..sequence import IntervalResult, SequencePlan, situations
 
 
@@ -33,8 +35,8 @@ def build_document(
 
     Objective, inferred and narrative events below ``min_significance`` are dropped and counted (``omitted`` per
     interval, ``narrative_omitted`` for the narrative), so an omission is never hidden; state changes are never
-    filtered. With ``narrative``, the document also holds the ``settings`` and the ``glossary`` of every entity ID it
-    references.
+    filtered. With ``narrative``, the document is the narrator package: it also holds the ``settings`` and the
+    ``glossary`` of every entity ID it references, and leaves out provenance and paths (``_narrator_package``).
     """
     document: dict[str, Any] = {"campaign": campaign.to_dict(), **plan.to_dict()}
     reports = situations(intervals)
@@ -60,5 +62,74 @@ def build_document(
         }
         rendered.append(entry)
     document["intervals"] = rendered
-    document["glossary"] = None if narrative is None else build_glossary(document, reports)
-    return document
+    if narrative is None:
+        document["glossary"] = None
+        return document
+    return _narrator_package(document, reports)
+
+
+def _narrator_package(document: dict[str, Any], reports: Sequence[SituationReport]) -> dict[str, Any]:
+    """The narrator package (architecture 13.1): the report without provenance and paths, for a reader that cites IDs.
+
+    Every event loses its ``sources``, and the campaign, skipped files, saves and intervals lose their file paths; the
+    report without ``--narrative`` keeps both, and every ID here resolves in it. A nation that holds no region in any
+    save and is not referenced by a listed event is left out of the situation reports. The glossary is built from what
+    remains, then references are reduced to ``ref`` and ``name`` (and ``confidence`` when the identity is not an
+    in-save ID), the glossary keeping each entity's kind.
+    """
+    document["campaign"] = {key: value for key, value in document["campaign"].items() if key != "sources"}
+    document["skipped"] = [{"error_class": skipped["error_class"]} for skipped in document["skipped"]]
+    document["saves"] = [
+        {key: value for key, value in save.items() if key not in ("source", "aliases")} for save in document["saves"]
+    ]
+    events: list[dict[str, Any]] = list(document["narrative"])
+    for interval in document["intervals"]:
+        del interval["before"], interval["after"]
+        events.extend(interval["events"])
+        events.extend(interval["inferred"] or ())
+    for event in events:
+        del event["sources"]
+    _prune_nations(document["saves"], _referenced(events))
+    glossary = build_glossary(document, reports)
+    slimmed: dict[str, Any] = _slim(document)
+    slimmed["glossary"] = glossary
+    return slimmed
+
+
+def _referenced(node: Any) -> set[str]:
+    if isinstance(node, dict):
+        found = {node["ref"]} if isinstance(node.get("ref"), str) else set()
+        for value in node.values():
+            found |= _referenced(value)
+        return found
+    if isinstance(node, list):
+        return set().union(*(_referenced(item) for item in node)) if node else set()
+    return set()
+
+
+def _prune_nations(saves: list[dict[str, Any]], referenced: set[str]) -> None:
+    """Drop, from every report, the nations that hold no region in any report and that no listed event references."""
+    reports = [save["situation"] for save in saves if save["situation"] is not None]
+    kept = {
+        nation["nation"]["ref"]
+        for report in reports
+        for nation in report["nations"]
+        if nation["regions"] != 0 or nation["nation"]["ref"] in referenced
+    }
+    for report in reports:
+        report["nations"] = [nation for nation in report["nations"] if nation["nation"]["ref"] in kept]
+
+
+def _slim(node: Any) -> Any:
+    if isinstance(node, dict):
+        if isinstance(node.get("ref"), str) and "state_type" in node:
+            slim: dict[str, Any] = {"ref": node["ref"]}
+            if "name" in node:
+                slim["name"] = node["name"]
+            if node.get("confidence") != IdentityConfidence.IN_SAVE_ID.value:
+                slim["confidence"] = node.get("confidence")
+            return slim
+        return {key: _slim(value) for key, value in node.items()}
+    if isinstance(node, list):
+        return [_slim(item) for item in node]
+    return node

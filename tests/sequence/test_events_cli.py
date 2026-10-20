@@ -62,8 +62,9 @@ def test_events_matches_the_golden_report(
 
 @pytest.mark.fixture
 def test_every_golden_report_has_a_test() -> None:
+    narrator = "politics_sequence.expected.narrator_messages.json"  # tests/test_narrator_prompt.py
     assert sorted(path.name for path in EXPECTED_DIR.iterdir()) == sorted(
-        f"politics_sequence.expected.{suffix}" for suffix, _ in MARKDOWN_GOLDENS
+        [f"politics_sequence.expected.{suffix}" for suffix, _ in MARKDOWN_GOLDENS] + [narrator]
     )
 
 
@@ -674,3 +675,97 @@ def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
         "(10 state changes; 6 events below campaign_defining significance omitted)",
     ]
+
+
+def _keys(node: Any) -> set[str]:
+    if isinstance(node, dict):
+        return set(node).union(*(_keys(value) for value in node.values()))
+    if isinstance(node, list):
+        return set().union(*(_keys(item) for item in node))
+    return set()
+
+
+def _ids(document: dict[str, Any]) -> list[str]:
+    return [event["id"] for interval in document["intervals"] for event in interval["events"] + interval["inferred"]]
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"]])
+def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
+    flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    package = _json(capsys, "--narrative", *flags)
+
+    assert main(["events", "--format", "json", "--narrative", *flags, *SHUFFLED]) == EXIT_SUCCESS
+    assert capsys.readouterr().out == json.dumps(package, indent=2, ensure_ascii=True) + "\n"
+    text = json.dumps(package)
+    assert ".json" not in text
+    without = {key: value for key, value in package.items() if key != "glossary"}
+    assert not _keys(without) & {"sources", "source", "aliases", "before_location", "after_location", "state_type"}
+    assert all(set(interval) >= {"not_before", "date"} for interval in package["intervals"])
+    assert all("before" not in interval and "after" not in interval for interval in package["intervals"])
+    kinds = {entry["ref"]: entry.get("kind") for entry in package["glossary"]}
+    assert kinds["nation:20"] == "TINationState"
+    assert set(kinds) == _references(without) | {
+        region["ref"] for entry in package["glossary"] for region in entry.get("regions", ())
+    }
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("level", ["trivial", "major"])
+def test_every_narrator_package_id_resolves_in_the_audit_report(
+    level: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    package = _json(capsys, "--narrative", "--min-significance", level)
+    audit = _json(capsys, "--inferred", "--min-significance", level)
+    everything = _json(capsys, "--inferred")
+
+    assert _ids(package) == _ids(audit)
+    assert [save["key"] for save in package["saves"]] == [save["key"] for save in audit["saves"]]
+    assert all(save["source"] for save in audit["saves"])
+    audited = {
+        event["id"]: event
+        for interval in everything["intervals"]
+        for event in interval["events"] + interval["inferred"]
+    }
+    assert all(event["sources"] for event in audited.values())
+    for event in package["narrative"]:
+        assert set(event["constituents"]) <= set(audited)
+
+
+@pytest.mark.fixture
+def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_references(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    def listed(document: dict[str, Any]) -> list[list[str]]:
+        return [[nation["nation"]["ref"] for nation in save["situation"]["nations"]] for save in document["saves"]]
+
+    audit = _json(capsys, "--inferred", "--min-significance", "major")
+    everything = _json(capsys, "--narrative")
+    major = _json(capsys, "--narrative", "--min-significance", "major")
+
+    assert listed(audit) == [["nation:20", "nation:21", "nation:22"]] * 3
+    assert listed(everything) == listed(audit)  # nation:22 holds no region but a listed event names it
+    assert listed(major) == [["nation:20", "nation:21"]] * 3  # nation:21 holds none in April but does elsewhere
+    assert [save["situation"]["world"] for save in major["saves"]] == [
+        save["situation"]["world"] for save in audit["saves"]
+    ]
+
+
+@pytest.mark.fixture
+def test_the_narrator_package_refuses_literal_changes(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert main(["events", "--format", "json", "--narrative", "--changes", *SHUFFLED]) == EXIT_USAGE_ERROR
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "carries no state changes" in captured.err

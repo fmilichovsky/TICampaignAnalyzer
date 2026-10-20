@@ -38,6 +38,8 @@ touching the model or pipeline.
 - `src/tinarrative/maintenance/` — `tinarrative unknowns`: scans saves and maintains
   that registry. A tool package like `inspection`, not a pipeline stage.
 - `scripts/verify_fixture_manifest.py` — validates the versioned fixture set.
+- `scripts/narrator_prompt.py` — assembles an LLM request from `docs/narrator.md` and an
+  `events --narrative --format json` package; never calls an API.
 
 ## Commands
 

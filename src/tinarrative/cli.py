@@ -391,6 +391,13 @@ def _run_events(args: argparse.Namespace) -> int:
     settings = _resolve_settings("events", cast("Path | None", args.config))
     if isinstance(settings, int):
         return settings
+    if args.format == "json" and args.narrative and args.changes:
+        print(
+            "tinarrative events: the JSON narrator package (--narrative) carries no state changes; "
+            "drop --changes, or --narrative for the audit report",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
     paths = cast(list[Path], args.saves)
     inputs = expand_inputs(paths)
     if len(inputs) < 2:

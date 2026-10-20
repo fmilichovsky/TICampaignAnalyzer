@@ -254,7 +254,8 @@ intervals' keys.
   `domain` and, where the save gives them, `name` and `kind` (the save's state type). A nation entry
   also has `regions`, its regions' `ref` and `name`; those regions are entries themselves.
 
-Every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
+With `--narrative`, the document is the [narrator package](#narrator-package), which leaves out
+provenance and paths. Outside it, every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
 (`domain:key`), `state_type`, `confidence` and, when the save gives the entity a display name,
 `name`.
 
@@ -269,7 +270,21 @@ groups the Markdown.
 `narrative` events with roles, attributes and constituent IDs; one `situation` report per save in
 `saves`; the `glossary`, so no name has to be invented; and the atomic events of `intervals` at
 the chosen `min_significance`, for drill-down and citation by ID. Package consumers read those
-members and ignore the rest.
+members and ignore the rest. It is meant to be handed to a reader, such as an LLM narrator
+([narrator](../narrator.md)), so it carries IDs but no provenance and no file paths:
+
+- no event, narrative or atomic, has `sources`;
+- `campaign` has no `sources`, a `skipped` entry keeps only its `error_class`, a save has no
+  `source` or `aliases`, and an interval has no `before` or `after`;
+- a reference is `ref` and `name` (and `confidence` when the identity is not an in-save ID); its
+  state type is the glossary entry's `kind`;
+- a situation report leaves out the nations that hold no region in any save of the run and that no
+  listed event references; `world` still counts every nation;
+- `--changes` is a usage error (exit 2), since literal changes carry their source locations.
+
+The audit form is the same run with `--inferred` instead of `--narrative`: the same saves, keys and
+atomic and inferred event IDs, each event with its `sources` and the save paths. A narrative event
+is audited through its constituents there, whose sources include all of its own.
 
 `--changes` keeps every interval's changes, with their before and after values, in memory until
 the report is written, so a long sequence uses more memory with it than without it.
@@ -340,7 +355,7 @@ and error class; directory paths are never logged.
 | Code | When |
 | --- | --- |
 | 0 | Every named path was used and every interval was analyzed (including when only one distinct save remained). Files skipped inside a named directory do not change it. |
-| 2 | Usage error: fewer than two usable saves after directory expansion or in the chosen campaign; several campaigns without `--campaign`, or a `--campaign` that matches no campaign or several, when stdin or stderr is not a terminal; a cancelled campaign picker; or an unknown `--format` or `--min-significance`. |
+| 2 | Usage error: fewer than two usable saves after directory expansion or in the chosen campaign; several campaigns without `--campaign`, or a `--campaign` that matches no campaign or several, when stdin or stderr is not a terminal; a cancelled campaign picker; an unknown `--format` or `--min-significance`; or `--changes` with `--narrative --format json`. |
 | 4 | A named path cannot be read (missing or unreadable), or a named directory holds no files or no usable save. |
 | 5 | A named file is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |
 | 8 | The settings file (`--config` or `TINARRATIVE_CONFIG`) cannot be read, is not valid TOML, or names an unknown key or an invalid value. Nothing is printed on stdout. |

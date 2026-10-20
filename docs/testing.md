@@ -109,6 +109,21 @@ Review a regenerated golden line by line and commit it with the change that alte
 The pair is hand-authored so that each `ChangeKind` (value, membership, map, unknown,
 appeared, disappeared) occurs at least once; a test asserts that.
 
+## Expected narrator request
+
+`tests/fixtures/sequence/terra_invicta_json_v1/politics_sequence.expected.narrator_messages.json` holds the
+user message that `scripts/narrator_prompt.py` builds from the politics sequence's narrator package. The
+system prompt is checked against `docs/narrator.md` directly, so only a change to the request block, the
+package or the message layout needs a regenerated golden:
+
+```sh
+cd tests/fixtures/io/terra_invicta_json_v1
+tinarrative events politics_reverted.json politics_before.json politics_after.json --narrative --format json \
+  | python ../../../../scripts/narrator_prompt.py --period quarter --audience public \
+  | python -c "import json,sys; print(json.dumps(json.load(sys.stdin)['messages'], ensure_ascii=False, indent=2))" \
+  > ../../sequence/terra_invicta_json_v1/politics_sequence.expected.narrator_messages.json
+```
+
 The opt-in `real_save` diff test additionally needs `TINARRATIVE_REAL_SAVE_AFTER`, the later
 save of a consecutive pair; it checks determinism and evidence only and prints nothing.
 
