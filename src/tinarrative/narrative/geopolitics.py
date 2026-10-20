@@ -24,14 +24,35 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 
 from ..config import GeopoliticsSettings
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import DateBasis, Event, Role, Significance
+from ..model.events import Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import interval_of, interval_sort_key
+from .rulekit import (
+    anchored,
+    by_subject,
+    by_type,
+    chained,
+    earliest,
+    entity_of,
+    event_order,
+    intervals_of,
+    last_date,
+    latest,
+    mentions,
+    overlaps,
+    ref_attribute,
+    refs_attribute,
+    shifted,
+    sorted_keys,
+    subject,
+    subject_id,
+    unique_refs,
+    within,
+)
 from .situation import NationSituation, SituationReport, WarSituation
 
 TAKEOVER = "faction.takeover"
@@ -70,137 +91,6 @@ READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 """The territorial readings that explain a gain; a gain without one is a cession candidate."""
 SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, RELEASE, BREAKAWAY})
 """Developments whose ``metric_shifts`` already state a transformation of their nations."""
-
-
-# --- Dates and windows -------------------------------------------------------------------------------------------
-
-
-def earliest(event: Event) -> str | None:
-    """The earliest date the event can have happened on: its start, record date or ``not_before``."""
-    if event.is_narrative:
-        value: Observed = event.start
-    elif event.date_basis is DateBasis.RECORD:
-        value = event.date
-    else:
-        value = event.not_before
-    return value if isinstance(value, str) else None
-
-
-def latest(event: Event) -> str | None:
-    value = event.date
-    return value if isinstance(value, str) else None
-
-
-def _within(earlier: str | None, later: str | None, days: int) -> bool:
-    gap = days_between(earlier, later)
-    return gap is not None and gap <= days
-
-
-def overlaps(event: Event, low: str | None, high: str | None) -> bool:
-    """Whether the event can have happened between ``low`` and ``high`` (inclusive; unknown bounds never match)."""
-    after_low, before_high = days_between(low, latest(event)), days_between(earliest(event), high)
-    return after_low is not None and before_high is not None and after_low >= 0 and before_high >= 0
-
-
-def _shifted(date: str | None, days: int) -> str | None:
-    if date is None:
-        return None
-    try:
-        return (datetime.fromisoformat(date) + timedelta(days=days)).isoformat()
-    except ValueError:
-        return None
-
-
-def _order(event: Event) -> tuple[str, tuple[str, int], str]:
-    return (earliest(event) or "", interval_sort_key(intervals_of([event])[0]), event.id)
-
-
-def anchored(events: Iterable[Event], days: int) -> list[list[Event]]:
-    """Events split into runs whose members can each have happened within ``days`` of the run's first date."""
-    runs: list[list[Event]] = []
-    for event in sorted(events, key=_order):
-        if runs and _within(latest(runs[-1][0]), earliest(event), days):
-            runs[-1].append(event)
-        else:
-            runs.append([event])
-    return runs
-
-
-def chained(events: Iterable[Event], days: int) -> list[list[Event]]:
-    """Events split into runs whose members can each have happened within ``days`` of the run's latest date."""
-    runs: list[list[Event]] = []
-    for event in sorted(events, key=_order):
-        if runs and _within(max((latest(item) or "" for item in runs[-1]), default=None), earliest(event), days):
-            runs[-1].append(event)
-        else:
-            runs.append([event])
-    return runs
-
-
-def intervals_of(events: Iterable[Event]) -> list[str]:
-    """The interval keys the events span, in sequence order."""
-    keys = {key for event in events for key in (event.intervals if event.is_narrative else (interval_of(event.id),))}
-    return sorted(keys, key=interval_sort_key)
-
-
-def _last_date(situations: Sequence[SituationReport]) -> str | None:
-    date = situations[-1].date if situations else None
-    return date if isinstance(date, str) else None
-
-
-# --- Entities and attributes -------------------------------------------------------------------------------------
-
-
-def subject(event: Event) -> EntityRef | None:
-    return event.entities[0] if event.entities else None
-
-
-def _subject_id(event: Event) -> EntityId | None:
-    ref = subject(event)
-    return ref.entity_id if ref is not None else None
-
-
-def ref_attribute(event: Event, name: str) -> EntityRef | None:
-    value = event.attribute(name)
-    return value if isinstance(value, EntityRef) else None
-
-
-def refs_attribute(event: Event, name: str) -> tuple[EntityRef, ...]:
-    value = event.attribute(name)
-    return tuple(item for item in value if isinstance(item, EntityRef)) if isinstance(value, tuple) else ()
-
-
-def _mentions(event: Event, entity_id: EntityId) -> bool:
-    return any(ref.entity_id == entity_id for ref in event.entities)
-
-
-def _entity_of(event: Event, domain: EntityDomain) -> EntityRef | None:
-    return next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
-
-
-def _unique(refs: Iterable[EntityRef]) -> tuple[EntityRef, ...]:
-    """References in natural ID order, one per entity (the first seen keeps its name)."""
-    seen: dict[EntityId, EntityRef] = {}
-    for ref in refs:
-        seen.setdefault(ref.entity_id, ref)
-    return tuple(seen[key] for key in sorted(seen, key=lambda entity_id: entity_id.sort_key))
-
-
-def _by_type(stream: Iterable[Event], *types: str) -> list[Event]:
-    return [event for event in stream if event.event_type in types]
-
-
-def _by_subject(events: Iterable[Event]) -> dict[EntityId, list[Event]]:
-    grouped: dict[EntityId, list[Event]] = defaultdict(list)
-    for event in events:
-        key = _subject_id(event)
-        if key is not None:
-            grouped[key].append(event)
-    return grouped
-
-
-def _sorted_keys(grouped: Mapping[EntityId, object]) -> list[EntityId]:
-    return sorted(grouped, key=lambda entity_id: entity_id.sort_key)
 
 
 # --- Situation context -------------------------------------------------------------------------------------------
@@ -264,7 +154,7 @@ def metric_shifts(
     wanted, keys = set(nations), set(intervals)
     groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
     for event in stream:
-        nation = _subject_id(event)
+        nation = subject_id(event)
         if event.event_type != STATISTIC_SHIFTED or nation not in wanted or interval_of(event.id) not in keys:
             continue
         key = event.attribute("key")
@@ -335,9 +225,9 @@ class TakeoverRule:
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
         reports = interval_reports(situations)
-        by_nation = _by_subject(_by_type(stream, NATION_CONTROL))
+        by_nation = by_subject(by_type(stream, NATION_CONTROL))
         built = []
-        for nation_id in _sorted_keys(by_nation):
+        for nation_id in sorted_keys(by_nation):
             for run in self._runs(by_nation[nation_id]):
                 built.append(self._takeover(stream, situations, reports, build, run))
         return built
@@ -345,7 +235,7 @@ class TakeoverRule:
     def _runs(self, changes: Sequence[Event]) -> list[list[Event]]:
         runs: list[list[Event]] = []
         holder: EntityId | None = None
-        for change in sorted(changes, key=_order):
+        for change in sorted(changes, key=event_order):
             if change.attribute("scope") not in TAKEOVER_SCOPES:
                 continue
             before, after = ref_attribute(change, "before"), ref_attribute(change, "after")
@@ -357,7 +247,7 @@ class TakeoverRule:
             if change.attribute("cause") == INDEPENDENCE_CAUSE:
                 continue
             window = self.settings.takeover_consolidation_days
-            if runs and holder == after.entity_id and _within(latest(runs[-1][0]), earliest(change), window):
+            if runs and holder == after.entity_id and within(latest(runs[-1][0]), earliest(change), window):
                 runs[-1].append(change)
             else:
                 runs.append([change])
@@ -383,35 +273,31 @@ class TakeoverRule:
         )
         start = min((date for date in map(earliest, anchors) if date is not None), default=None)
         end = max((date for date in map(latest, anchors) if date is not None), default=None)
-        before_start = _shifted(start, -settings.takeover_precursor_days)
+        before_start = shifted(start, -settings.takeover_precursor_days)
         anchor_intervals = set(intervals_of(anchors))
         attached: list[Event] = []
         for event in stream:
             if event.event_type == CONTROLLER_CHANGED:
-                point_nation = _entity_of(event, EntityDomain.NATION)
+                point_nation = entity_of(event, EntityDomain.NATION)
                 gained = ref_attribute(event, "after")
                 if (
                     point_nation is not None
                     and point_nation.entity_id == nation.entity_id
                     and gained is not None
                     and gained.entity_id == actor.entity_id
-                    and overlaps(event, before_start, _shifted(end, settings.takeover_consolidation_days))
+                    and overlaps(event, before_start, shifted(end, settings.takeover_consolidation_days))
                 ):
                     attached.append(event)
             elif event.event_type == EXECUTIVE_RECORDED:
-                if _subject_id(event) == nation.entity_id and interval_of(event.id) in anchor_intervals:
+                if subject_id(event) == nation.entity_id and interval_of(event.id) in anchor_intervals:
                     attached.append(event)
             elif event.event_type in TAKEOVER_COUNCILOR_TYPES:
-                if (
-                    loser is not None
-                    and interval_of(event.id) in anchor_intervals
-                    and _mentions(event, loser.entity_id)
-                ):
+                if loser is not None and interval_of(event.id) in anchor_intervals and mentions(event, loser.entity_id):
                     attached.append(event)
             elif event.event_type == UNREST_ATTEMPTS:
                 attempts = ref_attribute(event, "faction")
                 if (
-                    _subject_id(event) == nation.entity_id
+                    subject_id(event) == nation.entity_id
                     and attempts is not None
                     and attempts.entity_id == actor.entity_id
                     and overlaps(event, before_start, end)
@@ -419,7 +305,7 @@ class TakeoverRule:
                     attached.append(event)
             elif event.event_type == STATISTIC_SHIFTED:
                 if (
-                    _subject_id(event) == nation.entity_id
+                    subject_id(event) == nation.entity_id
                     and event.attribute("statistic") in PRECURSOR_STATISTICS
                     and overlaps(event, before_start, end)
                 ):
@@ -455,11 +341,11 @@ class TakeoverRule:
 
     def _ledger(self, stream: Sequence[Event], anchors: Sequence[Event], actor: EntityRef) -> list[Event]:
         charges = [
-            event for event in _by_type(stream, TRANSACTION) if event.attribute("label") in TAKEOVER_LEDGER_LABELS
+            event for event in by_type(stream, TRANSACTION) if event.attribute("label") in TAKEOVER_LEDGER_LABELS
         ]
         found: list[Event] = []
         for anchor in anchors:
-            low = _shifted(earliest(anchor), -self.settings.ledger_window_days)
+            low = shifted(earliest(anchor), -self.settings.ledger_window_days)
             window = [charge for charge in charges if overlaps(charge, low, latest(anchor))]
             for label in sorted(TAKEOVER_LEDGER_LABELS):
                 labelled = [charge for charge in window if charge.attribute("label") == label]
@@ -499,11 +385,11 @@ class FederationLifecycleRule:
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
         types = ("federation.appeared", "federation.members_changed", "federation.renamed", "federation.disappeared")
-        by_federation = _by_subject(_by_type(stream, *types))
+        by_federation = by_subject(by_type(stream, *types))
         first = {item.federation.entity_id for item in situations[0].federations} if situations else set()
         built = []
-        for federation_id in _sorted_keys(by_federation):
-            events = sorted(by_federation[federation_id], key=_order)
+        for federation_id in sorted_keys(by_federation):
+            events = sorted(by_federation[federation_id], key=event_order)
             if federation_id not in first and not any(event.event_type == "federation.appeared" for event in events):
                 continue
             listed = [
@@ -512,8 +398,8 @@ class FederationLifecycleRule:
                 for item in report.federations
                 if item.federation.entity_id == federation_id
             ]
-            initial = _unique(_refs(listed[0].members)) if listed else ()
-            final = _unique(_refs(listed[-1].members)) if listed else ()
+            initial = unique_refs(_refs(listed[0].members)) if listed else ()
+            final = unique_refs(_refs(listed[-1].members)) if listed else ()
             changes = tuple(
                 FrozenMap(
                     (
@@ -569,9 +455,9 @@ class CessionRule:
     ) -> list[Event]:
         reports = interval_reports(situations)
         explained = _readings(stream)
-        lost = {(_subject_id(event), interval_of(event.id)): event for event in _by_type(stream, TERRITORY_LOST)}
+        lost = {(subject_id(event), interval_of(event.id)): event for event in by_type(stream, TERRITORY_LOST)}
         built = []
-        for gain in sorted(_by_type(stream, TERRITORY_GAINED), key=lambda event: event.id):
+        for gain in sorted(by_type(stream, TERRITORY_GAINED), key=lambda event: event.id):
             gainer, key = gain.entities[0], interval_of(gain.id)
             if (gainer.entity_id, key) in explained:
                 continue
@@ -626,7 +512,7 @@ class CessionRule:
 def _readings(stream: Iterable[Event]) -> set[tuple[EntityId, str]]:
     """The (gainer, interval) pairs with a unification, annexation or independence reading."""
     return {
-        (key, interval_of(event.id)) for event in _by_type(stream, *READINGS) if (key := _subject_id(event)) is not None
+        (key, interval_of(event.id)) for event in by_type(stream, *READINGS) if (key := subject_id(event)) is not None
     }
 
 
@@ -654,11 +540,11 @@ class IndependenceRule:
         reports = interval_reports(situations)
         days = self.settings.release_window_days
         own_types = ("nation.appeared", "nation.breakaway_parent_changed", NATION_CONTROL)
-        own = _by_subject(_by_type(stream, *own_types))
+        own = by_subject(by_type(stream, *own_types))
         built = []
-        for anchor in sorted(_by_type(stream, INDEPENDENCE), key=lambda event: event.id):
+        for anchor in sorted(by_type(stream, INDEPENDENCE), key=lambda event: event.id):
             nation = anchor.entities[0]
-            high = _shifted(latest(anchor), days)
+            high = shifted(latest(anchor), days)
             attached = [event for event in own.get(nation.entity_id, []) if overlaps(event, earliest(anchor), high)]
             constituents = [anchor, *attached]
             released = anchor.attribute("released") is True
@@ -686,7 +572,7 @@ class IndependenceRule:
                             ),
                         ),
                     ),
-                    open=_within(latest(anchor), _last_date(situations), days),
+                    open=within(latest(anchor), last_date(situations), days),
                 )
             )
         return built
@@ -701,7 +587,7 @@ def _executive_after(
     controls = [
         event for event in attached if event.event_type == NATION_CONTROL and event.attribute("scope") == "executive"
     ]
-    for control in sorted(controls, key=_order, reverse=True):
+    for control in sorted(controls, key=event_order, reverse=True):
         holder = ref_attribute(control, "after")
         if holder is not None:
             return holder
@@ -726,7 +612,7 @@ class ClaimsDeclaredRule:
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
         built = []
-        for anchor in sorted(_by_type(stream, "nation.claims_changed"), key=lambda event: event.id):
+        for anchor in sorted(by_type(stream, "nation.claims_changed"), key=lambda event: event.id):
             nation = anchor.entities[0]
             regions = refs_attribute(anchor, "added")
             targets = [ref for ref in refs_attribute(anchor, "added_owners") if ref.entity_id != nation.entity_id]
@@ -776,21 +662,21 @@ class ExpansionRule:
         cessions = [event for event in stream if event.event_type == CESSION]
         covered = {constituent for event in cessions for constituent in event.constituents}
         gains: dict[EntityId, list[Event]] = defaultdict(list)
-        for event in _by_type(stream, UNIFICATION, ANNEXATION):
-            key = _subject_id(event)
+        for event in by_type(stream, UNIFICATION, ANNEXATION):
+            key = subject_id(event)
             if key is not None:
                 gains[key].append(event)
         for event in cessions:
             gains[_gainer(event).entity_id].append(event)
-        aggregates = _by_subject(_by_type(stream, TERRITORY_GAINED))
+        aggregates = by_subject(by_type(stream, TERRITORY_GAINED))
         for gainer_id, events in aggregates.items():
             for event in events:
                 if (gainer_id, interval_of(event.id)) not in explained and event.id not in covered:
                     gains[gainer_id].append(event)
         days = self.settings.expansion_gap_days
-        last = _last_date(situations)
+        last = last_date(situations)
         built = []
-        for gainer_id in _sorted_keys(gains):
+        for gainer_id in sorted_keys(gains):
             for run in chained(gains[gainer_id], days):
                 if len(run) >= 2:
                     built.append(self._expansion(stream, build, run, aggregates.get(gainer_id, []), last))
@@ -805,7 +691,7 @@ class ExpansionRule:
         last: str | None,
     ) -> Event:
         gainer = _gainer(run[0])
-        losers = _unique(loser for gain in run for loser in _losers(gain))
+        losers = unique_refs(loser for gain in run for loser in _losers(gain))
         keys = set(intervals_of(run))
         inside = {constituent for gain in run for constituent in gain.constituents}
         territory = [event for event in aggregates if interval_of(event.id) in keys and event.id not in inside]
@@ -816,13 +702,13 @@ class ExpansionRule:
             event
             for event in stream
             if (
-                (event.event_type == "nation.disappeared" and _subject_id(event) in loser_ids)
-                or (event.event_type == "nation.renamed" and _subject_id(event) == gainer.entity_id)
+                (event.event_type == "nation.disappeared" and subject_id(event) in loser_ids)
+                or (event.event_type == "nation.renamed" and subject_id(event) == gainer.entity_id)
             )
             and overlaps(event, start, end)
         ]
         constituents = [*run, *(event for event in territory if event not in run), *attached]
-        regions = _unique(region for event in (*run, *territory) for region in refs_attribute(event, "regions"))
+        regions = unique_refs(region for event in (*run, *territory) for region in refs_attribute(event, "regions"))
         kinds = {gain.event_type for gain in run}
         readings = kinds & {UNIFICATION, ANNEXATION}
         mode = None
@@ -847,7 +733,7 @@ class ExpansionRule:
                 ("metric_shifts", metric_shifts(stream, [gainer.entity_id, *loser_ids], intervals)),
             ),
             significance=Significance.MAJOR,
-            open=_within(end, last, self.settings.expansion_gap_days),
+            open=within(end, last, self.settings.expansion_gap_days),
         )
 
 
@@ -890,7 +776,7 @@ class WarArcRule:
     ) -> list[Event]:
         reports = interval_reports(situations)
         types = ("war.appeared", "war.alliance_changed", "war.last_fighting_changed", "war.disappeared")
-        by_war = _by_subject(_by_type(stream, *types))
+        by_war = by_subject(by_type(stream, *types))
         listed: dict[EntityId, EntityRef] = {war.war.entity_id: war.war for report in situations for war in report.wars}
         first = {war.war.entity_id for war in situations[0].wars} if situations else set()
         built = []
@@ -935,7 +821,7 @@ class WarArcRule:
         nested = {constituent for expansion in expansions for constituent in expansion.constituents}
         annexations = [
             event
-            for event in _by_type(stream, ANNEXATION)
+            for event in by_type(stream, ANNEXATION)
             if interval_of(event.id) in keys
             and len(event.entities) > 1
             and belligerents(event.entities[0].entity_id, event.entities[1].entity_id, interval_of(event.id))
@@ -945,7 +831,7 @@ class WarArcRule:
             return None
         attackers, defenders = self._sides(situations, war.entity_id, events)
         by_id = {event.id: event for event in stream}
-        regions = _unique(
+        regions = unique_refs(
             region
             for event in (
                 *annexations,
@@ -967,7 +853,7 @@ class WarArcRule:
             )
         ended = next((latest(event) for event in events if event.event_type == "war.disappeared"), None)
         is_open = bool(situations) and _war_in(situations[-1], war.entity_id)
-        until = ended if ended is not None else (_last_date(situations) if is_open else None)
+        until = ended if ended is not None else (last_date(situations) if is_open else None)
         duration = days_between(started, until)
         ordered = sorted(keys, key=interval_sort_key)
         strikes = None
@@ -1009,7 +895,7 @@ class WarArcRule:
             member = ref_attribute(event, "member")
             if event.event_type == "war.alliance_changed" and member is not None:
                 (attackers if event.attribute("side") == "attacking" else defenders).append(member)
-        return _unique(attackers), _unique(defenders)
+        return unique_refs(attackers), unique_refs(defenders)
 
 
 def _war_in(report: SituationReport, war_id: EntityId) -> bool:
@@ -1047,15 +933,15 @@ class TransformationRule:
     ) -> list[Event]:
         shifts = [
             event
-            for event in _by_type(stream, STATISTIC_SHIFTED)
+            for event in by_type(stream, STATISTIC_SHIFTED)
             if event.attribute("statistic") in TRANSFORMATION_STATISTICS
         ]
         carriers = [event for event in stream if event.event_type in SHIFT_CARRIERS]
         days = self.settings.transformation_window_days
-        last = _last_date(situations)
+        last = last_date(situations)
         built = []
-        by_nation = _by_subject(shifts)
-        for nation_id in _sorted_keys(by_nation):
+        by_nation = by_subject(shifts)
+        for nation_id in sorted_keys(by_nation):
             for run in anchored(by_nation[nation_id], days):
                 statistics = sorted({str(event.attribute("statistic")) for event in run})
                 if len(statistics) < 2:
@@ -1078,7 +964,7 @@ class TransformationRule:
                             ("statistics", tuple(statistics)),
                             ("metric_shifts", metric_shifts(stream, [nation_id], keys)),
                         ),
-                        open=_within(latest(run[0]), last, days),
+                        open=within(latest(run[0]), last, days),
                     )
                 )
         return built

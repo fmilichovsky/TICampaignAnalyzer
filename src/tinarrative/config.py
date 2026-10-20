@@ -1,11 +1,11 @@
 """Runtime settings: the thresholds and windows of the narrative rules, with their defaults in code.
 
-A settings file is TOML whose tables mirror the dataclasses below (``[narrative.geopolitics]``); a file names only
-the keys it changes, and every other key keeps its default. Validation is strict: an unknown table or key, a value
-of the wrong type (``bool`` is not an integer here) or a value below its minimum is a ``ConfigError``. The CLI
-resolves the file from ``--config``, then ``CONFIG_ENV_VAR``, then uses ``DEFAULT_SETTINGS``
-(``docs/configuration.md``). Each default states its rule; the evidence behind it is in the game-data notes
-(``higher-level-event-sources.md``, *Narrative rules (geopolitics)*).
+A settings file is TOML whose tables mirror the dataclasses below (``[narrative.geopolitics]``,
+``[narrative.space]``); a file names only the keys it changes, and every other key keeps its default. Validation
+is strict: an unknown table or key, a value of the wrong type (``bool`` is not an integer here) or a value below
+its minimum is a ``ConfigError``. The CLI resolves the file from ``--config``, then ``CONFIG_ENV_VAR``, then uses
+``DEFAULT_SETTINGS`` (``docs/configuration.md``). Each default states its rule; the evidence behind it is in the
+game-data notes (``higher-level-event-sources.md``, *Narrative rules (geopolitics)* and *Narrative rules (space)*).
 """
 
 from __future__ import annotations
@@ -52,8 +52,22 @@ class GeopoliticsSettings:
 
 
 @dataclass(frozen=True)
+class SpaceSettings:
+    """Thresholds and windows of the space narrative rules (``narrative.space``); windows in game days."""
+
+    campaign_gap_days: int = _int(365, 0)
+    """Battle outcomes of one killer and victim pair chain into one space campaign while each follows the previous
+    one this soon."""
+    colonisation_window_days: int = _int(180, 0)
+    """First habs on new bodies of one faction this soon after the first form one colonisation wave."""
+    buildup_min_ships: int = _int(5, 2)
+    """A fleet buildup needs at least this many ships of one hull appearing for one faction in one interval."""
+
+
+@dataclass(frozen=True)
 class NarrativeSettings:
     geopolitics: GeopoliticsSettings = field(default_factory=GeopoliticsSettings)
+    space: SpaceSettings = field(default_factory=SpaceSettings)
 
 
 @dataclass(frozen=True)

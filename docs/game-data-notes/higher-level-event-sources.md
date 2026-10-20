@@ -470,6 +470,25 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   | `nation.claims_declared` | 0 | 0 |
   | `nation.transformation` | 2 | 0 |
 
+- **Narrative rules (space)** (observed 2026-10-20 for the template names, from the latest older save;
+  the other counts are the space observations of 2026-10-18 above; evidence for the space narrative
+  rules and the defaults of `config.SpaceSettings`).
+  - *Space campaign.* `faction.battle_outcome` anchors one campaign per killer and victim pair. The
+    older saves had few outcomes per pair, so the campaign gap (365 days) is a *hypothesis* sized to
+    the longest observed save interval, not a measured distribution.
+  - *Colonisation wave.* `faction.first_hab_on_body` occurred 0, 0, 2 and 5 times per interval in
+    the older saves and 0 and 2 in the newer ones, so a wave of two or more needs a window longer
+    than one short interval; 180 days is a *hypothesis*.
+  - *First milestone.* No `Global Milestone` charge was observed alongside a milestone in the sampled
+    intervals, so date narrowing is untested on real data; the rule keeps the interval date
+    without one.
+  - *Fleet buildup.* `ship.appeared` carries `hull` when the design resolves and now also the owner of
+    the ship's fleet as its third entity. The threshold of five ships is a *hypothesis*.
+  - *Technology milestones.* The latest older save held 148 finished technologies and 476 distinct
+    finished project names on the factions; every name in `MILESTONE_TEMPLATES` (drive families,
+    warship-enabling techs and projects, alien-contact projects) is among them. The list is
+    interpretation, chosen by the author, not a property of the save.
+
 ## Structures looked at and set aside
 
 - `TIHistoricalData` (one entry, `Data`: pair map faction → object of resource-use series): graph data,

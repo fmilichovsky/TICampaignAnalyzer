@@ -44,10 +44,13 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.geopolitics.expansion_gap_days` | 365 | 0 | Gains of one nation chain into one `nation.expansion` while each follows the previous one this soon. |
 | `narrative.geopolitics.release_window_days` | 180 | 0 | A released or breakaway nation's own events this soon after its independence are attached. |
 | `narrative.geopolitics.transformation_window_days` | 120 | 0 | Statistic shifts of one nation this soon after the first form one `nation.transformation`. |
+| `narrative.space.campaign_gap_days` | 365 | 0 | Battle outcomes of one killer and victim pair chain into one `faction.space_campaign` while each follows the previous one this soon. |
+| `narrative.space.colonisation_window_days` | 180 | 0 | First habs on new bodies of one faction this soon after the first form one `faction.colonisation_wave`. |
+| `narrative.space.buildup_min_ships` | 5 | 2 | A `faction.fleet_buildup` needs at least this many ships of one hull appearing for one faction in one interval. |
 
 The evidence behind the defaults is in
 [sources for higher-level events](game-data-notes/higher-level-event-sources.md)
-(*Narrative rules (geopolitics)*).
+(*Narrative rules (geopolitics)* and *Narrative rules (space)*).
 
 ## Reproducibility
 

@@ -178,6 +178,9 @@ because rules build on inferred events. The geopolitical rules of
 `war.arc`, `federation.lifecycle`, `nation.expansion`, `nation.cession`, `nation.release` /
 `nation.breakaway`, `nation.claims_declared` and `nation.transformation`. Each carries the nation
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
+The space rules are implemented too: `faction.space_campaign`, `faction.colonisation_wave`,
+`campaign.first_milestone`, `faction.fleet_buildup` and `technology.milestone` (the last from a curated
+list of template names, which is interpretation).
 
 Their thresholds and windows come from a settings file: `--config <file>`, else the file named by
 `TINARRATIVE_CONFIG`, else the built-in defaults ([configuration](../configuration.md)). An empty

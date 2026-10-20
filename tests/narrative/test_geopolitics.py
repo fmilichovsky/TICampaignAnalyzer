@@ -50,9 +50,14 @@ FORBIDDEN = (
     "assassin", "died", "death", "creat", "declar", "won", "lost", "peace", "victor", "defeat", "surrender",
 )  # fmt: skip
 """The objective analyzers' cause words (``tests/analyzers/politics/test_politics_fixture_pairs.py``)."""
-RELAXED = {"nation.expansion": {"annex"}, "nation.claims_declared": {"declar"}}
+RELAXED = {
+    "nation.expansion": {"annex"},
+    "nation.claims_declared": {"declar"},
+    "faction.space_campaign": {"lost", "won"},
+}
 """Stems a narrative type may use: an expansion echoes its literal ``mode``, which can be ``annexation``, and the
-claims type names the declaration it reports (the claim list changed is the declaration)."""
+claims type names the declaration it reports (the claim list changed is the declaration), and a space
+campaign echoes the literal counts of habs and fleets lost and combats won."""
 
 
 def event(

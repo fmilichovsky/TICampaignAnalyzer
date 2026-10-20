@@ -89,7 +89,7 @@ built from the developments catalogued in
   `nation.claims_declared`, `nation.transformation`, each carrying the nation
   statistic shifts of its span as `metric_shifts`, with the thresholds and windows as runtime
   settings (`--config`, [configuration](configuration.md)) (#101).
-- [ ] Space narrative rules: `faction.space_campaign`,
+- [x] Space narrative rules: `faction.space_campaign`,
   `faction.colonisation_wave`, `campaign.first_milestone` dating,
   `faction.fleet_buildup`, `technology.milestone` with its curated,
   documented list (#102).

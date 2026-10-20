@@ -1048,8 +1048,8 @@ destroyed a rival's bases. Each development carries its span, its actors
 by role and every piece of evidence beneath it.
 
 The framework is implemented (11.2, implemented contract), and so are the
-geopolitical rules of the catalogue (11.3, implemented contract); the space
-rules are not yet. This section is the contract they are built against; the
+geopolitical and space rules of the catalogue (11.3, implemented contracts).
+This section is the contract they are built against; the
 roadmap's *Narrative layer* section lists the steps. The design was revised
 after measuring the atomic stream on real saves: the earlier
 sketch (clusters by temporal proximity and shared entities, a `float`
@@ -1253,11 +1253,32 @@ Space milestones second:
 
 | Type | Says | Anchor and constituents | Window | Needs |
 | --- | --- | --- | --- | --- |
-| `faction.space_campaign` | X destroyed k habs and fleets of Y over a period, winning n recorded battles | `faction.battle_outcome`, `hab.destroyed`, `faction.combat_recorded`, `notification.LogSpaceBattleTakesPlace` | N intervals | nothing |
-| `faction.colonisation_wave` | X established habs on bodies B1..Bn in a period | `faction.first_hab_on_body`, `hab.appeared` | N intervals | named space bodies |
-| `campaign.first_milestone` | a campaign-wide first (first base on a body, first warship, first victory against the aliens), dated | `campaign.global_milestone_recorded`; a `Global Milestone` ledger entry of the same faction may date it | 1 interval | ledger events |
-| `faction.fleet_buildup` | X commissioned n ships of class C | `ship.appeared` with a hull class; `Ship Construction` ledger entries as corroboration | 1 interval | ledger events |
-| `technology.milestone` | a technology or project from a curated list completed | `technology.completed`, `faction.project_completed` | 1 interval | the curated list, documented as interpretation |
+| `faction.space_campaign` (implemented) | X destroyed k habs and fleets of Y over a period, winning n recorded battles | `faction.battle_outcome`, `hab.destroyed`, `faction.combat_recorded`, `notification.LogSpaceBattleTakesPlace` | N intervals | nothing |
+| `faction.colonisation_wave` (implemented) | X established habs on bodies B1..Bn in a period | `faction.first_hab_on_body`, `hab.appeared` | N intervals | nothing |
+| `campaign.first_milestone` (implemented) | a campaign-wide first (first base on a body, first warship, first victory against the aliens), dated | `campaign.global_milestone_recorded`; a `Global Milestone` ledger entry of the same faction may date it | 1 interval | nothing |
+| `faction.fleet_buildup` (implemented) | X commissioned n ships of class C | `ship.appeared` with a hull class; `Ship Construction` ledger entries as corroboration | 1 interval | nothing |
+| `technology.milestone` (implemented) | a technology or project from a curated list completed | `technology.completed`, `faction.project_completed` | 1 interval | the curated list, documented as interpretation |
+
+Implemented contract (`narrative/space.py`, all order 0, windows from
+`SpaceSettings`):
+
+-   `faction.space_campaign` (heuristic, major, by killer and victim). Battle
+    outcomes of one pair chained within the campaign gap. Attached within
+    their intervals: the pair's unambiguous `hab.destroyed`, combats between
+    the two, battle notifications about a fleet the victim lost or naming
+    either faction, and the victim's `fleet.disappeared`. Counts are summed
+    from the outcomes, never recounted. Roles: actor, target, bodies.
+-   `faction.colonisation_wave` (major, by faction). Two or more distinct
+    bodies among one faction's `faction.first_hab_on_body` within the window,
+    with their `hab.appeared`.
+-   `campaign.first_milestone` (campaign defining, one interval). A
+    `Global Milestone` charge of the milestone's faction dates it only when
+    no other faction carries the label in the interval (bound 4 below).
+-   `faction.fleet_buildup` (minor, one interval). The minimum number of
+    `ship.appeared` of one fleet owner and hull in an interval.
+-   `technology.milestone` (major, one interval). A completion whose template
+    name is in the curated list kept in the module, each name with its
+    rationale; the list is interpretation.
 
 Set aside for now: `economy.space_self_sufficient` (space income against
 Earth funding from the resource ledger), because the ledger's income
