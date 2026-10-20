@@ -8,7 +8,7 @@ from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.values import Observed, Unknown
+from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.rendering.markdown import render_sequence
 from tinarrative.sequence import IntervalResult, SaveRef, SequencePlan
 
@@ -207,7 +207,8 @@ def test_inferred_events_below_the_minimum_are_counted_in_their_own_section() ->
     change = _control_change()
     objective = _control_event(change, significance=Significance.TRIVIAL)
     inferred = replace(_inferred_event(change, event_id="i-1", constituents=("e-1",)), significance=Significance.MINOR)
-    rendered = _render([objective], inferred=[inferred], min_significance=Significance.MAJOR, verbose=True)
+    listed = _control_event(change, event_id="e-2", significance=Significance.MAJOR)
+    rendered = _render([objective, listed], inferred=[inferred], min_significance=Significance.MAJOR, verbose=True)
     section = _section(rendered, "Inferred events")
     assert "- " not in section
     assert section.endswith("\n1 inferred event below major significance omitted.\n")
@@ -278,3 +279,45 @@ def test_narrative_events_below_the_minimum_are_counted() -> None:
 
     assert "nation:2@" not in rendered
     assert "1 narrative event below major significance omitted." in rendered
+
+
+def test_narrative_events_group_by_half_and_quarter_with_undated_first() -> None:
+    narrative = [_arc("1", "2031-08-01T00:00:00"), _arc("2", "2031-02-01T00:00:00"), _arc("3", Unknown())]
+
+    half = render_sequence(
+        SequencePlan((BEFORE, AFTER), (BEFORE.date, AFTER.date), 2), [], narrative=narrative, period="half"
+    )
+    quarter = render_sequence(
+        SequencePlan((BEFORE, AFTER), (BEFORE.date, AFTER.date), 2), [], narrative=narrative, period="quarter"
+    )
+
+    assert [line for line in half.splitlines() if line.startswith("### ")] == [
+        "### Undated",
+        "### 2031 H1",
+        "### 2031 H2",
+    ]
+    assert [line for line in quarter.splitlines() if line.startswith("### ")] == [
+        "### Undated",
+        "### 2031 Q1",
+        "### 2031 Q3",
+    ]
+
+
+def test_a_narrative_line_summarises_its_key_attributes() -> None:
+    shifts = (FrozenMap((("statistic", "GDP"),)), FrozenMap((("statistic", "unrest"),)))
+    event = _arc("1", "2031-01-01T00:00:00", attributes=(("metric_shifts", shifts), ("region_count", 2)))
+
+    rendered = _narrative_render([event])
+
+    assert "  - attributes: metric_shifts: 2; region_count: `2`\n  - from `nation.changed/nation:1@" in rendered
+
+
+def test_an_interval_with_nothing_at_the_minimum_is_one_line() -> None:
+    change = _control_change()
+    rendered = _render([_control_event(change, significance=Significance.MINOR)], min_significance=Significance.MAJOR)
+
+    assert "#### " not in rendered
+    assert rendered.endswith(
+        "`2030-01-01T00:00:00` to `2030-02-01T00:00:00`: nothing listed "
+        "(0 state changes; 1 event below major significance omitted)\n"
+    )

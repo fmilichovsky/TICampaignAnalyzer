@@ -10,6 +10,7 @@ import sys
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -37,6 +38,7 @@ MARKDOWN_GOLDENS = [
     ("inferred.md", ["--inferred"]),
     ("changes.md", ["--changes"]),
     ("narrative.md", ["--narrative"]),
+    ("narrative.major.md", ["--narrative", "--min-significance", "major"]),
 ]
 
 
@@ -545,3 +547,130 @@ def test_a_cancelled_picker_is_a_usage_error(
 
     assert captured.out == ""
     assert "tinarrative events: no campaign chosen" in captured.err
+
+
+def _json(capsys: pytest.CaptureFixture[str], *flags: str) -> dict[str, Any]:
+    assert main(["events", "--format", "json", *flags, *SHUFFLED]) == EXIT_SUCCESS
+    return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
+
+
+def _references(node: Any) -> set[str]:
+    """Every ``ref`` in a document, plus the faction IDs keying a nation's ``shares``."""
+    found: set[str] = set()
+    if isinstance(node, dict):
+        if isinstance(node.get("ref"), str):
+            found.add(node["ref"])
+        for key, value in node.items():
+            if key == "shares" and isinstance(value, dict):
+                found.update(value)
+            else:
+                found |= _references(value)
+    elif isinstance(node, list):
+        for item in node:
+            found |= _references(item)
+    return found
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"], ["--min-significance", "campaign_defining"]])
+def test_the_glossary_holds_every_referenced_id_and_nothing_else(
+    flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    document = _json(capsys, "--narrative", *flags)
+
+    glossary = document["glossary"]
+    listed = [entry["ref"] for entry in glossary]
+    assert listed == sorted(set(listed), key=lambda text: (text.partition(":")[0], len(text), text))
+    without = {key: value for key, value in document.items() if key != "glossary"}
+    regions = {region["ref"] for entry in glossary for region in entry.get("regions", ())}
+    assert set(listed) == _references(without) | regions
+    assert all(entry["domain"] == entry["ref"].partition(":")[0] for entry in glossary)
+
+
+@pytest.mark.fixture
+def test_the_glossary_names_entities_and_lists_a_nations_regions(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    document = _json(capsys, "--narrative")
+
+    entries = {entry["ref"]: entry for entry in document["glossary"]}
+    assert entries["nation:20"]["name"] == "Fixture Northland"
+    assert entries["nation:20"]["regions"] == [
+        {"ref": "region:40", "name": "Fixture North"},
+        {"ref": "region:41", "name": "Fixture East"},
+    ]
+    assert entries["region:42"]["name"] == "Fixture South"
+    assert "regions" not in entries["region:42"]
+
+
+@pytest.mark.fixture
+def test_the_json_has_no_glossary_without_narrative(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    document = _json(capsys)
+
+    assert document["glossary"] is None and document["narrative_omitted"] is None
+    assert document["min_significance"] == "trivial"
+    assert all(interval["omitted"] == {"objective": 0, "inferred": None} for interval in document["intervals"])
+
+
+@pytest.mark.fixture
+def test_the_json_drops_events_below_the_minimum_and_counts_them(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    everything = _json(capsys, "--narrative")
+
+    major = _json(capsys, "--narrative", "--min-significance", "major")
+    defining = _json(capsys, "--narrative", "--min-significance", "campaign_defining")
+
+    assert major["min_significance"] == "major" and major["narrative_omitted"] == 0
+    assert [event["event_type"] for event in defining["narrative"]] == ["faction.takeover"]
+    assert defining["narrative_omitted"] == len(everything["narrative"]) - 1
+    assert major["intervals"][0]["omitted"]["objective"] > 0
+    for full, kept in zip(everything["intervals"], major["intervals"], strict=True):
+        assert kept["omitted"]["objective"] == len(full["events"]) - len(kept["events"])
+        assert kept["omitted"]["inferred"] == len(full["inferred"]) - len(kept["inferred"])
+        assert {event["significance"] for event in kept["events"] + kept["inferred"]} <= {"major", "campaign_defining"}
+        assert kept["state_changes"] == full["state_changes"]
+        assert kept["changes"] == full["changes"]
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize(
+    ("period", "headings"),
+    [("year", ["### 2032"]), ("half", ["### 2032 H1"]), ("quarter", ["### 2032 Q1", "### 2032 Q2"])],
+)
+def test_period_groups_the_narrative_section(
+    period: str, headings: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert main(["events", "--narrative", "--period", period, *SHUFFLED]) == EXIT_SUCCESS
+
+    narrative = capsys.readouterr().out.partition("## Narrative")[2].partition("## Intervals")[0]
+    assert [line for line in narrative.splitlines() if line.startswith("### ")] == headings
+
+
+@pytest.mark.fixture
+def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert main(["events", "--narrative", "--min-significance", "campaign_defining", *SHUFFLED]) == EXIT_SUCCESS
+
+    intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
+    assert "###" not in intervals
+    assert [line for line in intervals.splitlines() if line] == [
+        "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
+        "(34 state changes; 24 events below campaign_defining significance omitted)",
+        "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
+        "(10 state changes; 6 events below campaign_defining significance omitted)",
+    ]

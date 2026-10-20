@@ -33,6 +33,7 @@ Aggregated from the events of every interval below.
   - from `nation.claims_changed/nation:21@2032-04-01T00:00:00`
 - `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: Fixture Northland (nation:20) ceded 1 region to Fixture Southland (nation:21) (inferred, confidence `low`, significance `major`)
   - roles: actor: Fixture Northland (nation:20); beneficiary: Fixture Southland (nation:21); location: Fixture South (region:42)
+  - attributes: region_count: `1`
   - from `nation.territory_gained/nation:21@2032-07-01T00:00:00`
   - from `nation.territory_lost/nation:20@2032-07-01T00:00:00`
 

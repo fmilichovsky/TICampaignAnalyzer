@@ -1,7 +1,7 @@
 # `tinarrative events`
 
 ```
-tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--inferred] [--narrative] [--changes] [--config <file>]
+tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--period year|half|quarter] [--inferred] [--narrative] [--changes] [--config <file>]
 ```
 
 Reads two or more saves, given as files, directories or both, groups them by campaign, orders one campaign's saves by game time, and reports the analyzer
@@ -141,7 +141,13 @@ Every analyzer result carries a significance (`trivial`, `minor`, `major` or
 section 12). `--min-significance <level>` lists only the results at that level or above; the
 default `trivial` lists every result. When results are dropped, one line after the interval's
 objective results states how many were omitted and below which level, so the report never hides
-the omission. State changes listed with `--changes` are never filtered.
+the omission. State changes listed with `--changes` are never filtered. The JSON report is filtered
+the same way (see [JSON output](#json-output)).
+
+An interval with nothing to list at the chosen level (no inferred or objective event, and no
+`--changes`) is one line instead of a section: its dates, its state change count and how many events
+were omitted. This only happens above `trivial`, so `events --narrative --min-significance major`
+reads as a digest with `## Intervals` as its drill-down appendix.
 
 ### Inferred events
 
@@ -190,14 +196,19 @@ variable counts as unset. The file is read and validated on every run, with or w
 `--narrative`.
 
 The Markdown report gains `## Narrative` between `## Saves` and `## Intervals`. Events are grouped
-under `### <year>` headings, using the year each event starts in, with `### Undated` first. Each
+under period headings, using the period each event starts in, with `### Undated` first.
+`--period year` (the default) gives `### 2032`, `half` gives `### 2032 H1` and `quarter` gives
+`### 2032 Q1`. Each
 line gives the event's span, `(open)` when its anchor is still present in the last save, its
-description, status, confidence and significance. A `roles:` line follows, then one `from` line
-per constituent ID:
+description, status, confidence and significance. A `roles:` line follows, then an `attributes:`
+line with the event's key attributes (the number of `metric_shifts`, and, when present, the war,
+shared federation, cause, mode, region count, duration, milestone, hull, count or template), then
+one `from` line per constituent ID:
 
 ```
 - `2032-01-01T00:00:00` to `2032-07-01T00:00:00` (open): <description> (inferred, confidence `medium`, significance `major`)
   - roles: actor: Fixture Faction (faction:7); target: Fixture Nation (nation:20)
+  - attributes: metric_shifts: 2; region_count: `1`
   - from `faction.nation_control_changed/executive/nation:20@2032-04-01T00:00:00`
 ```
 
@@ -233,13 +244,32 @@ intervals' keys.
   "entity"}` pairs, the role being one of `actor`, `target`, `beneficiary`, `loser`, `assisting`,
   `location` or `body`). Atomic and inferred events never carry these fields;
 - `settings`: the effective settings the narrative was built with, every key included, as nested
-  tables (`{"narrative": {"geopolitics": {...}}}`), or `null` without `--narrative`.
+  tables (`{"narrative": {"geopolitics": {...}}}`), or `null` without `--narrative`;
+- `min_significance`: the level the events were filtered at;
+- `narrative_omitted`: how many narrative events were below that level, or `null` without
+  `--narrative`; each interval also has `omitted` (`{"objective": n, "inferred": n}`, `inferred`
+  being `null` without `--inferred`);
+- `glossary`: with `--narrative`, one entry per entity ID referenced anywhere in the document
+  (`saves`, `intervals`, `narrative`), sorted by ID, or `null` without it. An entry has `ref`,
+  `domain` and, where the save gives them, `name` and `kind` (the save's state type). A nation entry
+  also has `regions`, its regions' `ref` and `name`; those regions are entries themselves.
 
 Every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
 (`domain:key`), `state_type`, `confidence` and, when the save gives the entity a display name,
 `name`.
 
-The JSON report holds every event. It ignores `--min-significance`.
+The JSON report drops objective, inferred and narrative events below `--min-significance` and
+counts them (`omitted`, `narrative_omitted`), so an omission is never hidden; the default `trivial`
+omits nothing. `state_changes` and the situation reports are never filtered. `--period` only
+groups the Markdown.
+
+### Narrator package
+
+`events --format json --narrative` is the narrator package of architecture section 13.1: the
+`narrative` events with roles, attributes and constituent IDs; one `situation` report per save in
+`saves`; the `glossary`, so no name has to be invented; and the atomic events of `intervals` at
+the chosen `min_significance`, for drill-down and citation by ID. Package consumers read those
+members and ignore the rest.
 
 `--changes` keeps every interval's changes, with their before and after values, in memory until
 the report is written, so a long sequence uses more memory with it than without it.

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from ..analyzers.campaign.global_values import MILESTONES, NUCLEAR_STRIKES, SEA_LEVEL_RISES
@@ -87,6 +87,9 @@ class NationSituation:
     regions: Count
     population: Observed
     statistics: tuple[tuple[str, Observed], ...]
+    region_refs: Observed = field(default_factory=Unknown)
+    """The nation's regions as named references; read by the glossary, not part of ``to_dict`` (``regions`` counts
+    them)."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -348,6 +351,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         regions=_count(regions),
         population=population,
         statistics=tuple((name, state.get(name)) for name in STATISTICS),
+        region_refs=reader.resolved(regions),
     )
 
 

@@ -93,7 +93,7 @@ built from the developments catalogued in
   `faction.colonisation_wave`, `campaign.first_milestone` dating,
   `faction.fleet_buildup`, `technology.milestone` with its curated,
   documented list (#102).
-- [ ] Complete the narrator package in `events --narrative` rather than a
+- [x] Complete the narrator package in `events --narrative` rather than a
   separate `history` command: a `glossary` in the JSON (every referenced ID
   with its name and kind, a nation's regions), `--min-significance` applied to
   the JSON with omitted counts, `--period year|half|quarter` for the narrative
