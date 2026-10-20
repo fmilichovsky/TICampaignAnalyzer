@@ -1481,6 +1481,12 @@ report's narrative section, above the per-interval drill-down, the digest.
 forensic per-interval view and the package are therefore one report at
 different filter settings, and they cannot drift apart.
 
+The package is for a reader, so it carries IDs and names but no provenance:
+the JSON form drops every event's sources and every file path. Provenance
+stays with the same run without `--narrative`, which lists the same atomic
+and inferred events with their sources; a narrative event's sources are its
+constituents'. Citing an ID is therefore enough to audit a sentence.
+
 ------------------------------------------------------------------------
 
 # 14. Repository Structure

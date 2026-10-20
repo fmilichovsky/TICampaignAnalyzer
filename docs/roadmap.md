@@ -100,9 +100,35 @@ built from the developments catalogued in
   section, key attributes on narrative lines, and collapsed empty intervals so
   the Markdown reads as a digest; the package schema in
   `docs/commands/events.md` (#103).
-- [ ] LLM narrator, outside this repository's deterministic scope for now: a
-  prompt contract over the narrator package and prose that cites event IDs
-  (#104).
+- [x] LLM narrator contract, verified by trial runs: the prompt in
+  `docs/narrator.md`, a narrator package without provenance or paths
+  (`events --narrative --format json`, audited through the same run with
+  `--inferred`), and `scripts/narrator_prompt.py` to assemble a request
+  without calling an API (#104).
+- [ ] `tinarrative narrate`: send the request behind an explicit flag and API
+  key, and write the prose beside the package with the model and prompt
+  version in its header.
+- [ ] Narrator package gaps found by the trials:
+  - executive-seat semantics: where a nation has a control point typed
+    `Executive` that is not at `positionInNation` 0,
+    `lastExecutiveChange.newExecutive` follows that point, so the situation
+    report's `executive` (position 0) and the control events disagree; settle
+    the seat in `docs/game-data-notes/` and in the situation report and
+    control rule;
+  - executive changes in a nation whose control points move to another nation
+    in the same interval are skipped as territory and reported nowhere;
+  - `faction.space_campaign` lists as `bodies` only the bodies of its
+    directly joined `hab.destroyed` events, not those of the losses its
+    battle outcomes count;
+  - `war.arc` `duration_days` runs to an interval-based end without saying it
+    is an upper bound, and its `start` is its first fighting record even when
+    the war's own `started_on` is earlier;
+  - a corroborating ledger charge can set a takeover's `end` and its `record`
+    basis;
+  - `metric_shifts` carry no per-shift dates, and `federation.lifecycle`
+    attaches the shifts of a nation from before it joined;
+  - one `--min-significance` filters both the narrative and the atomic stream,
+    so `minor` developments bring the whole `minor` stream with them.
 
 ## CLI user experience
 
