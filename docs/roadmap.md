@@ -130,8 +130,15 @@ built from the developments catalogued in
     so `minor` developments bring the whole `minor` stream with them (#130);
   - the glossary keeps one name for control points whose display name
     changes between saves, and a few alien faction refs carry no name (#131).
-- [ ] Narrator prompt: faction briefs stated as fact, public-audience front
-  leaks on smaller models, uncited statements about the record (#132).
+- [x] Narrator prompt rewritten around a short fact floor and free
+  interpretation: per-entry footnotes, a `style: headlines` option, no
+  meta-statements about the record, a backstory ban, actor-side count
+  semantics, `narrative_event` labels left out (#132).
+- [ ] Narrator package gaps found by the rewrite trials: `habs_lost`,
+  `fleets_lost` and `kill_count` on battle outcomes and space campaigns read
+  as the actor's losses by every trial; name them for the victim
+  (`victim_habs_lost`) or carry an explicit `victim` on the campaign; combat
+  records carry no date or body, so battle narration cannot place them.
 
 ## CLI user experience
 
