@@ -1276,9 +1276,12 @@ Implemented contract (`narrative/space.py`, all order 0, windows from
     no other faction carries the label in the interval (bound 4 below).
 -   `faction.fleet_buildup` (minor, one interval). The minimum number of
     `ship.appeared` of one fleet owner and hull in an interval.
--   `technology.milestone` (major, one interval). A completion whose template
-    name is in the curated list kept in the module, each name with its
-    rationale; the list is interpretation.
+-   `technology.milestone` (at the entry's tier, one interval). A completion
+    whose template name is in the curated list (`narrative/milestones.py`),
+    each name with a tier (`minor`, `major` or `campaign_defining`) and its
+    rationale. The tiers weigh how much of the tree a completion opens, what
+    the concept means outside the game and how concrete it is; the same tier
+    ranks the atomic completion (section 12). The list is interpretation.
 
 Set aside for now: `economy.space_self_sufficient` (space income against
 Earth funding from the resource ledger), because the ledger's income
@@ -1386,7 +1389,9 @@ context rule for the event type (recruit-pool councilors whose `faction` is
 `Enthrall` is `major`, a tier-3 organization changing hands is `major`,
 megafauna presence is `major`, a `nation.statistic_shifted` of
 `numNuclearWeapons` or `numControlPoints` is `major` and of any other
-statistic `minor`), then a per-type table, then the default. Each
+statistic `minor`, a technology or project completion takes the tier of the
+curated milestone list and is `minor` when unlisted), then a per-type table,
+then the default. Each
 entry and threshold carries its evidence from
 [sources for higher-level events](game-data-notes/higher-level-event-sources.md)
 or its rationale, and no threshold is tuned to one campaign. Thresholds that

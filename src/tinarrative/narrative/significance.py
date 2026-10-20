@@ -35,6 +35,7 @@ from ..log import get_logger
 from ..model.entities import EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Significance
 from ..model.snapshot import SaveSnapshot
+from .milestones import milestone_of
 
 __all__ = ["BASE", "DEFAULT", "RULES", "SIGNIFICANCE_ORDER", "Significance", "assign_significance", "significance_of"]
 
@@ -123,9 +124,6 @@ _MINOR: tuple[str, ...] = (
     # Hostile claims mark regions a nation may take by force: frequent and only a
     # precursor; the war or annexation that follows is the major event.
     "nation.hostile_claims_changed",
-    # A finished project is minor until a curated, documented milestone list promotes some; many projects are routine
-    # unlocks.
-    "faction.project_completed",
     "faction.finished_project_names_changed",
     # Precursors of a takeover, named by the reconstruction it feeds: unrest attempts per faction and the
     # new-government date, which corroborates the executive record and control-point events.
@@ -145,7 +143,6 @@ _MAJOR: tuple[str, ...] = (
     "hab.appeared",
     "hab.disappeared",
     "faction.hab_destruction_recorded",
-    "technology.completed",
     # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
     "war.appeared",
     "war.disappeared",
@@ -274,6 +271,13 @@ def _army_presence(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR if event.attribute("megafauna") is True else Significance.MINOR
 
 
+def _completion(event: Event, lookup: Lookup) -> Significance | None:
+    """A technology or project completion takes its tier from the curated milestone list (``narrative.milestones``);
+    an unlisted one is minor, because many technologies and projects are routine unlocks."""
+    milestone = milestone_of(event)
+    return milestone.significance if milestone is not None else Significance.MINOR
+
+
 RULES: Mapping[str, Rule] = {
     "councilor.appeared": _councilor_presence,
     "councilor.disappeared": _councilor_presence,
@@ -283,6 +287,8 @@ RULES: Mapping[str, Rule] = {
     "nation.statistic_shifted": _statistic_shifted,
     "army.appeared": _army_presence,
     "army.disappeared": _army_presence,
+    "technology.completed": _completion,
+    "faction.project_completed": _completion,
 }
 """Context rules by event type, tried before ``BASE``."""
 
