@@ -4,8 +4,9 @@ Each rule emits only from its anchor and attaches further events by entity and b
 ``config.SpaceSettings``. The windows are the *anchored* and *chained* runs of ``rulekit``. No rule names a motive:
 a campaign is the pair's own recorded losses and combats, a wave is bodies first reached close together.
 
-``technology.milestone`` is interpretation: ``MILESTONE_TEMPLATES`` is a curated list that says which template names
-the narrative treats as turning points, each with its rationale. It is not read from the save and not exhaustive.
+``technology.milestone`` is interpretation: ``milestones.MILESTONE_TEMPLATES`` is a curated list that says which
+template names the narrative treats as turning points, each with its tier and rationale. It is not read from the save
+and not exhaustive.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FrozenMap
 from .aggregation import Join, NarrativeBuilder
 from .chronology import interval_of
+from .milestones import PROJECT_COMPLETED, TECHNOLOGY_COMPLETED, completed_template, milestone_of
 from .rulekit import (
     anchored,
     by_type,
@@ -53,43 +55,8 @@ HAB_APPEARED = "hab.appeared"
 GLOBAL_MILESTONE = "campaign.global_milestone_recorded"
 TRANSACTION = "faction.transaction_recorded"
 SHIP_APPEARED = "ship.appeared"
-TECHNOLOGY_COMPLETED = "technology.completed"
-PROJECT_COMPLETED = "faction.project_completed"
-
 MILESTONE_LEDGER_LABEL = "Global Milestone"
 SHIP_LEDGER_LABEL = "Ship Construction"
-
-MILESTONE_TEMPLATES: FrozenMap = FrozenMap(
-    tuple(
-        sorted(
-            {
-                # Drive families: the first access to a drive class changes what a fleet can reach.
-                "FissionPulseDrives": "first fission-pulse drives, the first practical torch-class propulsion",
-                "AntimatterPropulsion": "antimatter propulsion, the top of the drive families",
-                "Project_NervaDrive": "a nuclear-thermal drive project, the entry drive of the fission family",
-                "Project_OrionDrive": "a nuclear-pulse drive project",
-                "Project_LarsDrive": "a laser-sail style drive project",
-                "Project_AntimatterPlasmaCoreTorch": "an antimatter torch drive project",
-                "Project_ProtiumNovaTorch": "a protium torch drive project",
-                # Warship-enabling: the first techs and projects that put armed ships in space.
-                "MilitarizationofSpace": "the tech that opens military space activity",
-                "PrinciplesofSpaceWarfare": "the tech that opens space warfare doctrine",
-                "SpaceNavies": "the tech that opens navies in space",
-                "Project_Warships": "the project that unlocks warship construction",
-                "Project_TheirWarships": "the project that unlocks reverse-engineered alien warships",
-                "Project_ShipsoftheLine": "the project that unlocks capital warships",
-                # Alien contact: projects that answer the alien presence.
-                "Project_AlienMasterProject": "the first alien master project",
-                "Project_AlienAdvancedMasterProject": "the advanced alien master project",
-                "Project_TheAlienNation": "the project about the alien nation",
-                "Project_PublicizeAlienThreat": "the project that makes the alien threat public",
-            }.items()
-        )
-    )
-)
-"""Curated template names (technologies and projects) the narrative calls milestones, with a one-line rationale each.
-
-The list is an interpretation of what matters in a campaign, not a fact of the save format."""
 
 
 def _kind(event: Event, ref: EntityRef) -> str | None:
@@ -409,10 +376,11 @@ class FleetBuildupRule:
 
 @dataclass(frozen=True)
 class TechnologyMilestoneRule:
-    """``technology.milestone``: a completion whose template name is in ``MILESTONE_TEMPLATES``.
+    """``technology.milestone``: a completion whose template name is in ``MILESTONE_TEMPLATES``, at its tier.
 
     Anchored on ``technology.completed`` (the technology is campaign-wide, so there is no actor) and
-    ``faction.project_completed`` (the faction is the actor). A single interval, never open.
+    ``faction.project_completed`` (the faction is the actor, and part of the identity: factions complete projects
+    independently). A single interval, never open.
     """
 
     settings: SpaceSettings
@@ -426,24 +394,21 @@ class TechnologyMilestoneRule:
     def apply(
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
-        listed = dict(MILESTONE_TEMPLATES.items)
         built = []
         for event in by_type(stream, TECHNOLOGY_COMPLETED, PROJECT_COMPLETED):
-            ref = subject(event)
-            if ref is None:
+            ref, milestone, name = subject(event), milestone_of(event), completed_template(event)
+            if ref is None or milestone is None or name is None:
                 continue
-            name = event.attribute("project") if event.event_type == PROJECT_COMPLETED else ref.entity_id.key
-            if not isinstance(name, str) or name not in listed:
-                continue
+            is_project = event.event_type == PROJECT_COMPLETED
             built.append(
                 build.event(
                     TECHNOLOGY_MILESTONE,
-                    id_parts=[event.event_type, name],
+                    id_parts=[event.event_type, *([ref.entity_id] if is_project else []), name],
                     constituents=[event],
-                    roles=[(Role.ACTOR, ref)] if event.event_type == PROJECT_COMPLETED else [],
+                    roles=[(Role.ACTOR, ref)] if is_project else [],
                     join=Join.ENTITY,
-                    attributes=(("template", name), ("rationale", listed[name])),
-                    significance=Significance.MAJOR,
+                    attributes=(("template", name), ("rationale", milestone.rationale)),
+                    significance=milestone.significance,
                     open=False,
                 )
             )

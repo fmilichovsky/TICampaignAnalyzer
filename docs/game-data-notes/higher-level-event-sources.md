@@ -485,9 +485,22 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   - *Fleet buildup.* `ship.appeared` carries `hull` when the design resolves and now also the owner of
     the ship's fleet as its third entity. The threshold of five ships is a *hypothesis*.
   - *Technology milestones.* The latest older save held 148 finished technologies and 476 distinct
-    finished project names on the factions; every name in `MILESTONE_TEMPLATES` (drive families,
-    warship-enabling techs and projects, alien-contact projects) is among them. The list is
-    interpretation, chosen by the author, not a property of the save.
+    finished project names on the factions. The tiered `MILESTONE_TEMPLATES` list
+    (`narrative/milestones.py`) is interpretation, chosen by the author, not a property of the save. Its
+    names were taken from the link targets of the Terra Invicta wiki's tech and project lists (archived
+    copies of 2026-10-12 and 2025-09-11), which use save template names: technologies unprefixed,
+    projects as `Project_<key>`, with keys that can differ from display names (`OrbitalTorusHabs` for
+    Ring Habs, `Project_SlavicCommonwealth` for The Intermarium) or keep the game's spelling
+    (`Project_Pan-AsianCooperative`, `Project_Helium-3Mine`).
+    - *Observed* (2026-10-20, the eight private saves): of 219 listed names, 184 occur in a
+      `finishedTechsNames`, `finishedProjectNames` or `finishedOneTimeOnlyProjectNames` list and 18 more
+      occur elsewhere in the saves as project names. `Project_AlienMasterProject` and
+      `Project_AlienAdvancedMasterProject` are finished names that the wiki's project list lacks;
+      `Project_GreaterPanAsia` occurs too and is not listed.
+    - *Hypothesis:* the 17 names never seen (the faction endgames other than the Servants' and
+      Protectorate's, the late alien-weakness chain, some unifications, `Project_BoranePlasmajetTorch`,
+      `Project_AntimatterFarm`) are spelled as the saves would carry them; none has a close match in the
+      saves.
 
 ## Structures looked at and set aside
 

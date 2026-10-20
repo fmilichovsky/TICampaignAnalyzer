@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from tests.analyzers.support import (
     AFTER,
     BEFORE,
@@ -16,6 +18,7 @@ from tests.analyzers.support import (
     snapshot,
     state,
 )
+from tests.narrative.support import ref
 from tinarrative.analyzers import POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.common import Lookup
@@ -199,7 +202,6 @@ def test_table_entries_resolve_without_context() -> None:
     assert significance_of(bare_event("fleet.orbit_changed"), lookup) is Significance.MINOR
     assert significance_of(bare_event("nation.regions_changed"), lookup) is Significance.MINOR
     assert significance_of(bare_event("control_point.controller_changed"), lookup) is Significance.MAJOR
-    assert significance_of(bare_event("technology.completed"), lookup) is Significance.MAJOR
     assert significance_of(bare_event("campaign.global_milestone_recorded"), lookup) is Significance.CAMPAIGN_DEFINING
     assert significance_of(bare_event("nation.disappeared"), lookup) is Significance.CAMPAIGN_DEFINING
 
@@ -211,13 +213,32 @@ def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
         "nation.renamed": Significance.MAJOR,
         "federation.renamed": Significance.MAJOR,
         "nation.hostile_claims_changed": Significance.MINOR,
-        "faction.project_completed": Significance.MINOR,
         "faction.finished_project_names_changed": Significance.MINOR,
         "nation.unrest_attempts_changed": Significance.MINOR,
         "nation.new_government_recorded": Significance.MINOR,
     }
     assert set(expected) <= set(BASE)  # named with a rationale, not left to the default
     assert {event_type: significance_of(bare_event(event_type), lookup) for event_type in expected} == expected
+
+
+def test_a_completion_takes_its_curated_tier_and_an_unlisted_one_is_minor() -> None:
+    lookup = empty_lookup()
+
+    def technology(name: str) -> Event:
+        return replace(bare_event("technology.completed"), entities=(ref(EntityDomain.TECHNOLOGY, name),))
+
+    def project(name: str) -> Event:
+        return bare_event("faction.project_completed", project=name)
+
+    assert significance_of(technology("DeuteriumTritiumFusion"), lookup) is Significance.CAMPAIGN_DEFINING
+    assert significance_of(technology("SpaceNavies"), lookup) is Significance.MAJOR
+    assert significance_of(technology("PrinciplesofSpaceWarfare"), lookup) is Significance.MINOR
+    assert significance_of(technology("KineticsWarfareDoctrine"), lookup) is Significance.MINOR
+    assert significance_of(project("Project_KilltheHive"), lookup) is Significance.CAMPAIGN_DEFINING
+    assert significance_of(project("Project_Warships"), lookup) is Significance.MAJOR
+    assert significance_of(project("Project_SpaceTugs"), lookup) is Significance.MINOR
+    assert significance_of(bare_event("technology.completed"), lookup) is Significance.MINOR
+    assert significance_of(bare_event("faction.project_completed"), lookup) is Significance.MINOR
 
 
 def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:

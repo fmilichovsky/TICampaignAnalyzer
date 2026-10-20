@@ -180,7 +180,9 @@ because rules build on inferred events. The geopolitical rules of
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
 The space rules are implemented too: `faction.space_campaign`, `faction.colonisation_wave`,
 `campaign.first_milestone`, `faction.fleet_buildup` and `technology.milestone` (the last from a curated
-list of template names, which is interpretation).
+list of template names, which is interpretation; each name carries the significance tier of both the
+milestone and the atomic `technology.completed` or `faction.project_completed`, and an unlisted completion
+is minor).
 
 Their thresholds and windows come from a settings file: `--config <file>`, else the file named by
 `TINARRATIVE_CONFIG`, else the built-in defaults ([configuration](../configuration.md)). An empty

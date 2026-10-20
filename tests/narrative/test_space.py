@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Sequence
+from dataclasses import replace
 
 from tests.narrative.support import atomic, faction, ref, situation
 from tinarrative.analyzers.render import describe_event
@@ -12,8 +13,8 @@ from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
+from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.situation import SituationReport
-from tinarrative.narrative.space import MILESTONE_TEMPLATES
 
 K0 = "2032-01-01T00:00:00"
 K1 = "2032-04-01T00:00:00"
@@ -257,33 +258,64 @@ def test_the_buildup_threshold_is_configurable() -> None:
 # --- technology.milestone ----------------------------------------------------------------------------------------
 
 
-def test_listed_completions_are_milestones_and_others_are_not() -> None:
-    tech = make(
-        "technology.completed/technology:PrinciplesofSpaceWarfare",
+def completion(name: str) -> Event:
+    """A completion as the significance pass ranks it: a technology of its own, a project of ``UNION``."""
+    tier = MILESTONE_TEMPLATES[name].significance if name in MILESTONE_TEMPLATES else Significance.MINOR
+    if name.startswith("Project_"):
+        return make(
+            f"faction.project_completed/faction:15/{name}",
+            K1,
+            [UNION],
+            [("project", name)],
+            EventStatus.OBJECTIVE,
+            significance=tier,
+        )
+    return make(
+        f"technology.completed/technology:{name}",
         K1,
-        [ref(EntityDomain.TECHNOLOGY, "PrinciplesofSpaceWarfare")],
+        [ref(EntityDomain.TECHNOLOGY, name)],
         [("side", "after")],
-    )
-    project = make(
-        "faction.project_completed/faction:15/Project_Warships",
-        K1,
-        [UNION],
-        [("project", "Project_Warships")],
-        EventStatus.OBJECTIVE,
-    )
-    other = make(
-        "faction.project_completed/faction:15/Project_SpaceTugs", K1, [UNION], [("project", "Project_SpaceTugs")]
+        significance=tier,
     )
 
-    found = of_type(built([tech, project, other]), "technology.milestone")
 
-    assert sorted(str(item.attribute("template")) for item in found) == ["PrinciplesofSpaceWarfare", "Project_Warships"]
-    assert all(item.significance is Significance.MAJOR for item in found)
-    assert all(item.attribute("rationale") for item in found)
+def test_listed_completions_are_milestones_at_their_tier_and_others_are_not() -> None:
+    names = ["DeuteriumTritiumFusion", "Project_Warships", "PrinciplesofSpaceWarfare", "Project_SpaceTugs"]
+
+    found = of_type(built([completion(name) for name in names]), "technology.milestone")
+
+    assert {str(item.attribute("template")): item.significance for item in found} == {
+        "DeuteriumTritiumFusion": Significance.CAMPAIGN_DEFINING,
+        "Project_Warships": Significance.MAJOR,
+        "PrinciplesofSpaceWarfare": Significance.MINOR,
+    }
+    assert all(
+        item.attribute("rationale") == MILESTONE_TEMPLATES[str(item.attribute("template"))].rationale for item in found
+    )
 
 
-def test_every_curated_name_has_a_rationale() -> None:
-    assert MILESTONE_TEMPLATES.items and all(isinstance(text, str) and text for _, text in MILESTONE_TEMPLATES.items)
+def test_factions_completing_one_project_together_are_separate_milestones() -> None:
+    academy = replace(
+        completion("Project_TheirSignatures"),
+        id=completion("Project_TheirSignatures").id.replace("faction:15", "faction:17"),
+        entities=(ACADEMY,),
+    )
+
+    found = of_type(built([completion("Project_TheirSignatures"), academy]), "technology.milestone")
+
+    assert sorted(str(ref.entity_id) for item in found for role, ref in item.roles if role is Role.ACTOR) == [
+        "faction:15",
+        "faction:17",
+    ]
+
+
+def test_a_project_milestone_names_its_faction_and_a_technology_milestone_has_no_actor() -> None:
+    found = of_type(built([completion("Project_Warships"), completion("SpaceNavies")]), "technology.milestone")
+    actors = {
+        str(item.attribute("template")): [ref for role, ref in item.roles if role is Role.ACTOR] for item in found
+    }
+
+    assert actors == {"Project_Warships": [UNION], "SpaceNavies": []}
 
 
 # --- All rules ---------------------------------------------------------------------------------------------------
