@@ -7,7 +7,8 @@ parts and systems, delta-v, mass and ``kills`` stay in the diff.
 
 A presence event carries the ship's ``hull`` when it resolves: the ``hullName`` of the design its ``templateName``
 names, looked up in the ``shipDesigns`` of its fleet's faction on the side where the ship exists (a ship
-``templateName`` matches a design ``dataName``). The design name itself is player content
+``templateName`` matches a design ``dataName``). That faction is also the event's third entity, the owner of the
+ship's fleet. The design name itself is player content
 and is never carried.
 """
 
@@ -88,6 +89,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
     assert ship_id is not None
     sources = [primary(change)]
     fleet = lookup.ref_field(ship_id, "fleet", side)
+    owner = lookup.ref_field(fleet.entity_id, "faction", side) if fleet is not None else None
     if fleet is not None:
         membership = Transition.ADDED if appeared else Transition.REMOVED
         cited = ledger.claim(fleet.entity_id, "ships", ship_id, membership, SourceRole.CORROBORATING)
@@ -97,7 +99,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         APPEARED if appeared else DISAPPEARED,
         id_parts=(ship_id,),
         sources=sources,
-        entities=(lookup.ref(ship_id), fleet),
+        entities=(lookup.ref(ship_id), fleet, owner),
         attributes=(("side", side.value), *_hull(ship_id, fleet.entity_id if fleet else None, lookup, side)),
     )
 

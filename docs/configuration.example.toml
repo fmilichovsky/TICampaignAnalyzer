@@ -31,3 +31,17 @@ release_window_days = 180
 # Statistic shifts of one nation this soon after the first form one
 # nation.transformation.
 transformation_window_days = 120
+
+[narrative.space]
+
+# Battle outcomes of one killer and victim pair chain into one
+# faction.space_campaign while each follows the previous one this soon.
+campaign_gap_days = 365
+
+# First habs on new bodies of one faction this soon after the first form one
+# faction.colonisation_wave.
+colonisation_window_days = 180
+
+# A faction.fleet_buildup needs at least this many ships of one hull appearing
+# for one faction in one interval.
+buildup_min_ships = 5

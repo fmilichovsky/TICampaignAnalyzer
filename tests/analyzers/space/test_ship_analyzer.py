@@ -123,3 +123,20 @@ def test_presence_carries_the_hull_of_the_ship_design_and_never_the_design_name(
     assert dict(events["ship.appeared/ship:133"].attributes) == {"side": "after", "hull": "Escort"}
     assert dict(events["ship.disappeared/ship:132"].attributes) == {"side": "before", "hull": "Frigate"}
     assert dict(events["ship.appeared/ship:134"].attributes) == {"side": "after"}  # no design of that name
+
+
+def test_presence_names_the_owner_of_the_ships_fleet_as_its_third_entity() -> None:
+    faction = EntityDomain.FACTION
+    before = snapshot(BEFORE)
+    after = snapshot(
+        AFTER,
+        state(SHIP, "133", AFTER, fleet=fleet_ref("122"), templateName="Design A"),
+        state(FLEET, "122", AFTER, ships=(ship_ref("133"),), faction=faction_ref("15")),
+        state(faction, "15", AFTER, shipDesigns=designs(("Design A", "Escort"))),
+    )
+    events = {event.id: event for event in analyze(ANALYZER, before, after)}
+    assert [str(ref.entity_id) for ref in events["ship.appeared/ship:133"].entities] == [
+        "ship:133",
+        "fleet:122",
+        "faction:15",
+    ]

@@ -537,6 +537,53 @@ def _transformation(event: Event) -> str:
     return f"{_role(event, Role.ACTOR)}: {names} shifted together"
 
 
+def _count(value: Observed, noun: str) -> str:
+    return f"{render_value(value)} {noun}{'' if value == 1 else 's'}"
+
+
+def _space_campaign(event: Event) -> str:
+    kind = event.attribute("victim_kind")
+    target = f"the aliens ({_role(event, Role.TARGET)})" if kind == "alien" else _role(event, Role.TARGET)
+    text = f"{_role(event, Role.ACTOR)} fought {target} over {_count(event.attribute('battles'), 'recorded outcome')}"
+    losses = [
+        _count(count, label)
+        for name, label in (("habs_lost", "hab"), ("fleets_lost", "fleet"))
+        if (count := event.attribute(name))
+    ]
+    if losses:
+        text += f", which lost {' and '.join(losses)}"
+    won, lost = event.attribute("combats_won"), event.attribute("combats_lost")
+    if won or lost:
+        text += f"; recorded combats won {render_value(won)}, lost {render_value(lost)}"
+    bodies = _refs(event, "bodies")
+    if event.attribute("bodies"):
+        text += f"; habs lost at {bodies}"
+    return text
+
+
+def _colonisation_wave(event: Event) -> str:
+    return (
+        f"{_role(event, Role.ACTOR)} reached {_refs(event, 'bodies')} in quick succession "
+        f"({_count(event.attribute('hab_count'), 'hab')})"
+    )
+
+
+def _first_milestone(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} recorded the campaign milestone {_text(event, 'milestone')}"
+
+
+def _fleet_buildup(event: Event) -> str:
+    return (
+        f"{_role(event, Role.ACTOR)} put {_count(event.attribute('count'), 'ship')} of hull "
+        f"{_text(event, 'hull')} into service"
+    )
+
+
+def _technology_milestone(event: Event) -> str:
+    who = f"{_role(event, Role.ACTOR)} completed" if any(r is Role.ACTOR for r, _ in event.roles) else "Completed"
+    return f"{who} {_text(event, 'template')}: {_text(event, 'rationale')}"
+
+
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "control_point.controller_changed": _controller_changed,
     "control_point.nation_changed": _plain("nation"),
@@ -672,4 +719,9 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.breakaway": _breakaway,
     "nation.claims_declared": _claims_declared,
     "nation.transformation": _transformation,
+    "faction.space_campaign": _space_campaign,
+    "faction.colonisation_wave": _colonisation_wave,
+    "campaign.first_milestone": _first_milestone,
+    "faction.fleet_buildup": _fleet_buildup,
+    "technology.milestone": _technology_milestone,
 }
