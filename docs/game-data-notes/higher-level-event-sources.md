@@ -377,9 +377,9 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   narrative layer's nation-control reconstruction). Every one of the 295 nations with control
   points has exactly one control point with `positionInNation = 0` (295 of 540 points); its
   `controlPointType` is `Executive` on 177 points and another type (`TheParty`, `Aristocracy`,
-  `SecurityApparatus`, ...) on the rest, so position 0 identifies the executive seat and the type
-  describes the regime (*hypothesis*). Between consecutive saves the faction holding the position-0
-  point changed on 1, 2, 5 and 4 nations (faction to faction on 1, 2, 3 and 2); the plurality
+  `SecurityApparatus`, ...) on the rest. (The reading that position 0 identifies the executive
+  seat is superseded by the *Executive seat* entry below.) Between consecutive saves the faction
+  holding the position-0 point changed on 1, 2, 5 and 4 nations (faction to faction on 1, 2, 3 and 2); the plurality
   controller changed on 3, 2, 4 and 3; a nation went from one sole controller to another on 1, 2, 2
   and 2. Re-checked on 2026-10-19 on the same saves, reading each scope from the control points'
   own `nation` and `faction`: the executive counts reproduce (1, 2, 5, 4), the plurality
@@ -391,6 +391,25 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   control point to another nation in the same interval, which the rule skips as territory: so
   executive 1, 2, 4, 3, plurality 3, 2, 3, 4, sole 1, 2, 3, 3. 23 of the 31 events were high
   (dated by an agreeing `lastExecutiveChange`), the rest medium, none low.
+- **Executive seat** (observed 2026-10-20, all eight private saves of the two campaigns, counts only;
+  settles the seat read by the situation report and the control rule). A nation has at most one control
+  point typed `Executive`, and its position in `positionInNation` varies: of the 295 nations with control
+  points, the older build has 177 with one and 118 without, in every save (the sets differ by one nation
+  between two saves), and the newer build has 294 with one and 1 without, a nation whose position-0 point
+  is typed `Alien`. Every nation without an `Executive` point holds no regions; the reverse does
+  not hold, since 124 of the older build's and 120 of the newer build's regionless nations have one, and
+  all 53 older-build nations holding regions have one. On the last save of each campaign, among nations
+  with a `lastExecutiveChange` record (17 of 295 newer, 184 of 295 older), `newExecutive` names the
+  `Executive` point's controller in every nation whose point is not at position 0 (10 of 10 newer, 45 of 45
+  older), while the position-0 controller matches in 7 of 10 and 41 of 45. Where the `Executive` point is at
+  position 0 the record matches in 7 of 7 (newer) and 8 of 22 (older). In the 117 older-build nations with a
+  record and no `Executive` point it never names the position-0 controller, and in 116 of them (those
+  present in the first save) the named faction held no point of the nation even in the first save. The
+  records of those 117 nations and of the 14 disagreeing `Executive`-at-0 nations are all dated no later
+  than the year of the campaign's first save. *Hypothesis:* the game rewrites `lastExecutiveChange` only when the
+  `Executive` point changes hands, so a nation without one, or a record never touched since the start,
+  keeps its initial record. So the seat is the `Executive`-typed point wherever it sits (observed); for a
+  nation without one, position 0 is only a stand-in that the record does not follow.
 - **Resource ledger** (observed 2026-10-18, the latest older save, structure and counts only;
   superseded by the `TIFactionState.Transactions` section above on 2026-10-19: the ledger is pruned
   per label and only a few labels still reach back to campaign start). All

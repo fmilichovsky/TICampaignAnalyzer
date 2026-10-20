@@ -301,10 +301,13 @@ something was serialized), never `0`, `[]` or `null`. `null` is a known null.
 - `player_faction_name`: `playerFactionName` from the campaign metadata.
 - `nations`: one object per nation, in ID order:
   - `nation`: the nation;
-  - `executive`: the faction holding the nation's executive seat, the control point at
-    `positionInNation` 0. It is `null` when the seat is uncontrolled or the nation has no
-    control points, and unknown when the point list is unknown, no point sits at position 0, or the
-    seat's controller is unresolved;
+  - `executive`: the faction holding the nation's executive seat: its control point typed
+    `Executive`, else the point at `positionInNation` 0. It is `null` when the seat is uncontrolled
+    or the nation has no control points, and unknown when the point list is unknown, no point is
+    typed `Executive` or sits at position 0, or the seat's controller is unresolved;
+  - `seat_basis`: `executive_point` or `position_0` (the nation has no `Executive` point), `null`
+    when no seat is found. `lastExecutiveChange` follows the `Executive` point only, so on
+    `position_0` it can be a stale record;
   - `control_points`: the number of points; `shares`: points held per faction, keyed by faction ID
     (`faction:12`), without uncontrolled or unresolved points; `unresolved_points`: points whose
     controller is unresolved. All four are unknown when the point list is. The report never says
