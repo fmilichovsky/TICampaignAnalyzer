@@ -16,7 +16,10 @@ the same atomic and inferred events with their save locations, and a narrative
 event is audited through its constituents
 ([events, narrator package](commands/events.md#narrator-package)). `major` is
 the practical level for a whole campaign; `minor` adds routine churn that can
-make the package too large for one request. Citations are one footnote per
+make the package too large for one request. To narrate `minor` developments
+without that churn, filter the two streams apart: `--min-significance major
+--narrative-significance minor` lists narrative events down to `minor` and the
+atomic stream at `major`. Citations are one footnote per
 entry, so a sentence is audited through the entry it belongs to. A package
 too large for one request is sent in chapters; the request fields and the
 `continuity` member those add are designed in
@@ -73,8 +76,9 @@ The user message may carry a request block.  Defaults in brackets.
   (`actor`, `target`, `beneficiary`, `loser`, `assisting`, `location`,
   `body`), `attributes` and `constituents` (IDs of the atomic events it joins).
 - `intervals[].events` and `intervals[].inferred`: the atomic events behind
-  the developments.  They are filtered by significance, so absence is not
-  evidence that nothing happened.
+  the developments.  They are filtered by significance (`min_significance`, which can
+  be higher than `narrative_significance`), so absence is not evidence that
+  nothing happened, and a `constituents` ID may name an event that is not listed.
 - `saves[].situation`: a literal snapshot at each save: who holds each
   nation's executive, control-point shares, federations, wars and their sides,
   regions, population, statistics, habs and fleets by faction, milestones,

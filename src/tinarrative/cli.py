@@ -434,6 +434,7 @@ def _run_events(args: argparse.Namespace) -> int:
     except _LoadFailed as failure:
         return failure.code
     narrative = narrative_events(intervals, narrative_rules(settings.narrative)) if args.narrative else None
+    narrative_minimum = Significance(cast(str, args.narrative_significance or args.min_significance))
     if args.format == "json":
         document = build_document(
             plan,
@@ -442,6 +443,7 @@ def _run_events(args: argparse.Namespace) -> int:
             settings=settings,
             narrative=narrative,
             min_significance=Significance(cast(str, args.min_significance)),
+            narrative_significance=narrative_minimum,
         )
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
@@ -451,6 +453,7 @@ def _run_events(args: argparse.Namespace) -> int:
             plan,
             intervals,
             min_significance=minimum,
+            narrative_significance=narrative_minimum,
             campaign=campaign,
             left_out=left_out,
             narrative=narrative,
@@ -765,8 +768,18 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
         default=Significance.TRIVIAL.value,
         help=(
-            "Lowest significance an event needs to be listed (default %(default)s, which lists every event); "
-            "applies to the markdown and the JSON report, and omitted events are counted."
+            "Lowest significance an objective or inferred event needs to be listed (default %(default)s, which "
+            "lists every event); applies to the markdown and the JSON report, and omitted events are counted. "
+            "Narrative events follow it unless --narrative-significance is given."
+        ),
+    )
+    parser.add_argument(
+        "--narrative-significance",
+        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
+        default=None,
+        help=(
+            "Lowest significance a narrative event needs to be listed (default: the --min-significance level); "
+            "omitted narrative events are counted separately. Only used with --narrative."
         ),
     )
     parser.add_argument(

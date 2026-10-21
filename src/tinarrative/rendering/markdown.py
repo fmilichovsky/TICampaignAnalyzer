@@ -81,6 +81,7 @@ def render_sequence(
     *,
     verbose: bool = False,
     min_significance: Significance = Significance.TRIVIAL,
+    narrative_significance: Significance | None = None,
     campaign: CampaignGroup | None = None,
     left_out: int = 0,
     narrative: Sequence[Event] | None = None,
@@ -94,9 +95,10 @@ def render_sequence(
     they were reconstructed), its objective analyzer results of at least ``min_significance`` grouped by category and,
     when they were kept, its literal state changes grouped by category. State changes are never filtered. Event IDs
     are the sequence-qualified ones. With ``narrative``, a section above the intervals lists the narrative events of
-    at least ``min_significance`` by the ``period`` (year, half or quarter) they start in, and names the
-    ``changed_settings`` (dotted key to value) it was built with when they differ from the defaults. An interval with
-    nothing to list at ``min_significance`` (and no state changes) is a single line.
+    at least ``narrative_significance`` (default ``min_significance``) by the ``period`` (year, half or
+    quarter) they start in, and names the ``changed_settings`` (dotted key to value) it was built with when they
+    differ from the defaults. An interval with nothing to list at ``min_significance`` (and no state changes) is a
+    single line.
     """
     lines = ["# Save sequence", ""]
     if campaign is not None:
@@ -126,7 +128,14 @@ def render_sequence(
         if changed_settings:
             listed = ", ".join(f"`{key} = {value}`" for key, value in sorted(changed_settings.items()))
             lines.extend([f"Built with non-default settings: {listed}.", ""])
-        lines.extend(_narrative_lines(narrative, verbose=verbose, min_significance=min_significance, period=period))
+        lines.extend(
+            _narrative_lines(
+                narrative,
+                verbose=verbose,
+                min_significance=narrative_significance or min_significance,
+                period=period,
+            )
+        )
 
     lines.extend(["", "## Intervals"])
     if not intervals:

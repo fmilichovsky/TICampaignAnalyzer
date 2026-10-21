@@ -1487,7 +1487,8 @@ Every line carries event IDs so that generated prose can cite them (section
 by period. It is not a separate command: `tinarrative events --narrative`
 produces it, `--format json` being the canonical form and the Markdown
 report's narrative section, above the per-interval drill-down, the digest.
-`--min-significance` sets the level of the atomic stream in both forms. The
+`--min-significance` sets the level of the atomic stream in both forms and
+`--narrative-significance` that of the narrative events (by default the same). The
 forensic per-interval view and the package are therefore one report at
 different filter settings, and they cannot drift apart.
 

@@ -116,7 +116,7 @@ built from the developments catalogued in
   - chapter plan: token estimate, period derived from the campaign span,
     chapter packages, the `continuity` member and the prompt rules for
     chapter parts; `narrate` writes the plan and the requests without
-    sending; needs the separate narrative and atomic levels of #130 (#140);
+    sending; needs the separate narrative and atomic levels (#130, done) (#140);
   - providers `anthropic`, `openai` and `ollama` over the standard
     library's HTTP client behind `--send`, the `[narrator]` settings table
     with profiles, a provider-failure exit code (#141);
@@ -140,8 +140,8 @@ built from the developments catalogued in
     basis (#128);
   - `metric_shifts` carry no per-shift dates, and `federation.lifecycle`
     attaches the shifts of a nation from before it joined (#129);
-  - one `--min-significance` filters both the narrative and the atomic stream,
-    so `minor` developments bring the whole `minor` stream with them (#130);
+  - a listed narrative event's constituents are not kept in the atomic stream
+    when `--narrative-significance` is lower than `--min-significance` (#130);
   - the glossary keeps one name for control points whose display name
     changes between saves, and a few alien faction refs carry no name (#131).
 - [x] Narrator prompt rewritten around a short fact floor and free

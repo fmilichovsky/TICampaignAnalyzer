@@ -770,3 +770,45 @@ def test_the_narrator_package_refuses_literal_changes(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "carries no state changes" in captured.err
+
+
+@pytest.mark.fixture
+def test_the_narrative_level_is_separate_from_the_atomic_level(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    everything = _json(capsys, "--narrative")
+    major = _json(capsys, "--narrative", "--min-significance", "major")
+
+    hybrid = _json(capsys, "--narrative", "--min-significance", "major", "--narrative-significance", "trivial")
+    narrower = _json(capsys, "--narrative", "--narrative-significance", "campaign_defining")
+
+    assert major["narrative_significance"] == "major"
+    assert hybrid["min_significance"] == "major" and hybrid["narrative_significance"] == "trivial"
+    assert hybrid["narrative"] == everything["narrative"] and hybrid["narrative_omitted"] == 0
+    assert [interval["omitted"] for interval in hybrid["intervals"]] == [
+        interval["omitted"] for interval in major["intervals"]
+    ]
+    assert narrower["min_significance"] == "trivial" and narrower["narrative_significance"] == "campaign_defining"
+    assert narrower["narrative_omitted"] == len(everything["narrative"]) - len(narrower["narrative"]) > 0
+    assert [interval["omitted"] for interval in narrower["intervals"]] == [
+        interval["omitted"] for interval in everything["intervals"]
+    ]
+
+
+@pytest.mark.fixture
+def test_the_markdown_narrative_follows_the_narrative_level(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    flags = ["--narrative", "--min-significance", "major", "--narrative-significance", "trivial"]
+    assert main(["events", *flags, *SHUFFLED]) == EXIT_SUCCESS
+    out = capsys.readouterr().out
+    assert "narrative event" not in out and "narrative events below" not in out
+    assert "objective analyzer result" in out and "below major significance omitted" in out
+
+
+def test_the_narrative_level_rejects_an_unknown_level(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["events", "a.json", "b.json", "--narrative-significance", "huge"])
+    assert raised.value.code == EXIT_USAGE_ERROR
