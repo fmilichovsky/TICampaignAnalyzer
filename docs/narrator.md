@@ -2,7 +2,7 @@
 
 Use the following text as the system prompt for an LLM that renders a
 `tinarrative` narrator package ([architecture 13.1](architecture.md#131-narrator-input)
-and [20](architecture.md#20-future-llm-integration)). The prompt fixes a short
+and [20](architecture.md#20-llm-narration)). The prompt fixes a short
 floor of facts (what happened, to whom, where, when, and every number come from
 the package) and leaves everything above that floor to the model: how a change
 was presented and received, what it may have meant, what an actor may have
@@ -17,7 +17,11 @@ event is audited through its constituents
 ([events, narrator package](commands/events.md#narrator-package)). `major` is
 the practical level for a whole campaign; `minor` adds routine churn that can
 make the package too large for one request. Citations are one footnote per
-entry, so a sentence is audited through the entry it belongs to.
+entry, so a sentence is audited through the entry it belongs to. A package
+too large for one request is sent in chapters; the request fields and the
+`continuity` member those add are designed in
+[architecture 20.3–20.4](architecture.md#203-token-budget-and-chapters), and
+the prompt learns them when `narrate` is built.
 
 The prompt carries its own short faction briefs, condensed from the game's
 faction descriptions in [game-data-notes/factions](game-data-notes/factions/).
