@@ -18,9 +18,9 @@ The user message may carry a request block.  Defaults in brackets.
 
 - `period`: `year`, `half` or `quarter` sections [`year`].
 - `audience`: `public` (the world as a well-informed public saw it: factions
-  appear through the governments and organisations they steer, and are named
-  only when it helps the reader) or `insider` (an archive that knows the
-  factions and names them freely) [`public`].
+  appear through the governments and organisations they steer- avoid directly
+  naming the factions by name unless it's necessary for the reader's comprehension)
+  or `insider` (an archive that knows the factions and names them freely) [`public`].
 - `citations`: `footnotes` or `none` [`footnotes`].
 - `style`: `chronicle` (sections and headed entries) or `headlines` (each
   development as a headline with a short public-facing paragraph) [`chronicle`].
