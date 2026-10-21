@@ -1,7 +1,7 @@
 # `tinarrative events`
 
 ```
-tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--narrative-significance <level>] [--period year|half|quarter] [--inferred] [--narrative] [--changes] [--config <file>]
+tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--period year|half|quarter] [--inferred] [--narrative] [--include-constituents] [--changes] [--config <file>]
 ```
 
 Reads two or more saves, given as files, directories or both, groups them by campaign, orders one campaign's saves by game time, and reports the analyzer
@@ -144,17 +144,21 @@ objective results states how many were omitted and below which level, so the rep
 the omission. State changes listed with `--changes` are never filtered. The JSON report is filtered
 the same way (see [JSON output](#json-output)).
 
-`--min-significance` governs the atomic stream: objective and inferred events. The narrative events
-of `--narrative` have their own level, `--narrative-significance <level>`, which defaults to the
-`--min-significance` level. Setting it lower lists developments the atomic stream is not carrying,
-for example `--min-significance major --narrative-significance minor` narrates `minor` developments
-without every `minor` ledger charge and organization change. The two omitted counts are stated
-separately. A narrative event's `constituents` may then name atomic events that are not listed.
+With `--narrative`, `--min-significance` filters the narrative events instead, and the objective and
+inferred events are no longer filtered by significance: they are listed only as constituents of a
+listed narrative event, and only with `--include-constituents`. That flag follows constituents
+transitively, whatever their significance: through a lower-order narrative event a listed one cites
+(that event is then listed too, even below the level), and through an inferred event to the
+objective results it rests on. So every constituent ID of a listed narrative event resolves in the
+report. Without the flag, `--narrative` lists no objective or inferred event. The omitted line then
+reads `N objective analyzer results omitted: not cited by a listed narrative event.` or `N objective
+analyzer results omitted without --include-constituents.`. `--include-constituents` is ignored
+without `--narrative`.
 
-An interval with nothing to list at the chosen level (no inferred or objective event, and no
-`--changes`) is one line instead of a section: its dates, its state change count and how many events
-were omitted. This only happens above `trivial`, so `events --narrative --min-significance major`
-reads as a digest with `## Intervals` as its drill-down appendix.
+An interval with nothing to list (no listed inferred or objective event, and no `--changes`) is one
+line instead of a section: its dates, its state change count and how many events were omitted and
+why. This happens above `trivial` and with `--narrative`, so `events --narrative` reads as a digest
+with `## Intervals` as its drill-down appendix, filled by `--include-constituents`.
 
 ### Inferred events
 
@@ -176,8 +180,8 @@ not among the analyzer results):
   - from `region.nation_changed/region:42@2032-04-01T00:00:00`: region:42 nation: nation:21 -> nation:20
 ```
 
-Inferred events get a significance by the same rules and `--min-significance` filters them the
-same way; the section states its own omitted count (`N inferred events below <level>
+Inferred events get a significance by the same rules and `--min-significance` (or, with `--narrative`,
+`--include-constituents`) filters them the same way; the section states its own omitted count (`N inferred events below <level>
 significance omitted.`), separate from the objective one. When nothing was inferred the section
 says `No events were inferred.`
 
@@ -221,8 +225,9 @@ one `from` line per constituent ID:
 
 When the settings differ from the defaults, the section opens with
 ``Built with non-default settings: `narrative.geopolitics.top_gdp_nations = 3`.``, listing every
-changed key. `--narrative-significance` (default: the `--min-significance` level) filters the section and states how many events it omitted
-(`N narrative events below <level> significance omitted.`). When nothing was built the section says
+changed key. `--min-significance` filters the section and states how many events it omitted
+(`N narrative events below <level> significance omitted.`); a lower-order event cited by a listed one
+is kept below the level with `--include-constituents`. When nothing was built the section says
 `No narrative events were built.`
 
 A narrative event's ID is qualified by its first interval. Its constituents keep their own
@@ -252,10 +257,11 @@ intervals' keys.
   `location` or `body`). Atomic and inferred events never carry these fields;
 - `settings`: the effective settings the narrative was built with, every key included, as nested
   tables (`{"narrative": {"geopolitics": {...}}}`), or `null` without `--narrative`;
-- `min_significance`: the level the objective and inferred events were filtered at;
-- `narrative_significance`: the level the narrative events were filtered at, or `null` without
-  `--narrative`;
-- `narrative_omitted`: how many narrative events were below `narrative_significance`, or `null` without
+- `min_significance`: the level the narrative events were filtered at, or without `--narrative` the
+  objective and inferred events;
+- `include_constituents`: whether the objective and inferred events are the listed narrative events'
+  constituents (`true`) or left out (`false`), or `null` without `--narrative`;
+- `narrative_omitted`: how many narrative events were not listed, or `null` without
   `--narrative`; each interval also has `omitted` (`{"objective": n, "inferred": n}`, `inferred`
   being `null` without `--inferred`);
 - `glossary`: with `--narrative`, one entry per entity ID referenced anywhere in the document
@@ -268,18 +274,21 @@ provenance and paths. Outside it, every reference in `entities`, in `attributes`
 (`domain:key`), `state_type`, `confidence` and, when the save gives the entity a display name,
 `name`.
 
-The JSON report drops objective and inferred events below `--min-significance` and narrative events
-below `--narrative-significance`, and counts them (`omitted`, `narrative_omitted`), so an omission is never hidden; the default `trivial`
-omits nothing. `state_changes` and the situation reports are never filtered. `--period` only
-groups the Markdown.
+The JSON report drops what the Markdown does not list (see [Significance](#significance)): without
+`--narrative`, objective and inferred events below `--min-significance`; with it, narrative events
+below `--min-significance` and every objective and inferred event that is not a listed narrative
+event's constituent under `--include-constituents`. It counts them (`omitted`, `narrative_omitted`),
+so an omission is never hidden; without `--narrative` the default `trivial` omits nothing.
+`state_changes` and the situation reports are never filtered. `--period` only groups the Markdown.
 
 ### Narrator package
 
 `events --format json --narrative` is the narrator package of architecture section 13.1: the
 `narrative` events with roles, attributes and constituent IDs; one `situation` report per save in
-`saves`; the `glossary`, so no name has to be invented; and the atomic events of `intervals` at
-the chosen `min_significance` (which may be higher than `narrative_significance`), for drill-down and citation by ID. Package consumers read those
-members and ignore the rest. It is meant to be handed to a reader, such as an LLM narrator
+`saves`; the `glossary`, so no name has to be invented; and, with `--include-constituents`, the
+atomic events of `intervals` that the listed narrative events are built from, for drill-down and
+citation by ID (without it, `intervals` lists none). Package consumers read those members and ignore
+the rest. It is meant to be handed to a reader, such as an LLM narrator
 ([narrator](../narrator.md)), so it carries IDs but no provenance and no file paths:
 
 - no event, narrative or atomic, has `sources`;
@@ -291,9 +300,11 @@ members and ignore the rest. It is meant to be handed to a reader, such as an LL
   listed event references; `world` still counts every nation;
 - `--changes` is a usage error (exit 2), since literal changes carry their source locations.
 
-The audit form is the same run with `--inferred` instead of `--narrative`: the same saves, keys and
-atomic and inferred event IDs, each event with its `sources` and the save paths. A narrative event
-is audited through its constituents there, whose sources include all of its own.
+The audit form is the same run with `--inferred` instead of `--narrative` and no
+`--min-significance`: the same saves and keys, and every atomic and inferred event, so every
+atomic ID in the package and every constituent ID resolves there, each event with its `sources` and
+the save paths. A narrative event is audited through its constituents there, whose sources include
+all of its own.
 
 `--changes` keeps every interval's changes, with their before and after values, in memory until
 the report is written, so a long sequence uses more memory with it than without it.
