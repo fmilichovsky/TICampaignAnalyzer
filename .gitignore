@@ -2,6 +2,9 @@
 real_saves/
 output_samples/
 
+# Local config
+configuration.local.toml
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
