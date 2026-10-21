@@ -266,7 +266,9 @@ intervals' keys.
   being `null` without `--inferred`);
 - `glossary`: with `--narrative`, one entry per entity ID referenced anywhere in the document
   (`saves`, `intervals`, `narrative`), sorted by ID, or `null` without it. An entry has `ref`,
-  `domain` and, where the save gives them, `name` and `kind` (the save's state type). A nation entry
+  `domain` and, where the save gives them, `name` and `kind` (the save's state type). When an entity's display name changes between saves (a control
+  point's name includes its slot), `name` is the one the latest save or interval carries and
+  `former_names` lists the others, oldest first. A nation entry
   also has `regions`, its regions' `ref` and `name`; those regions are entries themselves.
 
 With `--narrative`, the document is the [narrator package](#narrator-package), which leaves out

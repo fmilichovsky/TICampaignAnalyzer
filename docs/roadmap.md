@@ -143,8 +143,9 @@ built from the developments catalogued in
   - [x] with `--narrative`, `--min-significance` filters the narrative events
     and the atomic stream holds only the listed events' constituents,
     transitively, behind `--include-constituents` (#130);
-  - the glossary keeps one name for control points whose display name
-    changes between saves, and a few alien faction refs carry no name (#131).
+  - [x] the glossary keeps the latest name of an entity whose display name
+    changes between saves and lists the earlier ones; battle outcomes and
+    hab destructions name every faction and body reference (#131).
 - [x] Narrator prompt rewritten around a short fact floor and free
   interpretation: per-entry footnotes, a `style: headlines` option, no
   meta-statements about the record, a backstory ban, actor-side count

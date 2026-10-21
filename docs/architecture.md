@@ -1479,7 +1479,8 @@ one save sequence:
 2.  the situation reports (11.4), one per save;
 3.  an entity glossary: every referenced ID with its name and domain, and
     for a nation the names of its regions, so prose never has to invent a
-    name and never meets a bare ID;
+    name and never meets a bare ID; an entity whose name changes keeps its
+    latest name and lists the earlier ones;
 4.  the atomic events the listed narrative events are built from, for
     drill-down and audit.
 

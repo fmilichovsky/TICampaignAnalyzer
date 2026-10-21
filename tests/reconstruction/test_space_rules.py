@@ -389,6 +389,15 @@ def test_kills_without_a_victim_loss_are_no_battle_outcome() -> None:
     assert by_type(inferred, BATTLE_OUTCOME) == []
 
 
+def test_a_battle_outcome_names_the_victim_in_its_entities_and_attribute() -> None:
+    _, inferred = run(battle())
+    event = only(inferred, BATTLE_OUTCOME)
+    victim = event.attribute("victim")
+    assert isinstance(victim, EntityRef) and victim.entity_id == ENEMY.entity_id and victim.name is not None
+    assert all(ref.name is not None for ref in event.entities)
+    assert len({ref.entity_id for ref in event.entities}) == len(event.entities)
+
+
 def test_kills_keyed_by_the_killer_itself_are_no_battle_outcome() -> None:
     _, inferred = run(battle(victim=PLAYER))
     assert by_type(inferred, BATTLE_OUTCOME) == []

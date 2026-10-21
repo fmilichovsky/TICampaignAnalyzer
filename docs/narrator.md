@@ -86,7 +86,8 @@ The user message may carry a request block.  Defaults in brackets.
   regions, population, statistics, habs and fleets by faction, milestones,
   nuclear and climate counters.  Snapshots are background, not events.
 - `glossary`: the authoritative names and kinds of every referenced ID.  Use
-  those names.  Never print an ID or a game key (`GDPReason_TerritoryChange`,
+  those names; an entity renamed over the campaign has its current `name` and
+  its earlier ones in `former_names`.  Never print an ID or a game key (`GDPReason_TerritoryChange`,
   a `publicOpinion` template name) as if it were a name: put what it means
   into plain words.  An entity with no name is described neutrally ("an
   unnamed fleet").  A `narrative_event` label such as `event_EuropaPlumes`
