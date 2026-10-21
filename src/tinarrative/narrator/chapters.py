@@ -1,0 +1,520 @@
+"""Chapters of a narrator package under a token budget (architecture 20.3 and 20.4).
+
+A chapter is a contiguous run of the package's intervals made of whole periods; it opens on the save before its first
+interval and closes on the save of its last. A development belongs to the chapter holding the interval its start lies
+in. The planner walks the periods in order and adds the next one while the estimated request stays within
+``max_input_tokens``. A period that does not fit on its own is reduced in a fixed order, recorded per chapter: its
+atomic stream is left out (``atomic_dropped``), then it is split at save boundaries (``split``, also without atomic
+stream); an interval that still does not fit is ``OverBudget``. Developments are never dropped.
+
+A chapter package selects entries of the package and never rewrites one, so an ID means the same event in both. It
+adds ``chapter`` and ``continuity``; continuity is built from the package, never from earlier prose. The same package,
+options and settings always give the same plan and the same requests.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import asdict, dataclass
+from datetime import datetime
+from typing import Any
+
+from ..config import NarratorSettings
+from .request import build_request, prompt_version, render_request
+
+PERIODS = ("year", "half", "quarter")
+SIGNIFICANCE = ("trivial", "minor", "major", "campaign_defining")
+RECALLED_FROM = "major"
+"""The lowest significance of a development recalled in a later chapter's ``continuity.earlier``."""
+LENGTH_WEIGHTS = {"trivial": 1, "minor": 1, "major": 2, "campaign_defining": 4}
+"""A chapter's share of ``length`` is in proportion to the summed weights of its developments."""
+REDUCTIONS = ("atomic_dropped", "split")
+
+
+@dataclass(frozen=True)
+class Chapter:
+    """Intervals ``first`` to ``last`` (positions in the package, inclusive), with or without their atomic stream."""
+
+    first: int
+    last: int
+    atomic: bool = True
+    reduction: str | None = None
+
+
+@dataclass(frozen=True)
+class PlannedChapter:
+    chapter: Chapter
+    index: int
+    part: str
+    covers: tuple[str, str]
+    periods: tuple[str, ...]
+    developments: int
+    continuing: int
+    recalled: int
+    estimate: int
+    request: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ChapterPlan:
+    """The chapters of one package, with the request of each."""
+
+    package_sha256: str
+    options: dict[str, str]
+    length: int | None
+    settings: NarratorSettings
+    chapters: tuple[PlannedChapter, ...]
+
+    def to_dict(self) -> dict[str, Any]:
+        """The plan as written to ``plan.json``: no time and no path, so the same inputs give the same bytes."""
+        return {
+            "prompt_version": prompt_version(),
+            "package_sha256": self.package_sha256,
+            "settings": asdict(self.settings),
+            "request": {**self.options, **({} if self.length is None else {"length": self.length})},
+            "chapters": [
+                {
+                    "index": planned.index,
+                    "part": planned.part,
+                    "covers": {"from": planned.covers[0], "to": planned.covers[1]},
+                    "periods": list(planned.periods),
+                    "intervals": planned.chapter.last - planned.chapter.first + 1,
+                    "developments": planned.developments,
+                    "continuing": planned.continuing,
+                    "recalled": planned.recalled,
+                    "estimate": planned.estimate,
+                    "reduction": planned.chapter.reduction,
+                    "request_sha256": hashlib.sha256(render_request(planned.request).encode("utf-8")).hexdigest(),
+                }
+                for planned in self.chapters
+            ],
+        }
+
+
+@dataclass(frozen=True)
+class OverBudget:
+    """A single interval whose request, without atomic stream, needs more than the budget."""
+
+    interval: str
+    needed: int
+    budget: int
+
+
+def validate(package: object) -> dict[str, Any]:
+    """``package`` as a narrator package dict; raises ``ValueError`` when it is not one."""
+    if not isinstance(package, dict) or not all(
+        isinstance(package.get(key), list) for key in ("saves", "intervals", "narrative", "glossary")
+    ):
+        raise ValueError("not a narrator package: run tinarrative events with --narrative --format json")
+    for interval in package["intervals"]:
+        if not isinstance(interval, dict) or not all(
+            isinstance(interval.get(key), str) for key in ("key", "not_before", "date")
+        ):
+            raise ValueError("not a narrator package: an interval has no key or dates")
+    return package
+
+
+def period_label(date: str, period: str) -> str:
+    """The period of an ISO game time: ``2032``, ``2032-H1`` or ``2032-Q2``."""
+    moment = datetime.fromisoformat(date)
+    if period == "year":
+        return f"{moment.year:04d}"
+    if period == "half":
+        return f"{moment.year:04d}-H{(moment.month - 1) // 6 + 1}"
+    return f"{moment.year:04d}-Q{(moment.month - 1) // 3 + 1}"
+
+
+def derive_period(package: Mapping[str, Any], settings: NarratorSettings) -> str:
+    """Quarter for a campaign spanning ``quarter_span_days`` or fewer, half up to ``half_span_days``, else year."""
+    saves = package["saves"]
+    span = (datetime.fromisoformat(saves[-1]["date"]) - datetime.fromisoformat(saves[0]["date"])).days
+    if span <= settings.quarter_span_days:
+        return "quarter"
+    if span <= settings.half_span_days:
+        return "half"
+    return "year"
+
+
+def base_options(
+    package: Mapping[str, Any],
+    settings: NarratorSettings,
+    *,
+    period: str | None = None,
+    audience: str | None = None,
+    citations: str | None = None,
+    style: str | None = None,
+    focus: str | None = None,
+) -> dict[str, str]:
+    """The request keys every chapter shares. ``period`` defaults to ``derive_period``; ``focus`` defaults to the
+    player faction for an ``insider`` audience."""
+    if focus is None and audience == "insider":
+        situation = package["saves"][-1].get("situation") if package["saves"] else None
+        name = situation.get("player_faction_name") if isinstance(situation, dict) else None
+        focus = name if isinstance(name, str) and name else None
+    chosen = {
+        "period": period or derive_period(package, settings),
+        "audience": audience,
+        "citations": citations,
+        "style": style,
+        "focus": focus,
+    }
+    return {key: value for key, value in chosen.items() if value}
+
+
+def estimate(request: Mapping[str, Any], chars_per_token: int) -> int:
+    """The input tokens of a request: the characters of its system prompt and messages over ``chars_per_token``."""
+    characters = len(request["system"]) + sum(len(message["content"]) for message in request["messages"])
+    return math.ceil(characters / chars_per_token)
+
+
+def referenced(node: Any) -> set[str]:
+    """Every entity ref in ``node``: ``ref`` members and the faction keys of ``shares``."""
+    if isinstance(node, dict):
+        found = {node["ref"]} if isinstance(node.get("ref"), str) else set()
+        if isinstance(node.get("shares"), dict):
+            found.update(node["shares"])
+        for value in node.values():
+            found |= referenced(value)
+        return found
+    if isinstance(node, list):
+        return set().union(*(referenced(item) for item in node)) if node else set()
+    return set()
+
+
+def glossary_for(glossary: Sequence[Mapping[str, Any]], refs: set[str]) -> list[Mapping[str, Any]]:
+    """The glossary entries of ``refs`` and of the regions of those entries, in glossary order."""
+    kept = [entry for entry in glossary if entry["ref"] in refs]
+    regions = {region["ref"] for entry in kept for region in entry.get("regions", ())}
+    return [entry for entry in glossary if entry["ref"] in refs | regions]
+
+
+def plan_chapters(
+    package: Mapping[str, Any], options: Mapping[str, str], settings: NarratorSettings, *, length: int | None = None
+) -> ChapterPlan | OverBudget:
+    """The chapter plan of ``package``, or the interval that cannot fit ``max_input_tokens`` on its own."""
+    planner = _Planner(validate(dict(package)), options, settings, length)
+    chapters = planner.plan()
+    if isinstance(chapters, OverBudget):
+        return chapters
+    return planner.finish(chapters)
+
+
+class _Planner:
+    def __init__(
+        self, package: dict[str, Any], options: Mapping[str, str], settings: NarratorSettings, length: int | None
+    ) -> None:
+        if not package["intervals"]:
+            raise ValueError("nothing to narrate: the package holds no interval")
+        self.package = package
+        self.options = dict(options)
+        self.settings = settings
+        self.length = length
+        self.intervals: list[dict[str, Any]] = package["intervals"]
+        self.save_position = {save["key"]: position for position, save in enumerate(package["saves"])}
+        interval_position = {interval["key"]: position for position, interval in enumerate(self.intervals)}
+        self.starts = [self._start_position(event, interval_position) for event in package["narrative"]]
+        self.events: dict[str, Mapping[str, Any]] = {event["id"]: event for event in package["narrative"]}
+        for interval in self.intervals:
+            for event in self._atomic(interval):
+                self.events.setdefault(event["id"], event)
+        period = self.options.get("period", "year")
+        self.periods = [period_label(interval["not_before"], period) for interval in self.intervals]
+
+    def _start_position(self, event: Mapping[str, Any], interval_position: Mapping[str, int]) -> int:
+        """The interval a development starts in: the last whose opening save is not after its start; an undated
+        development starts in the first interval it lists."""
+        start = event.get("start")
+        if isinstance(start, str):
+            position = 0
+            for candidate, interval in enumerate(self.intervals):
+                if interval["not_before"] <= start:
+                    position = candidate
+            return position
+        keys = [key for key in event.get("intervals") or () if key in interval_position]
+        return interval_position[keys[0]] if keys else 0
+
+    @staticmethod
+    def _atomic(interval: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+        return [*(interval.get("events") or ()), *(interval.get("inferred") or ())]
+
+    # Planning
+
+    def plan(self) -> list[Chapter] | OverBudget:
+        groups: list[tuple[int, int]] = []
+        for position, label in enumerate(self.periods):
+            if groups and self.periods[groups[-1][0]] == label:
+                groups[-1] = (groups[-1][0], position)
+            else:
+                groups.append((position, position))
+        chapters: list[Chapter] = []
+        current: Chapter | None = None
+        for first, last in groups:
+            if current is not None:
+                grown = Chapter(current.first, last)
+                if self._fits(grown, chapters):
+                    current = grown
+                    continue
+                chapters.append(current)
+                current = None
+            alone = Chapter(first, last)
+            if self._fits(alone, chapters):
+                current = alone
+                continue
+            reduced = Chapter(first, last, atomic=False, reduction="atomic_dropped")
+            if self._fits(reduced, chapters):
+                chapters.append(reduced)
+                continue
+            failed = self._split(first, last, chapters)
+            if failed is not None:
+                return failed
+        if current is not None:
+            chapters.append(current)
+        return chapters
+
+    def _split(self, first: int, last: int, chapters: list[Chapter]) -> OverBudget | None:
+        run: Chapter | None = None
+        for position in range(first, last + 1):
+            if run is not None:
+                grown = Chapter(run.first, position, atomic=False, reduction="split")
+                if self._fits(grown, chapters):
+                    run = grown
+                    continue
+                chapters.append(run)
+            run = Chapter(position, position, atomic=False, reduction="split")
+            needed = self._estimate(run, chapters)
+            if needed > self.settings.max_input_tokens:
+                return OverBudget(self.intervals[position]["key"], needed, self.settings.max_input_tokens)
+        if run is not None:
+            chapters.append(run)
+        return None
+
+    def _fits(self, chapter: Chapter, earlier: Sequence[Chapter]) -> bool:
+        return self._estimate(chapter, earlier) <= self.settings.max_input_tokens
+
+    def _estimate(self, chapter: Chapter, earlier: Sequence[Chapter]) -> int:
+        """The estimate with the values not known yet at their largest: the count as the number of intervals (at
+        least the number of chapters), the longest part name and the whole length, so a final request is never
+        larger than its planned estimate."""
+        widest = len(self.intervals)
+        request = self._request(chapter, earlier, index=widest, count=widest, part="middle", length=self.length)
+        return estimate(request, self.settings.chars_per_token)
+
+    # Requests
+
+    def finish(self, chapters: Sequence[Chapter]) -> ChapterPlan:
+        count = len(chapters)
+        shares = self._shares(chapters)
+        planned: list[PlannedChapter] = []
+        for position, chapter in enumerate(chapters):
+            earlier = chapters[:position]
+            part = _part(position, count)
+            request = self._request(
+                chapter, earlier, index=position + 1, count=count, part=part, length=shares[position]
+            )
+            continuity = self._continuity(chapter, earlier)
+            planned.append(
+                PlannedChapter(
+                    chapter=chapter,
+                    index=position + 1,
+                    part=part,
+                    covers=self._covers(chapter),
+                    periods=tuple(dict.fromkeys(self.periods[chapter.first : chapter.last + 1])),
+                    developments=len(self._developments(chapter)),
+                    continuing=len(continuity["continuing"]),
+                    recalled=len(continuity["earlier"]),
+                    estimate=estimate(request, self.settings.chars_per_token),
+                    request=request,
+                )
+            )
+        return ChapterPlan(
+            package_sha256=_sha256(self.package),
+            options=self.options,
+            length=self.length,
+            settings=self.settings,
+            chapters=tuple(planned),
+        )
+
+    def _shares(self, chapters: Sequence[Chapter]) -> list[int | None]:
+        """Each chapter's share of ``length`` by the weights of its developments (by its intervals when no chapter
+        holds one), rounded by largest remainder so that the shares add up to ``length``."""
+        if self.length is None:
+            return [None] * len(chapters)
+        weights = [
+            sum(LENGTH_WEIGHTS.get(str(event.get("significance")), 1) for event in self._developments(chapter))
+            for chapter in chapters
+        ]
+        if not any(weights):
+            weights = [chapter.last - chapter.first + 1 for chapter in chapters]
+        total = sum(weights)
+        exact = [self.length * weight / total for weight in weights]
+        shares = [math.floor(value) for value in exact]
+        order = sorted(range(len(chapters)), key=lambda position: (shares[position] - exact[position], position))
+        for position in order[: self.length - sum(shares)]:
+            shares[position] += 1
+        return [share or None for share in shares]
+
+    def _request(
+        self, chapter: Chapter, earlier: Sequence[Chapter], *, index: int, count: int, part: str, length: int | None
+    ) -> dict[str, Any]:
+        covers = self._covers(chapter)
+        options = {
+            "chapter": f"{index} of {count}",
+            "part": part,
+            "covers": f"{covers[0][:10]} to {covers[1][:10]}",
+            **self.options,
+        }
+        if length:
+            options["length"] = f"about {length} words"
+        return build_request(self.chapter_package(chapter, earlier, index=index, count=count, part=part), options)
+
+    # Chapter packages
+
+    def chapter_package(
+        self, chapter: Chapter, earlier: Sequence[Chapter], *, index: int, count: int, part: str
+    ) -> dict[str, Any]:
+        developments = self._developments(chapter)
+        continuity = self._continuity(chapter, earlier)
+        roots = [*developments, *continuity["continuing"]]
+        kept = self._closure(roots) if chapter.atomic else set()
+        intervals = [
+            {
+                **interval,
+                "events": [event for event in interval.get("events") or () if event["id"] in kept],
+                "inferred": None
+                if interval.get("inferred") is None
+                else [event for event in interval["inferred"] if event["id"] in kept],
+            }
+            for interval in self.intervals[chapter.first : chapter.last + 1]
+        ]
+        atomic = [event for interval in intervals for event in self._atomic(interval)]
+        refs = referenced([developments, continuity, atomic])
+        saves = [self._pruned(save, refs) for save in self._saves(chapter)]
+        covers = self._covers(chapter)
+        restricted: dict[str, Any] = {}
+        for key, value in self.package.items():
+            restricted[key] = {"saves": saves, "intervals": intervals, "narrative": developments}.get(key, value)
+        restricted["chapter"] = {
+            "index": index,
+            "count": count,
+            "part": part,
+            "covers": {"from": covers[0], "to": covers[1]},
+        }
+        restricted["continuity"] = continuity
+        restricted["glossary"] = glossary_for(
+            self.package["glossary"], referenced({key: value for key, value in restricted.items() if key != "glossary"})
+        )
+        return restricted
+
+    def _developments(self, chapter: Chapter) -> list[Mapping[str, Any]]:
+        return [
+            event
+            for event, start in zip(self.package["narrative"], self.starts, strict=True)
+            if chapter.first <= start <= chapter.last
+        ]
+
+    def _continuity(self, chapter: Chapter, earlier: Sequence[Chapter]) -> dict[str, Any]:
+        """Developments of earlier chapters that still run in this one, in full, and a capped digest of the others
+        at ``RECALLED_FROM`` and above."""
+        keys = {interval["key"] for interval in self.intervals[chapter.first : chapter.last + 1]}
+        before = [
+            (position, event)
+            for position, (event, start) in enumerate(zip(self.package["narrative"], self.starts, strict=True))
+            if start < chapter.first
+        ]
+        continuing = [
+            event for _, event in before if event.get("open") is True or keys & set(event.get("intervals") or ())
+        ]
+        told = {event["id"] for event in continuing}
+        floor = SIGNIFICANCE.index(RECALLED_FROM)
+        candidates = [
+            (position, event) for position, event in before if event["id"] not in told and _rank(event) >= floor
+        ]
+        # The most significant first, then the latest; the kept ones are listed in package order.
+        ranked = sorted(
+            candidates, key=lambda item: (_rank(item[1]), _sort_text(item[1].get("start")), item[0]), reverse=True
+        )
+        recalled = sorted(position for position, _ in ranked[: self.settings.recalled_developments])
+        narrative = self.package["narrative"]
+        return {
+            "continuing": continuing,
+            "earlier": [_digest(narrative[position]) for position in recalled],
+            "earlier_omitted": len(candidates) - len(recalled),
+        }
+
+    def _closure(self, roots: Iterable[Mapping[str, Any]]) -> set[str]:
+        """The IDs of every event the roots are built from, followed transitively."""
+        seen: set[str] = set()
+        pending = [constituent for root in roots for constituent in root.get("constituents") or ()]
+        while pending:
+            identifier = pending.pop()
+            if identifier in seen:
+                continue
+            seen.add(identifier)
+            pending.extend((self.events.get(identifier) or {}).get("constituents") or ())
+        return seen
+
+    def _saves(self, chapter: Chapter) -> list[Mapping[str, Any]]:
+        """The opening save, before the first interval, and the closing save, of the last interval."""
+        saves = self.package["saves"]
+        opening = self.save_position.get(self.intervals[chapter.first]["key"])
+        closing = self.save_position.get(self.intervals[chapter.last]["key"])
+        positions = [*(() if not opening else (opening - 1,)), *(() if closing is None else (closing,))]
+        return [saves[position] for position in positions]
+
+    def _pruned(self, save: Mapping[str, Any], refs: set[str]) -> Mapping[str, Any]:
+        """The save with its situation's nations reduced to the referenced ones and the largest economies."""
+        situation = save.get("situation")
+        if not isinstance(situation, dict) or not isinstance(situation.get("nations"), list):
+            return save
+        nations: list[Mapping[str, Any]] = situation["nations"]
+        ranked = sorted(
+            ((gdp, position) for position, nation in enumerate(nations) if (gdp := _gdp(nation)) is not None),
+            key=lambda item: (-item[0], item[1]),
+        )
+        largest = {position for _, position in ranked[: self.settings.top_economies]}
+        kept = [
+            nation
+            for position, nation in enumerate(nations)
+            if position in largest or (nation.get("nation") or {}).get("ref") in refs
+        ]
+        return {**save, "situation": {**situation, "nations": kept}}
+
+    def _covers(self, chapter: Chapter) -> tuple[str, str]:
+        return self.intervals[chapter.first]["not_before"], self.intervals[chapter.last]["date"]
+
+
+def _part(position: int, count: int) -> str:
+    if count == 1:
+        return "whole"
+    if position == 0:
+        return "first"
+    return "last" if position == count - 1 else "middle"
+
+
+def _rank(event: Mapping[str, Any]) -> int:
+    significance = event.get("significance")
+    return SIGNIFICANCE.index(significance) if significance in SIGNIFICANCE else -1
+
+
+def _sort_text(value: Any) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _digest(event: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: event.get(key) for key in ("id", "event_type", "significance", "start", "end", "roles")}
+
+
+def _gdp(nation: Mapping[str, Any]) -> float | None:
+    statistics = nation.get("statistics")
+    value = statistics.get("GDP") if isinstance(statistics, dict) else None
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value)
+
+
+def _sha256(package: Mapping[str, Any]) -> str:
+    text = json.dumps(package, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()

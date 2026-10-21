@@ -31,7 +31,11 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   `--inferred`, the inferred events; with `--changes`, the literal state changes)
   of every pair of consecutive saves; with `--narrative`, the developments that span
   intervals (takeovers, wars, federations, expansions, ...), tuned by an optional
-  [settings file](docs/configuration.md). This is the only command that analyzes.
+  [settings file](docs/configuration.md). This is the only command that reports analysis;
+  `narrate` runs the same analysis to build its package.
+- [`tinarrative narrate <path>...`](docs/commands/narrate.md): cut a campaign's narrator
+  package into chapters under a token budget and write one LLM request per chapter, without
+  sending anything.
 - `tinarrative save COMMAND`: per-save evidence and debugging commands.
   - [`tinarrative save inspect <save>`](docs/commands/inspect.md): report one save's
     raw serialized structure without interpreting it.
@@ -85,8 +89,9 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `reconstruction`: combine evidence into conservative inferred events.
 - `narrative`: group atomic events into narrative developments; per-save situation
   reports as their context.
-- `narrator`: build the LLM request (packaged system prompt, request block) from a narrator
-  package; reads the package's JSON form only.
+- `narrator`: build the LLM requests (packaged system prompt, request block) from a narrator
+  package, cut into chapters under a token budget (`tinarrative narrate`); reads the package's
+  JSON form only.
 - `rendering`: turn structured narrative output into user-facing formats.
 - `grouping`: split surveyed saves into campaigns by their continuity signals
   (`tinarrative campaigns`, `events --campaign`).

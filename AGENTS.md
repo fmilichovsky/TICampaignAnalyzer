@@ -39,7 +39,8 @@ touching the model or pipeline.
   that registry. A tool package like `inspection`, not a pipeline stage.
 - `scripts/verify_fixture_manifest.py` — validates the versioned fixture set.
 - `src/tinarrative/narrator/` — LLM request builder (`request.py`): the system prompt as package data
-  (`prompt.md`, the only copy; `docs/narrator.md` holds the rationale) and the request block. It reads the
+  (`prompt.md`, the only copy; `docs/narrator.md` holds the rationale) and the request block; the chapter
+  planner of `tinarrative narrate` (`chapters.py`: estimate, plan, chapter packages, continuity). It reads the
   narrator package dict only and must not import `parsing`, `sequence` or `model`; a test enforces it.
 - `scripts/narrator_prompt.py` — thin CLI over that builder (adds `--sample` trimming) for an
   `events --narrative --format json` package; never calls an API.

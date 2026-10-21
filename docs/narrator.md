@@ -23,10 +23,17 @@ the practical level for a whole campaign; `minor` adds developments such as
 fleet buildups and technology milestones, and their constituents with them.
 Citations are one footnote per
 entry, so a sentence is audited through the entry it belongs to. A package
-too large for one request is sent in chapters; the request fields and the
-`continuity` member those add are designed in
-[architecture 20.3–20.4](architecture.md#203-token-budget-and-chapters), and
-the prompt learns them when `narrate` is built.
+too large for one request is cut into chapters by
+[`tinarrative narrate`](commands/narrate.md)
+([architecture 20.3–20.4](architecture.md#203-token-budget-and-chapters)). The
+prompt reads the chapter's `chapter`, `part` and `covers` keys and its
+`continuity` member with a few rules: only a `whole` or `first` part introduces
+the history, and only a `whole` or `last` part ends with where things stood. A
+period cut by `covers` is written under its heading in both chapters. The
+backstory rule counts from the chapter's opening save. `continuity` IDs are
+citable. These rules keep chapters independent, because no chapter's prose is
+input to another: the model learns the earlier story only from `continuity`, so
+an error in one chapter cannot become a premise of the next.
 
 The prompt carries its own short faction briefs, condensed from the game's
 faction descriptions in [game-data-notes/factions](game-data-notes/factions/).

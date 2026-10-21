@@ -81,7 +81,7 @@ def test_the_request_block_has_a_fixed_key_order_and_only_the_keys_set() -> None
 
     assert content.startswith("period: half\ncitations: none\nstyle: headlines\nlength: 2000 words\nfocus: ESA\n\n")
     assert "audience" not in content.partition("\n\n")[0]
-    assert REQUEST_KEYS == ("period", "audience", "citations", "style", "length", "focus")
+    assert REQUEST_KEYS == ("chapter", "part", "covers", "period", "audience", "citations", "style", "length", "focus")
 
 
 def test_an_empty_block_leaves_the_message_to_the_package() -> None:

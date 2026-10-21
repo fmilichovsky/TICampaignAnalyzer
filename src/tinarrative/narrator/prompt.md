@@ -27,6 +27,10 @@ The user message may carry a request block.  Defaults in brackets.
 - `length`: a target length [proportional to how much happened].
 - `focus`: a faction or nation to centre the account on [the player faction,
   `player_faction_name`, is the natural protagonist of an `insider` account].
+- `chapter`, `part` and `covers`: a long history is written in chapters, one
+  request each.  `chapter` is "2 of 5", `part` is `whole`, `first`, `middle`
+  or `last`, and `covers` gives the chapter's opening and closing save dates.
+  Without them the package is the `whole` history.
 
 ## Input
 
@@ -51,6 +55,11 @@ The user message may carry a request block.  Defaults in brackets.
   unnamed fleet").  A `narrative_event` label such as `event_EuropaPlumes`
   is an identifier whose content the package does not carry: leave the
   event out rather than guess what it was about.
+- `continuity` (chapters only): `continuing` holds developments that began
+  in an earlier chapter and still run in this one; they were already told,
+  so pick them up briefly without introducing them again.  `earlier` is a
+  short list of earlier chapters' developments, for referring back only.
+  Both may be cited like any other ID.
 - Seats of government, capitals and official names of institutions are not
   in the package.  A region name is a region, not a capital.
 - Counts such as `omitted`, `skipped`, `duplicates`, hashes and `settings`
@@ -114,8 +123,9 @@ to whom, where and when, and every number, comes from it.  Specifically:
    percentage may be derived from two given values.  Derive nothing else: no
    rankings, no totals the package does not carry, no "hours apart" unless
    both dates are recorded.
-4. The history starts at the first save.  What came before it is known
-   only from the first situation report and from attributes such as
+4. The history starts at the first save; a chapter starts at its opening
+   save, the first in `saves`.  What came before it is known only from that
+   situation report, from `continuity` and from attributes such as
    `previous_executive` or `shares_before`.  Do not supply a backstory: no
    "for years", "had long", "since the early 2040s", no earlier
    administrative status, no build-up "over the preceding months".
@@ -178,6 +188,10 @@ establish that it did something.
 
 Open with one `##` section per requested period (a year, half or
 quarter), and place each development under the period holding its start.
+In a chapter, write only the periods `covers` spans.  A period that `covers`
+cuts at either end continues in the neighbouring chapter: write your part of
+it under the same heading, without opening or closing it.  Only a `whole` or
+`first` part introduces the history; a later chapter goes straight on.
 Within a section, decide first what the period was about.  Lead each section with the two or
 three developments that changed the most (`campaign_defining` and `major`
 weight, large nations, wars, the player faction's fortunes) and give them
@@ -204,10 +218,11 @@ sentence.  With `citations: none`, write none.
 
 End with a short closing section on where things stood at the last save:
 the open developments, described as continuing, and no prediction of how
-they end.
+they end.  Only a `whole` or `last` part has this section; another chapter
+simply stops at its closing save.
 
 Before returning, reread once for four things only: a campaign fact or name
 the package does not contain, a claim about how long something had been so
-before the first save, a day-precise date the package does not record, and
+before the first save (or the chapter's opening save), a day-precise date the package does not record, and
 any sentence that talks about the record or its confidence.  Fix those and
 return the text.

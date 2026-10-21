@@ -35,8 +35,9 @@ def build_document(
     events below ``min_significance`` are dropped, and an objective or inferred event is kept only as a constituent
     of a kept narrative event when ``include_constituents`` is set (``listing``). Dropped events are counted
     (``omitted`` per interval, ``narrative_omitted``), so an omission is never hidden; state changes are never
-    filtered. With ``narrative``, the document is the narrator package: it also holds the ``settings`` and the
-    ``glossary`` of every entity ID it references, and leaves out provenance and paths (``_narrator_package``).
+    filtered. With ``narrative``, the document is the narrator package: it also holds the narrative rules'
+    ``settings`` and the ``glossary`` of every entity ID it references, and leaves out provenance and paths
+    (``_narrator_package``).
     """
     document: dict[str, Any] = {"campaign": campaign.to_dict(), **plan.to_dict()}
     reports = situations(intervals)
@@ -47,7 +48,7 @@ def build_document(
     chosen = listing(intervals, narrative, minimum=min_significance, include_constituents=include_constituents)
     document["min_significance"] = min_significance.value
     document["include_constituents"] = None if narrative is None else include_constituents
-    document["settings"] = None if narrative is None else settings.to_dict()
+    document["settings"] = None if narrative is None else {"narrative": settings.to_dict()["narrative"]}
     listed = chosen.narrative
     document["narrative"] = None if listed is None else [event.to_dict() for event in listed]
     document["narrative_omitted"] = None if listed is None or narrative is None else len(narrative) - len(listed)

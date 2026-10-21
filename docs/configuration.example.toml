@@ -1,7 +1,7 @@
 # tinarrative settings: every key at its built-in default (docs/configuration.md).
 # Copy this file, keep only the keys you change, and pass it with
-# `tinarrative events --narrative --config <file>` or TINARRATIVE_CONFIG.
-# All windows are in game days.
+# `tinarrative events --narrative --config <file>` (or narrate) or TINARRATIVE_CONFIG.
+# All windows and spans are in game days.
 
 [narrative.geopolitics]
 # A faction.takeover is campaign_defining when its nation ranks this high or
@@ -45,3 +45,31 @@ colonisation_window_days = 180
 # A faction.fleet_buildup needs at least this many ships of one hull appearing
 # for one faction in one interval.
 buildup_min_ships = 5
+
+[narrator]
+# The budget of tinarrative narrate; it never changes what events builds. 
+# One request's estimated input, system prompt, request block
+# and chapter package together, stays within this many tokens (minimum 1000).
+max_input_tokens = 200000
+
+# The estimate divides the request's characters by this (minimum 1)
+# to calculate the expected token count; a lower value is more conservative.
+chars_per_token = 3
+
+# A campaign spanning this many game days or fewer is told by quarter.
+quarter_span_days = 730
+
+# A longer campaign spanning this many game days or fewer is told by half
+# year; a longer one by year.
+half_span_days = 1825
+
+# Each chapter is reminded of at most this many developments of earlier
+# chapters (major and above; the most significant, then the most recent, are
+# kept and the rest counted), so the model can refer back to them without
+# retelling them. 0 turns the reminder off; a larger value costs input tokens
+# in every later chapter.
+recalled_developments = 40
+
+# A chapter's situation reports keep the nations the chapter references and
+# this many more, the largest by GDP.
+top_economies = 10

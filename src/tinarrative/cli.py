@@ -7,6 +7,7 @@ import json
 import os
 import sys
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 from typing import cast
@@ -26,11 +27,13 @@ from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
 from .maintenance.scan import ScanRun, scan_inputs
-from .model.events import SIGNIFICANCE_ORDER, Significance
+from .model.events import SIGNIFICANCE_ORDER, Event, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .narrative import narrative_rules
+from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
+from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
@@ -40,6 +43,7 @@ from .rendering.markdown import PERIODS, Period, render_sequence
 from .sequence import (
     IntervalResult,
     SaveRef,
+    SequencePlan,
     SkippedSave,
     event_stream,
     narrative_events,
@@ -67,6 +71,8 @@ or summary is still printed."""
 EXIT_CONFIG_ERROR = 8
 """The settings file (``--config`` or ``TINARRATIVE_CONFIG``) could not be read or is not valid settings; nothing is
 printed on stdout."""
+EXIT_OUTPUT_ERROR = 9
+"""``narrate --output`` could not write its directory; the plan is not printed."""
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -78,6 +84,13 @@ def _non_negative_int(text: str) -> int:
         raise argparse.ArgumentTypeError(f"expected an integer, got {text!r}") from None
     if value < 0:
         raise argparse.ArgumentTypeError(f"expected a value >= 0, got {value}")
+    return value
+
+
+def _positive_int(text: str) -> int:
+    value = _non_negative_int(text)
+    if value == 0:
+        raise argparse.ArgumentTypeError("expected a value >= 1, got 0")
     return value
 
 
@@ -310,13 +323,6 @@ def _survey(command: str, save_path: Path) -> SaveRef | int:
         return EXIT_UNSUPPORTED_INPUT
 
 
-def _load_sequence_snapshot(source: str) -> SaveSnapshot:
-    loaded = _load_snapshot("events", Path(source))
-    if isinstance(loaded, int):
-        raise _LoadFailed(loaded)
-    return loaded
-
-
 def _survey_found(command: str, item: SaveInput) -> SaveRef | SkippedSave:
     """Survey a file found inside a given directory; a failure skips it instead of stopping the run."""
     try:
@@ -386,6 +392,70 @@ def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
     return settings
 
 
+@dataclass(frozen=True)
+class _SequenceRun:
+    """The analyzed campaign of a save-input command: what ``events`` reports and ``narrate`` packages."""
+
+    plan: SequencePlan
+    intervals: list[IntervalResult]
+    campaign: CampaignGroup
+    surveyed: int
+    narrative: list[Event] | None
+
+
+def _run_saves(
+    command: str,
+    paths: list[Path],
+    selector: str | None,
+    settings: Settings,
+    *,
+    inferred: bool,
+    changes: bool,
+    narrative: bool,
+) -> _SequenceRun | int:
+    """Survey the inputs, choose the campaign and analyze its saves in order; a failure is printed and returned as
+    the exit code."""
+    inputs = expand_inputs(paths)
+    if len(inputs) < 2:
+        print(f"tinarrative {command}: at least two saves are required", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    logger.info("%s start %s", command, fields(inputs=len(paths), candidates=len(inputs)))
+    outcome = _survey_inputs(command, inputs)
+    if isinstance(outcome, int):
+        return outcome
+    surveyed, skipped = outcome
+    if len(surveyed) < 2:
+        print(
+            f"tinarrative {command}: at least two saves are required ({len(surveyed)} usable, {len(skipped)} skipped)",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
+    campaign = _choose_campaign(command, group_saves(surveyed), selector)
+    if isinstance(campaign, int):
+        return campaign
+    if len(campaign.members) < 2:
+        print(
+            f"tinarrative {command}: at least two saves are required (campaign {campaign.key} has "
+            f"{len(campaign.members)})",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
+    plan = plan_sequence(campaign.members, skipped)
+
+    def load(source: str) -> SaveSnapshot:
+        loaded = _load_snapshot(command, Path(source))
+        if isinstance(loaded, int):
+            raise _LoadFailed(loaded)
+        return loaded
+
+    try:
+        intervals = list(run_sequence(plan, inferred=inferred or narrative, changes=changes, load=load))
+    except _LoadFailed as failure:
+        return failure.code
+    events = narrative_events(intervals, narrative_rules(settings.narrative)) if narrative else None
+    return _SequenceRun(plan, intervals, campaign, len(surveyed), events)
+
+
 def _run_events(args: argparse.Namespace) -> int:
     """Order saves by game time and report the analyzer results of every consecutive pair."""
     settings = _resolve_settings("events", cast("Path | None", args.config))
@@ -398,42 +468,18 @@ def _run_events(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
-    paths = cast(list[Path], args.saves)
-    inputs = expand_inputs(paths)
-    if len(inputs) < 2:
-        print("tinarrative events: at least two saves are required", file=sys.stderr)
-        return EXIT_USAGE_ERROR
-    logger.info("events start %s", fields(inputs=len(paths), candidates=len(inputs)))
-    outcome = _survey_inputs("events", inputs)
-    if isinstance(outcome, int):
-        return outcome
-    surveyed, skipped = outcome
-    if len(surveyed) < 2:
-        print(
-            f"tinarrative events: at least two saves are required ({len(surveyed)} usable, {len(skipped)} skipped)",
-            file=sys.stderr,
-        )
-        return EXIT_USAGE_ERROR
-    campaign = _choose_campaign(group_saves(surveyed), cast("str | None", args.campaign))
-    if isinstance(campaign, int):
-        return campaign
-    if len(campaign.members) < 2:
-        print(
-            f"tinarrative events: at least two saves are required (campaign {campaign.key} has "
-            f"{len(campaign.members)})",
-            file=sys.stderr,
-        )
-        return EXIT_USAGE_ERROR
-    plan = plan_sequence(campaign.members, skipped)
-    try:
-        intervals: list[IntervalResult] = list(
-            run_sequence(
-                plan, inferred=args.inferred or args.narrative, changes=args.changes, load=_load_sequence_snapshot
-            )
-        )
-    except _LoadFailed as failure:
-        return failure.code
-    narrative = narrative_events(intervals, narrative_rules(settings.narrative)) if args.narrative else None
+    run = _run_saves(
+        "events",
+        cast(list[Path], args.saves),
+        cast("str | None", args.campaign),
+        settings,
+        inferred=args.inferred,
+        changes=args.changes,
+        narrative=args.narrative,
+    )
+    if isinstance(run, int):
+        return run
+    plan, intervals, campaign, narrative = run.plan, run.intervals, run.campaign, run.narrative
     minimum = Significance(cast(str, args.min_significance))
     include_constituents = cast(bool, args.include_constituents)
     if args.format == "json":
@@ -448,7 +494,7 @@ def _run_events(args: argparse.Namespace) -> int:
         )
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
-        left_out = len(surveyed) - len(campaign.members)
+        left_out = run.surveyed - len(campaign.members)
         rendered = render_sequence(
             plan,
             intervals,
@@ -457,7 +503,11 @@ def _run_events(args: argparse.Namespace) -> int:
             campaign=campaign,
             left_out=left_out,
             narrative=narrative,
-            changed_settings=settings.differences(DEFAULT_SETTINGS),
+            changed_settings={
+                key: value
+                for key, value in settings.differences(DEFAULT_SETTINGS).items()
+                if key.startswith("narrative.")
+            },
             period=cast(Period, args.period),
         )
     sys.stdout.write(rendered)
@@ -474,6 +524,169 @@ def _run_events(args: argparse.Namespace) -> int:
         ),
     )
     return EXIT_SUCCESS
+
+
+def _run_narrate(args: argparse.Namespace) -> int:
+    """Cut a narrator package into chapters under the token budget and build each chapter's request; sends nothing."""
+    settings = _resolve_settings("narrate", cast("Path | None", args.config))
+    if isinstance(settings, int):
+        return settings
+    saves = cast(list[Path], args.saves)
+    source = cast("str | None", args.package)
+    if source is not None and (saves or args.campaign is not None or args.min_significance is not None):
+        print(
+            "tinarrative narrate: --package is narrated as it was built; drop the save paths, --campaign and "
+            "--min-significance",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
+    if source is None and not saves:
+        print("tinarrative narrate: give save paths or --package FILE", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    loaded = _read_package(source) if source is not None else _build_package(args, saves, settings)
+    if isinstance(loaded, int):
+        return loaded
+    narrator = settings.narrator
+    try:
+        package = validate(loaded)
+        if not package["intervals"]:
+            print("tinarrative narrate: the package holds no interval, so there is nothing to narrate", file=sys.stderr)
+            return EXIT_USAGE_ERROR
+        options = base_options(
+            package,
+            narrator,
+            period=cast("str | None", args.period),
+            audience=cast("str | None", args.audience),
+            citations=cast("str | None", args.citations),
+            style=cast("str | None", args.style),
+            focus=cast("str | None", args.focus),
+        )
+        plan = plan_chapters(package, options, narrator, length=cast("int | None", args.length))
+    except ValueError as error:
+        logger.debug("package invalid %s", fields(error=type(error).__name__))
+        print(f"tinarrative narrate: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+    if isinstance(plan, OverBudget):
+        print(
+            f"tinarrative narrate: interval {plan.interval} needs about {plan.needed} input tokens without its atomic "
+            f"stream, over max_input_tokens {plan.budget}; raise narrator.max_input_tokens",
+            file=sys.stderr,
+        )
+        logger.info("narrate over budget %s", fields(needed=plan.needed, budget=plan.budget, exit=EXIT_USAGE_ERROR))
+        return EXIT_USAGE_ERROR
+    output = cast("Path | None", args.output)
+    if output is not None:
+        try:
+            _write_narration(output, plan)
+        except OSError as error:
+            logger.debug("output failed %s", fields(output=safe_path(output), error=type(error).__name__))
+            print(f"tinarrative narrate: cannot write {output}: {error.strerror or error}", file=sys.stderr)
+            return EXIT_OUTPUT_ERROR
+    sys.stdout.write(_render_plan(plan, output))
+    sys.stdout.flush()
+    logger.info(
+        "narrate done %s",
+        fields(
+            chapters=len(plan.chapters),
+            developments=sum(planned.developments for planned in plan.chapters),
+            largest_estimate=max(planned.estimate for planned in plan.chapters),
+            reduced=sum(planned.chapter.reduction is not None for planned in plan.chapters),
+            written=output is not None,
+            exit=EXIT_SUCCESS,
+        ),
+    )
+    return EXIT_SUCCESS
+
+
+def _read_package(source: str) -> object | int:
+    """A finished narrator package from a file, or from stdin for ``-``."""
+    shown = "stdin" if source == "-" else safe_path(source)
+    try:
+        text = sys.stdin.read() if source == "-" else Path(source).read_text(encoding="utf-8")
+    except OSError as error:
+        logger.debug("read failed %s", fields(package=shown, errno=error.errno, error=type(error).__name__))
+        print(f"tinarrative narrate: cannot read {source}: {error.strerror or error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    except UnicodeDecodeError:
+        print(f"tinarrative narrate: {source}: not UTF-8 text", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+    try:
+        package: object = json.loads(text)
+    except json.JSONDecodeError as error:
+        print(f"tinarrative narrate: {source}: not valid JSON: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+    logger.info("narrate package %s", fields(package=shown, characters=len(text)))
+    return package
+
+
+def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settings) -> object | int:
+    """The narrator package of the saves, as ``events --narrative --include-constituents --format json`` builds it,
+    through JSON so that it is the same value a ``--package`` file gives."""
+    run = _run_saves(
+        "narrate",
+        saves,
+        cast("str | None", args.campaign),
+        settings,
+        inferred=True,
+        changes=False,
+        narrative=True,
+    )
+    if isinstance(run, int):
+        return run
+    document = build_document(
+        run.plan,
+        run.intervals,
+        campaign=run.campaign,
+        settings=settings,
+        narrative=run.narrative,
+        min_significance=Significance(cast("str | None", args.min_significance) or Significance.MAJOR.value),
+        include_constituents=True,
+    )
+    package: object = json.loads(json.dumps(document))
+    return package
+
+
+def _write_narration(directory: Path, plan: ChapterPlan) -> None:
+    """``plan.json`` and ``requests/NN.json``; numbered requests left from a longer plan are removed."""
+    requests = directory / "requests"
+    requests.mkdir(parents=True, exist_ok=True)
+    width = max(2, len(str(len(plan.chapters))))
+    written: set[str] = set()
+    for planned in plan.chapters:
+        name = f"{planned.index:0{width}d}.json"
+        (requests / name).write_text(render_request(planned.request), encoding="utf-8", newline="\n")
+        written.add(name)
+    for stale in sorted(requests.glob("*.json")):
+        if stale.stem.isdigit() and stale.name not in written:
+            stale.unlink()
+    text = json.dumps(plan.to_dict(), ensure_ascii=False, indent=2) + "\n"
+    (directory / "plan.json").write_text(text, encoding="utf-8", newline="\n")
+
+
+def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
+    settings = plan.settings
+    count = len(plan.chapters)
+    lines = [
+        f"{_count(count, 'chapter')} by {plan.options.get('period', 'year')}, max_input_tokens "
+        f"{settings.max_input_tokens} at {settings.chars_per_token} characters per token:"
+    ]
+    reductions = {"atomic_dropped": "; atomic stream left out", "split": "; period split at saves, no atomic stream"}
+    for planned in plan.chapters:
+        lines.append(
+            f"- {planned.index} ({planned.part}) {planned.covers[0][:10]} to {planned.covers[1][:10]}, "
+            f"{', '.join(planned.periods)}: {_count(planned.developments, 'development')}, "
+            f"{planned.continuing} continuing, {planned.recalled} recalled; ~{planned.estimate} input tokens"
+            f"{reductions.get(planned.chapter.reduction or '', '')}"
+        )
+    if output is not None:
+        lines.append(f"Wrote plan.json and {_count(count, 'request')} to {output}.")
+    else:
+        lines.append("Nothing written; give --output DIR for the plan and the requests.")
+    return "\n".join(lines) + "\n"
+
+
+def _count(number: int, noun: str) -> str:
+    return f"{number} {noun}{'' if number == 1 else 's'}"
 
 
 def _file_time(path: str) -> float:
@@ -503,7 +716,7 @@ def _prompt(text: str) -> str:
     return line.rstrip("\n")
 
 
-def _choose_campaign(groups: Sequence[CampaignGroup], selector: str | None) -> CampaignGroup | int:
+def _choose_campaign(command: str, groups: Sequence[CampaignGroup], selector: str | None) -> CampaignGroup | int:
     """The campaign to analyze; several without a selector, or a selector that matches none, opens the picker in a
     terminal and is a usage error otherwise (or when the picker is cancelled)."""
     if selector is None:
@@ -517,13 +730,13 @@ def _choose_campaign(groups: Sequence[CampaignGroup], selector: str | None) -> C
             return selected
         message = selected
     if not _interactive():
-        print(f"tinarrative events: {message}\n\n{render_listing(groups)}", end="", file=sys.stderr)
+        print(f"tinarrative {command}: {message}\n\n{render_listing(groups)}", end="", file=sys.stderr)
         return EXIT_USAGE_ERROR
     if selector is not None:
-        _write_stderr(f"tinarrative events: {message}\n")
+        _write_stderr(f"tinarrative {command}: {message}\n")
     picked = pick_campaign(groups, read=_prompt, write=_write_stderr, file_time=_file_time, initial=selector)
     if picked is None:
-        print("tinarrative events: no campaign chosen", file=sys.stderr)
+        print(f"tinarrative {command}: no campaign chosen", file=sys.stderr)
         return EXIT_USAGE_ERROR
     logger.info("campaign selected %s", fields(index=picked.index, of=len(groups), interactive=True))
     return picked
@@ -822,6 +1035,90 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
     parser.set_defaults(handler=_run_events)
 
 
+def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = "Cut a campaign's narrator package into chapters under a token budget and build their LLM requests."
+    parser = subcommands.add_parser(
+        "narrate",
+        help=summary,
+        description=(
+            f"{summary} The package is built from the saves exactly as 'events --narrative --include-constituents "
+            "--format json' builds it, or read with --package. Each chapter is a run of whole periods whose "
+            "estimated request stays within narrator.max_input_tokens; it carries the developments that start in "
+            "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
+            "Nothing is sent: with --output the plan and one request per chapter are written."
+        ),
+        epilog=(
+            "Exit codes: 0 success; 2 usage error (including --package with save paths, --campaign or "
+            "--min-significance, a package with no interval, or a single interval over the token budget); "
+            "4 a save or the package cannot be read; 5 a save is not a supported save, or the package is not "
+            "valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot be written."
+        ),
+    )
+    parser.add_argument(
+        "saves",
+        type=Path,
+        nargs="*",
+        metavar="PATH",
+        help="Save files or directories, any order; a directory is read one level deep.",
+    )
+    parser.add_argument(
+        "--package",
+        metavar="FILE",
+        help="A narrator package ('events --narrative --format json') to narrate as built; '-' reads stdin.",
+    )
+    parser.add_argument(
+        "--campaign",
+        metavar="SELECTOR",
+        help="The campaign to narrate when the saves hold several (as 'events --campaign').",
+    )
+    parser.add_argument(
+        "--min-significance",
+        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
+        default=None,
+        help=(
+            "Lowest significance of a listed development when building from saves (default major); the atomic "
+            "stream keeps only the constituents of the listed developments."
+        ),
+    )
+    parser.add_argument(
+        "--period",
+        choices=PERIODS,
+        help=(
+            "The sections of the history and the unit chapters are cut by (default: from the campaign span, see "
+            "narrator.quarter_span_days and narrator.half_span_days)."
+        ),
+    )
+    parser.add_argument("--audience", choices=AUDIENCES, help="Who the history is for (prompt default public).")
+    parser.add_argument("--citations", choices=CITATIONS, help="Footnotes citing event IDs (prompt default) or none.")
+    parser.add_argument("--style", choices=STYLES, help="Chronicle (prompt default) or headlines.")
+    parser.add_argument(
+        "--length",
+        type=_positive_int,
+        metavar="WORDS",
+        help="A target length for the whole history, shared out across chapters by their developments.",
+    )
+    parser.add_argument(
+        "--focus",
+        help="A faction or nation to centre the account on (default: the player faction for an insider audience).",
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        metavar="DIR",
+        help="Write plan.json and requests/NN.json here; without it only the plan summary is printed.",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        metavar="FILE",
+        help=(
+            f"A TOML settings file: the narrative rules and the [narrator] budget (default: ${CONFIG_ENV_VAR} if set, "
+            "else the built-in defaults; see docs/configuration.md)."
+        ),
+    )
+    parser.set_defaults(handler=_run_narrate)
+
+
 def _add_campaigns_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     summary = "List the campaigns that saves belong to, with the selector for 'events --campaign'."
     parser = subcommands.add_parser(
@@ -903,6 +1200,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_campaigns_parser(subcommands)
     _add_events_parser(subcommands)
+    _add_narrate_parser(subcommands)
     _add_save_parser(subcommands)
     _add_unknowns_parser(subcommands)
     return parser
