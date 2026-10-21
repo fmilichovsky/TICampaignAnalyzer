@@ -1491,6 +1491,11 @@ stays with the same run without `--narrative`, which lists the same atomic
 and inferred events with their sources; a narrative event's sources are its
 constituents'. Citing an ID is therefore enough to audit a sentence.
 
+A package too large for one model request is cut into *chapter packages*
+(20.3): the same schema restricted to a run of periods, plus a `chapter`
+and a `continuity` member. Cutting selects entries and never rewrites one,
+so an ID means the same event in a chapter package and in the full package.
+
 ------------------------------------------------------------------------
 
 # 14. Repository Structure
@@ -1556,9 +1561,15 @@ terra-invicta-narrative/
 │       │   ├── situation.py       # per-save situation reports (11.4)
 │       │   └── chronology.py
 │       │
-│       └── rendering/
-│           ├── markdown.py
-│           └── templates/
+│       ├── rendering/
+│       │   ├── markdown.py
+│       │   └── templates/
+│       │
+│       └── narrator/          # `tinarrative narrate` (section 20); reads the package only
+│           ├── request.py     # packaged prompt, request block, prompt version
+│           ├── chapters.py    # estimate, chapter plan, chapter packages, continuity
+│           ├── providers/     # neutral request/completion, anthropic, openai, ollama
+│           └── assembly.py    # history.md, footnotes, citation audit, manifest
 │
 └── tests/
     ├── fixtures/
@@ -1760,6 +1771,13 @@ optional probabilistic prose generation
 
 The structured event store remains authoritative.
 
+For the narrator (section 20) the boundary sits between request and
+response: the chapter plan and every request are byte-deterministic
+functions of the package and the settings, while the prose is not. The run
+manifest records both sides, the request hashes and the model that
+answered, so a history can be traced to its inputs even when it cannot be
+reproduced word for word.
+
 ------------------------------------------------------------------------
 
 # 18. Testing Strategy
@@ -1836,9 +1854,9 @@ confidently invented event
 
 ------------------------------------------------------------------------
 
-# 20. Future LLM Integration
+# 20. LLM Narration
 
-An LLM may eventually be useful for:
+An LLM may be useful for:
 
 -   turning structured events into polished prose,
 -   suggesting titles,
@@ -1876,6 +1894,221 @@ not contain. Anything the package cannot state (motives, "assisted by" when
 no army evidence exists, the public framing of a move) is the LLM's, is
 worded as interpretation, cites nothing, and never becomes the premise of a
 later factual claim. The prompt is [narrator](narrator.md).
+
+The rest of this section is the design of `tinarrative narrate`, the
+command that carries a package to a model and brings prose back. It is not
+implemented yet; [roadmap](roadmap.md) tracks its steps.
+
+## 20.1 Command and data flow
+
+``` text
+saves ──(events pipeline)──┐
+                           ├─→ narrator package
+package JSON (--package) ──┘          ↓
+                               chapter plan (20.3)
+                                      ↓
+                          chapter packages + continuity (20.4)
+                                      ↓
+                               requests (byte-deterministic)
+                                      ↓  --send only
+                               provider (20.5)
+                                      ↓
+                          assembly + citation audit (20.6)
+```
+
+`narrate` takes the same save inputs as `events` (`PATH…`, `--campaign`,
+`--config`) and builds the package in-process, through the same steps and
+the same `build_document` as `events --narrative --format json`, or reads a
+finished package with `--package FILE` (or `-` for stdin). The two inputs
+give the same package, so the narrator half depends only on the package's
+JSON form and on its own settings, never on `parsing`, `sequence` or the
+model types. That keeps the contract of 13.1 the only interface between the
+deterministic half and the narrator, and lets a package be narrated on
+another machine or long after it was built.
+
+Sending is explicit. Without `--send` the command writes the chapter plan
+and every request and contacts nothing, which is how a request is reviewed,
+diffed or run by hand against any model. With `--send` the requests go to
+the configured provider. The package carries no file paths and no
+provenance (13.1), but it does carry the campaign, and with `--send` that
+campaign reaches a third party unless the provider is local.
+
+## 20.2 Request parameters
+
+The prompt reads a request block at the head of the user message. Its keys
+fall into three groups.
+
+-   **Chosen by the user**: `audience` (`public`, `insider`), `citations`
+    (`footnotes`, `none`), `style` (`chronicle`, `headlines`) and `length`.
+    `length` is a target for the whole history; each chapter's request
+    carries its share, in proportion to the significance-weighted count of
+    the developments it holds.
+-   **Derived by the program, overridable**: `period` follows from the span
+    of the campaign by a documented rule (short spans by quarter, medium by
+    half, long by year), with thresholds in the settings; `focus` is the
+    player faction for an `insider` account and absent for a `public` one.
+-   **Set by the program only**: `chapter` (index and count), `part`
+    (`whole`, `first`, `middle`, `last`) and `covers` (the chapter's first
+    and last save dates).
+
+The block lists its keys in a fixed order and only the keys that are set,
+so that two runs with the same inputs send the same bytes.
+
+The significance level of the narrative and the level of the atomic stream
+are separate settings. `narrate` lists developments at `major` and above by
+default and keeps, of the atomic stream, only the constituents of the
+developments it lists: the atomic stream is drill-down for detail and
+citation (above), not a second account of the period.
+
+## 20.3 Token budget and chapters
+
+A package grows with the number of saves rather than with the number of
+developments: every save brings a situation report and every interval its
+atomic stream. A long campaign therefore does not fit one request, and
+`narrate` cuts it into *chapters*, each sent as its own request.
+
+**Budget.** `max_input_tokens` is a fixed upper bound on one request's
+input: system prompt, request block and chapter package together.
+`max_output_tokens` bounds its prose. Both are settings, so a small local
+model and a large hosted one use the same planner with different numbers.
+
+**Estimate.** Input size is estimated locally and deterministically from
+the serialized request (characters divided by a conservative
+characters-per-token ratio from the settings). The planner never asks a
+provider to count tokens, so the chapter boundaries depend on the package
+and the settings only, never on the model, its tokenizer or the network.
+The token counts a provider reports go into the run manifest (20.6), which
+is how the ratio is checked against real use.
+
+**Chapters.** A chapter is a contiguous run of whole periods (20.2) and
+starts and ends on a save. The planner walks the periods in order and adds
+the next one to the current chapter while the chapter's estimate stays
+within the budget. A development belongs to the chapter that holds its
+start, the same rule by which the prompt places it under a period.
+
+**Chapter package.** A chapter package has the schema of the narrator
+package, restricted to the chapter:
+
+-   `narrative`: the developments that start in the chapter;
+-   `saves`: two situation reports, the opening one (the closing save of the
+    previous chapter) and the closing one, with `nations` pruned to the
+    nations the chapter references and the largest economies;
+-   `intervals`: the intervals that overlap the chapter, with the atomic
+    stream reduced as in 20.2;
+-   `glossary`: the entries still referenced;
+
+plus a `chapter` member (index, count, part, covers) and a `continuity`
+member (20.4). Slicing selects entries and never rewrites one: an event in
+a chapter package is the event of the full package, ID and all, so a
+citation audits the same way in either.
+
+**Over budget.** When a single period does not fit, the planner reduces it
+in a fixed order and records which step it took for that chapter:
+
+1.  leave out the atomic stream, keeping developments, situations and
+    glossary;
+2.  split the period at save boundaries into consecutive chapters; `covers`
+    tells the model that the period continues across them;
+3.  if a single interval still does not fit, stop before sending anything
+    and report the budget the interval would need.
+
+Developments are never dropped to make a chapter fit, and the significance
+level is never raised behind the user's back. Either would remove facts
+from the history without the reader knowing.
+
+## 20.4 Continuity
+
+Continuity between chapters is built from the package, not from earlier
+prose. A chapter package's `continuity` member holds:
+
+-   `continuing`: the full records of developments that started in an
+    earlier chapter and still run in this one, marked as already told, so
+    the model picks them up briefly rather than introducing them again;
+-   `earlier`: a short digest of the earlier chapters' developments at
+    `major` and above (ID, type, span, the names in their roles), capped by
+    a setting, so the model can refer back without inventing the past.
+
+The opening situation report is the closing report of the previous chapter,
+the save the two chapters share. No chapter's prose is ever input to
+another: generated text is not a source (above), and an error in one
+chapter must not become a premise of the next. Chapters are therefore
+independent requests that can be re-run, resumed, cached or sent in
+parallel.
+
+The prompt reads the chapter fields as follows: only a `first` or `whole`
+part opens the history; only a `last` or `whole` part ends with the closing
+situation; for a later chapter, "before the first save" means before the
+chapter's opening save, and what came earlier is known only from
+`continuity`; `continuity` IDs may be cited like any other.
+
+## 20.5 Providers
+
+The narrator talks to a model through one provider-neutral request (system
+prompt, user message, model, output limit, optional temperature) and one
+neutral completion (text, a finish reason of `complete`, `length`,
+`refused` or `other`, and the token counts when the provider reports them).
+Adapters translate between that pair and each wire format:
+
+-   `anthropic`: the Anthropic Messages API;
+-   `openai`: the Chat Completions API; with a `base_url` it also serves the
+    servers that implement that API (hosted gateways, LM Studio, vLLM);
+-   `ollama`: Ollama's native chat API, because only it can set the context
+    length per request; a context smaller than the request truncates the
+    input silently, so the adapter sets it from the budget and the output
+    limit.
+
+The adapters use the standard library's HTTP client behind a small
+transport interface, which tests replace with a fake; the project keeps
+no runtime dependencies. Requests that fail with a rate limit or a server
+error are retried a bounded number of times, honouring the provider's
+retry hint. A completion that stops at its length limit, or is refused, is
+a failed chapter, never a short one.
+
+The model is always named by the user; the program carries no default model
+ID, which would go stale. Provider, model, base URL and limits come from a
+`[narrator]` settings table with named profiles (a hosted model, a local
+one), chosen with `--profile` and overridden by flags. A profile may state
+its model's context window, and a budget plus output limit that exceeds it
+is rejected before anything is sent. API keys are read only from an
+environment variable whose name the profile gives; they never appear in a
+settings file, in the output or in a log. The narrator settings never
+change what `events` builds.
+
+## 20.6 Output, audit and reproducibility
+
+A run writes into one output directory:
+
+``` text
+narration/
+  requests/01.json …    # the neutral request of each chapter, byte-deterministic
+  responses/01.json …   # each chapter's text, finish reason, reported model, token counts
+  history.md            # the assembled history
+  manifest.json         # the run record
+```
+
+`history.md` opens with a header naming the provider, the model as
+reported, the prompt version (a hash of the prompt text, so it cannot drift
+from the prompt), the campaign key, the period covered and the generation
+time. The chapters follow in order. Footnotes are numbered per chapter by
+the model and renumbered in sequence across the whole history, with their
+definitions collected at the end.
+
+The manifest records the program version, the package hash, the settings,
+the request parameters, the chapter plan (per chapter its cover, estimate,
+over-budget step and request hash), the token counts and the citation
+audit. The audit checks every ID a footnote cites against the chapter
+package it was written from (development, atomic event, continuity entry or
+`situation <save-key>`) and lists citations that match nothing and listed
+developments of `major` and above that no footnote cites. It reports; it
+does not reject prose, since a wrong citation is a finding for the prompt,
+not a reason to throw away a chapter.
+
+A chapter whose stored response was made from an identical request is not
+sent again, so an interrupted or partly failed run resumes where it
+stopped, and changing one setting re-sends only the chapters it changes.
+The run log carries counts, sizes, estimates, chapter indexes, the provider
+and HTTP status, and never a request, a response, a key or a string read
+from a save.
 
 ------------------------------------------------------------------------
 

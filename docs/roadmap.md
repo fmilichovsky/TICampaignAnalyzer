@@ -105,9 +105,23 @@ built from the developments catalogued in
   (`events --narrative --format json`, audited through the same run with
   `--inferred`), and `scripts/narrator_prompt.py` to assemble a request
   without calling an API (#104).
-- [ ] `tinarrative narrate`: send the request behind an explicit flag and API
-  key, and write the prose beside the package with the model and prompt
-  version in its header.
+- [ ] `tinarrative narrate`, designed in architecture section 20: send the
+  package to a model in chapters under a fixed token budget, behind an
+  explicit flag and API key, and write the prose with the model and prompt
+  version in its header:
+  - request builder in `tinarrative.narrator`: the prompt shipped in the
+    package, `style` in the request block, the prompt hash as its version;
+    `scripts/narrator_prompt.py` and the narrator-contract skill move to it
+    (#139);
+  - chapter plan: token estimate, period derived from the campaign span,
+    chapter packages, the `continuity` member and the prompt rules for
+    chapter parts; `narrate` writes the plan and the requests without
+    sending; needs the separate narrative and atomic levels of #130 (#140);
+  - providers `anthropic`, `openai` and `ollama` over the standard
+    library's HTTP client behind `--send`, the `[narrator]` settings table
+    with profiles, a provider-failure exit code (#141);
+  - assembly: `history.md` with its header, footnotes renumbered across
+    chapters, citation audit, run manifest and resume (#142).
 - [ ] Narrator package gaps found by the trials:
   - [x] executive-seat semantics: the seat is the nation's `Executive`-typed
     control point, wherever it sits, with the point at `positionInNation` 0
