@@ -111,7 +111,9 @@ How to read the fields:
 - A `cause` or `causes` attribute is the game's own explanation and may be
   stated as fact.  Without one, sequence is not cause.
 - `metric_shifts` give a statistic's earliest `before` and latest `after`
-  across the development; `relative_change` is unsigned.  Statistics are raw
+  across the development; `relative_change` is unsigned.  `not_before` and
+  `date` (with its `date_basis`) bound when the net change happened: date it
+  from them, never from the ID.  Statistics are raw
   game values.  Say what they mean ("democracy slid sharply") and quote the
   number only when the number itself is the story.
 - `ambiguous`, `alternatives` and `candidates` mean the evidence fits more

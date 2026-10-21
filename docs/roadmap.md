@@ -138,8 +138,10 @@ built from the developments catalogued in
     the war's own `started_on` is earlier (#127);
   - a corroborating ledger charge can set a takeover's `end` and its `record`
     basis (#128);
-  - `metric_shifts` carry no per-shift dates, and `federation.lifecycle`
-    attaches the shifts of a nation from before it joined (#129);
+  - [x] `metric_shifts` entries carry `not_before`, `date` and `date_basis`, and
+    `federation.lifecycle` attaches a nation's shifts only from its
+    membership intervals (#129); `war.arc` still attaches the shifts of a
+    nation that joined mid-war from before it joined;
   - [x] with `--narrative`, `--min-significance` filters the narrative events
     and the atomic stream holds only the listed events' constituents,
     transitively, behind `--include-constituents` (#130);
