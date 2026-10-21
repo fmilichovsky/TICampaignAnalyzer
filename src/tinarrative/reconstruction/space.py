@@ -253,11 +253,11 @@ def _destroyed(
         id_parts=(_subject(hab).entity_id,),
         primary=(hab,),
         support=Support(events=(entry,) if notification is None else (entry, notification)),
-        entities=(_subject(hab), context.ref(faction), _ref(body), _ref(destroyer)),
+        entities=(_subject(hab), context.ref(faction), _named(context, body), _named(context, destroyer)),
         attributes=(
             ("hab_type", hab_type),
-            ("body", body),
-            ("destroyer", destroyer),
+            ("body", _named(context, body) or body),
+            ("destroyer", _named(context, destroyer) or destroyer),
             ("recorded_on", entry.attribute("recorded_on")),
             ("signals", signals),
             ("ambiguous", False),
@@ -272,7 +272,7 @@ def _ambiguous_destroyed(
 ) -> Event:
     """A hab one of several entries may record: medium when the entries cover every vanished hab, low otherwise."""
     faction, hab_type, body_id = key
-    destroyers = _unique_refs(entry.attribute("destroyer") for entry in entries)
+    destroyers = _unique_refs(_named(context, entry.attribute("destroyer")) for entry in entries)
     body = entries[0].attribute("space_body")
     dates = tuple(sorted(str(entry.attribute("recorded_on")) for entry in entries))
     return inferred(
@@ -281,10 +281,10 @@ def _ambiguous_destroyed(
         id_parts=(_subject(hab).entity_id,),
         primary=(hab,),
         support=Support(events=tuple(entries)),
-        entities=(_subject(hab), context.ref(faction), _ref(body), *destroyers),
+        entities=(_subject(hab), context.ref(faction), _named(context, body), *destroyers),
         attributes=(
             ("hab_type", hab_type),
-            ("body", body),
+            ("body", _named(context, body) or body),
             ("destroyers", destroyers),
             ("recorded_dates", dates),
             ("candidates", len(entries)),
@@ -345,6 +345,7 @@ def _battle_outcomes(context: SpaceContext) -> list[Event]:
     inferred_events: list[Event] = []
     for kills in sorted(_kills(context), key=lambda item: (item.killer.sort_key, item.victim.entity_id.sort_key)):
         killer, victim = kills.killer, kills.victim.entity_id
+        victim_ref = context.lookup.resolve(kills.victim)
         habs = hab_losses.get(victim, ())
         fleets = fleet_losses.get(victim, ())
         entries = tuple(
@@ -381,9 +382,9 @@ def _battle_outcomes(context: SpaceContext) -> list[Event]:
                 primary=(*habs, *fleets),
                 primary_changes=(kills.source,),
                 support=Support(events=entries + won + lost + notified),
-                entities=(context.ref(killer), kills.victim),
+                entities=(context.ref(killer), victim_ref),
                 attributes=(
-                    ("victim", kills.victim),
+                    ("victim", victim_ref),
                     ("kill_count", kills.count),
                     ("habs_lost", len(habs)),
                     ("fleets_lost", len(fleets)),
@@ -423,6 +424,11 @@ def _is(value: Observed, entity_id: EntityId) -> bool:
 
 def _ref(value: Observed) -> EntityRef | None:
     return value if isinstance(value, EntityRef) else None
+
+
+def _named(context: SpaceContext, value: Observed) -> EntityRef | None:
+    """The reference ``value`` carries, with its entity's display name when that entity is normalized."""
+    return context.lookup.resolve(value)
 
 
 def _unique_refs(values: Iterable[Observed]) -> tuple[EntityRef, ...]:

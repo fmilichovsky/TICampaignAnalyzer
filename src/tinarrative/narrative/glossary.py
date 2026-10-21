@@ -56,20 +56,35 @@ def build_glossary(document: Mapping[str, Any], reports: Sequence[SituationRepor
     """The glossary of ``document``, sorted by entity ID.
 
     Every entry has ``ref``, ``domain`` and, where the save gives them, ``name`` and ``kind`` (the save's state
-    type). A nation entry also has ``regions``: its regions' ``ref`` and ``name``. Regions are entries too.
+    type). For an entity whose display name changes between saves, ``name`` is the one the latest save or interval
+    carries; its other names, oldest first, are ``former_names``. A nation entry also has ``regions``: its regions'
+    ``ref`` and ``name``. Regions are entries too.
     """
     found: dict[str, dict[str, Any]] = {}
+    earlier: dict[str, list[str]] = {}
 
     def note(reference: Mapping[str, Any]) -> None:
         text = reference["ref"]
         entry = found.setdefault(text, {})
-        for source, target in (("name", "name"), ("state_type", "kind")):  # name first in the entry
-            value = reference.get(source)
-            if isinstance(value, str) and target not in entry:
-                entry[target] = value
+        name = reference.get("name")
+        if isinstance(name, str) and name != entry.get("name"):
+            if "name" in entry:
+                former = earlier.setdefault(text, [])
+                if entry["name"] in former:
+                    former.remove(entry["name"])
+                former.append(entry["name"])
+            entry["name"] = name
+            if name in earlier.get(text, ()):
+                earlier[text].remove(name)
+        kind = reference.get("state_type")
+        if isinstance(kind, str) and "kind" not in entry:
+            entry["kind"] = kind
 
-    for reference in _references(document):
-        note(reference)
+    # Narrative events carry save-time names but are not ordered against the intervals, so the chronological
+    # members (saves, then intervals) are read last and have the final word.
+    for key in ("narrative", *(key for key in document if key != "narrative")):
+        for reference in _references(document.get(key)):
+            note(reference)
     regions = _region_lists(reports)
     nation_regions: dict[str, list[dict[str, Any]]] = {}
     for text in list(found):
@@ -87,6 +102,8 @@ def build_glossary(document: Mapping[str, Any], reports: Sequence[SituationRepor
         parsed = _entity_id(text)
         ordered: dict[str, Any] = {"ref": text, "domain": parsed.domain.value if parsed else text.partition(":")[0]}
         ordered.update(entry)
+        if earlier.get(text):
+            ordered["former_names"] = earlier[text]
         if text in nation_regions:
             ordered["regions"] = nation_regions[text]
         entries.append(ordered)
