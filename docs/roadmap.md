@@ -130,7 +130,7 @@ built from the developments catalogued in
   - [x] executive changes in a nation whose control points move to another
     nation in the same interval: only the moved points are left out of the
     control rule, which reports the rest at lower confidence (#125);
-  - `faction.space_campaign` lists as `bodies` only the bodies of its
+  - [x] `faction.space_campaign` lists as `bodies` only the bodies of its
     directly joined `hab.destroyed` events, not those of the losses its
     battle outcomes count (#126);
   - `war.arc` `duration_days` runs to an interval-based end without saying it

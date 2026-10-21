@@ -115,6 +115,9 @@ How to read the fields:
   An entry with actor the Resistance, target the aliens and `fleets_lost`
   15 means fifteen alien fleets were lost.  `kill_count` counts ships, not
   people; the package records no casualties.
+  A campaign with a `mirror` attribute has a counterpart with the roles
+  reversed; the two describe the same fighting from opposite sides, so tell
+  it once and do not add their counts together.
 - A nation's territory is its `regions`; control points are levers of
   influence over its institutions, never territory.
 - A faction gaining or losing a nation's executive is a change in who steers

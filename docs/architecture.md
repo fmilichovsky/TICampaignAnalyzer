@@ -1270,8 +1270,14 @@ Implemented contract (`narrative/space.py`, all order 0, windows from
     outcomes of one pair chained within the campaign gap. Attached within
     their intervals: the pair's unambiguous `hab.destroyed`, combats between
     the two, battle notifications about a fleet the victim lost or naming
-    either faction, and the victim's `fleet.disappeared`. Counts are summed
-    from the outcomes, never recounted. Roles: actor, target, bodies.
+    either faction, the victim's `fleet.disappeared`, and the
+    `faction.hab_destruction_recorded` entries behind the outcomes. Counts
+    are summed from the outcomes, never recounted. Roles: actor, target,
+    bodies; the bodies are those of every hab loss the campaign counts (a
+    joined `hab.destroyed` or an outcome's destruction entry). The two
+    campaigns of a pair (A against B, B against A) both keep the combats
+    between the two, each counted from its own actor's side, and name each
+    other in `mirror` when they share a combat.
 -   `faction.colonisation_wave` (major, by faction). Two or more distinct
     bodies among one faction's `faction.first_hab_on_body` within the window,
     with their `hab.appeared`.
