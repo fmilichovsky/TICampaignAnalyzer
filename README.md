@@ -85,6 +85,8 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `reconstruction`: combine evidence into conservative inferred events.
 - `narrative`: group atomic events into narrative developments; per-save situation
   reports as their context.
+- `narrator`: build the LLM request (packaged system prompt, request block) from a narrator
+  package; reads the package's JSON form only.
 - `rendering`: turn structured narrative output into user-facing formats.
 - `grouping`: split surveyed saves into campaigns by their continuity signals
   (`tinarrative campaigns`, `events --campaign`).

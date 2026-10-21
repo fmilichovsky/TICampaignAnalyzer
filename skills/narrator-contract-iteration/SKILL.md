@@ -6,12 +6,12 @@ description: Evaluate and improve tinarrative's narrator prompt, deterministic n
 # Narrator-contract iteration
 
 Use this skill to make one bounded, evidence-led iteration on the contract
-between `docs/narrator.md`, the narrator package, and its narrative output.
+between the narrator prompt (`src/tinarrative/narrator/prompt.md`, rationale in `docs/narrator.md`), the narrator package, and its narrative output.
 The workflow is provider-neutral: a *narrator* and an *auditor* are independent
 agents or separate fresh contexts.  Do not require a particular model, API,
 system-message mechanism, or agent product.
 
-Read `docs/architecture.md`, `docs/narrator.md`,
+Read `docs/architecture.md`, `docs/narrator.md`, `src/tinarrative/narrator/prompt.md`,
 `docs/commands/events.md`, and [the audit rubric](references/audit-rubric.md)
 before starting.  Keep the distinction between objective evidence, inference,
 narrative aggregation, and rendering intact.
@@ -117,10 +117,10 @@ may have more than one plausible layer; name the evidence for the choice.
 
 | Signal | Likely first place to inspect | Usual response |
 | --- | --- | --- |
-| Unsupported fact, wrong certainty, wrong interval date, invalid citation, or audience leak | `docs/narrator.md` and request construction | Tighten or clarify the prompt; add a focused regression where practical. |
-| Rigid, repetitive, overly long, or poorly structured prose while claims and coverage are sound | `docs/narrator.md` | Make a small style instruction change; preserve evidence rules. |
+| Unsupported fact, wrong certainty, wrong interval date, invalid citation, or audience leak | `src/tinarrative/narrator/prompt.md` and request construction (`narrator/request.py`) | Tighten or clarify the prompt; add a focused regression where practical. |
+| Rigid, repetitive, overly long, or poorly structured prose while claims and coverage are sound | `src/tinarrative/narrator/prompt.md` | Make a small style instruction change; preserve evidence rules. |
 | Important recorded development absent from both package and prose | Analyzer, reconstruction, narrative aggregation, or significance rules | Trace the selected saves through the deterministic pipeline; propose a focused implementation issue or make a small, tested fix. |
-| Important package development omitted by otherwise compliant prose | `docs/narrator.md` | Adjust prioritisation or shape guidance, then rerun the narrator and audit. |
+| Important package development omitted by otherwise compliant prose | `src/tinarrative/narrator/prompt.md` | Adjust prioritisation or shape guidance, then rerun the narrator and audit. |
 | Too much low-value material present in the package | Significance or aggregation configuration/rules | Inspect thresholds and grouping; do not solve it by asking the narrator to conceal major evidence indiscriminately. |
 | Correct package with disputed interpretation or desired editorial emphasis | Prompt and user request block | Treat as an editorial choice, not a detection bug. |
 

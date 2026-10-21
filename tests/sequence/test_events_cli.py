@@ -63,7 +63,7 @@ def test_events_matches_the_golden_report(
 
 @pytest.mark.fixture
 def test_every_golden_report_has_a_test() -> None:
-    narrator = "politics_sequence.expected.narrator_messages.json"  # tests/test_narrator_prompt.py
+    narrator = "politics_sequence.expected.narrator_messages.json"  # tests/narrator/test_request.py
     assert sorted(path.name for path in EXPECTED_DIR.iterdir()) == sorted(
         [f"politics_sequence.expected.{suffix}" for suffix, _ in MARKDOWN_GOLDENS] + [narrator]
     )

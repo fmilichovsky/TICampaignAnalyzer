@@ -1577,7 +1577,8 @@ terra-invicta-narrative/
 │       │   └── templates/
 │       │
 │       └── narrator/          # `tinarrative narrate` (section 20); reads the package only
-│           ├── request.py     # packaged prompt, request block, prompt version
+│           ├── prompt.md      # the system prompt, shipped as package data
+│           ├── request.py     # request block, user message, prompt version
 │           ├── chapters.py    # estimate, chapter plan, chapter packages, continuity
 │           ├── providers/     # neutral request/completion, anthropic, openai, ollama
 │           └── assembly.py    # history.md, footnotes, citation audit, manifest
