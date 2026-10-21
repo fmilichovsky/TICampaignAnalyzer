@@ -16,10 +16,7 @@ from ..model.events import Event, Significance
 from ..narrative.glossary import build_glossary
 from ..narrative.situation import SituationReport
 from ..sequence import IntervalResult, SequencePlan, situations
-
-
-def _kept(events: Sequence[Event], minimum: Significance) -> tuple[Event, ...]:
-    return tuple(event for event in events if event.significance.rank >= minimum.rank)
+from .listing import listing
 
 
 def build_document(
@@ -30,16 +27,16 @@ def build_document(
     settings: Settings,
     narrative: Sequence[Event] | None,
     min_significance: Significance = Significance.TRIVIAL,
-    narrative_significance: Significance | None = None,
+    include_constituents: bool = False,
 ) -> dict[str, Any]:
     """The report document.
 
-    Objective and inferred events below ``min_significance`` are dropped and counted (``omitted`` per interval), and
-    narrative events below ``narrative_significance`` (default ``min_significance``) likewise (``narrative_omitted``),
-    so an omission is never hidden; state changes are never filtered. With ``narrative``, the document is the
-    narrator package: it also holds the
-    ``settings`` and the ``glossary`` of every entity ID it references, and leaves out provenance and paths
-    (``_narrator_package``).
+    Without ``narrative``, objective and inferred events below ``min_significance`` are dropped. With it, narrative
+    events below ``min_significance`` are dropped, and an objective or inferred event is kept only as a constituent
+    of a kept narrative event when ``include_constituents`` is set (``listing``). Dropped events are counted
+    (``omitted`` per interval, ``narrative_omitted``), so an omission is never hidden; state changes are never
+    filtered. With ``narrative``, the document is the narrator package: it also holds the ``settings`` and the
+    ``glossary`` of every entity ID it references, and leaves out provenance and paths (``_narrator_package``).
     """
     document: dict[str, Any] = {"campaign": campaign.to_dict(), **plan.to_dict()}
     reports = situations(intervals)
@@ -47,17 +44,17 @@ def build_document(
         {**save, "situation": reports[position].to_dict() if position < len(reports) else None}
         for position, save in enumerate(document["saves"])
     ]
+    chosen = listing(intervals, narrative, minimum=min_significance, include_constituents=include_constituents)
     document["min_significance"] = min_significance.value
-    narrative_minimum = narrative_significance or min_significance
-    document["narrative_significance"] = None if narrative is None else narrative_minimum.value
+    document["include_constituents"] = None if narrative is None else include_constituents
     document["settings"] = None if narrative is None else settings.to_dict()
-    listed = None if narrative is None else _kept(narrative, narrative_minimum)
-    document["narrative"] = None if listed is None or narrative is None else [event.to_dict() for event in listed]
+    listed = chosen.narrative
+    document["narrative"] = None if listed is None else [event.to_dict() for event in listed]
     document["narrative_omitted"] = None if listed is None or narrative is None else len(narrative) - len(listed)
     rendered: list[dict[str, Any]] = []
     for interval in intervals:
-        objective = _kept(interval.objective, min_significance)
-        inferred = None if interval.inferred is None else _kept(interval.inferred, min_significance)
+        objective = chosen.kept(interval.objective)
+        inferred = None if interval.inferred is None else chosen.kept(interval.inferred)
         entry = replace(interval, objective=objective, inferred=inferred).to_dict()
         entry["omitted"] = {
             "objective": len(interval.objective) - len(objective),
@@ -77,10 +74,10 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
     """The narrator package (architecture 13.1): the report without provenance and paths, for a reader that cites IDs.
 
     Every event loses its ``sources``, and the campaign, skipped files, saves and intervals lose their file paths; the
-    report without ``--narrative`` keeps both, and every ID here resolves in it. A nation that holds no region in any
-    save and is not referenced by a listed event is left out of the situation reports. The glossary is built from what
-    remains, then references are reduced to ``ref`` and ``name`` (and ``confidence`` when the identity is not an
-    in-save ID), the glossary keeping each entity's kind.
+    report without ``--narrative`` (at ``trivial``) keeps both, and every ID here resolves in it. A nation that holds no
+    region in any save and is not referenced by a listed event is left out of the situation reports. The glossary is
+    built from what remains, then references are reduced to ``ref`` and ``name`` (and ``confidence`` when the identity
+    is not an in-save ID), the glossary keeping each entity's kind.
     """
     document["campaign"] = {key: value for key, value in document["campaign"].items() if key != "sources"}
     document["skipped"] = [{"error_class": skipped["error_class"]} for skipped in document["skipped"]]

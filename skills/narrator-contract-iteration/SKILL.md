@@ -51,19 +51,20 @@ purposes--ask the user to choose.  Otherwise use the deterministic rule above.
 Create a private run directory and preserve these three named artifacts there:
 
 ```sh
-tinarrative events real_saves --campaign <campaign-key> --narrative --format json \
-  --min-significance major > package.json
+tinarrative events real_saves --campaign <campaign-key> --narrative --include-constituents \
+  --format json --min-significance major > package.json
 tinarrative events real_saves --campaign <campaign-key> --inferred --format json \
-  --min-significance major > audit-package.json
+  > audit-package.json
 python scripts/narrator_prompt.py package.json --period year --audience public \
   --citations footnotes > narrator-request.json
 ```
 
 The first command is the canonical deterministic reconstruction for this
-skill.  The second is the audit view: it has the same visible atomic and
-inferred IDs plus source locations, without narrative aggregation.  Check that
-both commands succeed and that their campaign key, save keys, and significance
-level agree before handing either package to an agent.  `narrator-request.json`
+skill.  The second is the audit view: it has every atomic and
+inferred ID plus source locations, without narrative aggregation.  Check that
+both commands succeed, that their campaign key and save keys agree, and that
+every atomic and constituent ID of the package resolves in the audit before
+handing either package to an agent.  `narrator-request.json`
 is a transport-neutral representation of the exact system text and user
 content; adapt it only to the receiving agent's documented message format.
 

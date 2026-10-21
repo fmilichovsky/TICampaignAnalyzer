@@ -8,18 +8,20 @@ the package) and leaves everything above that floor to the model: how a change
 was presented and received, what it may have meant, what an actor may have
 wanted. The result should read as history, not as a report on the package.
 
-Hand the model the JSON of `tinarrative events --narrative --format json` at the
-significance level the history should cover, and a request block as described in
-the prompt. That package carries IDs but no provenance or file paths. The audit
-form is the same command with `--inferred` instead of `--narrative`: it lists
-the same atomic and inferred events with their save locations, and a narrative
-event is audited through its constituents
+Hand the model the JSON of `tinarrative events --narrative --include-constituents
+--format json` with `--min-significance` at the level of the developments the
+history should cover, and a request block as described in the prompt. That
+package carries IDs but no provenance or file paths. Its atomic events are only
+the constituents of the listed developments, whatever their significance, so
+every cited ID resolves inside it; without `--include-constituents` it carries
+developments, situations and glossary only. The audit form is the same command
+with `--inferred` instead of `--narrative` and no `--min-significance`: it lists
+every atomic and inferred event with its save locations, and a narrative event
+is audited through its constituents
 ([events, narrator package](commands/events.md#narrator-package)). `major` is
-the practical level for a whole campaign; `minor` adds routine churn that can
-make the package too large for one request. To narrate `minor` developments
-without that churn, filter the two streams apart: `--min-significance major
---narrative-significance minor` lists narrative events down to `minor` and the
-atomic stream at `major`. Citations are one footnote per
+the practical level for a whole campaign; `minor` adds developments such as
+fleet buildups and technology milestones, and their constituents with them.
+Citations are one footnote per
 entry, so a sentence is audited through the entry it belongs to. A package
 too large for one request is sent in chapters; the request fields and the
 `continuity` member those add are designed in
@@ -76,9 +78,9 @@ The user message may carry a request block.  Defaults in brackets.
   (`actor`, `target`, `beneficiary`, `loser`, `assisting`, `location`,
   `body`), `attributes` and `constituents` (IDs of the atomic events it joins).
 - `intervals[].events` and `intervals[].inferred`: the atomic events behind
-  the developments.  They are filtered by significance (`min_significance`, which can
-  be higher than `narrative_significance`), so absence is not evidence that
-  nothing happened, and a `constituents` ID may name an event that is not listed.
+  the developments, only those their `constituents` name, or none at all
+  (`include_constituents`).  Absence is not evidence that nothing happened.
+  A development cited by another may be listed below `min_significance`.
 - `saves[].situation`: a literal snapshot at each save: who holds each
   nation's executive, control-point shares, federations, wars and their sides,
   regions, population, statistics, habs and fleets by faction, milestones,

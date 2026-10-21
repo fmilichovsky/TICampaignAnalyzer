@@ -1480,17 +1480,20 @@ one save sequence:
 3.  an entity glossary: every referenced ID with its name and domain, and
     for a nation the names of its regions, so prose never has to invent a
     name and never meets a bare ID;
-4.  the atomic stream at a chosen significance, for drill-down and audit.
+4.  the atomic events the listed narrative events are built from, for
+    drill-down and audit.
 
 Every line carries event IDs so that generated prose can cite them (section
 20). The package has a JSON form (canonical) and a Markdown digest grouped
 by period. It is not a separate command: `tinarrative events --narrative`
 produces it, `--format json` being the canonical form and the Markdown
 report's narrative section, above the per-interval drill-down, the digest.
-`--min-significance` sets the level of the atomic stream in both forms and
-`--narrative-significance` that of the narrative events (by default the same). The
-forensic per-interval view and the package are therefore one report at
-different filter settings, and they cannot drift apart.
+With `--narrative`, `--min-significance` sets the level of the narrative
+events in both forms, and the atomic stream holds only their constituents,
+followed transitively, and only with `--include-constituents`; without
+`--narrative` it filters the atomic stream. The forensic per-interval view and
+the package are therefore one report at different filter settings, and they
+cannot drift apart.
 
 The package is for a reader, so it carries IDs and names but no provenance:
 the JSON form drops every event's sources and every file path. Provenance
@@ -1961,10 +1964,9 @@ fall into three groups.
 The block lists its keys in a fixed order and only the keys that are set,
 so that two runs with the same inputs send the same bytes.
 
-The significance level of the narrative and the level of the atomic stream
-are separate settings. `narrate` lists developments at `major` and above by
-default and keeps, of the atomic stream, only the constituents of the
-developments it lists: the atomic stream is drill-down for detail and
+The significance level applies to the narrative only. `narrate` lists
+developments at `major` and above by default and keeps, of the atomic stream,
+only the constituents of the developments it lists (`--include-constituents`): the atomic stream is drill-down for detail and
 citation (above), not a second account of the period.
 
 ## 20.3 Token budget and chapters

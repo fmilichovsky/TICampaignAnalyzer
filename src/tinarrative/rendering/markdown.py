@@ -21,6 +21,7 @@ from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
 from ..model.values import Observed, Unknown
 from ..sequence import IntervalResult, SequencePlan
+from .listing import Listing, listing
 
 Period = Literal["year", "half", "quarter"]
 PERIODS: Final[tuple[Period, ...]] = ("year", "half", "quarter")
@@ -42,14 +43,11 @@ to the roles and the JSON."""
 
 
 def _inferred_lines(
-    inferred: Iterable[Event], by_id: Mapping[str, Event], *, verbose: bool, min_significance: Significance
+    inferred: Iterable[Event], by_id: Mapping[str, Event], *, verbose: bool, chosen: Listing
 ) -> list[str]:
     """The body of an inferred-events section; ``by_id`` resolves the objective constituents."""
     candidates = list(inferred)
-    listed = sorted(
-        (event for event in candidates if event.significance.rank >= min_significance.rank),
-        key=lambda event: event.sort_key,
-    )
+    listed = sorted(chosen.kept(candidates), key=lambda event: event.sort_key)
     if not candidates:
         return ["No events were inferred."]
     lines = ["Reconstructed from the objective results below; never observed directly."]
@@ -71,7 +69,7 @@ def _inferred_lines(
     omitted = len(candidates) - len(listed)
     if omitted:
         noun = "event" if omitted == 1 else "events"
-        lines.extend(["", f"{omitted} inferred {noun} below {min_significance.value} significance omitted."])
+        lines.extend(["", f"{omitted} inferred {noun} {chosen.reason()}."])
     return lines
 
 
@@ -81,7 +79,7 @@ def render_sequence(
     *,
     verbose: bool = False,
     min_significance: Significance = Significance.TRIVIAL,
-    narrative_significance: Significance | None = None,
+    include_constituents: bool = False,
     campaign: CampaignGroup | None = None,
     left_out: int = 0,
     narrative: Sequence[Event] | None = None,
@@ -92,14 +90,16 @@ def render_sequence(
 
     With a ``campaign``, a section first names the campaign the saves were grouped into and the signals it rests on;
     ``left_out`` counts the given saves that belong to other campaigns. Each interval lists its inferred events (when
-    they were reconstructed), its objective analyzer results of at least ``min_significance`` grouped by category and,
-    when they were kept, its literal state changes grouped by category. State changes are never filtered. Event IDs
-    are the sequence-qualified ones. With ``narrative``, a section above the intervals lists the narrative events of
-    at least ``narrative_significance`` (default ``min_significance``) by the ``period`` (year, half or
-    quarter) they start in, and names the ``changed_settings`` (dotted key to value) it was built with when they
-    differ from the defaults. An interval with nothing to list at ``min_significance`` (and no state changes) is a
+    they were reconstructed), its objective analyzer results grouped by category and, when they were kept, its literal
+    state changes grouped by category. State changes are never filtered. Event IDs are the sequence-qualified ones.
+    Without ``narrative``, inferred and objective events of at least ``min_significance`` are listed. With it, a
+    section above the intervals lists the narrative events of at least ``min_significance`` by the ``period`` (year,
+    half or quarter) they start in, and names the ``changed_settings`` (dotted key to value) it was built with when
+    they differ from the defaults; the intervals then list only the constituents of those narrative events, and only
+    with ``include_constituents`` (``listing``). A filtered interval with nothing to list (and no state changes) is a
     single line.
     """
+    chosen = listing(intervals, narrative, minimum=min_significance, include_constituents=include_constituents)
     lines = ["# Save sequence", ""]
     if campaign is not None:
         lines.extend(_campaign_lines(campaign, left_out))
@@ -130,10 +130,7 @@ def render_sequence(
             lines.extend([f"Built with non-default settings: {listed}.", ""])
         lines.extend(
             _narrative_lines(
-                narrative,
-                verbose=verbose,
-                min_significance=narrative_significance or min_significance,
-                period=period,
+                narrative, chosen.narrative or (), verbose=verbose, min_significance=min_significance, period=period
             )
         )
 
@@ -141,8 +138,8 @@ def render_sequence(
     if not intervals:
         lines.extend(["", "Fewer than two distinct saves; no interval was compared."])
     for interval in intervals:
-        if _collapsed(interval, min_significance):
-            line = _collapsed_line(interval, min_significance)
+        if _collapsed(interval, chosen):
+            line = _collapsed_line(interval, chosen)
             lines.extend([line] if lines[-1].startswith("- `") else ["", line])
             continue
         lines.extend(["", f"### {interval.before.date} to {interval.after.date}", ""])
@@ -150,33 +147,30 @@ def render_sequence(
         if interval.inferred is not None:
             by_id = {event.id: event for event in interval.objective}
             lines.extend(["", "#### Inferred events", ""])
-            lines.extend(_inferred_lines(interval.inferred, by_id, verbose=verbose, min_significance=min_significance))
-        lines.extend(_objective_lines(interval.objective, verbose=verbose, min_significance=min_significance))
+            lines.extend(_inferred_lines(interval.inferred, by_id, verbose=verbose, chosen=chosen))
+        lines.extend(_objective_lines(interval.objective, verbose=verbose, chosen=chosen))
         if interval.state_changes is not None:
             lines.extend(_state_change_lines(interval.state_changes, verbose=verbose))
     return "\n".join(lines) + "\n"
 
 
-def _listed(events: Iterable[Event] | None, min_significance: Significance) -> int:
-    return sum(event.significance.rank >= min_significance.rank for event in events or ())
+def _collapsed(interval: IntervalResult, chosen: Listing) -> bool:
+    """Whether a filtered interval lists nothing: no listed inferred or objective event, no changes.
 
-
-def _collapsed(interval: IntervalResult, min_significance: Significance) -> bool:
-    """Whether a filtered interval lists nothing: no inferred or objective event at the level, no changes.
-
-    Without a filter (``trivial``) every interval keeps its section, so an empty one still says what was not found."""
+    Without a filter (no narrative, ``trivial``) every interval keeps its section, so an empty one still says what was
+    not found."""
     return (
-        min_significance is not Significance.TRIVIAL
+        chosen.filters
         and interval.state_changes is None
-        and not _listed(interval.inferred, min_significance)
-        and not _listed(interval.objective, min_significance)
+        and not chosen.kept(interval.inferred or ())
+        and not chosen.kept(interval.objective)
     )
 
 
-def _collapsed_line(interval: IntervalResult, min_significance: Significance) -> str:
+def _collapsed_line(interval: IntervalResult, chosen: Listing) -> str:
     omitted = len(interval.objective) + len(interval.inferred or ())
     changes = f"{interval.changes} state {'change' if interval.changes == 1 else 'changes'}"
-    events = f"{omitted} {'event' if omitted == 1 else 'events'} below {min_significance.value} significance omitted"
+    events = f"{omitted} {'event' if omitted == 1 else 'events'} {chosen.reason()}"
     return f"- `{interval.before.date}` to `{interval.after.date}`: nothing listed ({changes}; {events})"
 
 
@@ -205,15 +199,18 @@ def _attribute_summary(event: Event) -> str:
 
 
 def _narrative_lines(
-    narrative: Sequence[Event], *, verbose: bool, min_significance: Significance, period: Period = "year"
+    narrative: Sequence[Event],
+    kept: Iterable[Event],
+    *,
+    verbose: bool,
+    min_significance: Significance,
+    period: Period = "year",
 ) -> list[str]:
-    """Narrative events by the period they start in (undated first), each with span, roles, attributes and sources."""
+    """The ``kept`` narrative events by the period they start in (undated first), each with span, roles, attributes
+    and sources; the rest of ``narrative`` is counted as below ``min_significance``."""
     if not narrative:
         return ["No narrative events were built."]
-    listed = sorted(
-        (event for event in narrative if event.significance.rank >= min_significance.rank),
-        key=lambda event: event.sort_key,
-    )
+    listed = sorted(kept, key=lambda event: event.sort_key)
     lines = ["Aggregated from the events of every interval below."]
     heading: str | None = None
     for event in listed:
@@ -267,12 +264,9 @@ def _campaign_lines(campaign: CampaignGroup, left_out: int) -> list[str]:
     return lines
 
 
-def _objective_lines(events: Iterable[Event], *, verbose: bool, min_significance: Significance) -> list[str]:
+def _objective_lines(events: Iterable[Event], *, verbose: bool, chosen: Listing) -> list[str]:
     objective = [event for event in events if event.status is EventStatus.OBJECTIVE]
-    listed = sorted(
-        (event for event in objective if event.significance.rank >= min_significance.rank),
-        key=lambda event: event.sort_key,
-    )
+    listed = sorted(chosen.kept(objective), key=lambda event: event.sort_key)
     grouped: dict[str, list[Event]] = defaultdict(list)
     for event in listed:
         grouped[_event_category(event)].append(event)
@@ -286,7 +280,7 @@ def _objective_lines(events: Iterable[Event], *, verbose: bool, min_significance
     omitted = len(objective) - len(listed)
     if omitted:
         noun = "result" if omitted == 1 else "results"
-        lines.extend(["", f"{omitted} objective analyzer {noun} below {min_significance.value} significance omitted."])
+        lines.extend(["", f"{omitted} objective analyzer {noun} {chosen.reason()}."])
     return lines
 
 

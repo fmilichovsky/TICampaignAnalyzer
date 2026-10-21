@@ -321,3 +321,21 @@ def test_an_interval_with_nothing_at_the_minimum_is_one_line() -> None:
         "`2030-01-01T00:00:00` to `2030-02-01T00:00:00`: nothing listed "
         "(0 state changes; 1 event below major significance omitted)\n"
     )
+
+
+def test_with_a_narrative_an_interval_lists_only_cited_events_and_only_with_constituents() -> None:
+    change = _control_change()
+    cited = _control_event(change, event_id=f"nation.changed/nation:1@{AFTER.date}")
+    uncited = _control_event(change, event_id="e-2", significance=Significance.CAMPAIGN_DEFINING)
+    plan = SequencePlan((BEFORE, AFTER), (BEFORE.date, AFTER.date), 2)
+    interval = IntervalResult(0, AFTER.date, BEFORE, AFTER, 0, (cited, uncited), None)
+    narrative = [_arc("1", "2030-01-01T00:00:00")]
+
+    included = render_sequence(plan, [interval], narrative=narrative, include_constituents=True, verbose=True)
+    left_out = render_sequence(plan, [interval], narrative=narrative)
+
+    section = _section(included, "Objective analyzer results")
+    assert f"event id: `{cited.id}`" in section and "e-2" not in section
+    assert section.endswith("\n1 objective analyzer result omitted: not cited by a listed narrative event.\n")
+    assert "#### " not in left_out.partition("## Intervals")[2]
+    assert left_out.endswith("(0 state changes; 2 events omitted without --include-constituents)\n")

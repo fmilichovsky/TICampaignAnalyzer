@@ -39,6 +39,7 @@ MARKDOWN_GOLDENS = [
     ("changes.md", ["--changes"]),
     ("narrative.md", ["--narrative"]),
     ("narrative.major.md", ["--narrative", "--min-significance", "major"]),
+    ("narrative.constituents.md", ["--narrative", "--include-constituents"]),
 ]
 
 
@@ -69,13 +70,31 @@ def test_every_golden_report_has_a_test() -> None:
 
 
 @pytest.mark.fixture
-def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals() -> None:
+@pytest.mark.parametrize("suffix", ["narrative.md", "narrative.constituents.md"])
+def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(suffix: str) -> None:
     inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
-    narrative = (EXPECTED_DIR / "politics_sequence.expected.narrative.md").read_text(encoding="utf-8")
+    narrative = (EXPECTED_DIR / f"politics_sequence.expected.{suffix}").read_text(encoding="utf-8")
 
-    head, _, tail = inferred.partition("\n## Intervals\n")
+    head = inferred.partition("\n## Intervals\n")[0]
     assert narrative.startswith(head + "\n## Narrative\n")
-    assert narrative.endswith("\n## Intervals\n" + tail)
+    assert narrative.count("#### Inferred events") == (2 if suffix == "narrative.constituents.md" else 0)
+
+
+@pytest.mark.fixture
+def test_without_constituents_the_narrative_report_lists_no_atomic_event(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert main(["events", "--narrative", *SHUFFLED]) == EXIT_SUCCESS
+
+    intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
+    assert [line for line in intervals.splitlines() if line] == [
+        "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
+        "(34 state changes; 26 events omitted without --include-constituents)",
+        "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
+        "(10 state changes; 6 events omitted without --include-constituents)",
+    ]
 
 
 @pytest.mark.fixture
@@ -574,7 +593,16 @@ def _references(node: Any) -> set[str]:
 
 
 @pytest.mark.fixture
-@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"], ["--min-significance", "campaign_defining"]])
+@pytest.mark.parametrize(
+    "flags",
+    [
+        [],
+        ["--min-significance", "major"],
+        ["--min-significance", "campaign_defining"],
+        ["--include-constituents"],
+        ["--include-constituents", "--min-significance", "major"],
+    ],
+)
 def test_the_glossary_holds_every_referenced_id_and_nothing_else(
     flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -618,12 +646,12 @@ def test_the_json_has_no_glossary_without_narrative(
     document = _json(capsys)
 
     assert document["glossary"] is None and document["narrative_omitted"] is None
-    assert document["min_significance"] == "trivial"
+    assert document["min_significance"] == "trivial" and document["include_constituents"] is None
     assert all(interval["omitted"] == {"objective": 0, "inferred": None} for interval in document["intervals"])
 
 
 @pytest.mark.fixture
-def test_the_json_drops_events_below_the_minimum_and_counts_them(
+def test_the_json_drops_narrative_events_below_the_minimum_and_counts_them(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
@@ -635,6 +663,18 @@ def test_the_json_drops_events_below_the_minimum_and_counts_them(
     assert major["min_significance"] == "major" and major["narrative_omitted"] == 0
     assert [event["event_type"] for event in defining["narrative"]] == ["faction.takeover"] * 2
     assert defining["narrative_omitted"] == len(everything["narrative"]) - 2
+
+
+@pytest.mark.fixture
+def test_without_narrative_the_json_drops_atomic_events_below_the_minimum_and_counts_them(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    everything = _json(capsys, "--inferred")
+
+    major = _json(capsys, "--inferred", "--min-significance", "major")
+
+    assert major["min_significance"] == "major" and major["narrative_omitted"] is None
     assert major["intervals"][0]["omitted"]["objective"] > 0
     for full, kept in zip(everything["intervals"], major["intervals"], strict=True):
         assert kept["omitted"]["objective"] == len(full["events"]) - len(kept["events"])
@@ -666,7 +706,7 @@ def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
 
-    assert main(["events", "--narrative", "--min-significance", "campaign_defining", *SHUFFLED]) == EXIT_SUCCESS
+    assert main(["events", "--inferred", "--min-significance", "campaign_defining", *SHUFFLED]) == EXIT_SUCCESS
 
     intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
     assert "###" not in intervals
@@ -691,7 +731,7 @@ def _ids(document: dict[str, Any]) -> list[str]:
 
 
 @pytest.mark.fixture
-@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"]])
+@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"], ["--include-constituents"]])
 def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
     flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -721,21 +761,63 @@ def test_every_narrator_package_id_resolves_in_the_audit_report(
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
 
-    package = _json(capsys, "--narrative", "--min-significance", level)
-    audit = _json(capsys, "--inferred", "--min-significance", level)
-    everything = _json(capsys, "--inferred")
+    package = _json(capsys, "--narrative", "--include-constituents", "--min-significance", level)
+    audit = _json(capsys, "--inferred")
 
-    assert _ids(package) == _ids(audit)
+    assert set(_ids(package)) <= set(_ids(audit))
     assert [save["key"] for save in package["saves"]] == [save["key"] for save in audit["saves"]]
     assert all(save["source"] for save in audit["saves"])
     audited = {
-        event["id"]: event
-        for interval in everything["intervals"]
-        for event in interval["events"] + interval["inferred"]
+        event["id"]: event for interval in audit["intervals"] for event in interval["events"] + interval["inferred"]
     }
     assert all(event["sources"] for event in audited.values())
     for event in package["narrative"]:
-        assert set(event["constituents"]) <= set(audited)
+        assert set(event["constituents"]) <= set(audited) | {narrative["id"] for narrative in package["narrative"]}
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("level", ["trivial", "major", "campaign_defining"])
+def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
+    level: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    package = _json(capsys, "--narrative", "--include-constituents", "--min-significance", level)
+    without = _json(capsys, "--narrative", "--min-significance", level)
+    audit = _json(capsys, "--inferred")
+
+    by_id = {
+        event["id"]: event for interval in package["intervals"] for event in interval["events"] + interval["inferred"]
+    }
+    by_id.update((event["id"], event) for event in package["narrative"])
+    reached: set[str] = set()
+    pending = [constituent for event in package["narrative"] for constituent in event["constituents"]]
+    while pending:
+        current = pending.pop()
+        if current not in reached:
+            reached.add(current)
+            pending.extend(by_id[current]["constituents"])  # every citation resolves inside the package
+    assert set(_ids(package)) == reached - {event["id"] for event in package["narrative"]}
+    assert package["include_constituents"] is True and without["include_constituents"] is False
+    assert _ids(without) == [] and without["narrative"] == package["narrative"]
+    for kept, empty, full in zip(package["intervals"], without["intervals"], audit["intervals"], strict=True):
+        assert kept["omitted"]["objective"] == len(full["events"]) - len(kept["events"])
+        assert kept["omitted"]["inferred"] == len(full["inferred"]) - len(kept["inferred"])
+        assert empty["omitted"] == {"objective": len(full["events"]), "inferred": len(full["inferred"])}
+        assert kept["changes"] == full["changes"]
+
+
+@pytest.mark.fixture
+def test_include_constituents_changes_nothing_without_narrative(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    assert _json(capsys, "--inferred", "--include-constituents") == _json(capsys, "--inferred")
+    assert main(["events", "--inferred", "--include-constituents", *SHUFFLED]) == EXIT_SUCCESS
+    with_flag = capsys.readouterr().out
+    assert main(["events", "--inferred", *SHUFFLED]) == EXIT_SUCCESS
+    assert with_flag == capsys.readouterr().out
 
 
 @pytest.mark.fixture
@@ -748,12 +830,12 @@ def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_re
         return [[nation["nation"]["ref"] for nation in save["situation"]["nations"]] for save in document["saves"]]
 
     audit = _json(capsys, "--inferred", "--min-significance", "major")
-    everything = _json(capsys, "--narrative")
+    everything = _json(capsys, "--narrative", "--include-constituents")
     major = _json(capsys, "--narrative", "--min-significance", "major")
 
     assert listed(audit) == [["nation:20", "nation:21", "nation:22"]] * 3
-    assert listed(everything) == listed(audit)  # nation:22 holds no region but a listed event names it
-    assert listed(major) == [["nation:20", "nation:21"]] * 3  # nation:21 holds none in April but does elsewhere
+    # nation:22 holds no region and only uncited events name it; nation:21 holds none in April but does elsewhere
+    assert listed(everything) == listed(major) == [["nation:20", "nation:21"]] * 3
     assert [save["situation"]["world"] for save in major["saves"]] == [
         save["situation"]["world"] for save in audit["saves"]
     ]
@@ -770,45 +852,3 @@ def test_the_narrator_package_refuses_literal_changes(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "carries no state changes" in captured.err
-
-
-@pytest.mark.fixture
-def test_the_narrative_level_is_separate_from_the_atomic_level(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.chdir(FIXTURE_DIR)
-    everything = _json(capsys, "--narrative")
-    major = _json(capsys, "--narrative", "--min-significance", "major")
-
-    hybrid = _json(capsys, "--narrative", "--min-significance", "major", "--narrative-significance", "trivial")
-    narrower = _json(capsys, "--narrative", "--narrative-significance", "campaign_defining")
-
-    assert major["narrative_significance"] == "major"
-    assert hybrid["min_significance"] == "major" and hybrid["narrative_significance"] == "trivial"
-    assert hybrid["narrative"] == everything["narrative"] and hybrid["narrative_omitted"] == 0
-    assert [interval["omitted"] for interval in hybrid["intervals"]] == [
-        interval["omitted"] for interval in major["intervals"]
-    ]
-    assert narrower["min_significance"] == "trivial" and narrower["narrative_significance"] == "campaign_defining"
-    assert narrower["narrative_omitted"] == len(everything["narrative"]) - len(narrower["narrative"]) > 0
-    assert [interval["omitted"] for interval in narrower["intervals"]] == [
-        interval["omitted"] for interval in everything["intervals"]
-    ]
-
-
-@pytest.mark.fixture
-def test_the_markdown_narrative_follows_the_narrative_level(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.chdir(FIXTURE_DIR)
-    flags = ["--narrative", "--min-significance", "major", "--narrative-significance", "trivial"]
-    assert main(["events", *flags, *SHUFFLED]) == EXIT_SUCCESS
-    out = capsys.readouterr().out
-    assert "narrative event" not in out and "narrative events below" not in out
-    assert "objective analyzer result" in out and "below major significance omitted" in out
-
-
-def test_the_narrative_level_rejects_an_unknown_level(capsys: pytest.CaptureFixture[str]) -> None:
-    with pytest.raises(SystemExit) as raised:
-        main(["events", "a.json", "b.json", "--narrative-significance", "huge"])
-    assert raised.value.code == EXIT_USAGE_ERROR

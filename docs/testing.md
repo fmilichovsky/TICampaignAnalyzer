@@ -118,7 +118,8 @@ package or the message layout needs a regenerated golden:
 
 ```sh
 cd tests/fixtures/io/terra_invicta_json_v1
-tinarrative events politics_reverted.json politics_before.json politics_after.json --narrative --format json \
+tinarrative events politics_reverted.json politics_before.json politics_after.json --narrative \
+  --include-constituents --format json \
   | python ../../../../scripts/narrator_prompt.py --period quarter --audience public \
   | python -c "import json,sys; print(json.dumps(json.load(sys.stdin)['messages'], ensure_ascii=False, indent=2))" \
   > ../../sequence/terra_invicta_json_v1/politics_sequence.expected.narrator_messages.json
