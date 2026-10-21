@@ -112,7 +112,7 @@ built from the developments catalogued in
   - request builder in `tinarrative.narrator`: the prompt shipped in the
     package, `style` in the request block, the prompt hash as its version;
     `scripts/narrator_prompt.py` and the narrator-contract skill move to it
-    (#139);
+    (#139, done);
   - chapter plan: token estimate, period derived from the campaign span,
     chapter packages, the `continuity` member and the prompt rules for
     chapter parts; `narrate` writes the plan and the requests without

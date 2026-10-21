@@ -112,9 +112,8 @@ appeared, disappeared) occurs at least once; a test asserts that.
 ## Expected narrator request
 
 `tests/fixtures/sequence/terra_invicta_json_v1/politics_sequence.expected.narrator_messages.json` holds the
-user message that `scripts/narrator_prompt.py` builds from the politics sequence's narrator package. The
-system prompt is checked against `docs/narrator.md` directly, so only a change to the request block, the
-package or the message layout needs a regenerated golden:
+user message that `tinarrative.narrator.request.build_request` builds from the politics sequence's narrator
+package. The system prompt is the packaged `prompt.md` and is not in the golden, so only a change to the request block, the package or the message layout needs a regenerated golden:
 
 ```sh
 cd tests/fixtures/io/terra_invicta_json_v1
