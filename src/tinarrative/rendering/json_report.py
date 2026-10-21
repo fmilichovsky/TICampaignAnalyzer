@@ -30,13 +30,16 @@ def build_document(
     settings: Settings,
     narrative: Sequence[Event] | None,
     min_significance: Significance = Significance.TRIVIAL,
+    narrative_significance: Significance | None = None,
 ) -> dict[str, Any]:
     """The report document.
 
-    Objective, inferred and narrative events below ``min_significance`` are dropped and counted (``omitted`` per
-    interval, ``narrative_omitted`` for the narrative), so an omission is never hidden; state changes are never
-    filtered. With ``narrative``, the document is the narrator package: it also holds the ``settings`` and the
-    ``glossary`` of every entity ID it references, and leaves out provenance and paths (``_narrator_package``).
+    Objective and inferred events below ``min_significance`` are dropped and counted (``omitted`` per interval), and
+    narrative events below ``narrative_significance`` (default ``min_significance``) likewise (``narrative_omitted``),
+    so an omission is never hidden; state changes are never filtered. With ``narrative``, the document is the
+    narrator package: it also holds the
+    ``settings`` and the ``glossary`` of every entity ID it references, and leaves out provenance and paths
+    (``_narrator_package``).
     """
     document: dict[str, Any] = {"campaign": campaign.to_dict(), **plan.to_dict()}
     reports = situations(intervals)
@@ -45,8 +48,10 @@ def build_document(
         for position, save in enumerate(document["saves"])
     ]
     document["min_significance"] = min_significance.value
+    narrative_minimum = narrative_significance or min_significance
+    document["narrative_significance"] = None if narrative is None else narrative_minimum.value
     document["settings"] = None if narrative is None else settings.to_dict()
-    listed = None if narrative is None else _kept(narrative, min_significance)
+    listed = None if narrative is None else _kept(narrative, narrative_minimum)
     document["narrative"] = None if listed is None or narrative is None else [event.to_dict() for event in listed]
     document["narrative_omitted"] = None if listed is None or narrative is None else len(narrative) - len(listed)
     rendered: list[dict[str, Any]] = []
