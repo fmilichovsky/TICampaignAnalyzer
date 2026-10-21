@@ -120,7 +120,7 @@ built from the developments catalogued in
     done);
   - providers `anthropic`, `openai` and `ollama` over the standard
     library's HTTP client behind `--send`, the `[narrator]` settings table
-    with profiles, a provider-failure exit code (#141);
+    with profiles, a provider-failure exit code (#141, done);
   - assembly: `history.md` with its header, footnotes renumbered across
     chapters, citation audit, run manifest and resume (#142).
 - [ ] Narrator package gaps found by the trials:

@@ -6,13 +6,16 @@ tinarrative narrate --package <file>|- [options]
 
 options: [--period year|half|quarter] [--audience public|insider] [--citations footnotes|none]
          [--style chronicle|headlines] [--length <words>] [--focus <name>] [--output <dir>] [--config <file>]
+         [--send] [--profile <name>] [--provider anthropic|openai|ollama] [--model <id>] [--base-url <url>]
+         [--max-input-tokens <tokens>] [--max-output-tokens <tokens>] [--temperature <t>]
 ```
 
 Cuts a campaign's [narrator package](events.md#narrator-package) into chapters, each small enough
 for one model request, and builds the request of every chapter
-([architecture 20.1–20.4](../architecture.md#201-command-and-data-flow)). It contacts nothing:
-sending the requests to a model is a later step. The requests can be reviewed, diffed or run by
-hand against any model.
+([architecture 20.1–20.5](../architecture.md#201-command-and-data-flow)). Without `--send` it
+contacts nothing, and the requests can be reviewed, diffed or run by hand against any model.
+With `--send` it sends them to the configured provider and writes the responses. Assembling the
+responses into one history is a later step.
 
 ## Input
 
@@ -99,6 +102,75 @@ full package:
     significant first, then the latest. They are listed in package order;
   - `earlier_omitted`: how many were left out of `earlier` by that limit.
 
+## Provider and budget
+
+The `narrator` settings ([configuration](../configuration.md#narrator-provider-and-profiles))
+choose the provider, the model and the budget. They are resolved in this order, each step over the
+previous one:
+
+1. the `[narrator]` keys of the settings file, else their defaults;
+2. the profile `[narrator.profiles.NAME]` given with `--profile NAME`. An unknown profile is a
+   usage error that lists the defined ones;
+3. the flags `--provider`, `--model`, `--base-url`, `--max-input-tokens`, `--max-output-tokens` and
+   `--temperature`. They are validated as the keys of the same name; an invalid value is a usage
+   error that names the flag.
+
+`max_input_tokens` and `chars_per_token` shape the plan, so a profile or a flag can change it. The
+other provider keys never change the plan or the request bytes.
+
+## Sending
+
+`--send` sends each chapter's request to the provider, in chapter order. **It hands the campaign to
+the provider, a third party unless the provider runs on your machine** (Ollama, or an
+OpenAI-compatible server at a local `base_url`). The package carries no file paths, but it does
+carry the campaign: faction, nation and leader names and the whole history.
+
+Before anything is read or sent, `--send` requires all of the following:
+
+- `--output DIR`;
+- a provider and a model. There is no default model;
+- for `anthropic`, and for `openai` without a `base_url`, an `api_key_env` naming the environment
+  variable that holds the key;
+- the variable that `api_key_env` names, when one is named, set and not empty;
+- `max_input_tokens + max_output_tokens` no larger than `context_window`, when one is set.
+
+A missing item is a usage error (exit 2) and nothing is contacted.
+
+The key is read only from that environment variable. It never appears in a settings file, in
+the output or in a log.
+
+| Provider | Endpoint (`base_url` default) | Request |
+| --- | --- | --- |
+| `anthropic` | `POST {base_url}/v1/messages` (`https://api.anthropic.com`) | `x-api-key`, `anthropic-version: 2023-06-01`; `model`, `max_tokens`, `system`, one user message |
+| `openai` | `POST {base_url}/chat/completions` (`https://api.openai.com/v1`) | `Authorization: Bearer` when a key is set; `model`, system and user messages, `max_completion_tokens` |
+| `ollama` | `POST {base_url}/api/chat` (`http://localhost:11434`) | `Authorization: Bearer` when a key is set; `stream: false`, `options.num_ctx` = `max_input_tokens + max_output_tokens`, `options.num_predict` = `max_output_tokens` |
+
+Every provider gets `temperature` only when it is set; current Claude models reject it. With a
+`base_url`, `openai` reaches any server that implements Chat Completions (hosted gateways, LM
+Studio, vLLM). Ollama is called through its native API because only that API sets the context
+length per request. A context smaller than the request truncates the input silently.
+
+**Finish.** Each completion's stop reason is mapped to a finish:
+
+| Finish | Anthropic `stop_reason` | OpenAI `finish_reason` | Ollama `done_reason` |
+| --- | --- | --- | --- |
+| `complete` | `end_turn`, `stop_sequence` | `stop` | `stop` |
+| `length` | `max_tokens`, `model_context_window_exceeded` | `length` | `length` |
+| `refused` | `refusal` | `content_filter`, or a `refusal` message | |
+| `other` | anything else | anything else | anything else |
+
+A `length` or `refused` completion fails its chapter and is not written: a chapter is never kept
+short. An `other` completion is written with its finish.
+
+**Retries.** HTTP 408, 409, 429 and 5xx, and a failed connection, are retried up to three times.
+Each retry waits as long as `Retry-After` asks (seconds or an HTTP date, at most 60 seconds), else
+2, 4 and then 8 seconds. A timeout (`narrator.timeout_seconds`) and every other status fail at once.
+
+**Failure.** The run stops at the first failed chapter (exit 10). The error message names the
+chapter, the provider and the reason: the HTTP status with the provider's error message shortened,
+no response, an invalid response, the output limit or a refusal. The chapters completed before it
+keep their responses.
+
 ## Output
 
 stdout always gets a short plan: per chapter its index and part, covers, periods, the number of
@@ -107,8 +179,9 @@ developments, continuing and recalled developments, the estimate and any reducti
 
 ```text
 DIR/
-  plan.json         # the plan
-  requests/01.json  # one request per chapter: {"system": ..., "messages": [...]}
+  plan.json          # the plan
+  requests/01.json   # one request per chapter: {"system": ..., "messages": [...]}
+  responses/01.json  # with --send: one per completed chapter
 ```
 
 `plan.json` holds the prompt version (SHA-256 of the prompt), the SHA-256 of the package (compact
@@ -118,18 +191,42 @@ JSON), the narrator settings, the request parameters, and per chapter its `index
 file. The files hold no time and no path, so the same package and settings give byte-identical
 files. Request files are numbered with two digits (more when there are more chapters). A numbered
 request file left over from a longer plan is removed; other files in `DIR` are left alone.
+`plan.json` records only the settings the plan depends on (`max_input_tokens`, `chars_per_token`,
+the span thresholds, `recalled_developments`, `top_economies`).
+
+With `--send`, stdout adds one line per completed chapter (its finish, the input and output tokens
+the provider reports and the plan's estimate) and a closing line. Each `responses/NN.json` holds:
+
+| Member | Value |
+| --- | --- |
+| `index` | the chapter |
+| `request_sha256` | the SHA-256 of `requests/NN.json`, as in `plan.json` |
+| `provider`, `model`, `max_output_tokens`, `temperature` | what the request was sent with |
+| `reported_model` | the model the provider reports, or `null` |
+| `finish` | `complete` or `other` |
+| `estimate` | the plan's input estimate |
+| `input_tokens`, `output_tokens` | the counts the provider reports, or `null` |
+| `text` | the completion |
+
+Numbered responses beyond the plan's chapters are removed when sending starts. A response from an
+earlier run whose chapter is not sent again keeps its `request_sha256`, which tells whether it
+still matches the request.
 
 With `--log-level info`, the run logs the save pipeline's lines (as `events`) or the package's
 size, then the number of chapters and developments, the largest estimate and the number of
-reduced chapters. It never logs a request or a string from the package.
+reduced chapters. With `--send` it adds, per request, the provider, the chapter, the attempt, the
+HTTP status, the bytes sent and received, any retry wait, and per chapter the finish, the token
+counts and the length of the text. It never logs a request, a response, a key, a URL or a string
+from the package.
 
 ## Exit codes
 
 | Code | When |
 | --- | --- |
 | 0 | The plan was printed and, with `--output`, written. |
-| 2 | Usage error: no save paths and no `--package`; `--package` with save paths, `--campaign` or `--min-significance`; a package with no interval; a single interval over `narrator.max_input_tokens` (nothing written); the save input errors of `events`. |
+| 2 | Usage error: no save paths and no `--package`; `--package` with save paths, `--campaign` or `--min-significance`; a package with no interval; a single interval over `narrator.max_input_tokens` (nothing written); the save input errors of `events`; an unknown `--profile` or an invalid override flag; `--send` without `--output`, provider, model or API key variable, or over `context_window` (nothing contacted). |
 | 4 | A save or the `--package` file cannot be read. |
 | 5 | A save is not a supported save, or the package is not UTF-8 JSON or not a narrator package. |
 | 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |
-| 9 | `--output` cannot be written. The plan is not printed. |
+| 9 | `--output` cannot be written. The plan is not printed (a response that cannot be written stops `--send` after the plan). |
+| 10 | `--send`: a chapter request failed (authentication, network, HTTP error, invalid response), or its completion stopped at `max_output_tokens` or was refused. The completed chapters' responses are kept. |

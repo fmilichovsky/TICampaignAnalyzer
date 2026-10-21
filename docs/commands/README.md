@@ -10,7 +10,7 @@ The top level holds the campaign commands and the maintenance command:
 | --- | --- | --- |
 | `campaigns <path>...` | Implemented | [campaigns.md](campaigns.md) |
 | `events <path> <path>...` | Implemented | [events.md](events.md) |
-| `narrate <path>...` / `narrate --package <file>` | Implemented (plan and requests; sending not yet) | [narrate.md](narrate.md) |
+| `narrate <path>...` / `narrate --package <file>` | Implemented (plan, requests and `--send`; assembly not yet) | [narrate.md](narrate.md) |
 | `unknowns <path>...` | Implemented | [unknowns.md](unknowns.md) |
 
 The `save` group holds the per-save evidence and debugging commands. `tinarrative save`
@@ -50,6 +50,7 @@ Exit codes are stable and defined at the top of `src/tinarrative/cli.py`.
 | 7 | The unknowns registry could not be read, is not a valid registry document, or could not be written; the report or summary is still printed. |
 | 8 | The settings file (`--config` or `TINARRATIVE_CONFIG`) could not be read or is not valid settings; nothing is printed on stdout. |
 | 9 | `narrate --output` could not be written. |
+| 10 | `narrate --send`: a provider request failed (authentication, network, HTTP error, invalid response), or a completion stopped at its output limit or was refused; the chapters completed before it are kept. |
 
 Command pages state which of these codes they use and what is printed in each
 case.

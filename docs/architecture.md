@@ -1909,9 +1909,9 @@ later factual claim. The prompt is [narrator](narrator.md).
 
 The rest of this section is the design of `tinarrative narrate`, the
 command that carries a package to a model and brings prose back. The chapter
-plan and the requests (20.1–20.4) are implemented
-([narrate](commands/narrate.md)); sending and assembly are not yet, and
-[roadmap](roadmap.md) tracks them.
+plan, the requests and sending them (20.1–20.5) are implemented
+([narrate](commands/narrate.md)); assembly (20.6) is not yet, and
+[roadmap](roadmap.md) tracks it.
 
 ## 20.1 Command and data flow
 

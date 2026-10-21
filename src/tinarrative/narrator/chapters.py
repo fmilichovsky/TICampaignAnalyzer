@@ -18,7 +18,7 @@ import hashlib
 import json
 import math
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -32,6 +32,15 @@ RECALLED_FROM = "major"
 LENGTH_WEIGHTS = {"trivial": 1, "minor": 1, "major": 2, "campaign_defining": 4}
 """A chapter's share of ``length`` is in proportion to the summed weights of its developments."""
 REDUCTIONS = ("atomic_dropped", "split")
+PLANNER_KEYS = (
+    "max_input_tokens",
+    "chars_per_token",
+    "quarter_span_days",
+    "half_span_days",
+    "recalled_developments",
+    "top_economies",
+)
+"""The ``narrator`` settings the plan depends on, recorded in ``plan.json``; the provider keys never change a plan."""
 
 
 @dataclass(frozen=True)
@@ -57,6 +66,11 @@ class PlannedChapter:
     estimate: int
     request: dict[str, Any]
 
+    @property
+    def request_sha256(self) -> str:
+        """The SHA-256 of the request as written to ``requests/NN.json``."""
+        return hashlib.sha256(render_request(self.request).encode("utf-8")).hexdigest()
+
 
 @dataclass(frozen=True)
 class ChapterPlan:
@@ -73,7 +87,7 @@ class ChapterPlan:
         return {
             "prompt_version": prompt_version(),
             "package_sha256": self.package_sha256,
-            "settings": asdict(self.settings),
+            "settings": {key: getattr(self.settings, key) for key in PLANNER_KEYS},
             "request": {**self.options, **({} if self.length is None else {"length": self.length})},
             "chapters": [
                 {
@@ -87,7 +101,7 @@ class ChapterPlan:
                     "recalled": planned.recalled,
                     "estimate": planned.estimate,
                     "reduction": planned.chapter.reduction,
-                    "request_sha256": hashlib.sha256(render_request(planned.request).encode("utf-8")).hexdigest(),
+                    "request_sha256": planned.request_sha256,
                 }
                 for planned in self.chapters
             ],

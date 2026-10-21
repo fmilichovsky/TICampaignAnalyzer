@@ -73,3 +73,44 @@ recalled_developments = 40
 # A chapter's situation reports keep the nations the chapter references and
 # this many more, the largest by GDP.
 top_economies = 10
+
+# The provider of tinarrative narrate --send. There is no default provider or
+# model; set them here, in a profile or with --provider and --model.
+# provider = "anthropic"            # anthropic, openai or ollama
+# model = "..."                     # the model ID the provider names
+# base_url = "https://..."          # unset: the provider's public API (ollama: http://localhost:11434)
+# api_key_env = "ANTHROPIC_API_KEY" # the NAME of the variable holding the key, never the key
+
+# One request's completion stops at this many tokens (minimum 1); a
+# completion that reaches it fails its chapter.
+max_output_tokens = 16000
+
+# The model's context window, when stated: max_input_tokens plus
+# max_output_tokens above it is rejected before sending (minimum 1).
+# context_window = 200000
+
+# The sampling temperature sent with each request; unset sends none. Current
+# Claude models reject it.
+# temperature = 0.7
+
+# One HTTP request is abandoned after this many seconds (minimum 1).
+timeout_seconds = 600
+
+# Named profiles, chosen with --profile NAME. A profile sets provider, model,
+# base_url, api_key_env, max_input_tokens, max_output_tokens, chars_per_token,
+# context_window, temperature or timeout_seconds over the keys above; flags
+# override both.
+[narrator.profiles]
+
+# [narrator.profiles.claude]
+# provider = "anthropic"
+# model = "claude-sonnet-5-5"
+# api_key_env = "ANTHROPIC_API_KEY"
+
+# [narrator.profiles.local]
+# provider = "ollama"
+# model = "..."
+# max_input_tokens = 24000
+# max_output_tokens = 4000
+# context_window = 32768
+# timeout_seconds = 1800

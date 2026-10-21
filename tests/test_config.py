@@ -8,7 +8,15 @@ from pathlib import Path
 
 import pytest
 
-from tinarrative.config import DEFAULT_SETTINGS, ConfigError, GeopoliticsSettings, Settings, load_settings
+from tinarrative.config import (
+    DEFAULT_SETTINGS,
+    ConfigError,
+    GeopoliticsSettings,
+    NarratorSettings,
+    Settings,
+    load_settings,
+    override,
+)
 
 
 def write(tmp_path: Path, text: str) -> Path:
@@ -62,6 +70,18 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
         ),
         ("[narrative.geopolitics]\nexpansion_gap_days = -1\n", "must be at least 0"),
         ("[narrative.geopolitics\n", "not valid TOML"),
+        ("[narrator]\nprovider = 'gemini'\n", "'narrator.provider' must be one of: anthropic, openai, ollama"),
+        ("[narrator]\nmodel = 3\n", "'narrator.model' must be a non-empty string"),
+        ("[narrator]\nmodel = ''\n", "'narrator.model' must be a non-empty string"),
+        ("[narrator]\ntemperature = true\n", "'narrator.temperature' must be a number"),
+        ("[narrator]\ntemperature = '0.5'\n", "'narrator.temperature' must be a number"),
+        ("[narrator]\ntemperature = -0.1\n", "'narrator.temperature' must be at least 0.0"),
+        ("[narrator]\ncontext_window = 0\n", "'narrator.context_window' must be at least 1"),
+        ("[narrator]\nprofiles = 3\n", "'narrator.profiles' must be a table"),
+        ("[narrator.profiles]\nlocal = 3\n", "'narrator.profiles.local' must be a table"),
+        ("[narrator.profiles.local]\ntop_economies = 3\n", "unknown setting 'narrator.profiles.local.top_economies'"),
+        ("[narrator.profiles.local]\nmax_input_tokens = 10\n", "'narrator.profiles.local.max_input_tokens' must be at"),
+        ("[narrator.profiles.local]\nprovider = 'x'\n", "'narrator.profiles.local.provider' must be one of"),
     ],
 )
 def test_invalid_settings_name_the_key(tmp_path: Path, text: str, message: str) -> None:
@@ -72,3 +92,43 @@ def test_invalid_settings_name_the_key(tmp_path: Path, text: str, message: str) 
 def test_a_missing_file_is_an_os_error(tmp_path: Path) -> None:
     with pytest.raises(OSError):
         load_settings(tmp_path / "absent.toml")
+
+
+def test_provider_keys_and_profiles(tmp_path: Path) -> None:
+    text = (
+        "[narrator]\nprovider = 'anthropic'\nmodel = 'hosted'\napi_key_env = 'KEY_VAR'\ntemperature = 1\n"
+        "[narrator.profiles.local]\nprovider = 'ollama'\nmodel = 'small'\nmax_input_tokens = 24000\n"
+        "context_window = 32768\ntemperature = 0.25\n"
+    )
+
+    narrator = load_settings(write(tmp_path, text)).narrator
+    local = narrator.with_profile("local")
+
+    assert (narrator.provider, narrator.model, narrator.temperature) == ("anthropic", "hosted", 1.0)
+    assert isinstance(narrator.temperature, float)
+    assert (local.provider, local.model, local.max_input_tokens, local.context_window) == (
+        "ollama",
+        "small",
+        24000,
+        32768,
+    )
+    assert (local.api_key_env, local.temperature, local.top_economies) == ("KEY_VAR", 0.25, narrator.top_economies)
+    assert local.profiles == narrator.profiles
+    with pytest.raises(KeyError):
+        narrator.with_profile("absent")
+
+
+def test_unset_keys_are_left_out_of_the_tables() -> None:
+    narrator = DEFAULT_SETTINGS.to_dict()["narrator"]
+
+    assert NarratorSettings().model is None
+    assert not {"provider", "model", "base_url", "api_key_env", "context_window", "temperature"} & set(narrator)
+    assert narrator["profiles"] == {}
+
+
+def test_override_validates_like_a_settings_file() -> None:
+    narrator = override(NarratorSettings(), "max_output_tokens", 500)
+
+    assert narrator.max_output_tokens == 500
+    with pytest.raises(ConfigError, match="'narrator.max_input_tokens' must be at least 1000"):
+        override(narrator, "max_input_tokens", 10)

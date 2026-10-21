@@ -1,9 +1,9 @@
 # Configuration
 
-The narrative rules' thresholds and windows, and the budget of `narrate`'s chapter planner, are
+The narrative rules' thresholds and windows, and the budget and provider of `narrate`, are
 runtime settings with built-in defaults (`src/tinarrative/config.py`). The `narrative` tables change
 what `events --narrative` (and `narrate` from saves) builds and nothing else; the `narrator` table
-changes how `narrate` cuts and requests a package, and never what `events` builds.
+changes how `narrate` cuts, requests and sends a package, and never what `events` builds.
 
 ## Where settings come from
 
@@ -26,13 +26,22 @@ expansion_gap_days = 730
 
 [narrator]
 max_input_tokens = 32000
+
+[narrator.profiles.local]
+provider = "ollama"
+model = "..."
 ```
 
 [`configuration.example.toml`](configuration.example.toml) lists every key at its default, with
 its meaning; copy it and keep only the keys you change. A test keeps it equal to the defaults.
 
-Validation is strict: an unknown table or key, a value that is not an integer (`true` and `3.0`
-included) or a value below its minimum is an error, and the message names the key.
+Validation is strict, and every error message names the key. Each of these is an error:
+
+- an unknown table or key;
+- a value of the wrong type. An integer key takes only an integer (`true` and `3.0` are errors). A
+  number key takes an integer or a float, never `true`. A string key takes a non-empty string;
+- a string outside its choices;
+- a value below its minimum.
 
 ## Keys
 
@@ -64,6 +73,49 @@ The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](archite
 | `narrator.recalled_developments` | 40 | 0 | Each chapter is reminded of at most this many developments of earlier chapters (`major` and above; the most significant, then the most recent, are kept and the rest counted), so the model can refer back to them without retelling them. 0 turns the reminder off; a larger value costs input tokens in every later chapter. |
 | `narrator.top_economies` | 10 | 0 | A chapter's situation reports keep the nations the chapter references and this many more, the largest by `GDP`. |
 
+### Narrator provider and profiles
+
+These keys matter only to `narrate --send` ([sending](commands/narrate.md#sending),
+[architecture 20.5](architecture.md#205-providers)). An optional key without a default is unset
+until a file, a profile or a flag sets it.
+
+| Key | Type | Default | Meaning |
+| --- | --- | --- | --- |
+| `narrator.provider` | string: `anthropic`, `openai`, `ollama` | unset | The API the requests are sent to: Anthropic Messages, OpenAI Chat Completions (or any server implementing it), Ollama's native chat. |
+| `narrator.model` | string | unset | The model every request names. There is no built-in model, so a stale ID is never sent by default. |
+| `narrator.base_url` | string, `http://` or `https://` | unset: the provider's public API, for Ollama `http://localhost:11434` | The API root, for a gateway, a compatible server or a remote Ollama. |
+| `narrator.api_key_env` | string | unset | The **name** of the environment variable holding the API key. Required for `anthropic`, and for `openai` without a `base_url`. |
+| `narrator.max_output_tokens` | integer, minimum 1 | 16000 | One completion stops at this many tokens; one that reaches it fails its chapter. Models that think count their thinking here. |
+| `narrator.context_window` | integer, minimum 1 | unset | The model's context window, when stated. `max_input_tokens + max_output_tokens` above it is rejected before sending. |
+| `narrator.temperature` | number, minimum 0 | unset | Sent with each request when set. Current Claude models reject it. |
+| `narrator.timeout_seconds` | integer, minimum 1 | 600 | One HTTP request is abandoned after this many seconds. Raise it for a slow local model. |
+
+**Profiles.** A table `[narrator.profiles.NAME]` names a set of values. A profile may set any of
+`provider`, `model`, `base_url`, `api_key_env`, `max_input_tokens`, `max_output_tokens`,
+`chars_per_token`, `context_window`, `temperature` and `timeout_seconds`. These are validated as the
+keys of the same name; any other key is an error. `narrate --profile NAME` applies the profile over
+the `[narrator]` keys, and the override flags apply over both
+([narrate](commands/narrate.md#provider-and-budget)). Without `--profile`, the `[narrator]` keys
+apply as they are.
+
+```toml
+[narrator.profiles.claude]
+provider = "anthropic"
+model = "claude-sonnet-5-5"
+api_key_env = "ANTHROPIC_API_KEY"
+
+[narrator.profiles.local]
+provider = "ollama"
+model = "..."
+max_input_tokens = 24000
+max_output_tokens = 4000
+context_window = 32768
+timeout_seconds = 1800
+```
+
+**Keys.** An API key is never a setting: a settings file names only the environment variable, and
+the key is read from it at send time. The key never appears in the output or in a log.
+
 The evidence behind the narrative rules' defaults is in
 [sources for higher-level events](game-data-notes/higher-level-event-sources.md)
 (*Narrative rules (geopolitics)* and *Narrative rules (space)*).
@@ -72,7 +124,9 @@ The evidence behind the narrative rules' defaults is in
 
 `events --format json --narrative` records the effective `narrative` settings, every key included,
 as `settings`. The Markdown narrative section names every `narrative` key that differs from its
-default. `narrate --output` records the `narrator` settings in `plan.json`.
+default. `narrate --output` records in `plan.json` the `narrator` settings the plan depends on;
+each `responses/NN.json` records the provider, model, output limit and temperature it was sent
+with.
 
 ## Errors
 

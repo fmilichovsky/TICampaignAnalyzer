@@ -34,8 +34,9 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   [settings file](docs/configuration.md). This is the only command that reports analysis;
   `narrate` runs the same analysis to build its package.
 - [`tinarrative narrate <path>...`](docs/commands/narrate.md): cut a campaign's narrator
-  package into chapters under a token budget and write one LLM request per chapter, without
-  sending anything.
+  package into chapters under a token budget and write one LLM request per chapter; with
+  `--send`, send them to an Anthropic, OpenAI-compatible or Ollama model and write the
+  responses.
 - `tinarrative save COMMAND`: per-save evidence and debugging commands.
   - [`tinarrative save inspect <save>`](docs/commands/inspect.md): report one save's
     raw serialized structure without interpreting it.

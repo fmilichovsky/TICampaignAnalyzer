@@ -1,10 +1,11 @@
-"""Runtime settings: the thresholds and windows of the narrative rules and the narrator's budget, with their defaults
-in code.
+"""Runtime settings: the thresholds and windows of the narrative rules and the narrator's budget and provider, with
+their defaults in code.
 
 A settings file is TOML whose tables mirror the dataclasses below (``[narrative.geopolitics]``,
-``[narrative.space]``, ``[narrator]``); a file names only the keys it changes, and every other key keeps its
-default. Validation is strict: an unknown table or key, a value of the wrong type (``bool`` is not an integer here)
-or a value below its minimum is a ``ConfigError``. The CLI resolves the file from ``--config``, then
+``[narrative.space]``, ``[narrator]``, plus named ``[narrator.profiles.<name>]`` tables); a file names only the keys
+it changes, and every other key keeps its default. Validation is strict: an unknown table or key, a value of the wrong
+type (``bool`` is not a number here, an integer is a valid float), a string outside its choices or a value below its
+minimum is a ``ConfigError``. The CLI resolves the file from ``--config``, then
 ``CONFIG_ENV_VAR``, then uses ``DEFAULT_SETTINGS`` (``docs/configuration.md``). Each default states its rule; the
 evidence behind the narrative rules' defaults is in the game-data notes (``higher-level-event-sources.md``,
 *Narrative rules (geopolitics)* and *Narrative rules (space)*).
@@ -19,11 +20,35 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_ENV_VAR = "TINARRATIVE_CONFIG"
+PROVIDERS = ("anthropic", "openai", "ollama")
+PROFILE_KEYS = (
+    "provider",
+    "model",
+    "base_url",
+    "api_key_env",
+    "max_input_tokens",
+    "max_output_tokens",
+    "chars_per_token",
+    "context_window",
+    "temperature",
+    "timeout_seconds",
+)
+"""The ``narrator`` keys a profile may set; every other key is shared by all profiles."""
+_KIND = "kind"
 _MINIMUM = "minimum"
+_CHOICES = "choices"
 
 
-def _int(default: int, minimum: int) -> Any:
-    return field(default=default, metadata={_MINIMUM: minimum})
+def _int(default: int | None, minimum: int) -> Any:
+    return field(default=default, metadata={_KIND: "int", _MINIMUM: minimum})
+
+
+def _float(minimum: float) -> Any:
+    return field(default=None, metadata={_KIND: "float", _MINIMUM: minimum})
+
+
+def _str(choices: tuple[str, ...] | None = None) -> Any:
+    return field(default=None, metadata={_KIND: "str", _CHOICES: choices})
 
 
 class ConfigError(ValueError):
@@ -74,8 +99,8 @@ class NarrativeSettings:
 
 @dataclass(frozen=True)
 class NarratorSettings:
-    """The chapter planner of ``tinarrative narrate`` (``narrator``, architecture 20.3); never changes what ``events``
-    builds."""
+    """The chapter planner and the provider of ``tinarrative narrate`` (``narrator``, architecture 20.3 and 20.5);
+    never changes what ``events`` builds. An unset optional key is ``None``."""
 
     max_input_tokens: int = _int(200_000, 1_000)
     """The estimated input of one request, system prompt, request block and chapter package together, stays within
@@ -93,6 +118,30 @@ class NarratorSettings:
     top_economies: int = _int(10, 0)
     """A chapter's situation reports keep the nations the chapter references and this many more, the largest by
     ``GDP``."""
+    provider: str | None = _str(PROVIDERS)
+    """The wire format requests are sent in: the Anthropic Messages API, OpenAI Chat Completions or Ollama's chat
+    API."""
+    model: str | None = _str()
+    """The model every request names; there is no default, so a stale model ID is never sent."""
+    base_url: str | None = _str()
+    """The provider's API root; unset gives the provider's public endpoint (Ollama: the local server)."""
+    api_key_env: str | None = _str()
+    """The name of the environment variable holding the API key; the key itself is never a setting."""
+    max_output_tokens: int = _int(16_000, 1)
+    """One request's completion stops at this many tokens; a completion that reaches it fails its chapter."""
+    context_window: int | None = _int(None, 1)
+    """The model's context window, when stated: ``max_input_tokens`` plus ``max_output_tokens`` above it is
+    rejected before sending."""
+    temperature: float | None = _float(0.0)
+    """The sampling temperature sent with each request; unset sends none."""
+    timeout_seconds: int = _int(600, 1)
+    """One HTTP request is abandoned after this many seconds."""
+    profiles: Mapping[str, Mapping[str, Any]] = field(default_factory=dict, metadata={_KIND: "profiles"})
+    """Named sets of ``PROFILE_KEYS`` values over the keys above, chosen with ``narrate --profile``."""
+
+    def with_profile(self, name: str) -> NarratorSettings:
+        """These settings with the profile ``name`` applied; raises ``KeyError`` for an unknown profile."""
+        return replace(self, **self.profiles[name])
 
 
 @dataclass(frozen=True)
@@ -130,6 +179,12 @@ def load_settings(path: Path | None) -> Settings:
     return settings
 
 
+def override(settings: NarratorSettings, key: str, value: Any) -> NarratorSettings:
+    """``settings`` with one key replaced, validated as in a settings file; raises ``ConfigError``."""
+    changed: NarratorSettings = _apply(settings, {key: value}, "narrator.")
+    return changed
+
+
 def _apply(current: Any, table: Mapping[str, Any], prefix: str) -> Any:
     known = {item.name: item for item in fields(current)}
     changes: dict[str, Any] = {}
@@ -143,21 +198,61 @@ def _apply(current: Any, table: Mapping[str, Any], prefix: str) -> Any:
             if not isinstance(value, Mapping):
                 raise ConfigError(f"{dotted!r} must be a table")
             changes[key] = _apply(default, value, f"{dotted}.")
-            continue
-        if isinstance(value, bool) or not isinstance(value, int):
-            raise ConfigError(f"{dotted!r} must be an integer")
-        minimum = item.metadata.get(_MINIMUM)
-        if minimum is not None and value < minimum:
-            raise ConfigError(f"{dotted!r} must be at least {minimum}")
-        changes[key] = value
+        elif item.metadata.get(_KIND) == "profiles":
+            changes[key] = _profiles(known, value, dotted)
+        else:
+            changes[key] = _value(item.metadata, value, dotted)
     return replace(current, **changes)
 
 
+def _profiles(known: Mapping[str, Any], table: Any, dotted: str) -> dict[str, dict[str, Any]]:
+    if not isinstance(table, Mapping):
+        raise ConfigError(f"{dotted!r} must be a table")
+    profiles: dict[str, dict[str, Any]] = {}
+    for name, profile in table.items():
+        if not isinstance(profile, Mapping):
+            raise ConfigError(f"'{dotted}.{name}' must be a table")
+        values: dict[str, Any] = {}
+        for key, value in profile.items():
+            if key not in PROFILE_KEYS:
+                raise ConfigError(f"unknown setting '{dotted}.{name}.{key}' (a profile sets {', '.join(PROFILE_KEYS)})")
+            values[key] = _value(known[key].metadata, value, f"{dotted}.{name}.{key}")
+        profiles[name] = values
+    return profiles
+
+
+def _value(metadata: Mapping[str, Any], value: Any, dotted: str) -> Any:
+    kind = metadata.get(_KIND)
+    if kind == "str":
+        if not isinstance(value, str) or not value:
+            raise ConfigError(f"{dotted!r} must be a non-empty string")
+        choices = metadata.get(_CHOICES)
+        if choices is not None and value not in choices:
+            raise ConfigError(f"{dotted!r} must be one of: {', '.join(choices)}")
+        return value
+    if kind == "float":
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise ConfigError(f"{dotted!r} must be a number")
+        value = float(value)
+    elif isinstance(value, bool) or not isinstance(value, int):
+        raise ConfigError(f"{dotted!r} must be an integer")
+    minimum = metadata.get(_MINIMUM)
+    if minimum is not None and value < minimum:
+        raise ConfigError(f"{dotted!r} must be at least {minimum}")
+    return value
+
+
 def _to_dict(settings: Any) -> dict[str, Any]:
+    """Unset (``None``) keys are left out, as a TOML file leaves them out."""
     table: dict[str, Any] = {}
     for item in fields(settings):
         value = getattr(settings, item.name)
-        table[item.name] = _to_dict(value) if is_dataclass(value) else value
+        if is_dataclass(value):
+            table[item.name] = _to_dict(value)
+        elif isinstance(value, Mapping):
+            table[item.name] = {name: dict(entry) for name, entry in value.items()}
+        elif value is not None:
+            table[item.name] = value
     return table
 
 

@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -13,7 +14,16 @@ from pathlib import Path
 from typing import cast
 
 from . import __version__
-from .config import CONFIG_ENV_VAR, DEFAULT_SETTINGS, ConfigError, Settings, load_settings
+from .config import (
+    CONFIG_ENV_VAR,
+    DEFAULT_SETTINGS,
+    PROVIDERS,
+    ConfigError,
+    NarratorSettings,
+    Settings,
+    load_settings,
+    override,
+)
 from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
@@ -32,8 +42,10 @@ from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .narrative import narrative_rules
-from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
+from .narrator.chapters import ChapterPlan, OverBudget, PlannedChapter, base_options, plan_chapters, validate
+from .narrator.providers import Endpoint, ProviderError, complete, completion_request, endpoint
 from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
+from .narrator.transport import Transport, UrllibTransport
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
@@ -73,6 +85,9 @@ EXIT_CONFIG_ERROR = 8
 printed on stdout."""
 EXIT_OUTPUT_ERROR = 9
 """``narrate --output`` could not write its directory; the plan is not printed."""
+EXIT_PROVIDER_ERROR = 10
+"""``narrate --send``: a chapter request failed (authentication, network, an HTTP error, an invalid response) or its
+completion stopped at the output limit or was refused; the chapters completed before it are kept."""
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -527,10 +542,25 @@ def _run_events(args: argparse.Namespace) -> int:
 
 
 def _run_narrate(args: argparse.Namespace) -> int:
-    """Cut a narrator package into chapters under the token budget and build each chapter's request; sends nothing."""
+    """Cut a narrator package into chapters under the token budget and build each chapter's request; with ``--send``,
+    send the requests to the configured provider."""
     settings = _resolve_settings("narrate", cast("Path | None", args.config))
     if isinstance(settings, int):
         return settings
+    narrator = _resolve_narrator(args, settings.narrator)
+    if isinstance(narrator, int):
+        return narrator
+    output = cast("Path | None", args.output)
+    target: Endpoint | None = None
+    if args.send:
+        if output is None:
+            print("tinarrative narrate: --send needs --output DIR to write the responses to", file=sys.stderr)
+            return EXIT_USAGE_ERROR
+        try:
+            target = endpoint(narrator, os.environ)
+        except ValueError as error:
+            print(f"tinarrative narrate: {error}", file=sys.stderr)
+            return EXIT_USAGE_ERROR
     saves = cast(list[Path], args.saves)
     source = cast("str | None", args.package)
     if source is not None and (saves or args.campaign is not None or args.min_significance is not None):
@@ -546,7 +576,6 @@ def _run_narrate(args: argparse.Namespace) -> int:
     loaded = _read_package(source) if source is not None else _build_package(args, saves, settings)
     if isinstance(loaded, int):
         return loaded
-    narrator = settings.narrator
     try:
         package = validate(loaded)
         if not package["intervals"]:
@@ -574,16 +603,17 @@ def _run_narrate(args: argparse.Namespace) -> int:
         )
         logger.info("narrate over budget %s", fields(needed=plan.needed, budget=plan.budget, exit=EXIT_USAGE_ERROR))
         return EXIT_USAGE_ERROR
-    output = cast("Path | None", args.output)
     if output is not None:
         try:
             _write_narration(output, plan)
         except OSError as error:
-            logger.debug("output failed %s", fields(output=safe_path(output), error=type(error).__name__))
-            print(f"tinarrative narrate: cannot write {output}: {error.strerror or error}", file=sys.stderr)
-            return EXIT_OUTPUT_ERROR
+            return _output_failed(output, error)
     sys.stdout.write(_render_plan(plan, output))
     sys.stdout.flush()
+    sent = 0
+    code = EXIT_SUCCESS
+    if target is not None and output is not None:
+        sent, code = _send(plan, narrator, target, output)
     logger.info(
         "narrate done %s",
         fields(
@@ -592,10 +622,144 @@ def _run_narrate(args: argparse.Namespace) -> int:
             largest_estimate=max(planned.estimate for planned in plan.chapters),
             reduced=sum(planned.chapter.reduction is not None for planned in plan.chapters),
             written=output is not None,
-            exit=EXIT_SUCCESS,
+            sent=sent if target is not None else None,
+            exit=code,
         ),
     )
-    return EXIT_SUCCESS
+    return code
+
+
+_NARRATOR_FLAGS = (
+    ("--provider", "provider"),
+    ("--model", "model"),
+    ("--base-url", "base_url"),
+    ("--max-input-tokens", "max_input_tokens"),
+    ("--max-output-tokens", "max_output_tokens"),
+    ("--temperature", "temperature"),
+)
+
+
+def _resolve_narrator(args: argparse.Namespace, narrator: NarratorSettings) -> NarratorSettings | int:
+    """The ``[narrator]`` settings, then the ``--profile`` over them, then the flags over both."""
+    profile = cast("str | None", args.profile)
+    if profile is not None:
+        try:
+            narrator = narrator.with_profile(profile)
+        except KeyError:
+            known = ", ".join(sorted(narrator.profiles)) or "none"
+            print(f"tinarrative narrate: unknown profile {profile!r} (the settings define: {known})", file=sys.stderr)
+            return EXIT_USAGE_ERROR
+    overridden = 0
+    for flag, key in _NARRATOR_FLAGS:
+        value = getattr(args, key)
+        if value is None:
+            continue
+        try:
+            narrator = override(narrator, key, value)
+        except ConfigError as error:
+            print(f"tinarrative narrate: {flag}: {error}", file=sys.stderr)
+            return EXIT_USAGE_ERROR
+        overridden += 1
+    logger.debug(
+        "narrator resolved %s", fields(profile=profile is not None, provider=narrator.provider, flags=overridden)
+    )
+    return narrator
+
+
+def _transport() -> Transport:
+    """The HTTP transport of ``narrate --send``; tests replace it with a fake."""
+    return UrllibTransport()
+
+
+def _sleep(seconds: float) -> None:
+    time.sleep(seconds)
+
+
+def _send(plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, directory: Path) -> tuple[int, int]:
+    """Send the chapters in order and write each completed one to ``responses/NN.json``; the first failure stops the
+    run. Returns the number of chapters completed and the exit code."""
+    responses = directory / "responses"
+    count = len(plan.chapters)
+    try:
+        responses.mkdir(exist_ok=True)
+        _remove_stale(responses, {_chapter_file(planned.index, count) for planned in plan.chapters})
+    except OSError as error:
+        return 0, _output_failed(responses, error)
+    transport = _transport()
+    for planned in plan.chapters:
+        request = completion_request(planned.request, settings)
+        try:
+            completion = complete(request, target, transport, sleep=_sleep, chapter=planned.index)
+        except ProviderError as error:
+            logger.info(
+                "narrate send failed %s",
+                fields(chapter=planned.index, provider=target.provider, kind=error.kind, status=error.status),
+            )
+            print(f"tinarrative narrate: chapter {planned.index}: {target.provider}: {error}", file=sys.stderr)
+            return planned.index - 1, EXIT_PROVIDER_ERROR
+        if completion.finish in ("length", "refused"):
+            reason = (
+                f"the completion stopped at max_output_tokens {request.max_output_tokens}; raise "
+                "narrator.max_output_tokens or give --max-output-tokens"
+                if completion.finish == "length"
+                else "the model refused the request"
+            )
+            logger.info(
+                "narrate send failed %s",
+                fields(chapter=planned.index, provider=target.provider, finish=completion.finish),
+            )
+            print(f"tinarrative narrate: chapter {planned.index}: {target.provider}: {reason}", file=sys.stderr)
+            return planned.index - 1, EXIT_PROVIDER_ERROR
+        record = {
+            "index": planned.index,
+            "request_sha256": planned.request_sha256,
+            "provider": target.provider,
+            "model": request.model,
+            "max_output_tokens": request.max_output_tokens,
+            "temperature": request.temperature,
+            "reported_model": completion.model,
+            "finish": completion.finish,
+            "estimate": planned.estimate,
+            "input_tokens": completion.input_tokens,
+            "output_tokens": completion.output_tokens,
+            "text": completion.text,
+        }
+        path = responses / _chapter_file(planned.index, count)
+        try:
+            path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
+        except OSError as error:
+            return planned.index - 1, _output_failed(path, error)
+        logger.info(
+            "narrate sent %s",
+            fields(
+                chapter=planned.index,
+                provider=target.provider,
+                finish=completion.finish,
+                input_tokens=completion.input_tokens,
+                output_tokens=completion.output_tokens,
+                estimate=planned.estimate,
+                characters=len(completion.text),
+            ),
+        )
+        sys.stdout.write(_render_sent(planned, completion.finish, completion.input_tokens, completion.output_tokens))
+        sys.stdout.flush()
+    sys.stdout.write(f"Wrote {_count(count, 'response')} to {responses}.\n")
+    sys.stdout.flush()
+    return count, EXIT_SUCCESS
+
+
+def _render_sent(planned: PlannedChapter, finish: str, input_tokens: int | None, output_tokens: int | None) -> str:
+    used = (
+        f"{'?' if input_tokens is None else input_tokens} input and "
+        f"{'?' if output_tokens is None else output_tokens} output tokens"
+    )
+    return f"- {planned.index} sent: {finish}, {used} (estimate {planned.estimate})\n"
+
+
+def _output_failed(path: Path, error: OSError) -> int:
+    logger.debug("output failed %s", fields(output=safe_path(path), error=type(error).__name__))
+    print(f"tinarrative narrate: cannot write {path}: {error.strerror or error}", file=sys.stderr)
+    return EXIT_OUTPUT_ERROR
 
 
 def _read_package(source: str) -> object | int:
@@ -650,17 +814,26 @@ def _write_narration(directory: Path, plan: ChapterPlan) -> None:
     """``plan.json`` and ``requests/NN.json``; numbered requests left from a longer plan are removed."""
     requests = directory / "requests"
     requests.mkdir(parents=True, exist_ok=True)
-    width = max(2, len(str(len(plan.chapters))))
     written: set[str] = set()
     for planned in plan.chapters:
-        name = f"{planned.index:0{width}d}.json"
+        name = _chapter_file(planned.index, len(plan.chapters))
         (requests / name).write_text(render_request(planned.request), encoding="utf-8", newline="\n")
         written.add(name)
-    for stale in sorted(requests.glob("*.json")):
-        if stale.stem.isdigit() and stale.name not in written:
-            stale.unlink()
+    _remove_stale(requests, written)
     text = json.dumps(plan.to_dict(), ensure_ascii=False, indent=2) + "\n"
     (directory / "plan.json").write_text(text, encoding="utf-8", newline="\n")
+
+
+def _chapter_file(index: int, count: int) -> str:
+    """A chapter's request or response file name: two digits, more when there are more chapters."""
+    return f"{index:0{max(2, len(str(count)))}d}.json"
+
+
+def _remove_stale(directory: Path, kept: set[str]) -> None:
+    """Remove the numbered files of ``directory`` that are not ``kept``; other files are left alone."""
+    for stale in sorted(directory.glob("*.json")):
+        if stale.stem.isdigit() and stale.name not in kept:
+            stale.unlink()
 
 
 def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
@@ -1036,7 +1209,9 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
 
 
 def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Cut a campaign's narrator package into chapters under a token budget and build their LLM requests."
+    summary = (
+        "Cut a campaign's narrator package into chapters under a token budget, build their LLM requests and send them."
+    )
     parser = subcommands.add_parser(
         "narrate",
         help=summary,
@@ -1045,13 +1220,17 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
             "--format json' builds it, or read with --package. Each chapter is a run of whole periods whose "
             "estimated request stays within narrator.max_input_tokens; it carries the developments that start in "
             "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
-            "Nothing is sent: with --output the plan and one request per chapter are written."
+            "With --output the plan and one request per chapter are written. Nothing is sent without --send; with "
+            "it, the requests (and so the campaign) go to the configured provider, a third party unless it runs "
+            "locally."
         ),
         epilog=(
             "Exit codes: 0 success; 2 usage error (including --package with save paths, --campaign or "
-            "--min-significance, a package with no interval, or a single interval over the token budget); "
+            "--min-significance, a package with no interval, a single interval over the token budget, an unknown "
+            "--profile, or --send without --output, provider, model or API key, or over the context window); "
             "4 a save or the package cannot be read; 5 a save is not a supported save, or the package is not "
-            "valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot be written."
+            "valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot be written; "
+            "10 a provider request failed, or a completion stopped at its output limit or was refused."
         ),
     )
     parser.add_argument(
@@ -1108,12 +1287,31 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         help="Write plan.json and requests/NN.json here; without it only the plan summary is printed.",
     )
     parser.add_argument(
+        "--send",
+        action="store_true",
+        help=(
+            "Send each chapter request to the provider and write responses/NN.json under --output. This hands the "
+            "campaign to the provider, a third party unless it runs locally."
+        ),
+    )
+    parser.add_argument(
+        "--profile",
+        metavar="NAME",
+        help="Apply the settings profile [narrator.profiles.NAME] over the [narrator] keys.",
+    )
+    parser.add_argument("--provider", choices=PROVIDERS, help="Override narrator.provider.")
+    parser.add_argument("--model", help="Override narrator.model (there is no default model).")
+    parser.add_argument("--base-url", metavar="URL", help="Override narrator.base_url.")
+    parser.add_argument("--max-input-tokens", type=int, metavar="TOKENS", help="Override narrator.max_input_tokens.")
+    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override narrator.max_output_tokens.")
+    parser.add_argument("--temperature", type=float, help="Override narrator.temperature.")
+    parser.add_argument(
         "--config",
         type=Path,
         metavar="FILE",
         help=(
-            f"A TOML settings file: the narrative rules and the [narrator] budget (default: ${CONFIG_ENV_VAR} if set, "
-            "else the built-in defaults; see docs/configuration.md)."
+            f"A TOML settings file: the narrative rules, and the [narrator] budget, provider and profiles (default: "
+            f"${CONFIG_ENV_VAR} if set, else the built-in defaults; see docs/configuration.md)."
         ),
     )
     parser.set_defaults(handler=_run_narrate)
