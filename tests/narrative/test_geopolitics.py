@@ -372,6 +372,9 @@ def test_metric_shifts_are_attributes_citing_the_shift_events_and_never_constitu
         "before": 5.0,
         "after": 3.0,
         "relative_change": 0.4,
+        "not_before": K0,
+        "date": K1,
+        "date_basis": "interval",
         "causes": FrozenMap((("democracyReason_Test", -2.0),)),
         "events": (first.id,),
     }
@@ -491,6 +494,40 @@ def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> 
     assert describe_event(lifecycle) == (
         "Union (federation:60) members [Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
     )
+
+
+def test_a_federation_lifecycle_attaches_a_members_shifts_only_from_its_membership() -> None:
+    situations = [
+        situation(K0, federations=[federation_row(UNION, [NORTH])]),
+        situation(K1, federations=[federation_row(UNION, [NORTH])]),
+        situation(K2, federations=[federation_row(UNION, [NORTH, SOUTH])]),
+        situation(K3, federations=[federation_row(UNION, [NORTH])]),
+    ]
+    joined = federation_event("federation.members_changed", K2, SOUTH)
+    left = federation_event("federation.members_changed", K3, SOUTH, "removed")
+    stream = [joined, left, shift(K1, "GDP", SOUTH), shift(K2, "GDP", SOUTH), shift(K3, "GDP", SOUTH)]
+
+    lifecycle = only(built(stream, situations), "federation.lifecycle")
+
+    (entry,) = lifecycle.attribute("metric_shifts")  # type: ignore[misc]
+    assert dict(entry.items)["events"] == (stream[3].id, stream[4].id)  # the K1 shift predates the membership
+    assert dict(entry.items)["not_before"] == K1
+
+
+def test_a_federation_lifecycle_leaves_out_shifts_from_before_a_member_joined() -> None:
+    situations = [
+        situation(K0, federations=[federation_row(UNION, [NORTH])]),
+        situation(K1, federations=[federation_row(UNION, [NORTH])]),
+        situation(K2, federations=[federation_row(UNION, [NORTH, SOUTH])]),
+        situation(K3, federations=[federation_row(UNION, [NORTH, SOUTH])]),
+    ]
+    joined = federation_event("federation.members_changed", K2, SOUTH)
+    renamed = [federation_event("federation.renamed", K1), federation_event("federation.renamed", K3)]
+    early, late = shift(K1, "GDP", SOUTH), shift(K3, "GDP", SOUTH)
+
+    lifecycle = only(built([joined, *renamed, early, late], situations), "federation.lifecycle")
+
+    assert shift_ids(lifecycle) == [late.id]
 
 
 def test_a_federation_without_its_anchor_is_no_lifecycle() -> None:

@@ -195,6 +195,12 @@ because rules build on inferred events. The geopolitical rules of
 `war.arc`, `federation.lifecycle`, `nation.expansion`, `nation.cession`, `nation.release` /
 `nation.breakaway`, `nation.claims_declared` and `nation.transformation`. Each carries the nation
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
+A `metric_shifts` entry has `nation`, `statistic`, `key` (public opinion only), `before` (the earliest
+shift's value), `after` (the latest's), the unsigned `relative_change`, `not_before` (the earlier save of the
+earliest shift), `date` and `date_basis` (the later save of the latest shift: the net change happened between
+`not_before` and `date`), the summed per-reason `causes` when the shifts carry them, and the shift `events` by ID.
+`federation.lifecycle` counts a member's shifts only in the intervals in which it was a member at either end, so
+the interval of a join or leave counts and earlier or later ones do not.
 The space rules are implemented too: `faction.space_campaign`, `faction.colonisation_wave`,
 `campaign.first_milestone`, `faction.fleet_buildup` and `technology.milestone` (the last from a curated
 list of template names, which is interpretation; each name carries the significance tier of both the

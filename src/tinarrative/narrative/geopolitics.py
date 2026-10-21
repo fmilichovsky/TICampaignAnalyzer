@@ -22,7 +22,7 @@ framing: that stays with the narrator (architecture 20).
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from ..config import GeopoliticsSettings
@@ -142,20 +142,27 @@ def _literal(value: Observed) -> FieldValue:
 
 
 def metric_shifts(
-    stream: Iterable[Event], nations: Iterable[EntityId], intervals: Iterable[str]
+    stream: Iterable[Event],
+    nations: Iterable[EntityId],
+    intervals: Iterable[str],
+    windows: Mapping[EntityId, Collection[str]] | None = None,
 ) -> tuple[FrozenMap, ...]:
     """The ``nation.statistic_shifted`` events of ``nations`` in ``intervals``, one entry per nation, statistic and key.
 
     An entry holds ``nation``, ``statistic``, ``key`` (public opinion only), ``before`` (the earliest shift's value),
-    ``after`` (the latest shift's), the unsigned ``relative_change`` between them, the summed per-reason ``causes``
-    when the shifts carry them, and the shift ``events`` by ID. The net covers the reported shifts only: an interval
-    in between whose change stayed below the analyzer's threshold is not reported.
+    ``after`` (the latest shift's), the unsigned ``relative_change`` between them, ``not_before`` (the earliest shift's)
+    and ``date`` with its ``date_basis`` (the latest shift's), which bound when the net change happened, the summed
+    per-reason ``causes`` when the shifts carry them, and the shift ``events`` by ID. The net covers the reported
+    shifts only: an interval in between whose change stayed below the analyzer's threshold is not reported.
+    ``windows`` limits a nation to its own intervals; a nation without a window keeps all of ``intervals``.
     """
     wanted, keys = set(nations), set(intervals)
     groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
     for event in stream:
         nation = subject_id(event)
         if event.event_type != STATISTIC_SHIFTED or nation not in wanted or interval_of(event.id) not in keys:
+            continue
+        if windows is not None and nation in windows and interval_of(event.id) not in windows[nation]:
             continue
         key = event.attribute("key")
         groups[(nation, str(event.attribute("statistic")), key if isinstance(key, str) else "")].append(event)
@@ -171,6 +178,9 @@ def metric_shifts(
             ("before", before),
             ("after", after),
             ("relative_change", relative),
+            ("not_before", _literal(shifts[0].not_before)),
+            ("date", _literal(shifts[-1].date)),
+            ("date_basis", shifts[-1].date_basis.value),
             ("events", tuple(event.id for event in shifts)),
         ]
         if key:
@@ -367,6 +377,25 @@ def _holds_executive_only(situations: Sequence[SituationReport], nation_id: Enti
     return isinstance(held, int) and held < nation.control_points
 
 
+def _membership_windows(
+    reports: Mapping[str, tuple[SituationReport, SituationReport]], federation_id: EntityId, nations: Iterable[EntityId]
+) -> dict[EntityId, set[str]]:
+    """The intervals in which each nation was a member of the federation at either end of the interval.
+
+    The interval of a join or leave counts, as the change happened somewhere inside it; intervals wholly before a
+    join or after a leave do not.
+    """
+    windows: dict[EntityId, set[str]] = {nation: set() for nation in nations}
+    for key, pair in reports.items():
+        for report in pair:
+            for item in report.federations:
+                if item.federation.entity_id == federation_id:
+                    for member in _members(item.members):
+                        if member in windows:
+                            windows[member].add(key)
+    return windows
+
+
 @dataclass(frozen=True)
 class FederationLifecycleRule:
     """``federation.lifecycle``: a federation's formation, member changes, renames and dissolution, by its ID.
@@ -387,6 +416,7 @@ class FederationLifecycleRule:
         types = ("federation.appeared", "federation.members_changed", "federation.renamed", "federation.disappeared")
         by_federation = by_subject(by_type(stream, *types))
         first = {item.federation.entity_id for item in situations[0].federations} if situations else set()
+        reports = interval_reports(situations)
         built = []
         for federation_id in sorted_keys(by_federation):
             events = sorted(by_federation[federation_id], key=event_order)
@@ -413,6 +443,7 @@ class FederationLifecycleRule:
             )
             members = {ref.entity_id for ref in initial} | {ref.entity_id for ref in final}
             members |= {ref.entity_id for event in events for ref in event.entities[1:]}
+            windows = _membership_windows(reports, federation_id, members)
             federation = events[0].entities[0]
             built.append(
                 build.event(
@@ -425,7 +456,7 @@ class FederationLifecycleRule:
                         ("members_initial", initial),
                         ("member_changes", changes),
                         ("members_final", final),
-                        ("metric_shifts", metric_shifts(stream, members, intervals_of(events))),
+                        ("metric_shifts", metric_shifts(stream, members, intervals_of(events), windows)),
                     ),
                     anchor=federation,
                     significance=Significance.MAJOR,
