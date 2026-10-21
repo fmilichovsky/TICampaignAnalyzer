@@ -50,13 +50,27 @@ def make(
     )
 
 
-def outcome(key: str, killer: EntityRef = UNION, victim: EntityRef = ALIENS, **counts: int) -> Event:
+def outcome(
+    key: str, killer: EntityRef = UNION, victim: EntityRef = ALIENS, constituents: Sequence[Event] = (), **counts: int
+) -> Event:
     values = {"habs_lost": 0, "fleets_lost": 1, "combats_won": 1, "combats_lost": 0, **counts}
+    return replace(
+        make(
+            f"faction.battle_outcome/{killer.entity_id}/{victim.entity_id}",
+            key,
+            [killer, victim],
+            [("victim", victim), ("faction_kinds", FrozenMap(((str(victim.entity_id), "alien"),))), *values.items()],
+        ),
+        constituents=tuple(event.id for event in constituents),
+    )
+
+
+def combat(key: str, number: int, *sides: EntityRef) -> Event:
     return make(
-        f"faction.battle_outcome/{killer.entity_id}/{victim.entity_id}",
+        f"faction.combat_recorded/{number}",
         key,
-        [killer, victim],
-        [("victim", victim), ("faction_kinds", FrozenMap(((str(victim.entity_id), "alien"),))), *values.items()],
+        sides,
+        [("sides", tuple((side, "") for side in sides))],
     )
 
 
@@ -128,6 +142,45 @@ def test_outcomes_of_one_pair_form_a_campaign_with_summed_counts() -> None:
     assert campaign.significance is Significance.MAJOR
     assert habs.id in campaign.constituents and lost_fleet.id in campaign.constituents
     assert "Luna" in describe_event(campaign) and "the aliens" in describe_event(campaign)
+
+
+def test_bodies_include_habs_known_only_through_a_destruction_entry() -> None:
+    direct = make(
+        "hab.destroyed/hab:9",
+        K1,
+        [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION],
+        [("body", LUNA), ("ambiguous", False)],
+    )
+    entry = make(
+        "faction.hab_destruction_recorded/16/0",
+        K1,
+        [ALIENS, MARS, UNION],
+        [("space_body", MARS), ("destroyer", UNION)],
+    )
+
+    [campaign] = of_type(
+        built([outcome(K1, habs_lost=2, constituents=[entry]), direct, entry]), "faction.space_campaign"
+    )
+
+    assert campaign.attribute("bodies") == (LUNA, MARS)
+    assert [ref_.entity_id.key for role, ref_ in campaign.roles if role is Role.BODY] == ["1", "2"]
+    assert entry.id in campaign.constituents
+
+
+def test_the_two_campaigns_of_a_pair_name_each_other() -> None:
+    shared = combat(K1, 1, UNION, ALIENS)
+    forward = outcome(K1, UNION, ALIENS)
+    backward = outcome(K1, ALIENS, UNION, fleets_lost=0, combats_won=0, combats_lost=1)
+    third = outcome(K1, ACADEMY, ALIENS)
+
+    campaigns = {
+        (c.roles[0][1].entity_id.key, c.roles[1][1].entity_id.key): c
+        for c in of_type(built([forward, backward, third, shared]), "faction.space_campaign")
+    }
+
+    assert campaigns[("15", "16")].attribute("mirror") == campaigns[("16", "15")].id
+    assert campaigns[("16", "15")].attribute("mirror") == campaigns[("15", "16")].id
+    assert "mirror" not in dict(campaigns[("17", "16")].attributes)
 
 
 def test_a_gap_beyond_the_campaign_window_splits_the_campaign() -> None:

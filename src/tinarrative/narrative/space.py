@@ -47,6 +47,7 @@ TECHNOLOGY_MILESTONE = "technology.milestone"
 
 BATTLE_OUTCOME = "faction.battle_outcome"
 HAB_DESTROYED = "hab.destroyed"
+DESTRUCTION_RECORDED = "faction.hab_destruction_recorded"
 COMBAT_RECORDED = "faction.combat_recorded"
 BATTLE_NOTIFICATION = "notification.LogSpaceBattleTakesPlace"
 FLEET_DISAPPEARED = "fleet.disappeared"
@@ -93,9 +94,13 @@ class SpaceCampaignRule:
     Anchors are ``faction.battle_outcome`` events of one killer and victim pair; those within the campaign gap of the
     previous one are one campaign. Attached, within the anchor intervals: the pair's ``hab.destroyed`` events (not an
     ambiguous one, whose destroyer is unsure), ``faction.combat_recorded`` between the two, battle notifications
-    about a fleet the victim lost or that name either faction, and the victim's ``fleet.disappeared``. Counts are
-    summed from the outcomes, never recounted from the attached events, so nothing is counted twice. The victim's
-    ``kind`` is carried when known so a line can say it was the aliens. Open while a later save could continue it.
+    about a fleet the victim lost or that name either faction, and the victim's ``fleet.disappeared``. The outcomes'
+    own ``faction.hab_destruction_recorded`` entries are attached too, so ``bodies`` covers every hab loss the
+    campaign counts, whether or not it joined a ``hab.destroyed``. Counts are summed from the outcomes, never
+    recounted from the attached events, so nothing is counted twice. The two campaigns of a pair (A against B, B
+    against A) share their combats, each counted from its own actor's side; they name each other in ``mirror``.
+    The victim's ``kind`` is carried when known so a line can say it was the aliens. Open while a later save could
+    continue it.
     """
 
     settings: SpaceSettings
@@ -115,11 +120,11 @@ class SpaceCampaignRule:
             killer = subject(outcome)
             if killer is not None and victim is not None:
                 pairs.setdefault((killer.entity_id, victim.entity_id), []).append(outcome)
-        built = []
+        built: list[tuple[tuple[EntityId, EntityId], Event]] = []
         for pair in sorted(pairs, key=lambda item: (item[0].sort_key, item[1].sort_key)):
             for run in chained(pairs[pair], self.settings.campaign_gap_days):
-                built.append(self._campaign(stream, situations, build, pair, run))
-        return built
+                built.append((pair, self._campaign(stream, situations, build, pair, run)))
+        return [_with_mirror(event, pair, built) for pair, event in built]
 
     def _campaign(
         self,
@@ -169,8 +174,13 @@ class SpaceCampaignRule:
                 or any(ref.entity_id in pair for ref in event.entities)
             )
         ]
-        constituents = _dedupe([*run, *habs, *combats, *notices, *fleets])
-        bodies = unique_refs(ref for ref in (ref_attribute(hab, "body") for hab in habs) if ref is not None)
+        cited = {constituent for outcome in run for constituent in outcome.constituents}
+        entries = [event for event in by_type(stream, DESTRUCTION_RECORDED) if event.id in cited]
+        constituents = _dedupe([*run, *habs, *entries, *combats, *notices, *fleets])
+        located = [ref_attribute(hab, "body") for hab in habs] + [
+            ref_attribute(entry, "space_body") for entry in entries
+        ]
+        bodies = unique_refs(ref for ref in located if ref is not None)
         start, end = earliest(run[0]), max((date for date in map(latest, run) if date), default=None)
         kind = _kind(run[0], victim)
         return build.event(
@@ -193,6 +203,17 @@ class SpaceCampaignRule:
             significance=Significance.MAJOR,
             open=within(end, last_date(situations), self.settings.campaign_gap_days),
         )
+
+
+def _with_mirror(
+    campaign: Event, pair: tuple[EntityId, EntityId], built: Sequence[tuple[tuple[EntityId, EntityId], Event]]
+) -> Event:
+    """The campaign with ``mirror`` naming the opposite campaign of the pair that shares a combat with it."""
+    combats = {cid for cid in campaign.constituents if cid.startswith(f"{COMBAT_RECORDED}/")}
+    for other_pair, other in built:
+        if other_pair == (pair[1], pair[0]) and combats & set(other.constituents):
+            return replace(campaign, attributes=(*campaign.attributes, ("mirror", other.id)))
+    return campaign
 
 
 def _side_ids(event: Event) -> set[EntityId]:
