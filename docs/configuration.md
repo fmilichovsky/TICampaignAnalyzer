@@ -1,11 +1,13 @@
 # Configuration
 
-The narrative rules' thresholds and windows are runtime settings with built-in defaults
-(`src/tinarrative/config.py`). They change what `events --narrative` builds and nothing else.
+The narrative rules' thresholds and windows, and the budget of `narrate`'s chapter planner, are
+runtime settings with built-in defaults (`src/tinarrative/config.py`). The `narrative` tables change
+what `events --narrative` (and `narrate` from saves) builds and nothing else; the `narrator` table
+changes how `narrate` cuts and requests a package, and never what `events` builds.
 
 ## Where settings come from
 
-1. `--config <file>` on the command (`events`);
+1. `--config <file>` on the command (`events`, `narrate`);
 2. else the file named by the `TINARRATIVE_CONFIG` environment variable (an empty value counts as
    unset);
 3. else the defaults.
@@ -21,6 +23,9 @@ other key keeps its default.
 [narrative.geopolitics]
 top_gdp_nations = 5
 expansion_gap_days = 730
+
+[narrator]
+max_input_tokens = 32000
 ```
 
 [`configuration.example.toml`](configuration.example.toml) lists every key at its default, with
@@ -48,14 +53,26 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.space.colonisation_window_days` | 180 | 0 | First habs on new bodies of one faction this soon after the first form one `faction.colonisation_wave`. |
 | `narrative.space.buildup_min_ships` | 5 | 2 | A `faction.fleet_buildup` needs at least this many ships of one hull appearing for one faction in one interval. |
 
-The evidence behind the defaults is in
+The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](architecture.md#203-token-budget-and-chapters)):
+
+| Key | Default | Minimum | Meaning |
+| --- | --- | --- | --- |
+| `narrator.max_input_tokens` | 200000 | 1000 | One request's estimated input, system prompt, request block and chapter package together, stays within this many tokens. |
+| `narrator.chars_per_token` | 3 | 1 | The estimate divides the request's characters by this; a lower value is more conservative. |
+| `narrator.quarter_span_days` | 730 | 0 | A campaign spanning this many game days or fewer is told by quarter (unless `--period` is given). |
+| `narrator.half_span_days` | 1825 | 0 | A longer campaign spanning this many game days or fewer is told by half year; a longer one by year. |
+| `narrator.recalled_developments` | 40 | 0 | Each chapter is reminded of at most this many developments of earlier chapters (`major` and above; the most significant, then the most recent, are kept and the rest counted), so the model can refer back to them without retelling them. 0 turns the reminder off; a larger value costs input tokens in every later chapter. |
+| `narrator.top_economies` | 10 | 0 | A chapter's situation reports keep the nations the chapter references and this many more, the largest by `GDP`. |
+
+The evidence behind the narrative rules' defaults is in
 [sources for higher-level events](game-data-notes/higher-level-event-sources.md)
 (*Narrative rules (geopolitics)* and *Narrative rules (space)*).
 
 ## Reproducibility
 
-`events --format json --narrative` records the effective settings, every key included, as
-`settings`. The Markdown narrative section names every key that differs from its default.
+`events --format json --narrative` records the effective `narrative` settings, every key included,
+as `settings`. The Markdown narrative section names every `narrative` key that differs from its
+default. `narrate --output` records the `narrator` settings in `plan.json`.
 
 ## Errors
 

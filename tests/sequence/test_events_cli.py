@@ -156,7 +156,7 @@ def test_json_report_lists_narrative_events_only_when_asked(
         "nation.claims_declared",
         "nation.cession",
     ]
-    assert narrative["settings"] == DEFAULT_SETTINGS.to_dict()
+    assert narrative["settings"] == {"narrative": DEFAULT_SETTINGS.to_dict()["narrative"]}
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
 
 

@@ -1,11 +1,13 @@
-"""Runtime settings: the thresholds and windows of the narrative rules, with their defaults in code.
+"""Runtime settings: the thresholds and windows of the narrative rules and the narrator's budget, with their defaults
+in code.
 
 A settings file is TOML whose tables mirror the dataclasses below (``[narrative.geopolitics]``,
-``[narrative.space]``); a file names only the keys it changes, and every other key keeps its default. Validation
-is strict: an unknown table or key, a value of the wrong type (``bool`` is not an integer here) or a value below
-its minimum is a ``ConfigError``. The CLI resolves the file from ``--config``, then ``CONFIG_ENV_VAR``, then uses
-``DEFAULT_SETTINGS`` (``docs/configuration.md``). Each default states its rule; the evidence behind it is in the
-game-data notes (``higher-level-event-sources.md``, *Narrative rules (geopolitics)* and *Narrative rules (space)*).
+``[narrative.space]``, ``[narrator]``); a file names only the keys it changes, and every other key keeps its
+default. Validation is strict: an unknown table or key, a value of the wrong type (``bool`` is not an integer here)
+or a value below its minimum is a ``ConfigError``. The CLI resolves the file from ``--config``, then
+``CONFIG_ENV_VAR``, then uses ``DEFAULT_SETTINGS`` (``docs/configuration.md``). Each default states its rule; the
+evidence behind the narrative rules' defaults is in the game-data notes (``higher-level-event-sources.md``,
+*Narrative rules (geopolitics)* and *Narrative rules (space)*).
 """
 
 from __future__ import annotations
@@ -71,8 +73,32 @@ class NarrativeSettings:
 
 
 @dataclass(frozen=True)
+class NarratorSettings:
+    """The chapter planner of ``tinarrative narrate`` (``narrator``, architecture 20.3); never changes what ``events``
+    builds."""
+
+    max_input_tokens: int = _int(200_000, 1_000)
+    """The estimated input of one request, system prompt, request block and chapter package together, stays within
+    this many tokens."""
+    chars_per_token: int = _int(3, 1)
+    """The estimate divides the serialized request's characters by this; a low value is conservative."""
+    quarter_span_days: int = _int(730, 0)
+    """A campaign spanning this many game days or fewer is told by quarter."""
+    half_span_days: int = _int(1825, 0)
+    """A longer campaign spanning this many game days or fewer is told by half year, a longer one by year."""
+    recalled_developments: int = _int(40, 0)
+    """Each chapter is reminded of at most this many developments of earlier chapters (``major`` and above, the most
+    significant and then the most recent kept, the rest counted), so the model can refer back without retelling
+    them; 0 turns the reminder off."""
+    top_economies: int = _int(10, 0)
+    """A chapter's situation reports keep the nations the chapter references and this many more, the largest by
+    ``GDP``."""
+
+
+@dataclass(frozen=True)
 class Settings:
     narrative: NarrativeSettings = field(default_factory=NarrativeSettings)
+    narrator: NarratorSettings = field(default_factory=NarratorSettings)
 
     def to_dict(self) -> dict[str, Any]:
         """The settings as nested tables, every key included."""

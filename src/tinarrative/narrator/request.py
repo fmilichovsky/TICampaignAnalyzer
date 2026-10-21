@@ -13,8 +13,12 @@ from collections.abc import Mapping, Sequence
 from importlib import resources
 from typing import Any
 
-# The request block lists its keys in this order and only the ones that are set.
-REQUEST_KEYS = ("period", "audience", "citations", "style", "length", "focus")
+# The request block lists its keys in this order and only the ones that are set; the first three are set by the
+# chapter planner only.
+REQUEST_KEYS = ("chapter", "part", "covers", "period", "audience", "citations", "style", "length", "focus")
+AUDIENCES = ("public", "insider")
+CITATIONS = ("footnotes", "none")
+STYLES = ("chronicle", "headlines")
 
 
 def system_prompt() -> str:
@@ -44,3 +48,8 @@ def build_request(
     body = json.dumps(package, ensure_ascii=False, separators=(",", ":"))
     content = (f"{block}\n\n" if block else "") + f"The narrator package follows.\n\n```json\n{body}\n```\n"
     return {"system": system_prompt(), "messages": [{"role": "user", "content": content}]}
+
+
+def render_request(request: Mapping[str, Any]) -> str:
+    """The text a request is written as: indented JSON with a trailing newline."""
+    return json.dumps(request, ensure_ascii=False, indent=2) + "\n"

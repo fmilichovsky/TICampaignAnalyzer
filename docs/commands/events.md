@@ -8,7 +8,8 @@ Reads two or more saves, given as files, directories or both, groups them by cam
 results of every pair of consecutive saves (architecture section 15, Mode B). Each pair is
 diffed as [`save diff`](diff.md) does, and the diff is run through every objective analyzer, the
 significance rules and, with `--inferred`, the reconstruction rules. `events` is the only command
-that runs analyzers, significance or reconstruction; given two saves it is the analyzed view of
+that reports analyzers, significance or reconstruction ([`narrate`](narrate.md) runs the same steps to build its
+package); given two saves it is the analyzed view of
 the pair, and with `--changes` it also lists the literal changes that `save diff` reports.
 
 ## Directory input
