@@ -504,6 +504,19 @@ def test_a_war_started_before_the_first_save_starts_at_its_own_start_date() -> N
     assert (arc.end, arc.end_basis) == ("2032-05-01T00:00:00", DateBasis.RECORD)
 
 
+def test_a_war_arc_leaves_out_what_closed_before_its_start_date() -> None:
+    row = war_row(WAR, [NORTH], [SOUTH], start_date="2032-08-01T00:00:00")
+    older = [shift(K1, "democracy", NORTH), war_event("war.alliance_changed", K1, entities=[NORTH, SOUTH])]
+    fighting = war_event("war.last_fighting_changed", K3, entities=[NORTH, SOUTH])
+    situations = [situation(key, wars=[row]) for key in (K0, K1, K2, K3)]
+
+    arc = only(built([*older, fighting], situations), "war.arc")
+
+    assert (arc.start, arc.start_basis) == ("2032-08-01T00:00:00", DateBasis.RECORD)
+    assert arc.intervals == (K3,)
+    assert shift_ids(arc) == []
+
+
 def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_inside_it() -> None:
     sides = war_row(WAR, [NORTH], [SOUTH, EAST])
     situations = [situation(key, wars=[sides]) for key in (K0, K1, K2)]

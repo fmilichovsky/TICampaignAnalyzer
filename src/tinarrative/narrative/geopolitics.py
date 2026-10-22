@@ -30,7 +30,7 @@ from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
-from .chronology import interval_of, interval_sort_key
+from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
 from .rulekit import (
     anchored,
     by_subject,
@@ -785,6 +785,17 @@ def _losers(gain: Event) -> tuple[EntityRef, ...]:
     return refs_attribute(gain, "counterparts")
 
 
+def _since(keys: Iterable[str], started: str | None) -> list[str]:
+    """The interval keys that do not close before the ``started`` date (all of them when it is unknown)."""
+    return [key for key in keys if (gap := days_between(started, key.partition(TIE_SEPARATOR)[0])) is None or gap >= 0]
+
+
+def _closed_before(event: Event, started: str | None) -> bool:
+    """Whether every interval of the event closes before ``started``; the event cannot belong to a war begun later."""
+    keys = intervals_of([event])
+    return bool(keys) and not _since(keys, started) and event.event_type != "war.appeared"
+
+
 @dataclass(frozen=True)
 class WarArcRule:
     """``war.arc``: a war from its start (or the first save) to its end (or the last save), joined by the war's ID.
@@ -883,6 +894,9 @@ class WarArcRule:
                 ),
                 None,
             )
+        constituents = [event for event in constituents if not _closed_before(event, started)]
+        if not constituents:
+            return None
         disappeared = next((event for event in events if event.event_type == "war.disappeared"), None)
         duration = days_between(started, None if disappeared is None else latest(disappeared))
         # An interval-dated end is the save by which the war had ended, so the span is only an upper bound; an open war
@@ -909,7 +923,7 @@ class WarArcRule:
                 ("defenders", defenders),
                 ("regions_transferred", regions),
                 ("nuclear_strikes", strikes),
-                ("metric_shifts", metric_shifts(stream, sides, intervals_of(constituents))),
+                ("metric_shifts", metric_shifts(stream, sides, _since(intervals_of(constituents), started))),
             ),
             anchor=war,
             significance=Significance.MAJOR,
