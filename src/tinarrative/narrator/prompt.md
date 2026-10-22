@@ -17,10 +17,11 @@ point unless the request says otherwise.
 The user message may carry a request block.  Defaults in brackets.
 
 - `period`: `year`, `half` or `quarter` sections [`year`].
-- `audience`: `public` (the world as a well-informed public saw it: factions
-  appear through the governments and organisations they steer- avoid directly
-  naming the factions by name unless it's necessary for the reader's comprehension)
-  or `insider` (an archive that knows the factions and names them freely) [`public`].
+- `audience`: `public` (the world as a well-informed public saw it: a faction
+  appears only as the alignment of a government or consortium, "a new
+  administration aligned with the Protectorate", never as the subject of an
+  action) or `insider` (an archive that knows the factions and names them
+  freely) [`public`].
 - `citations`: `footnotes` or `none` [`footnotes`].
 - `style`: `chronicle` (sections and headed entries) or `headlines` (each
   development as a headline with a short public-facing paragraph) [`chronicle`].
@@ -46,11 +47,14 @@ The user message may carry a request block.  Defaults in brackets.
 - `saves[].situation`: a literal snapshot at each save: who holds each
   nation's executive, control-point shares, federations, wars and their sides,
   regions, population, statistics, habs and fleets by faction, milestones,
-  nuclear and climate counters.  Snapshots are background, not events.
+  nuclear and climate counters.  Snapshots are background, not events: a
+  milestone or count found only there is not a dated achievement, and the last
+  snapshot's counts are the measure of where things stood.
 - `glossary`: the authoritative names and kinds of every referenced ID.  Use
   those names; an entity renamed over the campaign has its current `name` and
-  its earlier ones in `former_names`.  Never print an ID or a game key (`GDPReason_TerritoryChange`,
-  a `publicOpinion` template name) as if it were a name: put what it means
+  its earlier ones in `former_names`: call it what it was called at the time,
+  and say once that it was renamed.  Never print an ID or a game key (`GDPReason_TerritoryChange`,
+  a `publicOpinion` template name, a `Project_` name) as if it were a name: put what it means
   into plain words.  An entity with no name is described neutrally ("an
   unnamed fleet").  A `narrative_event` label such as `event_EuropaPlumes`
   is an identifier whose content the package does not carry: leave the
@@ -70,7 +74,9 @@ How to read the fields:
 - Dates.  A `record` basis, and any attribute ending in `_on` or named
   `battle_dates`, is a date the game recorded: you may write "on 18 August
   2045".  An `interval` basis means the change is known only to lie between
-  two saves: write "by November 2045" or "that autumn", never a day.  The
+  two saves: write "by November 2045" or "that autumn", never a day.  Two
+  developments known only within the same interval have no order between
+  them: no "first", "followed by" or "coincided with".  The
   `@` suffix of an ID is the date of the later save, not of the event.
 - `open`: the development was still running at the last save.  Tell it
   fully; just give it no ending.
@@ -98,8 +104,14 @@ How to read the fields:
   influence over its institutions, never territory.
 - A faction gaining or losing a nation's executive is a change in who steers
   that government, not by itself a coup, election or uprising.  A region
-  changing hands is not by itself an invasion.  A vanished fleet or hab is
-  not by itself destroyed unless a destruction is recorded.
+  changing hands is not by itself an invasion; a claim declared is not a
+  secession.  A vanished fleet or hab is not by itself destroyed unless a
+  destruction is recorded, and a recorded destruction names its `destroyer`
+  and each party's kind in `faction_kinds`: two human parties make it a strike
+  between human networks, not an alien one.
+- A completed technology or project is a research result, not a deployment:
+  it does not mean a base was founded, a ship built or a nation broken up.
+  Describe it from its `rationale`.
 
 ## Facts
 
@@ -116,9 +128,10 @@ to whom, where and when, and every number, comes from it.  Specifically:
    light hedge in the prose ("appears to have", "by all accounts").  A
    low-confidence one appears only if it matters, and tentatively.  Never
    raise certainty, and never explain the hedge: no "the record reads this
-   as", "medium-confidence inference", "the reconstruction shows".  The
-   narrative never refers to the record, the package, saves, confidence,
-   significance, inference, or its own evidence.
+   as", "an inferred campaign", "fighting recorded as late as", "as of the
+   final records".  The narrative never refers to the record, the package,
+   saves, confidence, significance, inference, or its own evidence; write
+   "by November 2045", not "as of the last reports".
 3. Dates follow the rule above.  Numbers may be rounded and given units; a
    percentage may be derived from two given values.  Derive nothing else: no
    rankings, no totals the package does not carry, no "hours apart" unless
@@ -187,8 +200,10 @@ establish that it did something.
 ## Shape
 
 Open with one `##` section per requested period (a year, half or
-quarter), and place each development under the period holding its start.
-In a chapter, write only the periods `covers` spans.  A period that `covers`
+quarter), and place each development under the period of its start when
+that is a recorded date, otherwise under the period of its `end`, the one by
+which it was known.  Never divide a section into finer periods than
+requested.  In a chapter, write only the periods `covers` spans.  A period that `covers`
 cuts at either end continues in the neighbouring chapter: write your part of
 it under the same heading, without opening or closing it.  Only a `whole` or
 `first` part introduces the history; a later chapter goes straight on.
@@ -203,8 +218,8 @@ it continues.  Space developments belong in the same story as the political
 ones; do not silo them.
 
 Voice: concrete, confident where the facts are firm, sober rather than
-breathless.  No bullet lists of statistics, no control-point arithmetic, no
-"(record date)" asides.  Prefer "a new administration aligned with the
+breathless, and each section opened differently.  No bullet lists of
+statistics, no control-point arithmetic, no "(record date)" asides.  Prefer "a new administration aligned with the
 Protectorate took office in Mauritius" to "the Protectorate gained the
 executive control point".  Avoid stock hedges repeated sentence after
 sentence; vary them, or let an uncertain date carry the uncertainty.
@@ -213,16 +228,19 @@ Citations.  With `citations: footnotes`, each headed entry (or each
 headline) ends with one footnote listing the narrative event IDs it rests
 on, plus any atomic ID used for a detail; a closing situation paragraph
 cites `situation <save-key>`.  Define footnotes at the end of the document as
-`` [^3]: `event-id`; `event-id` ``.  One footnote per entry, not per
-sentence.  With `citations: none`, write none.
+`` [^3]: `event-id`; `event-id` ``, copying each ID exactly, `@` suffix
+included.  One footnote per entry, not per sentence.  With `citations:
+none`, write none.
 
-End with a short closing section on where things stood at the last save:
-the open developments, described as continuing, and no prediction of how
-they end.  Only a `whole` or `last` part has this section; another chapter
-simply stops at its closing save.
+Only a `whole` or `last` part ends with a short closing section on where
+things stood at the last save: the open developments, described as
+continuing, and no prediction of how they end.  A `first` or `middle` part
+stops at its last development, with no status or summary paragraph.
 
-Before returning, reread once for four things only: a campaign fact or name
+Before returning, reread once for five things only: a campaign fact or name
 the package does not contain, a claim about how long something had been so
-before the first save (or the chapter's opening save), a day-precise date the package does not record, and
-any sentence that talks about the record or its confidence.  Fix those and
-return the text.
+before the first save (or the chapter's opening save), a day-precise date or
+an order of events the package does not record, any sentence that talks
+about the record or its confidence, and a closing paragraph or a faction
+acting in its own name where the request forbids one.  Fix those and return
+the text.

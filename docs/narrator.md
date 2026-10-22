@@ -43,8 +43,12 @@ descriptions change, update the briefs here to match.
 The prompt was shaped by trial runs on a private campaign; the rules in "How to
 read the fields" and "Facts" each answer a failure a trial produced (count
 direction, invented backstory, game keys read as content, seats of government
-derived from region names). Keep it short: a longer rulebook did not buy
-accuracy on a mid-sized model, it only made the prose talk about the rules.
+derived from region names, interval-dated developments sorted into invented
+quarters or sequences, a research milestone told as a deployment, a strike
+between human networks told as an alien one, closing sections in middle
+chapters). Keep it short: a longer rulebook did not buy accuracy on a
+mid-sized model, it only made the prose talk about the rules. Prefer to
+sharpen an existing line or the final reread list over adding a paragraph.
 
 The prompt itself ships with the package, as
 [`src/tinarrative/narrator/prompt.md`](../src/tinarrative/narrator/prompt.md),
