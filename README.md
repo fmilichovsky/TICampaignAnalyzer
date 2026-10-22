@@ -35,8 +35,8 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   `narrate` runs the same analysis to build its package.
 - [`tinarrative narrate <path>...`](docs/commands/narrate.md): cut a campaign's narrator
   package into chapters under a token budget and write one LLM request per chapter; with
-  `--send`, send them to an Anthropic, OpenAI-compatible or Ollama model and write the
-  responses.
+  `--send`, send them to an Anthropic, OpenAI-compatible or Ollama model and assemble the
+  responses into one footnoted history with a citation audit and a run manifest.
 - `tinarrative save COMMAND`: per-save evidence and debugging commands.
   - [`tinarrative save inspect <save>`](docs/commands/inspect.md): report one save's
     raw serialized structure without interpreting it.
@@ -91,8 +91,8 @@ See [the testing guide](docs/testing.md) for test and fixture conventions.
 - `narrative`: group atomic events into narrative developments; per-save situation
   reports as their context.
 - `narrator`: build the LLM requests (packaged system prompt, request block) from a narrator
-  package, cut into chapters under a token budget (`tinarrative narrate`); reads the package's
-  JSON form only.
+  package, cut into chapters under a token budget (`tinarrative narrate`), and assemble the
+  responses into a history with a citation audit; reads the package's JSON form only.
 - `rendering`: turn structured narrative output into user-facing formats.
 - `grouping`: split surveyed saves into campaigns by their continuity signals
   (`tinarrative campaigns`, `events --campaign`).

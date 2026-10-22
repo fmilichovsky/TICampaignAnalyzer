@@ -105,7 +105,7 @@ built from the developments catalogued in
   (`events --narrative --format json`, audited through the same run with
   `--inferred`), and `scripts/narrator_prompt.py` to assemble a request
   without calling an API (#104).
-- [ ] `tinarrative narrate`, designed in architecture section 20: send the
+- [x] `tinarrative narrate`, designed in architecture section 20: send the
   package to a model in chapters under a fixed token budget, behind an
   explicit flag and API key, and write the prose with the model and prompt
   version in its header:
@@ -122,7 +122,8 @@ built from the developments catalogued in
     library's HTTP client behind `--send`, the `[narrator]` settings table
     with profiles, a provider-failure exit code (#141, done);
   - assembly: `history.md` with its header, footnotes renumbered across
-    chapters, citation audit, run manifest and resume (#142).
+    chapters, citation audit, run manifest, resume and `--assemble` (#142,
+    done).
 - [ ] Narrator package gaps found by the trials:
   - [x] executive-seat semantics: the seat is the nation's `Executive`-typed
     control point, wherever it sits, with the point at `positionInNation` 0
