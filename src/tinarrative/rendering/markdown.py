@@ -33,6 +33,7 @@ _ATTRIBUTE_NAMES: Final = (
     "mode",
     "region_count",
     "duration_days",
+    "duration_days_at_most",
     "milestone",
     "hull",
     "count",

@@ -54,6 +54,20 @@ def test_a_record_dated_constituent_narrows_the_start() -> None:
     assert event.not_before == K1
 
 
+def test_a_rule_can_start_the_span_at_a_record_date_before_every_constituent() -> None:
+    event = NarrativeBuilder([]).event(
+        "nation.changed.arc",
+        id_parts=[GERMANY.entity_id],
+        constituents=[changed(K1)],
+        roles=[],
+        join=Join.ENTITY,
+        starts_on="2031-06-01T00:00:00",
+    )
+
+    assert (event.start, event.start_basis) == ("2031-06-01T00:00:00", DateBasis.RECORD)
+    assert event.not_before == "2032-01-01T00:00:00"
+
+
 def test_unknown_dates_are_skipped_and_an_undated_span_is_unknown() -> None:
     undated = changed(K1, date=Unknown(), not_before=Unknown())
     assert only([undated, changed(K2)]).start == K1

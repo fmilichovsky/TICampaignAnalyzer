@@ -135,9 +135,9 @@ built from the developments catalogued in
   - [x] `faction.space_campaign` lists as `bodies` only the bodies of its
     directly joined `hab.destroyed` events, not those of the losses its
     battle outcomes count (#126);
-  - `war.arc` `duration_days` runs to an interval-based end without saying it
-    is an upper bound, and its `start` is its first fighting record even when
-    the war's own `started_on` is earlier (#127);
+  - [x] `war.arc` states an interval-bound duration as `duration_days_at_most`,
+    and its `start` is the war's own record-dated `started_on` even when that
+    predates the first save (#127);
   - a corroborating ledger charge can set a takeover's `end` and its `record`
     basis (#128);
   - [x] `metric_shifts` entries carry `not_before`, `date` and `date_basis`, and

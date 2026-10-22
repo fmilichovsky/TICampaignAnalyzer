@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 
 import pytest
 
@@ -432,10 +433,42 @@ def test_a_war_arc_joins_its_events_by_war_id_and_states_sides_duration_and_stri
         False,
     )
     assert roles(arc) == [(Role.ACTOR, "nation:20"), (Role.ACTOR, "nation:23"), (Role.TARGET, "nation:21")]
-    assert arc.attribute("duration_days") == 243.0
+    assert arc.attribute("duration_days") is None
+    assert arc.attribute("duration_days_at_most") == 243.0
+    assert (arc.start, arc.start_basis) == ("2032-02-01T00:00:00", DateBasis.RECORD)
     assert arc.attribute("nuclear_strikes") == 4
     assert arc.attribute("war") == WAR
     assert describe_event(arc) == "war:70 between Northland (nation:20), Westland (nation:23) and Southland (nation:21)"
+
+
+def test_a_record_dated_end_gives_the_duration_and_an_open_war_gives_none() -> None:
+    row = war_row(WAR, [NORTH], [SOUTH], start_date="2032-02-01T00:00:00")
+    appeared = war_event("war.appeared", K1, entities=[NORTH, SOUTH], started_on="2032-02-01T00:00:00")
+    ended = replace(war_event("war.disappeared", K2), date="2032-05-01T00:00:00", date_basis=DateBasis.RECORD)
+
+    closed = only(built([appeared, ended], [situation(K0), situation(K1, wars=[row]), situation(K2)]), "war.arc")
+    running = only(built([appeared], [situation(K0), situation(K1, wars=[row]), situation(K2, wars=[row])]), "war.arc")
+
+    assert closed.attribute("duration_days") == 90.0
+    assert closed.attribute("duration_days_at_most") is None
+    assert running.attribute("duration_days") is None
+    assert running.attribute("duration_days_at_most") is None
+
+
+def test_a_war_started_before_the_first_save_starts_at_its_own_start_date() -> None:
+    row = war_row(WAR, [NORTH], [SOUTH], start_date="2031-11-15T00:00:00")
+    fighting = replace(
+        war_event("war.last_fighting_changed", K2, entities=[NORTH, SOUTH]),
+        date="2032-05-01T00:00:00",
+        date_basis=DateBasis.RECORD,
+    )
+    situations = [situation(K0, wars=[row]), situation(K1, wars=[row]), situation(K2, wars=[row])]
+
+    arc = only(built([fighting], situations), "war.arc")
+
+    assert arc.attribute("started_on") == "2031-11-15T00:00:00"
+    assert (arc.start, arc.start_basis) == ("2031-11-15T00:00:00", DateBasis.RECORD)
+    assert (arc.end, arc.end_basis) == ("2032-05-01T00:00:00", DateBasis.RECORD)
 
 
 def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_inside_it() -> None:

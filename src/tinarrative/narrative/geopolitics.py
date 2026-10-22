@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 from ..config import GeopoliticsSettings
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import Event, Role, Significance
+from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import interval_of, interval_sort_key
@@ -882,10 +882,12 @@ class WarArcRule:
                 ),
                 None,
             )
-        ended = next((latest(event) for event in events if event.event_type == "war.disappeared"), None)
-        is_open = bool(situations) and _war_in(situations[-1], war.entity_id)
-        until = ended if ended is not None else (last_date(situations) if is_open else None)
-        duration = days_between(started, until)
+        disappeared = next((event for event in events if event.event_type == "war.disappeared"), None)
+        duration = days_between(started, None if disappeared is None else latest(disappeared))
+        # An interval-dated end is the save by which the war had ended, so the span is only an upper bound; an open war
+        # has no length yet.
+        recorded = disappeared is not None and disappeared.date_basis is DateBasis.RECORD
+        measured = None if duration is None else round(duration, 1)
         ordered = sorted(keys, key=interval_sort_key)
         strikes = None
         if ordered:
@@ -900,7 +902,8 @@ class WarArcRule:
             attributes=(
                 ("war", war),
                 ("started_on", started),
-                ("duration_days", None if duration is None else round(duration, 1)),
+                ("duration_days", measured if recorded else None),
+                ("duration_days_at_most", None if recorded else measured),
                 ("attackers", attackers),
                 ("defenders", defenders),
                 ("regions_transferred", regions),
@@ -909,6 +912,7 @@ class WarArcRule:
             ),
             anchor=war,
             significance=Significance.MAJOR,
+            starts_on=started,
         )
 
     @staticmethod
