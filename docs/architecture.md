@@ -1113,7 +1113,9 @@ class Event:  # narrative extension, conceptual
     the maximum over the constituents.
 -   **Dating**: `start` is the earliest constituent `not_before`, `end` the
     latest constituent date, each with the basis of the event it came from;
-    a record-dated constituent narrows the span. An event whose anchor is
+    a record-dated constituent narrows the span. Corroborating-only events
+    (ledger charges) are cited but only narrow a start; they never set the
+    end. An event whose anchor is
     still present in the last save is `open`, so incremental mode (Mode D)
     can extend it instead of emitting a second one.
 -   **Roles** replace the earlier `title_hint`: the LLM or renderer needs
@@ -1166,6 +1168,9 @@ Deviations from the sketch above:
     order, or an ID it cannot see, raises `ValueError`, as do a duplicate ID
     and a reused rule name.
 -   A start tie on date prefers the record basis, and so does an end tie.
+-   Corroborating events are passed apart from the constituents. They are
+    cited and count for status, confidence and significance, but only the
+    constituents date an end.
 
 ## 11.3 First catalogue
 
@@ -1321,11 +1326,13 @@ the later snapshot inside the window, never from diff presence; (3) the
 `faction.transaction_recorded` event is `minor` and cited only as
 corroboration of an event whose effect is already evidenced, within a
 window from the entry date to about four weeks later, never after the
-effect; (4) attribution only when exactly one faction's ledger carries the
+effect, and as corroboration it may narrow a span's start but never sets
+its end; (4) attribution only when exactly one faction's ledger carries the
 label in the window and that faction is the visible beneficiary, otherwise
 `candidates` and no attribution, as for `hab.destroyed`; (5) record-dating
 only in that single-candidate case; (6) confidence never above medium on
-ledger evidence alone (the atomic `faction.transaction_recorded` event
+ledger evidence alone (a charge names no target, so one charge may
+corroborate takeovers in several nations and identifies none of them; the atomic `faction.transaction_recorded` event
 records a literal entry and is itself high confidence; the cap binds the
 narrative events that cite it); (7) `Unrest` entries are cross-checked
 against `factionUnrestAttempts` before either is trusted. The analyzer

@@ -68,6 +68,26 @@ def test_a_rule_can_start_the_span_at_a_record_date_before_every_constituent() -
     assert event.not_before == "2032-01-01T00:00:00"
 
 
+def test_a_corroborating_event_is_cited_and_may_narrow_the_start_but_never_sets_the_end() -> None:
+    anchor = changed(K2)
+    charge = atomic("nation.charge", K2, date=K2, date_basis=DateBasis.RECORD, entities=(GERMANY,))
+    early = atomic("nation.charge", K1, date="2032-03-20T00:00:00", date_basis=DateBasis.RECORD, entities=(GERMANY,))
+
+    event = NarrativeBuilder([]).event(
+        "nation.changed.arc",
+        id_parts=[GERMANY.entity_id],
+        constituents=[anchor],
+        corroborating=[charge, early],
+        roles=[],
+        join=Join.ENTITY,
+    )
+
+    assert (event.end, event.end_basis) == (anchor.date, anchor.date_basis)
+    assert event.end_basis is not DateBasis.RECORD
+    assert (event.start, event.start_basis) == ("2032-03-20T00:00:00", DateBasis.RECORD)
+    assert set(event.constituents) == {anchor.id, charge.id, early.id}
+
+
 def test_unknown_dates_are_skipped_and_an_undated_span_is_unknown() -> None:
     undated = changed(K1, date=Unknown(), not_before=Unknown())
     assert only([undated, changed(K2)]).start == K1

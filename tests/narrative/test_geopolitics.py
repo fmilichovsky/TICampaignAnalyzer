@@ -341,6 +341,39 @@ def test_a_mission_charge_corroborates_only_when_the_faction_is_the_only_candida
     assert takeover.confidence is Confidence.MEDIUM
 
 
+def test_a_charge_at_the_interval_end_corroborates_without_setting_the_takeovers_end() -> None:
+    anchor = control(K2, "executive", RESISTANCE, SERVANTS)
+    at_end = charge(K2, SERVANTS, "Crackdown", K2)
+
+    takeover = only(built([anchor, at_end], plain(K0, K1, K2)), "faction.takeover")
+
+    assert at_end.id in takeover.constituents
+    assert (takeover.end, takeover.end_basis) == (anchor.date, anchor.date_basis)
+    assert takeover.end_basis is not DateBasis.RECORD
+
+
+def test_a_charge_is_listed_once_when_several_anchors_reach_it() -> None:
+    first = control(K1, "executive", RESISTANCE, SERVANTS)
+    second = control(K2, "executive", RESISTANCE, SERVANTS)
+    near = charge(K1, SERVANTS, "Coup", "2032-03-25T00:00:00")
+
+    takeover = only(built([first, second, near], plain(K0, K1, K2)), "faction.takeover")
+
+    assert takeover.constituents.count(near.id) == 1
+
+
+def test_one_untargeted_charge_may_corroborate_takeovers_of_two_nations_without_dating_either_end() -> None:
+    north = control(K2, "executive", RESISTANCE, SERVANTS)
+    south = control(K2, "executive", RESISTANCE, SERVANTS, subject=SOUTH)
+    at_end = charge(K2, SERVANTS, "Crackdown", K2)
+
+    takeovers = of_type(built([north, south, at_end], plain(K0, K1, K2)), "faction.takeover")
+
+    assert len(takeovers) == 2
+    assert all(at_end.id in t.constituents for t in takeovers)
+    assert all(t.end_basis is not DateBasis.RECORD for t in takeovers)
+
+
 def test_precursors_are_the_factions_unrest_attempts_and_the_nations_unrest_shifts_before_it() -> None:
     anchor = control(K2, "executive", RESISTANCE, SERVANTS)
     attempts = event("nation.unrest_attempts_changed", K1, NORTH, "faction:16", attributes=(("faction", SERVANTS),))

@@ -6,7 +6,8 @@ emits only from its anchor evidence; it decides which further events join the an
 applies the shared policy to what it joins:
 
 - span: ``start`` is the earliest constituent start (its ``not_before``, or its record date when it is record-dated,
-  which narrows the span), ``end`` the latest constituent date, each with the basis it came from;
+  which narrows the span), ``end`` the latest constituent date, each with the basis it came from; corroborating
+  events (a rule passes them apart) are cited but only narrow a start, never set the end;
 - ``open`` when the rule's anchor entity is still present in the last save, unless the rule states it;
 - confidence: the minimum over the constituents, lowered one level for a heuristic join;
 - significance: the rule's level, never below the most significant constituent;
@@ -157,37 +158,42 @@ class NarrativeBuilder:
         confidence: Confidence | None = None,
         open: bool | None = None,
         starts_on: str | None = None,
+        corroborating: Sequence[Event] = (),
     ) -> Event:
-        """A narrative event over ``constituents``; the ID is qualified by its first interval.
+        """A narrative event over ``constituents`` and ``corroborating``; the ID is qualified by its first interval.
 
         ``confidence`` overrides the minimum-over-constituents policy, ``open`` the anchor-presence policy and
         ``starts_on`` the earliest-constituent start (a record date, even one before every constituent); a rule that
         passes any of them documents why.
+
+        ``corroborating`` events are cited like constituents but date only a start: they precede the effect they
+        corroborate, so they never set the end.
         """
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
-        intervals = tuple(sorted({key for event in constituents for key in _intervals(event)}, key=interval_sort_key))
-        starts = [dated for dated in map(_start, constituents) if dated is not None]
+        cited = [*constituents, *(event for event in corroborating if event not in constituents)]
+        intervals = tuple(sorted({key for event in cited for key in _intervals(event)}, key=interval_sort_key))
+        starts = [dated for dated in map(_start, cited) if dated is not None]
         ends = [dated for dated in map(_end, constituents) if dated is not None]
         start = min(starts, key=lambda dated: dated.key) if starts else None
         if starts_on is not None:
             start = _Dated(starts_on, DateBasis.RECORD)
         end = max(ends, key=lambda dated: (dated.date, -dated.key[1])) if ends else None
-        bounds = [event.not_before for event in constituents if isinstance(event.not_before, str)]
+        bounds = [event.not_before for event in cited if isinstance(event.not_before, str)]
         role_list = tuple(roles)
         return Event(
             id=qualified_id(event_id(event_type, *id_parts), intervals[0]),
             event_type=event_type,
-            status=self._status(constituents, join),
-            confidence=confidence or self._confidence(constituents, join),
+            status=self._status(cited, join),
+            confidence=confidence or self._confidence(cited, join),
             date=end.date if end else Unknown(),
             date_basis=end.basis if end else DateBasis.INTERVAL,
             not_before=min(bounds) if bounds else Unknown(),
-            sources=tuple(cite(constituents, Support())),
+            sources=tuple(cite(cited, Support())),
             entities=tuple(ref for _, ref in sorted(role_list, key=lambda item: item[0].rank)),
             attributes=tuple(attributes),
-            significance=self._significance(constituents, significance),
-            constituents=tuple(event.id for event in constituents),
+            significance=self._significance(cited, significance),
+            constituents=tuple(event.id for event in cited),
             start=start.date if start else Unknown(),
             start_basis=start.basis if start else None,
             end=end.date if end else Unknown(),
