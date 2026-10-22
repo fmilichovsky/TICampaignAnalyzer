@@ -320,9 +320,9 @@ class TakeoverRule:
                     and overlaps(event, before_start, end)
                 ):
                     attached.append(event)
-        attached.extend(self._ledger(stream, anchors, actor))
+        corroborating = self._ledger(stream, anchors, actor)
         constituents = [*anchors, *attached]
-        intervals = intervals_of(constituents)
+        intervals = intervals_of([*constituents, *corroborating])
         first_after = reports.get(intervals_of(anchors[:1])[0])
         rank = gdp_rank(first_after[1], nation.entity_id) if first_after is not None else None
         cause = next(
@@ -336,6 +336,7 @@ class TakeoverRule:
             TAKEOVER,
             id_parts=[nation.entity_id, actor.entity_id],
             constituents=constituents,
+            corroborating=corroborating,
             roles=roles,
             join=Join.HEURISTIC,
             attributes=(
@@ -353,7 +354,7 @@ class TakeoverRule:
         charges = [
             event for event in by_type(stream, TRANSACTION) if event.attribute("label") in TAKEOVER_LEDGER_LABELS
         ]
-        found: list[Event] = []
+        found: dict[str, Event] = {}
         for anchor in anchors:
             low = shifted(earliest(anchor), -self.settings.ledger_window_days)
             window = [charge for charge in charges if overlaps(charge, low, latest(anchor))]
@@ -361,8 +362,8 @@ class TakeoverRule:
                 labelled = [charge for charge in window if charge.attribute("label") == label]
                 candidates = {ref.entity_id for ref in map(subject, labelled) if ref is not None}
                 if candidates == {actor.entity_id}:
-                    found.extend(labelled)
-        return found
+                    found.update((charge.id, charge) for charge in labelled)
+        return list(found.values())
 
 
 def _holds_executive_only(situations: Sequence[SituationReport], nation_id: EntityId, faction_id: EntityId) -> bool:
