@@ -1246,7 +1246,8 @@ release, transformation), *chained* windows from the latest (expansion).
     their annexations). `nuclear_strikes` is the campaign-wide counter's
     change over the war's intervals, not an attribution. A record-dated
     `started_on` sets `start` (basis `record`), even when it predates every
-    constituent and the first save. `duration_days` is given only when the
+    constituent and the first save. Constituents whose intervals all close before `started_on`
+    are left out. `duration_days` is given only when the
     disappearance is record-dated; an interval-dated end gives
     `duration_days_at_most`, an upper bound, and an open war neither.
 -   `nation.transformation` (order 2, by ID). Two or more distinct
