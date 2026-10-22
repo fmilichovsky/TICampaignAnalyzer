@@ -42,7 +42,8 @@ touching the model or pipeline.
   (`prompt.md`, the only copy; `docs/narrator.md` holds the rationale) and the request block; the chapter
   planner of `tinarrative narrate` (`chapters.py`: estimate, plan, chapter packages, continuity); the providers of
   `narrate --send` (`providers.py`: neutral request and completion, the `anthropic`/`openai`/`ollama` adapters,
-  retries) over a stdlib HTTP transport (`transport.py`) that tests replace with a fake. It reads the narrator
+  retries) over a stdlib HTTP transport (`transport.py`) that tests replace with a fake; the assembly of the
+  responses (`assembly.py`: `history.md`, footnote renumbering, citation audit, `manifest.json`). It reads the narrator
   package dict only and must not import `parsing`, `sequence` or `model`; a test enforces it. No test touches the
   network.
 - `scripts/narrator_prompt.py` — thin CLI over that builder (adds `--sample` trimming) for an

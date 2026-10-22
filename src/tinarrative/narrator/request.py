@@ -50,6 +50,20 @@ def build_request(
     return {"system": system_prompt(), "messages": [{"role": "user", "content": content}]}
 
 
+def chapter_package(request: Mapping[str, Any]) -> dict[str, Any]:
+    """The package a request built by ``build_request`` carries; raises ``ValueError`` when it carries none."""
+    try:
+        content = request["messages"][0]["content"]
+        _, fence, rest = content.partition("```json\n")
+        body, closing, _ = rest.rpartition("\n```")
+        package = json.loads(body) if fence and closing else None
+    except (KeyError, IndexError, TypeError, AttributeError, json.JSONDecodeError):
+        package = None
+    if not isinstance(package, dict):
+        raise ValueError("the request carries no narrator package")
+    return package
+
+
 def render_request(request: Mapping[str, Any]) -> str:
     """The text a request is written as: indented JSON with a trailing newline."""
     return json.dumps(request, ensure_ascii=False, indent=2) + "\n"

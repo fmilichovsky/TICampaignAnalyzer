@@ -1908,10 +1908,8 @@ worded as interpretation, cites nothing, and never becomes the premise of a
 later factual claim. The prompt is [narrator](narrator.md).
 
 The rest of this section is the design of `tinarrative narrate`, the
-command that carries a package to a model and brings prose back. The chapter
-plan, the requests and sending them (20.1–20.5) are implemented
-([narrate](commands/narrate.md)); assembly (20.6) is not yet, and
-[roadmap](roadmap.md) tracks it.
+command that carries a package to a model and brings prose back. It is
+implemented ([narrate](commands/narrate.md)).
 
 ## 20.1 Command and data flow
 
@@ -2116,9 +2114,12 @@ developments of `major` and above that no footnote cites. It reports; it
 does not reject prose, since a wrong citation is a finding for the prompt,
 not a reason to throw away a chapter.
 
-A chapter whose stored response was made from an identical request is not
-sent again, so an interrupted or partly failed run resumes where it
-stopped, and changing one setting re-sends only the chapters it changes.
+A chapter whose stored response was made from an identical request (the
+same request file, sent to the same provider and model with the same
+limits) is not sent again, so an interrupted or partly failed run resumes
+where it stopped, and changing one setting re-sends only the chapters it
+changes. Assembly reads only the output directory, so a directory of stored
+responses can be assembled again without sending anything.
 The run log carries counts, sizes, estimates, chapter indexes, the provider
 and HTTP status, and never a request, a response, a key or a string read
 from a save.

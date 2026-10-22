@@ -3,10 +3,11 @@
 ```
 tinarrative narrate <path> [<path>...] [--campaign <selector>] [--min-significance <level>] [options]
 tinarrative narrate --package <file>|- [options]
+tinarrative narrate --assemble <dir>
 
 options: [--period year|half|quarter] [--audience public|insider] [--citations footnotes|none]
          [--style chronicle|headlines] [--length <words>] [--focus <name>] [--output <dir>] [--config <file>]
-         [--send] [--profile <name>] [--provider anthropic|openai|ollama] [--model <id>] [--base-url <url>]
+         [--send] [--force] [--profile <name>] [--provider anthropic|openai|ollama] [--model <id>] [--base-url <url>]
          [--max-input-tokens <tokens>] [--max-output-tokens <tokens>] [--temperature <t>]
 ```
 
@@ -14,8 +15,9 @@ Cuts a campaign's [narrator package](events.md#narrator-package) into chapters, 
 for one model request, and builds the request of every chapter
 ([architecture 20.1–20.5](../architecture.md#201-command-and-data-flow)). Without `--send` it
 contacts nothing, and the requests can be reviewed, diffed or run by hand against any model.
-With `--send` it sends them to the configured provider and writes the responses. Assembling the
-responses into one history is a later step.
+With `--send` it sends them to the configured provider, writes the responses and assembles them
+into one footnoted history with a citation audit and a run manifest. `--assemble DIR` assembles a
+directory written earlier without sending anything.
 
 ## Input
 
@@ -166,10 +168,22 @@ short. An `other` completion is written with its finish.
 Each retry waits as long as `Retry-After` asks (seconds or an HTTP date, at most 60 seconds), else
 2, 4 and then 8 seconds. A timeout (`narrator.timeout_seconds`) and every other status fail at once.
 
+**Resume.** Before a chapter is sent, its stored `responses/NN.json` is checked. The response is
+kept, and the chapter is not sent again, when all of these hold:
+
+- its `request_sha256` is the request's;
+- its `provider`, `model`, `max_output_tokens` and `temperature` are those of this run;
+- its `finish` is `complete` or `other`.
+
+An interrupted or partly failed run therefore resumes where it stopped. A change to the plan or
+to a request re-sends only the chapters it changes, while a different model or output limit
+re-sends all of them. `--force` sends every chapter again, and needs `--send`.
+
 **Failure.** The run stops at the first failed chapter (exit 10). The error message names the
 chapter, the provider and the reason: the HTTP status with the provider's error message shortened,
 no response, an invalid response, the output limit or a refusal. The chapters completed before it
-keep their responses.
+keep their responses. No history or manifest is written, and those of an earlier run are left
+alone.
 
 ## Output
 
@@ -182,6 +196,8 @@ DIR/
   plan.json          # the plan
   requests/01.json   # one request per chapter: {"system": ..., "messages": [...]}
   responses/01.json  # with --send: one per completed chapter
+  history.md         # with --send, once every chapter has a response
+  manifest.json      # the run record, written with history.md
 ```
 
 `plan.json` holds the prompt version (SHA-256 of the prompt), the SHA-256 of the package (compact
@@ -194,8 +210,9 @@ request file left over from a longer plan is removed; other files in `DIR` are l
 `plan.json` records only the settings the plan depends on (`max_input_tokens`, `chars_per_token`,
 the span thresholds, `recalled_developments`, `top_economies`).
 
-With `--send`, stdout adds one line per completed chapter (its finish, the input and output tokens
-the provider reports and the plan's estimate) and a closing line. Each `responses/NN.json` holds:
+With `--send`, stdout adds one line per chapter (`sent` or `kept`, its finish, the input and
+output tokens the provider reports and the plan's estimate), a line counting the responses written
+and kept, and a line naming `history.md` and `manifest.json`. Each `responses/NN.json` holds:
 
 | Member | Value |
 | --- | --- |
@@ -208,25 +225,106 @@ the provider reports and the plan's estimate) and a closing line. Each `response
 | `input_tokens`, `output_tokens` | the counts the provider reports, or `null` |
 | `text` | the completion |
 
-Numbered responses beyond the plan's chapters are removed when sending starts. A response from an
-earlier run whose chapter is not sent again keeps its `request_sha256`, which tells whether it
-still matches the request.
+Numbered responses beyond the plan's chapters are removed when sending starts. A stored response
+that matches its request is kept (see **Resume**). Any other response is replaced when its
+chapter is sent.
+
+## History and audit
+
+Once every chapter has a response, the run assembles `history.md`. It opens with a header:
+
+```markdown
+# Campaign history
+
+- Provider: anthropic
+- Model: claude-model-2026 (requested claude-model)
+- Prompt version: 8903306c…
+- Campaign: resistance-20260104-113751
+- Period: 2041-05-01 to 2046-10-08
+- Generated: 2026-10-22T09:30:15Z
+```
+
+The model is the one the provider reports, followed by the requested one when the two differ. The
+prompt version is the one in `plan.json`. The campaign key comes from the package. The period runs
+from the first chapter's opening save to the last chapter's closing save. The generation time is
+the only line that changes between two assemblies of the same directory.
+
+The chapters' texts follow in order, unchanged except for their footnotes. Each chapter numbers
+its footnotes from 1, and the history renumbers them in sequence:
+
+- references are numbered in order of first appearance, and a repeated label keeps its number;
+- a definition that no reference points to gets the next number after the chapter's references;
+- a reference with no definition keeps its number and takes its label as its definition, as in
+  `[^situation 2046-10-08T00:00:00]`;
+- definitions are taken out of the text wherever the model put them, together with a heading
+  (`Footnotes`, `Notes`, `References`, `Sources`) that only introduces them. Rules and blank lines
+  left at a chapter's end are dropped. All definitions follow the last chapter, in the new
+  numbering, as the model wrote them.
+
+**Citation audit.** A footnote cites the IDs in its backticks, or, with no backticks, the parts
+between semicolons. Each cited ID is checked against the chapter package the chapter was written
+from, read back from its request file. The package's citable IDs are:
+
+- its developments and atomic events;
+- its `continuity` entries, both `continuing` and `earlier`;
+- `situation <save-key>` for its two saves.
+
+The audit lists four kinds of finding:
+
+| Finding | Meaning |
+| --- | --- |
+| `unmatched` | a cited ID that is none of the chapter package's IDs: an invented or truncated ID, or one from another chapter |
+| `uncited` | a development of a chapter package at `major` and above that no footnote of the history cites; with `--citations none` it is not computed |
+| `undefined` | a reference with no definition; its label is checked as a citation unless it is a number |
+| `unreferenced` | a definition that no reference points to; its citations still count |
+
+The audit reports and never changes or rejects prose. When it finds anything, stderr gets one
+line, and the run still exits 0:
+
+```text
+tinarrative narrate: citation audit: 38 unmatched citations, 88 uncited developments at major and above, 1 footnote without definition; see DIR/manifest.json
+```
+
+A clean run leaves stderr empty.
+
+**Manifest.** `manifest.json` records the run:
+
+| Member | Value |
+| --- | --- |
+| `program` | `name` and `version` of tinarrative |
+| `generated` | the generation time (UTC) |
+| `prompt_version`, `package_sha256` | as in `plan.json` |
+| `campaign`, `covers` | the campaign key and the period covered |
+| `settings` | the planner settings of `plan.json`, plus `provider`, `model`, `max_output_tokens` and `temperature` from the responses (a list when the chapters differ) |
+| `request` | the request parameters of `plan.json` |
+| `chapters` | per chapter: `index`, `part`, `covers`, `periods`, `estimate`, `reduction`, `request_sha256`, `request_characters`, the four send settings, `reported_model`, `finish`, `input_tokens`, `output_tokens` |
+| `tokens` | the summed `estimate`, `request_characters`, `input_tokens` and `output_tokens`, and `characters_per_input_token` over the chapters that report input tokens, for calibrating `narrator.chars_per_token` |
+| `audit` | `citations`, the number of `footnotes` and of `cited_ids`, and the lists `unmatched` (`chapter`, `footnote`, `id`), `uncited` (`chapter`, `id`, `significance`, or `null`), `undefined` and `unreferenced` (`chapter`, `footnote`, `label`) |
+
+**`--assemble DIR`** reads `plan.json`, `requests/` and `responses/` of a directory that `narrate`
+wrote, and writes `history.md` and `manifest.json` into it. It sends nothing, builds no package
+and takes no other option. It does not need the current prompt, so a run made with an older
+prompt can be assembled again. Every chapter of the plan needs its request file, unchanged (its
+SHA-256 is the plan's), and a response made from that request.
+
+## Log
 
 With `--log-level info`, the run logs the save pipeline's lines (as `events`) or the package's
 size, then the number of chapters and developments, the largest estimate and the number of
 reduced chapters. With `--send` it adds, per request, the provider, the chapter, the attempt, the
-HTTP status, the bytes sent and received, any retry wait, and per chapter the finish, the token
-counts and the length of the text. It never logs a request, a response, a key, a URL or a string
+HTTP status, the bytes sent and received, any retry wait, and per chapter whether it was sent or
+kept, the finish, the token counts and the length of the text. Assembly logs the number of
+chapters, footnotes and cited IDs, and the count of each finding. It never logs a request, a response, a key, a URL or a string
 from the package.
 
 ## Exit codes
 
 | Code | When |
 | --- | --- |
-| 0 | The plan was printed and, with `--output`, written. |
-| 2 | Usage error: no save paths and no `--package`; `--package` with save paths, `--campaign` or `--min-significance`; a package with no interval; a single interval over `narrator.max_input_tokens` (nothing written); the save input errors of `events`; an unknown `--profile` or an invalid override flag; `--send` without `--output`, provider, model or API key variable, or over `context_window` (nothing contacted). |
-| 4 | A save or the `--package` file cannot be read. |
-| 5 | A save is not a supported save, or the package is not UTF-8 JSON or not a narrator package. |
+| 0 | The plan was printed and, with `--output`, written; with `--send`, the history was assembled, whatever the audit found. |
+| 2 | Usage error: no save paths and no `--package`; `--force` without `--send`; `--assemble` with any other option; `--package` with save paths, `--campaign` or `--min-significance`; a package with no interval; a single interval over `narrator.max_input_tokens` (nothing written); the save input errors of `events`; an unknown `--profile` or an invalid override flag; `--send` without `--output`, provider, model or API key variable, or over `context_window` (nothing contacted). |
+| 4 | A save or the `--package` file cannot be read; `--assemble`: DIR or its `plan.json` cannot be read. |
+| 5 | A save is not a supported save, or the package is not UTF-8 JSON or not a narrator package. `--assemble` (and the assembly after `--send`): `plan.json` is not a plan, or a chapter's request or response is missing, invalid or does not match the plan; the message names the chapter. |
 | 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |
-| 9 | `--output` cannot be written. The plan is not printed (a response that cannot be written stops `--send` after the plan). |
+| 9 | `--output`, or the history and manifest, cannot be written. The plan is not printed (a response that cannot be written stops `--send` after the plan). |
 | 10 | `--send`: a chapter request failed (authentication, network, HTTP error, invalid response), or its completion stopped at `max_output_tokens` or was refused. The completed chapters' responses are kept. |

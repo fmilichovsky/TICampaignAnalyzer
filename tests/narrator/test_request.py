@@ -15,7 +15,7 @@ import tinarrative.narrator
 from tests.fixtures import FIXTURES_ROOT
 from tinarrative.cli import EXIT_SUCCESS
 from tinarrative.cli import main as cli_main
-from tinarrative.narrator.request import REQUEST_KEYS, build_request, prompt_version, system_prompt
+from tinarrative.narrator.request import REQUEST_KEYS, build_request, chapter_package, prompt_version, system_prompt
 
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
 GOLDEN = FIXTURES_ROOT / "sequence" / "terra_invicta_json_v1" / "politics_sequence.expected.narrator_messages.json"
@@ -101,6 +101,16 @@ def test_bad_input_is_a_value_error() -> None:
         build_request({"narrative": None, "glossary": None}, {})
     with pytest.raises(ValueError, match="unknown request keys: tone"):
         build_request(MINIMAL, {"tone": "dry"})
+
+
+def test_chapter_package_reads_back_the_package_a_request_carries() -> None:
+    package = {**MINIMAL, "campaign": {"key": "c"}, "note": "```json inside a value```"}
+
+    assert chapter_package(build_request(package, {"period": "year"})) == package
+    with pytest.raises(ValueError, match="carries no narrator package"):
+        chapter_package({"system": "s", "messages": [{"role": "user", "content": "no package"}]})
+    with pytest.raises(ValueError, match="carries no narrator package"):
+        chapter_package({"system": "s"})
 
 
 def test_the_narrator_package_does_not_import_the_deterministic_half() -> None:

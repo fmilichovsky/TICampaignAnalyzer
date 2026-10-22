@@ -9,9 +9,9 @@ import sys
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from . import __version__
 from .config import (
@@ -42,8 +42,9 @@ from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .narrative import narrative_rules
+from .narrator.assembly import KEPT_FINISHES, assemble, parse_plan, stored_chapter
 from .narrator.chapters import ChapterPlan, OverBudget, PlannedChapter, base_options, plan_chapters, validate
-from .narrator.providers import Endpoint, ProviderError, complete, completion_request, endpoint
+from .narrator.providers import CompletionRequest, Endpoint, ProviderError, complete, completion_request, endpoint
 from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
 from .narrator.transport import Transport, UrllibTransport
 from .parsing.errors import SaveLoadError
@@ -543,7 +544,17 @@ def _run_events(args: argparse.Namespace) -> int:
 
 def _run_narrate(args: argparse.Namespace) -> int:
     """Cut a narrator package into chapters under the token budget and build each chapter's request; with ``--send``,
-    send the requests to the configured provider."""
+    send the requests to the configured provider and assemble the history; with ``--assemble``, only assemble."""
+    assembled = cast("Path | None", args.assemble)
+    if assembled is not None:
+        given = [flag for flag, key in _ASSEMBLE_EXCLUDED if getattr(args, key) not in (None, False, [])]
+        if given:
+            print(f"tinarrative narrate: --assemble reads DIR only; drop {', '.join(given)}", file=sys.stderr)
+            return EXIT_USAGE_ERROR
+        return _assemble(assembled)
+    if args.force and not args.send:
+        print("tinarrative narrate: --force re-sends chapters, so it needs --send", file=sys.stderr)
+        return EXIT_USAGE_ERROR
     settings = _resolve_settings("narrate", cast("Path | None", args.config))
     if isinstance(settings, int):
         return settings
@@ -610,10 +621,12 @@ def _run_narrate(args: argparse.Namespace) -> int:
             return _output_failed(output, error)
     sys.stdout.write(_render_plan(plan, output))
     sys.stdout.flush()
-    sent = 0
+    sent = kept = 0
     code = EXIT_SUCCESS
     if target is not None and output is not None:
-        sent, code = _send(plan, narrator, target, output)
+        sent, kept, code = _send(plan, narrator, target, output, force=bool(args.force))
+        if code == EXIT_SUCCESS:
+            code = _assemble(output)
     logger.info(
         "narrate done %s",
         fields(
@@ -623,11 +636,37 @@ def _run_narrate(args: argparse.Namespace) -> int:
             reduced=sum(planned.chapter.reduction is not None for planned in plan.chapters),
             written=output is not None,
             sent=sent if target is not None else None,
+            kept=kept if target is not None else None,
             exit=code,
         ),
     )
     return code
 
+
+_ASSEMBLE_EXCLUDED = (
+    ("PATH", "saves"),
+    ("--package", "package"),
+    ("--campaign", "campaign"),
+    ("--min-significance", "min_significance"),
+    ("--period", "period"),
+    ("--audience", "audience"),
+    ("--citations", "citations"),
+    ("--style", "style"),
+    ("--length", "length"),
+    ("--focus", "focus"),
+    ("--output", "output"),
+    ("--send", "send"),
+    ("--force", "force"),
+    ("--profile", "profile"),
+    ("--provider", "provider"),
+    ("--model", "model"),
+    ("--base-url", "base_url"),
+    ("--max-input-tokens", "max_input_tokens"),
+    ("--max-output-tokens", "max_output_tokens"),
+    ("--temperature", "temperature"),
+    ("--config", "config"),
+)
+"""The options ``narrate --assemble`` refuses: it reads the plan, requests and responses of DIR and nothing else."""
 
 _NARRATOR_FLAGS = (
     ("--provider", "provider"),
@@ -675,19 +714,41 @@ def _sleep(seconds: float) -> None:
     time.sleep(seconds)
 
 
-def _send(plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, directory: Path) -> tuple[int, int]:
-    """Send the chapters in order and write each completed one to ``responses/NN.json``; the first failure stops the
-    run. Returns the number of chapters completed and the exit code."""
+def _now() -> datetime:
+    """The generation time of an assembled history; tests replace it."""
+    return datetime.now(UTC)
+
+
+def _send(
+    plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, directory: Path, *, force: bool = False
+) -> tuple[int, int, int]:
+    """Send the chapters in order and write each completed one to ``responses/NN.json``; a chapter whose stored
+    response was made from the same request is kept unless ``force``. The first failure stops the run. Returns the
+    numbers of chapters sent and kept, and the exit code."""
     responses = directory / "responses"
     count = len(plan.chapters)
     try:
         responses.mkdir(exist_ok=True)
         _remove_stale(responses, {_chapter_file(planned.index, count) for planned in plan.chapters})
     except OSError as error:
-        return 0, _output_failed(responses, error)
+        return 0, 0, _output_failed(responses, error)
     transport = _transport()
+    sent = kept = 0
     for planned in plan.chapters:
         request = completion_request(planned.request, settings)
+        path = responses / _chapter_file(planned.index, count)
+        stored = None if force else _stored(path, planned, request, target.provider)
+        if stored is not None:
+            kept += 1
+            logger.info(
+                "narrate kept %s",
+                fields(chapter=planned.index, provider=target.provider, finish=stored["finish"]),
+            )
+            sys.stdout.write(
+                _render_sent(planned, "kept", stored["finish"], stored.get("input_tokens"), stored.get("output_tokens"))
+            )
+            sys.stdout.flush()
+            continue
         try:
             completion = complete(request, target, transport, sleep=_sleep, chapter=planned.index)
         except ProviderError as error:
@@ -696,7 +757,7 @@ def _send(plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, direc
                 fields(chapter=planned.index, provider=target.provider, kind=error.kind, status=error.status),
             )
             print(f"tinarrative narrate: chapter {planned.index}: {target.provider}: {error}", file=sys.stderr)
-            return planned.index - 1, EXIT_PROVIDER_ERROR
+            return sent, kept, EXIT_PROVIDER_ERROR
         if completion.finish in ("length", "refused"):
             reason = (
                 f"the completion stopped at max_output_tokens {request.max_output_tokens}; raise "
@@ -709,7 +770,7 @@ def _send(plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, direc
                 fields(chapter=planned.index, provider=target.provider, finish=completion.finish),
             )
             print(f"tinarrative narrate: chapter {planned.index}: {target.provider}: {reason}", file=sys.stderr)
-            return planned.index - 1, EXIT_PROVIDER_ERROR
+            return sent, kept, EXIT_PROVIDER_ERROR
         record = {
             "index": planned.index,
             "request_sha256": planned.request_sha256,
@@ -724,11 +785,11 @@ def _send(plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, direc
             "output_tokens": completion.output_tokens,
             "text": completion.text,
         }
-        path = responses / _chapter_file(planned.index, count)
         try:
             path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
         except OSError as error:
-            return planned.index - 1, _output_failed(path, error)
+            return sent, kept, _output_failed(path, error)
+        sent += 1
         logger.info(
             "narrate sent %s",
             fields(
@@ -741,19 +802,113 @@ def _send(plan: ChapterPlan, settings: NarratorSettings, target: Endpoint, direc
                 characters=len(completion.text),
             ),
         )
-        sys.stdout.write(_render_sent(planned, completion.finish, completion.input_tokens, completion.output_tokens))
+        sys.stdout.write(
+            _render_sent(planned, "sent", completion.finish, completion.input_tokens, completion.output_tokens)
+        )
         sys.stdout.flush()
-    sys.stdout.write(f"Wrote {_count(count, 'response')} to {responses}.\n")
+    stored_line = f", kept {kept} stored" if kept else ""
+    sys.stdout.write(f"Wrote {_count(sent, 'response')} to {responses}{stored_line}.\n")
     sys.stdout.flush()
-    return count, EXIT_SUCCESS
+    return sent, kept, EXIT_SUCCESS
 
 
-def _render_sent(planned: PlannedChapter, finish: str, input_tokens: int | None, output_tokens: int | None) -> str:
+def _stored(path: Path, planned: PlannedChapter, request: CompletionRequest, provider: str) -> dict[str, Any] | None:
+    """The response stored at ``path`` when it was made from the same request: the same request file and the same
+    provider, model, output limit and temperature, with a finish that is kept."""
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    sent_with = {
+        "request_sha256": planned.request_sha256,
+        "provider": provider,
+        "model": request.model,
+        "max_output_tokens": request.max_output_tokens,
+        "temperature": request.temperature,
+    }
+    if (
+        not isinstance(record, dict)
+        or any(record.get(key) != value for key, value in sent_with.items())
+        or record.get("finish") not in KEPT_FINISHES
+        or not isinstance(record.get("text"), str)
+    ):
+        return None
+    return record
+
+
+def _render_sent(
+    planned: PlannedChapter, verb: str, finish: str, input_tokens: int | None, output_tokens: int | None
+) -> str:
     used = (
         f"{'?' if input_tokens is None else input_tokens} input and "
         f"{'?' if output_tokens is None else output_tokens} output tokens"
     )
-    return f"- {planned.index} sent: {finish}, {used} (estimate {planned.estimate})\n"
+    return f"- {planned.index} {verb}: {finish}, {used} (estimate {planned.estimate})\n"
+
+
+_FINDINGS = {
+    "unmatched": ("unmatched citation", "unmatched citations"),
+    "uncited": ("uncited development at major and above", "uncited developments at major and above"),
+    "undefined": ("footnote without definition", "footnotes without definition"),
+    "unreferenced": ("definition without reference", "definitions without reference"),
+}
+
+
+def _assemble(directory: Path) -> int:
+    """Assemble ``history.md`` and ``manifest.json`` from the plan, requests and responses written to ``directory``;
+    audit findings are summed up in one stderr line."""
+    try:
+        plan = parse_plan((directory / "plan.json").read_bytes())
+        count = len(plan["chapters"])
+        chapters = []
+        for entry in plan["chapters"]:
+            name = _chapter_file(entry["index"], count)
+            chapters.append(
+                stored_chapter(
+                    entry, _read_optional(directory / "requests" / name), _read_optional(directory / "responses" / name)
+                )
+            )
+    except OSError as error:
+        logger.debug("read failed %s", fields(output=safe_path(directory), error=type(error).__name__))
+        print(f"tinarrative narrate: cannot read {directory}: {error.strerror or error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    except ValueError as error:
+        print(f"tinarrative narrate: {directory}: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
+    assembly = assemble(chapters, plan, generated=_now(), version=__version__)
+    for name, text in (
+        ("history.md", assembly.history),
+        ("manifest.json", json.dumps(assembly.manifest, ensure_ascii=False, indent=2) + "\n"),
+    ):
+        try:
+            (directory / name).write_text(text, encoding="utf-8", newline="\n")
+        except OSError as error:
+            return _output_failed(directory / name, error)
+    findings = assembly.findings
+    audit = assembly.manifest["audit"]
+    logger.info(
+        "narrate assembled %s",
+        fields(
+            chapters=count,
+            footnotes=audit["footnotes"],
+            cited_ids=audit["cited_ids"],
+            **{kind: len(audit[kind] or ()) for kind in _FINDINGS},
+        ),
+    )
+    sys.stdout.write(f"Wrote history.md and manifest.json to {directory}.\n")
+    sys.stdout.flush()
+    if findings:
+        summary = ", ".join(f"{number} {_FINDINGS[kind][number != 1]}" for kind, number in findings.items())
+        print(f"tinarrative narrate: citation audit: {summary}; see {directory / 'manifest.json'}", file=sys.stderr)
+    return EXIT_SUCCESS
+
+
+def _read_optional(path: Path) -> bytes | None:
+    """The bytes of ``path``, or ``None`` when it does not exist."""
+    try:
+        return path.read_bytes()
+    except FileNotFoundError:
+        return None
 
 
 def _output_failed(path: Path, error: OSError) -> int:
@@ -1222,7 +1377,8 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
             "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
             "With --output the plan and one request per chapter are written. Nothing is sent without --send; with "
             "it, the requests (and so the campaign) go to the configured provider, a third party unless it runs "
-            "locally."
+            "locally, and the responses are assembled into history.md with a citation audit in manifest.json. A "
+            "chapter whose stored response was made from the same request is not sent again."
         ),
         epilog=(
             "Exit codes: 0 success; 2 usage error (including --package with save paths, --campaign or "
@@ -1230,7 +1386,9 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
             "--profile, or --send without --output, provider, model or API key, or over the context window); "
             "4 a save or the package cannot be read; 5 a save is not a supported save, or the package is not "
             "valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot be written; "
-            "10 a provider request failed, or a completion stopped at its output limit or was refused."
+            "10 a provider request failed, or a completion stopped at its output limit or was refused. With "
+            "--assemble: 2 another option was given; 4 DIR or its plan.json cannot be read; 5 a request or "
+            "response is missing, invalid or does not match the plan; 9 the history cannot be written."
         ),
     )
     parser.add_argument(
@@ -1292,6 +1450,20 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         help=(
             "Send each chapter request to the provider and write responses/NN.json under --output. This hands the "
             "campaign to the provider, a third party unless it runs locally."
+        ),
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="With --send, send every chapter again, even one whose stored response matches its request.",
+    )
+    parser.add_argument(
+        "--assemble",
+        type=Path,
+        metavar="DIR",
+        help=(
+            "Assemble history.md and manifest.json from the plan, requests and responses already in DIR; sends "
+            "nothing and takes no other option."
         ),
     )
     parser.add_argument(
