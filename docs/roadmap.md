@@ -159,6 +159,9 @@ built from the developments catalogued in
   as the actor's losses by every trial; name them for the victim
   (`victim_habs_lost`) or carry an explicit `victim` on the campaign; combat
   records carry no date or body, so battle narration cannot place them.
+- [x] Package-size measurement: real sample campaigns in `benchmarks/samples/`, a matrix of `events` and
+  `narrate` runs, `scripts/package_metrics.py` to measure and compare, and a workflow that posts base vs. head
+  on every pull request.
 
 ## CLI user experience
 

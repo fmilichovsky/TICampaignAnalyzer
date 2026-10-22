@@ -1,0 +1,45 @@
+# The runs `scripts/package_metrics.py measure` makes against every sample campaign. See README.md.
+#
+# Each `events` run writes one narrator package; each `narrate` run plans the package of the `events` run it names
+# (`narrate --package`, never `--send`). `--config` is added to every command.
+
+[[events]]
+id = "major"  # the package `narrate` builds from saves
+args = ["--narrative", "--include-constituents", "--format", "json", "--min-significance", "major"]
+
+[[events]]
+id = "major-bare"  # without the atomic stream
+args = ["--narrative", "--format", "json", "--min-significance", "major"]
+
+[[events]]
+id = "minor"
+args = ["--narrative", "--include-constituents", "--format", "json", "--min-significance", "minor"]
+
+[[events]]
+id = "trivial-bare"
+args = ["--narrative", "--format", "json"]
+
+[[narrate]]
+id = "default"
+package = "major"
+args = []
+
+[[narrate]]
+id = "budget-160k"  # a local model's context
+package = "major"
+args = ["--max-input-tokens", "160000"]
+
+[[narrate]]
+id = "budget-80k"  # splits the late-game campaign; an early-game interval may not fit at all
+package = "major"
+args = ["--max-input-tokens", "80000"]
+
+[[narrate]]
+id = "half-insider"
+package = "major"
+args = ["--period", "half", "--audience", "insider", "--style", "headlines", "--length", "3000"]
+
+[[narrate]]
+id = "minor"
+package = "minor"
+args = []

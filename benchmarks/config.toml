@@ -1,0 +1,2 @@
+# Settings for the benchmark runs: none, so every run uses the defaults of the revision measured and a change to a
+# default is measured like any other change. Passed with --config so that TINARRATIVE_CONFIG never applies.

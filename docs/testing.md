@@ -252,7 +252,7 @@ a point moving between nations. The files share
 
 ### Deriving a safe structural fixture
 
-1. Inspect a real save locally; never copy it into the repository or a shared
+1. Inspect a real save locally; never copy it into a fixture or a shared
    workspace.
 2. Hand-author the smallest JSON document that preserves the needed envelope,
    wrapper shape, and state-type names.
@@ -271,9 +271,15 @@ Prefer the smallest synthetic fixture that makes a test meaningful. Synthetic
 fixtures, including hand-authored structural derivatives of a real save, are
 checked in and run by default. They must not contain original campaign data.
 
-Real saves are never committed, sanitized or not. Tests that need one are
+Real saves are never fixtures, sanitized or not. Tests that need one are
 tagged `@pytest.mark.real_save`, stay outside the default suite, and locate the
 save through `TINARRATIVE_REAL_SAVE`.
+
+The one place real saves are committed is `benchmarks/samples/`: whole,
+xz-compressed campaigns that measure package size and nothing else. No test
+reads their content; `tests/test_package_metrics.py` only checks them against
+their manifest. Adding one follows the checklist in
+[benchmarks/README.md](../benchmarks/README.md#samples).
 
 ## Unknowns registry
 

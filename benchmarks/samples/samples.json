@@ -1,0 +1,65 @@
+{
+  "max_file_bytes": 5000000,
+  "campaigns": {
+    "protectorate": {
+      "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political developments that needs several chapters.",
+      "files": {
+        "Protectorate00087_2026-2-13.json.xz": {
+          "sha256": "450fd8c47b384f06df412d0c5e21069916cc71974a51e18eb95a668a0f78fd5f",
+          "bytes": 299984,
+          "raw_bytes": 28918552
+        },
+        "Protectorate00088_2026-4-15.json.xz": {
+          "sha256": "64063d70f9dbe9e39da957a611e58fdf9fedcdc4faea69f52e2a230fef8dee94",
+          "bytes": 364320,
+          "raw_bytes": 32310547
+        },
+        "Protectorate00090_2026-12-16.json.xz": {
+          "sha256": "19dd04af8aecd744e874674d45da310ea2af4b7d43acc65cf4c2b21b00f8ecb3",
+          "bytes": 486952,
+          "raw_bytes": 44537873
+        },
+        "Protectorate00091_2027-4-1.json.xz": {
+          "sha256": "6d0a07992cbfa8d36444cd0d0f58110ebe87614179d1a88539868400aa9782ae",
+          "bytes": 517764,
+          "raw_bytes": 47772458
+        },
+        "Protectorate00092_2027-7-16.json.xz": {
+          "sha256": "b8b6d89eb618428583f7609791878a0a1415db43c840d4833857a99b6a915b48",
+          "bytes": 542860,
+          "raw_bytes": 49532018
+        }
+      }
+    },
+    "resist": {
+      "description": "Resistance campaign, late game: 5 saves from 2045-08 to 2046-10; large saves, few developments, fits one chapter at the default budget.",
+      "files": {
+        "Resistsave00079_2045-8-1.json.xz": {
+          "sha256": "8a2b05bc7c33390d13c7a43c0e30a1f305e66dbb86022980a52ab3f464db0e74",
+          "bytes": 985388,
+          "raw_bytes": 77284666
+        },
+        "Resistsave00080_2045-11-1.json.xz": {
+          "sha256": "ff50486564bd6a96f92e122d96c8475e23ef9e4b033cccb2c0a834e531ea208a",
+          "bytes": 986936,
+          "raw_bytes": 77458972
+        },
+        "Resistsave00081_2045-11-22.json.xz": {
+          "sha256": "e8a35f881623ee894433c39b0a8ecf0409b194f1c856b5ebd9e28893a464091b",
+          "bytes": 985528,
+          "raw_bytes": 77593087
+        },
+        "Resistsave00082_2046-2-22.json.xz": {
+          "sha256": "58096fa1c6c718a1d82f8e90ed966b8079933e3c28df45131c2c5976d64a44bf",
+          "bytes": 992596,
+          "raw_bytes": 77955660
+        },
+        "Resistsave00083_2046-10-8.json.xz": {
+          "sha256": "33a645601328c0e7b9e492a651bb4f6d1846a5b42fb932e2da1d0601c339ba89",
+          "bytes": 1052928,
+          "raw_bytes": 84312715
+        }
+      }
+    }
+  }
+}
