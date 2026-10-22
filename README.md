@@ -72,6 +72,10 @@ Individual targets are `make format`, `make lint`, `make typecheck`, and
 
 See [the testing guide](docs/testing.md) for test and fixture conventions.
 
+`make package-metrics` measures what `events` and `narrate` would send to an LLM for the real sample campaigns in
+`benchmarks/`; every pull request gets the same measurement for its base and head as a comment. See
+[benchmarks/README.md](benchmarks/README.md).
+
 ## Package layout
 
 - `io`: discover and load save files.

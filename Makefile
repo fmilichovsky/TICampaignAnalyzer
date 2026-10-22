@@ -2,7 +2,7 @@
 
 PYTHON ?= python
 
-.PHONY: install format lint typecheck test check
+.PHONY: install format lint typecheck test check package-metrics
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -20,3 +20,7 @@ test:
 	$(PYTHON) -m pytest
 
 check: install format lint typecheck test
+
+# Measure the LLM-bound packages of the benchmark samples with this tree; see benchmarks/README.md.
+package-metrics:
+	$(PYTHON) scripts/package_metrics.py measure --out build/package-metrics --label "$$(git rev-parse --short HEAD)"

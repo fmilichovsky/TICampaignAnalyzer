@@ -1,0 +1,75 @@
+name: Package metrics
+
+# Measures the narrator packages and narrate plans of the benchmark samples on the pull request's base and on its
+# head, and posts the difference as one comment that every later push edits. Informational: size changes never fail
+# the check. See benchmarks/README.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: package-metrics-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .bench/base-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install base and head
+        run: |
+          python -m venv .bench/venv-base
+          python -m venv .bench/venv-head
+          .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
+          .bench/venv-head/bin/python -m pip install --quiet .
+      # Both sides run the head's script, samples, matrix and settings, so only the code measured differs.
+      - name: Measure base
+        run: >-
+          python scripts/package_metrics.py measure --python .bench/venv-base/bin/python --out .bench/base
+          --label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      - name: Measure head
+        run: >-
+          python scripts/package_metrics.py measure --python .bench/venv-head/bin/python --out .bench/head
+          --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
+        env:
+          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      - name: Compare
+        run: |
+          python scripts/package_metrics.py compare .bench/base/metrics.json .bench/head/metrics.json \
+            --out .bench/report.md --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          cat .bench/report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-metrics
+          path: |
+            .bench/report.md
+            .bench/base
+            .bench/head
+          retention-days: 14
+      - name: Post comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- package-metrics -->")))][0].id // empty' \
+            | head -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.bench/report.md > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.bench/report.md > /dev/null
+          fi

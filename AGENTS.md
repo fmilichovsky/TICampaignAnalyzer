@@ -38,6 +38,10 @@ touching the model or pipeline.
 - `src/tinarrative/maintenance/` — `tinarrative unknowns`: scans saves and maintains
   that registry. A tool package like `inspection`, not a pipeline stage.
 - `scripts/verify_fixture_manifest.py` — validates the versioned fixture set.
+- `benchmarks/` — real sample campaigns (`samples/`, xz-compressed) and the `events`/`narrate` run matrix that
+  `scripts/package_metrics.py` measures package sizes with; CI posts base-vs-head on every PR
+  ([.github/workflows/package-metrics.yml](.github/workflows/package-metrics.yml),
+  [README](benchmarks/README.md)). The script never imports `tinarrative`.
 - `src/tinarrative/narrator/` — LLM request builder (`request.py`): the system prompt as package data
   (`prompt.md`, the only copy; `docs/narrator.md` holds the rationale) and the request block; the chapter
   planner of `tinarrative narrate` (`chapters.py`: estimate, plan, chapter packages, continuity); the providers of
@@ -56,6 +60,7 @@ make check        # install + format check + lint + strict mypy + pytest; same a
 make format lint typecheck test   # individual gates
 python -m ruff format .           # apply formatting
 python scripts/verify_fixture_manifest.py tests/fixtures/io/terra_invicta_json_v1/fixture_manifest.json
+make package-metrics PYTHON=.venv/bin/python   # package sizes of the benchmark samples
 ```
 
 Tool versions are pinned in [pyproject.toml](pyproject.toml). `make check`
@@ -103,9 +108,10 @@ points:
 - The `terra_invicta_json_v1` fixture set is governed by its
   `fixture_manifest.json` (SHA-256, size limits, format/version assumptions).
   Re-run the verifier script after any edit there.
-- **Never commit real saves or campaign data.** Fixtures are hand-authored
-  synthetic derivatives. No automated sanitizers. Tests needing real saves are
-  marked `real_save` and excluded from the default run.
+- **Real saves live only in `benchmarks/samples/`.** They are whole, xz-compressed saves listed in
+  `samples.json`, checked for machine paths and account identifiers before they are added, and used only to
+  measure package size. Fixtures are hand-authored synthetic derivatives. No automated sanitizers. Tests needing
+  a real save's content are marked `real_save` and excluded from the default run.
 - No player names, machine paths, or account identifiers anywhere in fixtures
   or their metadata.
 
