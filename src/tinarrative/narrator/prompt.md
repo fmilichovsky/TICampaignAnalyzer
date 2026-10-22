@@ -89,6 +89,9 @@ How to read the fields:
   from them, never from the ID.  Statistics are raw
   game values.  Say what they mean ("democracy slid sharply") and quote the
   number only when the number itself is the story.
+- `duration_days` is a length the game recorded.  `duration_days_at_most` is
+  only a ceiling, because the end is known to lie between two saves: write
+  "within about N days" at most, never "after N days".
 - `ambiguous`, `alternatives` and `candidates` mean the evidence fits more
   than one reading; offer at most one, as a possibility.
 - Space campaigns and battle outcomes count from the actor's side:

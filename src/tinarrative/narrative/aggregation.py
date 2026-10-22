@@ -156,11 +156,13 @@ class NarrativeBuilder:
         significance: Significance | None = None,
         confidence: Confidence | None = None,
         open: bool | None = None,
+        starts_on: str | None = None,
     ) -> Event:
         """A narrative event over ``constituents``; the ID is qualified by its first interval.
 
-        ``confidence`` overrides the minimum-over-constituents policy and ``open`` the anchor-presence policy; a rule
-        that passes either documents why.
+        ``confidence`` overrides the minimum-over-constituents policy, ``open`` the anchor-presence policy and
+        ``starts_on`` the earliest-constituent start (a record date, even one before every constituent); a rule that
+        passes any of them documents why.
         """
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
@@ -168,6 +170,8 @@ class NarrativeBuilder:
         starts = [dated for dated in map(_start, constituents) if dated is not None]
         ends = [dated for dated in map(_end, constituents) if dated is not None]
         start = min(starts, key=lambda dated: dated.key) if starts else None
+        if starts_on is not None:
+            start = _Dated(starts_on, DateBasis.RECORD)
         end = max(ends, key=lambda dated: (dated.date, -dated.key[1])) if ends else None
         bounds = [event.not_before for event in constituents if isinstance(event.not_before, str)]
         role_list = tuple(roles)

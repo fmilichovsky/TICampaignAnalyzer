@@ -1239,7 +1239,11 @@ release, transformation), *chained* windows from the latest (expansion).
     last-fighting and disappearance events, annexations between its
     belligerents, and the expansions they belong to (nested, in place of
     their annexations). `nuclear_strikes` is the campaign-wide counter's
-    change over the war's intervals, not an attribution.
+    change over the war's intervals, not an attribution. A record-dated
+    `started_on` sets `start` (basis `record`), even when it predates every
+    constituent and the first save. `duration_days` is given only when the
+    disappearance is record-dated; an interval-dated end gives
+    `duration_days_at_most`, an upper bound, and an open war neither.
 -   `nation.transformation` (order 2, by ID). Two or more distinct
     statistics among democracy, GDP, inequality, cohesion and unrest of one
     nation within the window. It is skipped when a takeover, expansion,
