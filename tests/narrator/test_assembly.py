@@ -79,6 +79,8 @@ def _chapter(
         "part": "first" if index == 1 else "last",
         "covers": {"from": saves[0]["key"], "to": saves[-1]["key"]},
         "periods": ["2030-H1"],
+        "period": "half",
+        "period_basis": "campaign_span",
         "estimate": 500,
         "reduction": None,
         "request_sha256": sha,
@@ -282,6 +284,7 @@ def test_the_manifest_records_the_run_and_the_token_calibration() -> None:
     first, second = manifest["chapters"]
     assert first["request_sha256"] == chapters[0].entry["request_sha256"]
     assert first["request_characters"] == chapters[0].characters
+    assert (first["period"], first["period_basis"]) == ("half", "campaign_span")
     assert (first["finish"], first["reported_model"], first["output_tokens"]) == ("complete", "some-model-2026", 200)
     assert manifest["tokens"] == {
         "estimate": 1000,

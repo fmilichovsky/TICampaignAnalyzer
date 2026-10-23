@@ -279,6 +279,8 @@ def _manifest(
             "part": chapter.entry.get("part"),
             "covers": chapter.entry["covers"],
             "periods": chapter.entry.get("periods"),
+            "period": chapter.entry.get("period"),
+            "period_basis": chapter.entry.get("period_basis"),
             "estimate": chapter.entry.get("estimate"),
             "reduction": chapter.entry.get("reduction"),
             "request_sha256": chapter.entry["request_sha256"],

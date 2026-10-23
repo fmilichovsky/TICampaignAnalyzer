@@ -7,6 +7,11 @@ in. The planner walks the periods in order and adds the next one while the estim
 atomic stream is left out (``atomic_dropped``), then it is split at save boundaries (``split``, also without atomic
 stream); an interval that still does not fit is ``OverBudget``. Developments are never dropped.
 
+The period is the requested one, or the one ``derive_period`` gives, coarsened where the saves are too far apart for
+it: a period whose intervals are longer, by median, than the period runs is told at the next coarser period together
+with every interval that period holds. A chapter holds one period, so it ends where the period changes. A requested
+period is never coarsened; the periods it is too fine for are reported as ``sparse``.
+
 A chapter package selects entries of the package and never rewrites one, so an ID means the same event in both. It
 adds ``chapter`` and ``continuity``; continuity is built from the package, never from earlier prose. The same package,
 options and settings always give the same plan and the same requests.
@@ -17,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,6 +32,8 @@ from ..config import NarratorSettings
 from .request import build_request, prompt_version, render_request
 
 PERIODS = ("year", "half", "quarter")
+LONGEST_DAYS = {"year": 366, "half": 184, "quarter": 92}
+"""The most days a calendar period runs; saves further apart than this, by median, are too sparse to tell it."""
 SIGNIFICANCE = ("trivial", "minor", "major", "campaign_defining")
 RECALLED_FROM = "major"
 """The lowest significance of a development recalled in a later chapter's ``continuity.earlier``."""
@@ -60,6 +68,9 @@ class PlannedChapter:
     part: str
     covers: tuple[str, str]
     periods: tuple[str, ...]
+    period: str
+    period_basis: str
+    """``requested``, ``campaign_span`` (``derive_period``) or ``save_spacing`` (coarsened)."""
     developments: int
     continuing: int
     recalled: int
@@ -81,6 +92,8 @@ class ChapterPlan:
     length: int | None
     settings: NarratorSettings
     chapters: tuple[PlannedChapter, ...]
+    sparse: tuple[str, ...]
+    """The labels of the requested period that the saves are too far apart for; empty when none was requested."""
 
     def to_dict(self) -> dict[str, Any]:
         """The plan as written to ``plan.json``: no time and no path, so the same inputs give the same bytes."""
@@ -95,6 +108,8 @@ class ChapterPlan:
                     "part": planned.part,
                     "covers": {"from": planned.covers[0], "to": planned.covers[1]},
                     "periods": list(planned.periods),
+                    "period": planned.period,
+                    "period_basis": planned.period_basis,
                     "intervals": planned.chapter.last - planned.chapter.first + 1,
                     "developments": planned.developments,
                     "continuing": planned.continuing,
@@ -209,10 +224,16 @@ def glossary_for(glossary: Sequence[Mapping[str, Any]], refs: set[str]) -> list[
 
 
 def plan_chapters(
-    package: Mapping[str, Any], options: Mapping[str, str], settings: NarratorSettings, *, length: int | None = None
+    package: Mapping[str, Any],
+    options: Mapping[str, str],
+    settings: NarratorSettings,
+    *,
+    length: int | None = None,
+    requested: bool = False,
 ) -> ChapterPlan | OverBudget:
-    """The chapter plan of ``package``, or the interval that cannot fit ``max_input_tokens`` on its own."""
-    planner = _Planner(validate(dict(package)), options, settings, length)
+    """The chapter plan of ``package``, or the interval that cannot fit ``max_input_tokens`` on its own.
+    ``requested`` says that ``options["period"]`` was asked for, so it is kept where the saves are too sparse."""
+    planner = _Planner(validate(dict(package)), options, settings, length, requested)
     chapters = planner.plan()
     if isinstance(chapters, OverBudget):
         return chapters
@@ -221,7 +242,12 @@ def plan_chapters(
 
 class _Planner:
     def __init__(
-        self, package: dict[str, Any], options: Mapping[str, str], settings: NarratorSettings, length: int | None
+        self,
+        package: dict[str, Any],
+        options: Mapping[str, str],
+        settings: NarratorSettings,
+        length: int | None,
+        requested: bool,
     ) -> None:
         if not package["intervals"]:
             raise ValueError("nothing to narrate: the package holds no interval")
@@ -237,8 +263,51 @@ class _Planner:
         for interval in self.intervals:
             for event in self._atomic(interval):
                 self.events.setdefault(event["id"], event)
-        period = self.options.get("period", "year")
-        self.periods = [period_label(interval["date"], period) for interval in self.intervals]
+        self.base = self.options.get("period", "year")
+        self.requested = requested
+        self.granularity = [self.base] * len(self.intervals)
+        self.sparse = tuple(label for _, label in self._sparse()) if requested else ()
+        if not requested:
+            self._coarsen()
+        self.periods = [
+            period_label(interval["date"], period)
+            for interval, period in zip(self.intervals, self.granularity, strict=True)
+        ]
+
+    def _sparse(self) -> list[tuple[str, str]]:
+        """The periods, as ``(period, label)`` in order, whose intervals are longer by median than the period runs;
+        an interval belongs to the period of its closing save."""
+        lengths: dict[tuple[str, str], list[int]] = {}
+        for interval, period in zip(self.intervals, self.granularity, strict=True):
+            days = (datetime.fromisoformat(interval["date"]) - datetime.fromisoformat(interval["not_before"])).days
+            lengths.setdefault((period, period_label(interval["date"], period)), []).append(days)
+        return [key for key, days in lengths.items() if statistics.median(days) > LONGEST_DAYS[key[0]]]
+
+    def _coarsen(self) -> None:
+        """Tell each sparse period at the next coarser one, with every interval of that coarser period, until none
+        but years is sparse. Calendar periods nest, so the labels stay contiguous and never overlap."""
+        while coarsened := [(period, label) for period, label in self._sparse() if period != "year"]:
+            parents: set[tuple[str, str]] = set()
+            for period, label in coarsened:
+                coarser = PERIODS[PERIODS.index(period) - 1]
+                parents.update(
+                    (coarser, period_label(interval["date"], coarser))
+                    for interval, current in zip(self.intervals, self.granularity, strict=True)
+                    if current == period and period_label(interval["date"], period) == label
+                )
+            for position, interval in enumerate(self.intervals):
+                for coarser, label in parents:
+                    finer = PERIODS.index(self.granularity[position]) > PERIODS.index(coarser)
+                    if finer and period_label(interval["date"], coarser) == label:
+                        self.granularity[position] = coarser
+
+    def _period(self, chapter: Chapter) -> str:
+        return self.granularity[chapter.first]
+
+    def _period_basis(self, chapter: Chapter) -> str:
+        if self.requested:
+            return "requested"
+        return "campaign_span" if self._period(chapter) == self.base else "save_spacing"
 
     def _start_position(self, event: Mapping[str, Any], interval_position: Mapping[str, int]) -> int:
         """The interval a development is filed under, following the prompt's period rule: the last interval whose
@@ -278,7 +347,7 @@ class _Planner:
         for first, last in groups:
             if current is not None:
                 grown = Chapter(current.first, last)
-                if self._fits(grown, chapters):
+                if self.granularity[current.first] == self.granularity[first] and self._fits(grown, chapters):
                     current = grown
                     continue
                 chapters.append(current)
@@ -346,6 +415,8 @@ class _Planner:
                     part=part,
                     covers=self._covers(chapter),
                     periods=tuple(dict.fromkeys(self.periods[chapter.first : chapter.last + 1])),
+                    period=self._period(chapter),
+                    period_basis=self._period_basis(chapter),
                     developments=len(self._developments(chapter)),
                     continuing=len(continuity["continuing"]),
                     recalled=len(continuity["earlier"]),
@@ -359,6 +430,7 @@ class _Planner:
             length=self.length,
             settings=self.settings,
             chapters=tuple(planned),
+            sparse=self.sparse,
         )
 
     def _shares(self, chapters: Sequence[Chapter]) -> list[int | None]:
@@ -389,6 +461,7 @@ class _Planner:
             "part": part,
             "covers": f"{covers[0][:10]} to {covers[1][:10]}",
             **self.options,
+            "period": self._period(chapter),
         }
         if length:
             options["length"] = f"about {length} words"
