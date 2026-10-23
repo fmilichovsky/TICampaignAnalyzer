@@ -399,7 +399,12 @@ def test_assemble_without_a_plan_is_an_input_error(tmp_path: Path, capsys: pytes
 
 @pytest.mark.parametrize(
     ("options", "dropped"),
-    [(["--send"], "--send"), (["--output", "x", "--model", "m"], "--output, --model"), (SAVES, "PATH")],
+    [
+        (["--send"], "--send"),
+        (["--output", "x", "--model", "m"], "--output, --model"),
+        (["--constituents", "all"], "--constituents"),
+        (SAVES, "PATH"),
+    ],
 )
 def test_assemble_takes_no_other_option(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], options: list[str], dropped: str

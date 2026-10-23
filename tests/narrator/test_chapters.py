@@ -72,7 +72,7 @@ def _package(
         "campaign": {"key": "fixture"},
         "saves": [{"key": date, "sha256": "0" * 64, "date": date, "situation": _situation(date)} for date in dates],
         "min_significance": "major",
-        "include_constituents": True,
+        "constituents": "evidence",
         "settings": {"narrative": {}},
         "narrative": narrative,
         "narrative_omitted": 0,

@@ -1505,8 +1505,9 @@ produces it, `--format json` being the canonical form and the Markdown
 report's narrative section, above the per-interval drill-down, the digest.
 With `--narrative`, `--min-significance` sets the level of the narrative
 events in both forms, and the atomic stream holds only their constituents,
-followed transitively, and only with `--include-constituents`; without
-`--narrative` it filters the atomic stream. The forensic per-interval view and
+followed transitively, as `--constituents` selects them (`all`, the narrator
+`evidence` among them, or `none`); without `--narrative` it filters the atomic
+stream. The forensic per-interval view and
 the package are therefore one report at different filter settings, and they
 cannot drift apart.
 
@@ -1985,7 +1986,7 @@ so that two runs with the same inputs send the same bytes.
 
 The significance level applies to the narrative only. `narrate` lists
 developments at `major` and above by default and keeps, of the atomic stream,
-only the constituents of the developments it lists (`--include-constituents`): the atomic stream is drill-down for detail and
+only the constituents of the developments it lists (`--constituents evidence`): the atomic stream is drill-down for detail and
 citation (above), not a second account of the period.
 
 ## 20.3 Token budget and chapters

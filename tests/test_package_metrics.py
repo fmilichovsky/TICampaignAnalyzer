@@ -156,7 +156,7 @@ def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) ->
     samples = _samples(tmp_path)
     matrix = tmp_path / "matrix.toml"
     matrix.write_text(
-        '[[events]]\nid = "major"\nargs = ["--narrative", "--include-constituents", "--format", "json"]\n'
+        '[[events]]\nid = "major"\nargs = ["--narrative", "--constituents", "evidence", "--format", "json"]\n'
         '[[narrate]]\nid = "default"\npackage = "major"\nargs = []\n'
         '[[narrate]]\nid = "tiny"\npackage = "major"\nargs = ["--max-input-tokens", "1000"]\n',
         encoding="utf-8",

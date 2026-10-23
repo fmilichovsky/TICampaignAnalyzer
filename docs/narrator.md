@@ -8,12 +8,12 @@ the package) and leaves everything above that floor to the model: how a change
 was presented and received, what it may have meant, what an actor may have
 wanted. The result should read as history, not as a report on the package.
 
-Hand the model the JSON of `tinarrative events --narrative --include-constituents
+Hand the model the JSON of `tinarrative events --narrative --constituents evidence
 --format json` with `--min-significance` at the level of the developments the
 history should cover, and a request block as described in the prompt. That
 package carries IDs but no provenance or file paths. Its atomic events are only
 the constituents of the listed developments, whatever their significance, so
-every cited ID resolves inside it; without `--include-constituents` it carries
+every cited ID resolves inside it; with the default `--constituents none` it carries
 developments, situations and glossary only. The audit form is the same command
 with `--inferred` instead of `--narrative` and no `--min-significance`: it lists
 every atomic and inferred event with its save locations, and a narrative event

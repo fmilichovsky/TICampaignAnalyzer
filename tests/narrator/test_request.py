@@ -27,7 +27,7 @@ MINIMAL: dict[str, Any] = {"narrative": [], "glossary": []}
 
 def _package(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> dict[str, Any]:
     monkeypatch.chdir(FIXTURE_DIR)
-    assert cli_main(["events", "--format", "json", "--narrative", "--include-constituents", *SAVES]) == EXIT_SUCCESS
+    assert cli_main(["events", "--format", "json", "--narrative", "--constituents", "evidence", *SAVES]) == EXIT_SUCCESS
     return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
 
 

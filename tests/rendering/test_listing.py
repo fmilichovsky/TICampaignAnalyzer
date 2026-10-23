@@ -67,12 +67,20 @@ NARRATIVE = [NESTED, TOP, OTHER]
 
 
 def test_constituents_are_followed_through_narrative_and_inferred_events() -> None:
-    chosen = listing([INTERVAL], NARRATIVE, minimum=Significance.MAJOR, include_constituents=True)
+    chosen = listing([INTERVAL], NARRATIVE, minimum=Significance.MAJOR, constituents="all")
 
     assert chosen.narrative == (NESTED, TOP)  # the cited lower-order event is listed below the level
-    assert chosen.constituents == {"i-1", "o-1"}
+    assert chosen.constituents == chosen.reached == {"i-1", "o-1"}
     assert [chosen.keeps(event) for event in (OBJECTIVE, UNCITED, INFERRED)] == [True, False, True]
-    assert chosen.reason() == "omitted: not cited by a listed narrative event"
+    assert chosen.reason(UNCITED) == "omitted: not cited by a listed narrative event"
+    assert chosen.omissions([OBJECTIVE, UNCITED, INFERRED]) == [(1, "omitted: not cited by a listed narrative event")]
+
+
+def test_evidence_lists_what_all_lists() -> None:
+    every = listing([INTERVAL], NARRATIVE, minimum=Significance.MAJOR, constituents="all")
+    evidence = listing([INTERVAL], NARRATIVE, minimum=Significance.MAJOR, constituents="evidence")
+
+    assert (evidence.narrative, evidence.constituents) == (every.narrative, every.constituents)
 
 
 def test_without_constituents_no_atomic_event_is_listed() -> None:
@@ -80,13 +88,14 @@ def test_without_constituents_no_atomic_event_is_listed() -> None:
 
     assert chosen.narrative == (TOP,)
     assert not chosen.kept([OBJECTIVE, UNCITED, INFERRED])
-    assert chosen.filters and chosen.reason() == "omitted without --include-constituents"
+    assert chosen.filters
+    assert chosen.omissions([OBJECTIVE, UNCITED, INFERRED]) == [(3, "omitted with --constituents none")]
 
 
 def test_without_narrative_atomic_events_are_filtered_by_significance() -> None:
-    chosen = listing([INTERVAL], None, minimum=Significance.MINOR, include_constituents=True)
+    chosen = listing([INTERVAL], None, minimum=Significance.MINOR, constituents="all")
 
     assert chosen.narrative is None and chosen.constituents is None
     assert chosen.kept([OBJECTIVE, UNCITED, INFERRED]) == (UNCITED, INFERRED)
-    assert chosen.reason() == "below minor significance omitted"
+    assert chosen.omissions([OBJECTIVE, UNCITED, INFERRED]) == [(1, "below minor significance omitted")]
     assert not listing([INTERVAL], None, minimum=Significance.TRIVIAL).filters
