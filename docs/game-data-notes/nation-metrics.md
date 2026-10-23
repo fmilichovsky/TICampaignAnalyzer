@@ -1,0 +1,237 @@
+# Nation statistics: long series, bands and routine magnitudes
+
+Evidence base for the redesign of the nation metric rules (roadmap, *Nation metrics redesign*). It records how the
+nation statistics behave between saves and within one save, what the save carries beyond the scalar values, and
+how often the game's own value bands are crossed, so that each metric can get a rule shaped by its behaviour. It
+follows the rules of the [notes README](README.md): structure, counts, magnitudes and dates only; reason
+identifiers and template vocabulary are named, nations and players are not.
+
+Observed on 2026-10-23 in thirteen private complete saves of three campaigns, read from the raw JSON:
+
+| Campaign | Build | Saves | Game dates | Intervals (days) |
+| --- | --- | --- | --- | --- |
+| Appease | newer | 3 | 2026-02 to 2026-03 | 7, 21 |
+| Protectorate | newer | 5 | 2026-02 to 2027-07 | 61, 245, 106, 106 |
+| Resist | older | 5 | 2045-08 to 2046-10 | 92, 21, 92, 228 |
+
+The Appease and Protectorate campaigns start at the same game date with the same 174 nations holding regions;
+Resist has 53. "Nation" below means a nation holding at least one region on both sides of an interval; placeholder
+nations never change (see the
+[metric shift magnitudes](higher-level-event-sources.md#observations-on-already-normalized-fields)).
+
+## Summary
+
+| Source | Normalized today? | What it carries | Status |
+| --- | --- | --- | --- |
+| `TINationState.tracker_PCGDP_ByQuarter` | Yes, unused | per-capita GDP for every quarter since campaign start | observed |
+| `TINationState.tracker_*ChangeReason_AllTime` (6 maps) | Yes (`causes`) | cumulative per-cause change since campaign start; the start value is current value minus their sum | observed for education and GDP, with outliers for cohesion and unrest |
+| `TINationState.history*` (20 arrays) | Acknowledged `derived_history` | 32 recent samples | observed; not a long series |
+| `TINationState.historyWarStatus` | Acknowledged | unknown quantity | not the strength estimate below |
+| `TIRegionState.populationInMillions` | Yes | the only population figure | observed |
+| `TIRegionState.boostPerYear_dekatons`, `missionControl`, `antiSpaceDefenses`, `numSTOFighters` | Yes, unused | space-support assets per region | observed |
+| `TIArmyState.deploymentType` | Yes, copied raw | `Standard` or `Naval`; navies are armies | observed |
+| `TIRegionState.occupations`, `leadOccupier` | Yes | occupation | empty in every save; shape not observed |
+
+## Long series carried in one save
+
+### Per-capita GDP by quarter
+
+`tracker_PCGDP_ByQuarter` (shape in the [domain field map](domain-field-map.md)) is keyed by
+`TITimeState.currentQuarterSinceStart`: the latest Resist save (quarter 83) carries 84 entries on 163 nations and 83
+on 121 (those start at quarter 1); 11 nations carry negative keys and a list not in key order, 3 of them 28 and 3 of
+them 44 quarters before the start already in the first Appease and Protectorate saves (*hypothesis*: template
+history for nations the scenario can create). Quarter 0 is the campaign's first quarter: `daysInCampaign` 7121 at
+2045-08-01 places the Resist start at 2026-02-01 and 78 quarters later is 2045-08. 140 nations have a stretch of
+zeros inside a non-zero series (*hypothesis*: quarters in which the nation held no region). The other
+`tracker_*_ByQuarter` members are `null` on every nation of both builds.
+
+Year-over-year change of the series in the latest Resist save, over the 9,673 nation-quarters where both ends are
+non-zero: p1 -8.8 %, p5 -3.2 %, p10 -2.3 %, p50 0.0 %, p90 +4.5 %, p95 +6.7 %, p99 +14.4 %. Beyond ±10 %: 236 up,
+59 down; beyond ±20 %: 44 up, 11 down; beyond ±30 %: 21 up, 8 down. The extremes were -81 % and +235 % on single
+nations over three consecutive quarters each. Over 20 quarters (6,919 windows): p5 -16 %, p50 0 %, p95 +33 %;
+117 windows above +50 %, 26 above +100 %, 130 below -25 %. Over the whole series (nations with more than 40 non-zero
+quarters), the last-to-first ratio ranged from 0.50 (three nations at or below 0.55) to 3.24 (three above 2.7).
+
+### Cumulative cause trackers reach back to the campaign start
+
+For the 47 nations present with the same `templateName` and holding regions in both the first Appease save
+(campaign day 1) and the first Resist save (day 7121, a different build), the Appease value plus the sum of the
+Resist save's `tracker_<Statistic>ChangeReason_AllTime` map was compared with the Resist value:
+
+| Statistic | median error | p90 | max |
+| --- | --- | --- | --- |
+| education | 0.000 | 0.000 | 0.000 |
+| inequality | 0.000 | 0.000 | 2.33 |
+| GDP (relative) | 1.7 % | 3.0 % | 8.1 % |
+| democracy | 0.08 | 0.70 | 4.93 |
+| cohesion | 0.04 | 7.20 | 10.10 |
+| unrest | 0.00 | 1.81 | 12.63 |
+
+So the maps are cumulative since the campaign start and a nation's start value is derivable from any single save
+for education, GDP and, with outliers, democracy and inequality. *Hypothesis:* the cohesion and unrest outliers are
+nations re-created or reset by the game (releases, dissolutions) whose maps were not reset with them; not checked.
+Reasons seen in the maps beyond the ones already listed in the
+[higher-level sources](higher-level-event-sources.md#observations-on-already-normalized-fields):
+`DemReason_GovernmentPriority`, `DemReason_AtWar`, `UnrestReason_StabilizeMission`, `UnrestReason_OppressionPriority`,
+`UnrestReason_EventEffect`.
+
+### The `history*` arrays
+
+All twenty `history*` arrays hold exactly 32 entries on every nation of every save, with values that differ from
+the current scalar by at most a few per mille across the array. They are a rolling buffer of recent samples, not a
+campaign series; they stay `derived_history`. `historyWarStatus` was 0 on most nations and took values from -586
+to 1,849 on the others in the latest Resist save; it does not match the strength estimate below (negative on a
+nation with armies and nuclear weapons, largest on a nation with four naval armies) and is left unexplained.
+
+## Population
+
+The nation has no population field; `populationInMillions` on its regions is the figure. Between consecutive saves
+the change that territory does not explain (the later population, minus the population of regions gained, plus the
+population of regions lost, relative to the earlier population, per year) was:
+
+| Interval | p5 | p50 | p95 | min | max |
+| --- | --- | --- | --- | --- | --- |
+| Appease 7 d | -2.0 % | +4.3 % | +12.7 % | -2.9 % | +15.9 % |
+| Appease 21 d | 0.0 % | 0.0 % | 0.0 % | -0.1 % | 0.0 % |
+| Protectorate 61 to 245 d (4 intervals) | -0.39 % to -0.54 % | +0.95 % to +1.11 % | +2.77 % to +3.08 % | -1.2 % | +3.9 % |
+| Resist 21 to 228 d (4 intervals) | -0.50 % to -0.76 % | +0.43 % to +0.71 % | +1.79 % to +2.78 % | -1.1 % | +3.6 % |
+
+The 7-day figures are a daily step annualized; the 21-day Appease interval saw no population change at all
+(*hypothesis*: population updates on a monthly tick). Over intervals of 61 days or more no nation lost more than
+1.2 % a year of its population beyond territory. `nuclearDetonations` was 0 on every region of every save and
+`TIGlobalValuesState.nuclearStrikes` was 0 throughout, so no depopulation event and no nuclear strike has been
+observed; a depopulation threshold is a hypothesis until one is.
+
+## Economic rates between saves
+
+For nations whose regions did not change, annualized change per interval (Protectorate and Resist; the Appease
+intervals are too short to annualize):
+
+| Measure | p5 | p50 | p95 | extremes |
+| --- | --- | --- | --- | --- |
+| GDP | -0.6 % to -3.9 % | -0.8 % to +1.5 % | +6.4 % to +21.7 % | -29.2 % (one nation, 92 days), +70.7 % (one nation, 61 days) |
+| per-capita GDP | -1.6 % to -5.0 % | -0.7 % to +1.5 % | +3.6 % to +20.8 % | -29.9 %, +69.2 % (the same two) |
+
+The p95 of the Resist intervals (15 % to 21 % a year) is carried by a few small nations growing from a low base;
+the Protectorate intervals sit at 4 % to 8 %. These are consistent with the quarterly series above.
+
+## Value bands
+
+The game labels each statistic's value with a band. The boundaries below are the game's published vocabulary as
+transcribed by the author from the Terra Invicta wiki (2026-10-23); they are not a save observation and cannot be
+checked against one. The crossing counts are.
+
+| Statistic | Boundaries (band begins at) |
+| --- | --- |
+| `unrest` | 1.5 Subversion, 3 Strife, 4.5 Insurgency, 6 Guerilla War, 7.5 Insurrection, 9 Civil War; below 1.5 Peaceful |
+| `democracy` | 2 Authoritarian, 4 Anocracy, 6 Flawed Democracy, 8 Full Democracy; below 2 Totalitarian |
+| `education` | 5 Developing, 8 Advanced; below 5 Limited (10 and above exceeds the real-world index the scale is built on) |
+| `cohesion` | 1 Fractured, 2 Sectarian, 3 Polarized, 4 Competitive, 5 Diverse, 6 Integrated, 7 Homogenous, 8 Dominated, 9 Hegemonic, 10 Monolithic; below 1 Fragmented |
+| `inequality` | 2 Low, 3 Moderate, 4 High, 5 Very High, 6 Extreme; below 2 Very Low |
+| `militaryTechLevel` | 3 Atomic, 4 Information, 5 Robotics, 6 Invasion, 7 Fusion; below 3 Industrial |
+
+### Crossings between consecutive saves
+
+Nations whose band differed between the two saves of an interval (raw), then the same with a margin (the value
+ends at least 0.25 beyond the boundary it crossed; 0.1 for military tech), then the margin crossings that still
+crossed after subtracting the `*MovementToRestValue` delta of the interval from the later value (the *rest-value
+filter*), then the margin crossings whose band still held at the following save:
+
+| Interval | Statistic | raw | margin | after rest-value filter | held at next save |
+| --- | --- | --- | --- | --- | --- |
+| Appease 7 d | cohesion | 166 | 106 | 92 | 106 of 106 |
+| Appease 7 d | unrest | 11 | 4 | 0 | 4 of 4 |
+| Appease 7 d | democracy | 1 | 0 | | |
+| Protectorate 61 d | unrest | 43 | 35 | | 25 of 35 |
+| Protectorate 61 d | cohesion | 46 | 10 | | 10 of 10 |
+| Protectorate 61 d | inequality, democracy, miltech | 3, 1, 1 | 0 | | |
+| Protectorate 245 d | cohesion | 170 | 144 | 133 | 117 of 144 |
+| Protectorate 245 d | unrest | 97 | 74 | 14 | 70 of 74 |
+| Protectorate 245 d | inequality | 12 | 1 | | 1 of 1 |
+| Protectorate 245 d | democracy, education, miltech | 6, 1, 1 | 0 | | |
+| Protectorate 106 d | cohesion | 52 | 22 | | 22 of 22 |
+| Protectorate 106 d | unrest | 49 | 14 | | 13 of 14 |
+| Protectorate 106 d (last) | cohesion | 76 | 34 | 1 | |
+| Protectorate 106 d (last) | unrest | 41 | 23 | 3 | |
+| Resist 92 d | cohesion | 36 | 28 | 28 | 28 of 28 |
+| Resist 92 d | unrest | 9 | 7 | 3 | 7 of 7 |
+| Resist 21 d | unrest, cohesion, inequality | 5, 3, 1 | 0 | | |
+| Resist 92 d (second) | cohesion | 10 | 2 | | 2 of 2 |
+| Resist 92 d (second) | unrest | 4 | 3 | 2 | 1 of 3 |
+| Resist 228 d | cohesion | 29 | 14 | 1 | |
+| Resist 228 d | unrest | 12 | 5 | 2 | |
+| Resist 228 d | inequality, miltech, education | 5, 1, 1 | 0 | | |
+
+Observations behind the table:
+
+- **Boundary flapping.** Unrest moves in 0.25 steps and sits on 1.25, 1.5 and 1.75 on most nations, so the 1.5
+  boundary is crossed back and forth by dozens of nations per interval. Democracy and inequality crossings were
+  values within 0.02 of a boundary moving across it (one nation crossed 4.0 in three successive intervals, 4.01 to
+  4.00 to 4.02). With the margin, democracy, education and inequality crossings all but disappear: 0 or 1 per
+  interval, and each of those was a move of 0.5 or more.
+- **Unrest is mostly the game converging.** Of the margin crossings, the share of the interval's tracker delta under
+  `UnrestReason_MovementToRestValue` had a median of 0.82 in Protectorate and 0.44 to 0.67 in Resist; the dominant
+  reason of the survivors of the rest-value filter was `UnrestReason_OppressionPriority`,
+  `UnrestReason_StabilizeMission` or `UnrestReason_EventEffect`. Under the filter the 245-day interval keeps 14 of
+  74 crossings; two of them moved two bands.
+- **Cohesion crosses bands routinely.** Its bands are one unit wide and it moved 1.1 on 166 of 174 nations in the
+  7-day Appease interval, every one under `CohesionReason_Effect`; in the 245-day Protectorate interval 144 nations
+  crossed with the margin, 74 of them two bands or more, again dominated by `CohesionReason_Effect` in both
+  directions, which the rest-value filter does not remove. In the later Protectorate and Resist intervals the
+  crossings are dominated by `CohesionReason_MovementToRestValue` (median share 0.84 to 0.85) and the filter removes
+  nearly all (34 to 1, 14 to 1). Only the extremes (below 1, 9 and above) and multi-band moves not explained by the
+  rest value are rare.
+- **Rest-state caches do not predict persistence.** `unrestRestState_dailyCache` was in a different band from
+  `unrest` on 105 of 174 nations and `cohesionRestState_dailyCache` on 161 of 174 in the 2026-12 Protectorate save;
+  whether the rest state agreed with the new band changed the hold rate at the next save only from 56 % to 72 %
+  (unrest) and from 67 % to 100 % on 13 cases (cohesion). The tracker-delta filter above is the usable test.
+- **Military tech** crossed an age boundary on one nation per interval at most (one of them downward, 4.0 to 3.9).
+  Bands in the latest saves: Protectorate 144 Atomic, 21 Information, 8 Industrial (174 nations); Resist 34 Atomic,
+  13 Information, 5 Industrial, 1 Invasion (53 nations).
+- **Education above 10** held on 14 nations in the first Resist save and 16 in the last (highest 12.6), none in
+  Appease or Protectorate.
+
+## Nuclear weapons and programs
+
+`numNuclearWeapons` and `nuclearProgram` did not change in any Appease or Protectorate interval: 9 nations held
+weapons (30, 28, 6, 3, 2, 2, 2, 1, 1) and 10 ran a program. In Resist, 5 nations held weapons in the first four saves
+(37, 13, 5, 2, 2) and 8 ran a program; in the 228-day interval two nations went from 0 to 1 weapon with
+`nuclearProgram` false to true in the same interval (the two 0 to 1 changes already noted in the
+[higher-level sources](higher-level-event-sources.md)). The two largest 2026 arsenals belong to nations that in Resist
+hold 0 weapons or have been absorbed, and the one still present holds 6 regions and about 28 % of its 2026 GDP, with
+four nations of its former territory present as separate nations. `policy_noNukes` was false on every nation of
+every save. The 32-sample `historyNukes` buffer cannot date these changes.
+
+## Space-support assets
+
+Summing the region fields over a nation's regions:
+
+| Save | top nation boost (dekatons/yr) | 2nd, 3rd | top nation mission control | 2nd, 3rd | top region boost |
+| --- | --- | --- | --- | --- | --- |
+| Appease and Protectorate first (2026-02) | 96.1 | 57.1, 7.0 | 6 | 3, 3 | 65.5 |
+| Protectorate last (2027-07) | 96.1 | 57.7, 12.8 | 6 | 3, 3 | 65.5 |
+| Resist first (2045-08) | 3,672.7 | 2,207.0, 1,557.4 | 365 | 278, 156 | 658.5 |
+| Resist last (2046-10) | 3,672.7 | 1,916.2, 1,557.4 | 388 | 268, 167 | 658.5 |
+
+Boost is flat on most nations and grew by 1 % to 15 % a year on the few building it (one nation 291.7 to 306.8 over
+Resist); the one large drop (2,207 to 1,916) coincided with that nation's territory loss. Mission control on the four
+largest holders moved 1 to 4 per quarter. `antiSpaceDefenses` was true on 4 regions and `numSTOFighters` non-zero on
+5 in every Resist save, and on none in Appease or Protectorate. `TISpaceDefensesFacilityState` is a state type of its
+own; the facility references on regions (`boostFacility`, `missionControlFacility`, `spaceDefenseFacility`) were
+present on every region and were not decoded.
+
+## Armies, navies and a strength estimate
+
+`TIArmyState.armyType` was `Human` on every army; `deploymentType` was `Standard` on 15 and `Naval` on 12 of the 27
+armies in Appease and the first two Protectorate saves (30 in the last three: 18 and 12), and 10 and 9 of 19 in
+Resist. Both kinds appear in the nation's `armies` list (9 of 20 list entries in the latest Resist save are naval).
+`strength` is a fraction (below 1 on 0 to 4 armies per save). Army counts did not change in any Resist interval and
+grew by 3 in one Protectorate interval. No region carried an occupation in any save.
+
+The author's strength formula (regions not occupied × military tech × 0.7, plus standard armies × military tech × 3 ×
+mean remaining strength, plus naval armies, minus unrest, plus 100 if any nuclear weapon, plus 5 per weapon) ranks
+the nations differently from GDP: in the last Protectorate save the four largest economies hold the first four places
+in a different order (338, 298, 227, 199), and in the last Resist save the first three (586, 336, 329) are followed by
+two nations with one weapon each at places 6 and 7, ahead of larger conventional powers, because any arsenal adds
+100. The formula is the game's published estimate as transcribed by the author (*hypothesis*: not checked against a
+game value; `historyWarStatus` is not it).
