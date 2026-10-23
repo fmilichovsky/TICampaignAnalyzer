@@ -212,7 +212,8 @@ earliest shift), `date` and `date_basis` (the later save of the latest shift: th
 keeps at most `narrative.geopolitics.metric_shifts_max` entries ([configuration](../configuration.md)): those of its
 role nations first, then `numNuclearWeapons`, then the largest `relative_change` (entries without one last, ties by
 nation and statistic). The kept entries stay in nation and statistic order, and `metric_shifts_omitted` counts the
-rest when any were cut. The narrator package (`--narrative --format json`) leaves the `events` list out of each
+rest when any were cut. The alien administration's claims are not declared as `nation.claims_declared`, and its
+`nation.claims_changed` is `minor`. The narrator package (`--narrative --format json`) leaves the `events` list out of each
 entry, because it does not list the shift events; the audit form lists them.
 `federation.lifecycle` counts a member's shifts only in the intervals in which it was a member at either end, so
 the interval of a join or leave counts and earlier or later ones do not.
@@ -350,6 +351,7 @@ something was serialized), never `0`, `[]` or `null`. `null` is a known null.
 - `player_faction_name`: `playerFactionName` from the campaign metadata.
 - `nations`: one object per nation, in ID order:
   - `nation`: the nation;
+  - `alien`: `true` for the alien administration (`alienNation`), else `false`;
   - `executive`: the faction holding the nation's executive seat: its control point typed
     `Executive`, else the point at `positionInNation` 0. It is `null` when the seat is uncontrolled
     or the nation has no control points, and unknown when the point list is unknown, no point is

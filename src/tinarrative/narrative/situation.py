@@ -94,10 +94,13 @@ class NationSituation:
     region_refs: Observed = field(default_factory=Unknown)
     """The nation's regions as named references; read by the glossary, not part of ``to_dict`` (``regions`` counts
     them)."""
+    alien: bool = False
+    """The nation is the alien administration (``alienNation``), which holds implicit claims on every region."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "nation": to_jsonable(self.nation),
+            "alien": self.alien,
             "executive": to_jsonable(self.executive),
             "seat_basis": self.seat_basis,
             "control_points": to_jsonable(self.control_points),
@@ -360,6 +363,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         population=population,
         statistics=tuple((name, state.get(name)) for name in STATISTICS),
         region_refs=reader.resolved(regions),
+        alien=state.get("alienNation") is True,
     )
 
 

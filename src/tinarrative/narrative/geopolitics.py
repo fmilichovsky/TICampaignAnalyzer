@@ -684,7 +684,8 @@ def _executive_after(
 class ClaimsDeclaredRule:
     """``nation.claims_declared``: a nation's claim list gained regions held by other nations (``added_owners``).
 
-    Additions on regions the claimant holds itself name no target and emit nothing.
+    Additions on regions the claimant holds itself name no target and emit nothing, and neither do the alien
+    administration's, whose claims cover every region implicitly.
     """
 
     settings: GeopoliticsSettings
@@ -696,8 +697,13 @@ class ClaimsDeclaredRule:
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
         built = []
+        reports = interval_reports(situations)
         for anchor in sorted(by_type(stream, "nation.claims_changed"), key=lambda event: event.id):
             nation = anchor.entities[0]
+            around = reports.get(interval_of(anchor.id))
+            claimant = _nation(around[1], nation.entity_id) if around is not None else None
+            if claimant is not None and claimant.alien:
+                continue
             regions = refs_attribute(anchor, "added")
             targets = [ref for ref in refs_attribute(anchor, "added_owners") if ref.entity_id != nation.entity_id]
             if not regions or not targets:
