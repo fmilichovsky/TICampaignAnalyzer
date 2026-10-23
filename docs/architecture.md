@@ -765,8 +765,10 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     `hab.under_assault_changed`, `hab.under_bombardment_changed`,
     `hab.core_completed_changed`, presence without corroboration, and
     `faction.hab_destruction_recorded` for every `HabDestructionLog` entry
-    added (record-dated; it names a hab type and a space body, never a hab ID,
-    so it is not linked to any `hab.disappeared`).
+    added (record-dated; it names a hab type and a space body, never a hab ID.
+    It carries the log's faction as `owner`, and a `hab` ref only when exactly
+    one entry and one vanished hab share owner, type and body; the event
+    stays separate from `hab.disappeared`).
 -   `analyzers/space/combat.py` (`CombatAnalyzer`): `faction.combat_recorded`
     for every `CombatLogs` entry added, citing the entry, naming the owning
     faction, the side factions, the winner and the hab faction, with the sides

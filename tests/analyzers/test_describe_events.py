@@ -95,7 +95,8 @@ EXPECTED_INTERVAL_ASSETS = {
 
 EXPECTED_ASSETS = {
     "Fixture Resistance (faction:15) records a hab destruction dated 2032-05-20T00:00:00: "
-    'type "Base" at Fixture Body (space body:50) by Fixture Servants (faction:16)',
+    'type "Base" (hab Fixture HabState 141 (space object:141)) at Fixture Body (space body:50) '
+    "by Fixture Servants (faction:16)",
     "Fixture Resistance (faction:15) records a hab destruction dated 2032-06-02T00:00:00: "
     'type "Base" at unknown (unresolved_reference, raw={"value": 998}) by null',
     "Fixture Megafauna (army:112) (faction Fixture Servants (faction:16), region Fixture "
