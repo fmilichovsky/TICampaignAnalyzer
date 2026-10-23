@@ -178,24 +178,24 @@ built from the developments catalogued in
     as campaign-long sources, population and GDP rates, band crossings with the margin and rest-value filters,
     nuclear, space-support and military assets (#189);
   - [ ] significance: shifts `trivial` by default and `numNuclearWeapons` `major`; `numControlPoints` no longer a
-    tracked statistic; `nation.transformation` and `transformation_window_days` removed;
+    tracked statistic; `nation.transformation` and `transformation_window_days` removed (#190);
   - [ ] bands as game vocabulary (`narrative/bands.py`), `nation.band_crossed` with the margin and the tracker
     causes, one band-shift rule per statistic (`nation.unrest_shift`, `nation.government_shift`,
     `nation.education_shift`, `nation.cohesion_shift`, `nation.inequality_shift`, `nation.miltech_shift`) with the
     rest-value filter, confirmation by the next report and carrier suppression; `from_band` / `to_band` on
-    `metric_shifts`; the architecture's band-label rule amended for game-defined bands;
+    `metric_shifts`; the architecture's band-label rule amended for game-defined bands (#191);
   - [ ] nuclear arcs: `nation.nuclear_program_changed` and `nation.policy_changed` atomic events,
-    `nation.nuclear_armament`, `nation.nuclear_buildup`, `nation.nuclear_disarmament`;
+    `nation.nuclear_armament`, `nation.nuclear_buildup`, `nation.nuclear_disarmament` (#195, related #186);
   - [ ] population and economic trajectory: territory-adjusted `nation.population_changed` and
     `nation.population_collapse`; `nation.pcgdp_trend` from `tracker_PCGDP_ByQuarter`, record-dated by quarter,
     chained into `nation.economic_trajectory`, with the quarters before the first save as `before_sequence`
-    backstory;
+    backstory (#192);
   - [ ] military and space-support assets and rankings: armies, navies, the strength estimate, boost, mission
     control and space defences in the situation report; `nation.military_buildup` / `nation.demobilization`,
     `nation.navy_established`, `nation.space_program_growth`, `nation.space_defences_established`,
-    `world.ranking_changed` by GDP, strength, boost and mission control;
+    `world.ranking_changed` by GDP, strength, boost and mission control (#193);
   - [ ] campaign baseline from the cumulative cause trackers (`nation.since_start`), after the cohesion and unrest
-    outliers are explained.
+    outliers are explained (#194).
 
 ## CLI user experience
 
