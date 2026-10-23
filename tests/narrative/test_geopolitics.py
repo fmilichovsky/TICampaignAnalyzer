@@ -25,6 +25,7 @@ from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
+from tinarrative.narrative.geopolitics import bounded_shifts
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -421,6 +422,62 @@ def test_metric_shifts_are_attributes_citing_the_shift_events_and_never_constitu
         "causes": FrozenMap((("democracyReason_Test", -2.0),)),
         "events": (first.id,),
     }
+
+
+def statistics(item: Event) -> list[tuple[str, str]]:
+    entries = item.attribute("metric_shifts")
+    assert isinstance(entries, tuple)
+    return [(str(dict(entry.items)["nation"].entity_id), str(dict(entry.items)["statistic"])) for entry in entries]  # type: ignore[union-attr]
+
+
+def test_metric_shifts_leave_out_control_points_and_keep_nuclear_weapons() -> None:
+    anchor = control(K1, "executive", RESISTANCE, SERVANTS)
+    stream = [anchor, shift(K1, "numControlPoints"), shift(K1, "numNuclearWeapons")]
+
+    takeover = only(built(stream, plain(K0, K1)), "faction.takeover")
+
+    assert statistics(takeover) == [("nation:20", "numNuclearWeapons")]
+
+
+def test_metric_shifts_are_bounded_per_development_and_the_cut_is_counted() -> None:
+    stream = [
+        *transfer(K1, SOUTH, NORTH, SOUTH_REGION),
+        shift(K1, "democracy", before=1.0, after=2.0),
+        shift(K1, "GDP", before=1.0, after=1.5),
+        shift(K1, "unrest", before=1.0, after=4.0),
+        shift(K1, "cohesion", subject=SOUTH, before=1.0, after=1.2),
+    ]
+
+    full = only(built(stream, plain(K0, K1)), "nation.cession")
+    bounded = only(built(stream, plain(K0, K1), GeopoliticsSettings(metric_shifts_max=2)), "nation.cession")
+
+    assert len(statistics(full)) == 4 and "metric_shifts_omitted" not in dict(full.attributes)
+    assert statistics(bounded) == [("nation:20", "democracy"), ("nation:20", "unrest")]
+    assert bounded.attribute("metric_shifts_omitted") == 2
+
+
+def shift_entry(subject: EntityRef, statistic: str, relative: float | None) -> FrozenMap:
+    return FrozenMap((("nation", subject), ("statistic", statistic), ("relative_change", relative)))
+
+
+def test_bounded_shifts_rank_role_nations_then_nuclear_weapons_then_the_largest_change() -> None:
+    entries = [
+        shift_entry(NORTH, "GDP", 0.1),
+        shift_entry(SOUTH, "democracy", 5.0),
+        shift_entry(SOUTH, "numNuclearWeapons", None),
+        shift_entry(SOUTH, "spaceFunding_year", None),
+        shift_entry(SOUTH, "unrest", 0.5),
+        shift_entry(WEST, "unrest", 0.5),
+    ]
+    roles = [(Role.ACTOR, NORTH), (Role.LOCATION, SOUTH_REGION)]
+
+    def kept(limit: int) -> dict[str, object]:
+        return dict(bounded_shifts(entries, roles, limit))
+
+    assert kept(4) == {"metric_shifts": tuple(entries[index] for index in (0, 1, 2, 4)), "metric_shifts_omitted": 2}
+    assert kept(5) == {"metric_shifts": tuple(entries[:3] + entries[4:]), "metric_shifts_omitted": 1}
+    assert kept(6) == kept(12) == {"metric_shifts": tuple(entries)}
+    assert kept(0) == {"metric_shifts": (), "metric_shifts_omitted": 6}
 
 
 # --- war.arc -----------------------------------------------------------------------------------------------------

@@ -1,10 +1,10 @@
-"""The narrator form of the JSON report: slimmed situation reports and rounded floats."""
+"""The narrator form of the JSON report: slimmed situation reports, rounded floats and shift entries without IDs."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from tinarrative.rendering.json_report import _slim, _slim_situations
+from tinarrative.rendering.json_report import _drop_shift_events, _slim, _slim_situations
 
 ALLY = {"ref": "nation:4", "state_type": "TINationState", "confidence": "in_save_id", "name": "Fixture Ally"}
 
@@ -70,3 +70,24 @@ def test_floats_keep_four_significant_digits() -> None:
         "flag": True,
         "small": 0.0001235,
     }
+
+
+def test_shift_entries_lose_their_event_ids_and_nothing_else() -> None:
+    entry = {"nation": {"ref": "nation:1"}, "statistic": "GDP", "events": ["nation.statistic_shifted/nation:1@k"]}
+    narrative = [
+        {"attributes": {"metric_shifts": [entry], "metric_shifts_omitted": 3, "events": ["kept"]}},
+        {"attributes": {"region_count": 2}},
+    ]
+
+    _drop_shift_events(narrative)
+
+    assert narrative == [
+        {
+            "attributes": {
+                "metric_shifts": [{"nation": {"ref": "nation:1"}, "statistic": "GDP"}],
+                "metric_shifts_omitted": 3,
+                "events": ["kept"],
+            }
+        },
+        {"attributes": {"region_count": 2}},
+    ]

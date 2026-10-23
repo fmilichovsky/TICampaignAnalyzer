@@ -32,6 +32,11 @@ release_window_days = 180
 # nation.transformation.
 transformation_window_days = 120
 
+# A development keeps at most this many metric_shifts entries: its role
+# nations' first, then nuclear weapons, then the largest relative change; the
+# rest are counted as metric_shifts_omitted (minimum 0).
+metric_shifts_max = 12
+
 [narrative.space]
 
 # Battle outcomes of one killer and victim pair chain into one

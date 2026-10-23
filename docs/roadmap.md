@@ -169,6 +169,8 @@ built from the developments catalogued in
     chapter reports without nations that hold no region and that the chapter does not name (#159).
   - [x] list only narrator evidence in the atomic stream: one `--constituents all|evidence|none` flag, `narrate`
     building with `evidence`, and the takeover carrying its executive record's date and previous holder (#160).
+  - [x] bound `metric_shifts`: no `numControlPoints`, at most `narrative.geopolitics.metric_shifts_max` entries per
+    development with the rest counted, and no shift event IDs in the narrator form (#161).
 
 ## CLI user experience
 

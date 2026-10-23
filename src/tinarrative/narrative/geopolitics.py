@@ -11,7 +11,9 @@ Each rule emits only from its anchor and attaches further events by entity, and 
 A rule whose window can still take events from a later save says so with ``open``; a one-interval rule is never
 open. Every rule carries ``metric_shifts`` (``metric_shifts``), the nation statistic shifts of its nations in the
 intervals it spans, as literal values: no band label ("democratic") is ever assigned. The shifts are named by event
-ID and are not constituents, so they never widen a span or change status, confidence or significance.
+ID and are not constituents, so they never widen a span or change status, confidence or significance. They leave out
+the statistics other events already tell (``MIRRORED_STATISTICS``) and are bounded per development
+(``bounded_shifts``), the cut counted.
 
 Order 0 builds on the atomic stream; ``nation.expansion`` (order 1) nests the cessions it is made of; ``war.arc``
 and ``nation.transformation`` (order 2) nest the expansions fought out between belligerents and step aside for a
@@ -91,6 +93,11 @@ READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 """The territorial readings that explain a gain; a gain without one is a cession candidate."""
 SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, RELEASE, BREAKAWAY})
 """Developments whose ``metric_shifts`` already state a transformation of their nations."""
+MIRRORED_STATISTICS = frozenset({"numControlPoints"})
+"""Statistics that ``metric_shifts`` leaves out: the control-point and region events already tell them."""
+LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
+"""Statistics whose ``metric_shifts`` entries rank ahead of any relative change when the entries are bounded; a
+shift from zero has no relative change but is the story."""
 
 
 # --- Situation context -------------------------------------------------------------------------------------------
@@ -155,12 +162,15 @@ def metric_shifts(
     per-reason ``causes`` when the shifts carry them, and the shift ``events`` by ID. The net covers the reported
     shifts only: an interval in between whose change stayed below the analyzer's threshold is not reported.
     ``windows`` limits a nation to its own intervals; a nation without a window keeps all of ``intervals``.
+    ``MIRRORED_STATISTICS`` are left out.
     """
     wanted, keys = set(nations), set(intervals)
     groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
     for event in stream:
         nation = subject_id(event)
         if event.event_type != STATISTIC_SHIFTED or nation not in wanted or interval_of(event.id) not in keys:
+            continue
+        if event.attribute("statistic") in MIRRORED_STATISTICS:
             continue
         if windows is not None and nation in windows and interval_of(event.id) not in windows[nation]:
             continue
@@ -203,6 +213,36 @@ def _summed_causes(shifts: Sequence[Event]) -> FrozenMap | None:
             if number is not None:
                 totals[reason] += number
     return FrozenMap(tuple((reason, total) for reason, total in totals.items() if total != 0))
+
+
+def bounded_shifts(
+    entries: Sequence[FrozenMap], roles: Iterable[tuple[Role, EntityRef]], limit: int
+) -> tuple[tuple[str, FieldValue], ...]:
+    """The ``metric_shifts`` attribute of at most ``limit`` of ``entries``, with ``metric_shifts_omitted`` when cut.
+
+    Entries of the development's role nations rank first, then ``LEADING_STATISTICS``, then the largest
+    ``relative_change``, entries without one last; ties keep the entries' order (by nation, statistic and key). The
+    kept entries stay in that order.
+    """
+    first = {ref.entity_id for _, ref in roles if ref.entity_id.domain is EntityDomain.NATION}
+
+    def rank(position: int) -> tuple[bool, bool, bool, float, int]:
+        entry = dict(entries[position].items)
+        relative = _number(entry.get("relative_change"))
+        nation = entry.get("nation")
+        return (
+            not (isinstance(nation, EntityRef) and nation.entity_id in first),
+            entry.get("statistic") not in LEADING_STATISTICS,
+            relative is None,
+            -(relative or 0.0),
+            position,
+        )
+
+    kept = sorted(sorted(range(len(entries)), key=rank)[:limit])
+    attributes: tuple[tuple[str, FieldValue], ...] = (("metric_shifts", tuple(entries[index] for index in kept)),)
+    if len(kept) < len(entries):
+        attributes += (("metric_shifts_omitted", len(entries) - len(kept)),)
+    return attributes
 
 
 # --- Rules -------------------------------------------------------------------------------------------------------
@@ -352,7 +392,9 @@ class TakeoverRule:
                 ("previous_executive", recorded.get("previous_executive")),
                 ("consolidated", any(anchor.attribute("scope") == "sole" for anchor in anchors)),
                 ("gdp_rank", rank),
-                ("metric_shifts", metric_shifts(stream, [nation.entity_id], intervals)),
+                *bounded_shifts(
+                    metric_shifts(stream, [nation.entity_id], intervals), roles, settings.metric_shifts_max
+                ),
             ),
             significance=Significance.CAMPAIGN_DEFINING if defining else Significance.MAJOR,
             open=_holds_executive_only(situations, nation.entity_id, actor.entity_id),
@@ -454,18 +496,20 @@ class FederationLifecycleRule:
             members |= {ref.entity_id for event in events for ref in event.entities[1:]}
             windows = _membership_windows(reports, federation_id, members)
             federation = events[0].entities[0]
+            roles = [(Role.ACTOR, federation)]
+            shifts = metric_shifts(stream, members, intervals_of(events), windows)
             built.append(
                 build.event(
                     FEDERATION_LIFECYCLE,
                     id_parts=[federation_id],
                     constituents=events,
-                    roles=[(Role.ACTOR, federation)],
+                    roles=roles,
                     join=Join.ENTITY,
                     attributes=(
                         ("members_initial", initial),
                         ("member_changes", changes),
                         ("members_final", final),
-                        ("metric_shifts", metric_shifts(stream, members, intervals_of(events), windows)),
+                        *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
                     anchor=federation,
                     significance=Significance.MAJOR,
@@ -528,21 +572,20 @@ class CessionRule:
                     if first.federation.entity_id == second.federation.entity_id:
                         shared = first.federation
         constituents = [gain, loss]
+        roles = [(Role.ACTOR, loser), (Role.BENEFICIARY, gainer), *((Role.LOCATION, region) for region in regions)]
+        shifts = metric_shifts(stream, [gainer.entity_id, loser.entity_id], intervals_of(constituents))
         return build.event(
             CESSION,
             id_parts=[loser.entity_id, gainer.entity_id],
             constituents=constituents,
-            roles=[(Role.ACTOR, loser), (Role.BENEFICIARY, gainer), *((Role.LOCATION, region) for region in regions)],
+            roles=roles,
             join=Join.HEURISTIC,
             attributes=(
                 ("regions", regions),
                 ("region_count", len(regions)),
                 ("allied", allied),
                 ("shared_federation", shared),
-                (
-                    "metric_shifts",
-                    metric_shifts(stream, [gainer.entity_id, loser.entity_id], intervals_of(constituents)),
-                ),
+                *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
             ),
             significance=Significance.MAJOR,
             open=False,
@@ -605,11 +648,12 @@ class IndependenceRule:
                         ("parents", parents),
                         ("releasing_nation", releasing),
                         ("executive_faction", _executive_after(attached, reports, anchor, nation.entity_id)),
-                        (
-                            "metric_shifts",
+                        *bounded_shifts(
                             metric_shifts(
                                 stream, [nation.entity_id, *(p.entity_id for p in parents)], intervals_of(constituents)
                             ),
+                            roles,
+                            self.settings.metric_shifts_max,
                         ),
                     ),
                     open=within(latest(anchor), last_date(situations), days),
@@ -658,16 +702,18 @@ class ClaimsDeclaredRule:
             targets = [ref for ref in refs_attribute(anchor, "added_owners") if ref.entity_id != nation.entity_id]
             if not regions or not targets:
                 continue
+            roles = [(Role.ACTOR, nation), *((Role.TARGET, target) for target in targets)]
+            shifts = metric_shifts(stream, [nation.entity_id], intervals_of([anchor]))
             built.append(
                 build.event(
                     CLAIMS_DECLARED,
                     id_parts=[nation.entity_id],
                     constituents=[anchor],
-                    roles=[(Role.ACTOR, nation), *((Role.TARGET, target) for target in targets)],
+                    roles=roles,
                     join=Join.ENTITY,
                     attributes=(
                         ("regions", regions),
-                        ("metric_shifts", metric_shifts(stream, [nation.entity_id], intervals_of([anchor]))),
+                        *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
                     open=False,
                 )
@@ -758,19 +804,20 @@ class ExpansionRule:
                 if kinds == readings and len(readings) == 1
                 else "mixed"
             )
-        intervals = intervals_of(constituents)
+        roles = [(Role.ACTOR, gainer), *((Role.TARGET, loser) for loser in losers)]
+        shifts = metric_shifts(stream, [gainer.entity_id, *loser_ids], intervals_of(constituents))
         return build.event(
             EXPANSION,
             id_parts=[gainer.entity_id],
             constituents=constituents,
-            roles=[(Role.ACTOR, gainer), *((Role.TARGET, loser) for loser in losers)],
+            roles=roles,
             join=Join.HEURISTIC,
             attributes=(
                 ("losers", losers),
                 ("regions", regions),
                 ("region_count", len(regions)),
                 ("mode", mode),
-                ("metric_shifts", metric_shifts(stream, [gainer.entity_id, *loser_ids], intervals)),
+                *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
             ),
             significance=Significance.MAJOR,
             open=within(end, last, self.settings.expansion_gap_days),
@@ -916,11 +963,13 @@ class WarArcRule:
         if ordered:
             strikes = _counter_delta(reports[ordered[0]][0], reports[ordered[-1]][1], "nuclearStrikes")
         sides = {ref.entity_id for ref in (*attackers, *defenders)}
+        roles = [*((Role.ACTOR, ref) for ref in attackers), *((Role.TARGET, ref) for ref in defenders)]
+        shifts = metric_shifts(stream, sides, _since(intervals_of(constituents), started))
         return build.event(
             WAR_ARC,
             id_parts=[war.entity_id],
             constituents=constituents,
-            roles=[*((Role.ACTOR, ref) for ref in attackers), *((Role.TARGET, ref) for ref in defenders)],
+            roles=roles,
             join=Join.ENTITY,
             attributes=(
                 ("war", war),
@@ -931,7 +980,7 @@ class WarArcRule:
                 ("defenders", defenders),
                 ("regions_transferred", regions),
                 ("nuclear_strikes", strikes),
-                ("metric_shifts", metric_shifts(stream, sides, _since(intervals_of(constituents), started))),
+                *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
             ),
             anchor=war,
             significance=Significance.MAJOR,
@@ -1011,16 +1060,19 @@ class TransformationRule:
                 ):
                     continue
                 nation = run[0].entities[0]
+                roles = [(Role.ACTOR, nation)]
                 built.append(
                     build.event(
                         TRANSFORMATION,
                         id_parts=[nation_id],
                         constituents=run,
-                        roles=[(Role.ACTOR, nation)],
+                        roles=roles,
                         join=Join.ENTITY,
                         attributes=(
                             ("statistics", tuple(statistics)),
-                            ("metric_shifts", metric_shifts(stream, [nation_id], keys)),
+                            *bounded_shifts(
+                                metric_shifts(stream, [nation_id], keys), roles, self.settings.metric_shifts_max
+                            ),
                         ),
                         open=within(latest(run[0]), last, days),
                     )
