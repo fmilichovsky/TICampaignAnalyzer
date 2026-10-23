@@ -45,10 +45,12 @@ The user message may carry a request block.  Defaults in brackets.
   (`include_constituents`).  Absence is not evidence that nothing happened.
   A development cited by another may be listed below `min_significance`.
 - `saves[].situation`: a literal snapshot at each save: who holds each
-  nation's executive, control-point shares, federations, wars and their sides,
-  regions, population, statistics, habs and fleets by faction, milestones,
-  nuclear and climate counters.  Snapshots are background, not events: a
-  milestone or count found only there is not a dated achievement, and the last
+  nation's executive, control-point shares, federations, allies (IDs), wars
+  and their sides, regions, population, statistics, habs and fleets by faction
+  (`habs_by_body` lists the bodies with two or more habs; `other_bodies`
+  counts those with one), milestones, nuclear and climate counters.
+  Snapshots are background, not events: a milestone or count found only there
+  is not a dated achievement, and the last
   snapshot's counts are the measure of where things stood.
 - `glossary`: the authoritative names and kinds of every referenced ID.  Use
   those names; an entity renamed over the campaign has its current `name` and

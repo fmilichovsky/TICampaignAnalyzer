@@ -185,11 +185,14 @@ def estimate(request: Mapping[str, Any], chars_per_token: int) -> int:
 
 
 def referenced(node: Any) -> set[str]:
-    """Every entity ref in ``node``: ``ref`` members and the faction keys of ``shares``."""
+    """Every entity ref in ``node``: ``ref`` members, the faction keys of ``shares`` and the ref strings of
+    ``allies``."""
     if isinstance(node, dict):
         found = {node["ref"]} if isinstance(node.get("ref"), str) else set()
         if isinstance(node.get("shares"), dict):
             found.update(node["shares"])
+        if isinstance(node.get("allies"), list):
+            found.update(ally for ally in node["allies"] if isinstance(ally, str))
         for value in node.values():
             found |= referenced(value)
         return found
@@ -405,7 +408,8 @@ class _Planner:
         ]
         atomic = [event for interval in intervals for event in self._atomic(interval)]
         refs = referenced([developments, continuity, atomic])
-        saves = [self._pruned(save, refs) for save in self._saves(chapter)]
+        told = referenced([developments, continuity["continuing"], atomic])
+        saves = [self._pruned(save, refs, told) for save in self._saves(chapter)]
         covers = self._covers(chapter)
         restricted: dict[str, Any] = {}
         for key, value in self.package.items():
@@ -478,21 +482,32 @@ class _Planner:
         positions = [*(() if not opening else (opening - 1,)), *(() if closing is None else (closing,))]
         return [saves[position] for position in positions]
 
-    def _pruned(self, save: Mapping[str, Any], refs: set[str]) -> Mapping[str, Any]:
-        """The save with its situation's nations reduced to the referenced ones and the largest economies."""
+    def _pruned(self, save: Mapping[str, Any], refs: set[str], told: set[str]) -> Mapping[str, Any]:
+        """The save with its situation's nations reduced to the referenced ones and the largest economies.
+
+        A nation that holds no region in this save is not ranked among the economies and is kept only when ``told``,
+        the refs of the chapter's developments, continuing developments and atomic events, holds it; a mention in
+        the digest of an earlier development does not keep it.
+        """
         situation = save.get("situation")
         if not isinstance(situation, dict) or not isinstance(situation.get("nations"), list):
             return save
         nations: list[Mapping[str, Any]] = situation["nations"]
+        landless = {position for position, nation in enumerate(nations) if _landless(nation)}
         ranked = sorted(
-            ((gdp, position) for position, nation in enumerate(nations) if (gdp := _gdp(nation)) is not None),
+            (
+                (gdp, position)
+                for position, nation in enumerate(nations)
+                if position not in landless and (gdp := _gdp(nation)) is not None
+            ),
             key=lambda item: (-item[0], item[1]),
         )
         largest = {position for _, position in ranked[: self.settings.top_economies]}
         kept = [
             nation
             for position, nation in enumerate(nations)
-            if position in largest or (nation.get("nation") or {}).get("ref") in refs
+            if (nation.get("nation") or {}).get("ref") in (told if position in landless else refs)
+            or position in largest
         ]
         return {**save, "situation": {**situation, "nations": kept}}
 
@@ -519,6 +534,11 @@ def _sort_text(value: Any) -> str:
 
 def _digest(event: Mapping[str, Any]) -> dict[str, Any]:
     return {key: event.get(key) for key in ("id", "event_type", "significance", "start", "end", "roles")}
+
+
+def _landless(nation: Mapping[str, Any]) -> bool:
+    regions = nation.get("regions")
+    return isinstance(regions, int) and not isinstance(regions, bool) and regions == 0
 
 
 def _gdp(nation: Mapping[str, Any]) -> float | None:

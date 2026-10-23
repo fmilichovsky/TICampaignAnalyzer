@@ -71,7 +71,7 @@ The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](archite
 | `narrator.quarter_span_days` | 730 | 0 | A campaign spanning this many game days or fewer is told by quarter (unless `--period` is given). |
 | `narrator.half_span_days` | 1825 | 0 | A longer campaign spanning this many game days or fewer is told by half year; a longer one by year. |
 | `narrator.recalled_developments` | 40 | 0 | Each chapter is reminded of at most this many developments of earlier chapters (`major` and above; the most significant, then the most recent, are kept and the rest counted), so the model can refer back to them without retelling them. 0 turns the reminder off; a larger value costs input tokens in every later chapter. |
-| `narrator.top_economies` | 10 | 0 | A chapter's situation reports keep the nations the chapter references and this many more, the largest by `GDP`. |
+| `narrator.top_economies` | 10 | 0 | A chapter's situation reports keep the nations the chapter references and this many more, the largest by `GDP` among the nations that hold a region in that save. |
 
 ### Narrator provider and profiles
 

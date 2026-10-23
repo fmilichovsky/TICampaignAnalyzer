@@ -18,6 +18,9 @@ from ..narrative.situation import SituationReport
 from ..sequence import IntervalResult, SequencePlan, situations
 from .listing import listing
 
+FLOAT_DIGITS = 4
+"""Significant digits of a float in the narrator package."""
+
 
 def build_document(
     plan: SequencePlan,
@@ -76,9 +79,10 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
 
     Every event loses its ``sources``, and the campaign, skipped files, saves and intervals lose their file paths; the
     report without ``--narrative`` (at ``trivial``) keeps both, and every ID here resolves in it. A nation that holds no
-    region in any save and is not referenced by a listed event is left out of the situation reports. The glossary is
-    built from what remains, then references are reduced to ``ref`` and ``name`` (and ``confidence`` when the identity
-    is not an in-save ID), the glossary keeping each entity's kind.
+    region in any save and is not referenced by a listed event is left out of the situation reports, and the reports
+    are slimmed (``_slim_situations``). The glossary is built from what remains, then references are reduced to
+    ``ref`` and ``name`` (and ``confidence`` when the identity is not an in-save ID), the glossary keeping each
+    entity's kind, and floats are rounded to ``FLOAT_DIGITS`` significant digits.
     """
     document["campaign"] = {key: value for key, value in document["campaign"].items() if key != "sources"}
     document["skipped"] = [{"error_class": skipped["error_class"]} for skipped in document["skipped"]]
@@ -93,6 +97,7 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
     for event in events:
         del event["sources"]
     _prune_nations(document["saves"], _referenced(events))
+    _slim_situations(document["saves"])
     glossary = build_glossary(document, reports)
     slimmed: dict[str, Any] = _slim(document)
     slimmed["glossary"] = glossary
@@ -123,6 +128,40 @@ def _prune_nations(saves: list[dict[str, Any]], referenced: set[str]) -> None:
         report["nations"] = [nation for nation in report["nations"] if nation["nation"]["ref"] in kept]
 
 
+def _slim_situations(saves: list[dict[str, Any]]) -> None:
+    """Reduce every report to what a reader narrates from.
+
+    A nation's ``allies`` become bare ref strings (the glossary names them) and it loses ``seat_basis``, and
+    ``unresolved_points`` when that is ``0``. A faction's ``habs_by_body`` keeps the bodies with two or more habs;
+    ``other_bodies`` counts the bodies with one. ``habs`` still counts every hab.
+    """
+    for report in (save["situation"] for save in saves if save["situation"] is not None):
+        for nation in report["nations"]:
+            if isinstance(nation.get("allies"), list):
+                nation["allies"] = [
+                    ally["ref"] if isinstance(ally, dict) and isinstance(ally.get("ref"), str) else ally
+                    for ally in nation["allies"]
+                ]
+            nation.pop("seat_basis", None)
+            if _is_zero(nation.get("unresolved_points")):
+                del nation["unresolved_points"]
+        factions: list[dict[str, Any]] = []
+        for faction in report["factions"]:
+            bodies = faction["habs_by_body"]
+            shared = [entry for entry in bodies if entry["habs"] > 1]
+            slim: dict[str, Any] = {}
+            for key, value in faction.items():
+                slim[key] = shared if key == "habs_by_body" else value
+                if key == "habs_by_body":
+                    slim["other_bodies"] = len(bodies) - len(shared)
+            factions.append(slim)
+        report["factions"] = factions
+
+
+def _is_zero(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value == 0
+
+
 def _slim(node: Any) -> Any:
     if isinstance(node, dict):
         if isinstance(node.get("ref"), str) and "state_type" in node:
@@ -135,4 +174,6 @@ def _slim(node: Any) -> Any:
         return {key: _slim(value) for key, value in node.items()}
     if isinstance(node, list):
         return [_slim(item) for item in node]
+    if isinstance(node, float):
+        return float(f"{node:.{FLOAT_DIGITS}g}")
     return node

@@ -25,7 +25,8 @@ def _entity_id(text: str) -> EntityId | None:
 
 
 def _references(node: Any) -> Iterable[Mapping[str, Any]]:
-    """Every reference object (a mapping with a ``ref``) in a JSON-shaped value, and the faction shares' keys."""
+    """Every reference object (a mapping with a ``ref``) in a JSON-shaped value, the faction shares' keys and the
+    ref strings of a narrator package's ``allies``."""
     if isinstance(node, Mapping):
         if isinstance(node.get("ref"), str):
             yield node
@@ -33,6 +34,12 @@ def _references(node: Any) -> Iterable[Mapping[str, Any]]:
             if key == "shares" and isinstance(value, Mapping):
                 for holder in value:
                     yield {"ref": holder}
+            elif key == "allies" and isinstance(value, list):
+                for ally in value:
+                    if isinstance(ally, str):
+                        yield {"ref": ally}
+                    else:
+                        yield from _references(ally)
             else:
                 yield from _references(value)
     elif isinstance(node, list):

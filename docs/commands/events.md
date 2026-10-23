@@ -307,6 +307,11 @@ the rest. It is meant to be handed to a reader, such as an LLM narrator
   state type is the glossary entry's `kind`;
 - a situation report leaves out the nations that hold no region in any save of the run and that no
   listed event references; `world` still counts every nation;
+- a situation report's nations have no `seat_basis`, no `unresolved_points` when that is `0`, and
+  `allies` as bare ref strings (`"nation:4"`), each a glossary entry; a faction's `habs_by_body`
+  lists only the bodies with two or more habs, and `other_bodies` counts the bodies with one
+  (`habs` still counts every hab);
+- every float is rounded to 4 significant digits;
 - `--changes` is a usage error (exit 2), since literal changes carry their source locations.
 
 The audit form is the same run with `--inferred` instead of `--narrative` and no
