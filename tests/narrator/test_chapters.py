@@ -17,6 +17,7 @@ from tinarrative.config import NarratorSettings
 from tinarrative.narrator.chapters import (
     ChapterPlan,
     OverBudget,
+    _Planner,
     base_options,
     derive_period,
     estimate,
@@ -28,7 +29,7 @@ from tinarrative.narrator.request import system_prompt
 
 QUARTERS = ["2032-01-01T00:00:00", "2032-04-01T00:00:00", "2032-07-01T00:00:00", "2032-10-01T00:00:00"]
 QUARTERS.append("2033-01-01T00:00:00")
-MONTHS = ["2032-01-01T00:00:00", "2032-02-01T00:00:00", "2032-03-01T00:00:00", "2032-04-01T00:00:00"]
+MONTHS = ["2031-12-01T00:00:00", "2032-01-01T00:00:00", "2032-02-01T00:00:00", "2032-03-01T00:00:00"]
 NATIONS = [("nation:1", "Northland", 900.0), ("nation:2", "Southland", 100.0), ("nation:3", "Eastland", None)]
 RESISTANCE = {"ref": "faction:15", "name": "Fixture Resistance"}
 GLOSSARY = [
@@ -96,6 +97,7 @@ def _development(
     start: Any,
     end: Any,
     *,
+    start_basis: str = "record",
     significance: str = "major",
     open: bool = False,
     intervals: tuple[str, ...] = (),
@@ -108,6 +110,7 @@ def _development(
         "event_type": "faction.takeover",
         "significance": significance,
         "start": start,
+        "start_basis": start_basis,
         "end": end,
         "open": open,
         "intervals": list(intervals),
@@ -177,7 +180,7 @@ def test_a_small_package_is_one_whole_chapter() -> None:
     assert (chapter.part, chapter.chapter.reduction, chapter.periods) == (
         "whole",
         None,
-        ("2032-Q1", "2032-Q2", "2032-Q3", "2032-Q4"),
+        ("2032-Q2", "2032-Q3", "2032-Q4", "2033-Q1"),
     )
     assert _block(plan, 0) == "chapter: 1 of 1\npart: whole\ncovers: 2032-01-01 to 2033-01-01\nperiod: quarter"
     embedded = _embedded(plan, 0)
@@ -198,7 +201,7 @@ def test_chapters_are_runs_of_whole_periods_within_the_budget() -> None:
     plan = _plan(package, settings)
 
     assert [chapter.part for chapter in plan.chapters] == ["first", "middle", "middle", "last"]
-    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q1",), ("2032-Q2",), ("2032-Q3",), ("2032-Q4",)]
+    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q2",), ("2032-Q3",), ("2032-Q4",), ("2033-Q1",)]
     assert [chapter.covers for chapter in plan.chapters] == list(zip(QUARTERS, QUARTERS[1:], strict=False))
     assert all(chapter.chapter.reduction is None for chapter in plan.chapters)
     assert all(chapter.estimate <= settings.max_input_tokens for chapter in plan.chapters)
@@ -215,7 +218,7 @@ def test_periods_that_fit_together_share_a_chapter() -> None:
 
     plan = _plan(package, _budget(30_000))
 
-    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q1", "2032-Q2"), ("2032-Q3", "2032-Q4")]
+    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q2", "2032-Q3"), ("2032-Q4", "2033-Q1")]
 
 
 def test_a_period_over_budget_loses_its_atomic_stream_first() -> None:
@@ -223,7 +226,7 @@ def test_a_period_over_budget_loses_its_atomic_stream_first() -> None:
 
     plan = _plan(package, _budget(30_000))
 
-    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q1",), ("2032-Q2",), ("2032-Q3", "2032-Q4")]
+    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q2",), ("2032-Q3",), ("2032-Q4", "2033-Q1")]
     assert [chapter.chapter.reduction for chapter in plan.chapters] == [None, "atomic_dropped", None]
     reduced = _embedded(plan, 1)
     assert [interval["events"] for interval in reduced["intervals"]] == [[]]
@@ -254,7 +257,27 @@ def test_a_period_still_over_budget_is_split_at_saves() -> None:
     assert [chapter.chapter.reduction for chapter in plan.chapters] == ["split", "split"]
     assert sum(chapter.developments for chapter in plan.chapters) == len(package["narrative"])
     assert all(chapter.estimate <= settings.max_input_tokens for chapter in plan.chapters)
-    assert "covers: 2032-03-01 to 2032-04-01" in _block(plan, 1)
+    assert "covers: 2032-02-01 to 2032-03-01" in _block(plan, 1)
+
+
+def test_an_interval_is_labelled_by_its_closing_save() -> None:
+    package = _package(["2026-11-01T00:00:00", "2027-02-01T00:00:00", "2027-05-01T00:00:00"], [])
+
+    plan = _plan(package, NarratorSettings())
+
+    assert plan.chapters[0].periods == ("2027-Q1", "2027-Q2")
+
+
+def test_a_development_is_filed_by_a_recorded_start_else_by_its_end() -> None:
+    dates = ["2026-11-01T00:00:00", "2027-01-01T00:00:00", "2027-04-01T00:00:00", "2027-07-01T00:00:00"]
+    narrative = [
+        _development("interval", dates[1], dates[2], start_basis="interval"),
+        _development("record", dates[1], dates[2], start_basis="record"),
+        _development("known", dates[0], dates[3], start_basis="interval"),
+    ]
+    planner = _Planner(_package(dates, narrative), {"period": "quarter"}, NarratorSettings(), None)
+
+    assert planner.starts == [1, 1, 2]
 
 
 def test_an_interval_that_cannot_fit_stops_the_plan_with_the_budget_it_needs() -> None:

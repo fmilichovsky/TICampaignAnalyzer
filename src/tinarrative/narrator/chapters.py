@@ -238,18 +238,25 @@ class _Planner:
             for event in self._atomic(interval):
                 self.events.setdefault(event["id"], event)
         period = self.options.get("period", "year")
-        self.periods = [period_label(interval["not_before"], period) for interval in self.intervals]
+        self.periods = [period_label(interval["date"], period) for interval in self.intervals]
 
     def _start_position(self, event: Mapping[str, Any], interval_position: Mapping[str, int]) -> int:
-        """The interval a development starts in: the last whose opening save is not after its start; an undated
-        development starts in the first interval it lists."""
-        start = event.get("start")
-        if isinstance(start, str):
+        """The interval a development is filed under, following the prompt's period rule: the last interval whose
+        opening save is not after its start when that is a recorded date, otherwise the first whose closing save is
+        not before its end, the interval by which it was known. An undated development starts in the first interval
+        it lists."""
+        start, end = event.get("start"), event.get("end")
+        if isinstance(start, str) and (event.get("start_basis") == "record" or not isinstance(end, str)):
             position = 0
             for candidate, interval in enumerate(self.intervals):
                 if interval["not_before"] <= start:
                     position = candidate
             return position
+        if isinstance(end, str):
+            for candidate, interval in enumerate(self.intervals):
+                if interval["date"] >= end:
+                    return candidate
+            return len(self.intervals) - 1
         keys = [key for key in event.get("intervals") or () if key in interval_position]
         return interval_position[keys[0]] if keys else 0
 
