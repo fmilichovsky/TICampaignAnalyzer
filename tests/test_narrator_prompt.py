@@ -72,7 +72,7 @@ def test_a_sample_keeps_what_overlaps_its_period(
     assert [interval["key"] for interval in second["intervals"]] == ["2032-07-01T00:00:00"]
     assert "nation.cession" in [event["event_type"] for event in second["narrative"]]
     listed = {entry["ref"] for entry in second["glossary"]}
-    assert listed < {entry["ref"] for entry in package["glossary"]}
+    assert listed <= {entry["ref"] for entry in package["glossary"]}
     assert sample(package, "2032") == {**package, "glossary": sample(package, "2032")["glossary"]}
 
 

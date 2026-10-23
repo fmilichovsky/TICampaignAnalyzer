@@ -125,7 +125,7 @@ built from the developments catalogued in
   - assembly: `history.md` with its header, footnotes renumbered across
     chapters, citation audit, run manifest, resume and `--assemble` (#142,
     done).
-- [ ] Narrator package gaps found by the trials:
+- [x] Narrator package gaps found by the trials:
   - [x] executive-seat semantics: the seat is the nation's `Executive`-typed
     control point, wherever it sits, with the point at `positionInNation` 0
     standing in for a nation that has none; the report and the control rule
@@ -163,7 +163,7 @@ built from the developments catalogued in
 - [x] Package-size measurement: real sample campaigns in `benchmarks/samples/`, a matrix of `events` and
   `narrate` runs, `scripts/package_metrics.py` to measure and compare, and a workflow that posts base vs. head
   on every pull request.
-- [ ] Minimize the narrator package size (#144):
+- [x] Minimize the narrator package size (#144):
   - [x] slim the situation reports in the narrator form: allies as ref strings, bodies with one hab counted
     in `other_bodies`, `seat_basis` and a zero `unresolved_points` dropped, floats to 4 significant digits,
     chapter reports without nations that hold no region and that the chapter does not name (#159).
@@ -171,6 +171,8 @@ built from the developments catalogued in
     building with `evidence`, and the takeover carrying its executive record's date and previous holder (#160).
   - [x] bound `metric_shifts`: no `numControlPoints`, at most `narrative.geopolitics.metric_shifts_max` entries per
     development with the rest counted, and no shift event IDs in the narrator form (#161).
+  - [x] the glossary keeps only former names and the names of entities referenced by ID only: no `kind`, no
+    nation `regions` and no region entries (#165).
 - [ ] Nation metrics redesign: one rule per metric, shaped by how the metric behaves in the game, with
   `nation.statistic_shifted` kept as evidence (observations in
   [nation statistics](game-data-notes/nation-metrics.md)):

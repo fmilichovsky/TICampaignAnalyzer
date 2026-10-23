@@ -286,12 +286,12 @@ intervals' keys.
 - `narrative_omitted`: how many narrative events were not listed, or `null` without
   `--narrative`; each interval also has `omitted` (`{"objective": n, "inferred": n}`, `inferred`
   being `null` without `--inferred`);
-- `glossary`: with `--narrative`, one entry per entity ID referenced anywhere in the document
-  (`saves`, `intervals`, `narrative`), sorted by ID, or `null` without it. An entry has `ref`,
-  `domain` and, where the save gives them, `name` and `kind` (the save's state type). When an entity's display name changes between saves (a control
-  point's name includes its slot), `name` is the one the latest save or interval carries and
-  `former_names` lists the others, oldest first. A nation entry
-  also has `regions`, its regions' `ref` and `name`; those regions are entries themselves.
+- `glossary`: with `--narrative`, what the document's references (`saves`, `intervals`,
+  `narrative`) do not say inline, sorted by ID, or `null` without it: an entry for each entity
+  that some reference gives by ID only (a `shares` key, an `allies` string, a reference without
+  `name`) and another names, and for each entity whose display name changes between saves (a
+  control point's name includes its slot). An entry has `ref`, `domain` and `name`, the one the
+  latest save or interval carries; a renamed entity's other names are `former_names`, oldest first.
 
 With `--narrative`, the document is the [narrator package](#narrator-package), which leaves out
 provenance and paths. Outside it, every reference in `entities`, in `attributes` and in a source's `member` is an object with `ref`
@@ -309,7 +309,8 @@ so an omission is never hidden; without `--narrative` the default `trivial` omit
 
 `events --format json --narrative` is the narrator package of architecture section 13.1: the
 `narrative` events with roles, attributes and constituent IDs; one `situation` report per save in
-`saves`; the `glossary`, so no name has to be invented; and, with `--constituents all` or
+`saves`; the `glossary`, which names what the package references by ID only, so no name has to
+be invented; and, with `--constituents all` or
 `evidence`, the atomic events of `intervals` that the listed narrative events are built from, for
 drill-down and citation by ID (with the default `none`, `intervals` lists none). Package consumers read those members and ignore
 the rest. It is meant to be handed to a reader, such as an LLM narrator
@@ -318,12 +319,12 @@ the rest. It is meant to be handed to a reader, such as an LLM narrator
 - no event, narrative or atomic, has `sources`;
 - `campaign` has no `sources`, a `skipped` entry keeps only its `error_class`, a save has no
   `source` or `aliases`, and an interval has no `before` or `after`;
-- a reference is `ref` and `name` (and `confidence` when the identity is not an in-save ID); its
-  state type is the glossary entry's `kind`;
+- a reference is `ref` and `name` (and `confidence` when the identity is not an in-save ID), with
+  no state type;
 - a situation report leaves out the nations that hold no region in any save of the run and that no
   listed event references; `world` still counts every nation;
 - a situation report's nations have no `seat_basis`, no `unresolved_points` when that is `0`, and
-  `allies` as bare ref strings (`"nation:4"`), each a glossary entry; a faction's `habs_by_body`
+  `allies` as bare ref strings (`"nation:4"`), named by the glossary; a faction's `habs_by_body`
   lists only the bodies with two or more habs, and `other_bodies` counts the bodies with one
   (`habs` still counts every hab);
 - a `metric_shifts` entry has no `events` list;
