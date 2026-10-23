@@ -22,6 +22,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
@@ -202,6 +203,14 @@ def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=environment, check=False)
 
 
+def _timed_run(command: Sequence[str], log: TextIO | None) -> subprocess.CompletedProcess[str]:
+    """``_run``, then log how long the command took under the progress line."""
+    started = time.perf_counter()
+    completed = _run(command)
+    print(f" ├─ took {time.perf_counter() - started:.1f}s", file=log)
+    return completed
+
+
 def _failure(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     error = completed.stderr.strip()[-STDERR_TAIL:]
     failure: dict[str, Any] = {"exit": completed.returncode, "error": error}
@@ -292,7 +301,8 @@ def measure(
             results: dict[str, Any] = {"events": {}, "narrate": {}}
             for entry in matrix["events"]:
                 print(f"package_metrics: {campaign} events {entry['id']}", file=log)
-                completed = _run([*cli, "events", str(saves), *entry.get("args", []), "--config", str(config)])
+                command = [*cli, "events", str(saves), *entry.get("args", []), "--config", str(config)]
+                completed = _timed_run(command, log)
                 if completed.returncode != 0:
                     results["events"][entry["id"]] = _failure(completed)
                     continue
@@ -306,7 +316,7 @@ def measure(
                 print(f"package_metrics: {campaign} narrate {entry['id']}", file=log)
                 target = out / "narrate" / campaign / entry["id"]
                 command = [*cli, "narrate", "--package", str(package), "--output", str(target)]
-                completed = _run([*command, *entry.get("args", []), "--config", str(config)])
+                completed = _timed_run([*command, *entry.get("args", []), "--config", str(config)], log)
                 if completed.returncode != 0:
                     results["narrate"][entry["id"]] = _failure(completed)
                     continue
