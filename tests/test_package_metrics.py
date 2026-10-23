@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import io
 import json
 import lzma
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
@@ -187,6 +189,53 @@ def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) ->
     assert (out / "narrate" / "politics" / "default" / "plan.json").is_file()
     tiny = metrics["campaigns"]["politics"]["narrate"]["tiny"]
     assert tiny["exit"] == 2
+
+
+@pytest.mark.fixture
+def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tmp_path: Path) -> None:
+    samples = _samples(tmp_path)
+    shutil.copytree(samples / "politics", samples / "politics-copy")
+    (samples / MANIFEST).write_text(json.dumps(update_samples(samples)), encoding="utf-8")
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text(
+        '[[events]]\nid = "bare"\nargs = ["--narrative", "--format", "json"]\n'
+        '[[events]]\nid = "major"\nargs = ["--narrative", "--constituents", "evidence", "--format", "json"]\n'
+        '[[events]]\nid = "broken"\nargs = ["--no-such-option"]\n'
+        '[[narrate]]\nid = "default"\npackage = "major"\nargs = []\n'
+        '[[narrate]]\nid = "orphan"\npackage = "broken"\nargs = []\n',
+        encoding="utf-8",
+    )
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    log = io.StringIO()
+
+    metrics = measure(
+        python=sys.executable,
+        samples=samples,
+        matrix_path=matrix,
+        config=config,
+        out=tmp_path / "out",
+        label="test",
+        chars_per_token=3,
+        jobs=4,
+        log=log,
+    )
+
+    assert list(metrics["campaigns"]) == ["politics", "politics-copy"]
+    original, copy = metrics["campaigns"]["politics"], metrics["campaigns"]["politics-copy"]
+    assert original == copy
+    assert list(original["events"]) == ["bare", "major", "broken"]
+    assert list(original["narrate"]) == ["default", "orphan"]
+    assert original["narrate"]["orphan"] == {"exit": None, "error": "events broken failed"}
+    lines = log.getvalue().splitlines()
+    headers = [index for index, line in enumerate(lines) if line.startswith("package_metrics: politics")]
+    assert len(headers) == 2
+    for start in headers:
+        block = lines[start + 1 : start + 8]
+        names = [line.split("─ ", 1)[1].split()[0] for line in block]
+        assert names == ["events", "bare", "major", "broken", "narrate", "default", "orphan"]
+        assert "failed (exit 2)" in block[3]
+        assert block[6].endswith("skipped: events broken failed")
 
 
 def test_a_malformed_matrix_is_a_usage_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
