@@ -52,6 +52,7 @@ from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
 from .picker import pick_campaign
 from .rendering.json_report import build_document
+from .rendering.listing import CONSTITUENTS, Constituents
 from .rendering.markdown import PERIODS, Period, render_sequence
 from .sequence import (
     IntervalResult,
@@ -497,7 +498,7 @@ def _run_events(args: argparse.Namespace) -> int:
         return run
     plan, intervals, campaign, narrative = run.plan, run.intervals, run.campaign, run.narrative
     minimum = Significance(cast(str, args.min_significance))
-    include_constituents = cast(bool, args.include_constituents)
+    constituents = cast(Constituents, args.constituents)
     if args.format == "json":
         document = build_document(
             plan,
@@ -506,7 +507,7 @@ def _run_events(args: argparse.Namespace) -> int:
             settings=settings,
             narrative=narrative,
             min_significance=minimum,
-            include_constituents=include_constituents,
+            constituents=constituents,
         )
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
@@ -515,7 +516,7 @@ def _run_events(args: argparse.Namespace) -> int:
             plan,
             intervals,
             min_significance=minimum,
-            include_constituents=include_constituents,
+            constituents=constituents,
             campaign=campaign,
             left_out=left_out,
             narrative=narrative,
@@ -574,10 +575,12 @@ def _run_narrate(args: argparse.Namespace) -> int:
             return EXIT_USAGE_ERROR
     saves = cast(list[Path], args.saves)
     source = cast("str | None", args.package)
-    if source is not None and (saves or args.campaign is not None or args.min_significance is not None):
+    if source is not None and (
+        saves or args.campaign is not None or args.min_significance is not None or args.constituents is not None
+    ):
         print(
-            "tinarrative narrate: --package is narrated as it was built; drop the save paths, --campaign and "
-            "--min-significance",
+            "tinarrative narrate: --package is narrated as it was built; drop the save paths, --campaign, "
+            "--min-significance and --constituents",
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
@@ -659,6 +662,7 @@ _ASSEMBLE_EXCLUDED = (
     ("--package", "package"),
     ("--campaign", "campaign"),
     ("--min-significance", "min_significance"),
+    ("--constituents", "constituents"),
     ("--period", "period"),
     ("--audience", "audience"),
     ("--citations", "citations"),
@@ -950,8 +954,8 @@ def _read_package(source: str) -> object | int:
 
 
 def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settings) -> object | int:
-    """The narrator package of the saves, as ``events --narrative --include-constituents --format json`` builds it,
-    through JSON so that it is the same value a ``--package`` file gives."""
+    """The narrator package of the saves, as ``events --narrative --constituents evidence --format json`` builds it
+    (or with the given ``--constituents``), through JSON so that it is the same value a ``--package`` file gives."""
     run = _run_saves(
         "narrate",
         saves,
@@ -970,7 +974,7 @@ def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settin
         settings=settings,
         narrative=run.narrative,
         min_significance=Significance(cast("str | None", args.min_significance) or Significance.MAJOR.value),
-        include_constituents=True,
+        constituents=cast("Constituents | None", args.constituents) or "evidence",
     )
     package: object = json.loads(json.dumps(document))
     return package
@@ -1324,17 +1328,19 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         help=(
             "Lowest significance an event needs to be listed (default %(default)s, which lists every event): an "
             "objective or inferred event, or with --narrative a narrative event, whose objective and inferred events "
-            "follow --include-constituents instead; applies to the markdown and the JSON report, and omitted events "
-            "are counted."
+            "follow --constituents instead; applies to the markdown and the JSON report, and omitted events are "
+            "counted."
         ),
     )
     parser.add_argument(
-        "--include-constituents",
-        action="store_true",
+        "--constituents",
+        choices=CONSTITUENTS,
+        default="none",
         help=(
-            "With --narrative, also list the objective and inferred events the listed narrative events are built "
-            "from, transitively and whatever their significance, and the lower-order narrative events they cite; "
-            "without it the narrative report lists no objective or inferred event. Ignored without --narrative."
+            "With --narrative, which of the objective and inferred events the listed narrative events are built "
+            "from (transitively and whatever their significance) to list: all of them, the narrator evidence among "
+            "them, or none (default %(default)s); with all and evidence, the lower-order narrative events they cite "
+            "are listed too. Ignored without --narrative."
         ),
     )
     parser.add_argument(
@@ -1384,7 +1390,7 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         "narrate",
         help=summary,
         description=(
-            f"{summary} The package is built from the saves exactly as 'events --narrative --include-constituents "
+            f"{summary} The package is built from the saves exactly as 'events --narrative --constituents evidence "
             "--format json' builds it, or read with --package. Each chapter is a run of whole periods whose "
             "estimated request stays within narrator.max_input_tokens; it carries the developments that start in "
             "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
@@ -1394,13 +1400,13 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
             "chapter whose stored response was made from the same request is not sent again."
         ),
         epilog=(
-            "Exit codes: 0 success; 2 usage error (including --package with save paths, --campaign or "
-            "--min-significance, a package with no interval, a single interval over the token budget, an unknown "
-            "--profile, or --send without --output, provider, model or API key, or over the context window); "
-            "4 a save or the package cannot be read; 5 a save is not a supported save, or the package is not "
-            "valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot be written; "
-            "10 a provider request failed, or a completion stopped at its output limit or was refused. With "
-            "--assemble: 2 another option was given; 4 DIR or its plan.json cannot be read; 5 a request or "
+            "Exit codes: 0 success; 2 usage error (including --package with save paths, --campaign, "
+            "--min-significance or --constituents, a package with no interval, a single interval over the token "
+            "budget, an unknown --profile, or --send without --output, provider, model or API key, or over the "
+            "context window); 4 a save or the package cannot be read; 5 a save is not a supported save, or the "
+            "package is not valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot "
+            "be written; 10 a provider request failed, or a completion stopped at its output limit or was refused. "
+            "With --assemble: 2 another option was given; 4 DIR or its plan.json cannot be read; 5 a request or "
             "response is missing, invalid or does not match the plan; 9 the history cannot be written."
         ),
     )
@@ -1428,6 +1434,15 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         help=(
             "Lowest significance of a listed development when building from saves (default major); the atomic "
             "stream keeps only the constituents of the listed developments."
+        ),
+    )
+    parser.add_argument(
+        "--constituents",
+        choices=CONSTITUENTS,
+        default=None,
+        help=(
+            "Which constituents of the listed developments the atomic stream keeps when building from saves, as "
+            "'events --constituents' does (default evidence)."
         ),
     )
     parser.add_argument(

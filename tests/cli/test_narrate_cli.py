@@ -27,10 +27,10 @@ def _files(directory: Path) -> dict[str, bytes]:
     return {str(path.relative_to(directory)): path.read_bytes() for path in sorted(directory.rglob("*.json"))}
 
 
-def _package(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Path:
-    args = ["events", "--format", "json", "--narrative", "--include-constituents", "--min-significance", "major"]
+def _package(tmp_path: Path, capsys: pytest.CaptureFixture[str], constituents: str = "evidence") -> Path:
+    args = ["events", "--format", "json", "--narrative", "--constituents", constituents, "--min-significance", "major"]
     assert main([*args, *SAVES]) == EXIT_SUCCESS
-    path = tmp_path / "package.json"
+    path = tmp_path / f"package.{constituents}.json"
     path.write_text(capsys.readouterr().out, encoding="utf-8")
     return path
 
@@ -76,6 +76,21 @@ def test_saves_a_package_file_and_stdin_give_the_same_bytes(
         "chapter: 2 of 2\npart: last\ncovers: 2032-04-01 to 2032-07-01\n"
     )
     assert out.startswith("2 chapters by quarter, max_input_tokens 9000 at 3 characters per token:\n- 1 (first) ")
+
+
+@pytest.mark.fixture
+@pytest.mark.usefixtures("in_fixtures")
+def test_constituents_choose_the_atomic_stream_of_the_package_built_from_saves(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    package = _package(tmp_path, capsys, "none")
+
+    assert main(["narrate", *SAVES, "--constituents", "none", "--output", str(tmp_path / "saves")]) == EXIT_SUCCESS
+    assert main(["narrate", "--package", str(package), "--output", str(tmp_path / "file")]) == EXIT_SUCCESS
+    assert main(["narrate", *SAVES, "--output", str(tmp_path / "default")]) == EXIT_SUCCESS
+
+    assert _files(tmp_path / "saves") == _files(tmp_path / "file") != _files(tmp_path / "default")
+    assert '\\"constituents\\":\\"none\\"' in _files(tmp_path / "saves")["requests/01.json"].decode()
 
 
 @pytest.mark.fixture
@@ -149,6 +164,7 @@ def test_usage_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Non
 
     assert main(["narrate"]) == EXIT_USAGE_ERROR
     assert main(["narrate", "--package", str(package), "--min-significance", "minor"]) == EXIT_USAGE_ERROR
+    assert main(["narrate", "--package", str(package), "--constituents", "all"]) == EXIT_USAGE_ERROR
     assert main(["narrate", "--package", str(package), "save.json"]) == EXIT_USAGE_ERROR
     assert "give save paths or --package FILE" in capsys.readouterr().err
 

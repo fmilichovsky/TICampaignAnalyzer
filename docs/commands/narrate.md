@@ -1,7 +1,7 @@
 # `tinarrative narrate`
 
 ```
-tinarrative narrate <path> [<path>...] [--campaign <selector>] [--min-significance <level>] [options]
+tinarrative narrate <path> [<path>...] [--campaign <selector>] [--min-significance <level>] [--constituents all|evidence|none] [options]
 tinarrative narrate --package <file>|- [options]
 tinarrative narrate --assemble <dir>
 
@@ -23,12 +23,12 @@ directory written earlier without sending anything.
 
 - **Saves.** `narrate` takes the same save inputs as [`events`](events.md) (files, directories,
   `--campaign`, the campaign picker) and builds the package in-process, as
-  `events --narrative --include-constituents --format json --min-significance <level>` does.
-  `--min-significance` defaults to `major`. The atomic stream keeps only the constituents of the
-  listed developments.
+  `events --narrative --constituents <mode> --format json --min-significance <level>` does.
+  `--min-significance` defaults to `major` and `--constituents` to `evidence`: the atomic stream
+  keeps only the constituents of the listed developments that are narrator evidence.
 - **`--package FILE`** reads a finished package instead; `-` reads it from stdin. The package is
-  narrated as it was built, so save paths, `--campaign` and `--min-significance` are usage errors
-  with it.
+  narrated as it was built, so save paths, `--campaign`, `--min-significance` and `--constituents`
+  are usage errors with it.
 
 Given the same package, both inputs produce the same plan and the same request bytes.
 
@@ -339,7 +339,7 @@ from the package.
 | Code | When |
 | --- | --- |
 | 0 | The plan was printed and, with `--output`, written; with `--send`, the history was assembled, whatever the audit found. |
-| 2 | Usage error: no save paths and no `--package`; `--force` without `--send`; `--assemble` with any other option; `--package` with save paths, `--campaign` or `--min-significance`; a package with no interval; a single interval over `narrator.max_input_tokens` (nothing written); the save input errors of `events`; an unknown `--profile` or an invalid override flag; `--send` without `--output`, provider, model or API key variable, or over `context_window` (nothing contacted). |
+| 2 | Usage error: no save paths and no `--package`; `--force` without `--send`; `--assemble` with any other option; `--package` with save paths, `--campaign`, `--min-significance` or `--constituents`; a package with no interval; a single interval over `narrator.max_input_tokens` (nothing written); the save input errors of `events`; an unknown `--profile` or an invalid override flag; `--send` without `--output`, provider, model or API key variable, or over `context_window` (nothing contacted). |
 | 4 | A save or the `--package` file cannot be read; `--assemble`: DIR or its `plan.json` cannot be read. |
 | 5 | A save is not a supported save, or the package is not UTF-8 JSON or not a narrator package. `--assemble` (and the assembly after `--send`): `plan.json` is not a plan, or a chapter's request or response is missing, invalid or does not match the plan; the message names the chapter. |
 | 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |

@@ -16,7 +16,7 @@ from ..model.events import Event, Significance
 from ..narrative.glossary import build_glossary
 from ..narrative.situation import SituationReport
 from ..sequence import IntervalResult, SequencePlan, situations
-from .listing import listing
+from .listing import Constituents, listing
 
 FLOAT_DIGITS = 4
 """Significant digits of a float in the narrator package."""
@@ -30,13 +30,13 @@ def build_document(
     settings: Settings,
     narrative: Sequence[Event] | None,
     min_significance: Significance = Significance.TRIVIAL,
-    include_constituents: bool = False,
+    constituents: Constituents = "none",
 ) -> dict[str, Any]:
     """The report document.
 
     Without ``narrative``, objective and inferred events below ``min_significance`` are dropped. With it, narrative
     events below ``min_significance`` are dropped, and an objective or inferred event is kept only as a constituent
-    of a kept narrative event when ``include_constituents`` is set (``listing``). Dropped events are counted
+    of a kept narrative event that the ``constituents`` mode keeps (``listing``). Dropped events are counted
     (``omitted`` per interval, ``narrative_omitted``), so an omission is never hidden; state changes are never
     filtered. With ``narrative``, the document is the narrator package: it also holds the narrative rules'
     ``settings`` and the ``glossary`` of every entity ID it references, and leaves out provenance and paths
@@ -48,9 +48,9 @@ def build_document(
         {**save, "situation": reports[position].to_dict() if position < len(reports) else None}
         for position, save in enumerate(document["saves"])
     ]
-    chosen = listing(intervals, narrative, minimum=min_significance, include_constituents=include_constituents)
+    chosen = listing(intervals, narrative, minimum=min_significance, constituents=constituents)
     document["min_significance"] = min_significance.value
-    document["include_constituents"] = None if narrative is None else include_constituents
+    document["constituents"] = None if narrative is None else constituents
     document["settings"] = None if narrative is None else {"narrative": settings.to_dict()["narrative"]}
     listed = chosen.narrative
     document["narrative"] = None if listed is None else [event.to_dict() for event in listed]

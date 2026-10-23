@@ -21,7 +21,7 @@ from ..model.events import Event, EventSource, EventStatus, Significance
 from ..model.evidence import Evidence, SourceLocation
 from ..model.values import Observed, Unknown
 from ..sequence import IntervalResult, SequencePlan
-from .listing import Listing, listing
+from .listing import Constituents, Listing, listing
 
 Period = Literal["year", "half", "quarter"]
 PERIODS: Final[tuple[Period, ...]] = ("year", "half", "quarter")
@@ -67,10 +67,8 @@ def _inferred_lines(
             lines.append(f"  - from `{constituent}`{suffix}")
         if verbose:
             lines.extend(_event_lines(event, verbose=True)[1:])
-    omitted = len(candidates) - len(listed)
-    if omitted:
-        noun = "event" if omitted == 1 else "events"
-        lines.extend(["", f"{omitted} inferred {noun} {chosen.reason()}."])
+    for omitted, reason in chosen.omissions(candidates):
+        lines.extend(["", f"{omitted} inferred {'event' if omitted == 1 else 'events'} {reason}."])
     return lines
 
 
@@ -80,7 +78,7 @@ def render_sequence(
     *,
     verbose: bool = False,
     min_significance: Significance = Significance.TRIVIAL,
-    include_constituents: bool = False,
+    constituents: Constituents = "none",
     campaign: CampaignGroup | None = None,
     left_out: int = 0,
     narrative: Sequence[Event] | None = None,
@@ -96,11 +94,11 @@ def render_sequence(
     Without ``narrative``, inferred and objective events of at least ``min_significance`` are listed. With it, a
     section above the intervals lists the narrative events of at least ``min_significance`` by the ``period`` (year,
     half or quarter) they start in, and names the ``changed_settings`` (dotted key to value) it was built with when
-    they differ from the defaults; the intervals then list only the constituents of those narrative events, and only
-    with ``include_constituents`` (``listing``). A filtered interval with nothing to list (and no state changes) is a
+    they differ from the defaults; the intervals then list only the constituents of those narrative events that the
+    ``constituents`` mode keeps (``listing``). A filtered interval with nothing to list (and no state changes) is a
     single line.
     """
-    chosen = listing(intervals, narrative, minimum=min_significance, include_constituents=include_constituents)
+    chosen = listing(intervals, narrative, minimum=min_significance, constituents=constituents)
     lines = ["# Save sequence", ""]
     if campaign is not None:
         lines.extend(_campaign_lines(campaign, left_out))
@@ -169,9 +167,9 @@ def _collapsed(interval: IntervalResult, chosen: Listing) -> bool:
 
 
 def _collapsed_line(interval: IntervalResult, chosen: Listing) -> str:
-    omitted = len(interval.objective) + len(interval.inferred or ())
     changes = f"{interval.changes} state {'change' if interval.changes == 1 else 'changes'}"
-    events = f"{omitted} {'event' if omitted == 1 else 'events'} {chosen.reason()}"
+    omissions = chosen.omissions((*interval.objective, *(interval.inferred or ())))
+    events = "; ".join(f"{omitted} {'event' if omitted == 1 else 'events'} {reason}" for omitted, reason in omissions)
     return f"- `{interval.before.date}` to `{interval.after.date}`: nothing listed ({changes}; {events})"
 
 
@@ -278,10 +276,8 @@ def _objective_lines(events: Iterable[Event], *, verbose: bool, chosen: Listing)
         lines.extend(["", f"{category}:", ""])
         for event in grouped[category]:
             lines.extend(_event_lines(event, verbose=verbose))
-    omitted = len(objective) - len(listed)
-    if omitted:
-        noun = "result" if omitted == 1 else "results"
-        lines.extend(["", f"{omitted} objective analyzer {noun} {chosen.reason()}."])
+    for omitted, reason in chosen.omissions(objective):
+        lines.extend(["", f"{omitted} objective analyzer {'result' if omitted == 1 else 'results'} {reason}."])
     return lines
 
 

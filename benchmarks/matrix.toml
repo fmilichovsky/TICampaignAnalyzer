@@ -5,7 +5,11 @@
 
 [[events]]
 id = "major"  # the package `narrate` builds from saves
-args = ["--narrative", "--include-constituents", "--format", "json", "--min-significance", "major"]
+args = ["--narrative", "--constituents", "evidence", "--format", "json", "--min-significance", "major"]
+
+[[events]]
+id = "major-all"  # every constituent of the listed developments
+args = ["--narrative", "--constituents", "all", "--format", "json", "--min-significance", "major"]
 
 [[events]]
 id = "major-bare"  # without the atomic stream
@@ -13,7 +17,7 @@ args = ["--narrative", "--format", "json", "--min-significance", "major"]
 
 [[events]]
 id = "minor"
-args = ["--narrative", "--include-constituents", "--format", "json", "--min-significance", "minor"]
+args = ["--narrative", "--constituents", "evidence", "--format", "json", "--min-significance", "minor"]
 
 [[events]]
 id = "trivial-bare"

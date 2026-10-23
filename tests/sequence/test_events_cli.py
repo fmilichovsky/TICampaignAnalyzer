@@ -39,7 +39,7 @@ MARKDOWN_GOLDENS = [
     ("changes.md", ["--changes"]),
     ("narrative.md", ["--narrative"]),
     ("narrative.major.md", ["--narrative", "--min-significance", "major"]),
-    ("narrative.constituents.md", ["--narrative", "--include-constituents"]),
+    ("narrative.constituents.md", ["--narrative", "--constituents", "all"]),
 ]
 
 
@@ -91,9 +91,9 @@ def test_without_constituents_the_narrative_report_lists_no_atomic_event(
     intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
     assert [line for line in intervals.splitlines() if line] == [
         "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(34 state changes; 26 events omitted without --include-constituents)",
+        "(34 state changes; 26 events omitted with --constituents none)",
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
-        "(10 state changes; 6 events omitted without --include-constituents)",
+        "(10 state changes; 6 events omitted with --constituents none)",
     ]
 
 
@@ -601,8 +601,8 @@ def _references(node: Any) -> set[str]:
         [],
         ["--min-significance", "major"],
         ["--min-significance", "campaign_defining"],
-        ["--include-constituents"],
-        ["--include-constituents", "--min-significance", "major"],
+        ["--constituents", "all"],
+        ["--constituents", "evidence", "--min-significance", "major"],
     ],
 )
 def test_the_glossary_holds_every_referenced_id_and_nothing_else(
@@ -648,7 +648,7 @@ def test_the_json_has_no_glossary_without_narrative(
     document = _json(capsys)
 
     assert document["glossary"] is None and document["narrative_omitted"] is None
-    assert document["min_significance"] == "trivial" and document["include_constituents"] is None
+    assert document["min_significance"] == "trivial" and document["constituents"] is None
     assert all(interval["omitted"] == {"objective": 0, "inferred": None} for interval in document["intervals"])
 
 
@@ -733,7 +733,7 @@ def _ids(document: dict[str, Any]) -> list[str]:
 
 
 @pytest.mark.fixture
-@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"], ["--include-constituents"]])
+@pytest.mark.parametrize("flags", [[], ["--min-significance", "major"], ["--constituents", "all"]])
 def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
     flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -763,7 +763,7 @@ def test_every_narrator_package_id_resolves_in_the_audit_report(
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
 
-    package = _json(capsys, "--narrative", "--include-constituents", "--min-significance", level)
+    package = _json(capsys, "--narrative", "--constituents", "all", "--min-significance", level)
     audit = _json(capsys, "--inferred")
 
     assert set(_ids(package)) <= set(_ids(audit))
@@ -784,7 +784,8 @@ def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
 
-    package = _json(capsys, "--narrative", "--include-constituents", "--min-significance", level)
+    package = _json(capsys, "--narrative", "--constituents", "all", "--min-significance", level)
+    evidence = _json(capsys, "--narrative", "--constituents", "evidence", "--min-significance", level)
     without = _json(capsys, "--narrative", "--min-significance", level)
     audit = _json(capsys, "--inferred")
 
@@ -800,7 +801,8 @@ def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
             reached.add(current)
             pending.extend(by_id[current]["constituents"])  # every citation resolves inside the package
     assert set(_ids(package)) == reached - {event["id"] for event in package["narrative"]}
-    assert package["include_constituents"] is True and without["include_constituents"] is False
+    assert package["constituents"] == "all" and without["constituents"] == "none"
+    assert evidence["constituents"] == "evidence" and {**evidence, "constituents": "all"} == package
     assert _ids(without) == [] and without["narrative"] == package["narrative"]
     for kept, empty, full in zip(package["intervals"], without["intervals"], audit["intervals"], strict=True):
         assert kept["omitted"]["objective"] == len(full["events"]) - len(kept["events"])
@@ -810,13 +812,14 @@ def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
 
 
 @pytest.mark.fixture
-def test_include_constituents_changes_nothing_without_narrative(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+@pytest.mark.parametrize("mode", ["all", "evidence"])
+def test_constituents_change_nothing_without_narrative(
+    mode: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
 
-    assert _json(capsys, "--inferred", "--include-constituents") == _json(capsys, "--inferred")
-    assert main(["events", "--inferred", "--include-constituents", *SHUFFLED]) == EXIT_SUCCESS
+    assert _json(capsys, "--inferred", "--constituents", mode) == _json(capsys, "--inferred")
+    assert main(["events", "--inferred", "--constituents", mode, *SHUFFLED]) == EXIT_SUCCESS
     with_flag = capsys.readouterr().out
     assert main(["events", "--inferred", *SHUFFLED]) == EXIT_SUCCESS
     assert with_flag == capsys.readouterr().out
@@ -832,7 +835,7 @@ def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_re
         return [[nation["nation"]["ref"] for nation in save["situation"]["nations"]] for save in document["saves"]]
 
     audit = _json(capsys, "--inferred", "--min-significance", "major")
-    everything = _json(capsys, "--narrative", "--include-constituents")
+    everything = _json(capsys, "--narrative", "--constituents", "all")
     major = _json(capsys, "--narrative", "--min-significance", "major")
 
     assert listed(audit) == [["nation:20", "nation:21", "nation:22"]] * 3
