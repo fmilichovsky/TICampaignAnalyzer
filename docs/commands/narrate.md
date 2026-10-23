@@ -42,7 +42,7 @@ only the keys that are set, in a fixed order:
 | `chapter` | program | `2 of 5` |
 | `part` | program | `whole` (one chapter), `first`, `middle` or `last` |
 | `covers` | program | the chapter's opening and closing save dates, `2032-01-01 to 2032-07-01` |
-| `period` | `--period`, else derived | span of the first to last save: up to `narrator.quarter_span_days` → `quarter`, up to `narrator.half_span_days` → `half`, else `year` |
+| `period` | `--period`, else derived | span of the first to last save: up to `narrator.quarter_span_days` → `quarter`, up to `narrator.half_span_days` → `half`, else `year`; a derived period is made coarser chapter by chapter where the saves are too sparse for it (see [Chapter plan](#chapter-plan)) |
 | `audience`, `citations`, `style` | the options of the same name | left to the prompt's defaults when not given |
 | `length` | `--length WORDS` | the chapter's share of the whole history, `about 450 words` |
 | `focus` | `--focus`, else derived | the player faction (`player_faction_name` of the last save) for `--audience insider` |
@@ -80,6 +80,15 @@ on its own is reduced in a fixed order, and the step is recorded for that chapte
    and names the interval and the tokens it needs.
 
 Developments are never dropped and the significance level is never raised to make a chapter fit.
+
+**Sparse saves.** A period cannot be told from saves further apart than it runs: the model would
+divide an interval it knows nothing inside of. A period whose intervals are longer, by median, than
+the period's longest calendar run (`quarter` 92 days, `half` 184, `year` 366) is told at the next
+coarser period, together with every other interval of that coarser period; this repeats until no
+period but a year is too sparse. Calendar periods nest, so the periods never overlap. A chapter
+holds one period, so a chapter ends where the period changes even when the next period would fit
+the budget; each chapter's request carries its own `period`. An explicit `--period` is never made
+coarser: the command keeps it and warns on stderr, naming the periods the saves are too sparse for.
 
 ## Chapter package
 
@@ -191,7 +200,8 @@ alone.
 
 ## Output
 
-stdout always gets a short plan: per chapter its index and part, covers, periods, the number of
+stdout always gets a short plan: per chapter its index and part, covers, periods (with
+`saves too far apart for a quarter` when the chapter's period was made coarser), the number of
 developments, continuing and recalled developments, the estimate and any reduction. With
 `--output DIR`, the command writes:
 
@@ -205,8 +215,11 @@ DIR/
 ```
 
 `plan.json` holds the prompt version (SHA-256 of the prompt), the SHA-256 of the package (compact
-JSON), the narrator settings, the request parameters, and per chapter its `index`, `part`,
-`covers`, `periods`, the numbers of `intervals`, `developments`, `continuing` and `recalled`, the
+JSON), the narrator settings, the request parameters (`period` is the requested or derived one,
+before any chapter makes it coarser), and per chapter its `index`, `part`,
+`covers`, `periods`, its `period` and `period_basis` (`requested` for `--period`, `campaign_span`
+for the period derived from the span, `save_spacing` for one made coarser because the saves are too
+sparse), the numbers of `intervals`, `developments`, `continuing` and `recalled`, the
 `estimate`, the `reduction` (`null`, `atomic_dropped` or `split`) and the SHA-256 of its request
 file. The files hold no time and no path, so the same package and settings give byte-identical
 files. Request files are numbered with two digits (more when there are more chapters). A numbered
@@ -301,7 +314,7 @@ A clean run leaves stderr empty.
 | `campaign`, `covers` | the campaign key and the period covered |
 | `settings` | the planner settings of `plan.json`, plus `provider`, `model`, `max_output_tokens` and `temperature` from the responses (a list when the chapters differ) |
 | `request` | the request parameters of `plan.json` |
-| `chapters` | per chapter: `index`, `part`, `covers`, `periods`, `estimate`, `reduction`, `request_sha256`, `request_characters`, the four send settings, `reported_model`, `finish`, `input_tokens`, `output_tokens` |
+| `chapters` | per chapter: `index`, `part`, `covers`, `periods`, `period`, `period_basis`, `estimate`, `reduction`, `request_sha256`, `request_characters`, the four send settings, `reported_model`, `finish`, `input_tokens`, `output_tokens` |
 | `tokens` | the summed `estimate`, `request_characters`, `input_tokens` and `output_tokens`, and `characters_per_input_token` over the chapters that report input tokens, for calibrating `narrator.chars_per_token` |
 | `audit` | `citations`, the number of `footnotes` and of `cited_ids`, and the lists `unmatched` (`chapter`, `footnote`, `id`), `uncited` (`chapter`, `id`, `significance`, or `null`), `undefined` and `unreferenced` (`chapter`, `footnote`, `label`) |
 

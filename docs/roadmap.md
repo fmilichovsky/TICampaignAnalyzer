@@ -117,7 +117,8 @@ built from the developments catalogued in
     chapter packages, the `continuity` member and the prompt rules for
     chapter parts; `narrate` writes the plan and the requests without
     sending; builds on the constituent-only atomic stream (#130, done) (#140,
-    done);
+    done); the period made coarser chapter by chapter where the saves are too
+    sparse for it (#157, done);
   - providers `anthropic`, `openai` and `ollama` over the standard
     library's HTTP client behind `--send`, the `[narrator]` settings table
     with profiles, a provider-failure exit code (#141, done);

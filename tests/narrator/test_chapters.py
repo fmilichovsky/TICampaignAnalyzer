@@ -136,7 +136,7 @@ def _budget(extra: int, **changes: int) -> NarratorSettings:
 
 
 def _plan(package: dict[str, Any], settings: NarratorSettings, **options: str) -> ChapterPlan:
-    plan = plan_chapters(package, base_options(package, settings, **options), settings)
+    plan = plan_chapters(package, base_options(package, settings, **options), settings, requested="period" in options)
     assert isinstance(plan, ChapterPlan)
     return plan
 
@@ -275,7 +275,7 @@ def test_a_development_is_filed_by_a_recorded_start_else_by_its_end() -> None:
         _development("record", dates[1], dates[2], start_basis="record"),
         _development("known", dates[0], dates[3], start_basis="interval"),
     ]
-    planner = _Planner(_package(dates, narrative), {"period": "quarter"}, NarratorSettings(), None)
+    planner = _Planner(_package(dates, narrative), {"period": "quarter"}, NarratorSettings(), None, True)
 
     assert planner.starts == [1, 1, 2]
 
@@ -475,6 +475,65 @@ def test_the_period_follows_the_campaign_span(last: str, period: str) -> None:
 
     assert derive_period(package, NarratorSettings()) == period
     assert base_options(package, NarratorSettings(), period="year")["period"] == "year"
+
+
+def _dated(dates: list[str]) -> dict[str, Any]:
+    """One development per interval, filed by its recorded start."""
+    narrative = [
+        _development(f"dev{position}@{dates[position + 1]}", dates[position], dates[position + 1])
+        for position in range(len(dates) - 1)
+    ]
+    return _package(dates, narrative)
+
+
+# Monthly saves through 2032, then saves eight and six months apart: the span gives quarters.
+SPARSE_2033 = [f"2032-{month:02d}-01T00:00:00" for month in range(1, 11)] + [
+    "2033-06-01T00:00:00",
+    "2033-12-01T00:00:00",
+]
+
+
+def test_a_period_the_saves_are_too_sparse_for_is_told_coarser_in_its_own_chapter() -> None:
+    plan = _plan(_dated(SPARSE_2033), NarratorSettings())
+
+    assert [(chapter.periods, chapter.period, chapter.period_basis) for chapter in plan.chapters] == [
+        (("2032-Q1", "2032-Q2", "2032-Q3", "2032-Q4"), "quarter", "campaign_span"),
+        (("2033",), "year", "save_spacing"),
+    ]
+    assert plan.sparse == ()
+    assert "period: quarter" in _block(plan, 0).splitlines()
+    assert "period: year" in _block(plan, 1).splitlines()
+    entries = plan.to_dict()["chapters"]
+    assert [(entry["period"], entry["period_basis"]) for entry in entries] == [
+        ("quarter", "campaign_span"),
+        ("year", "save_spacing"),
+    ]
+    assert plan.to_dict()["request"]["period"] == "quarter"
+
+
+def test_a_quarter_with_one_long_interval_among_short_ones_stays_a_quarter() -> None:
+    dates = ["2032-04-01T00:00:00", "2032-06-25T00:00:00", "2032-10-01T00:00:00", "2032-10-15T00:00:00"]
+    dates.append("2032-11-01T00:00:00")
+    plan = _plan(_dated(dates), NarratorSettings())
+
+    assert [(chapter.periods, chapter.period_basis) for chapter in plan.chapters] == [
+        (("2032-Q2", "2032-Q4"), "campaign_span")
+    ]
+
+
+def test_quarterly_saves_are_not_too_sparse_for_quarters() -> None:
+    plan = _plan(_quarterly(), NarratorSettings())
+
+    assert plan.chapters[0].periods == ("2032-Q2", "2032-Q3", "2032-Q4", "2033-Q1")
+    assert plan.chapters[0].period_basis == "campaign_span"
+
+
+def test_a_requested_period_is_kept_and_the_sparse_periods_are_reported() -> None:
+    plan = _plan(_dated(SPARSE_2033), NarratorSettings(), period="quarter")
+
+    assert [(chapter.period, chapter.period_basis) for chapter in plan.chapters] == [("quarter", "requested")]
+    assert plan.chapters[0].periods[-2:] == ("2033-Q2", "2033-Q4")
+    assert plan.sparse == ("2033-Q2", "2033-Q4")
 
 
 def test_an_insider_account_focuses_on_the_player_faction_unless_told_otherwise() -> None:

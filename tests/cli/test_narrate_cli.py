@@ -122,6 +122,27 @@ def test_an_interval_over_the_budget_is_a_usage_error(tmp_path: Path, capsys: py
     assert not output.exists()
 
 
+@pytest.mark.fixture
+@pytest.mark.usefixtures("in_fixtures")
+def test_saves_too_sparse_for_the_period_coarsen_it_unless_it_was_given(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    package = _package(tmp_path, capsys)
+    sparse = json.loads(package.read_text(encoding="utf-8"))
+    sparse["saves"][0]["date"] = sparse["intervals"][0]["not_before"] = "2031-07-01T00:00:00"
+    package.write_text(json.dumps(sparse), encoding="utf-8")
+
+    assert main(["narrate", "--package", str(package)]) == EXIT_SUCCESS
+    captured = capsys.readouterr()
+    assert "2031-07-01 to 2032-07-01, 2032 (saves too far apart for a quarter): " in captured.out
+    assert captured.err == ""
+
+    assert main(["narrate", "--package", str(package), "--period", "quarter"]) == EXIT_SUCCESS
+    captured = capsys.readouterr()
+    assert "2031-07-01 to 2032-07-01, 2032-Q2, 2032-Q3: " in captured.out
+    assert "the saves are further apart than a quarter in 2032-Q2; --period quarter is kept" in captured.err
+
+
 def test_usage_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     package = tmp_path / "package.json"
     package.write_text("{}", encoding="utf-8")

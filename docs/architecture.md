@@ -1971,7 +1971,10 @@ fall into three groups.
     the developments it holds.
 -   **Derived by the program, overridable**: `period` follows from the span
     of the campaign by a documented rule (short spans by quarter, medium by
-    half, long by year), with thresholds in the settings; `focus` is the
+    half, long by year), with thresholds in the settings, and is made
+    coarser chapter by chapter where the saves are further apart than the
+    period runs, since a period finer than the saves can only be invented;
+    an explicit `period` is kept with a warning. `focus` is the
     player faction for an `insider` account and absent for a `public` one.
 -   **Set by the program only**: `chapter` (index and count), `part`
     (`whole`, `first`, `middle`, `last`) and `covers` (the chapter's first
@@ -2005,8 +2008,8 @@ and the settings only, never on the model, its tokenizer or the network.
 The token counts a provider reports go into the run manifest (20.6), which
 is how the ratio is checked against real use.
 
-**Chapters.** A chapter is a contiguous run of whole periods (20.2) and
-starts and ends on a save. The planner walks the periods in order and adds
+**Chapters.** A chapter is a contiguous run of whole periods of one kind
+(20.2) and starts and ends on a save. The planner walks the periods in order and adds
 the next one to the current chapter while the chapter's estimate stays
 within the budget. A development belongs to the chapter that holds its
 start, the same rule by which the prompt places it under a period.

@@ -601,7 +601,9 @@ def _run_narrate(args: argparse.Namespace) -> int:
             style=cast("str | None", args.style),
             focus=cast("str | None", args.focus),
         )
-        plan = plan_chapters(package, options, narrator, length=cast("int | None", args.length))
+        plan = plan_chapters(
+            package, options, narrator, length=cast("int | None", args.length), requested=args.period is not None
+        )
     except ValueError as error:
         logger.debug("package invalid %s", fields(error=type(error).__name__))
         print(f"tinarrative narrate: {error}", file=sys.stderr)
@@ -614,6 +616,13 @@ def _run_narrate(args: argparse.Namespace) -> int:
         )
         logger.info("narrate over budget %s", fields(needed=plan.needed, budget=plan.budget, exit=EXIT_USAGE_ERROR))
         return EXIT_USAGE_ERROR
+    if plan.sparse:
+        period = plan.options["period"]
+        print(
+            f"tinarrative narrate: warning: the saves are further apart than a {period} in "
+            f"{', '.join(plan.sparse)}; --period {period} is kept, so those sections may divide what the saves cannot",
+            file=sys.stderr,
+        )
     if output is not None:
         try:
             _write_narration(output, plan)
@@ -634,6 +643,8 @@ def _run_narrate(args: argparse.Namespace) -> int:
             developments=sum(planned.developments for planned in plan.chapters),
             largest_estimate=max(planned.estimate for planned in plan.chapters),
             reduced=sum(planned.chapter.reduction is not None for planned in plan.chapters),
+            coarsened=sum(planned.period_basis == "save_spacing" for planned in plan.chapters),
+            sparse=len(plan.sparse),
             written=output is not None,
             sent=sent if target is not None else None,
             kept=kept if target is not None else None,
@@ -999,10 +1010,12 @@ def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
         f"{settings.max_input_tokens} at {settings.chars_per_token} characters per token:"
     ]
     reductions = {"atomic_dropped": "; atomic stream left out", "split": "; period split at saves, no atomic stream"}
+    coarsened = {"save_spacing": f" (saves too far apart for a {plan.options.get('period', 'year')})"}
     for planned in plan.chapters:
         lines.append(
             f"- {planned.index} ({planned.part}) {planned.covers[0][:10]} to {planned.covers[1][:10]}, "
-            f"{', '.join(planned.periods)}: {_count(planned.developments, 'development')}, "
+            f"{', '.join(planned.periods)}{coarsened.get(planned.period_basis, '')}: "
+            f"{_count(planned.developments, 'development')}, "
             f"{planned.continuing} continuing, {planned.recalled} recalled; ~{planned.estimate} input tokens"
             f"{reductions.get(planned.chapter.reduction or '', '')}"
         )
@@ -1422,7 +1435,9 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         choices=PERIODS,
         help=(
             "The sections of the history and the unit chapters are cut by (default: from the campaign span, see "
-            "narrator.quarter_span_days and narrator.half_span_days)."
+            "narrator.quarter_span_days and narrator.half_span_days, made coarser chapter by chapter where the "
+            "saves are further apart than the period runs). A given period is kept, with a warning where the "
+            "saves are too sparse for it."
         ),
     )
     parser.add_argument("--audience", choices=AUDIENCES, help="Who the history is for (prompt default public).")
