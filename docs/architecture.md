@@ -1112,7 +1112,9 @@ class Event:  # narrative extension, conceptual
 -   **Confidence** is the minimum over the constituents, lowered one level
     for a heuristic join; a rule that claims more states why.
 -   **Significance** is assigned by the rule (section 12), defaulting to
-    the maximum over the constituents.
+    the maximum over the constituents. Under the entity-scaled score
+    (section 12) the rule's own level is scaled by the stake it moved, and
+    that maximum stays the floor.
 -   **Dating**: `start` is the earliest constituent `not_before`, `end` the
     latest constituent date, each with the basis of the event it came from;
     a record-dated constituent narrows the span. Corroborating-only events
@@ -1439,6 +1441,108 @@ Narrative events (section 11) carry the same enum. Their level is assigned by
 the rule that builds them, defaulting to the highest level among their
 constituents (11.3, implemented contract), not by the per-type table. A
 development is never ranked below its most significant constituent.
+
+### Entity-scaled score (design)
+
+The levels above rank an event by its type, so a coup in a leading power and
+one on a micro-state, a fleet action and a skirmish of two ships, or a war
+between nuclear blocs and one between minor states share a level. The design
+below adds the weight of the entities involved. It is staged on the roadmap
+(*Entity-scaled significance*); until a stage lands, the implemented contract
+above holds.
+
+**Score.** Every event carries an integer `score` from 0 to 100 beside its
+level, on a logarithmic scale where ten points are ten times the stake:
+
+``` text
+score = clamp(base(type) + scale(stake), 0, 100)
+scale = clamp(round(10 · log10(share / reference)), scale_min, scale_max)
+```
+
+The level is a fixed band over the score: `trivial` 0–24, `minor` 25–49,
+`major` 50–74, `campaign_defining` 75–100. `base(type)` is the midpoint of the
+band the type's rule or table names today (12, 37, 62, 87), so an event
+without a stake, or with a stake at the reference share, keeps its present
+level and the rules migrate one at a time. The bands, the clamp and one
+reference share per measure are runtime settings; the defaults are proposed
+as a 1 % reference and a clamp of −20 to +15 points, calibrated per measure
+on the sample campaigns.
+
+**Stake.** A stake is a share of a world total in the same snapshot, never an
+absolute magnitude: magnitudes grow by orders of magnitude over a campaign,
+shares stay comparable. It measures what the event moved, not only who acted:
+the territory transferred, the nation whose government fell, every
+belligerent of a war, the forces engaged in a battle. It is read on the
+interval's earlier side (what was at stake), on the later side for an entity
+that exists only there. Only the types whose impact grows with the stake are
+scaled, and they are listed explicitly; movement and churn are never scaled,
+so a large fleet changing orbit stays routine.
+
+| Entity | Share |
+| --- | --- |
+| Nation | power share: the weighted mean of its shares of world GDP, population and strength, where strength is the game's published estimate ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)) |
+| Region | share of world population |
+| Federation, alliance, war side | sum of its members' power shares |
+| Faction | Earth share (each nation's power share times the faction's share of that nation's control points, summed) blended with its space share |
+| Hab, organization | tier² over the total tier²: one tier-3 outweighs three tier-1 |
+| Fleet | ship mass over the human ship mass |
+| Battle | contested mass, below |
+| Campaign-wide (milestones, climate, nuclear strikes) | none: the scale is 0 |
+
+Because every term is a share, shares add: a war side, a federation or a
+faction's holdings are sums. The takeover's top-GDP promotion becomes one case
+of the nation stake.
+
+**Space and the alien faction.** Early in a campaign the alien faction holds
+nearly every space asset and the human factions a station or two
+([space assets](game-data-notes/space-assets.md)). A world total that counts
+the aliens would make them half the world from the first save, and a human
+total alone would make one station half of space. So:
+
+-   the space totals behind faction and asset shares count the human
+    factions only; the alien faction is the backdrop, and its own stake is
+    its Earth share. An asset event still measures its asset, alien or
+    human, against that total;
+-   every space share is taken over `max(total, saturation)`, and the space
+    weight in a faction's stake ramps from 0 to its configured value as the
+    human total reaches the saturation. Until humans hold a real presence in
+    space, factions are ranked by their Earth holdings, and a lone station is
+    a small stake.
+
+**Battles.** A battle has two sides. Each side's mass (the combat record's hull
+counts times the observed mass of the hull class) is weighted, alien ships by
+a factor above 1 because they outclass human ships ton for ton. The contested
+mass is `smaller + min(larger, k · smaller)`: mass beyond `k` times the
+opponent's adds nothing, so a large fleet swatting a scout is a skirmish, and
+the outcome never changes the stake. Its share is taken over the weighted mass
+of every faction's ships, with the same saturation floor. Habs assaulted or
+destroyed are a second measure; the battle takes the higher score. Losses are
+attributes for the narrator, not stake.
+
+**Combination.** Stakes add in share space; the type sets the base:
+
+``` text
+development.score = max(base(rule) + scale(Σ shares of the rule's distinct stake entities),
+                        max(score of every cited event))
+```
+
+Constituent scores are never summed: one fact is often recorded several times
+(a region transfer and its mirror lists), and a sum would rank by record
+count. The maximum stays the floor, so a development is still never ranked
+below its most significant constituent; once atomic events are scaled, a
+micro-state's disappearance no longer lifts every development that cites it.
+A conflict with nuclear-armed nations on opposite sides adds a configured
+bonus in points, for escalation risk that a share does not capture.
+Perspective (the player's faction) is not impact and stays with the narrator.
+
+**Provenance.** The score is interpretation. Each event records its
+`significance_basis` (base, measure, share, scale and the stake entities) in
+the `events` output; the narrator package keeps `score` and drops the basis.
+
+**Consumers.** The level stays the deterministic cut-off: `--min-significance`,
+the listing filter, continuity recall and the citation audit read it as
+before. The score orders within it: chapter length shares and recall follow
+it, and the narrator prompt leads with the highest-scored developments.
 
 ------------------------------------------------------------------------
 
