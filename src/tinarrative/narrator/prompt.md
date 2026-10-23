@@ -91,8 +91,9 @@ How to read the fields:
 - `metric_shifts` give a statistic's earliest `before` and latest `after`
   across the development; `relative_change` is unsigned.  `not_before` and
   `date` (with its `date_basis`) bound when the net change happened: date it
-  from them, never from the ID.  Statistics are raw
-  game values.  Say what they mean ("democracy slid sharply") and quote the
+  from them, never from the ID.  `metric_shifts_omitted` counts the smaller
+  shifts left out, so a statistic not listed may still have moved.  Statistics
+  are raw game values.  Say what they mean ("democracy slid sharply") and quote the
   number only when the number itself is the story.
 - `duration_days` is a length the game recorded.  `duration_days_at_most` is
   only a ceiling, because the end is known to lie between two saves: write

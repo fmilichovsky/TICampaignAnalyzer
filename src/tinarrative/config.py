@@ -76,6 +76,9 @@ class GeopoliticsSettings:
     """A released or breakaway nation's own events this soon after its independence are attached."""
     transformation_window_days: int = _int(120, 0)
     """Statistic shifts of one nation this soon after the first form one transformation."""
+    metric_shifts_max: int = _int(12, 0)
+    """A development keeps at most this many ``metric_shifts`` entries: its role nations' first, then nuclear
+    weapons, then the largest relative change; the rest are counted as ``metric_shifts_omitted``."""
 
 
 @dataclass(frozen=True)

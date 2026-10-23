@@ -80,9 +80,10 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
     Every event loses its ``sources``, and the campaign, skipped files, saves and intervals lose their file paths; the
     report without ``--narrative`` (at ``trivial``) keeps both, and every ID here resolves in it. A nation that holds no
     region in any save and is not referenced by a listed event is left out of the situation reports, and the reports
-    are slimmed (``_slim_situations``). The glossary is built from what remains, then references are reduced to
-    ``ref`` and ``name`` (and ``confidence`` when the identity is not an in-save ID), the glossary keeping each
-    entity's kind, and floats are rounded to ``FLOAT_DIGITS`` significant digits.
+    are slimmed (``_slim_situations``). A ``metric_shifts`` entry loses its ``events``, which name shift events the
+    package does not list (``_drop_shift_events``). The glossary is built from what remains, then references are
+    reduced to ``ref`` and ``name`` (and ``confidence`` when the identity is not an in-save ID), the glossary keeping
+    each entity's kind, and floats are rounded to ``FLOAT_DIGITS`` significant digits.
     """
     document["campaign"] = {key: value for key, value in document["campaign"].items() if key != "sources"}
     document["skipped"] = [{"error_class": skipped["error_class"]} for skipped in document["skipped"]]
@@ -96,6 +97,7 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
         events.extend(interval["inferred"] or ())
     for event in events:
         del event["sources"]
+    _drop_shift_events(document["narrative"])
     _prune_nations(document["saves"], _referenced(events))
     _slim_situations(document["saves"])
     glossary = build_glossary(document, reports)
@@ -113,6 +115,13 @@ def _referenced(node: Any) -> set[str]:
     if isinstance(node, list):
         return set().union(*(_referenced(item) for item in node)) if node else set()
     return set()
+
+
+def _drop_shift_events(narrative: list[dict[str, Any]]) -> None:
+    """Remove the ``events`` ID list from every ``metric_shifts`` entry of the narrative events."""
+    for event in narrative:
+        for entry in event["attributes"].get("metric_shifts") or ():
+            entry.pop("events", None)
 
 
 def _prune_nations(saves: list[dict[str, Any]], referenced: set[str]) -> None:

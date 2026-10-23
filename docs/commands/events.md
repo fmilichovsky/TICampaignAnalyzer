@@ -208,6 +208,12 @@ A `metric_shifts` entry has `nation`, `statistic`, `key` (public opinion only), 
 shift's value), `after` (the latest's), the unsigned `relative_change`, `not_before` (the earlier save of the
 earliest shift), `date` and `date_basis` (the later save of the latest shift: the net change happened between
 `not_before` and `date`), the summed per-reason `causes` when the shifts carry them, and the shift `events` by ID.
+`numControlPoints` shifts are left out, since the control-point and region events already tell them. A development
+keeps at most `narrative.geopolitics.metric_shifts_max` entries ([configuration](../configuration.md)): those of its
+role nations first, then `numNuclearWeapons`, then the largest `relative_change` (entries without one last, ties by
+nation and statistic). The kept entries stay in nation and statistic order, and `metric_shifts_omitted` counts the
+rest when any were cut. The narrator package (`--narrative --format json`) leaves the `events` list out of each
+entry, because it does not list the shift events; the audit form lists them.
 `federation.lifecycle` counts a member's shifts only in the intervals in which it was a member at either end, so
 the interval of a join or leave counts and earlier or later ones do not.
 The space rules are implemented too: `faction.space_campaign`, `faction.colonisation_wave`,
@@ -319,6 +325,7 @@ the rest. It is meant to be handed to a reader, such as an LLM narrator
   `allies` as bare ref strings (`"nation:4"`), each a glossary entry; a faction's `habs_by_body`
   lists only the bodies with two or more habs, and `other_bodies` counts the bodies with one
   (`habs` still counts every hab);
+- a `metric_shifts` entry has no `events` list;
 - every float is rounded to 4 significant digits;
 - `--changes` is a usage error (exit 2), since literal changes carry their source locations.
 

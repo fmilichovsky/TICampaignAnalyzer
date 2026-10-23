@@ -1265,7 +1265,12 @@ over the rule's nations and the intervals it spans. Each entry holds the
 earliest shift's `before`, the latest shift's `after`, the unsigned
 `relative_change`, the summed `causes` and the shift `events` by ID. The
 shifts are context, not constituents, so they never widen a span or change
-status, confidence or significance.
+status, confidence or significance. Statistics that other events already
+tell (`numControlPoints`) are left out. A development keeps a bounded number
+of entries (`narrative.geopolitics.metric_shifts_max`): its role nations'
+first, then nuclear weapons, then the largest relative change. It counts the
+rest as `metric_shifts_omitted`. The narrator package drops the `events`
+lists, since it does not carry the shift events.
 
 Space milestones second:
 

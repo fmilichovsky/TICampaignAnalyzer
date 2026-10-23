@@ -69,6 +69,10 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
             "'narrative.geopolitics.top_gdp_nations' must be at least 1",
         ),
         ("[narrative.geopolitics]\nexpansion_gap_days = -1\n", "must be at least 0"),
+        (
+            "[narrative.geopolitics]\nmetric_shifts_max = -1\n",
+            "'narrative.geopolitics.metric_shifts_max' must be at least 0",
+        ),
         ("[narrative.geopolitics\n", "not valid TOML"),
         ("[narrator]\nprovider = 'gemini'\n", "'narrator.provider' must be one of: anthropic, openai, ollama"),
         ("[narrator]\nmodel = 3\n", "'narrator.model' must be a non-empty string"),
