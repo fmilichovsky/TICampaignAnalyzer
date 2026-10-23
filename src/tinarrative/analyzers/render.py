@@ -351,9 +351,10 @@ def _crashdown_changed(event: Event) -> str:
 
 
 def _destruction_recorded(event: Event) -> str:
+    named = f" (hab {_attr(event, 'hab')})" if any(name == "hab" for name, _ in event.attributes) else ""
     return (
         f"{_subject(event)} records a hab destruction dated {_text(event, 'recorded_on')}: "
-        f"type {_attr(event, 'hab_type')} at {_attr(event, 'space_body')} by {_attr(event, 'destroyer')}"
+        f"type {_attr(event, 'hab_type')}{named} at {_attr(event, 'space_body')} by {_attr(event, 'destroyer')}"
     )
 
 

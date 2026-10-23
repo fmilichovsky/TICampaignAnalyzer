@@ -2,15 +2,16 @@
 
 Events here speak about a hab's ``faction``, ``habType``, ``tier``, combat and assault flags, core completion and
 presence, and about every entry added to a faction's ``HabDestructionLog``. The log names a hab type and a space
-body, not a hab ID, so a recorded destruction is never linked to a hab absent from the later save: the two stay
-separate events. ``sectors``, ``councilorsOnBoard``, ``officersOnBoard``, orbit and position fields stay in the
-diff; ``dockedFleets`` belongs to the fleet analyzer.
+body, not a hab ID, so the two stay separate events. A recorded destruction carries a ``hab`` attribute only when
+exactly one entry and exactly one hab gone from the later save share the log owner, hab type and body; the
+``owner`` attribute is the log's faction. ``sectors``, ``councilorsOnBoard``, ``officersOnBoard``, orbit and
+position fields stay in the diff; ``dockedFleets`` belongs to the fleet analyzer.
 """
 
 from __future__ import annotations
 
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
-from ...model.entities import EntityDomain
+from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import DestructionEntry
 from ...model.snapshot import SaveSnapshot
@@ -39,6 +40,9 @@ VALUE_FIELDS = (
 )
 LOG_FIELD = "HabDestructionLog"
 
+HabKey = tuple[EntityId, str, EntityId]
+"""Owning faction, hab type and body: what a destruction log entry and a vanished hab share."""
+
 
 class HabAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
@@ -56,8 +60,9 @@ class HabAnalyzer:
                     events.append(event)
         for change in index.presence(EntityDomain.SPACE_OBJECT):
             events.append(_presence(change, lookup, build))
+        vanished = _vanished_habs(index, lookup)
         for change in index.fields(EntityDomain.FACTION, LOG_FIELD):
-            events.extend(_destructions_recorded(change, lookup, build))
+            events.extend(_destructions_recorded(change, lookup, build, vanished))
         return events
 
 
@@ -75,8 +80,29 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     )
 
 
-def _destructions_recorded(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
-    """One record-dated event per log entry added; a removed entry stays in the diff (logs grow)."""
+def _vanished_habs(index: ChangeIndex, lookup: Lookup) -> dict[HabKey, list[EntityId]]:
+    """The habs gone from the later save by the key a destruction entry shares, read from the earlier save."""
+    found: dict[HabKey, list[EntityId]] = {}
+    for change in index.presence(EntityDomain.SPACE_OBJECT):
+        hab_id = change.entity_id
+        if change.kind is not ChangeKind.DISAPPEARED or hab_id is None:
+            continue
+        faction = lookup.ref_field(hab_id, "faction", Side.BEFORE)
+        body = lookup.ref_field(hab_id, "barycenter", Side.BEFORE)
+        state = lookup.state(hab_id, Side.BEFORE)
+        hab_type = state.get("habType") if state is not None else None
+        if faction is not None and body is not None and isinstance(hab_type, str):
+            found.setdefault((faction.entity_id, hab_type, body.entity_id), []).append(hab_id)
+    return found
+
+
+def _destructions_recorded(
+    change: StateChange, lookup: Lookup, build: EventBuilder, vanished: dict[HabKey, list[EntityId]]
+) -> list[Event]:
+    """One record-dated event per log entry added; a removed entry stays in the diff (logs grow).
+
+    ``hab`` is set only for a one-to-one match of entry and vanished hab; ``owner`` is the log's faction.
+    """
     if change.kind is not ChangeKind.RECORDS or not isinstance(change.detail, RecordsDetail):
         return []
     if change.entity_id is None:
@@ -84,10 +110,14 @@ def _destructions_recorded(change: StateChange, lookup: Lookup, build: EventBuil
     faction_id = change.entity_id
     record_set = lookup.record_set(faction_id, LOG_FIELD, Side.AFTER)
     owner = lookup.ref(faction_id) or (record_set.owner if record_set is not None else None)
+    added = [entry for entry in change.detail.added if isinstance(entry, DestructionEntry)]
+    entries_per_key: dict[HabKey, int] = {}
+    for entry in added:
+        key = _entry_key(faction_id, entry)
+        if key is not None:
+            entries_per_key[key] = entries_per_key.get(key, 0) + 1
     events: list[Event] = []
-    for entry in change.detail.added:
-        if not isinstance(entry, DestructionEntry):
-            continue  # an unparseable element; the diff keeps it visible
+    for entry in added:  # an unparseable element is skipped; the diff keeps it visible
         location = record_set.entry_location(entry) if record_set is not None else None
         attributes: list[tuple[str, Observed]] = [
             ("hab_type", entry.hab_type),
@@ -96,15 +126,30 @@ def _destructions_recorded(change: StateChange, lookup: Lookup, build: EventBuil
             ("recorded_on", entry.date),
         ]
         unresolved = any(is_unresolved(value) for _, value in attributes)
+        key = _entry_key(faction_id, entry)
+        habs = vanished.get(key, []) if key is not None else []
+        unique = key is not None and entries_per_key[key] == 1 and len(habs) == 1
+        hab = lookup.ref(habs[0]) if unique else None
+        if hab is not None:
+            attributes.append(("hab", hab))
+        if owner is not None:
+            attributes.append(("owner", owner))
         events.append(
             build.event(
                 DESTRUCTION_RECORDED,
                 id_parts=(faction_id, entry.index),
                 sources=(EventSource(change, SourceRole.PRIMARY, None, location),),
-                entities=(owner, lookup.resolve(entry.space_body), lookup.resolve(entry.destroyer)),
+                entities=(owner, lookup.resolve(entry.space_body), lookup.resolve(entry.destroyer), hab),
                 attributes=attributes,
                 confidence=Confidence.LOW if unresolved else Confidence.HIGH,
                 recorded_on=entry.date,
             )
         )
     return events
+
+
+def _entry_key(faction_id: EntityId, entry: DestructionEntry) -> HabKey | None:
+    body = entry.space_body
+    if not isinstance(entry.hab_type, str) or not isinstance(body, EntityRef):
+        return None
+    return (faction_id, entry.hab_type, body.entity_id)
