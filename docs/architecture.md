@@ -1610,10 +1610,10 @@ one save sequence:
 1.  the narrative events in chronological order, each with its span, roles,
     attributes, confidence, significance and constituent IDs;
 2.  the situation reports (11.4), one per save;
-3.  an entity glossary: every referenced ID with its name and domain, and
-    for a nation the names of its regions, so prose never has to invent a
-    name and never meets a bare ID; an entity whose name changes keeps its
-    latest name and lists the earlier ones;
+3.  an entity glossary of what the references do not say inline: the name
+    and domain of every entity the package references somewhere by ID only,
+    so prose never has to invent a name and never meets a bare ID, and for
+    an entity whose name changes its latest name and the earlier ones;
 4.  the atomic events the listed narrative events are built from, for
     drill-down and audit.
 

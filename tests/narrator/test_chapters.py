@@ -33,18 +33,11 @@ MONTHS = ["2031-12-01T00:00:00", "2032-01-01T00:00:00", "2032-02-01T00:00:00", "
 NATIONS = [("nation:1", "Northland", 900.0), ("nation:2", "Southland", 100.0), ("nation:3", "Eastland", None)]
 RESISTANCE = {"ref": "faction:15", "name": "Fixture Resistance"}
 GLOSSARY = [
-    {"ref": "faction:15", "domain": "faction", "name": "Fixture Resistance", "kind": "TIFactionState"},
-    {"ref": "faction:16", "domain": "faction", "name": "Fixture Servants", "kind": "TIFactionState"},
-    {
-        "ref": "nation:1",
-        "domain": "nation",
-        "name": "Northland",
-        "kind": "TINationState",
-        "regions": [{"ref": "region:10", "name": "North"}],
-    },
-    {"ref": "nation:2", "domain": "nation", "name": "Southland", "kind": "TINationState", "regions": []},
-    {"ref": "nation:3", "domain": "nation", "name": "Eastland", "kind": "TINationState", "regions": []},
-    {"ref": "region:10", "domain": "region", "name": "North", "kind": "TIRegionState"},
+    {"ref": "faction:15", "domain": "faction", "name": "Fixture Resistance"},
+    {"ref": "faction:16", "domain": "faction", "name": "Fixture Servants"},
+    {"ref": "nation:1", "domain": "nation", "name": "Northland"},
+    {"ref": "nation:2", "domain": "nation", "name": "Southland"},
+    {"ref": "nation:3", "domain": "nation", "name": "Eastland"},
 ]
 
 
@@ -320,7 +313,7 @@ def test_situations_keep_the_referenced_nations_and_the_largest_economies() -> N
         assert [nation["nation"]["ref"] for nation in save["situation"]["nations"]] == ["nation:1", "nation:3"]
         assert save["situation"]["world"] == original["situation"]["world"]
         assert save["situation"]["nations"][0] == original["situation"]["nations"][0]
-    assert [entry["ref"] for entry in embedded["glossary"]] == ["nation:1", "nation:3", "region:10"]
+    assert [entry["ref"] for entry in embedded["glossary"]] == ["nation:1", "nation:3"]
 
 
 def _landless(package: dict[str, Any], ref: str) -> dict[str, Any]:

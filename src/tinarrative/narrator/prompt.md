@@ -55,7 +55,7 @@ The user message may carry a request block.  Defaults in brackets.
   Snapshots are background, not events: a milestone or count found only there
   is not a dated achievement, and the last
   snapshot's counts are the measure of where things stood.
-- `glossary`: the authoritative names and kinds of every referenced ID.  Use
+- `glossary`: names for entities referenced by ID only, and former names.  Use
   those names; an entity renamed over the campaign has its current `name` and
   its earlier ones in `former_names`: call it what it was called at the time,
   and say once that it was renamed.  Never print an ID or a game key (`GDPReason_TerritoryChange`,

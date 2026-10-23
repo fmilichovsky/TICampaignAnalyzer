@@ -577,11 +577,13 @@ def _json(capsys: pytest.CaptureFixture[str], *flags: str) -> dict[str, Any]:
     return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
 
 
-def _references(node: Any) -> set[str]:
-    """Every ``ref`` in a document, plus the faction IDs keying a nation's ``shares`` and its ``allies`` refs."""
+def _references(node: Any, *, bare: bool = False) -> set[str]:
+    """Every ``ref`` in a document, plus the faction IDs keying a nation's ``shares`` and its ``allies`` refs; with
+    ``bare``, only the refs given somewhere without a name (those keys and strings, and ref objects without
+    ``name``)."""
     found: set[str] = set()
     if isinstance(node, dict):
-        if isinstance(node.get("ref"), str):
+        if isinstance(node.get("ref"), str) and not (bare and "name" in node):
             found.add(node["ref"])
         for key, value in node.items():
             if key == "shares" and isinstance(value, dict):
@@ -589,10 +591,10 @@ def _references(node: Any) -> set[str]:
             elif key == "allies" and isinstance(value, list):
                 found.update(item for item in value if isinstance(item, str))
             else:
-                found |= _references(value)
+                found |= _references(value, bare=bare)
     elif isinstance(node, list):
         for item in node:
-            found |= _references(item)
+            found |= _references(item, bare=bare)
     return found
 
 
@@ -607,7 +609,7 @@ def _references(node: Any) -> set[str]:
         ["--constituents", "evidence", "--min-significance", "major"],
     ],
 )
-def test_the_glossary_holds_every_referenced_id_and_nothing_else(
+def test_the_glossary_holds_only_ids_referenced_without_a_name_and_renamed_entities(
     flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
@@ -618,13 +620,15 @@ def test_the_glossary_holds_every_referenced_id_and_nothing_else(
     listed = [entry["ref"] for entry in glossary]
     assert listed == sorted(set(listed), key=lambda text: (text.partition(":")[0], len(text), text))
     without = {key: value for key, value in document.items() if key != "glossary"}
-    regions = {region["ref"] for entry in glossary for region in entry.get("regions", ())}
-    assert set(listed) == _references(without) | regions
+    bare = _references(without, bare=True)
+    assert set(listed) <= _references(without)
+    assert all("former_names" in entry or entry["ref"] in bare for entry in glossary)
     assert all(entry["domain"] == entry["ref"].partition(":")[0] for entry in glossary)
+    assert all(set(entry) <= {"ref", "domain", "name", "former_names"} for entry in glossary)
 
 
 @pytest.mark.fixture
-def test_the_glossary_names_entities_and_lists_a_nations_regions(
+def test_the_glossary_names_share_holders_and_leaves_out_entities_named_inline(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
@@ -632,13 +636,9 @@ def test_the_glossary_names_entities_and_lists_a_nations_regions(
     document = _json(capsys, "--narrative")
 
     entries = {entry["ref"]: entry for entry in document["glossary"]}
-    assert entries["nation:20"]["name"] == "Fixture Northland"
-    assert entries["nation:20"]["regions"] == [
-        {"ref": "region:40", "name": "Fixture North"},
-        {"ref": "region:41", "name": "Fixture East"},
-    ]
-    assert entries["region:42"]["name"] == "Fixture South"
-    assert "regions" not in entries["region:42"]
+    assert entries["faction:15"] == {"ref": "faction:15", "domain": "faction", "name": "Fixture Resistance"}
+    assert "nation:20" not in entries
+    assert not any(ref.startswith("region:") for ref in entries)
 
 
 @pytest.mark.fixture
@@ -751,11 +751,8 @@ def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
     assert not _keys(without) & {"sources", "source", "aliases", "before_location", "after_location", "state_type"}
     assert all(set(interval) >= {"not_before", "date"} for interval in package["intervals"])
     assert all("before" not in interval and "after" not in interval for interval in package["intervals"])
-    kinds = {entry["ref"]: entry.get("kind") for entry in package["glossary"]}
-    assert kinds["nation:20"] == "TINationState"
-    assert set(kinds) == _references(without) | {
-        region["ref"] for entry in package["glossary"] for region in entry.get("regions", ())
-    }
+    assert not _keys(package["glossary"]) & {"kind", "regions"}
+    assert {entry["ref"] for entry in package["glossary"]} <= _references(without)
 
 
 @pytest.mark.fixture

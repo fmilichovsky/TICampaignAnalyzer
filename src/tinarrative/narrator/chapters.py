@@ -217,10 +217,8 @@ def referenced(node: Any) -> set[str]:
 
 
 def glossary_for(glossary: Sequence[Mapping[str, Any]], refs: set[str]) -> list[Mapping[str, Any]]:
-    """The glossary entries of ``refs`` and of the regions of those entries, in glossary order."""
-    kept = [entry for entry in glossary if entry["ref"] in refs]
-    regions = {region["ref"] for entry in kept for region in entry.get("regions", ())}
-    return [entry for entry in glossary if entry["ref"] in refs | regions]
+    """The glossary entries of ``refs``, in glossary order."""
+    return [entry for entry in glossary if entry["ref"] in refs]
 
 
 def plan_chapters(

@@ -106,7 +106,7 @@ full package:
 - `intervals`: the chapter's intervals. Their `events` and `inferred` keep only the events the
   chapter's developments and its `continuing` developments are built from, followed transitively,
   and are empty when the atomic stream was left out. Their `omitted` counts are the package's;
-- `glossary`: the entries still referenced, and the regions of the nations among them;
+- `glossary`: the entries still referenced;
 - every other member (`campaign`, `settings`, the filter fields and counts) as in the package;
 - `chapter`: `index`, `count`, `part` and `covers` (`from` and `to`, the two save dates);
 - `continuity`, built from the package and never from earlier prose:

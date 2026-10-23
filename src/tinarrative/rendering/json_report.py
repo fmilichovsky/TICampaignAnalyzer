@@ -14,7 +14,6 @@ from ..grouping import CampaignGroup
 from ..model.entities import IdentityConfidence
 from ..model.events import Event, Significance
 from ..narrative.glossary import build_glossary
-from ..narrative.situation import SituationReport
 from ..sequence import IntervalResult, SequencePlan, situations
 from .listing import Constituents, listing
 
@@ -71,10 +70,10 @@ def build_document(
     if narrative is None:
         document["glossary"] = None
         return document
-    return _narrator_package(document, reports)
+    return _narrator_package(document)
 
 
-def _narrator_package(document: dict[str, Any], reports: Sequence[SituationReport]) -> dict[str, Any]:
+def _narrator_package(document: dict[str, Any]) -> dict[str, Any]:
     """The narrator package (architecture 13.1): the report without provenance and paths, for a reader that cites IDs.
 
     Every event loses its ``sources``, and the campaign, skipped files, saves and intervals lose their file paths; the
@@ -82,8 +81,8 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
     region in any save and is not referenced by a listed event is left out of the situation reports, and the reports
     are slimmed (``_slim_situations``). A ``metric_shifts`` entry loses its ``events``, which name shift events the
     package does not list (``_drop_shift_events``). The glossary is built from what remains, then references are
-    reduced to ``ref`` and ``name`` (and ``confidence`` when the identity is not an in-save ID), the glossary keeping
-    each entity's kind, and floats are rounded to ``FLOAT_DIGITS`` significant digits.
+    reduced to ``ref`` and ``name`` (and ``confidence`` when the identity is not an in-save ID), and floats are rounded
+    to ``FLOAT_DIGITS`` significant digits.
     """
     document["campaign"] = {key: value for key, value in document["campaign"].items() if key != "sources"}
     document["skipped"] = [{"error_class": skipped["error_class"]} for skipped in document["skipped"]]
@@ -100,7 +99,7 @@ def _narrator_package(document: dict[str, Any], reports: Sequence[SituationRepor
     _drop_shift_events(document["narrative"])
     _prune_nations(document["saves"], _referenced(events))
     _slim_situations(document["saves"])
-    glossary = build_glossary(document, reports)
+    glossary = build_glossary(document)
     slimmed: dict[str, Any] = _slim(document)
     slimmed["glossary"] = glossary
     return slimmed
