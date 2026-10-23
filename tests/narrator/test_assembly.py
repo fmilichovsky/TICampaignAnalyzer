@@ -55,7 +55,10 @@ def _package(
         "narrative": [{"id": identifier, "significance": level} for identifier, level in narrative],
         "glossary": [{"ref": "nation:1", "name": "Freedonia"}],
         "continuity": {
-            "continuing": [{"id": identifier, "significance": "major"} for identifier in continuing],
+            "continuing": [
+                {"id": identifier, "significance": "major", "attributes": {"metric_shifts_omitted": 2}}
+                for identifier in continuing
+            ],
             "earlier": [{"id": identifier} for identifier in earlier],
             "earlier_omitted": 0,
         },

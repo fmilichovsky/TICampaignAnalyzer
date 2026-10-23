@@ -171,6 +171,8 @@ built from the developments catalogued in
     building with `evidence`, and the takeover carrying its executive record's date and previous holder (#160).
   - [x] bound `metric_shifts`: no `numControlPoints`, at most `narrative.geopolitics.metric_shifts_max` entries per
     development with the rest counted, and no shift event IDs in the narrator form (#161).
+  - [x] `continuity.continuing` as a digest: the record without `metric_shifts`, `constituents` and `entities`,
+    with `metric_shifts_omitted` counting the shifts left out (#167).
 - [ ] Nation metrics redesign: one rule per metric, shaped by how the metric behaves in the game, with
   `nation.statistic_shifted` kept as evidence (observations in
   [nation statistics](game-data-notes/nation-metrics.md)):

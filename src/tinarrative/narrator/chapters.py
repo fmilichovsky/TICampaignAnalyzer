@@ -474,7 +474,8 @@ class _Planner:
     ) -> dict[str, Any]:
         developments = self._developments(chapter)
         continuity = self._continuity(chapter, earlier)
-        roots = [*developments, *continuity["continuing"]]
+        # The atomic events this chapter keeps follow the full records, constituents included.
+        roots = [*developments, *self._continuing(chapter)]
         kept = self._closure(roots) if chapter.atomic else set()
         intervals = [
             {
@@ -513,18 +514,29 @@ class _Planner:
             if chapter.first <= start <= chapter.last
         ]
 
-    def _continuity(self, chapter: Chapter, earlier: Sequence[Chapter]) -> dict[str, Any]:
-        """Developments of earlier chapters that still run in this one, in full, and a capped digest of the others
-        at ``RECALLED_FROM`` and above."""
-        keys = {interval["key"] for interval in self.intervals[chapter.first : chapter.last + 1]}
-        before = [
+    def _before(self, chapter: Chapter) -> list[tuple[int, Mapping[str, Any]]]:
+        """The developments of earlier chapters, with their package positions."""
+        return [
             (position, event)
             for position, (event, start) in enumerate(zip(self.package["narrative"], self.starts, strict=True))
             if start < chapter.first
         ]
-        continuing = [
-            event for _, event in before if event.get("open") is True or keys & set(event.get("intervals") or ())
+
+    def _continuing(self, chapter: Chapter) -> list[Mapping[str, Any]]:
+        """The full records of earlier chapters' developments that are open or list one of this chapter's
+        intervals."""
+        keys = {interval["key"] for interval in self.intervals[chapter.first : chapter.last + 1]}
+        return [
+            event
+            for _, event in self._before(chapter)
+            if event.get("open") is True or keys & set(event.get("intervals") or ())
         ]
+
+    def _continuity(self, chapter: Chapter, earlier: Sequence[Chapter]) -> dict[str, Any]:
+        """Developments of earlier chapters that still run in this one, as records without their shifts,
+        constituents and entities, and a capped digest of the others at ``RECALLED_FROM`` and above."""
+        before = self._before(chapter)
+        continuing = self._continuing(chapter)
         told = {event["id"] for event in continuing}
         floor = SIGNIFICANCE.index(RECALLED_FROM)
         candidates = [
@@ -537,7 +549,7 @@ class _Planner:
         recalled = sorted(position for position, _ in ranked[: self.settings.recalled_developments])
         narrative = self.package["narrative"]
         return {
-            "continuing": continuing,
+            "continuing": [_continuing_digest(event) for event in continuing],
             "earlier": [_digest(narrative[position]) for position in recalled],
             "earlier_omitted": len(candidates) - len(recalled),
         }
@@ -614,6 +626,20 @@ def _sort_text(value: Any) -> str:
 
 def _digest(event: Mapping[str, Any]) -> dict[str, Any]:
     return {key: event.get(key) for key in ("id", "event_type", "significance", "start", "end", "roles")}
+
+
+def _continuing_digest(event: Mapping[str, Any]) -> dict[str, Any]:
+    """The record without ``constituents``, ``entities`` and ``metric_shifts``; ``metric_shifts_omitted`` counts
+    every shift not listed, those the record already left out included."""
+    digest = {key: value for key, value in event.items() if key not in ("constituents", "entities")}
+    attributes = event.get("attributes")
+    if isinstance(attributes, dict) and "metric_shifts" in attributes:
+        kept = {
+            key: value for key, value in attributes.items() if key not in ("metric_shifts", "metric_shifts_omitted")
+        }
+        omitted = len(attributes["metric_shifts"] or ()) + (attributes.get("metric_shifts_omitted") or 0)
+        digest["attributes"] = {**kept, "metric_shifts_omitted": omitted} if omitted else kept
+    return digest
 
 
 def _landless(nation: Mapping[str, Any]) -> bool:

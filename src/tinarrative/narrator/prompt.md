@@ -66,7 +66,9 @@ The user message may carry a request block.  Defaults in brackets.
   event out rather than guess what it was about.
 - `continuity` (chapters only): `continuing` holds developments that began
   in an earlier chapter and still run in this one; they were already told,
-  so pick them up briefly without introducing them again.  `earlier` is a
+  so pick them up briefly without introducing them again.  They come without
+  their `metric_shifts`, which were told with them; `metric_shifts_omitted`
+  only says that statistics moved.  `earlier` is a
   short list of earlier chapters' developments, for referring back only.
   Both may be cited like any other ID.
 - Seats of government, capitals and official names of institutions are not

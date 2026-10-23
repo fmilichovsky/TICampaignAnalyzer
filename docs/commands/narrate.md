@@ -93,8 +93,8 @@ coarser: the command keeps it and warns on stderr, naming the periods the saves 
 ## Chapter package
 
 A chapter package has the schema of the narrator package, restricted to the chapter. It selects
-entries and never rewrites one, so an ID means the same event in the chapter package and in the
-full package:
+the chapter's own entries and never rewrites one, so an ID means the same event in the chapter
+package and in the full package; only the `continuity` entries are digests:
 
 - `narrative`: the developments that belong to the chapter, in package order;
 - `saves`: the opening and the closing save. Their situation's `nations` are reduced to the
@@ -110,8 +110,10 @@ full package:
 - every other member (`campaign`, `settings`, the filter fields and counts) as in the package;
 - `chapter`: `index`, `count`, `part` and `covers` (`from` and `to`, the two save dates);
 - `continuity`, built from the package and never from earlier prose:
-  - `continuing`: the full records of earlier chapters' developments that are `open`, or that
-    list one of this chapter's intervals;
+  - `continuing`: the records of earlier chapters' developments that are `open`, or that list one
+    of this chapter's intervals, without `constituents`, `entities` and the `metric_shifts`
+    attribute. `metric_shifts_omitted` is then the number of shifts not listed: the record's
+    `metric_shifts` plus any it had already left out;
   - `earlier`: `id`, `event_type`, `significance`, `start`, `end` and `roles` of other earlier
     developments at `major` and above. At most `narrator.recalled_developments` are kept: the most
     significant first, then the latest. They are listed in package order;

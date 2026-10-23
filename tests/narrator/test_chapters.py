@@ -383,7 +383,7 @@ def test_a_later_chapter_opens_on_the_closing_save_of_the_one_before() -> None:
     assert [save["key"] for save in _embedded(plan, 2)["saves"]] == QUARTERS[2:4]
 
 
-def test_continuity_carries_running_developments_in_full_and_recalls_the_rest() -> None:
+def test_continuity_carries_running_developments_as_digests_and_recalls_the_rest() -> None:
     package = _quarterly({position: 20_000 for position in range(4)})
     package["narrative"][:0] = [
         _development("open", QUARTERS[0], QUARTERS[-1], open=True, intervals=(QUARTERS[1],)),
@@ -396,7 +396,9 @@ def test_continuity_carries_running_developments_in_full_and_recalls_the_rest() 
 
     second = _embedded(plan, 1)["continuity"]
     assert [event["id"] for event in second["continuing"]] == ["open", "long"]
-    assert second["continuing"][0] == package["narrative"][0]
+    assert second["continuing"][0] == {
+        key: value for key, value in package["narrative"][0].items() if key != "constituents"
+    }
     assert [event["id"] for event in second["earlier"]] == ["defining", f"dev0@{QUARTERS[1]}"]
     assert second["earlier"][0] == {
         "id": "defining",
@@ -415,6 +417,41 @@ def test_continuity_carries_running_developments_in_full_and_recalls_the_rest() 
         f"dev1@{QUARTERS[2]}",
     ]
     assert (plan.chapters[2].continuing, plan.chapters[2].recalled) == (1, 4)
+
+
+def test_a_continuing_development_drops_its_shifts_constituents_and_entities() -> None:
+    package = _quarterly({position: 20_000 for position in range(4)})
+    package["intervals"][1]["events"].append(_atomic(f"shared@{QUARTERS[2]}"))
+    long = _development(
+        "long",
+        QUARTERS[0],
+        QUARTERS[2],
+        intervals=(QUARTERS[1], QUARTERS[2]),
+        constituents=(f"shared@{QUARTERS[2]}",),
+    )
+    long["entities"] = [{"ref": "nation:1", "name": "Northland"}]
+    long["attributes"] = {
+        "note": "kept",
+        "metric_shifts": [
+            {"nation": {"ref": "nation:2", "name": "Southland"}, "statistic": "GDP", "before": 1.0, "after": 2.0},
+            {"nation": {"ref": "nation:2", "name": "Southland"}, "statistic": "unrest", "before": 1.0, "after": 3.0},
+        ],
+        "metric_shifts_omitted": 3,
+    }
+    package["narrative"].insert(0, long)
+
+    plan = _plan(package, _budget(30_000, top_economies=1))
+
+    first, second = _embedded(plan, 0), _embedded(plan, 1)
+    assert first["narrative"][0] == long
+    (continuing,) = second["continuity"]["continuing"]
+    assert continuing == {
+        **{key: value for key, value in long.items() if key not in ("constituents", "entities")},
+        "attributes": {"note": "kept", "metric_shifts_omitted": 5},
+    }
+    assert f"shared@{QUARTERS[2]}" in {event["id"] for event in second["intervals"][0]["events"]}
+    assert _listed(second) == [["nation:1"], ["nation:1"]]
+    assert "nation:2" not in {entry["ref"] for entry in second["glossary"]}
 
 
 def test_the_recall_keeps_the_most_significant_then_the_latest() -> None:

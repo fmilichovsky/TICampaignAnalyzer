@@ -2141,9 +2141,10 @@ package, restricted to the chapter:
 -   `glossary`: the entries still referenced;
 
 plus a `chapter` member (index, count, part, covers) and a `continuity`
-member (20.4). Slicing selects entries and never rewrites one: an event in
-a chapter package is the event of the full package, ID and all, so a
-citation audits the same way in either.
+member (20.4). Slicing selects the chapter's own entries and never
+rewrites one: an event in `narrative` or `intervals` is the event of the
+full package, ID and all, so a citation audits the same way in either.
+Only the continuity entries are digests.
 
 **Over budget.** When a single period does not fit, the planner reduces it
 in a fixed order and records which step it took for that chapter:
@@ -2162,11 +2163,16 @@ from the history without the reader knowing.
 ## 20.4 Continuity
 
 Continuity between chapters is built from the package, not from earlier
-prose. A chapter package's `continuity` member holds:
+prose. A chapter package's `continuity` member holds digests at two
+levels:
 
--   `continuing`: the full records of developments that started in an
-    earlier chapter and still run in this one, marked as already told, so
-    the model picks them up briefly rather than introducing them again;
+-   `continuing`: the records of developments that started in an earlier
+    chapter and still run in this one, marked as already told, so the model
+    picks them up briefly rather than introducing them again. They come
+    without their metric shifts, constituents and entities, which the
+    chapter that introduced them carried; the shifts left out are counted,
+    so the model knows statistics moved. The chapter still keeps its own
+    atomic events that such a development is built from;
 -   `earlier`: a short digest of the earlier chapters' developments at
     `major` and above (ID, type, span, the names in their roles), capped by
     a setting, so the model can refer back without inventing the past.
