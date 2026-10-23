@@ -38,6 +38,8 @@ _ATTRIBUTE_NAMES: Final = (
     "hull",
     "count",
     "template",
+    "succeeds",
+    "succeeded_by",
 )
 """The attributes a narrative line summarises, in order; ``metric_shifts`` leads as a count. Reference lists are left
 to the roles and the JSON."""

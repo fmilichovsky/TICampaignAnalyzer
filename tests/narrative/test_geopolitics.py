@@ -92,6 +92,7 @@ def control(
     after: EntityRef | None,
     subject: EntityRef = NORTH,
     cause: str | None = "Politics",
+    tag: str = "",
     **overrides: object,
 ) -> Event:
     return event(
@@ -99,6 +100,7 @@ def control(
         key,
         subject,
         scope,
+        *([tag] if tag else []),
         entities=[holder for holder in (before, after) if holder is not None],
         attributes=(("scope", scope), ("before", before), ("after", after), ("cause", cause)),
         status=EventStatus.INFERRED,
@@ -270,6 +272,47 @@ def test_executive_then_every_point_is_one_takeover_and_a_late_one_is_a_second()
     short = GeopoliticsSettings(takeover_consolidation_days=30)
     assert len(of_type(built(late, plain(K0, K1, K2, K3), short), "faction.takeover")) == 2
     assert len(of_type(built(late, plain(K0, K1, K2, K3)), "faction.takeover")) == 1
+
+
+def test_takeovers_of_one_nation_in_one_interval_are_ordered_by_the_later_ones_loser() -> None:
+    stream = [
+        control(K1, "executive", SERVANTS, RESISTANCE, tag="a"),
+        control(K1, "executive", RESISTANCE, ACADEMY, tag="b"),
+    ]
+
+    found = {
+        str(item.roles[0][1].entity_id): item for item in of_type(built(stream, plain(K0, K1)), "faction.takeover")
+    }
+
+    earlier, later = found["faction:15"], found["faction:17"]
+    assert earlier.attribute("succeeded_by") == later.id
+    assert later.attribute("succeeds") == earlier.id
+    assert "ambiguous" not in dict(earlier.attributes) | dict(later.attributes)
+
+
+def test_takeovers_of_one_interval_without_a_derivable_order_are_ambiguous() -> None:
+    mutual = [
+        control(K1, "executive", ACADEMY, RESISTANCE, tag="a"),
+        control(K1, "executive", RESISTANCE, ACADEMY, tag="b"),
+    ]
+    unnamed = [
+        control(K1, "executive", None, RESISTANCE, tag="a"),
+        control(K1, "executive", None, ACADEMY, tag="b"),
+    ]
+
+    for stream in (mutual, unnamed):
+        first, second = of_type(built(stream, plain(K0, K1)), "faction.takeover")
+        for item, other in ((first, second), (second, first)):
+            assert item.attribute("ambiguous") is True
+            assert item.attribute("alternatives") == (other.id,)
+            assert {"succeeds", "succeeded_by"}.isdisjoint(dict(item.attributes))
+
+
+def test_takeovers_of_one_nation_in_different_intervals_are_not_linked() -> None:
+    stream = [control(K1, "executive", SERVANTS, RESISTANCE), control(K2, "executive", RESISTANCE, ACADEMY)]
+
+    for item in of_type(built(stream, plain(K0, K1, K2)), "faction.takeover"):
+        assert {"succeeds", "succeeded_by", "ambiguous", "alternatives"}.isdisjoint(dict(item.attributes))
 
 
 def test_losing_the_seat_in_between_starts_a_new_takeover() -> None:

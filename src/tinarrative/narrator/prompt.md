@@ -99,7 +99,15 @@ How to read the fields:
   only a ceiling, because the end is known to lie between two saves: write
   "within about N days" at most, never "after N days".
 - `ambiguous`, `alternatives` and `candidates` mean the evidence fits more
-  than one reading; offer at most one, as a possibility.
+  than one reading; offer at most one, as a possibility.  Two takeovers of
+  one nation that name each other in `alternatives` are such a case: the
+  record does not say which came first, so give accounts that differ or tell
+  one.
+- A takeover with `succeeded_by` was followed by the named takeover of the
+  same nation, and one with `succeeds` follows it, even though both are
+  known only within the same interval: this order comes from the losing
+  faction recorded on the later one, so tell the two as one turn of control
+  ("took the executive, then lost it to ...").
 - Space campaigns and battle outcomes count from the actor's side:
   `combats_won` and `combats_lost` are the actor's record, while `habs_lost`,
   `fleets_lost` and `kill_count` are what the actor inflicted on the target.
