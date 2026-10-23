@@ -196,6 +196,30 @@ built from the developments catalogued in
     `world.ranking_changed` by GDP, strength, boost and mission control (#193);
   - [ ] campaign baseline from the cumulative cause trackers (`nation.since_start`), after the cohesion and unrest
     outliers are explained (#194).
+- [ ] Entity-scaled significance: a 0–100 `score` beside the level, the type's base scaled by the share of the
+  world the event moved, the four levels kept as bands over it (design in
+  [architecture 12](architecture.md#entity-scaled-score-design), evidence in
+  [space assets](game-data-notes/space-assets.md)):
+  - [x] design: the score contract, the stake measures, the combination rule and the package contract in
+    architecture 12; the *published* evidence label; the alien and human space holdings;
+  - [ ] score with unchanged levels: `Event.score` with every base at its band midpoint, the `[narrative.significance]`
+    bands and clamp, `score` in the JSON; the `narrative.<level>` package counts unchanged (#196);
+  - [ ] prominence: `narrative/prominence.py` with the nation power share (GDP, population and the published
+    strength estimate, weighted), region population and organization tier² shares, from snapshots and situation
+    reports; the strength inputs in the situation report shared with #193; the power ranking recorded against the
+    GDP ranking (#197);
+  - [ ] atomic events scaled by stake: a `SCALED` table in `narrative/significance.py`, `significance_basis` in the
+    `events` output and not in the narrator form, the nuclear bonus for wars across nuclear-armed nations, the
+    tier-3 organization rule replaced by tier²; churn never scaled (#198);
+  - [ ] developments scaled by stake: the builder's level becomes the rule's base plus the scale of its summed stake,
+    floored by the cited scores; `faction.takeover` (replacing `top_gdp_nations`), `war.arc`, `nation.expansion`,
+    `nation.cession`, `nation.release` / `nation.breakaway`, `federation.lifecycle` (#199);
+  - [ ] space and factions: mass per hull class observed first; hab and fleet shares over the human totals with
+    `hab_saturation` / `fleet_saturation`, the faction stake (Earth share blended with the ramped space share, the
+    alien faction as backdrop), the battle stake by contested mass with `alien_mass_weight` and `contest_ratio`;
+    the hab, fleet, battle and colonisation rules scaled (#200);
+  - [ ] narrator by score: chapter length shares and continuity recall follow the score, the level tuple pinned
+    to the model's, the prompt leads with the highest-scored developments (#201).
 
 ## CLI user experience
 

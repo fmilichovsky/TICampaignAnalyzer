@@ -1,6 +1,6 @@
 # Terra Invicta game-data notes
 
-This is an evidence log for the save formats handled by `tinarrative`. It is deliberately not a general specification of Terra Invicta saves. A claim is an **observed fact** only when it was checked against the private source saves on the stated capture date. Everything else is labelled a **hypothesis**.
+This is an evidence log for the save formats handled by `tinarrative`. It is deliberately not a general specification of Terra Invicta saves. A claim is an **observed fact** only when it was checked against the private source saves on the stated capture date. A rule or vocabulary taken from the game's own documentation (the in-game texts or the Terra Invicta wiki) that no save carries, so that it cannot be checked against one, is labelled **published**, with its source and transcription date. Everything else is labelled a **hypothesis**.
 
 ## Supported format identifiers
 
@@ -43,6 +43,11 @@ nation's statistics beyond their current values (the quarterly per-capita GDP
 series, the cumulative cause trackers), how the statistics move between saves
 (population, GDP, value-band crossings and what explains them), and the
 nuclear, space-support and military assets a nation holds.
+
+[Space assets](space-assets.md) records how habs and ships divide between the
+alien faction and the human factions from the start of a campaign to its late
+game: the evidence behind the space stakes of the entity-scaled significance
+score ([architecture 12](../architecture.md#12-significance)).
 
 [Factions](factions/) holds the game's own descriptions of the seven human
 factions (ideology, goal, relations). They are game text, not save

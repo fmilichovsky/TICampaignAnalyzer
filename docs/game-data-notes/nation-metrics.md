@@ -117,9 +117,9 @@ the Protectorate intervals sit at 4 % to 8 %. These are consistent with the quar
 
 ## Value bands
 
-The game labels each statistic's value with a band. The boundaries below are the game's published vocabulary as
-transcribed by the author from the Terra Invicta wiki (2026-10-23); they are not a save observation and cannot be
-checked against one. The crossing counts are.
+The game labels each statistic's value with a band. The boundaries below are **published** ([README](README.md)):
+the game's vocabulary as transcribed by the author from the Terra Invicta wiki (2026-10-23); no save carries them,
+so they cannot be checked against one. The crossing counts are observed.
 
 | Statistic | Boundaries (band begins at) |
 | --- | --- |
@@ -233,5 +233,6 @@ mean remaining strength, plus naval armies, minus unrest, plus 100 if any nuclea
 the nations differently from GDP: in the last Protectorate save the four largest economies hold the first four places
 in a different order (338, 298, 227, 199), and in the last Resist save the first three (586, 336, 329) are followed by
 two nations with one weapon each at places 6 and 7, ahead of larger conventional powers, because any arsenal adds
-100. The formula is the game's published estimate as transcribed by the author (*hypothesis*: not checked against a
-game value; `historyWarStatus` is not it).
+100. The formula is **published**: the game's own strength estimate as the Terra Invicta wiki states it, transcribed
+by the author (2026-10-23). No save field carries its result (`historyWarStatus` is not it), so it cannot be checked
+against one; the rankings above are observed applications of it.
