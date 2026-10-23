@@ -57,9 +57,10 @@ zero share gets no `length` key.
 
 A chapter is a contiguous run of the package's intervals made of whole periods. It opens on the
 save before its first interval and closes on the save of its last, so consecutive chapters share
-a save. An interval belongs to the period of its opening save. A development belongs to the
-chapter holding the interval its start lies in. A development with an unknown start belongs to
-the chapter holding the first interval it lists.
+a save. An interval belongs to the period of its closing save. A development belongs to the chapter
+holding the interval of its start when that is a recorded date, otherwise the interval of its end,
+the one by which it was known. A development with no usable date belongs to the chapter holding
+the first interval it lists.
 
 **Estimate.** A request's input is estimated as the characters of its system prompt and user
 message, divided by `narrator.chars_per_token` and rounded up. No provider is asked, so the plan
