@@ -26,6 +26,7 @@ from tinarrative.cli import (
     main,
 )
 from tinarrative.config import CONFIG_ENV_VAR, DEFAULT_SETTINGS
+from tinarrative.narrative.evidence import is_evidence
 from tinarrative.picker import PROMPT
 
 FIXTURE_SET = "terra_invicta_json_v1"
@@ -40,6 +41,7 @@ MARKDOWN_GOLDENS = [
     ("narrative.md", ["--narrative"]),
     ("narrative.major.md", ["--narrative", "--min-significance", "major"]),
     ("narrative.constituents.md", ["--narrative", "--constituents", "all"]),
+    ("narrative.evidence.md", ["--narrative", "--constituents", "evidence"]),
 ]
 
 
@@ -70,14 +72,14 @@ def test_every_golden_report_has_a_test() -> None:
 
 
 @pytest.mark.fixture
-@pytest.mark.parametrize("suffix", ["narrative.md", "narrative.constituents.md"])
+@pytest.mark.parametrize("suffix", ["narrative.md", "narrative.constituents.md", "narrative.evidence.md"])
 def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(suffix: str) -> None:
     inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
     narrative = (EXPECTED_DIR / f"politics_sequence.expected.{suffix}").read_text(encoding="utf-8")
 
     head = inferred.partition("\n## Intervals\n")[0]
     assert narrative.startswith(head + "\n## Narrative\n")
-    assert narrative.count("#### Inferred events") == (2 if suffix == "narrative.constituents.md" else 0)
+    assert narrative.count("#### Inferred events") == (0 if suffix == "narrative.md" else 2)
 
 
 @pytest.mark.fixture
@@ -802,7 +804,13 @@ def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
             pending.extend(by_id[current]["constituents"])  # every citation resolves inside the package
     assert set(_ids(package)) == reached - {event["id"] for event in package["narrative"]}
     assert package["constituents"] == "all" and without["constituents"] == "none"
-    assert evidence["constituents"] == "evidence" and {**evidence, "constituents": "all"} == package
+    assert evidence["constituents"] == "evidence" and evidence["narrative"] == package["narrative"]
+    assert _ids(evidence) == [
+        event["id"]
+        for interval in package["intervals"]
+        for event in interval["events"] + interval["inferred"]
+        if is_evidence(event["event_type"])
+    ]
     assert _ids(without) == [] and without["narrative"] == package["narrative"]
     for kept, empty, full in zip(package["intervals"], without["intervals"], audit["intervals"], strict=True):
         assert kept["omitted"]["objective"] == len(full["events"]) - len(kept["events"])

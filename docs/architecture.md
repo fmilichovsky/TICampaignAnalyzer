@@ -1220,7 +1220,9 @@ release, transformation), *chained* windows from the latest (expansion).
     in the anchor intervals, the faction's unrest attempts and the nation's
     unrest and opinion shifts in the precursor window, and `Coup`, `Purge`
     or `Crackdown` charges of the faction from the ledger window before an
-    anchor to its date when no other faction carries the label then.
+    anchor to its date when no other faction carries the label then. The
+    earliest executive record gives `executive_recorded_on` and
+    `previous_executive`.
     Roles actor, target, loser. Open while the last report has the faction
     holding the executive but not every point. Major; campaign-defining
     when the nation ranks within `top_gdp_nations` by `GDP` in the report
@@ -1506,8 +1508,11 @@ report's narrative section, above the per-interval drill-down, the digest.
 With `--narrative`, `--min-significance` sets the level of the narrative
 events in both forms, and the atomic stream holds only their constituents,
 followed transitively, as `--constituents` selects them (`all`, the narrator
-`evidence` among them, or `none`); without `--narrative` it filters the atomic
-stream. The forensic per-interval view and
+`evidence` among them, or `none`). Narrator evidence is an event that states a
+fact its narrative event does not carry; the bookkeeping a narrative event sums
+up is left out of the package and stays in the audit form
+(`narrative/evidence.py`). Without `--narrative`, `--min-significance` filters
+the atomic stream. The forensic per-interval view and
 the package are therefore one report at different filter settings, and they
 cannot drift apart.
 

@@ -332,6 +332,7 @@ def test_with_a_narrative_an_interval_lists_only_cited_events_and_only_with_cons
     narrative = [_arc("1", "2030-01-01T00:00:00")]
 
     included = render_sequence(plan, [interval], narrative=narrative, constituents="all", verbose=True)
+    evidence = render_sequence(plan, [interval], narrative=narrative, constituents="evidence")
     left_out = render_sequence(plan, [interval], narrative=narrative)
 
     section = _section(included, "Objective analyzer results")
@@ -339,3 +340,7 @@ def test_with_a_narrative_an_interval_lists_only_cited_events_and_only_with_cons
     assert section.endswith("\n1 objective analyzer result omitted: not cited by a listed narrative event.\n")
     assert "#### " not in left_out.partition("## Intervals")[2]
     assert left_out.endswith("(0 state changes; 2 events omitted with --constituents none)\n")
+    assert evidence.endswith(  # a control-point change is not narrator evidence
+        "(0 state changes; 1 event omitted: not cited by a listed narrative event; "
+        "1 event omitted: not narrator evidence)\n"
+    )

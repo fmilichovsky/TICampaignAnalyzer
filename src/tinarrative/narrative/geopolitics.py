@@ -220,7 +220,9 @@ class TakeoverRule:
     changes naming the losing faction in the anchor intervals, the faction's unrest attempts and the nation's unrest
     and opinion shifts in the precursor window, and the faction's ``Coup``/``Purge``/``Crackdown`` charges dated from
     the ledger window before an anchor to its date, only when no other faction carries the label then (architecture
-    11.3, bound 4). Open while the last report has the faction holding the executive but not every point.
+    11.3, bound 4). The earliest attached executive record gives ``executive_recorded_on`` and ``previous_executive``,
+    so the takeover states what the record says without it. Open while the last report has the faction holding the
+    executive but not every point.
     """
 
     settings: GeopoliticsSettings
@@ -321,6 +323,10 @@ class TakeoverRule:
                 ):
                     attached.append(event)
         corroborating = self._ledger(stream, anchors, actor)
+        record = min(
+            (event for event in attached if event.event_type == EXECUTIVE_RECORDED), key=event_order, default=None
+        )
+        recorded = {} if record is None else dict(record.attributes)
         constituents = [*anchors, *attached]
         intervals = intervals_of([*constituents, *corroborating])
         first_after = reports.get(intervals_of(anchors[:1])[0])
@@ -342,6 +348,8 @@ class TakeoverRule:
             attributes=(
                 ("scopes", tuple(sorted({str(anchor.attribute("scope")) for anchor in anchors}))),
                 ("cause", cause),
+                ("executive_recorded_on", recorded.get("recorded_on")),
+                ("previous_executive", recorded.get("previous_executive")),
                 ("consolidated", any(anchor.attribute("scope") == "sole" for anchor in anchors)),
                 ("gdp_rank", rank),
                 ("metric_shifts", metric_shifts(stream, [nation.entity_id], intervals)),

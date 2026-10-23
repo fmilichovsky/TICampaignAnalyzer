@@ -42,7 +42,10 @@ The user message may carry a request block.  Defaults in brackets.
   `body`), `attributes` and `constituents` (IDs of the atomic events it joins).
 - `intervals[].events` and `intervals[].inferred`: the atomic events behind
   the developments, only those their `constituents` name, or none at all
-  (`constituents`).  Absence is not evidence that nothing happened.
+  (`constituents`).  With `evidence`, only those that add a fact the
+  development does not state (a record date, a battle, a region, a war, a
+  councilor); a constituent ID missing from them is bookkeeping its
+  development already sums up.  Absence is not evidence that nothing happened.
   A development cited by another may be listed below `min_significance`.
 - `saves[].situation`: a literal snapshot at each save: who holds each
   nation's executive, control-point shares, federations, allies (IDs), wars

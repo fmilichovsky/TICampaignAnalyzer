@@ -167,6 +167,8 @@ built from the developments catalogued in
   - [x] slim the situation reports in the narrator form: allies as ref strings, bodies with one hab counted
     in `other_bodies`, `seat_basis` and a zero `unresolved_points` dropped, floats to 4 significant digits,
     chapter reports without nations that hold no region and that the chapter does not name (#159).
+  - [x] list only narrator evidence in the atomic stream: one `--constituents all|evidence|none` flag, `narrate`
+    building with `evidence`, and the takeover carrying its executive record's date and previous holder (#160).
 
 ## CLI user experience
 
