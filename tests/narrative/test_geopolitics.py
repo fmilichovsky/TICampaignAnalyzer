@@ -220,7 +220,13 @@ def test_no_executive_or_sole_change_to_a_faction_is_no_takeover() -> None:
 def test_an_executive_change_is_a_takeover_with_its_points_records_and_the_loser() -> None:
     anchor = control(K1, "executive", RESISTANCE, SERVANTS)
     gained = point(K1, SERVANTS)
-    record = event("nation.executive_change_recorded", K1, NORTH, entities=[SERVANTS])
+    record = event(
+        "nation.executive_change_recorded",
+        K1,
+        NORTH,
+        entities=[SERVANTS],
+        attributes=[("recorded_on", "2032-02-15T00:00:00"), ("previous_executive", RESISTANCE)],
+    )
     defector = event("councilor.faction_changed", K1, COUNCILOR, entities=[RESISTANCE, SERVANTS])
     elsewhere = event("councilor.faction_changed", K2, ref(EntityDomain.COUNCILOR, "31"), entities=[RESISTANCE])
     other_nation = point(K1, SERVANTS, subject=SOUTH, point_ref=ref(EntityDomain.CONTROL_POINT, "8"))
@@ -233,6 +239,8 @@ def test_an_executive_change_is_a_takeover_with_its_points_records_and_the_loser
     assert dict(takeover.attributes) | {"metric_shifts": ()} == {
         "scopes": ("executive",),
         "cause": "Politics",
+        "executive_recorded_on": "2032-02-15T00:00:00",
+        "previous_executive": RESISTANCE,
         "consolidated": False,
         "gdp_rank": None,
         "metric_shifts": (),
@@ -253,6 +261,7 @@ def test_executive_then_every_point_is_one_takeover_and_a_late_one_is_a_second()
 
     consolidated = only(built(stream, plain(K0, K1, K2)), "faction.takeover")
     assert consolidated.attribute("scopes") == ("executive", "sole")
+    assert consolidated.attribute("executive_recorded_on") is consolidated.attribute("previous_executive") is None
     assert consolidated.attribute("consolidated") is True
     assert describe_event(consolidated).endswith(" and holds every control point")
 

@@ -12,8 +12,12 @@ Hand the model the JSON of `tinarrative events --narrative --constituents eviden
 --format json` with `--min-significance` at the level of the developments the
 history should cover, and a request block as described in the prompt. That
 package carries IDs but no provenance or file paths. Its atomic events are only
-the constituents of the listed developments, whatever their significance, so
-every cited ID resolves inside it; with the default `--constituents none` it carries
+the constituents of the listed developments, whatever their significance, that
+are narrator evidence: they state a fact the development does not carry, while
+bookkeeping the development already sums up (control-point changes behind a
+takeover, fleet and hab presence behind a battle) is left out. Every
+constituent ID resolves in the audit form below; `--constituents all` lists
+them all in the package, and the default `--constituents none` carries
 developments, situations and glossary only. The audit form is the same command
 with `--inferred` instead of `--narrative` and no `--min-significance`: it lists
 every atomic and inferred event with its save locations, and a narrative event

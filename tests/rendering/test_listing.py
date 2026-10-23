@@ -18,10 +18,11 @@ def _atomic(
     *,
     status: EventStatus = EventStatus.OBJECTIVE,
     cites: tuple[str, ...] = (),
+    event_type: str = "nation.changed",
 ) -> Event:
     return Event(
         id=event_id,
-        event_type="nation.changed",
+        event_type=event_type,
         status=status,
         confidence=Confidence.HIGH,
         date=AFTER.date,
@@ -76,11 +77,26 @@ def test_constituents_are_followed_through_narrative_and_inferred_events() -> No
     assert chosen.omissions([OBJECTIVE, UNCITED, INFERRED]) == [(1, "omitted: not cited by a listed narrative event")]
 
 
-def test_evidence_lists_what_all_lists() -> None:
-    every = listing([INTERVAL], NARRATIVE, minimum=Significance.MAJOR, constituents="all")
-    evidence = listing([INTERVAL], NARRATIVE, minimum=Significance.MAJOR, constituents="evidence")
+def test_evidence_passes_through_bookkeeping_to_the_evidence_beneath_it() -> None:
+    region = _atomic("o-1", Significance.TRIVIAL, event_type="region.nation_changed")
+    control = _atomic(
+        "i-1",
+        Significance.MINOR,
+        status=EventStatus.INFERRED,
+        cites=("o-1",),
+        event_type="faction.nation_control_changed",
+    )
+    interval = IntervalResult(0, AFTER.date, BEFORE, AFTER, 0, (region, UNCITED), (control,))
 
-    assert (evidence.narrative, evidence.constituents) == (every.narrative, every.constituents)
+    chosen = listing([interval], NARRATIVE, minimum=Significance.MAJOR, constituents="evidence")
+
+    assert chosen.narrative == (NESTED, TOP)
+    assert chosen.constituents == {"o-1"} and chosen.reached == {"i-1", "o-1"}
+    assert chosen.kept([region, UNCITED, control]) == (region,)
+    assert chosen.omissions([region, UNCITED, control]) == [
+        (1, "omitted: not cited by a listed narrative event"),
+        (1, "omitted: not narrator evidence"),
+    ]
 
 
 def test_without_constituents_no_atomic_event_is_listed() -> None:

@@ -3,8 +3,9 @@
 Without a narrative, objective and inferred events are filtered by significance. With one, the minimum filters the
 narrative events, and an atomic event is listed only as a constituent of a listed narrative event, followed
 transitively through lower-order narrative events and inferred events, as the ``constituents`` mode says: ``all`` of
-them, the narrator ``evidence`` among them, or ``none``. A lower-order narrative event that a listed one cites is
-listed whatever its significance, so every cited narrative ID resolves.
+them, the narrator ``evidence`` among them (``narrative.evidence``), or ``none``. The walk passes through an event that
+is not evidence to reach the evidence beneath it. A lower-order narrative event that a listed one cites is listed
+whatever its significance, so every cited narrative ID resolves.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from dataclasses import dataclass
 from typing import Final, Literal
 
 from ..model.events import Event, Significance
+from ..narrative.evidence import is_evidence
 from ..sequence import IntervalResult, event_stream
 
 Constituents = Literal["all", "evidence", "none"]
@@ -80,7 +82,7 @@ def listing(
     if narrative is None:
         return Listing(minimum, None, None, frozenset(), constituents)
     listed = {event.id for event in narrative if event.significance.rank >= minimum.rank}
-    atomic: set[str] = set()
+    atomic: dict[str, Event] = {}
     if constituents != "none":
         narrative_ids = {event.id: event for event in narrative}
         stream = {event.id: event for event in event_stream(intervals)}
@@ -96,13 +98,13 @@ def listing(
                 found = stream.get(current)
                 if found is None:
                     continue
-                atomic.add(current)
+                atomic[current] = found
             pending.extend(found.constituents)
-    # TODO(#160): keep only narrator evidence in the evidence mode.
+    kept = {key for key, event in atomic.items() if constituents == "all" or is_evidence(event.event_type)}
     return Listing(
         minimum,
         tuple(event for event in narrative if event.id in listed),
-        frozenset(atomic),
+        frozenset(kept),
         frozenset(atomic),
         constituents,
     )

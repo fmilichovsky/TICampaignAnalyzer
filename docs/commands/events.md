@@ -152,8 +152,14 @@ transitively, whatever their significance: through a lower-order narrative event
 (that event is then listed too, even below the level), and through an inferred event to the
 objective results it rests on. `all` lists every event reached, so every constituent ID of a listed
 narrative event resolves in the report. `evidence` lists the narrator evidence among them, the
-events that state a fact their narrative event does not carry; for now that is every constituent,
-as with `all`. `none`, the default, lists no objective or inferred event. The omitted lines then
+events that state a fact their narrative event does not carry: record-dated battles and destroyed
+habs, territory and its readings, wars, federations, renames, milestones, completed technologies and
+projects, ledger charges, statistic shifts, councilor events and notification entries. The table
+with its rationale is `narrative/evidence.py`. It leaves out bookkeeping a narrative event already
+sums up, such as control-point changes, nation control and the executive record behind a takeover,
+and fleet and hab presence behind a battle. The walk still passes through such an event to the
+evidence beneath it, and the left-out IDs resolve in the `--inferred` report. `none`, the default,
+lists no objective or inferred event. The omitted lines then
 read `N objective analyzer results omitted: not cited by a listed narrative event.`, `N objective
 analyzer results omitted: not narrator evidence.` or `N objective analyzer results omitted with
 --constituents none.`, one line per reason. `--constituents` is ignored without `--narrative`.
