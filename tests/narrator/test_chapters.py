@@ -300,6 +300,59 @@ def test_situations_keep_the_referenced_nations_and_the_largest_economies() -> N
     assert [entry["ref"] for entry in embedded["glossary"]] == ["nation:1", "nation:3", "region:10"]
 
 
+def _landless(package: dict[str, Any], ref: str) -> dict[str, Any]:
+    """``package`` with ``ref`` holding no region, and every other nation holding one, in every save."""
+    for save in package["saves"]:
+        for nation in save["situation"]["nations"]:
+            nation["regions"] = 0 if nation["nation"]["ref"] == ref else 1
+    return package
+
+
+def _listed(embedded: dict[str, Any]) -> list[list[str]]:
+    return [[nation["nation"]["ref"] for nation in save["situation"]["nations"]] for save in embedded["saves"]]
+
+
+def test_a_nation_without_regions_takes_no_economy_slot() -> None:
+    package = _landless(_package(QUARTERS[:3], [_development("dev", QUARTERS[0], QUARTERS[1])]), "nation:1")
+
+    embedded = _embedded(_plan(package, replace(NarratorSettings(), top_economies=1)), 0)
+
+    assert _listed(embedded) == [["nation:2"], ["nation:2"]]
+
+
+def test_a_nation_without_regions_stays_when_a_development_of_the_chapter_names_it() -> None:
+    roles = [{"role": "target", "entity": {"ref": "nation:3", "name": "Eastland"}}]
+    package = _landless(
+        _package(QUARTERS[:3], [_development("dev", QUARTERS[0], QUARTERS[1], roles=roles)]), "nation:3"
+    )
+
+    embedded = _embedded(_plan(package, replace(NarratorSettings(), top_economies=1)), 0)
+
+    assert _listed(embedded) == [["nation:1", "nation:3"], ["nation:1", "nation:3"]]
+
+
+def test_a_nation_without_regions_named_only_by_an_earlier_digest_is_left_out() -> None:
+    package = _landless(_quarterly({position: 20_000 for position in range(4)}), "nation:3")
+    package["narrative"][0]["roles"] = [{"role": "target", "entity": {"ref": "nation:3", "name": "Eastland"}}]
+
+    embedded = _embedded(_plan(package, _budget(30_000, top_economies=1)), 1)
+
+    assert [digest["id"] for digest in embedded["continuity"]["earlier"]] == [f"dev0@{QUARTERS[1]}"]
+    assert _listed(embedded) == [["nation:1"], ["nation:1"]]
+    assert "nation:3" in {entry["ref"] for entry in embedded["glossary"]}
+
+
+def test_ally_refs_reach_the_chapter_glossary() -> None:
+    package = _package(QUARTERS[:3], [_development("dev", QUARTERS[0], QUARTERS[1])])
+    for save in package["saves"]:
+        save["situation"]["nations"][0]["allies"] = ["nation:2"]
+
+    embedded = _embedded(_plan(package, replace(NarratorSettings(), top_economies=1)), 0)
+
+    assert _listed(embedded) == [["nation:1"], ["nation:1"]]
+    assert "nation:2" in {entry["ref"] for entry in embedded["glossary"]}
+
+
 def test_a_later_chapter_opens_on_the_closing_save_of_the_one_before() -> None:
     plan = _plan(_quarterly({position: 20_000 for position in range(4)}), _budget(30_000))
 

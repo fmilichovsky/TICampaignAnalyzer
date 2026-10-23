@@ -162,6 +162,10 @@ built from the developments catalogued in
 - [x] Package-size measurement: real sample campaigns in `benchmarks/samples/`, a matrix of `events` and
   `narrate` runs, `scripts/package_metrics.py` to measure and compare, and a workflow that posts base vs. head
   on every pull request.
+- [ ] Minimize the narrator package size (#144):
+  - [x] slim the situation reports in the narrator form: allies as ref strings, bodies with one hab counted
+    in `other_bodies`, `seat_basis` and a zero `unresolved_points` dropped, floats to 4 significant digits,
+    chapter reports without nations that hold no region and that the chapter does not name (#159).
 
 ## CLI user experience
 

@@ -47,3 +47,14 @@ def test_narrative_names_never_override_the_chronological_members() -> None:
 
     assert entry["name"] == "Fixture Nation (Unions)"
     assert entry["former_names"] == ["Fixture Nation (Executive)"]
+
+
+def test_ally_refs_are_glossary_entries() -> None:
+    document = {
+        "narrative": [],
+        "saves": [{"situation": {"nations": [{"nation": {"ref": "nation:1"}, "allies": ["nation:9"]}]}}],
+        "intervals": [{"events": [{"entities": [{"ref": "nation:9", "name": "Fixture Ally"}]}]}],
+    }
+
+    assert [entry["ref"] for entry in build_glossary(document, [])] == ["nation:1", "nation:9"]
+    assert _entry(document, "nation:9")["name"] == "Fixture Ally"

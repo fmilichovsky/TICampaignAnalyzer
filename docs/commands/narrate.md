@@ -89,7 +89,10 @@ full package:
 - `narrative`: the developments that belong to the chapter, in package order;
 - `saves`: the opening and the closing save. Their situation's `nations` are reduced to the
   nations the chapter references, plus the `narrator.top_economies` largest by `GDP` in that save.
-  Every other member of the situation is unchanged;
+  A nation that holds no region in that save never counts among the largest economies, and is kept
+  only when the chapter's developments, its `continuing` developments or its atomic events
+  reference it; a mention in an `earlier` digest does not keep it. Every other member of the
+  situation is unchanged;
 - `intervals`: the chapter's intervals. Their `events` and `inferred` keep only the events the
   chapter's developments and its `continuing` developments are built from, followed transitively,
   and are empty when the atomic stream was left out. Their `omitted` counts are the package's;

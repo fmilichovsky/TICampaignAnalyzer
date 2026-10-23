@@ -576,7 +576,7 @@ def _json(capsys: pytest.CaptureFixture[str], *flags: str) -> dict[str, Any]:
 
 
 def _references(node: Any) -> set[str]:
-    """Every ``ref`` in a document, plus the faction IDs keying a nation's ``shares``."""
+    """Every ``ref`` in a document, plus the faction IDs keying a nation's ``shares`` and its ``allies`` refs."""
     found: set[str] = set()
     if isinstance(node, dict):
         if isinstance(node.get("ref"), str):
@@ -584,6 +584,8 @@ def _references(node: Any) -> set[str]:
         for key, value in node.items():
             if key == "shares" and isinstance(value, dict):
                 found.update(value)
+            elif key == "allies" and isinstance(value, list):
+                found.update(item for item in value if isinstance(item, str))
             else:
                 found |= _references(value)
     elif isinstance(node, list):
@@ -839,6 +841,31 @@ def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_re
     assert [save["situation"]["world"] for save in major["saves"]] == [
         save["situation"]["world"] for save in audit["saves"]
     ]
+
+
+@pytest.mark.fixture
+def test_the_narrator_package_slims_the_situation_reports_and_the_audit_form_does_not(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+
+    audit = _json(capsys, "--inferred")
+    package = _json(capsys, "--narrative", "--min-significance", "major")
+
+    def reports(document: dict[str, Any]) -> list[dict[str, Any]]:
+        return [save["situation"] for save in document["saves"] if save["situation"] is not None]
+
+    audited = [nation for report in reports(audit) for nation in report["nations"]]
+    assert all({"seat_basis", "unresolved_points"} <= set(nation) for nation in audited)
+    assert all(ally.get("ref") for nation in audited for ally in nation["allies"])
+    assert all("other_bodies" not in faction for report in reports(audit) for faction in report["factions"])
+    for nation in (nation for report in reports(package) for nation in report["nations"]):
+        assert "seat_basis" not in nation
+        assert nation.get("unresolved_points") != 0
+        assert all(isinstance(ally, str) for ally in nation["allies"])
+    for faction in (faction for report in reports(package) for faction in report["factions"]):
+        assert all(entry["habs"] > 1 for entry in faction["habs_by_body"])
+        assert faction["habs"] >= sum(entry["habs"] for entry in faction["habs_by_body"]) + faction["other_bodies"]
 
 
 @pytest.mark.fixture
