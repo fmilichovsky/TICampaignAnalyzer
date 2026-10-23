@@ -2,7 +2,8 @@
 
 ``measure`` runs the ``events`` and ``narrate`` combinations of a matrix file against every campaign under the samples
 directory, with the interpreter given (so it can measure any installed revision), and writes ``metrics.json``: the size
-of each narrator package and of each chapter plan, and how the characters split over the package members. ``compare``
+of each narrator package and of each chapter plan, and how the characters split over the package members. Campaigns and
+runs are measured concurrently, each ``narrate`` run once the package it plans is written. ``compare``
 turns two such files into a Markdown report of the differences, which CI posts on every pull request. ``samples``
 verifies or rewrites the samples manifest. See ``benchmarks/README.md``.
 
@@ -25,6 +26,7 @@ import tempfile
 import time
 import tomllib
 from collections.abc import Iterable, Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -203,12 +205,14 @@ def _run(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, capture_output=True, text=True, encoding="utf-8", env=environment, check=False)
 
 
-def _timed_run(command: Sequence[str], log: TextIO | None) -> subprocess.CompletedProcess[str]:
-    """``_run``, then log how long the command took under the progress line."""
+Timed = tuple[subprocess.CompletedProcess[str], float]
+
+
+def _timed_run(command: Sequence[str]) -> Timed:
+    """``_run``, and the seconds the command took."""
     started = time.perf_counter()
     completed = _run(command)
-    print(f" ├─ took {time.perf_counter() - started:.1f}s", file=log)
-    return completed
+    return completed, time.perf_counter() - started
 
 
 def _failure(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
@@ -217,6 +221,19 @@ def _failure(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     if (match := OVER_BUDGET.search(error)) is not None:
         failure["needs_tokens"] = int(match.group(1))
     return failure
+
+
+def _tree(groups: Sequence[tuple[str, Sequence[tuple[str, str]]]]) -> list[str]:
+    """The lines of a two-level tree: each group's label above its ``(name, note)`` rows, names padded to one width."""
+    width = max((len(name) for _, rows in groups for name, _ in rows), default=0)
+    lines = []
+    for index, (label, rows) in enumerate(groups):
+        last = index == len(groups) - 1
+        lines.append(f"{'└─' if last else '├─'} {label}")
+        for row, (name, note) in enumerate(rows):
+            branch = "└─" if row == len(rows) - 1 else "├─"
+            lines.append(f"{'   ' if last else '│  '}{branch} {name.ljust(width)}  {note}")
+    return lines
 
 
 def measure_package(text: str, chars_per_token: int) -> dict[str, Any]:
@@ -272,6 +289,83 @@ def measure_narration(directory: Path) -> dict[str, Any]:
     }
 
 
+def _measure_campaign(
+    campaign: str,
+    files: Sequence[Path],
+    matrix: Mapping[str, Sequence[Mapping[str, Any]]],
+    *,
+    cli: Sequence[str],
+    config: Path,
+    scratch: Path,
+    out: Path,
+    chars_per_token: int,
+    runs: ThreadPoolExecutor,
+) -> tuple[dict[str, Any], list[str]]:
+    """Run the matrix against one campaign on ``runs``; its results, in matrix order, and the lines of its log.
+
+    Every ``events`` run starts at once, and each ``narrate`` run as soon as the package it plans is written.
+    """
+    started = time.perf_counter()
+    saves = scratch / campaign
+    saves.mkdir()
+    for file in files:
+        with lzma.open(file) as source, (saves / file.name.removesuffix(".xz")).open("wb") as target:
+            shutil.copyfileobj(source, target, 1 << 20)
+    decompressed = time.perf_counter() - started
+    packages = out / "packages" / campaign
+    packages.mkdir(parents=True)
+    results: dict[str, dict[str, Any]] = {"events": {}, "narrate": {}}
+    seconds: dict[tuple[str, str], float] = {}
+    events: dict[Future[Timed], str] = {
+        runs.submit(_timed_run, [*cli, "events", str(saves), *entry.get("args", []), "--config", str(config)]): entry[
+            "id"
+        ]
+        for entry in matrix["events"]
+    }
+    narrations: dict[Future[Timed], Mapping[str, Any]] = {}
+    for future in as_completed(events):
+        run_id = events[future]
+        completed, seconds["events", run_id] = future.result()
+        planned = [entry for entry in matrix["narrate"] if entry["package"] == run_id]
+        if completed.returncode != 0:
+            results["events"][run_id] = _failure(completed)
+            for entry in planned:
+                results["narrate"][entry["id"]] = {"exit": None, "error": f"events {run_id} failed"}
+            continue
+        package = packages / f"{run_id}.json"
+        package.write_text(completed.stdout, encoding="utf-8", newline="\n")
+        for entry in planned:
+            target = out / "narrate" / campaign / entry["id"]
+            command = [*cli, "narrate", "--package", str(package), "--output", str(target)]
+            narrations[runs.submit(_timed_run, [*command, *entry.get("args", []), "--config", str(config)])] = entry
+        results["events"][run_id] = measure_package(completed.stdout, chars_per_token)
+    for future in as_completed(narrations):
+        entry = narrations[future]
+        completed, seconds["narrate", entry["id"]] = future.result()
+        if completed.returncode != 0:
+            results["narrate"][entry["id"]] = _failure(completed)
+            continue
+        target = out / "narrate" / campaign / entry["id"]
+        results["narrate"][entry["id"]] = {"package": entry["package"], **measure_narration(target)}
+    shutil.rmtree(saves)
+
+    ordered = {kind: {entry["id"]: results[kind][entry["id"]] for entry in matrix[kind]} for kind in results}
+
+    def row(kind: str, run_id: str) -> tuple[str, str]:
+        result = ordered[kind][run_id]
+        if (kind, run_id) not in seconds:
+            return run_id, f"skipped: {result['error']}"
+        took = f"{seconds[kind, run_id]:6.1f}s"
+        return run_id, took if _ok(result) else f"{took}  {_failed(result)}"
+
+    header = (
+        f"package_metrics: {campaign} · {len(files)} saves · {time.perf_counter() - started:.1f}s "
+        f"(decompressing {decompressed:.1f}s)"
+    )
+    tree = _tree([(kind, [row(kind, run_id) for run_id in ordered[kind]]) for kind in ordered if ordered[kind]])
+    return ordered, [header, *tree]
+
+
 def measure(
     *,
     python: str,
@@ -281,48 +375,54 @@ def measure(
     out: Path,
     label: str,
     chars_per_token: int,
+    jobs: int = os.cpu_count() or 1,
     log: TextIO | None = sys.stderr,
 ) -> dict[str, Any]:
-    """Run the matrix against every sample campaign and return the metrics; packages and plans go under ``out``."""
+    """Run the matrix against every sample campaign and return the metrics; packages and plans go under ``out``.
+
+    The campaigns are measured at once, with at most ``jobs`` commands running. Each campaign's log is written in one
+    piece when it is done, so the logs of campaigns never interleave.
+    """
     matrix = load_matrix(matrix_path)
     for kept in ("packages", "narrate"):
         shutil.rmtree(out / kept, ignore_errors=True)
-    campaigns: dict[str, Any] = {}
+    found = sample_files(samples)
+    per_campaign = len(matrix["events"]) + len(matrix["narrate"])
+    print(
+        f"package_metrics: measuring {len(found)} campaigns ({', '.join(found)}), {per_campaign} runs each, "
+        f"{jobs} jobs",
+        file=log,
+        flush=True,
+    )
+    started = time.perf_counter()
+    measured: dict[str, Any] = {}
     cli = [python, "-m", "tinarrative.cli"]
-    with tempfile.TemporaryDirectory(prefix="package-metrics-") as scratch:
-        for campaign, files in sample_files(samples).items():
-            saves = Path(scratch) / campaign
-            saves.mkdir()
-            for file in files:
-                with lzma.open(file) as source, (saves / file.name.removesuffix(".xz")).open("wb") as target:
-                    shutil.copyfileobj(source, target, 1 << 20)
-            packages = out / "packages" / campaign
-            packages.mkdir(parents=True)
-            results: dict[str, Any] = {"events": {}, "narrate": {}}
-            for entry in matrix["events"]:
-                print(f"package_metrics: {campaign} events {entry['id']}", file=log)
-                command = [*cli, "events", str(saves), *entry.get("args", []), "--config", str(config)]
-                completed = _timed_run(command, log)
-                if completed.returncode != 0:
-                    results["events"][entry["id"]] = _failure(completed)
-                    continue
-                (packages / f"{entry['id']}.json").write_text(completed.stdout, encoding="utf-8", newline="\n")
-                results["events"][entry["id"]] = measure_package(completed.stdout, chars_per_token)
-            for entry in matrix["narrate"]:
-                package = packages / f"{entry['package']}.json"
-                if not package.exists():
-                    results["narrate"][entry["id"]] = {"exit": None, "error": f"events {entry['package']} failed"}
-                    continue
-                print(f"package_metrics: {campaign} narrate {entry['id']}", file=log)
-                target = out / "narrate" / campaign / entry["id"]
-                command = [*cli, "narrate", "--package", str(package), "--output", str(target)]
-                completed = _timed_run([*command, *entry.get("args", []), "--config", str(config)], log)
-                if completed.returncode != 0:
-                    results["narrate"][entry["id"]] = _failure(completed)
-                    continue
-                results["narrate"][entry["id"]] = {"package": entry["package"], **measure_narration(target)}
-            shutil.rmtree(saves)
-            campaigns[campaign] = results
+    with (
+        tempfile.TemporaryDirectory(prefix="package-metrics-") as scratch,
+        ThreadPoolExecutor(max_workers=jobs) as runs,
+        ThreadPoolExecutor(max_workers=max(len(found), 1)) as coordinators,
+    ):
+        # A campaign waits for its runs on a thread of its own, so it never holds one of the ``jobs`` slots.
+        futures = {
+            coordinators.submit(
+                _measure_campaign,
+                campaign,
+                files,
+                matrix,
+                cli=cli,
+                config=config,
+                scratch=Path(scratch),
+                out=out,
+                chars_per_token=chars_per_token,
+                runs=runs,
+            ): campaign
+            for campaign, files in found.items()
+        }
+        for future in as_completed(futures):
+            measured[futures[future]], lines = future.result()
+            print("\n".join(lines), file=log, flush=True)
+    print(f"package_metrics: done in {time.perf_counter() - started:.1f}s", file=log, flush=True)
+    campaigns = {campaign: measured[campaign] for campaign in found}
     return {
         "tool_version": TOOL_VERSION,
         "label": label,
@@ -590,6 +690,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--out", type=Path, required=True)
     run.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
     run.add_argument("--chars-per-token", type=int, default=3)
+    run.add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="Commands to run at once (default: CPUs).")
     report = commands.add_parser("compare", help="Write the Markdown report of two metrics files.")
     report.add_argument("base", type=Path)
     report.add_argument("head", type=Path)
@@ -628,6 +729,7 @@ def main(argv: list[str] | None = None) -> int:
             out=args.out,
             label=args.label,
             chars_per_token=args.chars_per_token,
+            jobs=args.jobs,
         )
     except ValueError as error:
         print(f"package_metrics: {error}", file=sys.stderr)

@@ -22,6 +22,11 @@ commands with the interpreter it is given (`--python`) and reads their output, s
 - each `[[narrate]]` run plans the package of the `events` run it names, with `narrate --package`, and writes
   `narrate/<campaign>/<id>/` (the plan and the requests). It never passes `--send`, so nothing is contacted.
 
+The campaigns are measured at once. Within a campaign every `events` run starts at once, and each `narrate` run as
+soon as the package it plans is written. `--jobs` bounds the commands running together (default: the CPU count). Each
+`events` run holds a whole campaign in memory, so lower it on a machine with little RAM. The log shows one tree per
+campaign, `events` and `narrate` runs with their times, written in one piece when the campaign is done.
+
 Every command is given `--config config.toml`, and `TINARRATIVE_CONFIG` is removed from its environment. A failing
 run is recorded with its exit code and the end of its stderr. For an over-budget `narrate` run, the record also holds
 the tokens the largest interval needs. `metrics.json` holds, per campaign and run:
