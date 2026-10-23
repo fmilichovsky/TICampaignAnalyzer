@@ -134,6 +134,7 @@ def nation_row(
     control_points: Observed = UNKNOWN,
     federation: Observed = None,
     allies: Sequence[EntityRef] = (),
+    alien: bool = False,
 ) -> NationSituation:
     """A nation row; ``shares`` are points held per faction."""
     return NationSituation(
@@ -151,6 +152,7 @@ def nation_row(
         regions=Unknown(),
         population=Unknown(),
         statistics=(("GDP", gdp),),
+        alien=alien,
     )
 
 

@@ -156,6 +156,15 @@ def test_a_nation_reports_its_executive_holder_and_point_shares() -> None:
     }
 
 
+def test_a_nation_reports_whether_it_is_the_alien_administration() -> None:
+    states = [state(NATION, "30", AFTER, alienNation=True), state(NATION, "31", AFTER, alienNation=False)]
+    report = build_situation(snapshot(AFTER, *states))
+
+    assert (nation(report, "30").alien, nation(report, "31").alien) == (True, False)
+    assert nation(report, "30").to_dict()["alien"] is True
+    assert nation(build_situation(campaign()), "20").alien is False
+
+
 def test_unknown_control_and_regions_stay_unknown() -> None:
     report = build_situation(campaign())
 

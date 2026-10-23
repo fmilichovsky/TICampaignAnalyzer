@@ -1239,7 +1239,8 @@ release, transformation), *chained* windows from the latest (expansion).
     ID). The new nation's appearance, breakaway parent and control events
     within the release window; `executive_faction` is context only.
 -   `nation.claims_declared` (order 0, by ID). Additions to a claim list on
-    regions other nations hold (`added_owners` of `nation.claims_changed`).
+    regions other nations hold (`added_owners` of `nation.claims_changed`), except
+    the alien administration's, whose claims are implicit.
 -   `nation.expansion` (order 1, heuristic, major). Two or more gains of
     one nation, chained within the gap. A gain is a unification, an
     annexation, a cession to it (nested) or a territory aggregate in an
@@ -1420,7 +1421,8 @@ context rule for the event type (recruit-pool councilors whose `faction` is
 `null` on their existing side are `trivial`, a `nation.relation_changed` for
 `wars` or an executive change by `Coup`, `RegimeChange`, `Independence` or
 `Enthrall` is `major`, a tier-3 organization changing hands is `major`,
-megafauna presence is `major`, a `nation.statistic_shifted` of
+megafauna presence is `major`, a `nation.claims_changed` of the alien
+administration is `minor` and of a human nation `major`, a `nation.statistic_shifted` of
 `numNuclearWeapons` or `numControlPoints` is `major` and of any other
 statistic `minor`, a technology or project completion takes the tier of the
 curated milestone list and is `minor` when unlisted), then a per-type table,

@@ -920,3 +920,12 @@ def test_no_narrative_line_names_a_cause_word_beyond_its_relaxation() -> None:
         text = f"{item.event_type} {describe_event(item)}".lower()
         allowed = RELAXED.get(item.event_type, set())
         assert [word for word in FORBIDDEN if word in text and word not in allowed] == [], text
+
+
+def test_the_alien_administrations_claims_are_not_declared() -> None:
+    stream = [claims(K1, [NORTH_REGION], [NORTH])]
+
+    alien = plain(K0, K1, nations=[nation_row(SOUTH, alien=True)])
+    assert of_type(built(stream, alien), "nation.claims_declared") == []
+    human = plain(K0, K1, nations=[nation_row(SOUTH)])
+    assert len(of_type(built(stream, human), "nation.claims_declared")) == 1

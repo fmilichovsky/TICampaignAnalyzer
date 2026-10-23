@@ -150,9 +150,8 @@ _MAJOR: tuple[str, ...] = (
     "federation.appeared",
     "federation.disappeared",
     "federation.members_changed",
-    # A declared claim redraws a nation's intent, and a rename marks a unification or a federation's growth;
-    # both are what a history reports.
-    "nation.claims_changed",
+    # A rename marks a unification or a federation's growth, which a history reports; claims are decided by
+    # their context rule.
     "nation.renamed",
     "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
@@ -278,10 +277,22 @@ def _completion(event: Event, lookup: Lookup) -> Significance | None:
     return milestone.significance if milestone is not None else Significance.MINOR
 
 
+def _claims_changed(event: Event, lookup: Lookup) -> Significance | None:
+    """The alien administration's claims cover every region implicitly, so its changes are minor; a human
+    nation's claims are major."""
+    subject = _subject(event)
+    for side in (Side.AFTER, Side.BEFORE):
+        state = lookup.state(subject.entity_id, side) if subject is not None else None
+        if state is not None and state.get("alienNation") is True:
+            return Significance.MINOR
+    return Significance.MAJOR
+
+
 RULES: Mapping[str, Rule] = {
     "councilor.appeared": _councilor_presence,
     "councilor.disappeared": _councilor_presence,
     "nation.relation_changed": _relation_changed,
+    "nation.claims_changed": _claims_changed,
     "nation.executive_change_recorded": _executive_change,
     "organization.assigned_councilor_changed": _organization_assignment,
     "nation.statistic_shifted": _statistic_shifted,

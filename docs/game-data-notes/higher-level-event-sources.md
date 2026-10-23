@@ -470,6 +470,10 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
     interval both times, and neither nation appeared (*hypothesis:* it existed before without regions).
   - *Claims.* `nation.claims_changed` occurred 0 times and `nation.hostile_claims_changed` 4 times,
     so `nation.claims_declared` is covered by synthetic tests only.
+  - *Alien claims.* The alien administration (`alienNation`) holds claims on far more regions than any human
+    nation, which makes its `nation.claims_changed` and `nation.claims_declared` the largest events of a
+    package. *Published* (Terra Invicta game rules, transcribed 2026-10-23): the alien nation has implicit claims on
+    every region, so the rules treat it separately.
   - *Transformations.* In Resist, 4 nation-intervals had 2 or more distinct statistics among
     democracy, GDP, inequality, cohesion and unrest. Three of those 4 belong to a nation with a
     release, cession or takeover in the same interval, which already carries the shifts. The

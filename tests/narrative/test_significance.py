@@ -209,7 +209,6 @@ def test_table_entries_resolve_without_context() -> None:
 def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
     lookup = empty_lookup()
     expected = {
-        "nation.claims_changed": Significance.MAJOR,
         "nation.renamed": Significance.MAJOR,
         "federation.renamed": Significance.MAJOR,
         "nation.hostile_claims_changed": Significance.MINOR,
@@ -286,3 +285,15 @@ def test_serialization_carries_the_level() -> None:
         > Significance.MINOR.rank
         > Significance.TRIVIAL.rank
     )
+
+
+def test_the_alien_administrations_claims_are_minor_and_a_human_nations_are_major() -> None:
+    claims = replace(bare_event("nation.claims_changed"), entities=(nation_ref("21"),))
+    for alien, expected in ((True, Significance.MINOR), (False, Significance.MAJOR)):
+        lookup = Lookup(
+            snapshot(BEFORE, state(NATION, "21", BEFORE, alienNation=alien)),
+            snapshot(AFTER, state(NATION, "21", AFTER, alienNation=alien)),
+        )
+        assert significance_of(claims, lookup) is expected, alien
+    assert significance_of(claims, empty_lookup()) is Significance.MAJOR
+    assert significance_of(bare_event("nation.claims_changed"), empty_lookup()) is Significance.MAJOR
