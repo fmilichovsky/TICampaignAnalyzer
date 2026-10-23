@@ -38,6 +38,12 @@ alien activity on Earth, the game's own notification log, combat logs and the
 other evidence the reconstruction and narrative stages need but the normalizer
 does not read yet.
 
+[Nation statistics](nation-metrics.md) records what the save carries about a
+nation's statistics beyond their current values (the quarterly per-capita GDP
+series, the cumulative cause trackers), how the statistics move between saves
+(population, GDP, value-band crossings and what explains them), and the
+nuclear, space-support and military assets a nation holds.
+
 [Factions](factions/) holds the game's own descriptions of the seven human
 factions (ideology, goal, relations). They are game text, not save
 observations; the [narrator prompt](../narrator.md) condenses them into its
