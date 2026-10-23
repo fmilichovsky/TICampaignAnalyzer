@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..config import GeopoliticsSettings
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -263,6 +263,10 @@ class TakeoverRule:
     11.3, bound 4). The earliest attached executive record gives ``executive_recorded_on`` and ``previous_executive``,
     so the takeover states what the record says without it. Open while the last report has the faction holding the
     executive but not every point.
+
+    Takeovers of one nation whose anchors share an interval have no order from the dates. When the later one's
+    ``loser`` is the earlier one's faction and not the reverse, the earlier carries ``succeeded_by`` and the later
+    ``succeeds``; otherwise each carries ``ambiguous`` and ``alternatives`` naming the others.
     """
 
     settings: GeopoliticsSettings
@@ -278,10 +282,13 @@ class TakeoverRule:
     ) -> list[Event]:
         reports = interval_reports(situations)
         by_nation = by_subject(by_type(stream, NATION_CONTROL))
-        built = []
+        built: list[Event] = []
         for nation_id in sorted_keys(by_nation):
-            for run in self._runs(by_nation[nation_id]):
-                built.append(self._takeover(stream, situations, reports, build, run))
+            nation_built = [
+                (run, self._takeover(stream, situations, reports, build, run))
+                for run in self._runs(by_nation[nation_id])
+            ]
+            built.extend(_with_succession(nation_built))
         return built
 
     def _runs(self, changes: Sequence[Event]) -> list[list[Event]]:
@@ -414,6 +421,36 @@ class TakeoverRule:
                 if candidates == {actor.entity_id}:
                     found.update((charge.id, charge) for charge in labelled)
         return list(found.values())
+
+
+def _role(event: Event, role: Role) -> EntityId | None:
+    return next((ref.entity_id for found, ref in event.roles if found is role), None)
+
+
+def _with_succession(built: Sequence[tuple[list[Event], Event]]) -> list[Event]:
+    """The takeovers of one nation with the order of those that share an anchor interval, or their ambiguity."""
+    anchor_intervals = [set(intervals_of(anchors)) for anchors, _ in built]
+    result = []
+    for index, (_, event) in enumerate(built):
+        rivals = [
+            other
+            for other_index, (_, other) in enumerate(built)
+            if other_index != index and anchor_intervals[index] & anchor_intervals[other_index]
+        ]
+        if not rivals:
+            result.append(event)
+            continue
+        actor, loser = _role(event, Role.ACTOR), _role(event, Role.LOSER)
+        earlier = [r for r in rivals if _role(r, Role.ACTOR) == loser and loser is not None]
+        later = [r for r in rivals if _role(r, Role.LOSER) == actor and actor is not None]
+        # An order is derived only when every rival agrees and none names the other direction too.
+        if len(rivals) == 1 and (earlier == rivals) != (later == rivals):
+            key = "succeeds" if earlier else "succeeded_by"
+            result.append(replace(event, attributes=(*event.attributes, (key, rivals[0].id))))
+        else:
+            ids = tuple(sorted(r.id for r in rivals))
+            result.append(replace(event, attributes=(*event.attributes, ("ambiguous", True), ("alternatives", ids))))
+    return result
 
 
 def _holds_executive_only(situations: Sequence[SituationReport], nation_id: EntityId, faction_id: EntityId) -> bool:

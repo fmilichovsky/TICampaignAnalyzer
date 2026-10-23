@@ -1228,7 +1228,13 @@ release, transformation), *chained* windows from the latest (expansion).
     Roles actor, target, loser. Open while the last report has the faction
     holding the executive but not every point. Major; campaign-defining
     when the nation ranks within `top_gdp_nations` by `GDP` in the report
-    after the anchor's interval.
+    after the anchor's interval. Takeovers of one nation whose anchors share
+    an interval have no order from the dates: when the later one's loser is
+    the earlier one's faction and not the reverse, the earlier carries
+    `succeeded_by` and the later `succeeds`; otherwise both carry
+    `ambiguous` and `alternatives`. Cessions are not linked this way: each is
+    built from one interval's before and after state, so a region cannot
+    change hands and back within one.
 -   `federation.lifecycle` (order 0, by ID, major). Members at the first
     and last report and the member changes; open by presence.
 -   `nation.cession` (order 0, heuristic, so medium at most, major). A
