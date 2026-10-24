@@ -179,7 +179,7 @@ built from the developments catalogued in
   - [x] evidence pass on the private saves: the quarterly per-capita GDP series and the cumulative cause trackers
     as campaign-long sources, population and GDP rates, band crossings with the margin and rest-value filters,
     nuclear, space-support and military assets (#189);
-  - [ ] significance: shifts `trivial` by default and `numNuclearWeapons` `major`; `numControlPoints` no longer a
+  - [x] significance: shifts `trivial` by default and `numNuclearWeapons` `major`; `numControlPoints` no longer a
     tracked statistic; `nation.transformation` and `transformation_window_days` removed (#190);
   - [ ] bands as game vocabulary (`narrative/bands.py`), `nation.band_crossed` with the margin and the tracker
     causes, one band-shift rule per statistic (`nation.unrest_shift`, `nation.government_shift`,

@@ -4,21 +4,19 @@ Each rule emits only from its anchor and attaches further events by entity, and 
 ``config.GeopoliticsSettings``. Two kinds of window are used:
 
 - *anchored*: an event joins when its earliest possible date (its record date, else its ``not_before``) is within
-  the window after the first member's date, so the span is bounded (takeover, release, transformation);
+  the window after the first member's date, so the span is bounded (takeover, release);
 - *chained*: an event joins when its earliest possible date is within the window after the latest member's date, so
   a sequence of gains can run for years (expansion).
 
 A rule whose window can still take events from a later save says so with ``open``; a one-interval rule is never
 open. Every rule carries ``metric_shifts`` (``metric_shifts``), the nation statistic shifts of its nations in the
 intervals it spans, as literal values: no band label ("democratic") is ever assigned. The shifts are named by event
-ID and are not constituents, so they never widen a span or change status, confidence or significance. They leave out
-the statistics other events already tell (``MIRRORED_STATISTICS``) and are bounded per development
-(``bounded_shifts``), the cut counted.
+ID and are not constituents, so they never widen a span or change status, confidence or significance. They are
+bounded per development (``bounded_shifts``), the cut counted.
 
 Order 0 builds on the atomic stream; ``nation.expansion`` (order 1) nests the cessions it is made of; ``war.arc``
-and ``nation.transformation`` (order 2) nest the expansions fought out between belligerents and step aside for a
-development that already carries the shifts. No rule names a motive, an assistance without army evidence or a public
-framing: that stays with the narrator (architecture 20).
+(order 2) nests the expansions fought out between belligerents. No rule names a motive, an assistance without army
+evidence or a public framing: that stays with the narrator (architecture 20).
 """
 
 from __future__ import annotations
@@ -34,7 +32,6 @@ from ..model.values import FieldValue, FrozenMap, Observed, Unknown
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
 from .rulekit import (
-    anchored,
     by_subject,
     by_type,
     chained,
@@ -65,7 +62,6 @@ CESSION = "nation.cession"
 RELEASE = "nation.release"
 BREAKAWAY = "nation.breakaway"
 CLAIMS_DECLARED = "nation.claims_declared"
-TRANSFORMATION = "nation.transformation"
 
 NATION_CONTROL = "faction.nation_control_changed"
 CONTROLLER_CHANGED = "control_point.controller_changed"
@@ -87,14 +83,8 @@ TAKEOVER_COUNCILOR_TYPES = ("councilor.faction_changed", "councilor.disappeared"
 PRECURSOR_STATISTICS = frozenset({"unrest", "publicOpinion"})
 TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of architecture 11.3."""
-TRANSFORMATION_STATISTICS = frozenset({"democracy", "GDP", "inequality", "cohesion", "unrest"})
-"""The regime and economy statistics whose joint movement is a transformation (architecture 11.3)."""
 READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 """The territorial readings that explain a gain; a gain without one is a cession candidate."""
-SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, RELEASE, BREAKAWAY})
-"""Developments whose ``metric_shifts`` already state a transformation of their nations."""
-MIRRORED_STATISTICS = frozenset({"numControlPoints"})
-"""Statistics that ``metric_shifts`` leaves out: the control-point and region events already tell them."""
 LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
 """Statistics whose ``metric_shifts`` entries rank ahead of any relative change when the entries are bounded; a
 shift from zero has no relative change but is the story."""
@@ -162,15 +152,12 @@ def metric_shifts(
     per-reason ``causes`` when the shifts carry them, and the shift ``events`` by ID. The net covers the reported
     shifts only: an interval in between whose change stayed below the analyzer's threshold is not reported.
     ``windows`` limits a nation to its own intervals; a nation without a window keeps all of ``intervals``.
-    ``MIRRORED_STATISTICS`` are left out.
     """
     wanted, keys = set(nations), set(intervals)
     groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
     for event in stream:
         nation = subject_id(event)
         if event.event_type != STATISTIC_SHIFTED or nation not in wanted or interval_of(event.id) not in keys:
-            continue
-        if event.attribute("statistic") in MIRRORED_STATISTICS:
             continue
         if windows is not None and nation in windows and interval_of(event.id) not in windows[nation]:
             continue
@@ -1059,70 +1046,6 @@ def _counter_delta(before: SituationReport, after: SituationReport, name: str) -
     return None
 
 
-@dataclass(frozen=True)
-class TransformationRule:
-    """``nation.transformation``: two or more of one nation's regime and economy statistics shifted together.
-
-    The shifts (``TRANSFORMATION_STATISTICS``) of one nation within the transformation window after the first form one
-    run; a run with two or more distinct statistics is a transformation, unless a takeover, expansion, cession,
-    release or breakaway naming the nation spans one of its intervals: that development already carries the shifts
-    as ``metric_shifts``. Literal values and relative changes only. Open while a later save could still fall in the
-    window.
-    """
-
-    settings: GeopoliticsSettings
-    name: str = TRANSFORMATION
-    order: int = 2
-
-    @property
-    def window_days(self) -> int:
-        return self.settings.transformation_window_days
-
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
-        shifts = [
-            event
-            for event in by_type(stream, STATISTIC_SHIFTED)
-            if event.attribute("statistic") in TRANSFORMATION_STATISTICS
-        ]
-        carriers = [event for event in stream if event.event_type in SHIFT_CARRIERS]
-        days = self.settings.transformation_window_days
-        last = last_date(situations)
-        built = []
-        by_nation = by_subject(shifts)
-        for nation_id in sorted_keys(by_nation):
-            for run in anchored(by_nation[nation_id], days):
-                statistics = sorted({str(event.attribute("statistic")) for event in run})
-                if len(statistics) < 2:
-                    continue
-                keys = set(intervals_of(run))
-                if any(
-                    keys & set(carrier.intervals) and any(ref.entity_id == nation_id for _, ref in carrier.roles)
-                    for carrier in carriers
-                ):
-                    continue
-                nation = run[0].entities[0]
-                roles = [(Role.ACTOR, nation)]
-                built.append(
-                    build.event(
-                        TRANSFORMATION,
-                        id_parts=[nation_id],
-                        constituents=run,
-                        roles=roles,
-                        join=Join.ENTITY,
-                        attributes=(
-                            ("statistics", tuple(statistics)),
-                            *bounded_shifts(
-                                metric_shifts(stream, [nation_id], keys), roles, self.settings.metric_shifts_max
-                            ),
-                        ),
-                        open=within(latest(run[0]), last, days),
-                    )
-                )
-        return built
-
-
 def geopolitical_rules(
     settings: GeopoliticsSettings,
 ) -> tuple[
@@ -1133,7 +1056,6 @@ def geopolitical_rules(
     ClaimsDeclaredRule,
     ExpansionRule,
     WarArcRule,
-    TransformationRule,
 ]:
     """The geopolitical rules under ``settings``."""
     return (
@@ -1144,5 +1066,4 @@ def geopolitical_rules(
         ClaimsDeclaredRule(settings),
         ExpansionRule(settings),
         WarArcRule(settings),
-        TransformationRule(settings),
     )

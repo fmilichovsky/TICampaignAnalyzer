@@ -532,12 +532,6 @@ def _claims_declared(event: Event) -> str:
     return f"{_role(event, Role.ACTOR)} claimed regions of {_role(event, Role.TARGET)}"
 
 
-def _transformation(event: Event) -> str:
-    statistics = event.attribute("statistics")
-    names = ", ".join(str(name) for name in statistics) if isinstance(statistics, tuple) else "statistics"
-    return f"{_role(event, Role.ACTOR)}: {names} shifted together"
-
-
 def _count(value: Observed, noun: str) -> str:
     return f"{render_value(value)} {noun}{'' if value == 1 else 's'}"
 
@@ -719,7 +713,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.release": _release,
     "nation.breakaway": _breakaway,
     "nation.claims_declared": _claims_declared,
-    "nation.transformation": _transformation,
     "faction.space_campaign": _space_campaign,
     "faction.colonisation_wave": _colonisation_wave,
     "campaign.first_milestone": _first_milestone,

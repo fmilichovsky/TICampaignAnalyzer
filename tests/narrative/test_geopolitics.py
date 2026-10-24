@@ -473,15 +473,6 @@ def statistics(item: Event) -> list[tuple[str, str]]:
     return [(str(dict(entry.items)["nation"].entity_id), str(dict(entry.items)["statistic"])) for entry in entries]  # type: ignore[union-attr]
 
 
-def test_metric_shifts_leave_out_control_points_and_keep_nuclear_weapons() -> None:
-    anchor = control(K1, "executive", RESISTANCE, SERVANTS)
-    stream = [anchor, shift(K1, "numControlPoints"), shift(K1, "numNuclearWeapons")]
-
-    takeover = only(built(stream, plain(K0, K1)), "faction.takeover")
-
-    assert statistics(takeover) == [("nation:20", "numNuclearWeapons")]
-
-
 def test_metric_shifts_are_bounded_per_development_and_the_cut_is_counted() -> None:
     stream = [
         *transfer(K1, SOUTH, NORTH, SOUTH_REGION),
@@ -851,44 +842,6 @@ def test_claims_on_another_nations_regions_are_declared_and_on_its_own_are_not()
     assert of_type(built([claims(K1, [], [])], plain(K0, K1)), "nation.claims_declared") == []
 
 
-# --- nation.transformation ---------------------------------------------------------------------------------------
-
-
-def test_two_statistics_shifting_together_are_a_transformation() -> None:
-    stream = [shift(K1, "democracy"), shift(K1, "inequality"), shift(K1, "spaceFunding_year")]
-
-    transformation = only(built(stream, plain(K0, K1, K2, K3)), "nation.transformation")
-
-    assert transformation.attribute("statistics") == ("democracy", "inequality")
-    assert (transformation.status, transformation.confidence, transformation.significance) == (
-        EventStatus.OBJECTIVE,
-        Confidence.HIGH,
-        Significance.MINOR,
-    )
-    assert not transformation.open
-    assert len(shift_ids(transformation)) == 3  # every statistic of the span, not only the joined ones
-    assert describe_event(transformation) == "Northland (nation:20): democracy, inequality shifted together"
-
-
-def test_one_statistic_or_shifts_beyond_the_window_are_no_transformation() -> None:
-    assert of_type(built([shift(K1, "GDP"), shift(K2, "GDP")], plain(K0, K1, K2)), "nation.transformation") == []
-    far = [shift(K1, "GDP"), shift(K3, "democracy")]
-    situations = plain(K0, K1, K2, K3)
-    short = GeopoliticsSettings(transformation_window_days=30)
-    assert of_type(built(far, situations, short), "nation.transformation") == []
-    assert len(of_type(built(far, situations), "nation.transformation")) == 1
-
-
-def test_a_development_that_carries_the_shifts_suppresses_the_transformation() -> None:
-    stream = [shift(K1, "democracy"), shift(K1, "GDP"), control(K1, "executive", RESISTANCE, SERVANTS)]
-    other = [shift(K1, "democracy"), shift(K1, "GDP"), control(K1, "executive", RESISTANCE, SERVANTS, subject=SOUTH)]
-
-    events = built(stream, plain(K0, K1))
-    assert of_type(events, "nation.transformation") == []
-    assert len(shift_ids(only(events, "faction.takeover"))) == 2
-    assert len(of_type(built(other, plain(K0, K1)), "nation.transformation")) == 1
-
-
 # --- Across rules ------------------------------------------------------------------------------------------------
 
 
@@ -936,7 +889,6 @@ def test_every_geopolitical_type_is_built_and_carries_metric_shifts() -> None:
         "nation.cession",
         "nation.breakaway",
         "nation.claims_declared",
-        "nation.transformation",
     }
     for item in events:
         assert shift_ids(item), item.event_type
@@ -952,7 +904,7 @@ def test_traceability_holds_and_the_result_does_not_depend_on_stream_order() -> 
         assert all(constituent in visible for constituent in item.constituents)
         assert all(shift_id in {event.id for event in stream} for shift_id in shift_ids(item))
         assert set(item.sources) >= {source for c in item.constituents for source in visible[c].sources}
-        assert set(shift_ids(item)).isdisjoint(item.constituents) or item.event_type == "nation.transformation"
+        assert set(shift_ids(item)).isdisjoint(item.constituents)
     assert built(list(reversed(stream)), situations) == events
 
 

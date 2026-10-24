@@ -58,7 +58,7 @@ _EVIDENCE: tuple[str, ...] = (
     "technology.completed",
     "faction.project_completed",
     "faction.transaction_recorded",
-    # The statistic shifts behind a transformation or a takeover's precursors, with their causes.
+    # The statistic shifts behind a development's metric_shifts or a takeover's precursors, with their causes.
     "nation.statistic_shifted",
 )
 

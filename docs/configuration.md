@@ -57,7 +57,6 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.geopolitics.ledger_window_days` | 28 | 0 | A `Coup`, `Purge` or `Crackdown` charge is attached to a takeover when dated this long before it at most (the assignment-to-outcome bound of architecture 11.3). |
 | `narrative.geopolitics.expansion_gap_days` | 365 | 0 | Gains of one nation chain into one `nation.expansion` while each follows the previous one this soon. |
 | `narrative.geopolitics.release_window_days` | 180 | 0 | A released or breakaway nation's own events this soon after its independence are attached. |
-| `narrative.geopolitics.transformation_window_days` | 120 | 0 | Statistic shifts of one nation this soon after the first form one `nation.transformation`. |
 | `narrative.geopolitics.metric_shifts_max` | 12 | 0 | A geopolitical development keeps at most this many `metric_shifts` entries: those of its role nations first, then `numNuclearWeapons`, then the largest `relative_change` (entries without one last). The rest are counted as `metric_shifts_omitted` ([events](commands/events.md#narrative-events)). |
 | `narrative.space.campaign_gap_days` | 365 | 0 | Battle outcomes of one killer and victim pair chain into one `faction.space_campaign` while each follows the previous one this soon. |
 | `narrative.space.colonisation_window_days` | 180 | 0 | First habs on new bodies of one faction this soon after the first form one `faction.colonisation_wave`. |

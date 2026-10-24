@@ -168,7 +168,7 @@ for the context a rule reads). `test_aggregation.py` covers the framework with
 trivial rules. `test_geopolitics.py` covers every geopolitical rule. It checks the
 missing-anchor case, the window boundary through `GeopoliticsSettings`, the
 `open` case, nesting (a war arc around an expansion, an expansion around
-cessions, a transformation stepping aside) and `metric_shifts`. A combined
+cessions) and `metric_shifts`. A combined
 scenario builds every type and asserts the traceability invariants: every
 constituent is visible, every `metric_shifts` ID is in the stream, the sources
 cover the constituents' sources, and the result does not depend on stream order.
