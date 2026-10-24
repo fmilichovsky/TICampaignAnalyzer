@@ -1120,8 +1120,9 @@ class Event:  # narrative extension, conceptual
     a record-dated constituent narrows the span. Corroborating-only events
     (ledger charges) are cited but only narrow a start; they never set the
     end. An event whose anchor is
-    still present in the last save is `open`, so incremental mode (Mode D)
-    can extend it instead of emitting a second one.
+    still present in the last save is `open`, so a later run over more saves
+    (Mode D) extends it instead of emitting a second one, and a later
+    installment (20.7) continues it.
 -   **Roles** replace the earlier `title_hint`: the LLM or renderer needs
     to know who acted, on whom, who benefited and who assisted, not a
     suggested title. Attributes stay literal structured facts (counts,
@@ -1713,6 +1714,8 @@ terra-invicta-narrative/
 │       │   ├── markdown.py
 │       │   └── templates/
 │       │
+│       ├── store/             # Mode D design: objects, capture log, index, watch
+│       │
 │       └── narrator/          # `tinarrative narrate` (section 20); reads the package only
 │           ├── prompt.md      # the system prompt, shipped as package data
 │           ├── request.py     # request block, user message, prompt version
@@ -1852,53 +1855,230 @@ selector it prints the listing and exits 2, except in a terminal, where `picker.
 for a selector or fuzzy search text on stderr. The picker only chooses among the groups; it never
 regroups. File modification time is read only to resolve `--campaign latest`.
 
-## Mode D --- Incremental/watch-oriented analysis
+## Mode D --- Continuous capture
 
-Future capability:
+Input:
 
 ``` text
-new save detected
-   ↓
-analyze only new interval
-   ↓
-append/update event store
-   ↓
-regenerate affected narrative
+the game's save directory, watched while the game runs
 ```
 
-This should be enabled by the architecture but does not need to be part
-of the first implementation.
+Output:
+
+``` text
+a store holding every save the game wrote, grouped by campaign,
+from which events and narration run at any time
+```
+
+The game rewrites most of what it saves: rotating autosaves, a combat save
+before a space battle, an exit save on leaving. Together they sample a
+campaign far more densely than manual saves, but a file may be overwritten
+within minutes, so a save that is not copied when it appears is lost. The
+save modes and their names are recorded in
+[`game-data-notes/save-directory.md`](game-data-notes/save-directory.md),
+as hypotheses until they are observed.
+
+### Continuous capture (design)
+
+The design is staged on the roadmap (*Continuous capture*). It applies the
+core principle (section 3) to storage: what was captured is evidence and is
+kept byte for byte; everything read from it is derived and can be rebuilt.
+
+``` text
+save directory ──(capture: poll, settle, copy)──→ objects + capture log      evidence
+                                                       ↓
+                                       index (one survey per object)          derived
+                                                       ↓
+                                       campaigns (grouping, unchanged)        inference
+                                                       ↓
+                                       lines (save tree, current line)        inference
+                                                       ↓
+                       sequence plan → intervals (cached) → events, narration
+```
+
+**Capture** has one job, to win the race against the game, so it does as
+little as possible. It polls the directory with the standard library
+(`os.scandir`, `stat`); the project keeps no runtime dependencies, so there
+is no file-system watcher. A file is taken once its size and modification
+time have stayed the same across two polls at least `settle_seconds` apart.
+Capture reads the bytes, checks the `stat` again and retries on the next poll
+if it changed, hashes the bytes (SHA-256, the identity `survey` already uses)
+and writes them unchanged into the content-addressed object store, atomically
+(a temporary file, flushed, then renamed). Every observation adds one line to
+an append-only capture log: hash, base file name, size, modification time,
+the time it was seen and a save-kind hint read from the name (`manual`,
+`autosave`, `combat`, `exit`, `imported`, `other`). The hint is for display
+only. It never orders or groups a save, because names are not a chronology
+(see [chronology](game-data-notes/chronology-and-deduplication.md)).
+
+Capture rejects nothing. A file that turns out not to be a supported save is
+still archived and is marked when it is indexed, so a wrong rejection can be
+undone without the file. A read that caught a write in progress despite the
+settle check fails to parse; the stable file is captured on a later poll and
+the partial one stays marked.
+
+**Catch-up is the same pass.** On start, and in a one-shot run, every file
+whose name, size and modification time differ from its last line in the
+capture log is captured; a forced rescan hashes every file. Saves written
+while nothing was capturing join the timeline wherever their game time
+places them. A save the game overwrote while nothing was capturing is gone.
+The store cannot recover it and does not pretend to.
+
+**Index.** Each object is surveyed once: its game time
+(`parsing.normalization.save_timestamp`), its campaign profile
+(`parsing.continuity.campaign_profile`), its build (`latestSaveVersion`) and
+its status (`ok`, `rejected` with the error category, `unclassified`), with
+the fingerprint of the parser that produced the record. A record from another
+parser fingerprint is recomputed. Indexing runs after every pending capture,
+because a full parse is slow and the race is not.
+
+**Campaigns.** Grouping is the rule of Mode C, applied to index records:
+the same four signals, the same unclassified path and the same limits. A
+campaign reloaded from an earlier save and played differently keeps its
+identity. Grouping therefore keeps both lines in one group, and lines (below)
+split it. A store campaign has a stable ID, a short hash of the identity
+tuple, because the selector key's `#n` suffix depends on the listing. The
+selector key stays the name a user types.
+
+**Sequence.** `plan_sequence` runs on the index records of one line of a
+campaign instead of a fresh survey, and snapshots load from objects. Byte-identical
+captures merge into one save as they do today, with the captured names as
+aliases. A save later than every other one adds one interval. An earlier
+one, such as an old manual save imported late, splits one interval in two.
+Interval keys and qualified IDs follow `narrative.chronology` unchanged.
+
+**Interval cache.** An interval's analysis is a function of its two saves and
+the code, so its result (unqualified events and both situation reports) is
+cached under the two object hashes and a fingerprint of the analysis code.
+Qualification by interval key happens when the cache is read, so a split
+interval orphans one entry and invalidates nothing else. Narrative aggregation
+is not cached. It reruns over the whole stream every time, because its windows
+and `open` depend on the last save, and it needs no snapshot. Orphaned cache
+entries are removed only on request. Objects are never deleted automatically.
+
+**One writer.** A lock file created exclusively, holding the writer's process
+ID, admits one capturing process per store; a lock whose process is gone is
+stale. Readers (`events`, `narrate`) read only objects and files written by
+rename, so they can run while capture does.
+
+**No automatic narration.** Capture and indexing never contact a provider.
+The current state of a campaign is narrated when the user runs `narrate`, and
+a growing campaign is narrated in installments (20.7).
+
+**Privacy.** The store holds whole saves on the user's machine, outside the
+repository. The log carries counts, sizes and hash prefixes. It carries no
+file name, no path beyond `safe_path` and no string read from a save
+([debugging](debugging.md)).
+
+### Lines (design)
+
+When the player loads an earlier save and plays on, the saves written after
+it on the first attempt stop being the campaign's history, but they stay in
+the store and keep the campaign's identity. Ordered by game time, the two
+attempts interleave, and every interval between them diffs two different
+timelines. *Lines* separate them. The design is staged on the roadmap
+(*Continuous capture*). Until it lands, the grouping limit stands: one
+campaign, one game-time order.
+
+**Continuity test.** Save B *continues* save A, A no later than B in game
+time, unless a *witness record* contradicts it. A witness is a save-carried
+record (4.3) that the game-data notes observe to be carried forward unchanged
+along one line of play: a log that only grows as a strict prefix, a keyed log
+that never loses a key, ledger entries that are never rewritten. A
+contradiction is a prefix log of A that is not a prefix of B's, a key of A
+missing from B, or an entry dated at or before A's game time that the two
+saves hold differently in a way pruning cannot explain. After a fork both
+attempts record their own battles, charges and losses, so their witnesses
+disagree. The witness set and the exact contradiction rules come from the
+notes, not from this section. The test has three results: `contradicted`,
+naming the record; `consistent`, with the number of witness entries compared;
+and `undetermined`, when there was nothing to compare. It is inference with
+provenance (sections 3 to 7), reported like the grouping signals.
+
+**Save tree.** A save's parent is the latest save before it in game time
+that it continues. The test runs from the nearest earlier save backwards, and
+the first save that is not contradicted is the parent, so a campaign without
+a reload costs one test per save and gives exactly today's sequence. Equal
+game times keep today's tie order within a line. `undetermined` counts as
+consistent, because the absence of evidence is not a fork. A fork save that
+was never captured is not needed: the new line's first save attaches to the
+nearest earlier save it continues, and its interval is longer.
+
+**Witness digest.** Each index record carries, per witness record, a digest
+from which the test can be decided: a hash chain over the entries of a prefix
+log, the key set of a keyed log, and the ledger entries by label and date. The
+test reads two index records and never a snapshot.
+
+**Lines.** A *fork* is a save with more than one child. A *line* is named by
+the key of its first save after a fork, and the original line by the
+campaign's first save. Selecting a line takes the path from the campaign's
+first save through the line's first save to its newest descendant; at every
+later fork the path follows the child that holds the most recently captured
+save. `plan_sequence`, interval keys and qualified IDs run on that path alone,
+unchanged. The interval cache is keyed by save hashes, so it serves every
+line.
+
+**Current line.** In a store, the current line is the one that holds the most
+recently captured save, by the capture log. Within one catch-up batch, file
+modification time breaks the tie, once the notes confirm that it follows the
+game's writes. Saves given as paths (Mode C) have no capture order. A campaign
+with more than one line is then treated like a directory with more than one
+campaign: `events` and `narrate` require a line, list the lines and exit 2, or
+ask through the picker in a terminal. `latest` picks by modification time, as
+it does for campaigns.
+
+**Abandoned lines** are kept and never deleted. The campaign listing shows each
+line: its fork, its first and last game time, its save count, and whether it
+is current. Any line can be analyzed or narrated by name, so an abandoned
+attempt reads as an alternate history. No narrative mentions a reload, which
+is an act of the player, not an event of the campaign.
+
+**Capture is unchanged.** A live capture earlier in game time than its
+campaign's newest save suggests a reload. The tree is still built from the
+content of the saves, never from that hint.
 
 ------------------------------------------------------------------------
 
 # 16. Persistence Strategy
 
-The first version can remain file-oriented:
+Modes A to C are file-oriented: they read the saves they are given and keep
+nothing between runs.
 
 ``` text
 save → parse → analyze → markdown
 ```
 
-As campaign-scale processing develops, introduce a structured analysis
-store.
-
-Potential storage:
+Mode D adds a store (design, staged on the roadmap). It is plain files, laid
+out so that two members are evidence and everything else derives from them:
 
 ``` text
-campaign/
-  metadata.json
-  snapshots/
-  diffs/
-  events/
-  narrative/
-  history.md
+<store>/
+  store.json                          # layout version
+  captures.jsonl                      # capture log, append-only        evidence
+  objects/ab/<sha256>.json.xz         # every distinct save, byte-exact evidence
+  index/<sha256>.json                 # one survey per object           derived
+  campaigns/<campaign-id>/
+    campaign.json                     # identity signals, selector key  inference
+    intervals/<before>-<after>.json   # interval cache                  derived
+    narration/<name>/                 # narrate output, installments (20.7)
 ```
 
-A SQLite database is a likely later option when querying, incremental
-updates, and cross-campaign analysis become important.
+Objects are xz-compressed like the benchmark samples. Their name is the hash
+of the uncompressed bytes, so a decompressed object is exactly the file the
+game wrote. Deleting `index/` and `campaigns/` loses nothing but time, apart
+from narration responses, which only a provider can make again.
 
-The event model should therefore avoid assumptions that require a
-particular persistence technology.
+The store is found from `--store`, then `TINARRATIVE_STORE`, then the
+`[store] path` setting, then a per-user data directory
+(`%LOCALAPPDATA%\tinarrative`, `$XDG_DATA_HOME/tinarrative`,
+`~/Library/Application Support/tinarrative`). It is never inside the save
+directory, which belongs to the game. The save directory is named by argument
+or the `[store] saves_dir` setting. A platform default is added only for a
+location the game-data notes confirm.
+
+A SQLite database remains a later option for queries across campaigns. The
+event model still assumes no persistence technology, and the layout above can
+be rebuilt from its evidence into any other.
 
 ------------------------------------------------------------------------
 
@@ -2263,6 +2443,73 @@ responses can be assembled again without sending anything.
 The run log carries counts, sizes, estimates, chapter indexes, the provider
 and HTTP status, and never a request, a response, a key or a string read
 from a save.
+
+## 20.7 Installments (design)
+
+A campaign that keeps growing (Mode D) is narrated more than once. Rerunning
+`narrate` over the grown package re-plans every chapter. The period derived
+from the longer span may change, and every request names the chapter count and
+part. So every chapter would be sent again and told again in new words. An
+*installment* is the alternative: it narrates only what came after the last
+narration and leaves the earlier prose as it was. It is staged on the roadmap
+(*Continuous capture*) and works for any input, a store campaign or save paths.
+
+**Narration directory.** A directory narrated in installments holds one
+subdirectory per installment, each with the layout of 20.6, and a
+`narration.json`. The request options are fixed when the first installment is
+made (`period`, `audience`, `citations`, `style`, `focus`, the settings
+profile) and later installments reuse them. A period derived from a short
+early span stays the period of the whole narration unless the user names
+another; the sparse-save coarsening (20.2) still applies per chapter.
+
+**Seal.** An installment is sealed when it is assembled. Its closing save is
+the seal point. Installment *n* covers the intervals after the seal of
+installment *n − 1*, up to the last save, and is planned by the chapter
+planner of 20.3 over the full package restricted to those intervals. Its
+opening situation is the sealing save's report, as between two chapters. A
+sealed installment is never planned or sent again, and resume (20.6) works
+inside the open installment as it does today.
+
+**Parts.** The first installment uses the parts of 20.2. Every later
+installment uses `middle` for all its chapters but its last, which is `last`.
+No chapter reopens the history, and each installment ends on its closing
+situation, so the prompt's part rules hold unchanged. A sealed installment
+ended on the situation of its own seal, and that ending stays true of the
+history up to that save.
+
+**Continuity across installments.** It is built from the package (20.4),
+with the sealed installments standing in for earlier chapters:
+
+-   `earlier`: the digest of the developments that sealed installments
+    listed, read from their stored requests, not from their prose;
+-   `continuing`: developments that started before the seal and are still
+    running, or whose record changed after it was told (a later `end`, `open`
+    cleared), marked as already told;
+-   `late`: developments that start before the seal but appeared in no
+    sealed request. A rule window that spans the seal finds them only once
+    the later saves exist. They are told in the first chapter of the
+    installment, at their own dates, as what had already happened before it
+    opened. This member adds one prompt rule, so the prompt version changes
+    for new requests only. Sealed requests are not re-made.
+
+**History.** `history.md` concatenates the sealed installments and the
+current one, under the header of 20.6 with one cover per installment.
+Footnotes are renumbered across the whole history and the citation audit runs
+per installment against its own chapter packages.
+
+**Drift.** A save can land inside a sealed span (an old save imported late),
+or a later save can rewrite what a sealed development said (two developments
+joined, an event set to another interval key). A sealed installment is then no
+longer what the package would say. The manifest lists the drift: sealed
+development IDs that no longer exist, and saves inside sealed spans that no
+sealed request covered. Nothing is re-narrated silently. The user chooses to
+unseal from an installment onward, and the narration resumes from there.
+
+A reload (Mode D, *Lines*) can leave a seal on an abandoned line. The sealed
+prose then tells a future that the current line no longer has. Appending
+refuses, and names the first installment that covers saves off the current
+line. The user either re-narrates from that installment on the current line,
+or keeps narrating the line the seal is on.
 
 ------------------------------------------------------------------------
 
