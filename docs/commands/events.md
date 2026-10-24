@@ -202,13 +202,13 @@ span intervals, such as a takeover and its consolidation or a war from start to 
 because rules build on inferred events. The geopolitical rules of
 [architecture 11.3](../architecture.md#113-first-catalogue) are implemented: `faction.takeover`,
 `war.arc`, `federation.lifecycle`, `nation.expansion`, `nation.cession`, `nation.release` /
-`nation.breakaway`, `nation.claims_declared` and `nation.transformation`. Each carries the nation
+`nation.breakaway` and `nation.claims_declared`. Each carries the nation
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
 A `metric_shifts` entry has `nation`, `statistic`, `key` (public opinion only), `before` (the earliest
 shift's value), `after` (the latest's), the unsigned `relative_change`, `not_before` (the earlier save of the
 earliest shift), `date` and `date_basis` (the later save of the latest shift: the net change happened between
 `not_before` and `date`), the summed per-reason `causes` when the shifts carry them, and the shift `events` by ID.
-`numControlPoints` shifts are left out, since the control-point and region events already tell them. A development
+A development
 keeps at most `narrative.geopolitics.metric_shifts_max` entries ([configuration](../configuration.md)): those of its
 role nations first, then `numNuclearWeapons`, then the largest `relative_change` (entries without one last, ties by
 nation and statistic). The kept entries stay in nation and statistic order, and `metric_shifts_omitted` counts the

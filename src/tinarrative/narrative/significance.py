@@ -56,10 +56,10 @@ UPHEAVAL_CAUSES = frozenset({"Coup", "RegimeChange", "Independence", "Enthrall"}
 WAR_RELATION = "wars"
 """The ``nation.relation_changed`` relation that names a war; ``allies`` and ``rivals`` are routine diplomacy."""
 
-DISCRETE_STATISTICS = frozenset({"numNuclearWeapons", "numControlPoints"})
-"""``nation.statistic_shifted`` statistics whose every change is a development: a nuclear arsenal and the number of
-control points, which changes alongside region transfers. Continuous statistics shift past their threshold for
-routine reasons too (event effects, priorities), so they stay minor until reconstruction explains them."""
+DISCRETE_STATISTICS = frozenset({"numNuclearWeapons"})
+"""``nation.statistic_shifted`` statistics whose every change is a development: a nuclear arsenal. Other statistics
+shift past their threshold for routine reasons too (event effects, priorities), so a shift is evidence for the rules
+that explain it and stays trivial on its own."""
 
 # --- Per-type table ---------------------------------------------------------------------------------------
 
@@ -261,8 +261,8 @@ def _organization_assignment(event: Event, lookup: Lookup) -> Significance | Non
 
 
 def _statistic_shifted(event: Event, lookup: Lookup) -> Significance | None:
-    """A nuclear arsenal or control-point count changing is major; a continuous statistic's shift is minor."""
-    return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.MINOR
+    """A nuclear arsenal changing is major; any other statistic's shift is trivial evidence."""
+    return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.TRIVIAL
 
 
 def _army_presence(event: Event, lookup: Lookup) -> Significance | None:

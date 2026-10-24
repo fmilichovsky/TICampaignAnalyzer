@@ -171,18 +171,18 @@ def test_megafauna_presence_is_major_and_regular_army_presence_is_minor() -> Non
     assert only(events, "army.appeared").significance is Significance.MAJOR
 
 
-def test_a_discrete_statistic_shift_is_major_and_a_continuous_one_is_minor() -> None:
+def test_a_nuclear_arsenal_shift_is_major_and_any_other_statistic_shift_is_trivial() -> None:
     regions = (region_ref("40"),)
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, regions=regions, numNuclearWeapons=0, GDP=1.0e9))
     after = snapshot(AFTER, state(NATION, "20", AFTER, regions=regions, numNuclearWeapons=1, GDP=2.0e9))
     events = classified(NationMetricAnalyzer(), before, after)
     levels = {event.attribute("statistic"): event.significance for event in events}
-    assert levels == {"numNuclearWeapons": Significance.MAJOR, "GDP": Significance.MINOR}
+    assert levels == {"numNuclearWeapons": Significance.MAJOR, "GDP": Significance.TRIVIAL}
     lookup = empty_lookup()
     assert significance_of(bare_event("nation.statistic_shifted", statistic="numControlPoints"), lookup) is (
-        Significance.MAJOR
+        Significance.TRIVIAL
     )
-    assert significance_of(bare_event("nation.statistic_shifted"), lookup) is Significance.MINOR
+    assert significance_of(bare_event("nation.statistic_shifted"), lookup) is Significance.TRIVIAL
 
 
 # --- Table, defaults and the pass itself -------------------------------------------------------------------

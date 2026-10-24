@@ -81,8 +81,7 @@ SPACE_FUNDING = StatisticThreshold(Measure.RELATIVE, 0.5, 0.25)
 """Relative: large budgets drift by a few percent, small ones jump; a budget from zero always counts."""
 
 DISCRETE = StatisticThreshold(Measure.ABSOLUTE, 1)
-"""``numNuclearWeapons`` and ``numControlPoints`` are counts that rarely change, so any change counts, whatever the
-interval."""
+"""``numNuclearWeapons`` is a count that rarely changes, so any change counts, whatever the interval."""
 
 STATISTIC_THRESHOLDS: Mapping[str, StatisticThreshold] = {
     "GDP": GDP,
@@ -95,7 +94,6 @@ STATISTIC_THRESHOLDS: Mapping[str, StatisticThreshold] = {
     "militaryTechLevel": MILITARY_TECH,
     "spaceFunding_year": SPACE_FUNDING,
     "numNuclearWeapons": DISCRETE,
-    "numControlPoints": DISCRETE,
 }
 """The scalar statistics and their thresholds, in the order they are analyzed."""
 

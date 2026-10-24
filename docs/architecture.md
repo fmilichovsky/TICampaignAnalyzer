@@ -668,10 +668,10 @@ Ownership and control are kept distinct by analyzer and type prefix:
     `NationMetricAnalyzer`) reports a nation statistic (`GDP`, `inequality`,
     `education`, `democracy`, `cohesion`, `unrest`, `sustainability`,
     `militaryTechLevel`, `spaceFunding_year`, `numNuclearWeapons`,
-    `numControlPoints`, and each `publicOpinion` key on its own) that shifted
+    and each `publicOpinion` key on its own) that shifted
     past its threshold. A threshold is `max(floor, rate × months)` over the
     interval between the two save dates, so short intervals need a real step
-    and long ones more than routine drift; the two discrete counts fire on
+    and long ones more than routine drift; a nuclear arsenal fires on
     any change. Attributes are `statistic` (and `key` for `publicOpinion`),
     `before`, `after`, `relative_change` (`null` from zero) and
     `interval_days`; for the six statistics with a
@@ -1194,7 +1194,6 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 | `nation.release` / `nation.breakaway` (implemented) | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nothing |
 | `nation.cession` (implemented) | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
 | `nation.claims_declared` (implemented) | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
-| `nation.transformation` (implemented) | N's democracy, per-capita GDP, inequality, cohesion or unrest moved sharply together, with causes | two or more `nation.statistic_shifted` of one nation in a window and their `causes`; attached to the takeover, expansion, cession or release of the same nation when one exists | 1 to 2 intervals | nothing |
 
 Every geopolitical type carries `metric_shifts`: the nation statistic
 shifts of its nations inside its span, so a takeover or merger states what
@@ -1212,7 +1211,7 @@ evidence for the defaults is in
 date an event can have had: its record date, else its `not_before`. So
 consecutive intervals always touch, and a long interval never splits one
 development. *Anchored* windows count from the first member (takeover,
-release, transformation), *chained* windows from the latest (expansion).
+release), *chained* windows from the latest (expansion).
 
 -   `faction.takeover` (order 0, heuristic). Anchor: an executive or sole
     control change to a faction. Anchors of one nation and faction within
@@ -1264,19 +1263,13 @@ release, transformation), *chained* windows from the latest (expansion).
     are left out. `duration_days` is given only when the
     disappearance is record-dated; an interval-dated end gives
     `duration_days_at_most`, an upper bound, and an open war neither.
--   `nation.transformation` (order 2, by ID). Two or more distinct
-    statistics among democracy, GDP, inequality, cohesion and unrest of one
-    nation within the window. It is skipped when a takeover, expansion,
-    cession, release or breakaway naming the nation spans one of its
-    intervals. Its level comes from the shifts (minor).
 
 `metric_shifts` is a tuple of entries, one per nation, statistic and key,
 over the rule's nations and the intervals it spans. Each entry holds the
 earliest shift's `before`, the latest shift's `after`, the unsigned
 `relative_change`, the summed `causes` and the shift `events` by ID. The
 shifts are context, not constituents, so they never widen a span or change
-status, confidence or significance. Statistics that other events already
-tell (`numControlPoints`) are left out. A development keeps a bounded number
+status, confidence or significance. A development keeps a bounded number
 of entries (`narrative.geopolitics.metric_shifts_max`): its role nations'
 first, then nuclear weapons, then the largest relative change. It counts the
 rest as `metric_shifts_omitted`. The narrator package drops the `events`
@@ -1430,8 +1423,8 @@ context rule for the event type (recruit-pool councilors whose `faction` is
 `Enthrall` is `major`, a tier-3 organization changing hands is `major`,
 megafauna presence is `major`, a `nation.claims_changed` of the alien
 administration is `minor` and of a human nation `major`, a `nation.statistic_shifted` of
-`numNuclearWeapons` or `numControlPoints` is `major` and of any other
-statistic `minor`, a technology or project completion takes the tier of the
+`numNuclearWeapons` is `major` and of any other statistic `trivial` (a shift is evidence for the rules
+that explain it), a technology or project completion takes the tier of the
 curated milestone list and is `minor` when unlisted), then a per-type table,
 then the default. Each
 entry and threshold carries its evidence from

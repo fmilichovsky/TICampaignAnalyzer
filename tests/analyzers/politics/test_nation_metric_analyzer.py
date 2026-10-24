@@ -114,16 +114,23 @@ def test_placeholder_nations_are_skipped_but_a_nation_losing_its_regions_is_not(
 
 def test_a_statistic_without_a_tracker_has_no_causes_attribute() -> None:
     before, after = nation_pair(
-        {"regions": REGIONS, "numControlPoints": 1}, {"regions": REGIONS, "numControlPoints": 4}
+        {"regions": REGIONS, "numNuclearWeapons": 1}, {"regions": REGIONS, "numNuclearWeapons": 4}
     )
     (event,) = analyze(ANALYZER, before, after)
     assert dict(event.attributes) == {
-        "statistic": "numControlPoints",
+        "statistic": "numNuclearWeapons",
         "before": 1,
         "after": 4,
         "relative_change": 3.0,
         "interval_days": QUARTER,
     }
+
+
+def test_a_control_point_count_change_is_not_a_tracked_statistic() -> None:
+    before, after = nation_pair(
+        {"regions": REGIONS, "numControlPoints": 1}, {"regions": REGIONS, "numControlPoints": 4}
+    )
+    assert analyze(ANALYZER, before, after) == []
 
 
 def test_a_change_from_zero_has_no_ratio_and_always_reaches_a_relative_threshold() -> None:
