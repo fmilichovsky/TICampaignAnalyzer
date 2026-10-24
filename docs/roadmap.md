@@ -245,8 +245,9 @@ Target: a campaign recorded from every save the game writes, autosaves included,
 on demand in installments ([architecture, Mode D](architecture.md#continuous-capture-design) and
 [20.7](architecture.md#207-installments-design); tracking #207).
 
-- [x] Design: the capture, index, campaign and interval-cache layers of Mode D, the store layout of section 16, the
-  installments of 20.7; the save modes as hypotheses in [the save directory](game-data-notes/save-directory.md).
+- [x] Design: the capture, index, campaign and interval-cache layers of Mode D, lines across reloads, the store layout
+  of section 16, the installments of 20.7; the save modes as hypotheses in
+  [the save directory](game-data-notes/save-directory.md).
 - [ ] Evidence pass on the save directory: a read-only observation script, autosave rotation, combat and exit saves,
   write pattern and duration, folder location; the poll and settle defaults (#208).
 - [ ] Content-addressed save store: xz objects named by the SHA-256 of the save, the append-only capture log, one
@@ -257,6 +258,9 @@ on demand in installments ([architecture, Mode D](architecture.md#continuous-cap
   objects, with output identical to the same saves given as paths (#211).
 - [ ] `tinarrative watch`: polling with a settle check, capture before indexing, catch-up on start, `--once` for
   schedulers (#212).
+- [ ] Lines across reloads ([architecture](architecture.md#lines-design)): the continuity test over witness records,
+  the save tree, the current line by capture order, `--line`, abandoned lines listed, installments refusing a seal on
+  an abandoned line (#216).
 - [ ] Interval cache: round-trip serialization of events and situation reports, entries keyed by both save hashes and
   the analysis-code fingerprint, qualification on read, `store gc` (#213).
 - [ ] Narration installments: `narrate --append` with options fixed at the first installment, `middle…last` parts,

@@ -38,8 +38,18 @@ These are recorded in other notes and repeated here only for orientation:
    renames it or writes the final file directly (that is, whether a partly written save is ever visible), and whether
    the modification time follows the write.
 7. **Compression.** Not known whether a game setting writes compressed saves. The loader rejects them today.
-8. **Loading.** Not known whether loading a save writes anything (an autosave on load, a rewritten exit save).
-   Reloading an earlier save and playing on is the [campaign grouping](campaign-grouping.md) reload limit.
+8. **Loading.** Not known whether loading a save writes anything (an autosave on load, a rewritten exit save), or
+   whether the next autosaves after a reload overwrite the abandoned attempt's autosaves in rotation order.
+   Reloading an earlier save and playing on is the [campaign grouping](campaign-grouping.md) reload limit, which the
+   design's lines ([architecture, Mode D](../architecture.md#lines-design)) resolve.
+9. **Witnesses across a fork.** The records observed to be carried forward unchanged between consecutive manual saves
+   (strict-prefix logs, keyed logs that never lose a key, ledger entries never rewritten; see the
+   [field map](domain-field-map.md)) keep that property between consecutive autosaves, and disagree between two saves
+   played on from the same earlier save. Neither has been checked: the field-map observations cover manual saves of
+   one line only.
+10. **Modification times.** Within one directory the game's writes leave modification times in the order the saves
+    were written. The [campaign grouping](campaign-grouping.md) note saw modification times not follow game time,
+    which a reload or a copy would also explain.
 
 ## What the evidence pass records
 
@@ -51,4 +61,7 @@ time. From that log the pass records here, with the capture date:
 - the gap between consecutive autosaves in game time and in real time at the game's speeds, which sets the poll
   interval;
 - whether a partly written file is visible and for how long, which sets `settle_seconds`;
-- whether the folder location in point 1 holds.
+- whether the folder location in point 1 holds;
+- across at least one reload played on for several autosaves: which files the load and the following saves write,
+  whether every witness record of point 9 disagrees between the two attempts, and which do not;
+- whether modification times within the directory follow the order of the writes (point 10).

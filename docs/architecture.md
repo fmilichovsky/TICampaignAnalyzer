@@ -1891,6 +1891,8 @@ save directory ──(capture: poll, settle, copy)──→ objects + capture lo
                                                        ↓
                                        campaigns (grouping, unchanged)        inference
                                                        ↓
+                                       lines (save tree, current line)        inference
+                                                       ↓
                        sequence plan → intervals (cached) → events, narration
 ```
 
@@ -1931,15 +1933,15 @@ parser fingerprint is recomputed. Indexing runs after every pending capture,
 because a full parse is slow and the race is not.
 
 **Campaigns.** Grouping is the rule of Mode C, applied to index records:
-the same four signals, the same unclassified path and the same limits. That
-includes the reload limit: a campaign reloaded from an earlier save and played
-differently keeps its identity, so its branches interleave by game time. A
-store campaign has a stable ID, a short hash of the identity tuple, because
-the selector key's `#n` suffix depends on the listing. The selector key stays
-the name a user types.
+the same four signals, the same unclassified path and the same limits. A
+campaign reloaded from an earlier save and played differently keeps its
+identity. Grouping therefore keeps both lines in one group, and lines (below)
+split it. A store campaign has a stable ID, a short hash of the identity
+tuple, because the selector key's `#n` suffix depends on the listing. The
+selector key stays the name a user types.
 
-**Sequence.** `plan_sequence` runs on the index records of one campaign
-instead of a fresh survey, and snapshots load from objects. Byte-identical
+**Sequence.** `plan_sequence` runs on the index records of one line of a
+campaign instead of a fresh survey, and snapshots load from objects. Byte-identical
 captures merge into one save as they do today, with the captured names as
 aliases. A save later than every other one adds one interval. An earlier
 one, such as an old manual save imported late, splits one interval in two.
@@ -1967,6 +1969,73 @@ a growing campaign is narrated in installments (20.7).
 repository. The log carries counts, sizes and hash prefixes. It carries no
 file name, no path beyond `safe_path` and no string read from a save
 ([debugging](debugging.md)).
+
+### Lines (design)
+
+When the player loads an earlier save and plays on, the saves written after
+it on the first attempt stop being the campaign's history, but they stay in
+the store and keep the campaign's identity. Ordered by game time, the two
+attempts interleave, and every interval between them diffs two different
+timelines. *Lines* separate them. The design is staged on the roadmap
+(*Continuous capture*). Until it lands, the grouping limit stands: one
+campaign, one game-time order.
+
+**Continuity test.** Save B *continues* save A, A no later than B in game
+time, unless a *witness record* contradicts it. A witness is a save-carried
+record (4.3) that the game-data notes observe to be carried forward unchanged
+along one line of play: a log that only grows as a strict prefix, a keyed log
+that never loses a key, ledger entries that are never rewritten. A
+contradiction is a prefix log of A that is not a prefix of B's, a key of A
+missing from B, or an entry dated at or before A's game time that the two
+saves hold differently in a way pruning cannot explain. After a fork both
+attempts record their own battles, charges and losses, so their witnesses
+disagree. The witness set and the exact contradiction rules come from the
+notes, not from this section. The test has three results: `contradicted`,
+naming the record; `consistent`, with the number of witness entries compared;
+and `undetermined`, when there was nothing to compare. It is inference with
+provenance (sections 3 to 7), reported like the grouping signals.
+
+**Save tree.** A save's parent is the latest save before it in game time
+that it continues. The test runs from the nearest earlier save backwards, and
+the first save that is not contradicted is the parent, so a campaign without
+a reload costs one test per save and gives exactly today's sequence. Equal
+game times keep today's tie order within a line. `undetermined` counts as
+consistent, because the absence of evidence is not a fork. A fork save that
+was never captured is not needed: the new line's first save attaches to the
+nearest earlier save it continues, and its interval is longer.
+
+**Witness digest.** Each index record carries, per witness record, a digest
+from which the test can be decided: a hash chain over the entries of a prefix
+log, the key set of a keyed log, and the ledger entries by label and date. The
+test reads two index records and never a snapshot.
+
+**Lines.** A *fork* is a save with more than one child. A *line* is named by
+the key of its first save after a fork, and the original line by the
+campaign's first save. Selecting a line takes the path from the campaign's
+first save through the line's first save to its newest descendant; at every
+later fork the path follows the child that holds the most recently captured
+save. `plan_sequence`, interval keys and qualified IDs run on that path alone,
+unchanged. The interval cache is keyed by save hashes, so it serves every
+line.
+
+**Current line.** In a store, the current line is the one that holds the most
+recently captured save, by the capture log. Within one catch-up batch, file
+modification time breaks the tie, once the notes confirm that it follows the
+game's writes. Saves given as paths (Mode C) have no capture order. A campaign
+with more than one line is then treated like a directory with more than one
+campaign: `events` and `narrate` require a line, list the lines and exit 2, or
+ask through the picker in a terminal. `latest` picks by modification time, as
+it does for campaigns.
+
+**Abandoned lines** are kept and never deleted. The campaign listing shows each
+line: its fork, its first and last game time, its save count, and whether it
+is current. Any line can be analyzed or narrated by name, so an abandoned
+attempt reads as an alternate history. No narrative mentions a reload, which
+is an act of the player, not an event of the campaign.
+
+**Capture is unchanged.** A live capture earlier in game time than its
+campaign's newest save suggests a reload. The tree is still built from the
+content of the saves, never from that hint.
 
 ------------------------------------------------------------------------
 
@@ -2435,6 +2504,12 @@ longer what the package would say. The manifest lists the drift: sealed
 development IDs that no longer exist, and saves inside sealed spans that no
 sealed request covered. Nothing is re-narrated silently. The user chooses to
 unseal from an installment onward, and the narration resumes from there.
+
+A reload (Mode D, *Lines*) can leave a seal on an abandoned line. The sealed
+prose then tells a future that the current line no longer has. Appending
+refuses, and names the first installment that covers saves off the current
+line. The user either re-narrates from that installment on the current line,
+or keeps narrating the line the seal is on.
 
 ------------------------------------------------------------------------
 
