@@ -85,6 +85,7 @@ no documented campaign semantics. The filesystem time is read only to resolve
 - Numeric IDs may be allocated similarly in separately started campaigns;
   matching one ID alone is not sufficient evidence.
 - Hypothesis, not observed: a campaign reloaded from an earlier save and played differently keeps
-  all four signals, so its branches would form one group and interleave by game time.
+  all four signals, so its branches would form one group and interleave by game time. Continuous
+  capture makes this likelier, since it keeps the autosaves of an abandoned line as well.
 - Multiplayer, modded, migrated, or damaged saves may contain zero or more
   than one non-AI player. They intentionally fall into the unclassified path.

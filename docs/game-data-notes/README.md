@@ -28,6 +28,9 @@ The [state-type inventory](state-type-inventory.md) is the complete observed env
 
 [Chronology and duplicate snapshots](chronology-and-deduplication.md) defines the observed ordering and byte-level deduplication behavior needed before producing a campaign sequence.
 
+[The save directory](save-directory.md) lists the save modes the game writes (manual, rotating autosaves, combat and
+exit saves) as the hypotheses that continuous capture must check before it depends on them.
+
 [Campaign grouping](campaign-grouping.md) records the observed campaign signals
 and the identity rule that partitions a mixed directory into campaigns when no
 explicit campaign identifier is serialized.
