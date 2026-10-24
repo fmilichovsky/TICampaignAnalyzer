@@ -463,6 +463,8 @@ def test_metric_shifts_are_attributes_citing_the_shift_events_and_never_constitu
         "date": K1,
         "date_basis": "interval",
         "causes": FrozenMap((("democracyReason_Test", -2.0),)),
+        "from_band": "Anocracy",
+        "to_band": "Authoritarian",
         "events": (first.id,),
     }
 

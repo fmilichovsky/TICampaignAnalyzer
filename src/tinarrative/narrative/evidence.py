@@ -60,6 +60,8 @@ _EVIDENCE: tuple[str, ...] = (
     "faction.transaction_recorded",
     # The statistic shifts behind a development's metric_shifts or a takeover's precursors, with their causes.
     "nation.statistic_shifted",
+    # The band crossing behind a band-shift development, with the game's band labels and its causes.
+    "nation.band_crossed",
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)

@@ -10,9 +10,10 @@ Each rule emits only from its anchor and attaches further events by entity, and 
 
 A rule whose window can still take events from a later save says so with ``open``; a one-interval rule is never
 open. Every rule carries ``metric_shifts`` (``metric_shifts``), the nation statistic shifts of its nations in the
-intervals it spans, as literal values: no band label ("democratic") is ever assigned. The shifts are named by event
-ID and are not constituents, so they never widen a span or change status, confidence or significance. They are
-bounded per development (``bounded_shifts``), the cut counted.
+intervals it spans, as literal values with the game's own band labels (``analyzers.politics.bands``) and no other:
+never a label of ours ("democratic"). The shifts are named by event ID and are not constituents, so they never widen
+a span or change status, confidence or significance. They are bounded per development (``bounded_shifts``), the cut
+counted.
 
 Order 0 builds on the atomic stream; ``nation.expansion`` (order 1) nests the cessions it is made of; ``war.arc``
 (order 2) nests the expansions fought out between belligerents. No rule names a motive, an assistance without army
@@ -25,6 +26,7 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from ..analyzers.politics.bands import BANDS, band
 from ..config import GeopoliticsSettings
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
@@ -149,8 +151,9 @@ def metric_shifts(
     An entry holds ``nation``, ``statistic``, ``key`` (public opinion only), ``before`` (the earliest shift's value),
     ``after`` (the latest shift's), the unsigned ``relative_change`` between them, ``not_before`` (the earliest shift's)
     and ``date`` with its ``date_basis`` (the latest shift's), which bound when the net change happened, the summed
-    per-reason ``causes`` when the shifts carry them, and the shift ``events`` by ID. The net covers the reported
-    shifts only: an interval in between whose change stayed below the analyzer's threshold is not reported.
+    per-reason ``causes`` when the shifts carry them, the game's ``from_band`` and ``to_band`` of a banded statistic,
+    and the shift ``events`` by ID. The net covers the reported shifts only: an interval in between whose change
+    stayed below the analyzer's threshold is not reported.
     ``windows`` limits a nation to its own intervals; a nation without a window keeps all of ``intervals``.
     """
     wanted, keys = set(nations), set(intervals)
@@ -182,6 +185,8 @@ def metric_shifts(
         ]
         if key:
             items.append(("key", key))
+        if statistic in BANDS and low is not None and high is not None:
+            items.extend((("from_band", band(statistic, low)), ("to_band", band(statistic, high))))
         causes = _summed_causes(shifts)
         if causes is not None:
             items.append(("causes", causes))

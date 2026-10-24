@@ -70,6 +70,9 @@ _TRIVIAL: tuple[str, ...] = (
     # Organizations are created and removed in bulk.
     "organization.appeared",
     "organization.disappeared",
+    # A band crossing is the evidence a band-shift development is built from; on its own it may be the game
+    # converging the statistic towards its rest value.
+    "nation.band_crossed",
     # Log housekeeping: the game prunes and rewrites kept entries.
     "notification.entry_removed",
     "notification.entry_changed",

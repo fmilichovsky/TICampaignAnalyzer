@@ -191,6 +191,23 @@ Observations behind the table:
 - **Education above 10** held on 14 nations in the first Resist save and 16 in the last (highest 12.6), none in
   Appease or Protectorate.
 
+### Band shifts as built
+
+The table is `analyzers/politics/bands.py`; `nation.band_crossed` applies the margin and the `nation.*_shift` rules
+the rest-value filter, the hold and carrier suppression (architecture 11.3). Over the private saves (2026-10-24,
+`events --narrative`, default settings), **observed**:
+
+- `nation.band_crossed` per interval matched the margin column above to within a few nations (Protectorate 245 d:
+  130 cohesion, 73 unrest, 1 inequality).
+- `nation.unrest_shift`: 8 in the Protectorate 245-day interval, 0 to 2 elsewhere.
+- `nation.cohesion_shift`: 31 in the Protectorate 245-day interval (the move must be two bands both with and
+  without the rest-value delta, or cross 1 or 9), 4 in the Appease 7-day interval, 0 to 2 elsewhere. A
+  cohesion move whose rest-value delta runs against it widens under the filter alone; requiring the unfiltered
+  move to be two bands too keeps those out.
+- No government, education, inequality or military-tech shift: the three margin crossings (one inequality in
+  Protectorate, one inequality and one democracy in Resist) fell in the same interval as a takeover or release of
+  their nation, whose `metric_shifts` carry them.
+
 ## Nuclear weapons and programs
 
 `numNuclearWeapons` and `nuclearProgram` did not change in any Appease or Protectorate interval: 9 nations held

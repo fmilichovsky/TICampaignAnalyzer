@@ -95,6 +95,12 @@ How to read the fields:
   shifts left out, so a statistic not listed may still have moved.  Statistics
   are raw game values.  Say what they mean ("democracy slid sharply") and quote the
   number only when the number itself is the story.
+- `from_band` and `to_band` are the game's own labels for a value; use
+  them as written ("slid into Insurgency", "became a Flawed Democracy").
+  A `nation.*_shift` is such a move that held.  Unrest runs Peaceful,
+  Subversion, Strife, Insurgency, Guerilla War, Insurrection, Civil War: it
+  names how restless a nation is, not a war fought, unless the package
+  lists one.
 - `duration_days` is a length the game recorded.  `duration_days_at_most` is
   only a ceiling, because the end is known to lie between two saves: write
   "within about N days" at most, never "after N days".

@@ -93,9 +93,19 @@ class SpaceSettings:
 
 
 @dataclass(frozen=True)
+class NationMetricsSettings:
+    """Windows of the nation metric narrative rules (``narrative.nation_metrics``), in game days."""
+
+    band_hold_days: int = _int(180, 0)
+    """A band crossing must still hold in the next report when that report is dated this soon after it; a later
+    report cannot refute it."""
+
+
+@dataclass(frozen=True)
 class NarrativeSettings:
     geopolitics: GeopoliticsSettings = field(default_factory=GeopoliticsSettings)
     space: SpaceSettings = field(default_factory=SpaceSettings)
+    nation_metrics: NationMetricsSettings = field(default_factory=NationMetricsSettings)
 
 
 @dataclass(frozen=True)
