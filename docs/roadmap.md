@@ -181,8 +181,8 @@ built from the developments catalogued in
     nuclear, space-support and military assets (#189);
   - [x] significance: shifts `trivial` by default and `numNuclearWeapons` `major`; `numControlPoints` no longer a
     tracked statistic; `nation.transformation` and `transformation_window_days` removed (#190);
-  - [ ] bands as game vocabulary (`narrative/bands.py`), `nation.band_crossed` with the margin and the tracker
-    causes, one band-shift rule per statistic (`nation.unrest_shift`, `nation.government_shift`,
+  - [x] bands as game vocabulary (`analyzers/politics/bands.py`, margins fixed there), `nation.band_crossed` with
+    the margin and the tracker causes, one band-shift rule per statistic (`nation.unrest_shift`, `nation.government_shift`,
     `nation.education_shift`, `nation.cohesion_shift`, `nation.inequality_shift`, `nation.miltech_shift`) with the
     rest-value filter, confirmation by the next report and carrier suppression; `from_band` / `to_band` on
     `metric_shifts`; the architecture's band-label rule amended for game-defined bands (#191);

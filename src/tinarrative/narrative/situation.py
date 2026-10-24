@@ -40,7 +40,16 @@ from ..reconstruction.control import Holder
 
 logger = get_logger(__name__)
 
-STATISTICS = ("democracy", "cohesion", "unrest", "inequality", "GDP", "spaceFunding_year")
+STATISTICS = (
+    "democracy",
+    "cohesion",
+    "unrest",
+    "inequality",
+    "education",
+    "militaryTechLevel",
+    "GDP",
+    "spaceFunding_year",
+)
 """The nation fields reported literally as regime statistics."""
 NUCLEAR_COUNTERS = (NUCLEAR_STRIKES, "looseNukes", "currentNuclearExchanges")
 CLIMATE_COUNTERS = (

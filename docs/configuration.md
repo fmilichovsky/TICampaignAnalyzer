@@ -61,6 +61,7 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.space.campaign_gap_days` | 365 | 0 | Battle outcomes of one killer and victim pair chain into one `faction.space_campaign` while each follows the previous one this soon. |
 | `narrative.space.colonisation_window_days` | 180 | 0 | First habs on new bodies of one faction this soon after the first form one `faction.colonisation_wave`. |
 | `narrative.space.buildup_min_ships` | 5 | 2 | A `faction.fleet_buildup` needs at least this many ships of one hull appearing for one faction in one interval. |
+| `narrative.nation_metrics.band_hold_days` | 180 | 0 | A band shift (`nation.unrest_shift`, `nation.government_shift`, ...) needs its band crossing to still hold in the next situation report when that report is dated this soon after it; a later report cannot refute it, and a crossing in the last interval is kept and `open` ([events](commands/events.md#narrative-events)). |
 
 The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](architecture.md#203-token-budget-and-chapters)):
 

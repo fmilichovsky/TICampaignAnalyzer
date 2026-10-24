@@ -3,6 +3,7 @@
 from .control_points import ControlPointAnalyzer
 from .councilors import CouncilorAnalyzer
 from .federations import FederationAnalyzer
+from .nation_bands import NationBandAnalyzer
 from .nation_metrics import NationMetricAnalyzer
 from .nations import NationAnalyzer
 from .organizations import OrganizationAnalyzer
@@ -13,6 +14,7 @@ __all__ = [
     "CouncilorAnalyzer",
     "FederationAnalyzer",
     "NationAnalyzer",
+    "NationBandAnalyzer",
     "NationMetricAnalyzer",
     "OrganizationAnalyzer",
     "WarAnalyzer",

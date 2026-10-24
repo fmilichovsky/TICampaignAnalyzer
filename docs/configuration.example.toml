@@ -47,6 +47,12 @@ colonisation_window_days = 180
 # for one faction in one interval.
 buildup_min_ships = 5
 
+[narrative.nation_metrics]
+# A band crossing must still hold in the next situation report when that
+# report is dated this soon after it to become a nation.*_shift; a later
+# report cannot refute it.
+band_hold_days = 180
+
 [narrator]
 # The budget of tinarrative narrate; it never changes what events builds. 
 # One request's estimated input, system prompt, request block

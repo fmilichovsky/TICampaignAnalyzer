@@ -36,6 +36,7 @@ EVIDENCE = [
     "councilor.detaining_faction_changed",
     "councilor.disappeared",
     "nation.statistic_shifted",
+    "nation.band_crossed",
 ]
 BOOKKEEPING = [
     "control_point.controller_changed",

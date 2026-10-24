@@ -172,7 +172,7 @@ class NationMetricAnalyzer:
         return events
 
 
-def _placeholder(nation: EntityId, lookup: Lookup) -> bool:
+def placeholder(nation: EntityId, lookup: Lookup) -> bool:
     """A nation without regions on both sides (its statistics are frozen); unknown sides are not placeholders."""
     for side in (Side.BEFORE, Side.AFTER):
         state = lookup.state(nation, side)
@@ -195,7 +195,7 @@ def _statistic_shift(
     before, after = number(change.before), number(change.after)
     if before is None or after is None:
         return None
-    if _placeholder(nation, lookup) or not is_shift(before, after, threshold, days):
+    if placeholder(nation, lookup) or not is_shift(before, after, threshold, days):
         return None
     sources = [primary(change)]
     attributes: list[tuple[str, Observed]] = [
@@ -243,7 +243,7 @@ def cause_deltas(before: Observed, after: Observed) -> FrozenMap | Unknown:
 def _opinion_shifts(change: StateChange, days: float | None, lookup: Lookup, build: EventBuilder) -> list[Event]:
     """One event per ``publicOpinion`` key whose share shifted past the threshold (a missing key is 0)."""
     nation = change.entity_id
-    if change.kind is not ChangeKind.MAP or nation is None or _placeholder(nation, lookup):
+    if change.kind is not ChangeKind.MAP or nation is None or placeholder(nation, lookup):
         return []
     if not (isinstance(change.before, FrozenMap) and isinstance(change.after, FrozenMap)):
         return []

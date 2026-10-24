@@ -682,6 +682,15 @@ Ownership and control are kept distinct by analyzer and type prefix:
     thresholds and their evidence live in that module; the event never names
     what the causes amount to (annexation, unification), which is
     reconstruction.
+-   `nation.band_crossed` (`analyzers/politics/nation_bands.py`,
+    `NationBandAnalyzer`) reports `unrest`, `democracy`, `education`,
+    `cohesion`, `inequality` or `militaryTechLevel` moving into another of
+    the game's value bands (`analyzers/politics/bands.py`) when the value
+    ends a margin beyond the last boundary it crossed. Attributes are
+    `statistic`, `before`, `after`, `from_band`, `to_band`, `bands_crossed`,
+    `margin` and `interval_days`, plus `causes` (as above) and
+    `rest_value_share`, the `*MovementToRestValue` delta's share of the cause
+    deltas, for the statistics with a tracker. Placeholders are skipped.
 -   `war.*` (`analyzers/politics/wars.py`, `TIWarState` objects of the `war`
     domain) speaks about `war.appeared` (record-dated by the war's literal
     `startDate` when present) and `war.disappeared`, each citing every nation
@@ -1194,12 +1203,16 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 | `nation.release` / `nation.breakaway` (implemented) | parent released N / N broke away under faction X | `nation.independence` (`released`), `nation.appeared`, the new nation's control event, `nation.breakaway_parent_changed` | 1 to 2 intervals | nothing |
 | `nation.cession` (implemented) | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
 | `nation.claims_declared` (implemented) | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
+| `nation.unrest_shift`, `nation.government_shift`, `nation.education_shift`, `nation.cohesion_shift`, `nation.inequality_shift`, `nation.miltech_shift` (implemented) | N moved into another of the game's bands of unrest, democracy, education, cohesion, inequality or military tech ("slid into Insurgency") and held it | `nation.band_crossed`, confirmed by the next report | 1 interval | nothing |
 
 Every geopolitical type carries `metric_shifts`: the nation statistic
 shifts of its nations inside its span, so a takeover or merger states what
-it did to democracy, GDP and inequality without a separate event. Band
-labels ("totalitarian", "democratic") are not assigned; the literal values
-and relative changes are.
+it did to democracy, GDP and inequality without a separate event. The only
+band labels assigned are the game's own (Peaceful ... Civil War,
+Totalitarian ... Full Democracy, Industrial ... Fusion), a published table in
+`analyzers/politics/bands.py` whose provenance is in
+[nation statistics](game-data-notes/nation-metrics.md#value-bands); no label
+of ours ("democratic") is, and the literal values and relative changes stay.
 
 ### Implemented contract (`src/tinarrative/narrative/geopolitics.py`)
 
@@ -1264,10 +1277,30 @@ release), *chained* windows from the latest (expansion).
     disappearance is record-dated; an interval-dated end gives
     `duration_days_at_most`, an upper bound, and an open war neither.
 
+-   `nation.<statistic>_shift` (order 2, by ID; one rule class, one
+    instance per banded statistic, `config.NationMetricsSettings`). Anchor:
+    a `nation.band_crossed`, which the analyzer emits only when the value
+    ends a margin beyond the last boundary it crossed. A shift needs the
+    crossing to be a story on its own: unrest and cohesion must still cross
+    once the interval's `*MovementToRestValue` cause delta is taken out
+    (the game converging to a rest value), and cohesion, whose bands are
+    one unit wide, must move two bands with and without it or cross an
+    extreme (Fragmented, Hegemonic). It must hold: a report dated within
+    `band_hold_days` after the crossing still has the value past the
+    boundary; a crossing in the last interval is kept and open. It is
+    suppressed when a takeover, expansion, cession, release or breakaway
+    (and a war arc, for unrest and cohesion) names the nation in the same
+    interval, since that development's `metric_shifts` carry it. Government,
+    education and military tech are major; unrest is major for two bands or
+    across Insurgency, else minor; inequality major for two bands, else
+    minor; cohesion major at the extremes, else minor. A nation within
+    `top_gdp_nations` is promoted one level.
+
 `metric_shifts` is a tuple of entries, one per nation, statistic and key,
 over the rule's nations and the intervals it spans. Each entry holds the
 earliest shift's `before`, the latest shift's `after`, the unsigned
-`relative_change`, the summed `causes` and the shift `events` by ID. The
+`relative_change`, the summed `causes`, the game's `from_band` and
+`to_band` of a banded statistic and the shift `events` by ID. The
 shifts are context, not constituents, so they never widen a span or change
 status, confidence or significance. A development keeps a bounded number
 of entries (`narrative.geopolitics.metric_shifts_max`): its role nations'
@@ -1424,7 +1457,7 @@ context rule for the event type (recruit-pool councilors whose `faction` is
 megafauna presence is `major`, a `nation.claims_changed` of the alien
 administration is `minor` and of a human nation `major`, a `nation.statistic_shifted` of
 `numNuclearWeapons` is `major` and of any other statistic `trivial` (a shift is evidence for the rules
-that explain it), a technology or project completion takes the tier of the
+that explain it; a `nation.band_crossed` is `trivial` in the table for the same reason), a technology or project completion takes the tier of the
 curated milestone list and is `minor` when unlisted), then a per-type table,
 then the default. Each
 entry and threshold carries its evidence from

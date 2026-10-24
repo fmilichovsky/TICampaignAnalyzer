@@ -202,12 +202,18 @@ span intervals, such as a takeover and its consolidation or a war from start to 
 because rules build on inferred events. The geopolitical rules of
 [architecture 11.3](../architecture.md#113-first-catalogue) are implemented: `faction.takeover`,
 `war.arc`, `federation.lifecycle`, `nation.expansion`, `nation.cession`, `nation.release` /
-`nation.breakaway` and `nation.claims_declared`. Each carries the nation
+`nation.breakaway` and `nation.claims_declared`, and the band shifts `nation.unrest_shift`,
+`nation.government_shift`, `nation.education_shift`, `nation.cohesion_shift`, `nation.inequality_shift` and
+`nation.miltech_shift`: a `nation.band_crossed` into another of the game's value bands that is not the game
+converging to a rest value, holds in the next report dated within `narrative.nation_metrics.band_hold_days`, and is
+not carried by another development naming the nation in that interval (`statistic`, `before`, `after`, `from_band`,
+`to_band`, `bands_crossed`, `gdp_rank`). Each carries the nation
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
 A `metric_shifts` entry has `nation`, `statistic`, `key` (public opinion only), `before` (the earliest
 shift's value), `after` (the latest's), the unsigned `relative_change`, `not_before` (the earlier save of the
 earliest shift), `date` and `date_basis` (the later save of the latest shift: the net change happened between
-`not_before` and `date`), the summed per-reason `causes` when the shifts carry them, and the shift `events` by ID.
+`not_before` and `date`), the summed per-reason `causes` when the shifts carry them, the game's `from_band` and `to_band` of unrest,
+democracy, education, cohesion, inequality and military tech, and the shift `events` by ID.
 A development
 keeps at most `narrative.geopolitics.metric_shifts_max` entries ([configuration](../configuration.md)): those of its
 role nations first, then `numNuclearWeapons`, then the largest `relative_change` (entries without one last, ties by

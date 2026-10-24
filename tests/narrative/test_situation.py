@@ -151,6 +151,8 @@ def test_a_nation_reports_its_executive_holder_and_point_shares() -> None:
         "cohesion": 5.0,
         "unrest": 1.5,
         "inequality": 0.3,
+        "education": Unknown(),
+        "militaryTechLevel": Unknown(),
         "GDP": 900.0,
         "spaceFunding_year": Unknown(),
     }

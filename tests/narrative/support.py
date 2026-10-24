@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from tinarrative.model.changes import StateChange
@@ -135,8 +135,9 @@ def nation_row(
     federation: Observed = None,
     allies: Sequence[EntityRef] = (),
     alien: bool = False,
+    statistics: Mapping[str, Observed] | None = None,
 ) -> NationSituation:
-    """A nation row; ``shares`` are points held per faction."""
+    """A nation row; ``shares`` are points held per faction, ``statistics`` the values besides ``GDP``."""
     return NationSituation(
         nation=item,
         executive=executive,  # type: ignore[arg-type]
@@ -151,7 +152,7 @@ def nation_row(
         wars=(),
         regions=Unknown(),
         population=Unknown(),
-        statistics=(("GDP", gdp),),
+        statistics=(("GDP", gdp), *(statistics or {}).items()),
         alien=alien,
     )
 

@@ -246,6 +246,15 @@ def _statistic_shifted(event: Event) -> str:
     return f"{_subject(event)} {_transition(event, label)}"
 
 
+def _band_crossed(event: Event) -> str:
+    """``<nation> <statistic>: <band> -> <band> (before -> after)``; the game's own band labels."""
+    return f"{_subject(event)} {_bands(event)} ({_attr(event, 'before')} -> {_attr(event, 'after')})"
+
+
+def _bands(event: Event) -> str:
+    return f"{_text(event, 'statistic')}: {_text(event, 'from_band')} -> {_text(event, 'to_band')}"
+
+
 def _refs(event: Event, name: str) -> str:
     """A tuple attribute of references as a comma-separated list of IDs."""
     value = event.attribute(name)
@@ -490,6 +499,10 @@ def _takeover(event: Event) -> str:
     return text
 
 
+def _band_shift(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} {_bands(event)}"
+
+
 def _war_arc(event: Event) -> str:
     text = f"{_attr(event, 'war')} between {_role(event, Role.ACTOR)} and {_role(event, Role.TARGET)}"
     regions = event.attribute("regions_transferred")
@@ -612,6 +625,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.appeared": _nation_presence,
     "nation.disappeared": _nation_presence,
     "nation.statistic_shifted": _statistic_shifted,
+    "nation.band_crossed": _band_crossed,
     "nation.claims_changed": _claims_changed("claims"),
     "nation.hostile_claims_changed": _claims_changed("hostile claims"),
     "nation.renamed": _renamed,
@@ -713,6 +727,12 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.release": _release,
     "nation.breakaway": _breakaway,
     "nation.claims_declared": _claims_declared,
+    "nation.unrest_shift": _band_shift,
+    "nation.government_shift": _band_shift,
+    "nation.education_shift": _band_shift,
+    "nation.cohesion_shift": _band_shift,
+    "nation.inequality_shift": _band_shift,
+    "nation.miltech_shift": _band_shift,
     "faction.space_campaign": _space_campaign,
     "faction.colonisation_wave": _colonisation_wave,
     "campaign.first_milestone": _first_milestone,
