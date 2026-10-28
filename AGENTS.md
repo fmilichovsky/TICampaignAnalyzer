@@ -38,6 +38,9 @@ touching the model or pipeline.
 - `src/tinarrative/maintenance/` — `tinarrative unknowns`: scans saves and maintains
   that registry. A tool package like `inspection`, not a pipeline stage.
 - `scripts/verify_fixture_manifest.py` — validates the versioned fixture set.
+- `scripts/observe_saves.py` — read-only logger of the game's save directory for the continuous-capture evidence
+  pass; archives every save version and the player's notes. Stdlib only, no `tinarrative` import; usage in
+  [scripts/observe_saves.md](scripts/observe_saves.md). Its log and archive stay private.
 - `benchmarks/` — real sample campaigns (`samples/`, xz-compressed) and the `events`/`narrate` run matrix that
   `scripts/package_metrics.py` measures package sizes with; CI posts base-vs-head on every PR
   ([.github/workflows/package-metrics.yml](.github/workflows/package-metrics.yml),

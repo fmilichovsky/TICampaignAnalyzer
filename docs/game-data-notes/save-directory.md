@@ -53,9 +53,13 @@ These are recorded in other notes and repeated here only for orientation:
 
 ## What the evidence pass records
 
-A read-only logger polls the directory while a campaign is played and records, per change: base file name, size,
-modification time, a hash prefix and the game time from the save's header. It records no save value beyond that game
-time. From that log the pass records here, with the capture date:
+A read-only logger, `scripts/observe_saves.py` ([usage](../../scripts/observe_saves.md)), polls the directory while
+a campaign is played. Per change it records the base file name, size, modification, change and birth times, inode,
+SHA-256 and the game time from the save's header, and it marks a read that overlapped a write. It records no save
+value beyond that game time. Every distinct save version it read whole is kept in a private archive, so the witness
+records of point 9 can be compared afterwards, including on autosaves the game has since overwritten. The player's
+notes (which save was loaded, battles, exits) are logged alongside as the ground truth for reloads. From the log and
+the archive the pass records here, with the capture date:
 
 - the files each save mode writes, and how rotation moves an autosave between names;
 - the gap between consecutive autosaves in game time and in real time at the game's speeds, which sets the poll
