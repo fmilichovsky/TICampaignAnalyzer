@@ -58,6 +58,12 @@ buildup_min_armies = 2
 # Boost or mission control growth of one nation this soon after the previous
 # chains into one nation.space_program_growth.
 space_assets_window_days = 365
+# Nuclear arsenal shifts of one nation this soon after the previous chain into
+# one nation.nuclear_armament, nuclear_buildup or nuclear_disarmament.
+nuclear_window_days = 365
+# A nation.nuclear_buildup gains at least this many weapons, or half the
+# arsenal it started from.
+nuclear_buildup_min = 5
 # world.ranking_changed reports changes of the top this many nations by GDP,
 # strength, boost and mission control (at most 20); situation reports list
 # this many spaceports.

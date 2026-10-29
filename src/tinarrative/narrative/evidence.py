@@ -55,6 +55,8 @@ _EVIDENCE: tuple[str, ...] = (
     # A boost, mission control or space defences move with the share territory carried, behind a space program or
     # the first space defences.
     "nation.space_assets_changed",
+    # A nuclear program starting, behind a nation's first nuclear weapons.
+    "nation.nuclear_program_changed",
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)

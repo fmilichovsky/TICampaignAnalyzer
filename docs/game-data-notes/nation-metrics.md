@@ -242,6 +242,12 @@ hold 0 weapons or have been absorbed, and the one still present holds 6 regions 
 four nations of its former territory present as separate nations. `policy_noNukes` was false on every nation of
 every save. The 32-sample `historyNukes` buffer cannot date these changes.
 
+Read through the nuclear arcs (2026-10-29, `events --narrative`, default settings), **observed**: the last Resist
+interval holds two `nation.nuclear_armament`, each citing a `nation.nuclear_program_changed` of its nation, both
+`major` (GDP places 18 and 21). No buildup or disarmament in any interval of any campaign, and no
+`nation.policy_changed`. The dismantling of the two largest 2026 arsenals predates the Resist saves and is not
+datable from them.
+
 ## Space-support assets
 
 Summing the region fields over a nation's regions:

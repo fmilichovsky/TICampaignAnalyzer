@@ -1,5 +1,5 @@
-"""The nation metric narrative rules: band shifts, population collapse, per-capita GDP trajectory. See architecture
-11.3.
+"""The nation metric narrative rules: band shifts, population collapse, per-capita GDP trajectory, nuclear arcs. See
+architecture 11.3.
 
 No rule names why a value changed: the causes stay evidence for the narrator.
 """
@@ -11,7 +11,9 @@ from dataclasses import dataclass
 
 from ..analyzers.politics.bands import BANDS, crossed, rest_value_delta
 from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, PCGDP_TREND, TREND_QUARTERS
+from ..analyzers.politics.nation_metrics import STATISTIC_SHIFTED
 from ..analyzers.politics.nation_population import DROP, POPULATION_CHANGED
+from ..analyzers.politics.nations import NUCLEAR_PROGRAM_CHANGED
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from ..model.entities import EntityId
 from ..model.events import Event, Role, Significance
@@ -28,14 +30,38 @@ from .geopolitics import (
     bounded_shifts,
     gdp_rank,
     metric_shifts,
+    strength_rank,
 )
-from .rulekit import by_subject, by_type, latest, refs_attribute, sorted_keys, subject, within
+from .rulekit import (
+    by_subject,
+    by_type,
+    chained,
+    earliest,
+    intervals_of,
+    last_date,
+    latest,
+    overlaps,
+    refs_attribute,
+    shifted,
+    sorted_keys,
+    subject,
+    within,
+)
 from .situation import SituationReport
 
 BAND_CROSSED = "nation.band_crossed"
 POPULATION_COLLAPSE = "nation.population_collapse"
 ECONOMIC_TRAJECTORY = "nation.economic_trajectory"
 NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
+NUCLEAR_ARC = "nation.nuclear_arc"
+NUCLEAR_ARMAMENT = "nation.nuclear_armament"
+NUCLEAR_BUILDUP = "nation.nuclear_buildup"
+NUCLEAR_DISARMAMENT = "nation.nuclear_disarmament"
+NUCLEAR_WEAPONS = "numNuclearWeapons"
+NUCLEAR_SHARE = 0.5
+"""A buildup gains, and a disarmament loses, at least this share of the arsenal it started from."""
+LARGE_ARSENAL = 10
+"""Dismantling an arsenal at least this large to zero is campaign defining."""
 TREND_WINDOW_DAYS = round(TREND_QUARTERS * MONTHS_PER_QUARTER * 365.25 / 12)
 
 BAND_SHIFTS: Mapping[str, str] = {
@@ -332,11 +358,91 @@ def _trend_runs(events: Sequence[Event]) -> list[list[Event]]:
     return runs
 
 
+@dataclass(frozen=True)
+class NuclearArcRule:
+    """``nation.nuclear_armament`` / ``nuclear_buildup`` / ``nuclear_disarmament``: a nation's arsenal shifts, chained.
+
+    The size of the move is the run's first ``before`` to its last ``after``; a smaller net move stays context.
+    """
+
+    settings: NationMetricsSettings
+    geopolitics: GeopoliticsSettings
+    name: str = NUCLEAR_ARC
+    order: int = 2
+
+    @property
+    def window_days(self) -> int:
+        return self.settings.nuclear_window_days
+
+    def apply(
+        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+    ) -> list[Event]:
+        days = self.settings.nuclear_window_days
+        reports = interval_reports(situations)
+        shifts = [
+            event for event in by_type(stream, STATISTIC_SHIFTED) if event.attribute("statistic") == NUCLEAR_WEAPONS
+        ]
+        programs = by_subject(
+            event for event in by_type(stream, NUCLEAR_PROGRAM_CHANGED) if event.attribute("after") is True
+        )
+        grouped = by_subject(shifts)
+        built = []
+        for nation_id in sorted_keys(grouped):
+            for run in chained(grouped[nation_id], days):
+                first, last = run[0], run[-1]
+                nation = subject(first)
+                start, end = _number(first.attribute("before")), _number(last.attribute("after"))
+                pair = reports.get(intervals_of(run)[-1])
+                if nation is None or start is None or end is None or pair is None:
+                    continue
+                report = pair[1]
+                corroborating: list[Event] = []
+                if start == 0 < end:
+                    event_type = NUCLEAR_ARMAMENT
+                    rank = gdp_rank(report, nation_id)
+                    top = rank is not None and rank <= self.geopolitics.top_gdp_nations
+                    level = Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR
+                    low = shifted(earliest(first), -days)
+                    corroborating = [
+                        event for event in programs.get(nation_id, []) if overlaps(event, low, latest(last))
+                    ]
+                elif 0 < start < end and (
+                    end - start >= self.settings.nuclear_buildup_min or end - start >= NUCLEAR_SHARE * start
+                ):
+                    event_type, level = NUCLEAR_BUILDUP, Significance.MAJOR
+                elif start > end and start - end >= NUCLEAR_SHARE * start:
+                    event_type = NUCLEAR_DISARMAMENT
+                    dismantled = end == 0 and start >= LARGE_ARSENAL
+                    level = Significance.CAMPAIGN_DEFINING if dismantled else Significance.MAJOR
+                else:
+                    continue
+                built.append(
+                    build.event(
+                        event_type,
+                        id_parts=[nation_id],
+                        constituents=run,
+                        corroborating=corroborating,
+                        roles=[(Role.ACTOR, nation)],
+                        join=Join.ENTITY,
+                        attributes=(
+                            ("before", start),
+                            ("after", end),
+                            ("gdp_rank", gdp_rank(report, nation_id)),
+                            ("strength_rank", strength_rank(report, nation_id)),
+                        ),
+                        significance=level,
+                        open=within(latest(last), last_date(situations), days),
+                    )
+                )
+        return built
+
+
 def nation_metric_rules(
     settings: NarrativeSettings,
-) -> tuple[BandShiftRule | PopulationCollapseRule | EconomicTrajectoryRule, ...]:
+) -> tuple[BandShiftRule | PopulationCollapseRule | EconomicTrajectoryRule | NuclearArcRule, ...]:
     return (
         *(BandShiftRule(statistic, settings.nation_metrics, settings.geopolitics) for statistic in BANDS),
         PopulationCollapseRule(settings.geopolitics),
         EconomicTrajectoryRule(settings.geopolitics),
+        NuclearArcRule(settings.nation_metrics, settings.geopolitics),
     )

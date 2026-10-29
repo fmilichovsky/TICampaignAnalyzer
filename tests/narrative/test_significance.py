@@ -233,6 +233,8 @@ def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
         "faction.finished_project_names_changed": Significance.MINOR,
         "nation.unrest_attempts_changed": Significance.MINOR,
         "nation.new_government_recorded": Significance.MINOR,
+        "nation.nuclear_program_changed": Significance.MINOR,
+        "nation.policy_changed": Significance.MINOR,
     }
     assert set(expected) <= set(BASE)  # named with a rationale, not left to the default
     assert {event_type: significance_of(bare_event(event_type), lookup) for event_type in expected} == expected
