@@ -62,6 +62,9 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.space.colonisation_window_days` | 180 | 0 | First habs on new bodies of one faction this soon after the first form one `faction.colonisation_wave`. |
 | `narrative.space.buildup_min_ships` | 5 | 2 | A `faction.fleet_buildup` needs at least this many ships of one hull appearing for one faction in one interval. |
 | `narrative.nation_metrics.band_hold_days` | 180 | 0 | A band shift (`nation.unrest_shift`, `nation.government_shift`, ...) needs its band crossing to still hold in the next situation report when that report is dated this soon after it; a later report cannot refute it, and a crossing in the last interval is kept and `open` ([events](commands/events.md#narrative-events)). |
+| `narrative.nation_metrics.buildup_min_armies` | 2 | 1 | A `nation.military_buildup` or `nation.demobilization` needs the nation's standard armies in the situation reports to move by at least this many within a year ([events](commands/events.md#narrative-events)). |
+| `narrative.nation_metrics.space_assets_window_days` | 365 | 0 | Growth of one nation's boost or mission control (`nation.space_assets_changed`) chains into one `nation.space_program_growth` while each follows the previous one this soon. |
+| `narrative.nation_metrics.ranking_top_n` | 10 | 1 | `world.ranking_changed` reports nations entering or leaving the top this many by GDP, strength, boost or mission control; `nation.space_program_growth` is `major` when its nation enters that top by boost or mission control, and each situation report lists this many `spaceports`. Values above 20, the places `nation.rank_changed` reports, count as 20. |
 
 The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](architecture.md#203-token-budget-and-chapters)):
 

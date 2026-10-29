@@ -39,8 +39,12 @@ EVIDENCE = [
     "nation.band_crossed",
     "nation.population_changed",
     "nation.pcgdp_trend",
+    "nation.space_assets_changed",
 ]
 BOOKKEEPING = [
+    "nation.rank_changed",
+    "army.appeared",
+    "army.deployment_type_changed",
     "control_point.controller_changed",
     "control_point.loss_recorded",
     "control_point.appeared",

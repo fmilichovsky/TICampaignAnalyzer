@@ -12,7 +12,8 @@ Every other type is bookkeeping its development states in summary form:
   takeover (its scopes, cause, loser, ``executive_recorded_on`` and ``previous_executive``);
 - unrest attempts: the takeover's precursors; claims lists: ``nation.claims_declared``;
 - fleet and hab presence: ``faction.battle_outcome``, ``hab.destroyed`` and the colonisation wave;
-- per-ship appearances: the fleet buildup's counts;
+- per-ship appearances: the fleet buildup's counts; army presence and deployment: the military buildup,
+  demobilization and navy counts; a nation's place by a metric: the ranking change's entrants and leavers;
 - nation presence, the breakaway parent, a war's leading attacker or defender, leftover war lists and war relations:
   the release, breakaway and annexation readings and the war arc.
 
@@ -66,6 +67,9 @@ _EVIDENCE: tuple[str, ...] = (
     # an economic trajectory.
     "nation.population_changed",
     "nation.pcgdp_trend",
+    # A boost, mission control or space defences move with the share territory carried, behind a space program or
+    # the first space defences.
+    "nation.space_assets_changed",
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)

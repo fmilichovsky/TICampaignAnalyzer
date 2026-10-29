@@ -5,16 +5,18 @@ literal values and counts, never a reading:
 
 - per nation: the faction holding the executive seat (its ``Executive``-typed control point, else the one at
   ``positionInNation`` 0) and which of the two it is, the points held per faction, the federation, the allies, the
-  wars it is a party to (from the wars' alliances), the region count, the summed region population and the regime
-  statistics as literal values. Which faction *controls* a nation is never stated; that is inference
-  (``reconstruction.control``);
+  wars it is a party to (from the wars' alliances), the region count, the summed region population, the regime
+  statistics as literal values, the standard and naval armies, the game's published strength estimate and the summed
+  space-support assets of its regions (``analyzers.politics.nation_assets``). Which faction *controls* a nation is
+  never stated; that is inference (``reconstruction.control``);
 - federations with members; wars with both leaders, both alliances, ``startDate`` and ``dateOfLastFighting``;
 - per faction: habs in total and per body (the hab's ``barycenter``), fleets (by the fleet's ``faction``), ships (by
   the ship's ``fleet``) and finished projects (entries of ``finishedProjectNames``, repeats counted);
 - habs, fleets and ships that no faction of the snapshot owns, counted rather than dropped;
 - campaign-wide: the nation count (all nation states, and those holding regions), total population, finished
   technologies (research is one campaign-wide state in the model, so this count is not per faction), the global
-  milestones, the nuclear and the climate counters, and the player's faction name from the campaign metadata.
+  milestones, the nuclear and the climate counters, the regions with the most boost (the spaceports), and the
+  player's faction name from the campaign metadata.
 
 A value the snapshot does not establish stays ``Unknown``; it is never reported as zero or empty. Every list is in
 the snapshot's entity order (``EntityId.sort_key``) or the serialized order of its record.
@@ -29,6 +31,7 @@ from typing import Any
 
 from ..analyzers.campaign.global_values import MILESTONES, NUCLEAR_STRIKES, SEA_LEVEL_RISES
 from ..analyzers.common import Lookup, Side
+from ..analyzers.politics.nation_assets import BOOST, assets, strength
 from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, LAST_FIGHTING, START_DATE
 from ..log import fields, get_logger
 from ..model.entities import EntityId, EntityRef
@@ -63,6 +66,8 @@ CLIMATE_COUNTERS = (
 """The global-values fields reported literally as nuclear and climate counters."""
 
 Count = int | Unknown
+SPACEPORTS = 10
+"""The regions with the most boost a report lists by default."""
 
 
 def _named(values: tuple[tuple[str, Observed], ...]) -> dict[str, Any]:
@@ -105,6 +110,18 @@ class NationSituation:
     them)."""
     alien: bool = False
     """The nation is the alien administration (``alienNation``), which holds implicit claims on every region."""
+    armies: Count = field(default_factory=Unknown)
+    """Standard armies (``deploymentType`` ``Standard``) in the nation's ``armies``."""
+    navies: Count = field(default_factory=Unknown)
+    """Naval armies in the nation's ``armies``."""
+    strength: Observed = field(default_factory=Unknown)
+    """The game's published strength estimate (``nation_assets.strength``); no save field carries it."""
+    boost: Observed = field(default_factory=Unknown)
+    """Summed ``boostPerYear_dekatons`` of the nation's regions."""
+    mission_control: Observed = field(default_factory=Unknown)
+    space_defence_regions: Count = field(default_factory=Unknown)
+    """Regions with ``antiSpaceDefenses``."""
+    sto_fighters: Observed = field(default_factory=Unknown)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -121,6 +138,13 @@ class NationSituation:
             "regions": to_jsonable(self.regions),
             "population": to_jsonable(self.population),
             "statistics": _named(self.statistics),
+            "armies": to_jsonable(self.armies),
+            "navies": to_jsonable(self.navies),
+            "strength": to_jsonable(self.strength),
+            "boost": to_jsonable(self.boost),
+            "mission_control": to_jsonable(self.mission_control),
+            "space_defence_regions": to_jsonable(self.space_defence_regions),
+            "sto_fighters": to_jsonable(self.sto_fighters),
         }
 
 
@@ -216,6 +240,18 @@ class Milestone:
 
 
 @dataclass(frozen=True)
+class Spaceport:
+    """A region by its boost, with the nation holding it."""
+
+    region: EntityRef
+    nation: Observed
+    boost: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"region": to_jsonable(self.region), "nation": to_jsonable(self.nation), "boost": self.boost}
+
+
+@dataclass(frozen=True)
 class WorldSituation:
     """Campaign-wide counts and counters."""
 
@@ -227,6 +263,8 @@ class WorldSituation:
     milestones: tuple[Milestone, ...] | Unknown
     nuclear: tuple[tuple[str, Observed], ...]
     climate: tuple[tuple[str, Observed], ...]
+    spaceports: tuple[Spaceport, ...] = ()
+    """The regions with the most ``boostPerYear_dekatons`` (above zero), largest first, ties by ID."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -239,6 +277,7 @@ class WorldSituation:
             else [milestone.to_dict() for milestone in self.milestones],
             "nuclear": _named(self.nuclear),
             "climate": _named(self.climate),
+            "spaceports": [spaceport.to_dict() for spaceport in self.spaceports],
         }
 
 
@@ -353,6 +392,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         unresolved = sum(isinstance(controller, Unknown) for controller in controllers)
 
     regions = state.get("regions")
+    owned = assets(reader.lookup, state, Side.AFTER)
     population = (
         reader.population(ref.entity_id for ref in regions if isinstance(ref, EntityRef))
         if isinstance(regions, tuple)
@@ -373,6 +413,13 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         statistics=tuple((name, state.get(name)) for name in STATISTICS),
         region_refs=reader.resolved(regions),
         alien=state.get("alienNation") is True,
+        armies=owned.armies,
+        navies=owned.navies,
+        strength=strength(state, owned),
+        boost=owned.boost,
+        mission_control=owned.mission_control,
+        space_defence_regions=owned.space_defence_regions,
+        sto_fighters=owned.sto_fighters,
     )
 
 
@@ -468,7 +515,17 @@ def _milestones(reader: _Reader, singleton: EntityState | None) -> tuple[Milesto
     )
 
 
-def _world(reader: _Reader, nations: tuple[NationSituation, ...]) -> WorldSituation:
+def _spaceports(reader: _Reader, count: int) -> tuple[Spaceport, ...]:
+    boosts = [
+        (float(value), region)
+        for region in reader.snapshot.regions
+        if isinstance(value := region.get(BOOST), int | float) and not isinstance(value, bool) and value > 0
+    ]
+    ordered = sorted(boosts, key=lambda item: (-item[0], item[1].ref.entity_id.sort_key))[:count]
+    return tuple(Spaceport(region.ref, reader.resolved(region.get("nation")), value) for value, region in ordered)
+
+
+def _world(reader: _Reader, nations: tuple[NationSituation, ...], spaceports: int) -> WorldSituation:
     snapshot = reader.snapshot
     singleton = snapshot.global_values[0] if len(snapshot.global_values) == 1 else None
 
@@ -487,11 +544,13 @@ def _world(reader: _Reader, nations: tuple[NationSituation, ...]) -> WorldSituat
         milestones=_milestones(reader, singleton),
         nuclear=counters(NUCLEAR_COUNTERS),
         climate=counters(CLIMATE_COUNTERS),
+        spaceports=_spaceports(reader, spaceports),
     )
 
 
-def build_situation(snapshot: SaveSnapshot) -> SituationReport:
-    """The situation report of one snapshot; the same snapshot always gives an equal report."""
+def build_situation(snapshot: SaveSnapshot, *, spaceports: int = SPACEPORTS) -> SituationReport:
+    """The situation report of one snapshot, listing ``spaceports`` regions by boost; the same snapshot always gives
+    an equal report."""
     reader = _Reader(snapshot)
     parties = _war_parties(snapshot)
     factions, unattributed = _factions(reader)
@@ -507,7 +566,7 @@ def build_situation(snapshot: SaveSnapshot) -> SituationReport:
         wars=tuple(_war(reader, state) for state in snapshot.wars),
         factions=factions,
         unattributed=unattributed,
-        world=_world(reader, nations),
+        world=_world(reader, nations, spaceports),
     )
     logger.debug(
         "situation built %s",

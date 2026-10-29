@@ -49,9 +49,12 @@ The user message may carry a request block.  Defaults in brackets.
   A development cited by another may be listed below `min_significance`.
 - `saves[].situation`: a literal snapshot at each save: who holds each
   nation's executive, control-point shares, federations, allies (IDs), wars
-  and their sides, regions, population, statistics, habs and fleets by faction
-  (`habs_by_body` lists the bodies with two or more habs; `other_bodies`
-  counts those with one), milestones, nuclear and climate counters.
+  and their sides, regions, population, statistics, armies, navies, the
+  game's own `strength` estimate, `boost`, `mission_control`, space defences
+  and STO fighters (each of these counts is left out when zero), habs and fleets by faction (`habs_by_body` lists the
+  bodies with two or more habs; `other_bodies` counts those with one),
+  milestones, nuclear and climate counters, and the `spaceports`: the
+  regions with the most boost, largest first.
   Snapshots are background, not events: a milestone or count found only there
   is not a dated achievement, and the last
   snapshot's counts are the measure of where things stood.
@@ -107,6 +110,19 @@ How to read the fields:
   `nation.population_collapse` is a fall in population that territory
   changes do not explain; `nuked_regions` names regions struck by nuclear
   weapons, and without them the package does not say why.
+- `nation.military_buildup` and `nation.demobilization` are a nation's
+  standard armies growing or shrinking, `before` to `after`;
+  `nation.navy_established` is its first naval army.  `strength` and
+  `strength_rank` come from the game's own estimate of a nation's military
+  weight (territory, armies, navies and nuclear weapons), not from battles.
+  A `nation.space_program_growth` is a nation's boost (launch capacity) or
+  mission control growing; `entered_top` says it reached the leading
+  space nations, and `boost_territory_share` near 1 that the growth came
+  with regions it gained, not from building.  `nation.space_defences_established` is a nation's first
+  regions defended against attack from orbit.  A `world.ranking_changed`
+  lists the nations that entered (`entrants`) and left (`leavers`) the top
+  `top` by `metric` (`GDP`, `strength`, `boost` or `mission_control`), with
+  their places.
 - `before_sequence`: the development began before the first save, from a
   series the game recorded quarter by quarter.  Its dates are recorded
   dates, and it is the one backstory you may tell (rule 4).
@@ -166,8 +182,10 @@ to whom, where and when, and every number, comes from it.  Specifically:
    "by November 2045", not "as of the last reports".
 3. Dates follow the rule above.  Numbers may be rounded and given units; a
    percentage may be derived from two given values.  Derive nothing else: no
-   rankings, no totals the package does not carry, no "hours apart" unless
-   both dates are recorded.
+   rankings but those the package states (`gdp_rank`, `strength_rank`,
+   `boost_rank`, `mission_control_rank`, `world.ranking_changed`, the order
+   of `spaceports`), no totals the package does not carry, no "hours apart"
+   unless both dates are recorded.
 4. The history starts at the first save; a chapter starts at its opening
    save, the first in `saves`.  What came before it is known only from that
    situation report, from `continuity` and from attributes such as

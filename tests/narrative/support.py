@@ -136,8 +136,17 @@ def nation_row(
     allies: Sequence[EntityRef] = (),
     alien: bool = False,
     statistics: Mapping[str, Observed] | None = None,
+    regions: Observed = UNKNOWN,
+    armies: Observed = UNKNOWN,
+    navies: Observed = UNKNOWN,
+    strength: Observed = UNKNOWN,
+    boost: Observed = UNKNOWN,
+    mission_control: Observed = UNKNOWN,
+    space_defence_regions: Observed = UNKNOWN,
+    sto_fighters: Observed = UNKNOWN,
 ) -> NationSituation:
-    """A nation row; ``shares`` are points held per faction, ``statistics`` the values besides ``GDP``."""
+    """A nation row; ``shares`` are points held per faction, ``statistics`` the values besides ``GDP``, the rest the
+    region count and the asset fields."""
     return NationSituation(
         nation=item,
         executive=executive,  # type: ignore[arg-type]
@@ -150,10 +159,17 @@ def nation_row(
         federation=federation,
         allies=tuple(allies),
         wars=(),
-        regions=Unknown(),
+        regions=regions,  # type: ignore[arg-type]
         population=Unknown(),
         statistics=(("GDP", gdp), *(statistics or {}).items()),
         alien=alien,
+        armies=armies,  # type: ignore[arg-type]
+        navies=navies,  # type: ignore[arg-type]
+        strength=strength,
+        boost=boost,
+        mission_control=mission_control,
+        space_defence_regions=space_defence_regions,  # type: ignore[arg-type]
+        sto_fighters=sto_fighters,
     )
 
 

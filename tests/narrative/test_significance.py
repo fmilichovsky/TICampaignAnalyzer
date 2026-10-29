@@ -192,6 +192,17 @@ def test_a_population_drop_is_major_growth_minor_and_a_gdp_trend_trivial() -> No
     assert significance_of(bare_event("nation.pcgdp_trend"), lookup) is Significance.TRIVIAL
 
 
+def test_first_space_defences_are_major_other_space_assets_minor_and_a_rank_change_trivial() -> None:
+    lookup = empty_lookup()
+    first = bare_event("nation.space_assets_changed", statistic="spaceDefences", before=0)
+    more = bare_event("nation.space_assets_changed", statistic="spaceDefences", before=2)
+    boost = bare_event("nation.space_assets_changed", statistic="boost", before=0)
+    assert significance_of(first, lookup) is Significance.MAJOR
+    assert significance_of(more, lookup) is Significance.MINOR
+    assert significance_of(boost, lookup) is Significance.MINOR
+    assert significance_of(bare_event("nation.rank_changed"), lookup) is Significance.TRIVIAL
+
+
 # --- Table, defaults and the pass itself -------------------------------------------------------------------
 
 

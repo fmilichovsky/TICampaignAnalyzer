@@ -75,6 +75,7 @@ Nation:
 - Fixture Southland (nation:21) claims list: +[Fixture North (region:40)]
 - Fixture Eastland (nation:22) controlPoints list: +Fixture CP 10 (control point:10)
 - Fixture Eastland (nation:22) hostile claims list: +[Fixture South (region:42)]
+- Fixture Southland (nation:21) GDP rank: 2 -> unranked
 - Fixture Northland (nation:20) and Fixture Southland (nation:21): rivals entry removed (listed by Fixture Northland (nation:20) only)
 - Fixture Northland (nation:20) and Fixture Southland (nation:21): wars entry added (listed by both)
 - Fixture Northland (nation:20) unrest attempts by Fixture Resistance (faction:15): null -> 1
@@ -103,3 +104,7 @@ Analyzer results:
 
 - Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)
 - Fixture South (region:42) nation: Fixture Northland (nation:20) -> Fixture Southland (nation:21)
+
+Nation:
+
+- Fixture Southland (nation:21) GDP rank: unranked -> 2

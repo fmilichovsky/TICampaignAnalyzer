@@ -19,6 +19,16 @@ from .listing import Constituents, listing
 
 FLOAT_DIGITS = 4
 """Significant digits of a float in the narrator package."""
+ZERO_DROPPED = (
+    "unresolved_points",
+    "armies",
+    "navies",
+    "boost",
+    "mission_control",
+    "space_defence_regions",
+    "sto_fighters",
+)
+"""Nation counts the narrator form leaves out when they are zero, as most nations' are."""
 
 
 def build_document(
@@ -139,8 +149,8 @@ def _prune_nations(saves: list[dict[str, Any]], referenced: set[str]) -> None:
 def _slim_situations(saves: list[dict[str, Any]]) -> None:
     """Reduce every report to what a reader narrates from.
 
-    A nation's ``allies`` become bare ref strings (the glossary names them) and it loses ``seat_basis``, and
-    ``unresolved_points`` when that is ``0``. A faction's ``habs_by_body`` keeps the bodies with two or more habs;
+    A nation's ``allies`` become bare ref strings (the glossary names them) and it loses ``seat_basis``, and each of
+    ``ZERO_DROPPED`` that is ``0``. A faction's ``habs_by_body`` keeps the bodies with two or more habs;
     ``other_bodies`` counts the bodies with one. ``habs`` still counts every hab.
     """
     for report in (save["situation"] for save in saves if save["situation"] is not None):
@@ -151,8 +161,9 @@ def _slim_situations(saves: list[dict[str, Any]]) -> None:
                     for ally in nation["allies"]
                 ]
             nation.pop("seat_basis", None)
-            if _is_zero(nation.get("unresolved_points")):
-                del nation["unresolved_points"]
+            for key in ZERO_DROPPED:
+                if _is_zero(nation.get(key)):
+                    del nation[key]
         factions: list[dict[str, Any]] = []
         for faction in report["factions"]:
             bodies = faction["habs_by_body"]
@@ -167,7 +178,7 @@ def _slim_situations(saves: list[dict[str, Any]]) -> None:
 
 
 def _is_zero(value: Any) -> bool:
-    return isinstance(value, int) and not isinstance(value, bool) and value == 0
+    return isinstance(value, int | float) and not isinstance(value, bool) and value == 0
 
 
 def _slim(node: Any) -> Any:

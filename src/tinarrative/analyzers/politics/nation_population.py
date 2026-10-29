@@ -56,7 +56,7 @@ class NationPopulationAnalyzer:
         lookup = Lookup(before, after)
         build = EventBuilder(before, after)
         days = interval_days(before, after)
-        moves = _region_moves(index)
+        moves = region_moves(index)
         events: list[Event] = []
         for nation in _affected(index, moves, lookup):
             event = _population_changed(nation, moves.get(nation, []), days, index, lookup, build)
@@ -65,7 +65,7 @@ class NationPopulationAnalyzer:
         return events
 
 
-def _region_moves(index: ChangeIndex) -> dict[EntityId, list[StateChange]]:
+def region_moves(index: ChangeIndex) -> dict[EntityId, list[StateChange]]:
     """The region ``nation`` changes naming each nation on either side."""
     moves: dict[EntityId, list[StateChange]] = defaultdict(list)
     for change in index.fields(EntityDomain.REGION, "nation"):
@@ -96,7 +96,7 @@ def _regions(nation: EntityId, side: Side, lookup: Lookup) -> tuple[EntityId, ..
     return tuple(region.entity_id for region in regions if isinstance(region, EntityRef))
 
 
-def _moved(moves: Iterable[StateChange], nation: EntityId, side: Side) -> list[EntityId]:
+def moved(moves: Iterable[StateChange], nation: EntityId, side: Side) -> list[EntityId]:
     """The regions that moved to the nation (``AFTER``) or away from it (``BEFORE``)."""
     regions: list[EntityId] = []
     for change in moves:
@@ -119,8 +119,8 @@ def _population_changed(
         return None
     before = number(lookup.population(held_before, Side.BEFORE))
     after = number(lookup.population(held_after, Side.AFTER))
-    gained = number(lookup.population(_moved(moves, nation, Side.AFTER), Side.AFTER))
-    lost = number(lookup.population(_moved(moves, nation, Side.BEFORE), Side.AFTER))
+    gained = number(lookup.population(moved(moves, nation, Side.AFTER), Side.AFTER))
+    lost = number(lookup.population(moved(moves, nation, Side.BEFORE), Side.AFTER))
     if before is None or after is None or gained is None or lost is None or before <= 0:
         return None
     residual = after - gained + lost

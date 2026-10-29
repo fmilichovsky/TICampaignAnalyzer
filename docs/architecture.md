@@ -717,6 +717,28 @@ Ownership and control are kept distinct by analyzer and type prefix:
     (`analyzers.FIRST_INTERVAL_ANALYZERS`) also judges the quarters the
     earlier save already holds and flags them `before_sequence`: history the
     save carries from before the sequence.
+-   `nation.space_assets_changed` (`analyzers/politics/nation_space.py`,
+    `NationSpaceAssetsAnalyzer`) reports a nation's summed region `boost`
+    (`boostPerYear_dekatons`), `missionControl` or `spaceDefences` (regions
+    with `antiSpaceDefenses` or STO fighters) moving by 25 % or more and at
+    least a floor (5 dekatons a year, 2 mission control, 1 region); a rise
+    from zero counts at the floor. Attributes are `statistic`, `direction`
+    (`growth` or `decline`), `before`, `after`, `relative_change`,
+    `territory_delta` (the later value of the regions gained minus the regions
+    lost, as for population), `territory_share` (that delta over the change),
+    `regions_gained`, `regions_lost` and `interval_days`. Placeholders are
+    skipped.
+-   `nation.rank_changed` (`analyzers/politics/nation_rank.py`,
+    `NationRankAnalyzer`) reports a nation's place by `GDP`, `strength`,
+    `boost` or `mission_control` changing, among the nations holding regions
+    with a known value (`analyzers/politics/nation_assets.py`, shared with the
+    situation report), when it is within the first 20 on either side; a
+    nation without a place on one side has rank `None`. Attributes are
+    `metric`, `before_rank`, `after_rank`, `before` and `after`. A place is
+    relative, so the event cites the metric's input changes of the nation and,
+    as corroboration, of every nation whose order against it reversed.
+    `strength` is the game's published estimate
+    ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)).
 
     A quarter-dated event is dated by the calendar: the campaign starts
     `campaign_day` days before the save, quarter 0 is the calendar quarter it
@@ -787,7 +809,8 @@ analyzers report the same leftover and `run_analyzers` never sees an ID twice:
     has no mirroring army field, so a region move leaves its nation entries as
     leftovers rather than guessing which nation an army belongs to. A presence
     event of a `TIMegafaunaArmyState` army carries `megafauna = True` (regular
-    armies carry no such attribute). Every `army.*` event names the army's home
+    armies carry no such attribute) and the literal `deploymentType` of the
+    side where the army exists as `deployment_type`. Every `army.*` event names the army's home
     nation (the `nation` of its `homeRegion`), when known, as an entity and as
     attribute `home_nation`: context, never cited.
 -   `analyzers/space/fleets.py` (`FleetAnalyzer`): `fleet.faction_changed`
@@ -1238,6 +1261,11 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 | `nation.unrest_shift`, `nation.government_shift`, `nation.education_shift`, `nation.cohesion_shift`, `nation.inequality_shift`, `nation.miltech_shift` (implemented) | N moved into another of the game's bands of unrest, democracy, education, cohesion, inequality or military tech ("slid into Insurgency") and held it | `nation.band_crossed`, confirmed by the next report | 1 interval | nothing |
 | `nation.population_collapse` (implemented) | N's population fell beyond what territory explains | `nation.population_changed` (`drop`); `nuked_regions` or `campaign.nuclear_strikes_changed` in the interval | 1 interval | nothing; the cause is the tracked reasons and detonations only |
 | `nation.economic_trajectory` (implemented) | N's living standard boomed or slumped over years ("halved its per-capita GDP") | consecutive `nation.pcgdp_trend` events of one direction | the trend window (20 quarters) between trends; the span may begin before the first save | nothing |
+| `nation.military_buildup` / `nation.demobilization` (implemented) | N's standard armies grew or shrank | `army.appeared` / `army.disappeared` (`Standard`), `army.deployment_type_changed`, `nation.armies_changed` of N; the counts from the reports | a year between army changes | nothing |
+| `nation.navy_established` (implemented) | N raised its first naval army | the reports' `navies` from zero; `army.appeared` (`Naval`) or a deployment change of N | 1 interval | nothing |
+| `nation.space_program_growth` (implemented) | N grew its launch capacity or mission control | consecutive `nation.space_assets_changed` growth of `boost` or `missionControl` | `space_assets_window_days` between changes | nothing |
+| `nation.space_defences_established` (implemented) | N defended its first regions against orbit | `nation.space_assets_changed` of `spaceDefences` from zero | 1 interval | nothing |
+| `world.ranking_changed` (implemented) | nations entered or left the top N by GDP, strength, boost or mission control | `nation.rank_changed` of the entrants and leavers, confirmed by the next report | 1 interval | nothing |
 
 Every geopolitical type carries `metric_shifts`: the nation statistic
 shifts of its nations inside its span, so a takeover or merger states what
@@ -1348,6 +1376,57 @@ release), *chained* windows from the latest (expansion).
     `gdp_rank`. Major, promoted one level within `top_gdp_nations`; open when
     the last trend falls in the last interval.
 
+-   `nation.military_buildup` / `nation.demobilization` (order 0, by ID,
+    `narrative/assets.py`). A nation's army events (an `army.appeared` or
+    `army.disappeared` of a `Standard` army with that `home_nation`, an
+    `army.deployment_type_changed` to or from `Standard`, a
+    `nation.armies_changed` of the nation) chain while each follows the
+    previous within a year. A run whose standard `armies`, in the report
+    before its first interval and the report after its last, moved by
+    `buildup_min_armies` or more is a buildup or a demobilization. Attributes:
+    `before`, `after`, `gdp_rank` and `strength_rank`. Major, promoted one
+    level within `top_gdp_nations` by `GDP` or by strength; open when the run
+    reaches the last interval.
+
+-   `nation.navy_established` (order 0, by ID). A nation whose report
+    `navies` goes from zero to more in one interval, citing its naval army
+    appearances and deployment changes there; no development without one.
+    Attributes: `navies`, `gdp_rank` and `strength_rank`. Major, promoted as
+    above. Never open.
+
+-   `nation.space_program_growth` (order 0, by ID). A nation's
+    `nation.space_assets_changed` growth of `boost` or `missionControl`
+    chain while each follows the previous within `space_assets_window_days`.
+    Attributes: `boost_before`, `boost_after`, `mission_control_before`,
+    `mission_control_after` (from the first and last change of each),
+    `boost_territory_share` and `mission_control_territory_share` (the summed
+    `territory_delta` over the summed change), the `boost_rank` and
+    `mission_control_rank` after the run and `entered_top`.
+    Minor; major when the nation enters the top `ranking_top_n` by boost or
+    mission control between the report before the run and the report after
+    it. Open when the run reaches the last interval.
+
+-   `nation.space_defences_established` (order 0, by ID). One per
+    `nation.space_assets_changed` of `spaceDefences` from zero, with the
+    defended `regions`. Major. Never open.
+
+-   `world.ranking_changed` (order 0, by ID). One per interval and metric
+    (`GDP`, `strength`, `boost`, `mission_control`) whose top
+    `ranking_top_n` (at most the 20 places `nation.rank_changed` reports)
+    changed membership between the interval's reports. A nation is clearly in
+    the top when it is within it, above zero and above the first value outside
+    it; it enters from a place outside the top into clear membership and
+    leaves the other way, so a tie across the boundary neither enters nor
+    leaves. Each entry cites the nation's `nation.rank_changed`. The nations
+    entering are `beneficiary` roles and the nations leaving `loser` roles; `entrants` and `leavers` hold each one's
+    `nation`, `rank` and `value` (the place after entering, before leaving).
+    An entry the next report reverses is dropped, and an interval left
+    without one has no development; with no later report the development is
+    kept and open. Attributes: `metric`, `top`, `entrants`, `leavers`.
+    Major. The ranks of the other rules (`gdp_rank`, `strength_rank`) are
+    read from the report after their interval; `strength_rank` ranks the
+    report's `strength`.
+
 `metric_shifts` is a tuple of entries, one per nation, statistic and key,
 over the rule's nations and the intervals it spans. Each entry holds the
 earliest shift's `before`, the latest shift's `after`, the unsigned
@@ -1443,9 +1522,12 @@ A situation report is the deterministic digest of one snapshot that the
 narrative layer and the narrator need as context: which faction holds each
 nation's executive and what share of its control points, federations with
 members, wars with sides, each nation's regime statistics as literal
-values, nation count and population; habs per faction per body, fleets and
-ships per faction, finished technologies and projects, global milestones,
-nuclear and climate counters. It is read from the snapshot alone, is
+values, its standard and naval armies, the game's published strength
+estimate and the summed boost, mission control, space-defence regions and STO
+fighters of its regions, nation count and population; habs per faction per
+body, fleets and ships per faction, finished technologies and projects,
+global milestones, nuclear and climate counters, and the regions with the
+most boost (`spaceports`). It is read from the snapshot alone, is
 snapshot-dated evidence rather than an event, and is what lets a
 development say "formerly held by faction Y" or "then a member of
 federation F". `run_sequence` keeps the reports and discards the
@@ -1453,12 +1535,16 @@ snapshots.
 
 ### Implemented contract (`src/tinarrative/narrative/situation.py`)
 
-`build_situation(snapshot)` returns a frozen `SituationReport` with a
+`build_situation(snapshot, spaceports=10)` returns a frozen `SituationReport` with a
 `to_dict()`; equal snapshots give equal reports. Every value is literal: a
 nation's executive is the faction holding its executive-seat control point,
 with the seat's basis named (section 10, control rule), and its points are
 counted per faction, but no faction is said to control it, since that is the control rule's inference.
-Wars per nation come from the wars' alliances. Technologies are one
+Wars per nation come from the wars' alliances. The armies, the strength
+estimate and the region sums come from `analyzers/politics/nation_assets.py`,
+which `nation.rank_changed` reads too, so the report shows the places an
+event states; the estimate is computed, not read, and labelled the game's
+published one, since no save field carries it. Technologies are one
 campaign-wide research state in the model, so the finished-technology count
 is campaign-wide; projects are counted per faction. Habs, fleets and ships
 no faction of the snapshot owns are counted, not dropped. A value the
@@ -1510,7 +1596,8 @@ megafauna presence is `major`, a `nation.claims_changed` of the alien
 administration is `minor` and of a human nation `major`, a `nation.statistic_shifted` of
 `numNuclearWeapons` is `major` and of any other statistic `trivial` (a shift is evidence for the rules
 that explain it; a `nation.band_crossed` and a `nation.pcgdp_trend` are `trivial` in the table for the same reason), a
-`nation.population_changed` drop is `major` and growth `minor`, a technology or project completion takes the tier of the
+`nation.population_changed` drop is `major` and growth `minor`, a `nation.space_assets_changed` of space defences
+from zero is `major` and any other `minor`, a `nation.rank_changed` is `trivial` in the table, a technology or project completion takes the tier of the
 curated milestone list and is `minor` when unlisted), then a per-type table,
 then the default. Each
 entry and threshold carries its evidence from
@@ -1568,7 +1655,7 @@ so a large fleet changing orbit stays routine.
 
 | Entity | Share |
 | --- | --- |
-| Nation | power share: the weighted mean of its shares of world GDP, population and strength, where strength is the game's published estimate ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)) |
+| Nation | power share: the weighted mean of its shares of world GDP, population and strength, where strength is the game's published estimate the situation report carries ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)) |
 | Region | share of world population |
 | Federation, alliance, war side | sum of its members' power shares |
 | Faction | Earth share (each nation's power share times the faction's share of that nation's control points, summed) blended with its space share |

@@ -271,6 +271,23 @@ def _pcgdp_trend(event: Event) -> str:
     )
 
 
+def _space_assets_changed(event: Event) -> str:
+    """``<nation> <statistic> <growth|decline>: before -> after``; the territory share is evidence, not echoed."""
+    return (
+        f"{_subject(event)} {_text(event, 'statistic')} {_text(event, 'direction')}: "
+        f"{_attr(event, 'before')} -> {_attr(event, 'after')}"
+    )
+
+
+def _rank_changed(event: Event) -> str:
+    """``<nation> <metric> rank: before -> after``; a side without a place is ``unranked``."""
+
+    def rank(name: str) -> str:
+        return "unranked" if event.attribute(name) is None else _attr(event, name)
+
+    return f"{_subject(event)} {_text(event, 'metric')} rank: {rank('before_rank')} -> {rank('after_rank')}"
+
+
 def _refs(event: Event, name: str) -> str:
     """A tuple attribute of references as a comma-separated list of IDs."""
     value = event.attribute(name)
@@ -530,6 +547,45 @@ def _economic_trajectory(event: Event) -> str:
     )
 
 
+def _army_count(event: Event, change: str) -> str:
+    return (
+        f"{_role(event, Role.ACTOR)} {change} its standard armies: {_attr(event, 'before')} -> {_attr(event, 'after')}"
+    )
+
+
+def _military_buildup(event: Event) -> str:
+    return _army_count(event, "built up")
+
+
+def _demobilization(event: Event) -> str:
+    return _army_count(event, "demobilized")
+
+
+def _navy_established(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} established a navy ({_count(event.attribute('navies'), 'naval army')})"
+
+
+def _space_program_growth(event: Event) -> str:
+    return (
+        f"{_role(event, Role.ACTOR)} space program grew: boost {_attr(event, 'boost_before')} -> "
+        f"{_attr(event, 'boost_after')}, mission control {_attr(event, 'mission_control_before')} -> "
+        f"{_attr(event, 'mission_control_after')}"
+    )
+
+
+def _space_defences_established(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} established space defences ({_region_count(event.attribute('regions'))})"
+
+
+def _ranking_changed(event: Event) -> str:
+    text = f"Top {_attr(event, 'top')} by {_text(event, 'metric')} changed"
+    if any(role is Role.BENEFICIARY for role, _ in event.roles):
+        text += f": entered {_role(event, Role.BENEFICIARY)}"
+    if any(role is Role.LOSER for role, _ in event.roles):
+        text += f"; left {_role(event, Role.LOSER)}"
+    return text
+
+
 def _war_arc(event: Event) -> str:
     text = f"{_attr(event, 'war')} between {_role(event, Role.ACTOR)} and {_role(event, Role.TARGET)}"
     regions = event.attribute("regions_transferred")
@@ -655,6 +711,8 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.band_crossed": _band_crossed,
     "nation.population_changed": _population_changed,
     "nation.pcgdp_trend": _pcgdp_trend,
+    "nation.space_assets_changed": _space_assets_changed,
+    "nation.rank_changed": _rank_changed,
     "nation.claims_changed": _claims_changed("claims"),
     "nation.hostile_claims_changed": _claims_changed("hostile claims"),
     "nation.renamed": _renamed,
@@ -764,6 +822,12 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.miltech_shift": _band_shift,
     "nation.population_collapse": _population_collapse,
     "nation.economic_trajectory": _economic_trajectory,
+    "nation.military_buildup": _military_buildup,
+    "nation.demobilization": _demobilization,
+    "nation.navy_established": _navy_established,
+    "nation.space_program_growth": _space_program_growth,
+    "nation.space_defences_established": _space_defences_established,
+    "world.ranking_changed": _ranking_changed,
     "faction.space_campaign": _space_campaign,
     "faction.colonisation_wave": _colonisation_wave,
     "campaign.first_milestone": _first_milestone,

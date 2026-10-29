@@ -72,7 +72,7 @@ def transport(monkeypatch: pytest.MonkeyPatch) -> FakeTransport:
 def _settings(tmp_path: Path, text: str = "") -> Path:
     path = tmp_path / "settings.toml"
     path.write_text(
-        '[narrator]\nmax_input_tokens = 9000\nprovider = "anthropic"\nmodel = "some-model"\n'
+        '[narrator]\nmax_input_tokens = 10000\nprovider = "anthropic"\nmodel = "some-model"\n'
         'api_key_env = "TEST_NARRATOR_KEY"\n' + text,
         encoding="utf-8",
     )
@@ -130,7 +130,7 @@ def test_the_provider_settings_never_change_the_plan_or_the_requests(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
     plain = tmp_path / "plain.toml"
-    plain.write_text("[narrator]\nmax_input_tokens = 9000\n", encoding="utf-8")
+    plain.write_text("[narrator]\nmax_input_tokens = 10000\n", encoding="utf-8")
 
     assert main(["narrate", *SAVES, "--config", str(plain), "--output", str(tmp_path / "plain")]) == EXIT_SUCCESS
     assert _narrate(tmp_path, "--send", "--model", "other-model") == EXIT_SUCCESS

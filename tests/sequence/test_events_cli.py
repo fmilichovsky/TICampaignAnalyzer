@@ -93,9 +93,9 @@ def test_without_constituents_the_narrative_report_lists_no_atomic_event(
     intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
     assert [line for line in intervals.splitlines() if line] == [
         "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(34 state changes; 26 events omitted with --constituents none)",
+        "(34 state changes; 27 events omitted with --constituents none)",
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
-        "(10 state changes; 6 events omitted with --constituents none)",
+        "(10 state changes; 7 events omitted with --constituents none)",
     ]
 
 
@@ -157,6 +157,7 @@ def test_json_report_lists_narrative_events_only_when_asked(
         "faction.takeover",
         "nation.claims_declared",
         "nation.cession",
+        "world.ranking_changed",
     ]
     assert narrative["settings"] == {"narrative": DEFAULT_SETTINGS.to_dict()["narrative"]}
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
@@ -716,9 +717,9 @@ def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
     assert "###" not in intervals
     assert [line for line in intervals.splitlines() if line] == [
         "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(34 state changes; 26 events below campaign_defining significance omitted)",
+        "(34 state changes; 27 events below campaign_defining significance omitted)",
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
-        "(10 state changes; 6 events below campaign_defining significance omitted)",
+        "(10 state changes; 7 events below campaign_defining significance omitted)",
     ]
 
 

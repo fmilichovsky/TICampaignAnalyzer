@@ -466,7 +466,15 @@ def _run_saves(
         return loaded
 
     try:
-        intervals = list(run_sequence(plan, inferred=inferred or narrative, changes=changes, load=load))
+        intervals = list(
+            run_sequence(
+                plan,
+                inferred=inferred or narrative,
+                changes=changes,
+                load=load,
+                spaceports=settings.narrative.nation_metrics.ranking_top_n,
+            )
+        )
     except _LoadFailed as failure:
         return failure.code
     events = narrative_events(intervals, narrative_rules(settings.narrative)) if narrative else None

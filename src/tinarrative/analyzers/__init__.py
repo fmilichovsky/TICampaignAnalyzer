@@ -15,6 +15,8 @@ from .politics import (
     NationEconomyAnalyzer,
     NationMetricAnalyzer,
     NationPopulationAnalyzer,
+    NationRankAnalyzer,
+    NationSpaceAssetsAnalyzer,
     OrganizationAnalyzer,
     WarAnalyzer,
 )
@@ -28,6 +30,8 @@ POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
     NationBandAnalyzer(),
     NationPopulationAnalyzer(),
     NationEconomyAnalyzer(),
+    NationSpaceAssetsAnalyzer(),
+    NationRankAnalyzer(),
     WarAnalyzer(),
     FederationAnalyzer(),
     CouncilorAnalyzer(),

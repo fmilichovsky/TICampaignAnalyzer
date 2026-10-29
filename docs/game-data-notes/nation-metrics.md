@@ -260,6 +260,14 @@ largest holders moved 1 to 4 per quarter. `antiSpaceDefenses` was true on 4 regi
 own; the facility references on regions (`boostFacility`, `missionControlFacility`, `spaceDefenseFacility`) were
 present on every region and were not decoded.
 
+Read through the space-asset events and the situation reports (observed 2026-10-29): the Resist drop above is 13 %
+over the last interval, in which that nation's regions fell from 98 to 94, below the 25 % a space-asset change needs,
+so it shows in the reports' `boost` only. The changes that did pass in Resist came with territory: a boost rise from
+8.4 to 225.1 had 99 % of it in regions gained, and most mission control moves were entirely regions changing hands.
+Protectorate had five such changes, none of them territorial. Mission control is a small integer on most nations
+(places 5 to 10 of Protectorate hold 1 or 2), so a top ten by it ties across its boundary; a ranking change counts
+only nations clearly inside or outside the top.
+
 ## Armies, navies and a strength estimate
 
 `TIArmyState.armyType` was `Human` on every army; `deploymentType` was `Standard` on 15 and `Naval` on 12 of the 27
@@ -275,4 +283,6 @@ in a different order (338, 298, 227, 199), and in the last Resist save the first
 two nations with one weapon each at places 6 and 7, ahead of larger conventional powers, because any arsenal adds
 100. The formula is **published**: the game's own strength estimate as the Terra Invicta wiki states it, transcribed
 by the author (2026-10-23). No save field carries its result (`historyWarStatus` is not it), so it cannot be checked
-against one; the rankings above are observed applications of it.
+against one; the rankings above are observed applications of it, and the situation reports' `strength` reproduces
+them (338.0, 298.2, 227.5, 199.2 and 585.9, 335.8, 329.0, with the two one-weapon nations at places 6 and 7; observed
+2026-10-29).

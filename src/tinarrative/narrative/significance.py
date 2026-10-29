@@ -75,6 +75,9 @@ _TRIVIAL: tuple[str, ...] = (
     "nation.band_crossed",
     # A per-capita GDP trend is the evidence an economic trajectory is built from.
     "nation.pcgdp_trend",
+    # A nation's place by a metric moves whenever one of the nations around it changes; the ranking development
+    # states the changes of the top.
+    "nation.rank_changed",
     # Log housekeeping: the game prunes and rewrites kept entries.
     "notification.entry_removed",
     "notification.entry_changed",
@@ -275,6 +278,13 @@ def _population_changed(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR if event.attribute("direction") == "drop" else Significance.MINOR
 
 
+def _space_assets_changed(event: Event, lookup: Lookup) -> Significance | None:
+    """A nation's first space defences are major (they appear only late); boost and mission control moves are
+    minor."""
+    first = event.attribute("statistic") == "spaceDefences" and event.attribute("before") == 0
+    return Significance.MAJOR if first else Significance.MINOR
+
+
 def _army_presence(event: Event, lookup: Lookup) -> Significance | None:
     """Megafauna appearing or vanishing (0 or 1 per save) is major; regular army presence is routine."""
     return Significance.MAJOR if event.attribute("megafauna") is True else Significance.MINOR
@@ -307,6 +317,7 @@ RULES: Mapping[str, Rule] = {
     "organization.assigned_councilor_changed": _organization_assignment,
     "nation.statistic_shifted": _statistic_shifted,
     "nation.population_changed": _population_changed,
+    "nation.space_assets_changed": _space_assets_changed,
     "army.appeared": _army_presence,
     "army.disappeared": _army_presence,
     "technology.completed": _completion,

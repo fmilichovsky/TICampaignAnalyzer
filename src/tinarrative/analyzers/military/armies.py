@@ -3,7 +3,9 @@
 The ``destroyed`` flag is the only place this analyzer uses that word, because the save carries it literally.
 An army present in one snapshot only is reported as absent from (or present only in) that snapshot; whether
 it was disbanded, lost in battle or merged is a reconstruction question. A presence event of a
-``TIMegafaunaArmyState`` army carries ``megafauna = True``; regular armies carry no such attribute.
+``TIMegafaunaArmyState`` army carries ``megafauna = True``; regular armies carry no such attribute. A presence event
+carries the army's literal ``deploymentType`` on the side where it exists as ``deployment_type`` (``Standard`` or
+``Naval``: a navy is a naval army), when the save gives one.
 ``priorRegion``, ``operationTarget``, ``destinationQueue``, ``currentOperations``, the transit dates,
 ``huntingXenofauna`` and ``bonusTechLevel`` stay in the diff.
 
@@ -155,6 +157,10 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
     army = lookup.ref(army_id)
     home = _home_nation(army_id, lookup)
     attributes: list[tuple[str, Observed]] = [("side", side.value), *_home_attribute(home)]
+    state = lookup.state(army_id, side)
+    deployment = state.get("deploymentType") if state is not None else None
+    if isinstance(deployment, str):
+        attributes.append(("deployment_type", deployment))
     if army is not None and army.state_type == MEGAFAUNA_STATE_TYPE:
         attributes.append(("megafauna", True))
     return build.event(

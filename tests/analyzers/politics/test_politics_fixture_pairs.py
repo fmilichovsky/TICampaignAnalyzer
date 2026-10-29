@@ -124,6 +124,7 @@ def test_politics_pair_covers_every_transition_once() -> None:
         "nation.claims_changed": 1,
         "nation.hostile_claims_changed": 1,
         "nation.unrest_attempts_changed": 2,
+        "nation.rank_changed": 1,
     }
     by_id = {event.id: event for event in events}
     claims = by_id["nation.claims_changed/nation:21"]

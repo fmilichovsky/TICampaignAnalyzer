@@ -94,11 +94,19 @@ class SpaceSettings:
 
 @dataclass(frozen=True)
 class NationMetricsSettings:
-    """Windows of the nation metric narrative rules (``narrative.nation_metrics``), in game days."""
+    """Thresholds and windows of the nation metric narrative rules (``narrative.nation_metrics``), in game days."""
 
     band_hold_days: int = _int(180, 0)
     """A band crossing must still hold in the next report when that report is dated this soon after it; a later
     report cannot refute it."""
+    buildup_min_armies: int = _int(2, 1)
+    """A military buildup or demobilization needs a nation's standard armies to move by at least this many."""
+    space_assets_window_days: int = _int(365, 0)
+    """Growth of one nation's boost or mission control chains into one space program while each follows the previous
+    one this soon."""
+    ranking_top_n: int = _int(10, 1)
+    """A ranking change is a change of the top this many by a metric (at most 20, the places the analyzer reports);
+    reports list this many spaceports."""
 
 
 @dataclass(frozen=True)
