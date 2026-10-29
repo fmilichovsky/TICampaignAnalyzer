@@ -255,6 +255,22 @@ def _bands(event: Event) -> str:
     return f"{_text(event, 'statistic')}: {_text(event, 'from_band')} -> {_text(event, 'to_band')}"
 
 
+def _population_changed(event: Event) -> str:
+    """``<nation> population <direction>: before -> after (residual <residual>)``; the residual excludes territory."""
+    return (
+        f"{_subject(event)} population {_text(event, 'direction')}: {_attr(event, 'before')} -> "
+        f"{_attr(event, 'after')} (residual {_attr(event, 'residual')})"
+    )
+
+
+def _pcgdp_trend(event: Event) -> str:
+    """``<nation> per-capita GDP <boom|slump> at quarter <q>: before -> after``, over the trailing window."""
+    return (
+        f"{_subject(event)} per-capita GDP {_text(event, 'direction')} at quarter {_attr(event, 'quarter')}: "
+        f"{_attr(event, 'before')} -> {_attr(event, 'after')}"
+    )
+
+
 def _refs(event: Event, name: str) -> str:
     """A tuple attribute of references as a comma-separated list of IDs."""
     value = event.attribute(name)
@@ -503,6 +519,17 @@ def _band_shift(event: Event) -> str:
     return f"{_role(event, Role.ACTOR)} {_bands(event)}"
 
 
+def _population_collapse(event: Event) -> str:
+    return f"{_role(event, Role.ACTOR)} population collapse: {_attr(event, 'before')} -> {_attr(event, 'residual')}"
+
+
+def _economic_trajectory(event: Event) -> str:
+    return (
+        f"{_role(event, Role.ACTOR)} per-capita GDP {_text(event, 'direction')}: "
+        f"{_attr(event, 'first_value')} -> {_attr(event, 'last_value')}"
+    )
+
+
 def _war_arc(event: Event) -> str:
     text = f"{_attr(event, 'war')} between {_role(event, Role.ACTOR)} and {_role(event, Role.TARGET)}"
     regions = event.attribute("regions_transferred")
@@ -626,6 +653,8 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.disappeared": _nation_presence,
     "nation.statistic_shifted": _statistic_shifted,
     "nation.band_crossed": _band_crossed,
+    "nation.population_changed": _population_changed,
+    "nation.pcgdp_trend": _pcgdp_trend,
     "nation.claims_changed": _claims_changed("claims"),
     "nation.hostile_claims_changed": _claims_changed("hostile claims"),
     "nation.renamed": _renamed,
@@ -733,6 +762,8 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.cohesion_shift": _band_shift,
     "nation.inequality_shift": _band_shift,
     "nation.miltech_shift": _band_shift,
+    "nation.population_collapse": _population_collapse,
+    "nation.economic_trajectory": _economic_trajectory,
     "faction.space_campaign": _space_campaign,
     "faction.colonisation_wave": _colonisation_wave,
     "campaign.first_milestone": _first_milestone,

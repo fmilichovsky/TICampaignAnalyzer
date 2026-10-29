@@ -101,6 +101,15 @@ How to read the fields:
   Subversion, Strife, Insurgency, Guerilla War, Insurrection, Civil War: it
   names how restless a nation is, not a war fought, unless the package
   lists one.
+- A `nation.economic_trajectory` is a five-year boom or slump of a nation's
+  per-capita GDP, from `first_value` to `last_value` (`ratio` is the second
+  over the first): living standards, not the size of the economy.  A
+  `nation.population_collapse` is a fall in population that territory
+  changes do not explain; `nuked_regions` names regions struck by nuclear
+  weapons, and without them the package does not say why.
+- `before_sequence`: the development began before the first save, from a
+  series the game recorded quarter by quarter.  Its dates are recorded
+  dates, and it is the one backstory you may tell (rule 4).
 - `duration_days` is a length the game recorded.  `duration_days_at_most` is
   only a ceiling, because the end is known to lie between two saves: write
   "within about N days" at most, never "after N days".
@@ -162,9 +171,11 @@ to whom, where and when, and every number, comes from it.  Specifically:
 4. The history starts at the first save; a chapter starts at its opening
    save, the first in `saves`.  What came before it is known only from that
    situation report, from `continuity` and from attributes such as
-   `previous_executive` or `shares_before`.  Do not supply a backstory: no
-   "for years", "had long", "since the early 2040s", no earlier
-   administrative status, no build-up "over the preceding months".
+   `previous_executive` or `shares_before`, and from developments marked
+   `before_sequence`, whose recorded dates you may tell as what came before.
+   Supply no other backstory: no "for years", "had long", "since the early
+   2040s", no earlier administrative status, no build-up "over the
+   preceding months".
 5. Where the package disagrees with itself, say that accounts differ.
 
 ## Interpretation

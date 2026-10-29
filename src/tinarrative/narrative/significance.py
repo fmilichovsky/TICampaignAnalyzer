@@ -73,6 +73,8 @@ _TRIVIAL: tuple[str, ...] = (
     # A band crossing is the evidence a band-shift development is built from; on its own it may be the game
     # converging the statistic towards its rest value.
     "nation.band_crossed",
+    # A per-capita GDP trend is the evidence an economic trajectory is built from.
+    "nation.pcgdp_trend",
     # Log housekeeping: the game prunes and rewrites kept entries.
     "notification.entry_removed",
     "notification.entry_changed",
@@ -268,6 +270,11 @@ def _statistic_shifted(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.TRIVIAL
 
 
+def _population_changed(event: Event, lookup: Lookup) -> Significance | None:
+    """A population drop beyond territory is major, since routine decline is far slower; growth is minor."""
+    return Significance.MAJOR if event.attribute("direction") == "drop" else Significance.MINOR
+
+
 def _army_presence(event: Event, lookup: Lookup) -> Significance | None:
     """Megafauna appearing or vanishing (0 or 1 per save) is major; regular army presence is routine."""
     return Significance.MAJOR if event.attribute("megafauna") is True else Significance.MINOR
@@ -299,6 +306,7 @@ RULES: Mapping[str, Rule] = {
     "nation.executive_change_recorded": _executive_change,
     "organization.assigned_councilor_changed": _organization_assignment,
     "nation.statistic_shifted": _statistic_shifted,
+    "nation.population_changed": _population_changed,
     "army.appeared": _army_presence,
     "army.disappeared": _army_presence,
     "technology.completed": _completion,

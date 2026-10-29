@@ -691,6 +691,38 @@ Ownership and control are kept distinct by analyzer and type prefix:
     `margin` and `interval_days`, plus `causes` (as above) and
     `rest_value_share`, the `*MovementToRestValue` delta's share of the cause
     deltas, for the statistics with a tracker. Placeholders are skipped.
+-   `nation.population_changed` (`analyzers/politics/nation_population.py`,
+    `NationPopulationAnalyzer`) reports a nation's population (the summed
+    `populationInMillions` of its regions) moving beyond what territory
+    explains: the *residual* is the later population minus the regions
+    gained plus the regions lost (both in the later save; regions moved are
+    the regions' `nation` changes), relative to the earlier population. It is
+    emitted when the residual moves by `max(5 %, 10 % a year)` either way, a
+    hypothesis kept as module constants. Attributes are `direction` (`drop`
+    or `growth`), `before`, `after`, `residual`, `relative_change`,
+    `interval_days`, `nuked_regions` (the nation's regions whose
+    `nuclearDetonations` rose) and `causes` (the `GDPReason_PopulationChange`
+    and `EducationReason_PopulationLoss` tracker deltas). Placeholders are
+    skipped.
+-   `nation.pcgdp_trend` (`analyzers/politics/nation_economy.py`,
+    `NationEconomyAnalyzer`) reads `tracker_PCGDP_ByQuarter`, per-capita GDP
+    by quarter since the campaign start. For each quarter added in the
+    interval, the trend is the change over the trailing 20 quarters of the
+    later save's series; a zero value or a negative key ends a window. The
+    event is emitted at the quarter where the trend first exceeds +50 %
+    (`boom`) or falls below -25 % (`slump`), record-dated by that quarter
+    (see the dating rule below). Attributes are `direction`, `quarter`,
+    `window_quarters`, `window_start`, `before`, `after`, `change` and
+    `before_sequence`. On the first interval of a sequence a second instance
+    (`analyzers.FIRST_INTERVAL_ANALYZERS`) also judges the quarters the
+    earlier save already holds and flags them `before_sequence`: history the
+    save carries from before the sequence.
+
+    A quarter-dated event is dated by the calendar: the campaign starts
+    `campaign_day` days before the save, quarter 0 is the calendar quarter it
+    starts in and begins on the start, and quarter `k` begins on the first day
+    of the `k`-th calendar quarter after it, the counter's observed behaviour
+    ([nation statistics](game-data-notes/nation-metrics.md#per-capita-gdp-by-quarter)).
 -   `war.*` (`analyzers/politics/wars.py`, `TIWarState` objects of the `war`
     domain) speaks about `war.appeared` (record-dated by the war's literal
     `startDate` when present) and `war.disappeared`, each citing every nation
@@ -1204,6 +1236,8 @@ facts no analyzer emits yet (roadmap items). Geopolitics first:
 | `nation.cession` (implemented) | N transferred regions to M without war | `nation.territory_gained` / `lost` with no annexation, unification or independence reading and no war pair; allies or one federation as context | 1 interval | nothing; medium confidence at best, since a conquest without a war looks the same |
 | `nation.claims_declared` (implemented) | N claims regions of M | `nation.claims_changed` | 1 interval | nothing |
 | `nation.unrest_shift`, `nation.government_shift`, `nation.education_shift`, `nation.cohesion_shift`, `nation.inequality_shift`, `nation.miltech_shift` (implemented) | N moved into another of the game's bands of unrest, democracy, education, cohesion, inequality or military tech ("slid into Insurgency") and held it | `nation.band_crossed`, confirmed by the next report | 1 interval | nothing |
+| `nation.population_collapse` (implemented) | N's population fell beyond what territory explains | `nation.population_changed` (`drop`); `nuked_regions` or `campaign.nuclear_strikes_changed` in the interval | 1 interval | nothing; the cause is the tracked reasons and detonations only |
+| `nation.economic_trajectory` (implemented) | N's living standard boomed or slumped over years ("halved its per-capita GDP") | consecutive `nation.pcgdp_trend` events of one direction | the trend window (20 quarters) between trends; the span may begin before the first save | nothing |
 
 Every geopolitical type carries `metric_shifts`: the nation statistic
 shifts of its nations inside its span, so a takeover or merger states what
@@ -1295,6 +1329,24 @@ release), *chained* windows from the latest (expansion).
     across Insurgency, else minor; inequality major for two bands, else
     minor; cohesion major at the extremes, else minor. A nation within
     `top_gdp_nations` is promoted one level.
+
+-   `nation.population_collapse` (order 0, by ID). Anchor: a
+    `nation.population_changed` with `direction` `drop`; one development per
+    drop, carrying its `before`, `after`, `residual`, `relative_change`,
+    `nuked_regions`, `causes` and `gdp_rank`. Campaign defining when
+    `nuked_regions` names a region or a `campaign.nuclear_strikes_changed`
+    falls in the interval (cited as corroboration), else major. Never open.
+
+-   `nation.economic_trajectory` (order 0, by ID). A nation's
+    `nation.pcgdp_trend` events in quarter order chain while the direction
+    holds and each follows the previous within the 20-quarter trend window;
+    a lone trend is a trajectory. The span starts on the first trend's
+    `window_start` (a record date, `starts_on`, which may lie before the
+    first save) and ends on the last trend's quarter. Attributes:
+    `direction`, `start_quarter`, `end_quarter`, `first_value`,
+    `last_value`, `ratio`, `before_sequence` (any constituent flagged) and
+    `gdp_rank`. Major, promoted one level within `top_gdp_nations`; open when
+    the last trend falls in the last interval.
 
 `metric_shifts` is a tuple of entries, one per nation, statistic and key,
 over the rule's nations and the intervals it spans. Each entry holds the
@@ -1457,7 +1509,8 @@ context rule for the event type (recruit-pool councilors whose `faction` is
 megafauna presence is `major`, a `nation.claims_changed` of the alien
 administration is `minor` and of a human nation `major`, a `nation.statistic_shifted` of
 `numNuclearWeapons` is `major` and of any other statistic `trivial` (a shift is evidence for the rules
-that explain it; a `nation.band_crossed` is `trivial` in the table for the same reason), a technology or project completion takes the tier of the
+that explain it; a `nation.band_crossed` and a `nation.pcgdp_trend` are `trivial` in the table for the same reason), a
+`nation.population_changed` drop is `major` and growth `minor`, a technology or project completion takes the tier of the
 curated milestone list and is `minor` when unlisted), then a per-type table,
 then the default. Each
 entry and threshold carries its evidence from
@@ -1813,12 +1866,15 @@ by file name. Each save gets a key: its game time, plus `#n` for the n-th
 distinct save with the same time. `run_sequence` normalizes the saves in order
 with at most two snapshots held, runs `analyze_interval` (diff, analyzers,
 significance, optional reconstruction; the same chain as `diff --format
-markdown`) on each consecutive pair, and keys the interval by its later save.
+markdown`) on each consecutive pair, adding `FIRST_INTERVAL_ANALYZERS` on the
+first, and keys the interval by its later save.
 
 Consecutive intervals share their boundary snapshot, so the per-interval
 results concatenate without overlap. Every change is reported once, and a
 save-carried log entry once, because logs are diffed as multisets, and a
-record-dated event never falls outside its interval. What does not concatenate is
+record-dated event never falls outside its interval, except the
+`before_sequence` events of the first interval, which date the history the
+first save carries from before the sequence. What does not concatenate is
 identity: an event ID is a type and a subject, unique within an interval only, so
 an ID can recur in another interval for a different real event
 (see `game-data-notes/chronology-and-deduplication.md`). `narrative.chronology.qualify`

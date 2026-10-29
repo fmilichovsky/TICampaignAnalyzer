@@ -207,7 +207,17 @@ because rules build on inferred events. The geopolitical rules of
 `nation.miltech_shift`: a `nation.band_crossed` into another of the game's value bands that is not the game
 converging to a rest value, holds in the next report dated within `narrative.nation_metrics.band_hold_days`, and is
 not carried by another development naming the nation in that interval (`statistic`, `before`, `after`, `from_band`,
-`to_band`, `bands_crossed`, `gdp_rank`). Each carries the nation
+`to_band`, `bands_crossed`, `gdp_rank`). `nation.population_collapse` is a `nation.population_changed` drop: the
+nation's population, territory changes taken out (`residual` against `before`), fell by at least 5 % or 10 % a year,
+whichever is more (`relative_change`, `nuked_regions`, `causes`, `gdp_rank`); it is `campaign_defining` with a
+nuclear detonation in one of its regions or a nuclear strike in the interval, else `major`.
+`nation.economic_trajectory` chains a nation's `nation.pcgdp_trend` events of one direction: per-capita GDP up more
+than 50 % (`boom`) or down more than 25 % (`slump`) over the trailing 20 quarters, record-dated by the quarter the
+trend first passed the threshold. Its span starts where the first trend's window does (`direction`,
+`start_quarter`, `end_quarter`, `first_value`, `last_value`, `ratio`, `gdp_rank`). On the first interval the trends
+of the quarters before the first save are reported too, flagged `before_sequence`, so a trajectory may begin before
+the sequence. Quarter `k` begins on the first day of the `k`-th calendar quarter after the campaign start's.
+Each of these developments except `nation.economic_trajectory` carries the nation
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
 A `metric_shifts` entry has `nation`, `statistic`, `key` (public opinion only), `before` (the earliest
 shift's value), `after` (the latest's), the unsigned `relative_change`, `not_before` (the earlier save of the

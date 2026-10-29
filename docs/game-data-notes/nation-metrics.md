@@ -45,6 +45,14 @@ history for nations the scenario can create). Quarter 0 is the campaign's first 
 zeros inside a non-zero series (*hypothesis*: quarters in which the nation held no region). The other
 `tracker_*_ByQuarter` members are `null` on every nation of both builds.
 
+**Observed** (2026-10-29, all thirteen saves): `currentQuarterSinceStart` counts calendar quarters since the one the
+campaign starts in, not three-month steps from the start date. With every campaign starting on 2026-02-01
+(`currentDateTime` minus `daysInCampaign`, within a day), the counter was 1 on 2026-04-15, 3 on 2026-12-16, 6 on
+2027-07-16, 78 on 2045-08-01 and 83 on 2046-10-08; three-month steps from 2026-02-01 would give 0, 3, 5, 78 and 82.
+The save dated 2027-04-01 00:00 still had 4, so the counter rises during the quarter's first day, not at its start.
+The largest key in every nation's series equalled the save's counter. `nation.pcgdp_trend` therefore dates quarter
+`k` by the first day of the `k`-th calendar quarter after the start's (quarter 0 by the start itself).
+
 Year-over-year change of the series in the latest Resist save, over the 9,673 nation-quarters where both ends are
 non-zero: p1 -8.8 %, p5 -3.2 %, p10 -2.3 %, p50 0.0 %, p90 +4.5 %, p95 +6.7 %, p99 +14.4 %. Beyond ±10 %: 236 up,
 59 down; beyond ±20 %: 44 up, 11 down; beyond ±30 %: 21 up, 8 down. The extremes were -81 % and +235 % on single
@@ -207,6 +215,21 @@ the rest-value filter, the hold and carrier suppression (architecture 11.3). Ove
 - No government, education, inequality or military-tech shift: the three margin crossings (one inequality in
   Protectorate, one inequality and one democracy in Resist) fell in the same interval as a takeover or release of
   their nation, whose `metric_shifts` carry them.
+
+### Population and per-capita GDP as built
+
+`nation.population_changed` and `nation.pcgdp_trend` with the analyzers' constants (residual of 5 % or 10 % a year;
+20 quarters, +50 % / -25 %), and the `nation.population_collapse` and `nation.economic_trajectory` rules over them
+(architecture 11.3). Over the private saves (2026-10-29, `events --narrative`), **observed**:
+
+- No `nation.population_changed` in any interval of any campaign, so no `nation.population_collapse`.
+- No trend in Appease or Protectorate: their series hold at most seven quarters, short of a 20-quarter window.
+- Resist: 15 `nation.pcgdp_trend` (13 boom, 2 slump), 10 of them `before_sequence`, forming 14 trajectories (one of
+  them chains two booms of one nation); 4 promoted to `campaign_defining` as top-GDP nations.
+- Of the nations whose whole-series ratio is at or below 0.55 (three) or above 2.7 (three), five appear as a
+  trajectory of the matching direction. The sixth fell from 1 to 0.55 over the campaign without any 20-quarter
+  window below -21 %: a gradual decline over more than five years is not a slump under this rule.
+- Every trend quarter date lies within its interval or, for `before_sequence`, before the first save.
 
 ## Nuclear weapons and programs
 

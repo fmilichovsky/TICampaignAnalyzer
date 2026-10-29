@@ -12,7 +12,8 @@ import pytest
 
 from tests.fixtures import fixture_path
 from tinarrative.io.save_loader import load_raw_save
-from tinarrative.model.events import EventStatus
+from tinarrative.model.changes import StateDiff
+from tinarrative.model.events import Event, EventStatus
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.narrative.situation import build_situation
 from tinarrative.parsing.normalization import normalize
@@ -127,6 +128,23 @@ def test_at_most_two_snapshots_are_held_while_reports_are_kept() -> None:
     gc.collect()
     assert all(snapshot() is None for snapshot in loaded)
     assert len(situations(intervals)) == len(SEQUENCE)
+
+
+@pytest.mark.fixture
+def test_only_the_first_interval_runs_the_first_interval_analyzers(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[object] = []
+
+    class Recording:
+        def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
+            seen.append(before.date)
+            return []
+
+    monkeypatch.setattr("tinarrative.sequence.FIRST_INTERVAL_ANALYZERS", (Recording(),))
+    plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
+
+    list(run_sequence(plan, inferred=False))
+
+    assert seen == [DATES[0]]
 
 
 @pytest.mark.fixture
