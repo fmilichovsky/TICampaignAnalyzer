@@ -1,21 +1,10 @@
-"""One-line, conservative text for an :class:`Event`.
+"""One-line, conservative text for an :class:`Event`: the message catalog renderers reuse.
 
-This is the message catalog: the wording per event type that a renderer may reuse. It describes the
-literal transition and names the entities, as ``Name (domain:id)`` where the save gave a name; it never names
-a cause. A literal save value that an event carries as an attribute (for example a recorded cause string) is
-deliberately not echoed here. A rename line quotes the literal names before and after: the name is
-the fact the event reports. The other exception is
-the game's notification log: a ``notification.*`` line quotes the log template identifier, which is the game's
-own statement of what happened, so its wording is evidence, not inference (the summary text is still not echoed).
-The inferred types of the reconstruction stage (``nation.independence``, ``nation.unification``,
-``nation.annexation``, ``nation.territory_gained``/``lost``, ``faction.nation_control_changed``,
-``faction.first_hab_on_body``, ``hab.destroyed``, ``faction.battle_outcome``) do name their reading: it is the
-claim the inferred event makes, and a renderer marks such events as inferred. The control line says only that
-control changed; the recorded cause stays an attribute. No objective type's line names one.
-
-The narrative types of ``narrative.geopolitics`` name their development the same way, from their roles and
-attributes: the reading is the claim, the renderer prints its status (a heuristic join is always ``inferred``), and
-the line still names no cause, motive or public framing. ``nation.expansion`` echoes its literal ``mode``.
+A line states the literal transition and names entities as ``Name (domain:id)``; it never names a cause, and
+literal save strings carried as attributes are not echoed. Exceptions: a rename quotes both names (the name is the
+fact), a ``notification.*`` line quotes the game's log template identifier (the game's own statement, so evidence),
+and inferred or narrative types name their reading, since that is the claim the event makes and the renderer marks
+its status.
 """
 
 from __future__ import annotations

@@ -1,16 +1,6 @@
-"""The providers of ``tinarrative narrate --send`` (architecture 20.5).
+"""The providers of ``tinarrative narrate --send``. See architecture 20.5.
 
-A chapter request is sent as one provider-neutral ``CompletionRequest`` and comes back as one ``Completion``: the
-text, a finish reason (``complete``, ``length``, ``refused`` or ``other``), the model the provider reports and the
-token counts it reports. An adapter per provider translates the pair to and from its wire format:
-
-- ``anthropic``: the Anthropic Messages API;
-- ``openai``: the Chat Completions API, which ``base_url`` points at any server that implements it;
-- ``ollama``: Ollama's native chat API, the only one that sets the context length per request. A context smaller
-  than the request truncates the input silently, so it is set to ``max_input_tokens`` plus ``max_output_tokens``.
-
-Rate limits and server errors are retried a bounded number of times, honouring ``Retry-After``. The API key is read
-from the environment variable the settings name and is never logged; neither is a request or a response text.
+The API key, request text and response text are never logged.
 """
 
 from __future__ import annotations
@@ -65,8 +55,6 @@ class Completion:
 
 @dataclass(frozen=True)
 class Endpoint:
-    """Where and how requests are sent: resolved from the settings and the environment by ``endpoint``."""
-
     provider: str
     base_url: str
     key: str | None
@@ -75,8 +63,8 @@ class Endpoint:
 
 
 class ProviderError(Exception):
-    """A request that failed: ``kind`` is ``auth`` (401, 403), ``http`` (another status), ``network`` (no response)
-    or ``invalid_response`` (a success status whose body is not the provider's response)."""
+    """``kind`` is ``auth`` (401, 403), ``http`` (another status), ``network`` (no response) or
+    ``invalid_response`` (a success status whose body is not the provider's response)."""
 
     def __init__(self, kind: str, message: str, *, status: int | None = None) -> None:
         super().__init__(message)
@@ -85,7 +73,7 @@ class ProviderError(Exception):
 
 
 def endpoint(settings: NarratorSettings, environ: Mapping[str, str]) -> Endpoint:
-    """The endpoint of ``settings``; raises ``ValueError`` naming the setting when the settings cannot send."""
+    """Raises ``ValueError`` naming the setting when the settings cannot send."""
     provider = settings.provider
     if provider is None:
         raise ValueError("no provider: set narrator.provider (or a profile's provider) or give --provider")
@@ -115,7 +103,6 @@ def endpoint(settings: NarratorSettings, environ: Mapping[str, str]) -> Endpoint
 
 
 def completion_request(request: Mapping[str, Any], settings: NarratorSettings) -> CompletionRequest:
-    """The neutral request of a chapter request (``{"system": ..., "messages": [user]}``) under ``settings``."""
     if settings.model is None:
         raise ValueError("no model")
     return CompletionRequest(
@@ -135,7 +122,8 @@ def complete(
     sleep: Callable[[float], None] = time.sleep,
     chapter: int | None = None,
 ) -> Completion:
-    """Send ``request`` and map the response; raises ``ProviderError`` once the retries are used up."""
+    """Retries rate limits and server errors, honouring ``Retry-After``; raises ``ProviderError`` once the retries
+    are used up."""
     adapter = ADAPTERS[target.provider]
     url = target.base_url + adapter.path
     headers = {"content-type": "application/json", **adapter.headers(target.key)}
@@ -265,6 +253,8 @@ def _openai_decode(document: Mapping[str, Any]) -> Completion:
     )
 
 
+# Ollama truncates input silently when the context is smaller than the request, so the context length is set per
+# request to fit the whole budget.
 def _ollama_body(request: CompletionRequest, target: Endpoint) -> dict[str, Any]:
     options: dict[str, Any] = {"num_ctx": target.context_length, "num_predict": request.max_output_tokens}
     if request.temperature is not None:
@@ -318,7 +308,7 @@ def _status_error(response: HttpResponse) -> ProviderError:
 
 
 def _detail(document: Any) -> str | None:
-    """The provider's error message: ``error.message`` (Anthropic, OpenAI) or ``error`` (Ollama), shortened."""
+    """``error.message`` (Anthropic, OpenAI) or ``error`` (Ollama), shortened."""
     error = document.get("error") if isinstance(document, dict) else None
     message = error.get("message") if isinstance(error, dict) else error
     if not isinstance(message, str) or not message:
@@ -335,7 +325,7 @@ def _json(body: bytes) -> Any:
 
 
 def _retry_after(headers: Mapping[str, str]) -> float | None:
-    """The wait a ``Retry-After`` header asks for, in seconds or as an HTTP date, within ``MAX_WAIT_SECONDS``."""
+    """Accepts seconds or an HTTP date; capped at ``MAX_WAIT_SECONDS``."""
     value = headers.get("retry-after")
     if value is None:
         return None

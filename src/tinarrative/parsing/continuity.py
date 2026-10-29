@@ -1,9 +1,7 @@
 """The campaign identity of one save, read from the raw save without normalizing it.
 
-The format has no campaign ID (``docs/game-data-notes/campaign-grouping.md``), so a campaign is identified by
-continuity evidence: the sole human player's faction, the readable faction name, the scenario and the real-world
-time the campaign was started (``TIGlobalValuesState.realWorldCampaignStart``). A save whose human player cannot be
-resolved is unclassified and never grouped with another.
+Saves carry no campaign ID (``docs/game-data-notes/campaign-grouping.md``), so identity is built from continuity
+signals; a save whose sole human player cannot be resolved is unclassified and never grouped with another.
 """
 
 from __future__ import annotations
@@ -50,10 +48,7 @@ def _first(gamestates: dict[str, Any], short_type: str) -> dict[str, Any]:
 
 
 def campaign_profile(raw_save: RawSave) -> CampaignProfile:
-    """Read the continuity signals; a missing singleton or member leaves its signal ``None``.
-
-    Raises ``UnsupportedSaveShapeError`` only for a container that does not follow the documented pair shape.
-    """
+    """A missing singleton or member leaves its signal ``None``; raises only for a malformed pair container."""
     gamestates: dict[str, Any] = raw_save.root["gamestates"]
     humans = [
         entry.value for entry in decode_state_map(gamestates, "TIPlayerState") if entry.value.get("isAI") is False

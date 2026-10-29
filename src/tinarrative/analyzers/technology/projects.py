@@ -1,11 +1,7 @@
-"""Faction projects the save lists as finished.
+"""Faction project completions from ``finishedProjectNames`` (template names, not save entities).
 
-A faction's ``finishedProjectNames`` is a list of project template names. A name that enters it is a completion,
-one event per faction and name with the name as its identity (projects are templates, not save entities, as
-technologies are). A repeatable project is listed once per completion, so a name added more than once in an interval
-is still one event, with ``completions`` giving the count. A name that leaves the list is not a completion; it is
-reported literally as a list change (with ``count`` when repeated), as is a list that changed shape.
-``currentProjectProgress`` stays in the diff.
+A repeatable project is listed once per completion, so a name added several times in an interval is one event
+with a ``completions`` count. A name leaving the list is not a completion and is reported as a literal list change.
 """
 
 from __future__ import annotations

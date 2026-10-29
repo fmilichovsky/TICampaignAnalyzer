@@ -37,7 +37,6 @@ POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
     CouncilorAnalyzer(),
     OrganizationAnalyzer(),
 )
-"""The analyzers of the politics family, in the order they run (the output is sorted regardless)."""
 MILITARY_ANALYZERS: tuple[Analyzer, ...] = (ArmyAnalyzer(),)
 SPACE_ANALYZERS: tuple[Analyzer, ...] = (FleetAnalyzer(), ShipAnalyzer(), HabAnalyzer(), CombatAnalyzer())
 TECHNOLOGY_ANALYZERS: tuple[Analyzer, ...] = (TechnologyAnalyzer(), ProjectAnalyzer())

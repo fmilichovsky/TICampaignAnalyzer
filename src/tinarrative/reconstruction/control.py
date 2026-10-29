@@ -1,30 +1,11 @@
-"""Explicit reconstruction rule: which faction controls a nation, read from its control points.
+"""Reconstruction rule ``faction.nation_control_changed``: which faction holds a nation, read from its control points.
 
-The control-point analyzer reports each point's controller and nothing more; only the rule here says that a
-faction's hold on a nation changed. Evidence is cited as ``reconstruction.common`` describes.
-
-The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (nation control). The executive
-seat is the nation's ``Executive``-typed control point, wherever it sits; a nation without one has the point at
-``positionInNation = 0`` (typed after the regime) stand in. Only the first kind is what the nation's
-``lastExecutiveChange`` record follows.
-
-Rule:
-
-- ``faction.nation_control_changed``: one per nation and scope whose holder differs between the two snapshots,
-  for a nation with at least one ``control_point.controller_changed`` (primary). The scopes are ``executive``
-  (the faction holding the executive seat), ``plurality`` (the faction holding most points; a tie or no
-  controlled point is ``null``) and ``sole`` (the faction holding every point, else ``null``). ``shares_before`` and
-  ``shares_after`` count the points per faction. The nation's ``nation.executive_change_recorded``,
-  ``control_point.loss_recorded`` and control-point presence events corroborate. High when the executive record
-  names the new executive holder and that faction is the scope's new holder, and then dated by the record;
-  medium otherwise, and always medium on a position-0 seat, which the record does not follow; low when any point of
-  the nation is unresolved on either side, the scope's holder then ``Unknown``. A point whose ``nation`` changed
-  in the interval is territory, not control: it is left out of the comparison (shares, plurality, sole, point
-  counts; ``points_moved`` counts them), the executive scope is compared only when the same point is the seat on
-  both sides, and every confidence is one level lower.
-
-The line says control changed; the recorded cause is an attribute, never a reading (coup, purge): that is the
-``faction.takeover`` narrative rule's work.
+The control-point analyzer reports each point's controller only; this rule says a faction's hold changed, per scope
+(``executive`` seat, ``plurality``, ``sole``). Evidence: ``docs/game-data-notes/higher-level-event-sources.md``
+(nation control). High only when ``lastExecutiveChange`` names the new holder of an ``Executive``-typed seat (a
+position-0 stand-in is never cross-checked); low when a point is unresolved. Points that changed nation are
+territory, not control: they are left out and lower every confidence. The cause stays an attribute; reading it
+(coup, purge) is the narrative layer's work.
 """
 
 from __future__ import annotations

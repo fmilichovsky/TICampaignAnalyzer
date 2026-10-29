@@ -1,20 +1,10 @@
 """Nation statistic shifts above a threshold, with the per-cause deltas the game itself tracked.
 
-A nation's statistics (GDP, inequality, cohesion, ...) change on many nations per interval, nearly all of it
-routine drift and periodic steps (``docs/game-data-notes/higher-level-event-sources.md``). This analyzer
-reports a change only when it exceeds the statistic's threshold, and copies the matching
-``tracker_<Statistic>ChangeReason_AllTime`` map as per-reason deltas: the game's own attribution, whose deltas
-sum to the statistic's change. ``causes`` is the one computed attribute here (after minus before per reason
-key, of two literal maps); it is arithmetic over evidence, not a reinterpretation, and reading the causes as
-an annexation or a unification is reconstruction work.
-
-Saves can be any distance apart, so a threshold scales with the interval: ``max(floor, rate × months)``. The
-floor is the smallest one-off step that counts (routine change partly arrives in steps); the rate covers sustained
-drift over a long interval. Without a known interval the floor alone applies. Every threshold below sits above the
-routine magnitudes recorded in ``docs/game-data-notes/higher-level-event-sources.md`` ("Metric shift magnitudes").
-
-Nations without regions are placeholders: none of them changes any statistic, so they are skipped. A tracker change
-without a statistic change stays in the diff.
+Most statistic change is routine drift, so only a change past its threshold is reported
+(``docs/game-data-notes/higher-level-event-sources.md``, "Metric shift magnitudes"). Thresholds scale with the
+interval as ``max(floor, rate × months)``; the floor alone applies without a known interval. ``causes`` (per-reason
+delta of the ``tracker_<Statistic>ChangeReason_AllTime`` map) is arithmetic over evidence; reading it as an annexation
+or unification is reconstruction work. Placeholder nations are skipped.
 """
 
 from __future__ import annotations
@@ -98,8 +88,7 @@ STATISTIC_THRESHOLDS: Mapping[str, StatisticThreshold] = {
 """The scalar statistics and their thresholds, in the order they are analyzed."""
 
 PUBLIC_OPINION_THRESHOLD = StatisticThreshold(Measure.ABSOLUTE, 0.15, 0.05)
-"""``publicOpinion`` maps each of 8 keys (the faction ideologies and ``Undecided``) to a share. Each key is
-judged on its own."""
+"""Applied to each key (faction ideologies and ``Undecided``) of the ``publicOpinion`` share map on its own."""
 
 TRACKERS: Mapping[str, str] = {
     "GDP": "tracker_GDPChangeReason_AllTime",

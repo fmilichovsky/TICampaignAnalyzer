@@ -1,9 +1,7 @@
 """Building blocks every reconstruction rule shares: evidence bundles, citation and the inferred event itself.
 
-An inferred event names each objective event it rests on in ``constituents`` and cites all of their sources, so
-it never loses the evidence beneath it (architecture sections 6 and 10). The events a rule is built on keep their
-source roles; every other source is corroborating. A diff change that no analyzer reports is cited directly. A
-fact read from a snapshot alone only qualifies evidence, it is never the evidence.
+An inferred event cites every source of its constituents, so it never loses the evidence beneath it (architecture
+sections 6 and 10). A fact read from a snapshot alone only qualifies evidence, it is never the evidence.
 """
 
 from __future__ import annotations

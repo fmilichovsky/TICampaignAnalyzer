@@ -1,20 +1,7 @@
-"""Chapters of a narrator package under a token budget (architecture 20.3 and 20.4).
+"""Chapters of a narrator package under a token budget. See architecture 20.3 and 20.4.
 
-A chapter is a contiguous run of the package's intervals made of whole periods; it opens on the save before its first
-interval and closes on the save of its last. A development belongs to the chapter holding the interval its start lies
-in. The planner walks the periods in order and adds the next one while the estimated request stays within
-``max_input_tokens``. A period that does not fit on its own is reduced in a fixed order, recorded per chapter: its
-atomic stream is left out (``atomic_dropped``), then it is split at save boundaries (``split``, also without atomic
-stream); an interval that still does not fit is ``OverBudget``. Developments are never dropped.
-
-The period is the requested one, or the one ``derive_period`` gives, coarsened where the saves are too far apart for
-it: a period whose intervals are longer, by median, than the period runs is told at the next coarser period together
-with every interval that period holds. A chapter holds one period, so it ends where the period changes. A requested
-period is never coarsened; the periods it is too fine for are reported as ``sparse``.
-
-A chapter package selects entries of the package and never rewrites one, so an ID means the same event in both. It
-adds ``chapter`` and ``continuity``; continuity is built from the package, never from earlier prose. The same package,
-options and settings always give the same plan and the same requests.
+A chapter package selects entries of the package and never rewrites one, so an ID means the same event in both.
+Continuity is built from the package, never from earlier prose, so a plan is deterministic.
 """
 
 from __future__ import annotations
@@ -33,12 +20,10 @@ from .request import build_request, prompt_version, render_request
 
 PERIODS = ("year", "half", "quarter")
 LONGEST_DAYS = {"year": 366, "half": 184, "quarter": 92}
-"""The most days a calendar period runs; saves further apart than this, by median, are too sparse to tell it."""
+"""Saves further apart than this, by median, are too sparse to tell the period."""
 SIGNIFICANCE = ("trivial", "minor", "major", "campaign_defining")
 RECALLED_FROM = "major"
-"""The lowest significance of a development recalled in a later chapter's ``continuity.earlier``."""
 LENGTH_WEIGHTS = {"trivial": 1, "minor": 1, "major": 2, "campaign_defining": 4}
-"""A chapter's share of ``length`` is in proportion to the summed weights of its developments."""
 REDUCTIONS = ("atomic_dropped", "split")
 PLANNER_KEYS = (
     "max_input_tokens",
@@ -48,12 +33,12 @@ PLANNER_KEYS = (
     "recalled_developments",
     "top_economies",
 )
-"""The ``narrator`` settings the plan depends on, recorded in ``plan.json``; the provider keys never change a plan."""
+"""Recorded in ``plan.json``; the provider keys never change a plan."""
 
 
 @dataclass(frozen=True)
 class Chapter:
-    """Intervals ``first`` to ``last`` (positions in the package, inclusive), with or without their atomic stream."""
+    """``first`` and ``last`` are inclusive interval positions in the package."""
 
     first: int
     last: int
@@ -79,24 +64,21 @@ class PlannedChapter:
 
     @property
     def request_sha256(self) -> str:
-        """The SHA-256 of the request as written to ``requests/NN.json``."""
         return hashlib.sha256(render_request(self.request).encode("utf-8")).hexdigest()
 
 
 @dataclass(frozen=True)
 class ChapterPlan:
-    """The chapters of one package, with the request of each."""
-
     package_sha256: str
     options: dict[str, str]
     length: int | None
     settings: NarratorSettings
     chapters: tuple[PlannedChapter, ...]
     sparse: tuple[str, ...]
-    """The labels of the requested period that the saves are too far apart for; empty when none was requested."""
+    """Requested-period labels the saves are too far apart for; empty when no period was requested."""
 
     def to_dict(self) -> dict[str, Any]:
-        """The plan as written to ``plan.json``: no time and no path, so the same inputs give the same bytes."""
+        """No time and no path, so the same inputs give the same bytes."""
         return {
             "prompt_version": prompt_version(),
             "package_sha256": self.package_sha256,
@@ -133,7 +115,6 @@ class OverBudget:
 
 
 def validate(package: object) -> dict[str, Any]:
-    """``package`` as a narrator package dict; raises ``ValueError`` when it is not one."""
     if not isinstance(package, dict) or not all(
         isinstance(package.get(key), list) for key in ("saves", "intervals", "narrative", "glossary")
     ):
@@ -147,7 +128,7 @@ def validate(package: object) -> dict[str, Any]:
 
 
 def period_label(date: str, period: str) -> str:
-    """The period of an ISO game time: ``2032``, ``2032-H1`` or ``2032-Q2``."""
+    """``2032``, ``2032-H1`` or ``2032-Q2``."""
     moment = datetime.fromisoformat(date)
     if period == "year":
         return f"{moment.year:04d}"
@@ -177,8 +158,7 @@ def base_options(
     style: str | None = None,
     focus: str | None = None,
 ) -> dict[str, str]:
-    """The request keys every chapter shares. ``period`` defaults to ``derive_period``; ``focus`` defaults to the
-    player faction for an ``insider`` audience."""
+    """``focus`` defaults to the player faction for an ``insider`` audience."""
     if focus is None and audience == "insider":
         situation = package["saves"][-1].get("situation") if package["saves"] else None
         name = situation.get("player_faction_name") if isinstance(situation, dict) else None
@@ -194,14 +174,12 @@ def base_options(
 
 
 def estimate(request: Mapping[str, Any], chars_per_token: int) -> int:
-    """The input tokens of a request: the characters of its system prompt and messages over ``chars_per_token``."""
     characters = len(request["system"]) + sum(len(message["content"]) for message in request["messages"])
     return math.ceil(characters / chars_per_token)
 
 
 def referenced(node: Any) -> set[str]:
-    """Every entity ref in ``node``: ``ref`` members, the faction keys of ``shares`` and the ref strings of
-    ``allies``."""
+    """Includes the faction keys of ``shares`` and the ref strings of ``allies``."""
     if isinstance(node, dict):
         found = {node["ref"]} if isinstance(node.get("ref"), str) else set()
         if isinstance(node.get("shares"), dict):
@@ -217,7 +195,6 @@ def referenced(node: Any) -> set[str]:
 
 
 def glossary_for(glossary: Sequence[Mapping[str, Any]], refs: set[str]) -> list[Mapping[str, Any]]:
-    """The glossary entries of ``refs``, in glossary order."""
     return [entry for entry in glossary if entry["ref"] in refs]
 
 
@@ -229,8 +206,8 @@ def plan_chapters(
     length: int | None = None,
     requested: bool = False,
 ) -> ChapterPlan | OverBudget:
-    """The chapter plan of ``package``, or the interval that cannot fit ``max_input_tokens`` on its own.
-    ``requested`` says that ``options["period"]`` was asked for, so it is kept where the saves are too sparse."""
+    """Developments are never dropped: a period that does not fit loses its atomic stream, then is split at saves;
+    an interval that still does not fit is ``OverBudget``. A ``requested`` period is never coarsened."""
     planner = _Planner(validate(dict(package)), options, settings, length, requested)
     chapters = planner.plan()
     if isinstance(chapters, OverBudget):
@@ -273,8 +250,7 @@ class _Planner:
         ]
 
     def _sparse(self) -> list[tuple[str, str]]:
-        """The periods, as ``(period, label)`` in order, whose intervals are longer by median than the period runs;
-        an interval belongs to the period of its closing save."""
+        """An interval belongs to the period of its closing save."""
         lengths: dict[tuple[str, str], list[int]] = {}
         for interval, period in zip(self.intervals, self.granularity, strict=True):
             days = (datetime.fromisoformat(interval["date"]) - datetime.fromisoformat(interval["not_before"])).days
@@ -282,8 +258,7 @@ class _Planner:
         return [key for key, days in lengths.items() if statistics.median(days) > LONGEST_DAYS[key[0]]]
 
     def _coarsen(self) -> None:
-        """Tell each sparse period at the next coarser one, with every interval of that coarser period, until none
-        but years is sparse. Calendar periods nest, so the labels stay contiguous and never overlap."""
+        """Calendar periods nest, so coarsened labels stay contiguous and never overlap."""
         while coarsened := [(period, label) for period, label in self._sparse() if period != "year"]:
             parents: set[tuple[str, str]] = set()
             for period, label in coarsened:
@@ -308,10 +283,8 @@ class _Planner:
         return "campaign_span" if self._period(chapter) == self.base else "save_spacing"
 
     def _start_position(self, event: Mapping[str, Any], interval_position: Mapping[str, int]) -> int:
-        """The interval a development is filed under, following the prompt's period rule: the last interval whose
-        opening save is not after its start when that is a recorded date, otherwise the first whose closing save is
-        not before its end, the interval by which it was known. An undated development starts in the first interval
-        it lists."""
+        """Follows the prompt's period rule: a recorded start files by start, otherwise by the interval by which the
+        development was known."""
         start, end = event.get("start"), event.get("end")
         if isinstance(start, str) and (event.get("start_basis") == "record" or not isinstance(end, str)):
             position = 0
@@ -386,9 +359,7 @@ class _Planner:
         return self._estimate(chapter, earlier) <= self.settings.max_input_tokens
 
     def _estimate(self, chapter: Chapter, earlier: Sequence[Chapter]) -> int:
-        """The estimate with the values not known yet at their largest: the count as the number of intervals (at
-        least the number of chapters), the longest part name and the whole length, so a final request is never
-        larger than its planned estimate."""
+        """Values not known yet are taken at their largest, so a final request never exceeds its estimate."""
         widest = len(self.intervals)
         request = self._request(chapter, earlier, index=widest, count=widest, part="middle", length=self.length)
         return estimate(request, self.settings.chars_per_token)
@@ -432,8 +403,7 @@ class _Planner:
         )
 
     def _shares(self, chapters: Sequence[Chapter]) -> list[int | None]:
-        """Each chapter's share of ``length`` by the weights of its developments (by its intervals when no chapter
-        holds one), rounded by largest remainder so that the shares add up to ``length``."""
+        """Rounded by largest remainder so the shares add up to ``length``."""
         if self.length is None:
             return [None] * len(chapters)
         weights = [
@@ -512,8 +482,7 @@ class _Planner:
         ]
 
     def _continuity(self, chapter: Chapter, earlier: Sequence[Chapter]) -> dict[str, Any]:
-        """Developments of earlier chapters that still run in this one, in full, and a capped digest of the others
-        at ``RECALLED_FROM`` and above."""
+        """Still-running earlier developments in full, and a capped digest of the others from ``RECALLED_FROM``."""
         keys = {interval["key"] for interval in self.intervals[chapter.first : chapter.last + 1]}
         before = [
             (position, event)
@@ -541,7 +510,6 @@ class _Planner:
         }
 
     def _closure(self, roots: Iterable[Mapping[str, Any]]) -> set[str]:
-        """The IDs of every event the roots are built from, followed transitively."""
         seen: set[str] = set()
         pending = [constituent for root in roots for constituent in root.get("constituents") or ()]
         while pending:
@@ -553,7 +521,6 @@ class _Planner:
         return seen
 
     def _saves(self, chapter: Chapter) -> list[Mapping[str, Any]]:
-        """The opening save, before the first interval, and the closing save, of the last interval."""
         saves = self.package["saves"]
         opening = self.save_position.get(self.intervals[chapter.first]["key"])
         closing = self.save_position.get(self.intervals[chapter.last]["key"])
@@ -561,11 +528,10 @@ class _Planner:
         return [saves[position] for position in positions]
 
     def _pruned(self, save: Mapping[str, Any], refs: set[str], told: set[str]) -> Mapping[str, Any]:
-        """The save with its situation's nations reduced to the referenced ones and the largest economies.
+        """Keeps referenced nations and the largest economies.
 
-        A nation that holds no region in this save is not ranked among the economies and is kept only when ``told``,
-        the refs of the chapter's developments, continuing developments and atomic events, holds it; a mention in
-        the digest of an earlier development does not keep it.
+        A landless nation is never ranked and is kept only when ``told`` holds it; a mention in an earlier digest does
+        not keep it.
         """
         situation = save.get("situation")
         if not isinstance(situation, dict) or not isinstance(situation.get("nations"), list):

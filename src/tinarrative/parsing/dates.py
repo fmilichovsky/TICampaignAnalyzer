@@ -32,9 +32,9 @@ def game_datetime(components: Any) -> datetime | None:
 
 
 def iso_date(components: Any, state_type: str, field: str, collector: UnknownCollector) -> Observed:
-    """``null`` stays ``None``; a componentized date becomes its ISO-8601 text; anything else is unparseable.
+    """``null`` stays ``None`` and a componentized date becomes ISO-8601 text.
 
-    The unparseable value is kept raw on the ``Unknown`` and reported as an unexpected field shape.
+    Anything else is kept raw on an ``UNPARSEABLE`` ``Unknown`` and reported as an unexpected field shape.
     """
     if components is None:
         return None

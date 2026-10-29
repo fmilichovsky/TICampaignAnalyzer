@@ -1,9 +1,7 @@
-"""Fleet transitions a save shows directly: faction, docking, orbit, barycenter, parent fleet, combat flag, presence.
+"""Fleet transitions: faction, docking, orbit, barycenter, parent fleet, combat flag, presence.
 
-A fleet ID is valid for the fleet's lifetime only: merged fleets vanish and ``parentFleet`` often names an ID
-absent from the save. A fleet present in one snapshot only is therefore reported as absent from (or present only
-in) that snapshot, and an unresolved ``parentFleet`` as an unresolved transition; neither is evidence of a merge
-or a loss. ``trajectory``, ``globalPosition``, operations and bombardment fields stay in the diff.
+A fleet ID lives only as long as the fleet (merged fleets vanish, ``parentFleet`` often dangles), so presence and
+unresolved ``parentFleet`` changes are reported literally, never as evidence of a merge or a loss.
 """
 
 from __future__ import annotations

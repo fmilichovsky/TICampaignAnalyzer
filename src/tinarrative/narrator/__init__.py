@@ -1,8 +1,7 @@
 """The narrator half of the pipeline: chapter plans and requests for an LLM built from a narrator package.
 
-Everything here reads the package's JSON form (``tinarrative events --narrative --format json``) as a plain dict
-and never the model types, so this package must not import :mod:`tinarrative.parsing`,
-:mod:`tinarrative.sequence` or :mod:`tinarrative.model`.
+Reads the package's JSON form as a plain dict, so the narrator can run on a package alone; it must not import
+:mod:`tinarrative.parsing`, :mod:`tinarrative.sequence` or :mod:`tinarrative.model`.
 """
 
 from .chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate

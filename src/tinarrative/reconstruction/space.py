@@ -1,29 +1,15 @@
-"""Explicit reconstruction rules: space developments read from hab presence, destruction logs, kills and battles.
+"""Reconstruction rules for space: first hab on a body, hab destroyed, battle outcome.
 
-The space analyzers keep their wording rule (a hab disappears, a log entry is recorded); only the rules here name
-a destruction, a first presence or a battle outcome. Evidence is cited as ``reconstruction.common`` describes.
+The space analyzers only report presence and log entries; these rules name the development. The joins and their
+evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins).
 
-The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins). A hab's
-``barycenter`` is the body it sits on or orbits (the hab site's ``parentBody`` for a base, the orbit's
-``barycenter`` for a station). A ``HabDestructionLog`` entry added in an interval matches a hab gone from the later
-save by owning faction, hab type and body, though not always uniquely. A ``LogHabDestroyed`` notification carries
-the entry's date. Faction ``Kills`` lists can grow by many names in one interval.
-
-Rules:
-
-- ``faction.first_hab_on_body``: one per faction and body where ``hab.appeared`` events put habs of a faction
-  that held none there in the earlier snapshot; high. A new ``First*Base*`` global milestone of the faction is
-  cited when no faction had a hab on the body before and it is the faction's only such body in the interval
-  (milestone labels name places, not body IDs).
-- ``hab.destroyed``: a ``hab.disappeared`` joined to the ``faction.hab_destruction_recorded`` entries of the same
-  faction, hab type and body. A ``LogHabDestroyed`` notification naming the hab and dated like one entry pins the
-  pair. One entry for one hab, or a pinned pair, is high and dated by the entry; several candidates are medium
-  (``ambiguous``), fewer entries than vanished habs low.
-- ``faction.battle_outcome``: per killer and victim, ``Kills`` growth against the victim together with a loss of
-  the victim in the interval (a vanished hab or fleet, or a destruction entry naming the killer); medium, high
-  with a combat-log entry won by the killer, or with a ``LogSpaceBattleTakesPlace`` notification about a fleet of
-  either side unless the combat log has the victim winning (the notification says a battle took place, not who
-  won it). A faction's kills keyed by itself (observed, unexplained) are not a battle.
+- ``faction.first_hab_on_body``: habs of a faction appear on a body where it held none; high. A ``First*Base*``
+  milestone is cited only when it is unambiguous (labels name places, not body IDs).
+- ``hab.destroyed``: a vanished hab joined to destruction log entries by faction, hab type and body; high when
+  one entry matches or a ``LogHabDestroyed`` notification pins the date, else medium (``ambiguous``) or low.
+- ``faction.battle_outcome``: ``Kills`` growth against a victim plus a loss of the victim; medium, high with a
+  combat log won by the killer or a battle notification the combat log does not contradict. Self-kills are no
+  battle.
 """
 
 from __future__ import annotations
@@ -59,8 +45,7 @@ KILLS_FIELD = "Kills"
 """``TIFactionState.Kills``: victim faction -> display names of destroyed assets (never copied, only counted)."""
 MILESTONE_PREFIX = "First"
 MILESTONE_BASE = "Base"
-"""Observed first-base labels: ``FirstBaseOnLuna``, ``FirstBaseOnMars``, ``FirstAsteroidBase``,
-``FirstMercuryBase``, ``FirstKuiperBeltObjectBase``, ``FirstJupiterSystemBase``, ``FirstUranusSystemBase``."""
+"""First-base milestone labels start with ``First`` and contain ``Base`` (``FirstBaseOnLuna``, ``FirstMercuryBase``)."""
 
 DestructionKey = tuple[EntityId, str, EntityId]
 """Owning faction, hab type and body: what a destruction log entry and a vanished hab share."""

@@ -48,11 +48,7 @@ class CampaignMetadata:
 
 @dataclass(frozen=True)
 class ResearchState:
-    """Campaign-wide research facts from the ``TIGlobalResearchState`` singleton.
-
-    These are the serialized collections the per-technology states are derived from; keeping both
-    preserves the evidence (this object) next to the derived view (``SaveSnapshot.technologies``).
-    """
+    """``TIGlobalResearchState`` facts: the evidence behind the derived ``SaveSnapshot.technologies``."""
 
     finished_techs_names: Observed = field(default_factory=Unknown)
     finished_one_time_only_project_names: Observed = field(default_factory=Unknown)
@@ -120,15 +116,9 @@ def _sorted_states(states: tuple[EntityState, ...]) -> tuple[EntityState, ...]:
 class SaveSnapshot:
     """One save, normalized.
 
-    ``date`` is the ISO-8601 game timestamp (no timezone; game-calendar time) or ``Unknown``.
-    ``campaign_day`` and ``campaign_quarter`` are the serialized turn-like counters.
-    ``habs`` holds ``TIHabState`` objects (domain ``space object``); ``space_bodies`` holds ``TISpaceBodyState``
-    objects (domain ``space body``, the target of every ``barycenter``); ``technologies`` are name-keyed
-    states derived from ``research``; ``global_values`` holds the ``TIGlobalValuesState`` singleton as one
-    in-save-ID entity, so its fields and records have an owner like any other entity's; ``notification_queue``
-    holds the ``TINotificationQueueState`` singleton the same way (the owner of the notification log).
-    ``records`` holds the save-carried records (dated logs and cumulative counters) of every entity, one
-    ``RecordSet`` per entity and field, sorted by owner then field.
+    ``date`` is the ISO-8601 game-calendar timestamp (no timezone) or ``Unknown``. ``technologies`` are
+    name-keyed states derived from ``research``. ``global_values`` and ``notification_queue`` hold their
+    singletons as one entity each, so their fields and records have an owner like any other entity's.
     """
 
     source: str

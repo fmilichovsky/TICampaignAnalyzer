@@ -1,11 +1,7 @@
 """The committed unknowns registry: findings accumulated across saves and scans, awaiting triage.
 
-The registry is a JSON document (``docs/game-data-notes/unknowns/registry.json`` in this repository) that
-records, per finding key, how often and when a structure outside the parser's schema was observed. It holds
-schema-level facts only; :data:`SAFE_STRING` rejects anything that could be a value, a name or a path. The
-scanner owns every member except ``triage``, which is written by hand and preserved verbatim. Entries leave
-the registry only when the code tables learn the structure (:func:`prune_known`); a scan that does not meet
-an entry never removes it, because absence from one save set is not resolution.
+Schema-level facts only (:data:`SAFE_STRING`). ``triage`` is hand-written and preserved verbatim. Entries leave
+only when the code tables learn the structure (:func:`prune_known`): absence from one save set is not resolution.
 """
 
 from __future__ import annotations
@@ -377,11 +373,9 @@ def _version_label(game_version: str | None) -> str:
 
 
 def merge(registry: Registry, report: UnknownReport, *, game_version: str | None, today: date) -> Registry:
-    """Fold one save's findings into the registry.
+    """Fold one save's findings into the registry; entries the report does not mention are untouched.
 
-    An entry seen again keeps the larger per-save occurrence count (so re-scanning a save changes nothing),
-    counts one more save, unions its shape and game versions and moves ``last_seen``; a new entry starts from
-    this save. Entries the report does not mention are untouched.
+    An entry seen again keeps the larger per-save occurrence count, so re-scanning a save changes nothing.
     """
     version = _version_label(game_version)
     entries = {entry.key: entry for entry in registry.entries}
@@ -441,11 +435,7 @@ def _compact(value: object) -> str:
 
 
 def dump(registry: Registry) -> str:
-    """Canonical text: fixed key order, one entry member per line with nested values compact, ASCII only.
-
-    Equivalent to ``json.dumps`` of :meth:`Registry.to_document` but keeps every entry at one line per member,
-    so a 400-entry registry stays reviewable and a change to one entry is a local diff.
-    """
+    """Canonical ASCII JSON with one entry member per line, so a change to one entry is a local diff."""
     document = registry.to_document()
     lines = ["{"]
     for key in _DOCUMENT_KEYS[:-1]:
@@ -479,10 +469,9 @@ def record(
     format: str = DEFAULT_FORMAT,
     today: date,
 ) -> RegistryUpdate:
-    """Load the registry at ``path`` (or start one), merge every scanned save, prune, stamp and write it back.
+    """Merge every scanned save into the registry at ``path`` (or a new one), prune, stamp and write it back.
 
-    Raises ``RegistryError`` when the file cannot be read, is not a registry, belongs to another format, or
-    cannot be written.
+    Raises ``RegistryError`` when the file cannot be read or written, is not a registry, or has another format.
     """
     try:
         before = load_or_empty(path, format)

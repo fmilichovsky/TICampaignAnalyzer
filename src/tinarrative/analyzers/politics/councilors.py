@@ -1,7 +1,6 @@
-"""Councilor membership and the transitions a save shows directly: faction, status, location, detention.
+"""Councilor events for the transitions a save shows directly: faction, status, location, detention, presence.
 
-A councilor that is present in one snapshot only is reported as absent from (or present only in) that
-snapshot; whether it died, was dismissed or was filtered out is a reconstruction question.
+Presence is reported as-is; whether a vanished councilor died or was dismissed is left to reconstruction.
 """
 
 from __future__ import annotations

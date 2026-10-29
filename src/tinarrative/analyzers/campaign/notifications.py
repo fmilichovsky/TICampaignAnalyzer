@@ -1,14 +1,9 @@
-"""The game's own notification log (``TINotificationQueueState.notificationSummaryQueue``) as the save shows it.
+"""The game's own notification log (``TINotificationQueueState.notificationSummaryQueue``).
 
-Each entry added to the log between two saves is one objective event typed by its log template
-(``notification.<templateName>``, verbatim) and dated by the entry's own ``dateTime``, so it can place a
-development inside a long interval. The log is player-centric and pruned (``domain-field-map.md``): it is a
-supplement, not a complete history, and an absent entry says nothing about what did not happen.
-
-An entry present only in the earlier save is reported literally as ``notification.entry_removed``, never
-assumed pruned; an entry with the same template, date and summary whose other members differ (the game
-rewrites the subject of kept entries) is ``notification.entry_changed``. The summary text is
-campaign content: it is carried as an attribute and never rendered or logged.
+Each added entry is an objective ``notification.<templateName>`` event dated by its own ``dateTime``. The log is
+player-centric and pruned (``domain-field-map.md``), so an absent entry proves nothing and a removed one is reported
+literally, never assumed pruned. The summary text is campaign content: carried as an attribute, never rendered or
+logged.
 """
 
 from __future__ import annotations
@@ -178,7 +173,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
 
 
 def _value_changed(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event | None:
-    """Any other field of the singleton, literally; ``None`` when a side is missing or unparseable."""
+    """Any other field of the singleton, literally; ``None`` on a schema gap."""
     transition = classify(change.before, change.after)
     if transition is None:
         return None

@@ -1,15 +1,8 @@
-"""Ship transitions a save shows directly: the fleet it belongs to, the literal refit date, presence.
+"""Ship transitions: the fleet it belongs to, the literal refit date, presence.
 
-Ships keep their IDs across fleet merges, so a ship's ``fleet`` reference is the continuity evidence the fleet ID
-cannot give; a ``fleet`` that no longer resolves is reported as an unresolved transition. ``lastRefitDate`` is the
-only place this analyzer uses the word refit, because the save carries it literally. Propellant, armor, damaged
-parts and systems, delta-v, mass and ``kills`` stay in the diff.
-
-A presence event carries the ship's ``hull`` when it resolves: the ``hullName`` of the design its ``templateName``
-names, looked up in the ``shipDesigns`` of its fleet's faction on the side where the ship exists (a ship
-``templateName`` matches a design ``dataName``). That faction is also the event's third entity, the owner of the
-ship's fleet. The design name itself is player content
-and is never carried.
+Ships keep their IDs across fleet merges, so ``fleet`` is the continuity evidence the fleet ID cannot give. A presence
+event carries the design's ``hull`` (matched ``templateName`` to ``dataName`` in the fleet faction's
+``shipDesigns``); the design name itself is player content and is never carried.
 """
 
 from __future__ import annotations

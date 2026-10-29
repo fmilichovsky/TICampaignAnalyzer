@@ -1,14 +1,7 @@
-"""A nation's place among the nations by GDP, the game's strength estimate, boost or mission control changing.
+"""A nation's place by GDP, strength estimate, boost or mission control changing within the top ``RANKED_PLACES``.
 
-The places are those of ``nation_assets.standings``: nations holding regions with a known value, largest first, ties
-by entity ID. One event per nation and metric whose place changed and that is among the first ``RANKED_PLACES`` on
-either side; a nation without a place on one side (no regions, or an unknown value) has rank ``None`` there. Which
-entries of the top N a narrative counts is the narrative stage's call (``world.ranking_changed``), up to
-``RANKED_PLACES``.
-
-A place is relative, so the event cites the changes of the inputs (``nation_assets``: the nation, region and army
-fields the metric reads) of the nation itself, as primary, and of every nation whose order against it reversed, as
-corroborating; a nation without a change of its own cites the others' as primary.
+A place is relative, so the event cites the nation's own input changes as primary and those of every nation whose
+order against it reversed as corroborating; with no change of its own, the others' are primary.
 """
 
 from __future__ import annotations
@@ -91,7 +84,6 @@ def _reversed(nation: EntityId, old: Mapping[EntityId, Standing], new: Mapping[E
 
 
 def _inputs(nation: EntityId, name: str, index: ChangeIndex, lookup: Lookup) -> list[StateChange]:
-    """The changes of the fields the metric reads for ``nation``, its regions and its armies on either side."""
     changes = [change for field in _NATION_INPUTS[name] if (change := index.field(nation, field)) is not None]
     regions: set[EntityId] = set()
     armies: set[EntityId] = set()

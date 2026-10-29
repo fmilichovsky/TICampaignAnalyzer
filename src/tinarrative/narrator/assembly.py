@@ -1,14 +1,7 @@
-"""The assembled history of a ``tinarrative narrate`` run, its citation audit and its manifest (architecture 20.6).
+"""The assembled history of a ``tinarrative narrate`` run, its citation audit and its manifest. See architecture 20.6.
 
-The chapters' prose is joined in order under a header naming the provider, the reported model, the prompt version,
-the campaign and the period covered. Each chapter numbers its footnotes from 1; the history renumbers them in
-sequence and collects every definition at its end. A chapter's references are numbered in order of first appearance;
-a definition no reference points to follows them, and a reference with no definition is defined by its label.
-
-The audit checks every ID a footnote cites against the chapter package the chapter was written from, read back from
-its request: its developments, its atomic events, its continuity entries and ``situation <save-key>`` for its saves.
-It lists the citations that match nothing, the developments at ``major`` and above that no footnote of the history
-cites, and the references and definitions without a counterpart. It reports and never changes or rejects prose.
+The audit checks citations against the chapter package read back from each request, not the full package, so a
+citation outside the chapter's evidence is caught. It reports and never changes or rejects prose.
 """
 
 from __future__ import annotations
@@ -25,11 +18,11 @@ from .chapters import PLANNER_KEYS, SIGNIFICANCE
 from .request import chapter_package
 
 UNCITED_FROM = "major"
-"""The lowest significance of a development the audit expects a footnote to cite."""
+"""The lowest significance the audit expects a footnote to cite."""
 KEPT_FINISHES = ("complete", "other")
-"""The finishes a stored response can have; ``length`` and ``refused`` completions are never written."""
+"""``length`` and ``refused`` completions are never written."""
 SENT_WITH = ("provider", "model", "max_output_tokens", "temperature")
-"""The members of a response that, with its request, make the request that was sent."""
+"""With the request file, these response members reconstruct the request that was sent."""
 
 _DEFINITION = re.compile(r"^ {0,3}\[\^([^\]\n]+)\]:[ \t]*(.*?)\s*$")
 _REFERENCE = re.compile(r"\[\^([^\]\n]+)\](?!:)")
@@ -42,8 +35,7 @@ _BACKTICKED = re.compile(r"`([^`]+)`")
 
 @dataclass(frozen=True)
 class ChapterText:
-    """A chapter's prose without its footnote definitions, its reference labels in order of first appearance and
-    its definitions by label, in order."""
+    """``references`` are in order of first appearance."""
 
     body: str
     references: tuple[str, ...]
@@ -52,9 +44,6 @@ class ChapterText:
 
 @dataclass(frozen=True)
 class StoredChapter:
-    """A chapter of a written run: its ``plan.json`` entry, its request, the package that request carries and its
-    response."""
-
     entry: Mapping[str, Any]
     request: Mapping[str, Any]
     package: Mapping[str, Any]
@@ -66,7 +55,7 @@ class StoredChapter:
 
     @property
     def characters(self) -> int:
-        """The characters of the request's system prompt and messages, which the plan's estimate is made from."""
+        """What the plan's estimate is made from."""
         return len(self.request["system"]) + sum(len(message["content"]) for message in self.request["messages"])
 
 
@@ -77,14 +66,13 @@ class Assembly:
 
     @property
     def findings(self) -> dict[str, int]:
-        """The number of each kind of audit finding, the kinds without one left out."""
+        """Kinds without a finding are left out."""
         audit = self.manifest["audit"]
         counts = {kind: len(audit[kind] or ()) for kind in ("unmatched", "uncited", "undefined", "unreferenced")}
         return {kind: count for kind, count in counts.items() if count}
 
 
 def parse_plan(data: bytes) -> dict[str, Any]:
-    """``plan.json`` as written by ``narrate``; raises ``ValueError`` when it is not one."""
     try:
         plan = json.loads(data.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
@@ -103,8 +91,8 @@ def parse_plan(data: bytes) -> dict[str, Any]:
 
 
 def stored_chapter(entry: Mapping[str, Any], request: bytes | None, response: bytes | None) -> StoredChapter:
-    """The chapter of ``entry`` from its request and response files (``None`` when missing); raises ``ValueError``
-    naming the chapter when either is missing, invalid or made from another request than the plan's."""
+    """Raises ``ValueError`` naming the chapter when a file is missing, invalid or made from another request than
+    the plan's."""
     index = entry["index"]
     if request is None:
         raise ValueError(f"chapter {index}: no request file")
@@ -128,8 +116,7 @@ def stored_chapter(entry: Mapping[str, Any], request: bytes | None, response: by
 
 
 def split_footnotes(text: str) -> ChapterText:
-    """Take the footnote definitions out of ``text``, wherever they stand, with a notes heading that only introduces
-    them; the horizontal rules and blank lines left at the end are dropped."""
+    """Definitions are taken wherever they stand, with a notes heading that only introduces them."""
     lines = text.splitlines()
     kept: list[str] = []
     definitions: dict[str, str] = {}
@@ -155,7 +142,7 @@ def split_footnotes(text: str) -> ChapterText:
 
 
 def citations(definition: str) -> list[str]:
-    """The IDs a footnote definition cites: its backticked spans, else its parts between semicolons (or commas)."""
+    """Backticked spans, else the parts between semicolons (or commas)."""
     spans = _BACKTICKED.findall(definition)
     parts: Iterable[str] = spans if spans else re.split(r";|,\s+", definition)
     found = (" ".join(part.split()).rstrip(".,;").strip() for part in parts)
@@ -163,8 +150,7 @@ def citations(definition: str) -> list[str]:
 
 
 def citable(package: Mapping[str, Any]) -> set[str]:
-    """The IDs a chapter's footnotes may cite: its developments, atomic events and continuity entries, and
-    ``situation <save-key>`` for each of its saves."""
+    """Includes ``situation <save-key>`` for each of the chapter's saves."""
     continuity = package.get("continuity") or {}
     entries = [
         *(package.get("narrative") or ()),
@@ -188,7 +174,8 @@ def citable(package: Mapping[str, Any]) -> set[str]:
 def assemble(
     chapters: Sequence[StoredChapter], plan: Mapping[str, Any], *, generated: datetime, version: str
 ) -> Assembly:
-    """The history of ``chapters`` (in plan order) and the manifest of the run, audit included."""
+    """``chapters`` in plan order. Footnotes are renumbered across the history; an undefined reference is defined
+    by its label."""
     footnotes = plan["request"].get("citations") != "none"
     bodies: list[str] = []
     notes: list[str] = []
@@ -309,8 +296,7 @@ def _manifest(
 
 
 def _tokens(entries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """The summed estimate, characters and reported counts, and the characters per reported input token over the
-    chapters that report one, against which ``chars_per_token`` is calibrated."""
+    """``characters_per_input_token`` is what ``chars_per_token`` is calibrated against."""
     reported = [entry for entry in entries if isinstance(entry["input_tokens"], int) and entry["input_tokens"] > 0]
     ratio = (
         round(
@@ -329,7 +315,6 @@ def _tokens(entries: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
 
 
 def _sum(values: Iterable[Any]) -> int | None:
-    """The sum of the reported counts, or ``None`` when no chapter reports one."""
     counts = [value for value in values if isinstance(value, int)]
     return sum(counts) if counts else None
 
@@ -362,7 +347,6 @@ def _next_is_definition(lines: Sequence[str], position: int) -> bool:
 
 
 def _tidy(lines: Sequence[str]) -> str:
-    """``lines`` without runs of blank lines, back-to-back rules, or blank lines and rules at either end."""
     tidy: list[str] = []
     for line in lines:
         if not line.strip() and (not tidy or not tidy[-1].strip()):

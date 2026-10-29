@@ -1,16 +1,8 @@
 """Observe how Terra Invicta writes its save directory, for the continuous-capture evidence pass.
 
-The script polls a save directory and appends one JSON line per change to a log: the base file name, its size,
-modification and change times, inode and birth time where the platform has them, the SHA-256 of the content, and for
-a ``.json`` file the game time from the save header (``gameTimeString``). It reads no other save value. Every distinct
-save version that was read while it did not change is kept in an archive as ``<sha256>.json.xz``, so that the records
-carried forward along a line of play can be compared afterwards, across autosaves the game has since overwritten.
-Lines typed on standard input while it runs are logged as notes: the player's account of loads, battles and exits.
-
-It opens save files for reading only and never writes into the save directory; the log and the archive must lie
-outside it. Both hold file names and whole saves, so they stay private. See ``scripts/observe_saves.md``.
-
-The script uses the standard library only and never imports ``tinarrative``, so it runs on the gaming machine as is.
+Each save version is archived so records can be compared later across autosaves the game overwrote. The log and
+archive hold file names and whole saves, so they stay private and outside the save directory. Stdlib only, so it runs
+on the gaming machine as is. See ``scripts/observe_saves.md``.
 """
 
 from __future__ import annotations

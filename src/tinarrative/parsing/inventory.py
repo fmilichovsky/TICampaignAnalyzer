@@ -1,8 +1,6 @@
-"""Code form of the observed ``gamestates`` key inventory.
+"""Code form of ``docs/game-data-notes/state-type-inventory.md``.
 
-This mirrors ``docs/game-data-notes/state-type-inventory.md``: the exact keys seen so far. It
-exists so that the parser can *report* a key it has never seen; it is never used to reject a save, because a
-new game build may add state types that must be preserved rather than refused.
+Used only to *report* unseen ``gamestates`` keys, never to reject a save: new builds may add state types.
 """
 
 from __future__ import annotations

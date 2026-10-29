@@ -1,25 +1,8 @@
 """Situation reports: the deterministic digest of one snapshot that narrative rules and the narrator read as context.
 
-A report is read from one snapshot alone and is snapshot-dated evidence, not an event (architecture 11.4). It holds
-literal values and counts, never a reading:
-
-- per nation: the faction holding the executive seat (its ``Executive``-typed control point, else the one at
-  ``positionInNation`` 0) and which of the two it is, the points held per faction, the federation, the allies, the
-  wars it is a party to (from the wars' alliances), the region count, the summed region population, the regime
-  statistics as literal values, the standard and naval armies, the game's published strength estimate and the summed
-  space-support assets of its regions (``analyzers.politics.nation_assets``). Which faction *controls* a nation is
-  never stated; that is inference (``reconstruction.control``);
-- federations with members; wars with both leaders, both alliances, ``startDate`` and ``dateOfLastFighting``;
-- per faction: habs in total and per body (the hab's ``barycenter``), fleets (by the fleet's ``faction``), ships (by
-  the ship's ``fleet``) and finished projects (entries of ``finishedProjectNames``, repeats counted);
-- habs, fleets and ships that no faction of the snapshot owns, counted rather than dropped;
-- campaign-wide: the nation count (all nation states, and those holding regions), total population, finished
-  technologies (research is one campaign-wide state in the model, so this count is not per faction), the global
-  milestones, the nuclear and the climate counters, the regions with the most boost (the spaceports), and the
-  player's faction name from the campaign metadata.
-
-A value the snapshot does not establish stays ``Unknown``; it is never reported as zero or empty. Every list is in
-the snapshot's entity order (``EntityId.sort_key``) or the serialized order of its record.
+Snapshot-dated evidence, not an event (architecture 11.4): literal values and counts, never a reading. Which faction
+*controls* a nation is inference (``reconstruction.control``) and is never stated here. A value the snapshot does not
+establish stays ``Unknown``, never zero or empty.
 """
 
 from __future__ import annotations
@@ -53,7 +36,6 @@ STATISTICS = (
     "GDP",
     "spaceFunding_year",
 )
-"""The nation fields reported literally as regime statistics."""
 NUCLEAR_COUNTERS = (NUCLEAR_STRIKES, "looseNukes", "currentNuclearExchanges")
 CLIMATE_COUNTERS = (
     "earthAtmosphericCO2_ppm",
@@ -63,11 +45,9 @@ CLIMATE_COUNTERS = (
     "globalSeaLevelAnomaly_cm",
     *SEA_LEVEL_RISES,
 )
-"""The global-values fields reported literally as nuclear and climate counters."""
 
 Count = int | Unknown
 SPACEPORTS = 10
-"""The regions with the most boost a report lists by default."""
 
 
 def _named(values: tuple[tuple[str, Observed], ...]) -> dict[str, Any]:
@@ -76,7 +56,7 @@ def _named(values: tuple[tuple[str, Observed], ...]) -> dict[str, Any]:
 
 @dataclass(frozen=True)
 class WarParty:
-    """A war a nation is listed in, and on which side (``attacker`` or ``defender``)."""
+    """``side`` is ``attacker`` or ``defender``."""
 
     war: EntityRef
     side: str
@@ -87,7 +67,7 @@ class WarParty:
 
 @dataclass(frozen=True)
 class NationSituation:
-    """One nation: who holds its executive seat and how many points each faction holds, never who controls it."""
+    """Who holds the executive seat and how many points each faction holds, never who controls the nation."""
 
     nation: EntityRef
     executive: Holder
@@ -96,31 +76,26 @@ class NationSituation:
     be a stale one); ``None`` when no seat is found."""
     control_points: Count
     shares: FrozenMap | Unknown
-    """Points held per faction, keyed by the faction's ID text; uncontrolled and unresolved points are not keys."""
+    """Keyed by the faction's ID text; uncontrolled and unresolved points are not keys."""
     unresolved_points: Count
     federation: Observed
     allies: Observed
-    """The nation's ``allies`` list, as references with their names."""
     wars: tuple[WarParty, ...]
     regions: Count
     population: Observed
     statistics: tuple[tuple[str, Observed], ...]
     region_refs: Observed = field(default_factory=Unknown)
-    """The nation's regions as named references; read by the glossary, not part of ``to_dict`` (``regions`` counts
-    them)."""
+    """Read by the glossary; not part of ``to_dict``."""
     alien: bool = False
-    """The nation is the alien administration (``alienNation``), which holds implicit claims on every region."""
+    """The alien administration, which holds implicit claims on every region."""
     armies: Count = field(default_factory=Unknown)
-    """Standard armies (``deploymentType`` ``Standard``) in the nation's ``armies``."""
+    """Standard armies only."""
     navies: Count = field(default_factory=Unknown)
-    """Naval armies in the nation's ``armies``."""
     strength: Observed = field(default_factory=Unknown)
-    """The game's published strength estimate (``nation_assets.strength``); no save field carries it."""
+    """Computed (``nation_assets.strength``): no save field carries it."""
     boost: Observed = field(default_factory=Unknown)
-    """Summed ``boostPerYear_dekatons`` of the nation's regions."""
     mission_control: Observed = field(default_factory=Unknown)
     space_defence_regions: Count = field(default_factory=Unknown)
-    """Regions with ``antiSpaceDefenses``."""
     sto_fighters: Observed = field(default_factory=Unknown)
 
     def to_dict(self) -> dict[str, Any]:
@@ -195,11 +170,11 @@ class BodyHabs:
 
 @dataclass(frozen=True)
 class FactionSituation:
-    """One faction's holdings; ``habs`` counts every hab it owns, ``habs_by_body`` only those with a known body."""
+    """``habs`` counts every hab it owns, ``habs_by_body`` only those with a known body."""
 
     faction: EntityRef
     kind: str | None
-    """``alien`` or ``human`` by the faction's ``templateName``; ``None`` when it has none."""
+    """``alien`` or ``human``; ``None`` without a ``templateName``."""
     habs: int
     habs_by_body: tuple[BodyHabs, ...]
     fleets: int
@@ -220,7 +195,7 @@ class FactionSituation:
 
 @dataclass(frozen=True)
 class Unattributed:
-    """Habs, fleets and ships whose owner is ``null``, unresolved or not a faction of the snapshot."""
+    """Counted rather than dropped: owner ``null``, unresolved or not a faction of the snapshot."""
 
     habs: int
     fleets: int
@@ -241,8 +216,6 @@ class Milestone:
 
 @dataclass(frozen=True)
 class Spaceport:
-    """A region by its boost, with the nation holding it."""
-
     region: EntityRef
     nation: Observed
     boost: float
@@ -253,18 +226,17 @@ class Spaceport:
 
 @dataclass(frozen=True)
 class WorldSituation:
-    """Campaign-wide counts and counters."""
-
     nations: int
     nations_with_regions: Count
-    """Nations whose region list is known and not empty; unknown when any nation's list is unknown."""
+    """Unknown when any nation's list is unknown."""
     population: Observed
     finished_technologies: Count
+    """Campaign-wide: research is one shared state in the model."""
     milestones: tuple[Milestone, ...] | Unknown
     nuclear: tuple[tuple[str, Observed], ...]
     climate: tuple[tuple[str, Observed], ...]
     spaceports: tuple[Spaceport, ...] = ()
-    """The regions with the most ``boostPerYear_dekatons`` (above zero), largest first, ties by ID."""
+    """Largest boost first, ties by ID."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -283,8 +255,6 @@ class WorldSituation:
 
 @dataclass(frozen=True)
 class SituationReport:
-    """The digest of one snapshot (see the module docstring); ``date`` is the snapshot's game date."""
-
     date: Observed
     player_faction_name: Observed
     nations: tuple[NationSituation, ...]
@@ -308,8 +278,6 @@ class SituationReport:
 
 
 class _Reader:
-    """The snapshot's lookups, read on one side only."""
-
     def __init__(self, snapshot: SaveSnapshot) -> None:
         self.snapshot = snapshot
         self.lookup = Lookup(snapshot, snapshot)
@@ -318,7 +286,6 @@ class _Reader:
         return self.lookup.state(entity_id, Side.AFTER)
 
     def resolved(self, value: Observed) -> Observed:
-        """A reference (or a list of them) with the entity's own name; any other value unchanged."""
         if isinstance(value, EntityRef):
             return self.lookup.resolve(value)
         if isinstance(value, tuple):
@@ -335,7 +302,6 @@ class _Reader:
         return faction if isinstance(faction, Unknown) else Unknown(UnknownReason.UNPARSEABLE)
 
     def owner(self, state: EntityState) -> EntityId | None:
-        """The faction ``state`` names in its ``faction`` field, if that faction is in the snapshot."""
         faction = state.get("faction")
         if isinstance(faction, EntityRef) and self.state(faction.entity_id) is not None:
             return faction.entity_id
@@ -346,7 +312,6 @@ class _Reader:
 
 
 def _count(value: Observed) -> Count:
-    """The length of a known list; the ``Unknown`` itself, or ``unparseable`` for a value that is not a list."""
     if isinstance(value, tuple):
         return len(value)
     return value if isinstance(value, Unknown) else Unknown(UnknownReason.UNPARSEABLE)
@@ -549,8 +514,7 @@ def _world(reader: _Reader, nations: tuple[NationSituation, ...], spaceports: in
 
 
 def build_situation(snapshot: SaveSnapshot, *, spaceports: int = SPACEPORTS) -> SituationReport:
-    """The situation report of one snapshot, listing ``spaceports`` regions by boost; the same snapshot always gives
-    an equal report."""
+    """The same snapshot always gives an equal report."""
     reader = _Reader(snapshot)
     parties = _war_parties(snapshot)
     factions, unattributed = _factions(reader)

@@ -1,9 +1,4 @@
-"""Deterministic Markdown rendering for an already-analyzed save sequence.
-
-This module presents analyzer output, already-reconstructed inferred events, already-aggregated narrative
-events and, when supplied, the literal state changes of each interval; it never compares snapshots or infers
-facts itself.
-"""
+"""Deterministic Markdown rendering for an already-analyzed save sequence; it never compares or infers itself."""
 
 from __future__ import annotations
 
@@ -41,7 +36,7 @@ _ATTRIBUTE_NAMES: Final = (
     "succeeds",
     "succeeded_by",
 )
-"""The attributes a narrative line summarises, in order; ``metric_shifts`` leads as a count. Reference lists are left
+"""The attributes a narrative line summarises, in order, after the ``metric_shifts`` count. Reference lists are left
 to the roles and the JSON."""
 
 
@@ -87,18 +82,10 @@ def render_sequence(
     changed_settings: Mapping[str, object] | None = None,
     period: Period = "year",
 ) -> str:
-    """Render the saves of a sequence in chronological order and the analyzer results of each interval.
+    """Render the saves of a sequence and the results of each interval; events are chosen by ``listing``.
 
-    With a ``campaign``, a section first names the campaign the saves were grouped into and the signals it rests on;
-    ``left_out`` counts the given saves that belong to other campaigns. Each interval lists its inferred events (when
-    they were reconstructed), its objective analyzer results grouped by category and, when they were kept, its literal
-    state changes grouped by category. State changes are never filtered. Event IDs are the sequence-qualified ones.
-    Without ``narrative``, inferred and objective events of at least ``min_significance`` are listed. With it, a
-    section above the intervals lists the narrative events of at least ``min_significance`` by the ``period`` (year,
-    half or quarter) they start in, and names the ``changed_settings`` (dotted key to value) it was built with when
-    they differ from the defaults; the intervals then list only the constituents of those narrative events that the
-    ``constituents`` mode keeps (``listing``). A filtered interval with nothing to list (and no state changes) is a
-    single line.
+    ``left_out`` counts given saves that belong to other campaigns; ``changed_settings`` maps dotted keys to their
+    non-default values. State changes are never filtered. A filtered interval with nothing to list is one line.
     """
     chosen = listing(intervals, narrative, minimum=min_significance, constituents=constituents)
     lines = ["# Save sequence", ""]
@@ -156,10 +143,7 @@ def render_sequence(
 
 
 def _collapsed(interval: IntervalResult, chosen: Listing) -> bool:
-    """Whether a filtered interval lists nothing: no listed inferred or objective event, no changes.
-
-    Without a filter (no narrative, ``trivial``) every interval keeps its section, so an empty one still says what was
-    not found."""
+    """Whether a filtered interval lists nothing; unfiltered, an empty section still says what was not found."""
     return (
         chosen.filters
         and interval.state_changes is None
@@ -207,8 +191,7 @@ def _narrative_lines(
     min_significance: Significance,
     period: Period = "year",
 ) -> list[str]:
-    """The ``kept`` narrative events by the period they start in (undated first), each with span, roles, attributes
-    and sources; the rest of ``narrative`` is counted as below ``min_significance``."""
+    """The ``kept`` narrative events by start period (undated first); the rest are counted as omitted."""
     if not narrative:
         return ["No narrative events were built."]
     listed = sorted(kept, key=lambda event: event.sort_key)
@@ -298,7 +281,7 @@ def _state_change_lines(changes: Iterable[StateChange], *, verbose: bool) -> lis
 
 
 def render_events(events: list[Event]) -> str:
-    """Render the original deterministic event-list API."""
+    """The original flat event-list API."""
     return "\n".join(
         f"- {render_value(event.date)}: {event.event_type}"
         for event in sorted(events, key=lambda event: event.sort_key)

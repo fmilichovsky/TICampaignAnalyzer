@@ -2,11 +2,8 @@
 
 The list is interpretation, not a fact of the save format and not exhaustive. Each entry weighs how much of the tree
 the completion opens (directly and through what it unlocks), how much the concept means in the real world, and how
-concrete it is: a named capability ranks above a vague stepping stone. Names are save template names; technologies
-carry no prefix, projects the ``Project_`` prefix.
-
-The tier ranks both the atomic completion (``narrative.significance``) and the ``technology.milestone`` event
-(``narrative.space``). A name absent here is a routine completion: minor, and no milestone.
+concrete it is: a named capability ranks above a vague stepping stone. A name absent here is a routine
+completion: minor, and no milestone.
 """
 
 from __future__ import annotations
@@ -23,8 +20,6 @@ PROJECT_COMPLETED = "faction.project_completed"
 
 @dataclass(frozen=True)
 class Milestone:
-    """A curated turning point: how much its completion matters to a campaign history, and why."""
-
     significance: Significance
     rationale: str
 
@@ -310,16 +305,9 @@ MILESTONE_TEMPLATES: Mapping[str, Milestone] = MappingProxyType(
         ),
     }
 )
-"""Curated template names (technologies and projects) the narrative calls milestones, each with its tier and rationale.
-
-Interpretation, not a fact of the save format; a name absent here is a routine completion."""
 
 
 def completed_template(event: Event) -> str | None:
-    """The template name a ``technology.completed`` or ``faction.project_completed`` event completes.
-
-    A technology is the event's subject; a project is the ``project`` attribute, its subject being the faction.
-    """
     if event.event_type == PROJECT_COMPLETED:
         name = event.attribute("project")
         return name if isinstance(name, str) else None
@@ -329,6 +317,5 @@ def completed_template(event: Event) -> str | None:
 
 
 def milestone_of(event: Event) -> Milestone | None:
-    """The curated milestone the completion event is, or ``None`` for a routine completion or another event type."""
     name = completed_template(event)
     return MILESTONE_TEMPLATES.get(name) if name is not None else None

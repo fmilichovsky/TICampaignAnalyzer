@@ -1,9 +1,6 @@
-"""The entity glossary of the narrator package: the entity IDs a report document references whose names the
-references themselves do not carry.
+"""The entity glossary of the narrator package: what inline names do not say.
 
-The glossary is read from the finished document (its situation reports, interval events and narrative events), and
-keeps only what the inline names do not say: the names of entities referenced somewhere by ID only, and the former
-names of renamed entities.
+That is the names of entities referenced somewhere by ID only, and the former names of renamed entities.
 """
 
 from __future__ import annotations
@@ -23,8 +20,7 @@ def _entity_id(text: str) -> EntityId | None:
 
 
 def _references(node: Any) -> Iterable[Mapping[str, Any]]:
-    """Every reference object (a mapping with a ``ref``) in a JSON-shaped value, the faction shares' keys and the
-    ref strings of a narrator package's ``allies``."""
+    """Also yields the faction shares' keys and the ref strings of ``allies``, which are references by ID only."""
     if isinstance(node, Mapping):
         if isinstance(node.get("ref"), str):
             yield node
@@ -46,13 +42,7 @@ def _references(node: Any) -> Iterable[Mapping[str, Any]]:
 
 
 def build_glossary(document: Mapping[str, Any]) -> list[dict[str, Any]]:
-    """The glossary of ``document``, sorted by entity ID.
-
-    An entity has an entry when the document references it somewhere by ID only (a faction shares' key, an ally ref
-    string or a reference without ``name``) and some reference names it, or when its display name changes between
-    saves. Every entry has ``ref``, ``domain`` and, where the save gives one, ``name``: the one the latest save or
-    interval carries; the entity's other names, oldest first, are ``former_names``.
-    """
+    """Sorted by entity ID. ``name`` is the latest save's; ``former_names`` are the others, oldest first."""
     found: dict[str, dict[str, Any]] = {}
     earlier: dict[str, list[str]] = {}
     bare: set[str] = set()

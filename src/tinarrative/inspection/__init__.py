@@ -1,9 +1,6 @@
-"""Static inspection of one serialized save file.
+"""Static inspection of one serialized save file: what is literally serialized, nothing normalized.
 
-Everything here describes what is literally serialized: bytes, JSON types,
-keys, lengths, user-selected sub-trees, and a count of the serialized entity
-IDs. Nothing is normalized; that work belongs to :mod:`tinarrative.parsing`,
-which this package must not import.
+This package must not import :mod:`tinarrative.parsing`.
 """
 
 from .analysis import ENVELOPE_KEYS, inspect_bytes, summarize_children

@@ -1,7 +1,6 @@
 """Helpers shared by the narrative rule modules: dates and windows, entity and attribute access, grouping.
 
-A window is in game days. *Anchored* runs bound their span from the first member; *chained* runs let a sequence
-continue as long as each member follows the previous one closely enough.
+Windows are in game days.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ from .situation import SituationReport
 
 
 def earliest(event: Event) -> str | None:
-    """The earliest date the event can have happened on: its start, record date or ``not_before``."""
+    """Its start, record date or ``not_before``."""
     if event.is_narrative:
         value: Observed = event.start
     elif event.date_basis is DateBasis.RECORD:
@@ -42,7 +41,7 @@ def within(earlier: str | None, later: str | None, days: int) -> bool:
 
 
 def overlaps(event: Event, low: str | None, high: str | None) -> bool:
-    """Whether the event can have happened between ``low`` and ``high`` (inclusive; unknown bounds never match)."""
+    """Inclusive; an unknown bound never matches."""
     after_low, before_high = days_between(low, latest(event)), days_between(earliest(event), high)
     return after_low is not None and before_high is not None and after_low >= 0 and before_high >= 0
 
@@ -61,7 +60,7 @@ def event_order(event: Event) -> tuple[str, tuple[str, int], str]:
 
 
 def anchored(events: Iterable[Event], days: int) -> list[list[Event]]:
-    """Events split into runs whose members can each have happened within ``days`` of the run's first date."""
+    """Bounded runs: each member within ``days`` of the run's first date."""
     runs: list[list[Event]] = []
     for event in sorted(events, key=event_order):
         if runs and within(latest(runs[-1][0]), earliest(event), days):
@@ -72,7 +71,7 @@ def anchored(events: Iterable[Event], days: int) -> list[list[Event]]:
 
 
 def chained(events: Iterable[Event], days: int) -> list[list[Event]]:
-    """Events split into runs whose members can each have happened within ``days`` of the run's latest date."""
+    """Unbounded runs: each member within ``days`` of the run's latest date, so a run can last years."""
     runs: list[list[Event]] = []
     for event in sorted(events, key=event_order):
         if runs and within(max((latest(item) or "" for item in runs[-1]), default=None), earliest(event), days):
@@ -83,7 +82,6 @@ def chained(events: Iterable[Event], days: int) -> list[list[Event]]:
 
 
 def intervals_of(events: Iterable[Event]) -> list[str]:
-    """The interval keys the events span, in sequence order."""
     keys = {key for event in events for key in (event.intervals if event.is_narrative else (interval_of(event.id),))}
     return sorted(keys, key=interval_sort_key)
 
@@ -124,7 +122,7 @@ def entity_of(event: Event, domain: EntityDomain) -> EntityRef | None:
 
 
 def unique_refs(refs: Iterable[EntityRef]) -> tuple[EntityRef, ...]:
-    """References in natural ID order, one per entity (the first seen keeps its name)."""
+    """The first seen keeps its name."""
     seen: dict[EntityId, EntityRef] = {}
     for ref in refs:
         seen.setdefault(ref.entity_id, ref)

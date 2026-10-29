@@ -75,21 +75,17 @@ EXIT_NOT_IMPLEMENTED = 3
 EXIT_INPUT_ERROR = 4
 """The save path could not be read (missing, unreadable, or a directory)."""
 EXIT_UNSUPPORTED_INPUT = 5
-"""Bytes were read but are not decodable JSON (``save inspect``, report printed) or not a
-supported save: malformed, wrong shape, or unsupported format/version (``save parse``)."""
+"""Bytes were read but are not decodable JSON (``save inspect``) or not a supported save (``save parse``)."""
 EXIT_PATH_NOT_FOUND = 6
 """At least one ``--path`` did not resolve; the full report is still printed."""
 EXIT_REGISTRY_ERROR = 7
-"""The unknowns registry could not be read, is not a registry document, or could not be written; the report
-or summary is still printed."""
+"""The unknowns registry could not be read, parsed or written; the report is still printed."""
 EXIT_CONFIG_ERROR = 8
-"""The settings file (``--config`` or ``TINARRATIVE_CONFIG``) could not be read or is not valid settings; nothing is
-printed on stdout."""
+"""The settings file could not be read or is not valid settings; nothing is printed on stdout."""
 EXIT_OUTPUT_ERROR = 9
 """``narrate --output`` could not write its directory; the plan is not printed."""
 EXIT_PROVIDER_ERROR = 10
-"""``narrate --send``: a chapter request failed (authentication, network, an HTTP error, an invalid response) or its
-completion stopped at the output limit or was refused; the chapters completed before it are kept."""
+"""``narrate --send``: a chapter request failed, hit the output limit or was refused; earlier chapters are kept."""
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -383,7 +379,7 @@ def _survey_inputs(command: str, inputs: Sequence[SaveInput]) -> tuple[list[Save
 
 def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
     """``--config`` wins over ``TINARRATIVE_CONFIG``; an empty variable counts as unset, and neither gives the
-    defaults. An unreadable or invalid file is ``EXIT_CONFIG_ERROR``."""
+    defaults."""
     from_env = os.environ.get(CONFIG_ENV_VAR, "").strip()
     path = flag if flag is not None else (Path(from_env) if from_env else None)
     source = "flag" if flag is not None else ("env" if from_env else "default")
@@ -962,8 +958,8 @@ def _read_package(source: str) -> object | int:
 
 
 def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settings) -> object | int:
-    """The narrator package of the saves, as ``events --narrative --constituents evidence --format json`` builds it
-    (or with the given ``--constituents``), through JSON so that it is the same value a ``--package`` file gives."""
+    """The narrator package as ``events --narrative --format json`` builds it, round-tripped through JSON so it is
+    the same value a ``--package`` file gives."""
     run = _run_saves(
         "narrate",
         saves,

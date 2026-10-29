@@ -1,10 +1,7 @@
-"""Nation statistics moving into another of the game's value bands (``bands``), with the tracked causes.
+"""Nation statistics crossing a game value band (``bands``) by its margin, with the tracked causes.
 
-A crossing is reported only when the value ends the margin beyond the last boundary it crossed (``bands.MARGINS``),
-so a value flapping on a boundary stays out. Like ``nation_metrics``, the event copies the per-reason deltas of the
-statistic's ``tracker_<Statistic>ChangeReason_AllTime`` as ``causes``, and states which share of them is the game
-converging the statistic towards its rest value (``rest_value_share``); whether that makes the crossing a story is
-the narrative stage's call. Placeholder nations are skipped.
+``rest_value_share`` states how much of the move is the game's drift to the rest value; whether that makes the
+crossing a story is the narrative stage's call. Placeholder nations are skipped.
 """
 
 from __future__ import annotations

@@ -1,33 +1,9 @@
-"""Explicit reconstruction rules: territorial changes read from region, tracker, executive and war evidence.
+"""Territorial reconstruction rules: territory gained/lost, independence, unification, annexation.
 
-Every rule here takes the objective events of one interval (plus the diff and the two snapshots for context) and
-returns inferred events, citing evidence as ``reconstruction.common`` describes. A diff change that no analyzer
-reports (a region's annexation flags) is cited directly. A fact read from a snapshot alone (a nation holding no
-regions afterwards, the sides of a war) only qualifies evidence, it is never the evidence.
-
-The evidence is recorded in ``docs/game-data-notes/higher-level-event-sources.md``. A nation that gains regions
-carries ``GDPReason_TerritoryChange`` and ``InqReason_Annexation`` deltas and the counterpart loses the same
-regions; an independence carries ``CohesionReason_Independence`` with ``lastExecutiveChange.cause = Independence``.
-A released nation carries ``DemReason_AmicableRelease`` and its parent ``CohesionReason_NationReleased`` and
-``UnrestReason_NationReleased``, so the pair marks a release decided by the parent, not a unification.
-
-Rules:
-
-- ``nation.territory_gained`` / ``nation.territory_lost``: one per nation that gained or lost regions, aggregating
-  every ``region.nation_changed`` with a known nation on both sides; high when the nation's tracker maps moved under
-  a territory reason, medium on the region events alone. ``population`` is the summed ``populationInMillions`` of
-  the moved regions, read after the interval for a gain and before it for a loss (context, not evidence).
-- ``nation.independence``: a gainer with an ``Independence`` executive cause, an ``*Reason_Independence`` tracker
-  delta (on it or on a nation it gained from), a breakaway-parent change, ``DemReason_AmicableRelease`` on it or
-  ``*Reason_NationReleased`` on a nation whose moved regions all went to it; high with two signals, medium with
-  one. Either release reason marks it ``released`` and names the releasing nation: the earlier holder of the new
-  nation's capital when the capital moved in the interval, else its only parent.
-- ``nation.unification``: a gainer that took every region of two or more nations; medium.
-- ``nation.annexation``: a gainer and loser pair with an annexation flag change on a transferred region or a
-  war event in the interval of a war with the two on opposite sides; medium.
-
-When more than one of independence, unification and annexation fits one gainer, every candidate is kept one
-confidence level lower, marked ``ambiguous`` and naming the others in ``alternatives``.
+The tracker reasons and records each rule reads are in ``docs/game-data-notes/higher-level-event-sources.md``.
+Territory events aggregate a nation's region transfers (high with a territory tracker reason, else medium); the
+interpretations of one gainer compete, and when more than one fits, every candidate is lowered one level, marked
+``ambiguous`` and names the others in ``alternatives``.
 """
 
 from __future__ import annotations
@@ -66,24 +42,20 @@ ID_ATTRIBUTES = (ALTERNATIVES,)
 """Attributes whose value is a tuple of event IDs (rewritten with the IDs when a sequence qualifies them)."""
 
 TERRITORY_REASONS = frozenset({"TerritoryChange", "Annexation", "RegionTransfer"})
-"""Tracker reason suffixes that name a region transfer: ``GDPReason_TerritoryChange``, ``InqReason_Annexation``,
-``CohesionReason_Annexation``, ``UnrestReason_RegionTransfer``, ``EducationReason_RegionTransfer`` (notes,
-metric cause attribution)."""
+"""Tracker reason suffixes that name a region transfer (notes, metric cause attribution)."""
 INDEPENDENCE_REASON = "Independence"
-"""The tracker reason suffix (``GDPReason_``, ``CohesionReason_``, ``UnrestReason_Independence``) and the
-``lastExecutiveChange.cause`` value that appear together on a nation gaining regions."""
+"""Both a tracker reason suffix and a ``lastExecutiveChange.cause`` value."""
 AMICABLE_RELEASE = "DemReason_AmicableRelease"
-"""The democracy tracker reason on the released nation of a release."""
+"""On the released nation of a release."""
 NATION_RELEASED_REASON = "NationReleased"
-"""The tracker reason suffix (``CohesionReason_``, ``UnrestReason_NationReleased``) on the parent of a release: the
-game's attribution of the change to releasing a nation."""
+"""Tracker reason suffix on the parent of a release: it marks a release decided by the parent, not a unification."""
 ANNEXATION_FIELDS = ("isBeingAnnexed", "annexingArmy")
 """Region fields that track an annexation in progress; left in the diff by every analyzer."""
 WAR_PREFIX = "war."
 WAR_RELATION = "wars"
 MIN_UNIFIED = 2
-"""Nations giving up every region to one gainer that make a unification. One such nation is not enough: a release
-that hands over a parent's last region, or a plain conquest, looks the same."""
+"""Nations giving up every region to one gainer that make a unification; with one, a release or plain conquest
+looks the same."""
 
 _TRACKER_STATISTICS = {tracker: statistic for statistic, tracker in TRACKERS.items()}
 

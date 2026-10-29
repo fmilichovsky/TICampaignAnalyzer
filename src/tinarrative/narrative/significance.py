@@ -1,25 +1,9 @@
-"""Significance rules: which events a campaign history keeps and which are routine churn.
+"""Significance rules: which events a campaign history keeps and which are routine churn. See architecture section 12.
 
-Significance is the impact of an event, independent of how certain it is (architecture section 12). It is
-assigned here, after the analyzers ran, so that no analyzer has to judge impact: ``assign_significance`` is a
-post-pass that copies every event with its level set. The level comes from, in order:
-
-1. a context rule in ``RULES`` for the event type (it may decline by returning ``None``);
-2. the per-type ``BASE`` table;
-3. ``DEFAULT`` (minor) for every other type, including every ``notification.<template>`` entry (the game's
-   own log is player-centric and open-ended, so no template is ranked).
-
-Every non-default entry states its rationale beside it; the evidence is recorded in
-``docs/game-data-notes/higher-level-event-sources.md``. No threshold below is tuned to a single campaign. Thresholds
-that decide whether an event exists at all live with the analyzer that emits it (the nation statistic shift thresholds
-are in ``analyzers.politics.nation_metrics``); the ``Thresholds`` block here holds only what ranks emitted events.
-
-Narrative events (``narrative.aggregation``) are not ranked here. Their rule assigns the level, never below the most
-significant constituent, and ``assign_significance`` is never run over them: it judges one interval with that
-interval's two snapshots as context, while a narrative event spans intervals and no snapshot is kept for it.
-
-Known simplification: ``army.region_changed`` is minor with or without an accompanying strength change, because
-``army.strength_changed`` is its own minor event and a combined reading of the two is reconstruction work.
+A post-pass, so no analyzer has to judge impact. Evidence for the entries is in
+``docs/game-data-notes/higher-level-event-sources.md``. Notification templates are never ranked: the game's own log
+is player-centric and open-ended. Narrative events are not ranked here, as they span intervals and no snapshot is kept
+for them.
 """
 
 from __future__ import annotations
@@ -45,7 +29,7 @@ DEFAULT = Significance.MINOR
 """An event type no rule or table entry names: worth a forensic line, not a history entry."""
 
 # --- Thresholds -------------------------------------------------------------------------------------------
-# Constants that rules compare against, with their evidence. Emission thresholds live with their analyzer.
+# Only what ranks emitted events; thresholds that decide whether an event exists live with its analyzer.
 
 TOP_ORGANIZATION_TIER = 3
 """``TIOrgState.tier`` runs 1-3; tier 3 is the top tier (notes, ``TIOrgState``)."""
@@ -205,12 +189,12 @@ BASE: Mapping[str, Significance] = {
     **dict.fromkeys(_MAJOR, Significance.MAJOR),
     **dict.fromkeys(_CAMPAIGN_DEFINING, Significance.CAMPAIGN_DEFINING),
 }
-"""Significance by event type when no context rule decides; a type absent here is ``DEFAULT``."""
+"""A type absent here is ``DEFAULT``."""
 
 # --- Context rules ----------------------------------------------------------------------------------------
 
 Rule = Callable[[Event, Lookup], Significance | None]
-"""Decides from the event's attributes and the snapshots; ``None`` defers to ``BASE``."""
+"""``None`` defers to ``BASE``."""
 
 
 def _subject(event: Event) -> EntityRef | None:
@@ -225,9 +209,7 @@ def _side(event: Event) -> Side | None:
 def _councilor_presence(event: Event, lookup: Lookup) -> Significance | None:
     """Recruit-pool churn is trivial; a councilor with a faction that is gone is a development.
 
-    Evidence (notes, "Recruit pool"): councilors that appear or vanish are the ones with ``faction = null`` on
-    their existing side, and null-faction councilors are those with no orgs and no prior mission. A councilor whose
-    faction is unknown on its existing side defers to the default.
+    A null faction marks the recruit pool (notes, "Recruit pool").
     """
     subject, side = _subject(event), _side(event)
     if subject is None or side is None:
@@ -244,18 +226,17 @@ def _councilor_presence(event: Event, lookup: Lookup) -> Significance | None:
 
 
 def _relation_changed(event: Event, lookup: Lookup) -> Significance | None:
-    """A war entry is major; allies and rivals are routine diplomacy."""
     return Significance.MAJOR if event.attribute("relation") == WAR_RELATION else Significance.MINOR
 
 
 def _executive_change(event: Event, lookup: Lookup) -> Significance | None:
-    """A government replaced by coup, regime change, independence or enthrallment is major; elections are not."""
     cause = event.attribute("cause")
     return Significance.MAJOR if isinstance(cause, str) and cause in UPHEAVAL_CAUSES else Significance.MINOR
 
 
 def _organization_assignment(event: Event, lookup: Lookup) -> Significance | None:
-    """A top-tier organization changing hands is major; ``assignedCouncilor`` changed on 60-83 orgs per interval."""
+    """Only a top-tier organization changing hands is major: ``assignedCouncilor`` changes on many orgs per
+    interval."""
     subject = _subject(event)
     if subject is None:
         return None
@@ -269,7 +250,6 @@ def _organization_assignment(event: Event, lookup: Lookup) -> Significance | Non
 
 
 def _statistic_shifted(event: Event, lookup: Lookup) -> Significance | None:
-    """A nuclear arsenal changing is major; any other statistic's shift is trivial evidence."""
     return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.TRIVIAL
 
 
@@ -286,13 +266,12 @@ def _space_assets_changed(event: Event, lookup: Lookup) -> Significance | None:
 
 
 def _army_presence(event: Event, lookup: Lookup) -> Significance | None:
-    """Megafauna appearing or vanishing (0 or 1 per save) is major; regular army presence is routine."""
+    """Megafauna are rare, so their presence is major; regular army presence is routine."""
     return Significance.MAJOR if event.attribute("megafauna") is True else Significance.MINOR
 
 
 def _completion(event: Event, lookup: Lookup) -> Significance | None:
-    """A technology or project completion takes its tier from the curated milestone list (``narrative.milestones``);
-    an unlisted one is minor, because many technologies and projects are routine unlocks."""
+    """An unlisted completion is minor: many technologies and projects are routine unlocks."""
     milestone = milestone_of(event)
     return milestone.significance if milestone is not None else Significance.MINOR
 
@@ -323,13 +302,13 @@ RULES: Mapping[str, Rule] = {
     "technology.completed": _completion,
     "faction.project_completed": _completion,
 }
-"""Context rules by event type, tried before ``BASE``."""
+"""Tried before ``BASE``."""
 
 # --- Entry points -----------------------------------------------------------------------------------------
 
 
 def significance_of(event: Event, lookup: Lookup) -> Significance:
-    """The level for one event: its context rule, else the per-type table, else the default."""
+    """The context rule, else ``BASE``, else ``DEFAULT``."""
     rule = RULES.get(event.event_type)
     if rule is not None:
         decided = rule(event, lookup)
@@ -339,7 +318,7 @@ def significance_of(event: Event, lookup: Lookup) -> Significance:
 
 
 def assign_significance(events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot) -> tuple[Event, ...]:
-    """Every event with its significance set, in the given order; the snapshots supply the rules' context."""
+    """Keeps the given order."""
     lookup = Lookup(before, after)
     assigned = tuple(replace(event, significance=significance_of(event, lookup)) for event in events)
     if logger.isEnabledFor(logging.DEBUG):

@@ -1,12 +1,6 @@
-"""The space narrative rules of architecture 11.3, over the qualified stream.
+"""The space narrative rules: campaigns, colonisation, milestones, fleet buildups. See architecture 11.3.
 
-Each rule emits only from its anchor and attaches further events by entity and by a window in game days from
-``config.SpaceSettings``. The windows are the *anchored* and *chained* runs of ``rulekit``. No rule names a motive:
-a campaign is the pair's own recorded losses and combats, a wave is bodies first reached close together.
-
-``technology.milestone`` is interpretation: ``milestones.MILESTONE_TEMPLATES`` is a curated list that says which
-template names the narrative treats as turning points, each with its tier and rationale. It is not read from the save
-and not exhaustive.
+No rule names a motive: a campaign is the pair's own recorded losses and combats.
 """
 
 from __future__ import annotations
@@ -76,8 +70,7 @@ def _dedupe(events: Sequence[Event]) -> list[Event]:
 
 
 def _ledger(stream: Sequence[Event], label: str, faction: EntityId, low: str | None, high: str | None) -> list[Event]:
-    """The faction's ``label`` charges between ``low`` and ``high``, only when no other faction carries it then
-    (architecture 11.3, bound 4)."""
+    """Empty unless no other faction carries ``label`` in the window (architecture 11.3, bound 4)."""
     labelled = [
         event
         for event in by_type(stream, TRANSACTION)
@@ -91,16 +84,9 @@ def _ledger(stream: Sequence[Event], label: str, faction: EntityId, low: str | N
 class SpaceCampaignRule:
     """``faction.space_campaign``: one faction's recorded space fighting against another, over several intervals.
 
-    Anchors are ``faction.battle_outcome`` events of one killer and victim pair; those within the campaign gap of the
-    previous one are one campaign. Attached, within the anchor intervals: the pair's ``hab.destroyed`` events (not an
-    ambiguous one, whose destroyer is unsure), ``faction.combat_recorded`` between the two, battle notifications
-    about a fleet the victim lost or that name either faction, and the victim's ``fleet.disappeared``. The outcomes'
-    own ``faction.hab_destruction_recorded`` entries are attached too, so ``bodies`` covers every hab loss the
-    campaign counts, whether or not it joined a ``hab.destroyed``. Counts are summed from the outcomes, never
-    recounted from the attached events, so nothing is counted twice. The two campaigns of a pair (A against B, B
-    against A) share their combats, each counted from its own actor's side; they name each other in ``mirror``.
-    The victim's ``kind`` is carried when known so a line can say it was the aliens. Open while a later save could
-    continue it.
+    Counts are summed from the outcomes, never recounted from the attached events, so nothing is counted twice. An
+    ambiguous ``hab.destroyed`` is left out: its destroyer is unsure. The two campaigns of a pair share their combats
+    and name each other in ``mirror``.
     """
 
     settings: SpaceSettings
@@ -208,7 +194,6 @@ class SpaceCampaignRule:
 def _with_mirror(
     campaign: Event, pair: tuple[EntityId, EntityId], built: Sequence[tuple[tuple[EntityId, EntityId], Event]]
 ) -> Event:
-    """The campaign with ``mirror`` naming the opposite campaign of the pair that shares a combat with it."""
     combats = {cid for cid in campaign.constituents if cid.startswith(f"{COMBAT_RECORDED}/")}
     for other_pair, other in built:
         if other_pair == (pair[1], pair[0]) and combats & set(other.constituents):
@@ -234,13 +219,7 @@ def _total(events: Sequence[Event], name: str) -> int:
 
 @dataclass(frozen=True)
 class ColonisationWaveRule:
-    """``faction.colonisation_wave``: a faction reached two or more new bodies close together.
-
-    ``faction.first_hab_on_body`` events of one faction within the colonisation window after the first are one run;
-    a run of two or more distinct bodies is a wave. Attached: the ``hab.appeared`` events of those habs. Bodies are
-    listed in the order reached with a ``first_of_any_faction`` flag each. Open while a later save could still fall
-    in the window.
-    """
+    """``faction.colonisation_wave``: a faction reached two or more new bodies close together."""
 
     settings: SpaceSettings
     name: str = COLONISATION_WAVE
@@ -294,12 +273,7 @@ class ColonisationWaveRule:
 
 @dataclass(frozen=True)
 class FirstMilestoneRule:
-    """``campaign.first_milestone``: a campaign-wide first, dated by the ledger when that is unambiguous.
-
-    Anchored on ``campaign.global_milestone_recorded``. A ``Global Milestone`` charge of the milestone's faction in
-    the anchor's interval, when no other faction carries the label then (architecture 11.3, bound 4), is attached and
-    dates the event by its record date; otherwise the event keeps the interval date. A single interval, never open.
-    """
+    """``campaign.first_milestone``: a campaign-wide first, dated by the ledger when that is unambiguous."""
 
     settings: SpaceSettings
     name: str = FIRST_MILESTONE
@@ -343,12 +317,7 @@ class FirstMilestoneRule:
 
 @dataclass(frozen=True)
 class FleetBuildupRule:
-    """``faction.fleet_buildup``: a faction put several ships of one hull into service in one interval.
-
-    ``ship.appeared`` events of one fleet owner and hull in one interval; the count must reach
-    ``buildup_min_ships``. ``Ship Construction`` charges of the faction in the interval corroborate it when it is the
-    only faction carrying them. A single interval, never open.
-    """
+    """``faction.fleet_buildup``: a faction put several ships of one hull into service in one interval."""
 
     settings: SpaceSettings
     name: str = FLEET_BUILDUP
@@ -399,9 +368,8 @@ class FleetBuildupRule:
 class TechnologyMilestoneRule:
     """``technology.milestone``: a completion whose template name is in ``MILESTONE_TEMPLATES``, at its tier.
 
-    Anchored on ``technology.completed`` (the technology is campaign-wide, so there is no actor) and
-    ``faction.project_completed`` (the faction is the actor, and part of the identity: factions complete projects
-    independently). A single interval, never open.
+    A technology is campaign-wide, so it has no actor; a project's faction is part of the identity, as factions
+    complete projects independently.
     """
 
     settings: SpaceSettings
@@ -439,7 +407,6 @@ class TechnologyMilestoneRule:
 def space_rules(
     settings: SpaceSettings,
 ) -> tuple[SpaceCampaignRule, ColonisationWaveRule, FirstMilestoneRule, FleetBuildupRule, TechnologyMilestoneRule]:
-    """The space rules under ``settings``."""
     return (
         SpaceCampaignRule(settings),
         ColonisationWaveRule(settings),

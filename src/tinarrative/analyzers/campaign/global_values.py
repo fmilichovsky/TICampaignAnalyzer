@@ -1,13 +1,7 @@
-"""The campaign-wide ``TIGlobalValuesState`` singleton (domain ``global values``) as the save shows it.
+"""The campaign-wide ``TIGlobalValuesState`` singleton: milestones, nuclear strikes, sea-level rise, narrative events.
 
-Events here speak about global milestones (the faction a campaign-wide "first" is recorded for), the nuclear
-strike counter, the two sea-level-rise flags and the narrative events listed as triggered once per campaign or
-per target. Every other changed field or record of the singleton, and every removed record entry, is reported
-literally as ``campaign.global_value_changed``, so no change of the singleton is dropped. ``interstateWars``
-belongs to the war analyzer, which cites it as corroboration of a war appearing or disappearing.
-
-Nothing here says why a value moved: a milestone is recorded, not "achieved in this interval", and a removed
-entry is reported literally, never assumed to have been pruned.
+Any other change, and every removed record entry, falls back to ``campaign.global_value_changed`` so nothing is
+dropped; a removed entry is never assumed pruned. ``interstateWars`` belongs to the war analyzer.
 """
 
 from __future__ import annotations
@@ -123,10 +117,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
 
 
 def _milestones(change: StateChange, detail: RecordsDetail, lookup: Lookup, build: EventBuilder) -> list[Event]:
-    """One event per milestone label added, and one per label recorded for a different faction than before.
-
-    A removed label is left to ``campaign.global_value_changed`` like every other removed entry.
-    """
+    """One event per milestone label added, and one per label recorded for a different faction than before."""
     owner_id, owner = _owner(change, lookup)
     record_set = lookup.record_set(owner_id, MILESTONES, Side.AFTER)
     events: list[Event] = []
@@ -235,7 +226,7 @@ def _sea_level_rise(change: StateChange, stage: int, lookup: Lookup, build: Even
 
 
 def _value_changed(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event | None:
-    """Any other field of the singleton, literally; ``None`` when a side is missing or unparseable (a schema gap)."""
+    """Any other field of the singleton, literally; ``None`` on a schema gap."""
     transition = classify(change.before, change.after)
     if transition is None:
         return None

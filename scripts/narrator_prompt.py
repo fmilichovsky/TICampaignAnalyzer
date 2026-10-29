@@ -1,13 +1,7 @@
 """Assemble an LLM narrator request from a narrator package, without calling any API.
 
-The request is built by ``tinarrative.narrator.request``: the packaged system prompt, and a user message of a request
-block followed by the package (``tinarrative events --narrative --format json``). The output is a Messages-style
-request body, ``{"system": ..., "messages": [...]}``, to which a caller adds the model and limits. The same inputs
-always give the same bytes, so a request can be reviewed, diffed and run against any model.
-
-``--sample`` trims the package to one period (``2032``, ``2032-H1`` or ``2032-Q2``) for iterating on the prompt:
-narrative events whose span overlaps it, intervals that overlap it, the saves those intervals join and the glossary
-entries that remain referenced. A whole campaign in chapters under a token budget is ``tinarrative narrate``.
+The output is a Messages-style body without model or limits, byte-stable for the same inputs so it can be diffed.
+``--sample`` trims the package to one period (``2032``, ``2032-H1``, ``2032-Q2``) for iterating on the prompt.
 """
 
 from __future__ import annotations

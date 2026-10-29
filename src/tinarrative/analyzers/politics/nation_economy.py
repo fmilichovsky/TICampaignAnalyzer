@@ -1,22 +1,9 @@
-"""Per-capita GDP trends over years, read from the quarterly series the save carries.
+"""Per-capita GDP booms and slumps from the save's quarterly series (``tracker_PCGDP_ByQuarter``).
 
-``tracker_PCGDP_ByQuarter`` holds a nation's per-capita GDP for every quarter since the campaign start, keyed by the
-quarter index (``docs/game-data-notes/nation-metrics.md``, "Per-capita GDP by quarter"); a new quarter diffs as one
-added key. For each quarter added in the interval, the trend is the change over the trailing ``TREND_QUARTERS``
-quarters of the later save's series. ``nation.pcgdp_trend`` is emitted at the quarter where the trend first exceeds
-``BOOM`` or falls below ``-SLUMP``: the quarter before it was inside the band or had no trend. A zero value or a
-negative key ends a window, so no trend reaches across a quarter in which the nation held nothing or across the
-template history before the start.
-
-The event is record-dated by its quarter: the campaign starts ``campaign_day`` days before the later save, quarter 0
-is the calendar quarter it starts in, and quarter ``k`` begins on the first day of the ``k``-th calendar quarter after
-it (``quarter_date``; the note records the counter against save dates). The series is the evidence, so the analyzer
-reads it from the diff alone; a nation whose series did not change in the interval has no quarter added and nothing
-to cite.
-
-On the first interval of a sequence, ``NationEconomyAnalyzer(before_sequence=True)`` also reports the trend events of
-the quarters before the earlier save, flagged ``before_sequence``: history the save carries for a sequence that starts
-late. The two instances judge disjoint quarters, so their IDs never collide.
+A trend is the change over the trailing ``TREND_QUARTERS``; an event fires at the quarter it first leaves the
+``BOOM``/``-SLUMP`` band and is record-dated by that quarter. A zero value or negative key breaks the window, so no
+trend spans a quarter with nothing held or the template history before the start. See
+``docs/game-data-notes/nation-metrics.md`` ("Per-capita GDP by quarter").
 """
 
 from __future__ import annotations
@@ -49,7 +36,11 @@ MONTHS_PER_QUARTER = 3
 @dataclass(frozen=True)
 class NationEconomyAnalyzer:
     before_sequence: bool = False
-    """Judge the quarters already in the earlier save instead of the ones added in the interval."""
+    """Judge the quarters already in the earlier save instead of the ones added in the interval.
+
+    For the first interval of a sequence that starts late; it judges quarters disjoint from the default instance's,
+    so event IDs never collide.
+    """
 
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
         index = ChangeIndex(diff)

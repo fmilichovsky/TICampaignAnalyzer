@@ -1,23 +1,8 @@
 """Narrator evidence: which constituents of a development the narrator package lists in its atomic stream.
 
-A development (``narrative.aggregation``) already summarizes the atomic and inferred events it is built from; the
-atomic stream exists for detail and citation by ID. An event type is narrator evidence when it states a fact its
-development does not carry, mostly a record date, a place or a destruction. ``events --constituents evidence`` and
-``narrate`` list only those; ``--constituents all`` and the ``--inferred`` audit report list everything, so every
-constituent ID still resolves there.
-
-Every other type is bookkeeping its development states in summary form:
-
-- control-point controllers, losses and presence, ``faction.nation_control_changed`` and the executive record: the
-  takeover (its scopes, cause, loser, ``executive_recorded_on`` and ``previous_executive``);
-- unrest attempts: the takeover's precursors; claims lists: ``nation.claims_declared``;
-- fleet and hab presence: ``faction.battle_outcome``, ``hab.destroyed`` and the colonisation wave;
-- per-ship appearances: the fleet buildup's counts; army presence and deployment: the military buildup,
-  demobilization and navy counts; a nation's place by a metric: the ranking change's entrants and leavers;
-- nation presence, the breakaway parent, a war's leading attacker or defender, leftover war lists and war relations:
-  the release, breakaway and annexation readings and the war arc.
-
-Types are listed with their rationale, as in ``narrative.significance``; a type no entry names is not evidence.
+A type is evidence when it states a fact its development does not carry, mostly a record date, a place or a
+destruction; every other type is bookkeeping the development already states in summary form. A type no entry names
+is not evidence. ``--constituents all`` still lists everything, so every constituent ID resolves there.
 """
 
 from __future__ import annotations
@@ -73,7 +58,6 @@ _EVIDENCE: tuple[str, ...] = (
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)
-"""The event types that are narrator evidence by name."""
 
 EVIDENCE_PREFIXES: Final[tuple[str, ...]] = (
     # The game's notification log dates and places a battle or a destroyed hab.
@@ -81,9 +65,7 @@ EVIDENCE_PREFIXES: Final[tuple[str, ...]] = (
     # A councilor defecting, detained or gone is who acted, which no development names.
     "councilor.",
 )
-"""Event type prefixes whose every type is narrator evidence."""
 
 
 def is_evidence(event_type: str) -> bool:
-    """Whether events of ``event_type`` are narrator evidence."""
     return event_type in NARRATOR_EVIDENCE or event_type.startswith(EVIDENCE_PREFIXES)

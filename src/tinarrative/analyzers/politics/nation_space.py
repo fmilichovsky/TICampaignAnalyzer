@@ -1,15 +1,9 @@
 """A nation's space-support assets moving: boost, mission control and the regions with space defences.
 
-The statistics are sums over the nation's regions (``nation_assets``): ``boost`` (``boostPerYear_dekatons``),
-``missionControl`` and ``spaceDefences``, the regions with ``antiSpaceDefenses`` or STO fighters. Boost and mission
-control grow slowly except with territory (``docs/game-data-notes/nation-metrics.md``, "Space-support assets"), so a
-change counts when it reaches ``RELATIVE_THRESHOLD`` of the earlier value and the statistic's absolute floor; a rise
-from zero counts once it reaches the floor.
-
-A region changing hands moves its assets with it. ``territory_delta`` is the later value of the regions gained minus
-that of the regions lost (both read in the later save, as ``nation_population`` does), and ``territory_share`` that
-delta over the whole change: 1 when territory explains it all, beyond 1 or below 0 when the held regions moved the
-other way. Regions moved are the ``nation`` changes of regions in the diff. Placeholder nations are skipped.
+Boost and mission control grow slowly except with territory (``docs/game-data-notes/nation-metrics.md``,
+"Space-support assets"), so a change must reach both ``RELATIVE_THRESHOLD`` and the absolute floor. ``territory_share``
+is the part of the change explained by regions changing hands (as in ``nation_population``): 1 when territory explains
+it all, beyond 1 or below 0 when the held regions moved the other way. Placeholder nations are skipped.
 """
 
 from __future__ import annotations
@@ -38,7 +32,6 @@ FIELDS: Mapping[str, tuple[str, ...]] = {
     MISSION_CONTROL_STATISTIC: (MISSION_CONTROL,),
     SPACE_DEFENCES_STATISTIC: (SPACE_DEFENCES, STO_FIGHTERS),
 }
-"""The region fields each statistic is read from."""
 GROWTH = "growth"
 DECLINE = "decline"
 

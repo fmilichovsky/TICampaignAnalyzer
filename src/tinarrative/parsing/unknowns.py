@@ -1,16 +1,7 @@
 """Report save structures the parser does not describe, without recording their content.
 
-The normalizer copies the fields in :mod:`tinarrative.parsing.fields` and ignores the rest. This module makes
-"the rest" visible: every normalization run feeds an :class:`UnknownCollector`, which turns each structure
-outside the code-form schema (``KNOWN_STATE_TYPES``, ``KNOWN_FIELDS``, the envelope keys, the expected
-shapes of reference and date fields) into an :class:`UnknownFinding`. A finding names the state type, the
-field and a bounded :class:`ShapeSummary` made only of JSON type labels and identifier-like member names;
-string values, numbers, IDs and paths are never captured, so findings can be logged and committed to the
-registry under ``docs/game-data-notes/unknowns/``.
-
-Findings are evidence about the *format*, not about the campaign. They never change a ``SaveSnapshot``:
-an unknown field is still not copied, and an unexpectedly owned reference still resolves to
-``Unknown(unresolved_reference)``.
+Findings hold only JSON type labels and identifier-like member names, never values, IDs or paths, so they can be
+logged and committed to ``docs/game-data-notes/unknowns/``. They never change a ``SaveSnapshot``.
 """
 
 from __future__ import annotations
@@ -103,8 +94,7 @@ def _bounded(keys: set[str]) -> tuple[tuple[str, ...], bool]:
 class ShapeSummary:
     """Bounded, content-free description of every value observed for one finding.
 
-    All tuples are sorted and deduplicated; two summaries of the same structure compare equal whatever the
-    order of observation, and summaries from different saves or scans merge by union.
+    All tuples are sorted and deduplicated, so summaries compare equal regardless of observation order.
     """
 
     types: tuple[str, ...] = ()
@@ -321,7 +311,7 @@ class UnknownCollector:
         self._entities_with_unknown_fields[state_type] += 1
 
     def field_count(self, state_type: str) -> int:
-        """Distinct unknown field names seen on one state type (for the per-domain debug aggregate)."""
+        """Distinct unknown field names seen on one state type."""
         return sum(1 for key in self._entries if key[0] == UnknownKind.FIELD.value and key[1] == state_type)
 
     def report(self) -> UnknownReport:
@@ -419,10 +409,9 @@ _DOMAIN_OF_STATE_TYPE = {
 
 
 def is_known(key: FindingKey) -> bool:
-    """Whether the current schema can no longer produce the finding with this key.
+    """Whether the current schema can no longer produce the finding with this key; the registry prunes those.
 
-    The unknowns registry prunes such entries, so triage is: extend the tables, re-scan, and the entry
-    disappears. An unrecognized kind is never "known".
+    An unrecognized kind is never "known".
     """
     kind, state_type, field, detail = key
     if kind == UnknownKind.STATE_TYPE:

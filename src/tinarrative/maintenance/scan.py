@@ -93,7 +93,6 @@ class ScanRun:
 
 
 def scan_save(path: Path) -> tuple[UnknownReport, str | None]:
-    """Normalize one save with a collector and return its findings and serialized game version."""
     raw = load_raw_save(path)
     collector = UnknownCollector()
     normalize(raw, collector=collector)

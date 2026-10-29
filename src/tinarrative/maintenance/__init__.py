@@ -1,7 +1,7 @@
 """Maintenance tooling: scan saves for unknown structures and keep the triage registry.
 
-Like ``inspection``, this is a tool package rather than a pipeline stage. It may import ``io``, ``parsing`` and
-``log``; nothing in the pipeline imports it.
+A tool package, not a pipeline stage: it may import ``io``, ``parsing`` and ``log``; nothing in the pipeline
+imports it.
 """
 
 from __future__ import annotations

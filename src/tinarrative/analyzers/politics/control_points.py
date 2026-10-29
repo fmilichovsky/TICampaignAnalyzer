@@ -1,7 +1,6 @@
-"""Control-point control: which faction a control point lists as its controller, and nothing more.
+"""Control-point events: the ``faction`` and ``nation`` references, presence, and recorded losses.
 
-Events here speak only about a control point's ``faction`` and ``nation`` references and its presence.
-Which faction thereby "controls a nation" is a reconstruction question left to a later stage.
+Which faction thereby "controls a nation" is left to reconstruction.
 """
 
 from __future__ import annotations
@@ -43,7 +42,7 @@ _LIST_EVENT = {EntityDomain.FACTION.value: FACTION_LIST_CHANGED, EntityDomain.NA
 
 
 class _LossRecord:
-    """One entry of a faction's ``lostControlPoints`` record that changed: the citation and the dates."""
+    """A changed entry of a faction's ``lostControlPoints`` record."""
 
     def __init__(
         self, source: EventSource, owner: EntityRef | None, recorded_on: Observed, previous: Observed | None

@@ -1,11 +1,8 @@
-"""The game's value bands of the nation statistics: the labels it shows for a value (Peaceful ... Civil War).
+"""The game's value bands of the nation statistics (Peaceful ... Civil War) and margin-guarded crossings.
 
-The bands are game vocabulary, not an interpretation: each label begins at its lower bound and holds up to the next
-one. The boundaries are published, not read from a save; their provenance and the crossing behaviour they were
-checked against are in ``docs/game-data-notes/nation-metrics.md`` ("Value bands").
-
-A value moving across a boundary by a hair is noise, so a crossing counts only when the value ends ``MARGINS`` beyond
-the last boundary it crossed.
+Boundaries are published game vocabulary, not read from a save; provenance in
+``docs/game-data-notes/nation-metrics.md`` ("Value bands"). A crossing counts only when the value ends ``MARGINS``
+beyond the last boundary crossed, so a hair's move across a boundary is noise.
 """
 
 from __future__ import annotations
@@ -100,7 +97,6 @@ def _index(statistic: str, value: float) -> int:
 
 
 def band(statistic: str, value: float) -> str:
-    """The game's label for ``value`` of a banded statistic."""
     return BANDS[statistic][_index(statistic, value)][1]
 
 

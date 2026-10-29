@@ -1,12 +1,7 @@
-"""Nation territory, structure, relations, claims, names and the recorded government changes.
+"""Nation territory, structure, relations, claims, names, unrest attempts and recorded government changes.
 
-Events here speak about which nation a region belongs to, a nation's capital, breakaway links, the
-``allies`` and ``rivals`` lists, the ``claims`` and ``hostileClaims`` region lists, the literal ``displayName``,
-the per-faction ``factionUnrestAttempts`` counts, and the literal ``lastExecutiveChange`` and
-``dateOfNewGovernment`` records. A nation's ``wars`` list and ``federation`` belong to the war and federation
-analyzers, which cite them as corroboration. They never say which faction controls a nation: that is a
-reconstruction question, and control-point control is reported separately. A presence event carries the nation's
-``population`` (the summed ``populationInMillions`` of its regions on the side where it exists) as context.
+``wars`` and ``federation`` belong to the war and federation analyzers. Nothing here says which faction controls a
+nation; that is reconstruction, and control-point control is reported separately.
 """
 
 from __future__ import annotations
@@ -53,7 +48,7 @@ RELATION_FIELDS = ("allies", "rivals")
 HANDLED_LISTS = tuple((EntityDomain.NATION, name) for name in ("regions", "breakaways", *RELATION_FIELDS))
 EXECUTIVE_FIELD = "lastExecutiveChange"
 CLAIM_FIELDS = (("claims", CLAIMS_CHANGED), ("hostileClaims", HOSTILE_CLAIMS_CHANGED))
-"""Region lists of a nation, reported per nation and list: the regions added and removed in the interval."""
+"""Region lists of a nation, reported once per nation and list with the regions added and removed."""
 UNREST_FIELD = "factionUnrestAttempts"
 NEW_GOVERNMENT_FIELD = "dateOfNewGovernment"
 

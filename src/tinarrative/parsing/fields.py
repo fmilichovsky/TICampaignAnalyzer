@@ -1,10 +1,7 @@
-"""Observed field names per normalized state type.
+"""Observed field names per normalized state type: the code form of ``docs/game-data-notes/domain-field-map.md``.
 
-This is the code form of ``docs/game-data-notes/domain-field-map.md``: only fields observed in real saves
-are listed, and a reference field is resolved only when its observed target type has an entity domain.
-Three tables describe a state type's members: ``ENTITY_FIELDS`` (copied into the entity state),
-``RECORD_FIELDS`` (decoded into save-carried records) and ``ACKNOWLEDGED_FIELDS`` (known, deliberately
-not normalized).
+A member is copied (``ENTITY_FIELDS``), decoded as a record (``RECORD_FIELDS``) or known and deliberately not
+normalized (``ACKNOWLEDGED_FIELDS``); anything else is reported as unknown.
 """
 
 from __future__ import annotations
@@ -25,14 +22,13 @@ REGION_ALIEN_STATE_TYPES = (
     "TIRegionXenoformingState",
     "TIRegionAlienActivityState",
 )
-"""The per-region alien sub-states: one entry per region each, with a ``region`` back-reference (observed)."""
+"""The per-region alien sub-states: one entry per region each, with a ``region`` back-reference."""
 
 GLOBAL_VALUES_STATE_TYPE = "TIGlobalValuesState"
-"""The campaign-wide singleton, normalized as a one-entity collection (``SaveSnapshot.global_values``)."""
+"""Normalized as a one-entity collection (``SaveSnapshot.global_values``)."""
 
 NOTIFICATION_QUEUE_STATE_TYPE = "TINotificationQueueState"
-"""The notification singleton, normalized as a one-entity collection (``SaveSnapshot.notification_queue``) that
-owns the notification log record."""
+"""Normalized as a one-entity collection that owns the notification log record."""
 NOTIFICATION_LOG = "notificationSummaryQueue"
 COMBAT_LOG = "CombatLogs"
 
@@ -356,7 +352,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     # Every member other than templateName/displayName/archived/exists is a record or acknowledged.
     NOTIFICATION_QUEUE_STATE_TYPE: COMMON_FIELDS,
 }
-"""Fields copied into each ``EntityState``; anything else serialized on the object is ignored."""
+"""Fields copied into each ``EntityState``."""
 
 
 RESEARCH_STATE_TYPE = "TIGlobalResearchState"
@@ -376,7 +372,6 @@ TIME_FIELDS = (
     "masterMetaTemplateName",
     "scenarioMetaTemplateName",
 )
-"""``TITimeState`` singleton fields read into ``SaveSnapshot`` chronology and ``CampaignMetadata``."""
 
 METADATA_FIELDS = (
     "playerFactionName",
@@ -385,14 +380,12 @@ METADATA_FIELDS = (
     "gameTimeString",
     "selectedFactionsForScenario",
 )
-"""``TIMetadataState`` singleton fields read into ``CampaignMetadata``."""
 
 SINGLETON_FIELDS: dict[str, tuple[str, ...]] = {
     "TITimeState": TIME_FIELDS,
     "TIMetadataState": METADATA_FIELDS,
     RESEARCH_STATE_TYPE: RESEARCH_FIELDS,
 }
-"""The singleton state types the normalizer reads, with the fields it copies from each."""
 
 _ARMY_LIST = (EntityDomain.ARMY, True)
 _FACTION = (EntityDomain.FACTION, False)
@@ -404,7 +397,7 @@ _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
 _SPACE_BODY = (EntityDomain.SPACE_BODY, False)
 _ALIEN_STATE = (EntityDomain.REGION_ALIEN_STATE, False)
 _PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP)), False)
-"""A councilor location: observed to point at a ``TIRegionState``, a ``TIHabState`` or (once) a ``TISpaceShipState``."""
+"""A councilor location: a ``TIRegionState``, a ``TIHabState`` or a ``TISpaceShipState``."""
 
 _ARMY_REFERENCES: dict[str, tuple[ExpectedDomains, bool]] = {
     "currentRegion": _REGION,
@@ -504,21 +497,16 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
 }
 """Reference fields and their observed target domain(s); ``True`` marks a list of references.
 
-Reference-shaped fields whose observed target type has no ``EntityDomain`` (officers, missions, sectors,
-hab modules, region facilities) or whose target was never observed non-null
-(``agentForFaction``, ``storedFaction``, a war's ``nukedRegions`` and ``annexedRegions``: empty in every observed
-war) are deliberately absent and stay raw. A fleet's ``bombardmentTarget`` and
-``currentOperations`` stay raw too: operation dates can be ``$ref`` graph nodes.
+Reference-shaped fields whose target has no ``EntityDomain`` or was never observed non-null stay raw, as do a
+fleet's ``bombardmentTarget`` and ``currentOperations`` (operation dates can be ``$ref`` graph nodes).
 """
 
 KEYED_LIST_FIELDS: dict[str, dict[str, str]] = {
     "TIFactionState": {"shipDesigns": "dataName"},
 }
-"""List-of-object fields copied as a ``FrozenMap`` keyed by the named string member, per state type.
+"""List-of-object fields copied as a ``FrozenMap`` keyed by the named (unique) string member.
 
-Observed unique within each list (``shipDesigns``: ship ``templateName`` points at a design ``dataName``), so
-keying by it lets the diff compare designs one by one instead of the whole list as one value. Each element is
-copied whole. A list that does not have this shape stays raw as ``Unknown(unparseable)`` and is reported.
+Keying lets the diff compare elements one by one instead of the whole list as one value.
 """
 
 PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
@@ -528,13 +516,11 @@ PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TIWarState": {"peaceOfferHistory": EntityDomain.NATION, "cohesionGainByNation": EntityDomain.NATION},
     "TIRegionAlienActivityState": {"alienMissionsDetected": EntityDomain.FACTION},
 }
-"""Entity fields serialized as a field-level pair map, with the keys' observed target domain(s); ``None`` marks
-integer keys (``tracker_PCGDP_ByQuarter``: quarter index -> value), which are not references.
+"""Entity fields serialized as a field-level pair map, with the keys' target domain(s); ``None`` marks integer
+keys, which are not references.
 
-Each is also in ``ENTITY_FIELDS``. The normalizer decodes it (``{}`` when empty, otherwise ``Key``/``Value``
-objects) into a ``FrozenMap`` from each key's ``EntityId`` text (``faction:12``), or the integer key's decimal
-text, to the frozen ``Value``, so the diff compares it key by key. A key that does not resolve makes the whole
-field unresolved, as in a reference list.
+Each is also in ``ENTITY_FIELDS`` and is copied as a ``FrozenMap`` keyed by ``EntityId`` text (or the integer's
+decimal text), so the diff compares it key by key.
 """
 
 NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
@@ -558,26 +544,22 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
 )
 """(domain, short state type, ``SaveSnapshot`` attribute) for each normalized collection.
 
-Several state types may feed one attribute (both army types fill ``armies``; the five region alien sub-states
-fill ``region_alien_states``). ``TIGlobalValuesState`` and ``TINotificationQueueState`` are singletons; more than
-one entry is reported.
+Several state types may feed one attribute.
 """
 
 SINGLETON_ENTITY_TYPES = frozenset((GLOBAL_VALUES_STATE_TYPE, NOTIFICATION_QUEUE_STATE_TYPE))
-"""Normalized state types observed with exactly one entry; the normalizer reports any other count above one."""
+"""Normalized state types expected to have one entry; more than one is reported."""
 
 SERIALIZATION_FIELDS = ("$type", "ID", "finderSortOverride", "gameStateSubjectCreated")
-"""Serializer members observed on every entity and singleton ``Value`` object; known, never normalized."""
+"""Serializer members on every ``Value`` object; known, never normalized."""
 
 
 @dataclass(frozen=True)
 class RecordField:
-    """How one save-carried record field is decoded (``parsing.records``).
+    """How one save-carried record field is decoded.
 
-    ``targets`` are the expected domains of the references a pair map is keyed by or a reference list holds.
-    A ``labelled_references`` value may be one reference or a list of them; both resolve against ``targets``.
-    Kinds with fixed members (``destruction_log``, ``executive_change``, ``notification_log``, ``combat_log``)
-    resolve each member against ``RECORD_MEMBER_TARGETS`` instead.
+    ``targets`` are the expected domains of the field's references; kinds with fixed members resolve each member
+    against ``RECORD_MEMBER_TARGETS`` instead.
     """
 
     kind: RecordKind
@@ -587,7 +569,7 @@ class RecordField:
 _FACTION_COUNTER = RecordField(RecordKind.COUNTER)
 _FACTION_KEYED = RecordField(RecordKind.REFERENCE_VALUES, EntityDomain.FACTION)
 _ALIEN_SITE = frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP))
-"""A ``knownAlienSites`` key: observed to point at a region, a hab or (once) a ship."""
+"""A ``knownAlienSites`` key: a region, a hab or a ship."""
 
 RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     "TIFactionState": {
@@ -632,11 +614,8 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
         NOTIFICATION_LOG: RecordField(RecordKind.NOTIFICATION_LOG),
     },
 }
-"""Save-carried record fields per state type: dated logs and cumulative counters not derivable from the snapshot.
-
-Listed in ``domain-field-map.md`` ("Save-carried records"); decoded by ``parsing.records`` into
-``SaveSnapshot.records`` rather than copied into the entity state.
-"""
+"""Dated logs and cumulative counters not derivable from the snapshot (``domain-field-map.md``, "Save-carried
+records"); decoded into ``SaveSnapshot.records`` rather than the entity state."""
 
 RECORD_MEMBER_TARGETS: dict[str, ExpectedDomains] = {
     "HabDestructionLog.SpaceBody": EntityDomain.SPACE_BODY,
@@ -651,20 +630,17 @@ RECORD_MEMBER_TARGETS: dict[str, ExpectedDomains] = {
     f"{COMBAT_LOG}.HabFaction": EntityDomain.FACTION,
     f"{COMBAT_LOG}.winner": EntityDomain.FACTION,
 }
-"""Reference members inside record entries, as ``Field.member``, with their observed target domain.
+"""Reference members inside record entries, as ``Field.member``, with their target domain.
 
-A notification's ``gotoGameState`` resolves against every in-save-ID domain (observed targets include fleets,
-regions, the alien sub-states, councilors, habs, hab sites, orbits, control points, nations, armies and a faction).
-``CombatLogs.Ships`` names the keys of the per-entry pair map faction -> ships.
+A notification's ``gotoGameState`` can point at almost any domain, so it resolves against all of them.
 """
 
 UNTRACKED_REFERENCE_TARGETS: dict[str, frozenset[str]] = {
     f"{NOTIFICATION_LOG}.gotoGameState": frozenset(("TIGlobalResearchState", "TIMissionPhaseState")),
 }
-"""Observed target state types of a record reference member that have no in-save-ID domain.
+"""Known target state types of a record reference member that have no in-save-ID domain.
 
-Such a reference stays ``Unknown(unresolved_reference)`` like any other, but is not reported as an unexpected
-reference domain: the target type is known, there is just nothing to resolve it to.
+Such a reference stays unresolved but is not reported as an unexpected reference domain.
 """
 
 NOTIFICATION_ENTRY_MEMBERS = (
@@ -677,12 +653,11 @@ NOTIFICATION_ENTRY_MEMBERS = (
     "newsFeedFactions",
     "summaryLogFactions",
 )
-"""Members of a notification log entry decoded into ``NotificationEntry``."""
 
 NOTIFICATION_ACKNOWLEDGED_MEMBERS = (
     "$id",  # JSON.NET object ID, the target of panelSummaryQueue $ref pointers
     "dateTimeString",  # display text of dateTime
-    "timerFactions",  # empty in every observed summary entry
+    "timerFactions",  # not modelled
     "iconResource",  # presentation
     "iconBackgroundResource",  # presentation
     "backgroundColor",  # presentation
@@ -690,7 +665,6 @@ NOTIFICATION_ACKNOWLEDGED_MEMBERS = (
 """Members of a notification log entry that are known and deliberately not decoded."""
 
 COMBAT_ENTRY_MEMBERS = ("Date", "Ships", "HabFaction", "Attacks", "winner", "WasSurprising")
-"""Members of a ``CombatLogs`` entry, all decoded into ``CombatEntry`` (``Ships`` without the design names)."""
 
 RECORD_ENTRY_MEMBERS: dict[str, dict[str, frozenset[str]]] = {
     "TIFactionState": {
@@ -700,8 +674,7 @@ RECORD_ENTRY_MEMBERS: dict[str, dict[str, frozenset[str]]] = {
         NOTIFICATION_LOG: frozenset(NOTIFICATION_ENTRY_MEMBERS + NOTIFICATION_ACKNOWLEDGED_MEMBERS),
     },
 }
-"""Every known member of the entries of a record of open-ended entry objects; any other is reported as the
-unknown field ``Field[].member``."""
+"""Known members of open-ended record entries; any other is reported as the unknown field ``Field[].member``."""
 
 
 def record_reference_domains(state_type: str, field: str) -> frozenset[EntityDomain] | None:
@@ -1214,8 +1187,7 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
 }
 """Observed fields that are known and deliberately not copied, with the reason (``domain-field-map.md``).
 
-Only names observed in real saves belong here, each listed explicitly; a field that is neither normalized nor
-acknowledged is reported as unknown and recorded in ``docs/game-data-notes/unknowns/registry.json``.
+Only names observed in real saves belong here, each listed explicitly.
 """
 
 
@@ -1242,5 +1214,4 @@ KNOWN_FIELDS: dict[str, frozenset[str]] = {
     **{state_type: _known(state_type, names) for state_type, names in ENTITY_FIELDS.items()},
     **{state_type: _known(state_type, COMMON_FIELDS + names) for state_type, names in SINGLETON_FIELDS.items()},
 }
-"""Every field name the parser describes per scanned state type: copied, record, serializer, or acknowledged, plus
-the known record entry members as ``Field[].member``."""
+"""Every field name the parser describes per scanned state type, including record entry members."""

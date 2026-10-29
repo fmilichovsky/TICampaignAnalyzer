@@ -1,10 +1,7 @@
-"""Entity-identity strategy table and a semantics-light identity census.
+"""Entity-identity strategy table and a per-save identity census.
 
-The table records *where* each entity domain keeps its identifier and how far
-that identifier can be trusted. The census counts what is literally serialized
-(``Key.value`` versus ``Value.ID.value``); it never compares saves, so claims
-about cross-snapshot stability stay unresolved. See
-docs/game-data-notes/entity-identity.md.
+The census counts what is literally serialized (``Key.value`` versus ``Value.ID.value``) and never compares saves,
+so cross-snapshot stability stays unresolved. See docs/game-data-notes/entity-identity.md.
 """
 
 from __future__ import annotations

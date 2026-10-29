@@ -1,8 +1,6 @@
 """Game-build detection and the explicit save-format boundary.
 
-The only serialized build string is ``TIGlobalValuesState.latestSaveVersion``; saves have no top-level
-``game_version`` member. ``detect_game_version`` reports that string. It is never used to accept or reject a
-save: the format has stayed additive across builds, so parsing does not depend on a game build.
+The detected build is informational only and never accepts or rejects a save: the format is additive across builds.
 """
 
 from __future__ import annotations

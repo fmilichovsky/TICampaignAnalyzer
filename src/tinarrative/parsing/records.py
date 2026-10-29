@@ -1,11 +1,7 @@
-"""Decode save-carried records (``RECORD_FIELDS``) into ``RecordSet`` objects.
+"""Decode save-carried records (``RECORD_FIELDS``) into one ``RecordSet`` per entity and field.
 
-Each record field of an entity becomes exactly one :class:`~tinarrative.model.records.RecordSet`, located at
-``<entity Value path>/<field>``. An absent field gives ``entries = Unknown()``; a field whose value does not
-have the documented shape gives ``Unknown(unparseable, raw)`` and an ``unexpected_field_shape`` finding. A
-problem inside one element (an unparseable date, an unresolvable reference) stays inside that entry, so
-the rest of the log remains evidence. Nothing read from a record is logged: ledger labels, milestone names,
-narrative-event names, kill lists, notification summaries and ship design names are campaign content.
+A problem inside one element stays inside that entry, so the rest of the log remains evidence. Nothing read
+from a record is logged: record contents are campaign content.
 """
 
 from __future__ import annotations
@@ -51,7 +47,7 @@ Entries = tuple[RecordEntry, ...] | Unknown
 
 @dataclass
 class _Context:
-    """One record field of one entity being decoded; counts problems for the per-type debug aggregate."""
+    """One record field of one entity being decoded; counts problems for the debug aggregate."""
 
     state_type: str
     field: str
@@ -92,7 +88,6 @@ class _Context:
         return self.reference(item[name], RECORD_MEMBER_TARGETS[qualified], qualified)
 
     def member_references(self, item: dict[str, Any], name: str) -> Observed:
-        """A list of references inside an entry; one unresolvable element makes the member unknown."""
         if name not in item:
             return Unknown()
         qualified = f"{self.field}.{name}"
@@ -200,7 +195,7 @@ def _reference_list(raw: Any, spec: RecordField, ctx: _Context) -> Entries:
 
 
 def _labelled_references(raw: Any, spec: RecordField, ctx: _Context) -> Entries:
-    """An object label -> one reference or a list of references; each value is checked and resolved in place."""
+    """An object label -> one reference or a list of references."""
     if not isinstance(raw, dict):
         return ctx.unparseable(OBJECT, raw)
     targets = spec.targets if spec.targets is not None else frozenset()
@@ -218,10 +213,7 @@ def _labelled_references(raw: Any, spec: RecordField, ctx: _Context) -> Entries:
 
 
 def _notification_log(raw: Any, ctx: _Context) -> Entries:
-    """A list of notification objects; a member outside ``RECORD_ENTRY_MEMBERS`` is reported as ``Field[].member``.
-
-    ``itemSummary`` is campaign content: it is kept as evidence and never logged.
-    """
+    """A member outside ``RECORD_ENTRY_MEMBERS`` is reported as ``Field[].member``; ``itemSummary`` is never logged."""
     if not isinstance(raw, list):
         return ctx.unparseable(ARRAY, raw)
     known = RECORD_ENTRY_MEMBERS.get(ctx.state_type, {}).get(ctx.field, frozenset())
@@ -251,7 +243,7 @@ def _notification_log(raw: Any, ctx: _Context) -> Entries:
 
 
 def _combat_log(raw: Any, ctx: _Context) -> Entries:
-    """A list of combat objects; a member outside ``RECORD_ENTRY_MEMBERS`` is reported as ``Field[].member``."""
+    """A member outside ``RECORD_ENTRY_MEMBERS`` is reported as ``Field[].member``."""
     if not isinstance(raw, list):
         return ctx.unparseable(ARRAY, raw)
     known = RECORD_ENTRY_MEMBERS.get(ctx.state_type, {}).get(ctx.field, frozenset())
@@ -281,8 +273,8 @@ def _combat_log(raw: Any, ctx: _Context) -> Entries:
 def _combat_sides(item: dict[str, Any], ctx: _Context) -> Observed:
     """``Ships`` (pair map faction -> list of ``{Item1, Item2}``) as faction -> hull class counts.
 
-    ``Item1`` is the ship design name, which players choose: it is never kept. One unresolvable faction makes
-    the member unknown, like a reference list; its raw value is the list of faction keys only.
+    ``Item1`` is a player-chosen design name and is never kept. One unresolvable faction makes the member unknown,
+    with only the faction keys as its raw value.
     """
     if "Ships" not in item:
         return Unknown()
