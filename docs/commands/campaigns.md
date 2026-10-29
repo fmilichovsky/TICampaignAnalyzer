@@ -5,53 +5,35 @@ tinarrative campaigns <path>... [--format text|json]
 ```
 
 Lists the campaigns that the given saves belong to, with the selector that
-[`events --campaign`](events.md#campaigns) accepts. Paths are files, directories or both, and
-directories are expanded exactly as `events` does. Each save is read only for its hash, game time
-and campaign identity. Nothing is normalized or analyzed, so the listing is fast even for a full
-save directory. A single save is enough.
+[`events --campaign`](events.md#campaigns) and `narrate --campaign` accept. It reads only what it
+needs to group the saves, so it is fast even for a full save directory. A single save is enough.
 
-## Grouping
+## Options
 
-The save format has no campaign ID ([campaign grouping](../game-data-notes/campaign-grouping.md)).
-Two saves belong to the same campaign when all of these signals match:
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `PATH...` | required | Save files or directories, in any order. A directory is read one level deep; files in it that are not usable saves are listed as skipped. |
+| `--format text\|json` | `text` | Human-readable listing or the same listing as JSON. |
 
-- the faction of the only human player (`TIPlayerState` with `isAI == false`);
-- the player faction name (`TIMetadataState.playerFactionName`);
-- the scenario (`TITimeState.masterMetaTemplateName` and `scenarioMetaTemplateName`);
-- the real-world time the campaign was started (`TIGlobalValuesState.realWorldCampaignStart`).
-
-No other signal is compared. File names, file times and `currentID` are never used for grouping.
-A missing name, scenario part or start counts as its own value, so a save without a real-world
-start is never merged with one that has a start.
-
-A save with no human player, with several, or whose human player's faction does not resolve is
-**unclassified**. It forms a group of its own and is never merged into a campaign. Byte-identical
-copies of such a save stay together.
-
-Grouping is inference. Every group reports the signals it was formed on.
+Saves belong to one campaign when the human player's faction, the faction name, the scenario and
+the real-world campaign start all match (see
+[campaign grouping](../game-data-notes/campaign-grouping.md)). A save without exactly one human
+player is listed as **unclassified**, on its own.
 
 ## Selector keys
 
-Each group has a key built from the slug of the faction name and, when it is known, the real-world
-start: `resistance-20260104-113751`. The slug is the name in lower case, without a leading "the",
-with every run of other characters turned into `-`. A group without a faction name uses `unknown`.
-When two groups would get the same key, the later one gets `#2`, the next `#3`, and so on.
+Each campaign has a key built from its faction name and real-world start, such as
+`resistance-20260104-113751`, and a number in the listing. `events --campaign` and
+`narrate --campaign` accept:
 
-Groups are numbered from 1. Classified campaigns come first, ordered by real-world start (unknown
-last), then by their first game time, then by path. Unclassified saves follow in the same order.
+- a key, or any prefix of a key that matches only one campaign (`protectorate`);
+- the campaign's number in this listing (`2`);
+- `latest`: the campaign holding the most recently modified save file, usually the one being played.
 
-`events --campaign` accepts:
+In a terminal, `events` and `narrate` without a matching `--campaign` show this listing and ask for
+a selector or search text ([campaign picker](events.md#campaign-picker)).
 
-- a key, or any prefix of a key that matches only one group (`protectorate`);
-- the group's number in this listing (`2`);
-- `latest`: the group holding the save file with the newest modification time, which is usually
-  the campaign being played. This is the only place where file times are used. They do not follow
-  game time and never order or group saves.
-
-In a terminal, `events` without a matching `--campaign` shows this listing and asks for one of these
-selectors or for fuzzy search text instead ([campaign picker](events.md#campaign-picker)).
-
-## Text output
+## Output
 
 ```
 2 campaigns:
@@ -65,29 +47,12 @@ selectors or for fuzzy search text instead ([campaign picker](events.md#campaign
    3 saves, 2026-02-01T00:00:00 to 2026-03-01T00:00:00
 ```
 
-The save count is the number of distinct saves, with byte-identical copies counted once. The dates
-are the first and last game times. A group without a real-world start says
-`grouped by faction and scenario only (no real-world start)`. An unclassified group says why, for
-example `unclassified (2 human players); never grouped with another save`. Files skipped inside a
-named directory are listed at the end with their path, error class and message, as in `events`.
+The save count counts byte-identical copies once; the dates are the first and last game times.
+Skipped files are listed at the end with their path and the reason.
 
-## JSON output
-
-`--format json` prints one object:
-
-- `inputs` (usable saves given, after directory expansion), `duplicates`;
-- `skipped`: one object per file skipped inside a named directory, with `source`, `error_class` and
-  `error`;
-- `campaigns`: one object per group, with `index`, `key`, `faction`, `scenario` (`master`,
-  `scenario`), `started` (ISO time or `null`), `unclassified`, `inputs` (the paths in the group),
-  `saves` (distinct saves), `first_date`, `last_date` and `sources` (the distinct saves' paths in
-  chronological order).
-
-`events --format json` reports the chosen group as its `campaign` member in the same form.
-
-With `--log-level info`, the run logs the number of paths and candidate files, then the number of
-groups, unclassified groups and groups without a start. Faction names and directory paths are
-never logged.
+`--format json` prints one object with `inputs`, `duplicates`, `skipped` and `campaigns` (one
+object per campaign, with its key, number, faction, scenario, start, saves and date range). It is
+built by [`grouping.py`](../../src/tinarrative/grouping.py).
 
 ## Exit codes
 
@@ -95,5 +60,12 @@ never logged.
 | --- | --- |
 | 0 | The listing was printed. Files skipped inside a named directory do not change it. |
 | 2 | Usage error: an unknown `--format`. |
-| 4 | A named path cannot be read (missing or unreadable), or a named directory holds no files or no usable save. |
-| 5 | A named file is not a supported save (malformed, wrong shape, or unsupported format or game version) or has no parseable game time. |
+| 4 | A named path cannot be read, or a named directory holds no files or no usable save. |
+| 5 | A named file is not a supported save or has no parseable game time. |
+
+## Examples
+
+```sh
+tinarrative campaigns ~/saves
+tinarrative campaigns ~/saves --format json
+```
