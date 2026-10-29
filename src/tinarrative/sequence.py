@@ -10,7 +10,8 @@ follows ``docs/game-data-notes/chronology-and-deduplication.md``:
    rest by game time, then path. Equal times with different bytes are both kept. Argument order never matters.
 3. ``run_sequence`` normalizes the saves in that order, holding two snapshots at a time, builds each save's situation
    report (``narrative.situation``) while it holds the snapshot, and runs ``analyze_interval`` (diff, analyzers,
-   significance and, when asked, reconstruction) on each consecutive pair. The reports are kept, the snapshots not.
+   significance and, when asked, reconstruction) on each consecutive pair; the first pair also reports the history
+   its earlier save carries from before the sequence. The reports are kept, the snapshots not.
 
 Consecutive intervals share their boundary snapshot, so every change is reported in exactly one interval and a
 save-carried log entry once. The events of an interval are qualified by its key (``narrative.chronology``) so that
@@ -28,7 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .analyzers import ALL_ANALYZERS, run_analyzers
+from .analyzers import ALL_ANALYZERS, FIRST_INTERVAL_ANALYZERS, run_analyzers
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
 from .log import fields, get_logger
@@ -159,10 +160,16 @@ class IntervalResult:
         }
 
 
-def analyze_interval(before: SaveSnapshot, after: SaveSnapshot, *, inferred: bool) -> IntervalAnalysis:
-    """Diff two snapshots, run every analyzer and, when asked, reconstruction; every event gets its significance."""
+def analyze_interval(
+    before: SaveSnapshot, after: SaveSnapshot, *, inferred: bool, first: bool = False
+) -> IntervalAnalysis:
+    """Diff two snapshots, run every analyzer and, when asked, reconstruction; every event gets its significance.
+
+    ``first`` marks the first interval of a sequence, which also runs ``FIRST_INTERVAL_ANALYZERS``.
+    """
     diff = diff_states(before, after)
-    objective = assign_significance(run_analyzers(ALL_ANALYZERS, before, after, diff), before, after)
+    analyzers = ALL_ANALYZERS + FIRST_INTERVAL_ANALYZERS if first else ALL_ANALYZERS
+    objective = assign_significance(run_analyzers(analyzers, before, after, diff), before, after)
     reconstructed = (
         assign_significance(infer_events(objective, before, after, diff), before, after) if inferred else None
     )
@@ -241,7 +248,7 @@ def run_sequence(
     for index in range(1, len(plan.saves)):
         after = load(plan.saves[index].source)
         after_situation = build_situation(after)
-        analysis = analyze_interval(before, after, inferred=inferred)
+        analysis = analyze_interval(before, after, inferred=inferred, first=index == 1)
         key = plan.keys[index]
         result = IntervalResult(
             index=index - 1,

@@ -12,7 +12,9 @@ from .politics import (
     FederationAnalyzer,
     NationAnalyzer,
     NationBandAnalyzer,
+    NationEconomyAnalyzer,
     NationMetricAnalyzer,
+    NationPopulationAnalyzer,
     OrganizationAnalyzer,
     WarAnalyzer,
 )
@@ -24,6 +26,8 @@ POLITICS_ANALYZERS: tuple[Analyzer, ...] = (
     NationAnalyzer(),
     NationMetricAnalyzer(),
     NationBandAnalyzer(),
+    NationPopulationAnalyzer(),
+    NationEconomyAnalyzer(),
     WarAnalyzer(),
     FederationAnalyzer(),
     CouncilorAnalyzer(),
@@ -47,12 +51,16 @@ ALL_ANALYZERS: tuple[Analyzer, ...] = (
     + FACTION_ANALYZERS
 )
 """Every family; each handled reference list is owned by exactly one analyzer, so IDs never collide."""
+FIRST_INTERVAL_ANALYZERS: tuple[Analyzer, ...] = (NationEconomyAnalyzer(before_sequence=True),)
+"""Run besides ``ALL_ANALYZERS`` on the first interval of a sequence only: history the earlier save carries from
+before it (``before_sequence``), reported once."""
 
 __all__ = [
     "ALIEN_ANALYZERS",
     "ALL_ANALYZERS",
     "CAMPAIGN_ANALYZERS",
     "FACTION_ANALYZERS",
+    "FIRST_INTERVAL_ANALYZERS",
     "MILITARY_ANALYZERS",
     "POLITICS_ANALYZERS",
     "SPACE_ANALYZERS",

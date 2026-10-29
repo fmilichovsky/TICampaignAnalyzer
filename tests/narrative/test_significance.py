@@ -185,6 +185,13 @@ def test_a_nuclear_arsenal_shift_is_major_and_any_other_statistic_shift_is_trivi
     assert significance_of(bare_event("nation.statistic_shifted"), lookup) is Significance.TRIVIAL
 
 
+def test_a_population_drop_is_major_growth_minor_and_a_gdp_trend_trivial() -> None:
+    lookup = empty_lookup()
+    assert significance_of(bare_event("nation.population_changed", direction="drop"), lookup) is Significance.MAJOR
+    assert significance_of(bare_event("nation.population_changed", direction="growth"), lookup) is Significance.MINOR
+    assert significance_of(bare_event("nation.pcgdp_trend"), lookup) is Significance.TRIVIAL
+
+
 # --- Table, defaults and the pass itself -------------------------------------------------------------------
 
 

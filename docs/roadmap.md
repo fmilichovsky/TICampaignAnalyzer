@@ -188,10 +188,10 @@ built from the developments catalogued in
     `metric_shifts`; the architecture's band-label rule amended for game-defined bands (#191);
   - [ ] nuclear arcs: `nation.nuclear_program_changed` and `nation.policy_changed` atomic events,
     `nation.nuclear_armament`, `nation.nuclear_buildup`, `nation.nuclear_disarmament` (#195, related #186);
-  - [ ] population and economic trajectory: territory-adjusted `nation.population_changed` and
-    `nation.population_collapse`; `nation.pcgdp_trend` from `tracker_PCGDP_ByQuarter`, record-dated by quarter,
-    chained into `nation.economic_trajectory`, with the quarters before the first save as `before_sequence`
-    backstory (#192);
+  - [x] population and economic trajectory: territory-adjusted `nation.population_changed` and
+    `nation.population_collapse`; `nation.pcgdp_trend` from `tracker_PCGDP_ByQuarter`, record-dated by calendar
+    quarter, chained into `nation.economic_trajectory`, with the quarters before the first save as `before_sequence`
+    backstory; thresholds as analyzer constants, not settings (#192);
   - [ ] military and space-support assets and rankings: armies, navies, the strength estimate, boost, mission
     control and space defences in the situation report; `nation.military_buildup` / `nation.demobilization`,
     `nation.navy_established`, `nation.space_program_growth`, `nation.space_defences_established`,

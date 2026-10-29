@@ -62,6 +62,10 @@ _EVIDENCE: tuple[str, ...] = (
     "nation.statistic_shifted",
     # The band crossing behind a band-shift development, with the game's band labels and its causes.
     "nation.band_crossed",
+    # A population move beyond territory, and a five-year per-capita GDP trend at its quarter, behind a collapse or
+    # an economic trajectory.
+    "nation.population_changed",
+    "nation.pcgdp_trend",
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)

@@ -37,6 +37,8 @@ EVIDENCE = [
     "councilor.disappeared",
     "nation.statistic_shifted",
     "nation.band_crossed",
+    "nation.population_changed",
+    "nation.pcgdp_trend",
 ]
 BOOKKEEPING = [
     "control_point.controller_changed",
