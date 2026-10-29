@@ -84,11 +84,11 @@ no documented campaign semantics. The filesystem time is read only to resolve
 
 - Numeric IDs may be allocated similarly in separately started campaigns;
   matching one ID alone is not sufficient evidence.
-- Hypothesis, not observed: a campaign reloaded from an earlier save and played differently keeps
-  all four signals, so its branches would form one group and interleave by game time. Continuous
-  capture makes this likelier, since it keeps the autosaves of an abandoned line as well. The
-  architecture's lines ([Mode D](../architecture.md#lines-design)) would split such a group by
-  the records each attempt carries forward; the reload itself is not observed yet
-  ([save directory](save-directory.md)).
+- A campaign reloaded from an earlier save and played differently keeps all four signals
+  (observed 2026-10-29: `campaigns` put both attempts of one reload into one group). Its branches
+  interleave by game time. Continuous capture makes this common, since it keeps the abandoned
+  attempt's autosaves too. The architecture's lines
+  ([Mode D](../architecture.md#lines-design)) split such a group with the
+  [witness records](domain-field-map.md#witnesses-across-a-reload).
 - Multiplayer, modded, migrated, or damaged saves may contain zero or more
   than one non-AI player. They intentionally fall into the unclassified path.

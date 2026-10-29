@@ -88,7 +88,7 @@ Target: record every save the game writes and narrate on demand in installments
 ([design](architecture.md#continuous-capture-design); tracking #207).
 
 - [x] Design.
-- [ ] Evidence pass on the save directory (#208).
+- [x] Evidence pass on the save directory (#208).
 - [ ] Content-addressed save store (#209).
 - [ ] Per-object index and `campaigns --store` (#210).
 - [ ] `events --store` and `narrate --store` (#211).

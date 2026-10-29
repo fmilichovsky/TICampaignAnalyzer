@@ -204,6 +204,45 @@ Observed on 2026-10-13 in five private complete saves of one campaign (2045-08 t
 
 *Hypothesis:* `knownAlienSites` keys whose ID is absent from the save are sites on bodies or habs that no longer exist; not checked.
 
+### Witnesses across a reload
+
+Observed on 2026-10-29 in 22 private saves archived while playing ([save directory](save-directory.md)): autosaves,
+manual, combat and exit saves. They form two lines of the Protectorate campaign (15 saves, forked by a reload at
+2028-06) and two of the Resist campaign (7 saves, forked at 2046-02). The player's notes give the true tree. A rule
+was tested on every pair of saves A and B of one campaign, A no later than B. That is 87 pairs where B continues A
+and 39 pairs on different lines. The *witness set* is the set of rules that no continuing pair broke. Each rule
+below states what contradicts "B continues A":
+
+| Witness | Contradiction | Continuing pairs broken | Cross-line pairs contradicted |
+| --- | --- | --- | --- |
+| `Transactions` | an entry of B dated *strictly before* A's game time is missing from A's list for the same label (entries compared by resource, amount and date, as a multiset) | 0 of 87 | 39 of 39 (8–3,998 entries) |
+| entity IDs | an entity of B with an ID at or below A's `currentID` is missing from A, or has another state type in A | 0 of 87 | 39 of 39 (3–66 missing), 35 of 39 (1–38 retyped) |
+| `lostControlPoints` | a key of A is missing from B, or B has a new key dated before A's game time | 0 of 87 | 33 of 39 |
+| `knownAlienSites` | a key of A is missing from B | 0 of 87 | 22 of 39 |
+| `milestones`, `Kills` | A's list is not a prefix of B's | 0 of 87 | 4 of 39 |
+| `HabDestructionLog` | A's list is not a prefix of B's | 0 of 87 | 0 of 39 |
+
+The ID rule follows from the observed allocation: one counter, and no ID is ever reused
+([entity identity](entity-identity.md)). Compare state types only: display names change along one line. Every
+cross-line pair was contradicted by the ledger and the ID rule together. The earliest fork pair (a combat save 10
+game-days after the loaded save) was contradicted *only* by those two. The prefix logs are too sparse to find a
+young fork, so a witness test that reads only them reports `consistent` for it.
+
+Rules that failed along one line, so they are **not** witnesses:
+
+- `Transactions` with entries dated *at or before* A's game time: broken in 58 of the 87 continuing pairs. An
+  autosave is written before the charges dated at its own moment. A manual save taken right after the autosave, at
+  the same game time, had 25 more entries dated exactly at that moment. This is also why an autosave and an exit
+  save of the same game time differ.
+- `knownAlienSites` with a new key dated before A's game time: broken in 20 pairs. A site reappeared in a later
+  save with a date years before the earlier save, so the date is not a discovery date.
+- `CombatLogs` as a prefix log: broken in 6 pairs. After a battle the list had the same length but different
+  content, so entries are rewritten or rotated.
+
+With the witness set above, the parent rule of the lines design (the nearest earlier save B continues) rebuilt the
+true tree of both campaigns: the loaded save had two children, and every save of each attempt had its predecessor
+on that attempt as parent.
+
 ## Implementation guidance
 
 The table gives a direct first-pass mapping to `SaveSnapshot`:

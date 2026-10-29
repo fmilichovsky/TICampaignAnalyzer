@@ -639,12 +639,13 @@ save directory → capture (poll, settle, copy) → objects + capture log     ev
 ```
 
 **Capture** has one job, to win the race against the game, so it does as little as possible. It polls with the
-standard library (no runtime dependencies, so no file-system watcher). A file is taken once its size and
-modification time have stayed the same across two polls; capture reads it, re-checks the `stat`, hashes the
-bytes (the identity `survey` already uses) and writes them unchanged and atomically into a content-addressed
-object store. Every observation appends one line to a capture log, with a save-kind hint read from the name
-for display only: names are not a chronology. Capture rejects nothing: a file that is not a supported save is
-archived and marked when indexed, so a wrong rejection can be undone.
+standard library (no runtime dependencies, so no file-system watcher). A file is taken once it is not empty and
+its size and modification time have stayed the same for `settle_seconds`. The game empties a file for seconds
+before writing it ([save directory](game-data-notes/save-directory.md)). Capture reads the file, re-checks the
+`stat`, hashes the bytes (the identity `survey` already uses) and writes them unchanged and atomically into a
+content-addressed object store. Every observation appends one line to a capture log, with a save-kind hint read
+from the name for display only: names are not a chronology. Capture rejects nothing: a file that is not a
+supported save is archived and marked when indexed, so a wrong rejection can be undone.
 
 **Catch-up is the same pass.** On start, and in a one-shot run, every file that differs from its last
 capture-log line is captured. Saves written while nothing was capturing join the timeline wherever their game
@@ -698,8 +699,10 @@ a campaign without a reload costs one test per save and gives exactly today's se
 as consistent, because absence of evidence is not a fork. A fork save never captured is not needed: the new
 line attaches to the nearest earlier save it continues, with a longer interval.
 
-**Witness digest.** Each index record carries a digest per witness record, so the test reads two index records
-and never a snapshot.
+**Witness summary.** Each index record carries a compact summary of its witness records, so the test reads two
+index records and never a snapshot. The strongest witnesses are subset tests with a cutoff taken from the earlier
+save: ledger entries dated before its game time, and entity IDs at or below its `currentID`. A summary therefore
+keeps hashed entries and (ID, state type) pairs that can be compared, not one hash per record.
 
 **Lines.** A *fork* is a save with more than one child. A line is named by its first save after a fork, the
 original line by the campaign's first save. Selecting a line takes the path from the campaign's first save
