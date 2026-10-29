@@ -40,6 +40,7 @@ EVIDENCE = [
     "nation.population_changed",
     "nation.pcgdp_trend",
     "nation.space_assets_changed",
+    "nation.nuclear_program_changed",
 ]
 BOOKKEEPING = [
     "nation.rank_changed",

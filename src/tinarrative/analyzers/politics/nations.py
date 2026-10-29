@@ -1,4 +1,5 @@
-"""Nation territory, structure, relations, claims, names, unrest attempts and recorded government changes.
+"""Nation territory, structure, relations, claims, names, unrest attempts, recorded government changes, the nuclear
+program flag and the ``policy_*`` flags.
 
 ``wars`` and ``federation`` belong to the war and federation analyzers. Nothing here says which faction controls a
 nation; that is reconstruction, and control-point control is reported separately.
@@ -40,6 +41,8 @@ HOSTILE_CLAIMS_CHANGED = "nation.hostile_claims_changed"
 RENAMED = "nation.renamed"
 UNREST_ATTEMPTS_CHANGED = "nation.unrest_attempts_changed"
 NEW_GOVERNMENT_RECORDED = "nation.new_government_recorded"
+NUCLEAR_PROGRAM_CHANGED = "nation.nuclear_program_changed"
+POLICY_CHANGED = "nation.policy_changed"
 
 RELATION_FIELDS = ("allies", "rivals")
 """Nation-to-nation reference lists; an entry is expected on both nations, which is checked, not assumed.
@@ -51,6 +54,8 @@ CLAIM_FIELDS = (("claims", CLAIMS_CHANGED), ("hostileClaims", HOSTILE_CLAIMS_CHA
 """Region lists of a nation, reported once per nation and list with the regions added and removed."""
 UNREST_FIELD = "factionUnrestAttempts"
 NEW_GOVERNMENT_FIELD = "dateOfNewGovernment"
+NUCLEAR_PROGRAM_FIELD = "nuclearProgram"
+POLICY_FIELDS = ("policy_closedBorders", "policy_noMineralDevelopment", "policy_noNukes", "policy_noOilDevelopment")
 
 
 def list_event_type(field_name: str) -> str:
@@ -88,6 +93,11 @@ class NationAnalyzer:
             event = value_transition_event(NEW_GOVERNMENT_RECORDED, change, lookup, build, recorded_on=change.after)
             if event is not None:
                 events.append(event)
+        for change in index.fields(EntityDomain.NATION, NUCLEAR_PROGRAM_FIELD):
+            events.extend(_value_transition(NUCLEAR_PROGRAM_CHANGED, change, lookup, build))
+        for field_name in POLICY_FIELDS:
+            for change in index.fields(EntityDomain.NATION, field_name):
+                events.extend(_policy(change, lookup, build))
         for change in index.presence(EntityDomain.NATION):
             events.append(_presence(change, lookup, build))
         for change, member, transition in ledger.leftovers():
@@ -129,6 +139,22 @@ def _value_transition(event_type: str, change: StateChange, lookup: Lookup, buil
             sources=(primary(change),),
             entities=(lookup.ref(subject), lookup.resolve(change.before), lookup.resolve(change.after)),
             attributes=transition_attributes(change, transition),
+            confidence=confidence_for(transition),
+        )
+    ]
+
+
+def _policy(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
+    transition = classify(change.before, change.after)
+    if transition is None or change.entity_id is None or change.field is None:
+        return []
+    return [
+        build.event(
+            POLICY_CHANGED,
+            id_parts=(change.entity_id, change.field),
+            sources=(primary(change),),
+            entities=(lookup.ref(change.entity_id),),
+            attributes=(("policy", change.field), *transition_attributes(change, transition)),
             confidence=confidence_for(transition),
         )
     ]

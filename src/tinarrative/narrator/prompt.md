@@ -123,6 +123,9 @@ How to read the fields:
   lists the nations that entered (`entrants`) and left (`leavers`) the top
   `top` by `metric` (`GDP`, `strength`, `boost` or `mission_control`), with
   their places.
+- `nation.nuclear_armament` is a nation's first nuclear weapons,
+  `nation.nuclear_buildup` and `nation.nuclear_disarmament` its arsenal
+  growing or shrinking, `before` to `after` weapons; state them as fact.
 - `before_sequence`: the development began before the first save, from a
   series the game recorded quarter by quarter.  Its dates are recorded
   dates, and it is the one backstory you may tell (rule 4).

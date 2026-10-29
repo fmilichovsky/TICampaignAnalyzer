@@ -60,7 +60,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Evidence pass (#189).
   - [x] Significance defaults (#190).
   - [x] Game bands and band-shift rules (#191).
-  - [ ] Nuclear arcs (#195, related #186).
+  - [x] Nuclear arcs (#195, related #186).
   - [x] Population and economic trajectory (#192).
   - [x] Military and space-support assets and rankings (#193).
   - [ ] Campaign baseline from cumulative trackers (#194).

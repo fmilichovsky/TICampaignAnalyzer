@@ -365,6 +365,8 @@ Geopolitics:
 | `nation.economic_trajectory` | N's per-capita GDP boomed or slumped over years |
 | `nation.military_buildup` / `nation.demobilization` | N's standard armies grew or shrank |
 | `nation.navy_established` | N raised its first naval army |
+| `nation.nuclear_armament` | N acquired its first nuclear weapons |
+| `nation.nuclear_buildup` / `nation.nuclear_disarmament` | N's nuclear arsenal grew or was dismantled |
 | `nation.space_program_growth` | N grew its launch capacity or mission control |
 | `nation.space_defences_established` | N defended its first regions against orbit |
 | `world.ranking_changed` | nations entered or left the top N by GDP, strength, boost or mission control |

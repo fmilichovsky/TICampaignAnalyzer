@@ -98,6 +98,10 @@ class NationMetricsSettings:
     space_assets_window_days: int = _int(365, 0)
     """Growth of one nation's boost or mission control chains into one space program while each follows the previous
     one this soon."""
+    nuclear_window_days: int = _int(365, 0)
+    """Nuclear arsenal shifts of one nation chain into one arc while each follows the previous one this soon."""
+    nuclear_buildup_min: int = _int(5, 1)
+    """A nuclear buildup gains at least this many weapons, or half the arsenal it started from."""
     ranking_top_n: int = _int(10, 1)
     """A ranking change is a change of the top this many by a metric (at most 20, the places the analyzer reports);
     reports list this many spaceports."""

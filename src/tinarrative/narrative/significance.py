@@ -124,6 +124,10 @@ _MINOR: tuple[str, ...] = (
     # A dated mission or operation charge from the resource ledger: corroboration and dating for an effect that
     # is evidenced elsewhere, never a development on its own (architecture 11.3).
     "faction.transaction_recorded",
+    # A nuclear program or policy flag says what a nation may do, not what it did; the nuclear arcs cite the
+    # program as the start of an arsenal.
+    "nation.nuclear_program_changed",
+    "nation.policy_changed",
 )
 
 _MAJOR: tuple[str, ...] = (

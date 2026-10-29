@@ -235,6 +235,10 @@ def _statistic_shifted(event: Event) -> str:
     return f"{_subject(event)} {_transition(event, label)}"
 
 
+def _policy_changed(event: Event) -> str:
+    return f"{_subject(event)} {_transition(event, 'policy ' + _text(event, 'policy'))}"
+
+
 def _band_crossed(event: Event) -> str:
     """``<nation> <statistic>: <band> -> <band> (before -> after)``; the game's own band labels."""
     return f"{_subject(event)} {_bands(event)} ({_attr(event, 'before')} -> {_attr(event, 'after')})"
@@ -536,6 +540,22 @@ def _economic_trajectory(event: Event) -> str:
     )
 
 
+def _nuclear_arsenal(event: Event, change: str) -> str:
+    return f"{_role(event, Role.ACTOR)} {change}: {_attr(event, 'before')} -> {_attr(event, 'after')} nuclear weapons"
+
+
+def _nuclear_armament(event: Event) -> str:
+    return _nuclear_arsenal(event, "armed with nuclear weapons")
+
+
+def _nuclear_buildup(event: Event) -> str:
+    return _nuclear_arsenal(event, "built up its nuclear arsenal")
+
+
+def _nuclear_disarmament(event: Event) -> str:
+    return _nuclear_arsenal(event, "dismantled its nuclear arsenal")
+
+
 def _army_count(event: Event, change: str) -> str:
     return (
         f"{_role(event, Role.ACTOR)} {change} its standard armies: {_attr(event, 'before')} -> {_attr(event, 'after')}"
@@ -708,6 +728,8 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "federation.renamed": _renamed,
     "nation.unrest_attempts_changed": _unrest_attempts_changed,
     "nation.new_government_recorded": _new_government_recorded,
+    "nation.nuclear_program_changed": _plain("nuclear program"),
+    "nation.policy_changed": _policy_changed,
     "councilor.faction_changed": _plain("faction"),
     "councilor.status_changed": _councilor_field("status"),
     "councilor.location_changed": _councilor_field("location"),
@@ -811,6 +833,9 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.miltech_shift": _band_shift,
     "nation.population_collapse": _population_collapse,
     "nation.economic_trajectory": _economic_trajectory,
+    "nation.nuclear_armament": _nuclear_armament,
+    "nation.nuclear_buildup": _nuclear_buildup,
+    "nation.nuclear_disarmament": _nuclear_disarmament,
     "nation.military_buildup": _military_buildup,
     "nation.demobilization": _demobilization,
     "nation.navy_established": _navy_established,

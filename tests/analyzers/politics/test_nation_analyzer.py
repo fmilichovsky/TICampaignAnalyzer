@@ -26,6 +26,9 @@ from tinarrative.analyzers.politics.nations import (
     EXECUTIVE_CHANGE_RECORDED,
     HOSTILE_CLAIMS_CHANGED,
     NEW_GOVERNMENT_RECORDED,
+    NUCLEAR_PROGRAM_CHANGED,
+    POLICY_CHANGED,
+    POLICY_FIELDS,
     REGION_NATION_CHANGED,
     RENAMED,
     UNREST_ATTEMPTS_CHANGED,
@@ -250,6 +253,29 @@ def test_a_display_name_change_is_a_rename_with_the_literal_names() -> None:
     assert event.id == "nation.renamed/nation:20"
     assert dict(event.attributes) == {"transition": "changed", "before": "Old Name", "after": "New Name"}
     assert [(s.role, s.change.field) for s in event.sources] == [(SourceRole.PRIMARY, "displayName")]
+
+
+def test_a_nuclear_program_flag_change_is_one_event_with_the_literal_flags() -> None:
+    before = snapshot(BEFORE, state(NATION, "20", BEFORE, nuclearProgram=False, policy_noNukes=False))
+    after = snapshot(AFTER, state(NATION, "20", AFTER, nuclearProgram=True, policy_noNukes=False))
+    (event,) = analyze(ANALYZER, before, after)
+    assert event.event_type == NUCLEAR_PROGRAM_CHANGED and event.id == "nation.nuclear_program_changed/nation:20"
+    assert dict(event.attributes) == {"transition": "changed", "before": False, "after": True}
+    assert [(s.role, s.change.field) for s in event.sources] == [(SourceRole.PRIMARY, "nuclearProgram")]
+
+
+def test_each_policy_flag_change_is_a_policy_event_naming_the_policy() -> None:
+    before = snapshot(BEFORE, state(NATION, "20", BEFORE, **dict.fromkeys(POLICY_FIELDS, False)))
+    after = snapshot(AFTER, state(NATION, "20", AFTER, **dict.fromkeys(POLICY_FIELDS, True)))
+    events = by_type(analyze(ANALYZER, before, after), POLICY_CHANGED)
+    assert [event.attribute("policy") for event in events] == list(POLICY_FIELDS)
+    assert events[2].id == "nation.policy_changed/nation:20/policy_noNukes"
+    assert dict(events[2].attributes) == {
+        "policy": "policy_noNukes",
+        "transition": "changed",
+        "before": False,
+        "after": True,
+    }
 
 
 def test_unrest_attempts_are_one_event_per_faction_whose_count_differs() -> None:
