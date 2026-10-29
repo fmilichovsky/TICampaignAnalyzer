@@ -81,12 +81,13 @@ COHESION_EXTREMES = (1.0, 9.0)
 """Fragmented below the first, Hegemonic and Monolithic from the second: cohesion crossing one is a story."""
 ALWAYS_MAJOR = frozenset({"democracy", "education", "militaryTechLevel"})
 
-_PROMOTED = {
+PROMOTED = {
     Significance.TRIVIAL: Significance.MINOR,
     Significance.MINOR: Significance.MAJOR,
     Significance.MAJOR: Significance.CAMPAIGN_DEFINING,
     Significance.CAMPAIGN_DEFINING: Significance.CAMPAIGN_DEFINING,
 }
+"""One level up, for a development of a leading nation."""
 
 
 def _number(value: Observed) -> float | None:
@@ -146,7 +147,7 @@ class BandShiftRule:
             rank = gdp_rank(pair[1], nation.entity_id)
             level = self._level(before, after)
             if rank is not None and rank <= self.geopolitics.top_gdp_nations:
-                level = _PROMOTED[level]
+                level = PROMOTED[level]
             roles = [(Role.ACTOR, nation)]
             shifts = metric_shifts(stream, [nation.entity_id], [interval_of(crossing.id)])
             built.append(
@@ -316,7 +317,7 @@ class EconomicTrajectoryRule:
                 rank = gdp_rank(pair[1], nation_id) if pair is not None else None
                 level = Significance.MAJOR
                 if rank is not None and rank <= self.settings.top_gdp_nations:
-                    level = _PROMOTED[level]
+                    level = PROMOTED[level]
                 window_start = first.attribute("window_start")
                 built.append(
                     build.event(

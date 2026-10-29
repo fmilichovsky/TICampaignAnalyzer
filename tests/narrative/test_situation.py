@@ -8,6 +8,7 @@ from dataclasses import replace
 from tests.analyzers.support import (
     AFTER,
     AFTER_DATE,
+    army_ref,
     faction_ref,
     federation_ref,
     fleet_ref,
@@ -265,6 +266,55 @@ def test_nations_with_regions_counts_known_non_empty_lists() -> None:
     )
 
     assert build_situation(snapshot(AFTER, *states)).world.nations_with_regions == 1
+
+
+def test_a_nation_reports_its_armies_strength_and_space_assets_and_the_world_its_spaceports() -> None:
+    def region(key: str, owner: str, boost: float, **fields: Observed) -> EntityState:
+        values: dict[str, Observed] = {
+            "nation": nation_ref(owner),
+            "boostPerYear_dekatons": boost,
+            "missionControl": 3,
+            "antiSpaceDefenses": False,
+            "numSTOFighters": 0,
+            "leadOccupier": None,
+            "occupations": FrozenMap(),
+        }
+        return state(EntityDomain.REGION, key, AFTER, **{**values, **fields})
+
+    states = (
+        state(
+            NATION,
+            "20",
+            AFTER,
+            regions=(region_ref("40"), region_ref("41")),
+            armies=(army_ref("110"), army_ref("111")),
+            militaryTechLevel=2.0,
+            unrest=1.0,
+            numNuclearWeapons=1,
+        ),
+        state(NATION, "21", AFTER, regions=(region_ref("42"),)),
+        region("40", "20", 30.0, antiSpaceDefenses=True, numSTOFighters=2),
+        region("41", "20", 0.0),
+        region("42", "21", 50.0),
+        state(EntityDomain.ARMY, "110", AFTER, deploymentType="Standard", strength=1.0),
+        state(EntityDomain.ARMY, "111", AFTER, deploymentType="Naval", strength=1.0),
+    )
+
+    report = build_situation(snapshot(AFTER, *states), spaceports=1)
+
+    northland = nation(report, "20")
+    assert (northland.armies, northland.navies, northland.boost, northland.mission_control) == (1, 1, 30.0, 6.0)
+    assert (northland.space_defence_regions, northland.sto_fighters) == (1, 2.0)
+    # 2 regions x 2 x 0.7 + 1 army x 2 x 3 x 1.0 + 1 navy - 1 unrest + 100 + 5
+    assert northland.strength == 2.8 + 6.0 + 1.0 - 1.0 + 105.0
+    assert nation(report, "21").strength == Unknown(UnknownReason.MISSING)  # no military tech, unrest or weapons
+    (spaceport,) = report.world.spaceports
+    assert (spaceport.region, spaceport.nation, spaceport.boost) == (
+        named(region_ref("42")),
+        named(nation_ref("21")),
+        50.0,
+    )
+    assert list(report.to_dict()["world"]["spaceports"][0]) == ["region", "nation", "boost"]
 
 
 def test_an_unparseable_milestone_record_stays_unknown() -> None:

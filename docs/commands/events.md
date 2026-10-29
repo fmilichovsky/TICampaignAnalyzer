@@ -217,6 +217,24 @@ trend first passed the threshold. Its span starts where the first trend's window
 `start_quarter`, `end_quarter`, `first_value`, `last_value`, `ratio`, `gdp_rank`). On the first interval the trends
 of the quarters before the first save are reported too, flagged `before_sequence`, so a trajectory may begin before
 the sequence. Quarter `k` begins on the first day of the `k`-th calendar quarter after the campaign start's.
+`nation.military_buildup` and `nation.demobilization` chain a nation's standard army appearances, disappearances and
+deployment changes within a year; the report's standard `armies` before and after the run moved by
+`narrative.nation_metrics.buildup_min_armies` or more (`before`, `after`, `gdp_rank`, `strength_rank`).
+`nation.navy_established` is a nation's `navies` going from zero to more in one interval, with its naval army
+events (`navies`, `gdp_rank`, `strength_rank`). Both are `major`, and `campaign_defining` for a nation within
+`narrative.geopolitics.top_gdp_nations` by `GDP` or by strength. `nation.space_program_growth` chains a nation's
+`nation.space_assets_changed` growth of boost or mission control within
+`narrative.nation_metrics.space_assets_window_days` (`boost_before`, `boost_after`, `mission_control_before`,
+`mission_control_after`, `boost_territory_share`, `mission_control_territory_share`, `boost_rank`,
+`mission_control_rank`, `entered_top`); it is `minor`, and `major` when the
+nation enters the top `narrative.nation_metrics.ranking_top_n` by boost or mission control.
+`nation.space_defences_established` is a nation's first regions with space defences or STO fighters (`regions`),
+`major`. `world.ranking_changed` lists, per interval and metric (`GDP`, `strength`, `boost`, `mission_control`), the
+nations that entered (`beneficiary`) and left (`loser`) the top `ranking_top_n` (`metric`, `top`, `entrants` and
+`leavers` with each one's `nation`, `rank` and `value`), from their `nation.rank_changed` events. A nation enters from
+a place outside the top to a value above zero and above the first one outside it, and leaves the other way, so ties
+across the boundary never count; an entry the next report reverses is dropped, one in the last interval is kept and
+the development is `open`. It is `major`.
 Each of these developments except `nation.economic_trajectory` carries the nation
 statistic shifts of its span as the `metric_shifts` attribute, naming the shift events by ID.
 A `metric_shifts` entry has `nation`, `statistic`, `key` (public opinion only), `before` (the earliest
@@ -339,7 +357,8 @@ the rest. It is meant to be handed to a reader, such as an LLM narrator
   no state type;
 - a situation report leaves out the nations that hold no region in any save of the run and that no
   listed event references; `world` still counts every nation;
-- a situation report's nations have no `seat_basis`, no `unresolved_points` when that is `0`, and
+- a situation report's nations have no `seat_basis`, no `unresolved_points`, `armies`, `navies`,
+  `boost`, `mission_control`, `space_defence_regions` or `sto_fighters` when that is `0`, and
   `allies` as bare ref strings (`"nation:4"`), named by the glossary; a faction's `habs_by_body`
   lists only the bodies with two or more habs, and `other_bodies` counts the bodies with one
   (`habs` still counts every hab);
@@ -385,8 +404,17 @@ something was serialized), never `0`, `[]` or `null`. `null` is a known null.
     nation, `side` being `attacker` or `defender`, in war ID order;
   - `regions`: the number of regions; `population`: the summed `populationInMillions` of those
     regions (unknown when any region's value is);
-  - `statistics`: `democracy`, `cohesion`, `unrest`, `inequality`, `GDP` and `spaceFunding_year`,
-    as serialized.
+  - `statistics`: `democracy`, `cohesion`, `unrest`, `inequality`, `education`, `militaryTechLevel`,
+    `GDP` and `spaceFunding_year`, as serialized;
+  - `armies` and `navies`: the nation's `armies` entries whose `deploymentType` is `Standard` and
+    `Naval` (both unknown when an entry's is neither);
+  - `strength`: the game's published strength estimate, computed, since no save field carries it:
+    unoccupied regions × `militaryTechLevel` × 0.7, plus standard armies × `militaryTechLevel` × 3 × their
+    mean `strength`, plus navies, minus `unrest`, plus 100 with any nuclear weapon and 5 per weapon
+    ([nation statistics](../game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate));
+  - `boost`, `mission_control` and `sto_fighters`: the summed `boostPerYear_dekatons`,
+    `missionControl` and `numSTOFighters` of its regions; `space_defence_regions`: its regions with
+    `antiSpaceDefenses`. Each is unknown when a region's value is.
 - `federations`: `federation`, `name` (`federationName`) and `members`, in ID order.
 - `wars`: `war`, `attacker`, `defender`, `attacking_alliance`, `defending_alliance`,
   `start_date` (`startDate`) and `last_fighting` (`dateOfLastFighting`), in ID order.
@@ -409,7 +437,9 @@ something was serialized), never `0`, `[]` or `null`. `null` is a known null.
   - `nuclear`: `nuclearStrikes`, `looseNukes`, `currentNuclearExchanges`;
   - `climate`: `earthAtmosphericCO2_ppm`, `earthAtmosphericCH4_ppm`, `earthAtmosphericN2O_ppm`,
     `stratosphericAerosols_ppm`, `globalSeaLevelAnomaly_cm`, `globalSeaLevelRise1Triggered`,
-    `globalSeaLevelRise2Triggered`.
+    `globalSeaLevelRise2Triggered`;
+  - `spaceports`: `{"region", "nation", "boost"}` for the regions with the most `boostPerYear_dekatons`
+    above zero, largest first, ties in ID order: `narrative.nation_metrics.ranking_top_n` of them.
 
 A report is built while its save is normalized, so it adds no third snapshot to memory. The
 same save always gives the same report.

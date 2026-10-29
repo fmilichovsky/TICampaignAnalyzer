@@ -52,6 +52,16 @@ buildup_min_ships = 5
 # report is dated this soon after it to become a nation.*_shift; a later
 # report cannot refute it.
 band_hold_days = 180
+# A nation.military_buildup or nation.demobilization needs a nation's
+# standard armies to move by at least this many.
+buildup_min_armies = 2
+# Boost or mission control growth of one nation this soon after the previous
+# chains into one nation.space_program_growth.
+space_assets_window_days = 365
+# world.ranking_changed reports changes of the top this many nations by GDP,
+# strength, boost and mission control (at most 20); situation reports list
+# this many spaceports.
+ranking_top_n = 10
 
 [narrator]
 # The budget of tinarrative narrate; it never changes what events builds. 

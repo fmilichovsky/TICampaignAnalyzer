@@ -46,8 +46,11 @@ Aggregated from the events of every interval below.
   - attributes: region_count: `1`
   - from `nation.territory_gained/nation:21@2032-07-01T00:00:00`
   - from `nation.territory_lost/nation:20@2032-07-01T00:00:00`
+- `2032-04-01T00:00:00` to `2032-07-01T00:00:00` (open): Top 10 by GDP changed: entered Fixture Southland (nation:21) (objective, confidence `high`, significance `major`)
+  - roles: beneficiary: Fixture Southland (nation:21)
+  - from `nation.rank_changed/nation:21/GDP@2032-07-01T00:00:00`
 
 ## Intervals
 
-- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed (34 state changes; 26 events omitted with --constituents none)
-- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed (10 state changes; 6 events omitted with --constituents none)
+- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed (34 state changes; 27 events omitted with --constituents none)
+- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed (10 state changes; 7 events omitted with --constituents none)

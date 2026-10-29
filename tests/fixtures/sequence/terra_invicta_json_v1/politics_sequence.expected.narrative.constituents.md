@@ -46,6 +46,9 @@ Aggregated from the events of every interval below.
   - attributes: region_count: `1`
   - from `nation.territory_gained/nation:21@2032-07-01T00:00:00`
   - from `nation.territory_lost/nation:20@2032-07-01T00:00:00`
+- `2032-04-01T00:00:00` to `2032-07-01T00:00:00` (open): Top 10 by GDP changed: entered Fixture Southland (nation:21) (objective, confidence `high`, significance `major`)
+  - roles: beneficiary: Fixture Southland (nation:21)
+  - from `nation.rank_changed/nation:21/GDP@2032-07-01T00:00:00`
 
 ## Intervals
 
@@ -89,7 +92,7 @@ Nation:
 - Fixture Northland (nation:20) unrest attempts by Fixture Resistance (faction:15): null -> 1
 - Fixture Northland (nation:20) unrest attempts by Fixture Servants (faction:16): 1 -> 2
 
-11 objective analyzer results omitted: not cited by a listed narrative event.
+12 objective analyzer results omitted: not cited by a listed narrative event.
 
 ### 2032-04-01T00:00:00 to 2032-07-01T00:00:00
 
@@ -114,3 +117,7 @@ Analyzer results:
 
 - Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)
 - Fixture South (region:42) nation: Fixture Northland (nation:20) -> Fixture Southland (nation:21)
+
+Nation:
+
+- Fixture Southland (nation:21) GDP rank: unranked -> 2

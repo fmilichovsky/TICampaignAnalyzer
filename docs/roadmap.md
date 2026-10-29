@@ -192,10 +192,11 @@ built from the developments catalogued in
     `nation.population_collapse`; `nation.pcgdp_trend` from `tracker_PCGDP_ByQuarter`, record-dated by calendar
     quarter, chained into `nation.economic_trajectory`, with the quarters before the first save as `before_sequence`
     backstory; thresholds as analyzer constants, not settings (#192);
-  - [ ] military and space-support assets and rankings: armies, navies, the strength estimate, boost, mission
+  - [x] military and space-support assets and rankings: armies, navies, the strength estimate, boost, mission
     control and space defences in the situation report; `nation.military_buildup` / `nation.demobilization`,
     `nation.navy_established`, `nation.space_program_growth`, `nation.space_defences_established`,
-    `world.ranking_changed` by GDP, strength, boost and mission control (#193);
+    `world.ranking_changed` by GDP, strength, boost and mission control from the atomic `nation.rank_changed`,
+    with `nation.space_assets_changed` and `deployment_type` on army presence as the evidence (#193);
   - [ ] campaign baseline from the cumulative cause trackers (`nation.since_start`), after the cohesion and unrest
     outliers are explained (#194).
 - [ ] Entity-scaled significance: a 0–100 `score` beside the level, the type's base scaled by the share of the

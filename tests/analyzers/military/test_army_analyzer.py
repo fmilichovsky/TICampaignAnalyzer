@@ -157,6 +157,14 @@ def test_presence_cites_every_list_naming_the_army_on_the_existing_side() -> Non
         assert word not in f"{gone.event_type} {new.event_type}"
 
 
+def test_presence_carries_the_literal_deployment_type_of_the_existing_side() -> None:
+    before = snapshot(BEFORE, state(ARMY, "113", BEFORE, faction=faction_ref("15"), deploymentType="Naval"))
+    after = snapshot(AFTER, state(ARMY, "114", AFTER, faction=faction_ref("15"), deploymentType="Standard"))
+    events = analyze(ANALYZER, before, after)
+    assert only(events, DISAPPEARED).attribute("deployment_type") == "Naval"
+    assert only(events, APPEARED).attribute("deployment_type") == "Standard"
+
+
 def test_unresolved_region_is_low_confidence_and_identical_snapshots_produce_nothing() -> None:
     unresolved = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze({"value": 999}))
     before = snapshot(BEFORE, state(ARMY, "110", BEFORE, currentRegion=region_ref("40"), armyType="A"))

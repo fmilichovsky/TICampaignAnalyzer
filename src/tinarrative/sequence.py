@@ -38,6 +38,7 @@ from .model.events import Event
 from .model.snapshot import SaveSnapshot
 from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
 from .narrative.chronology import TIE_SEPARATOR, chronological, interval_keys, qualify
+from .narrative.situation import SPACEPORTS
 from .parsing.continuity import CampaignProfile, campaign_profile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize, save_timestamp
@@ -235,19 +236,20 @@ def run_sequence(
     inferred: bool,
     changes: bool = False,
     load: Callable[[str], SaveSnapshot] = load_snapshot,
+    spaceports: int = SPACEPORTS,
 ) -> Iterator[IntervalResult]:
     """The results of every interval in order; each save is normalized once and at most two are held at a time.
 
     With ``changes`` every result also keeps its literal state changes. Every result carries the situation reports of
-    its two saves.
+    its two saves, each listing ``spaceports`` regions by boost.
     """
     if len(plan.saves) < 2:
         return
     before = load(plan.saves[0].source)
-    before_situation = build_situation(before)
+    before_situation = build_situation(before, spaceports=spaceports)
     for index in range(1, len(plan.saves)):
         after = load(plan.saves[index].source)
-        after_situation = build_situation(after)
+        after_situation = build_situation(after, spaceports=spaceports)
         analysis = analyze_interval(before, after, inferred=inferred, first=index == 1)
         key = plan.keys[index]
         result = IntervalResult(

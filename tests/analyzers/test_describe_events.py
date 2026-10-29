@@ -39,6 +39,7 @@ EXPECTED_RECORDS = {
 }
 
 EXPECTED_POLITICS = {
+    "Fixture Southland (nation:21) GDP rank: 2 -> unranked",
     "Fixture Servants (faction:16) records Fixture CP 9 (control point:9) as lost on 2032-02-15T00:00:00",
     "Fixture Northland (nation:20) records an executive change dated 2032-02-15T00:00:00: "
     "new executive Fixture Resistance (faction:15) (previously Fixture Servants "

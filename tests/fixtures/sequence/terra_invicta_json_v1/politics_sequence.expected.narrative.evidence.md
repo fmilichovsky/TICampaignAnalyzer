@@ -46,6 +46,9 @@ Aggregated from the events of every interval below.
   - attributes: region_count: `1`
   - from `nation.territory_gained/nation:21@2032-07-01T00:00:00`
   - from `nation.territory_lost/nation:20@2032-07-01T00:00:00`
+- `2032-04-01T00:00:00` to `2032-07-01T00:00:00` (open): Top 10 by GDP changed: entered Fixture Southland (nation:21) (objective, confidence `high`, significance `major`)
+  - roles: beneficiary: Fixture Southland (nation:21)
+  - from `nation.rank_changed/nation:21/GDP@2032-07-01T00:00:00`
 
 ## Intervals
 
@@ -72,7 +75,7 @@ Councilor:
 
 - Fixture Councilor 100 (councilor:100) (Fixture Servants (faction:16)) detaining faction: null -> Fixture Servants (faction:16)
 
-11 objective analyzer results omitted: not cited by a listed narrative event.
+12 objective analyzer results omitted: not cited by a listed narrative event.
 
 7 objective analyzer results omitted: not narrator evidence.
 
@@ -99,4 +102,4 @@ Analyzer results:
 
 - Fixture South (region:42) nation: Fixture Northland (nation:20) -> Fixture Southland (nation:21)
 
-1 objective analyzer result omitted: not narrator evidence.
+2 objective analyzer results omitted: not narrator evidence.

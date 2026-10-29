@@ -7,6 +7,8 @@ from .nation_bands import NationBandAnalyzer
 from .nation_economy import NationEconomyAnalyzer
 from .nation_metrics import NationMetricAnalyzer
 from .nation_population import NationPopulationAnalyzer
+from .nation_rank import NationRankAnalyzer
+from .nation_space import NationSpaceAssetsAnalyzer
 from .nations import NationAnalyzer
 from .organizations import OrganizationAnalyzer
 from .wars import WarAnalyzer
@@ -20,6 +22,8 @@ __all__ = [
     "NationEconomyAnalyzer",
     "NationMetricAnalyzer",
     "NationPopulationAnalyzer",
+    "NationRankAnalyzer",
+    "NationSpaceAssetsAnalyzer",
     "OrganizationAnalyzer",
     "WarAnalyzer",
 ]

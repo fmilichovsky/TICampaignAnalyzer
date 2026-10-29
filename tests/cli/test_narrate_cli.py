@@ -52,7 +52,7 @@ def test_saves_a_package_file_and_stdin_give_the_same_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     package = _package(tmp_path, capsys)
-    options = ["--audience", "insider", "--length", "1500", "--config", str(_settings(tmp_path, 9000))]
+    options = ["--audience", "insider", "--length", "1500", "--config", str(_settings(tmp_path, 10000))]
 
     assert main(["narrate", *SAVES, *options, "--output", str(tmp_path / "saves")]) == EXIT_SUCCESS
     assert main(["narrate", "--package", str(package), *options, "--output", str(tmp_path / "file")]) == EXIT_SUCCESS
@@ -75,7 +75,7 @@ def test_saves_a_package_file_and_stdin_give_the_same_bytes(
     assert request["messages"][0]["content"].startswith(
         "chapter: 2 of 2\npart: last\ncovers: 2032-04-01 to 2032-07-01\n"
     )
-    assert out.startswith("2 chapters by quarter, max_input_tokens 9000 at 3 characters per token:\n- 1 (first) ")
+    assert out.startswith("2 chapters by quarter, max_input_tokens 10000 at 3 characters per token:\n- 1 (first) ")
 
 
 @pytest.mark.fixture

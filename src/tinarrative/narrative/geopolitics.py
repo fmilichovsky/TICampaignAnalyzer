@@ -23,7 +23,7 @@ evidence or a public framing: that stays with the narrator (architecture 20).
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from ..analyzers.politics.bands import BANDS, band
@@ -118,15 +118,25 @@ def opposed(report: SituationReport, first: EntityId, second: EntityId) -> list[
     return found
 
 
-def gdp_rank(report: SituationReport, nation_id: EntityId) -> int | None:
-    """The nation's place by ``GDP`` among the report's nations with a known value (1 is the largest)."""
+def _rank(report: SituationReport, nation_id: EntityId, value: Callable[[NationSituation], Observed]) -> int | None:
+    """The nation's place by ``value`` among the report's nations with a known one (1 is the largest)."""
     known = [
-        (value, item.nation.entity_id)
+        (number, item.nation.entity_id)
         for item in report.nations
-        if isinstance(value := dict(item.statistics).get("GDP"), int | float) and not isinstance(value, bool)
+        if isinstance(number := value(item), int | float) and not isinstance(number, bool)
     ]
     ordered = sorted(known, key=lambda pair: (-pair[0], pair[1].sort_key))
     return next((position for position, (_, key) in enumerate(ordered, start=1) if key == nation_id), None)
+
+
+def gdp_rank(report: SituationReport, nation_id: EntityId) -> int | None:
+    """The nation's place by ``GDP`` among the report's nations with a known value (1 is the largest)."""
+    return _rank(report, nation_id, lambda item: dict(item.statistics).get("GDP"))
+
+
+def strength_rank(report: SituationReport, nation_id: EntityId) -> int | None:
+    """The nation's place by the published strength estimate among the report's nations with a known one."""
+    return _rank(report, nation_id, lambda item: item.strength)
 
 
 # --- Metric shifts -----------------------------------------------------------------------------------------------
