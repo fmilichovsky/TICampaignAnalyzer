@@ -1,17 +1,7 @@
-"""Army transitions a save shows directly: region, faction, the ``destroyed`` flag, strength, type, presence.
+"""Army transitions: region, faction, the literal ``destroyed`` flag, strength, type, presence.
 
-The ``destroyed`` flag is the only place this analyzer uses that word, because the save carries it literally.
-An army present in one snapshot only is reported as absent from (or present only in) that snapshot; whether
-it was disbanded, lost in battle or merged is a reconstruction question. A presence event of a
-``TIMegafaunaArmyState`` army carries ``megafauna = True``; regular armies carry no such attribute. A presence event
-carries the army's literal ``deploymentType`` on the side where it exists as ``deployment_type`` (``Standard`` or
-``Naval``: a navy is a naval army), when the save gives one.
-``priorRegion``, ``operationTarget``, ``destinationQueue``, ``currentOperations``, the transit dates,
-``huntingXenofauna`` and ``bonusTechLevel`` stay in the diff.
-
-Every army event names the army's home nation, when known (the ``nation`` of its ``homeRegion``, read from the
-later snapshot, else the earlier one), as an entity and as attribute ``home_nation``: context for which nation's
-army it is, never evidence and never cited.
+Presence is reported literally (disbanded, lost or merged is a reconstruction question). Every event names the
+army's home nation (the ``nation`` of its ``homeRegion``) as context only, never evidence and never cited.
 """
 
 from __future__ import annotations
@@ -107,7 +97,6 @@ def _context(change: StateChange, lookup: Lookup) -> tuple[EntityRef | None, ...
 
 
 def _home_nation(army_id: EntityId, lookup: Lookup) -> EntityRef | None:
-    """The nation of the army's ``homeRegion`` (context only)."""
     home_region = lookup.context_ref(army_id, "homeRegion")
     return lookup.context_ref(home_region.entity_id, "nation") if home_region is not None else None
 

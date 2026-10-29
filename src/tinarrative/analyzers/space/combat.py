@@ -1,14 +1,8 @@
-"""A faction's literal combat log (``TIFactionState.CombatLogs``) as the save shows it.
+"""A faction's literal combat log (``TIFactionState.CombatLogs``): one event per entry added or removed.
 
-Each entry added to a faction's log between two saves is one objective event naming the sides (factions with
-their hull class counts), the hab faction at the site and the recorded winner. ``Date`` is ``null`` in the
-entries seen so far, so the event is dated by the interval; a componentized date, should one appear, dates it by the
-record. The same combat may be logged by several factions, so it may yield one event per owning faction;
-matching them is reconstruction.
-
-An entry present only in the earlier save is reported literally as ``faction.combat_entry_removed``, never
-assumed pruned: the log is not strictly append-only. Ship design names are campaign content and
-are not decoded.
+An entry is dated by its record when it carries a date, else by the interval. The same combat may be logged by
+several factions, one event each; matching them is reconstruction. Removed entries are reported literally, never
+assumed pruned. Ship design names are campaign content and are not decoded.
 """
 
 from __future__ import annotations

@@ -1,10 +1,7 @@
-"""Technology completion and the presence of name-keyed technology states.
+"""Technology completion and the presence of name-keyed technology states (see ``entity-identity.md``).
 
-A technology's identity is its template name (``name-key`` confidence; see ``entity-identity.md``). A name that
-enters ``finishedTechsNames`` is a completion: the technology's own ``finished`` value (or its appearance already
-finished) is the primary source and the research singleton's membership change corroborates it. A progress-only
-technology that appears or vanishes is reported as present in / absent from one snapshot. ``progress`` values
-(accumulated research, contributions) stay in the diff; faction project names are ``ProjectAnalyzer``'s.
+The technology's own ``finished`` value (or its appearance already finished) is the primary source of a completion;
+the research singleton's ``finishedTechsNames`` membership change only corroborates it.
 """
 
 from __future__ import annotations

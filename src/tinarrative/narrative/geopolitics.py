@@ -1,23 +1,6 @@
-"""The geopolitical narrative rules of architecture 11.3, over the qualified stream and the situation reports.
+"""The geopolitical narrative rules: takeovers, wars, federations, territorial changes. See architecture 11.3.
 
-Each rule emits only from its anchor and attaches further events by entity, and by a window in game days from
-``config.GeopoliticsSettings``. Two kinds of window are used:
-
-- *anchored*: an event joins when its earliest possible date (its record date, else its ``not_before``) is within
-  the window after the first member's date, so the span is bounded (takeover, release);
-- *chained*: an event joins when its earliest possible date is within the window after the latest member's date, so
-  a sequence of gains can run for years (expansion).
-
-A rule whose window can still take events from a later save says so with ``open``; a one-interval rule is never
-open. Every rule carries ``metric_shifts`` (``metric_shifts``), the nation statistic shifts of its nations in the
-intervals it spans, as literal values with the game's own band labels (``analyzers.politics.bands``) and no other:
-never a label of ours ("democratic"). The shifts are named by event ID and are not constituents, so they never widen
-a span or change status, confidence or significance. They are bounded per development (``bounded_shifts``), the cut
-counted.
-
-Order 0 builds on the atomic stream; ``nation.expansion`` (order 1) nests the cessions it is made of; ``war.arc``
-(order 2) nests the expansions fought out between belligerents. No rule names a motive, an assistance without army
-evidence or a public framing: that stays with the narrator (architecture 20).
+No rule names a motive or a public framing; that stays with the narrator (architecture 20).
 """
 
 from __future__ import annotations
@@ -80,16 +63,16 @@ INDEPENDENCE = "nation.independence"
 TAKEOVER_SCOPES = ("executive", "sole")
 """The ``faction.nation_control_changed`` scopes that anchor a takeover; a plurality is not control."""
 INDEPENDENCE_CAUSE = "Independence"
-"""A control change with this executive cause is the new nation's own; ``nation.release``/``breakaway`` reports it."""
+"""A control change with this cause belongs to the release and breakaway rule, not to a takeover."""
 TAKEOVER_COUNCILOR_TYPES = ("councilor.faction_changed", "councilor.disappeared", "councilor.detaining_faction_changed")
 PRECURSOR_STATISTICS = frozenset({"unrest", "publicOpinion"})
 TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of architecture 11.3."""
 READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
-"""The territorial readings that explain a gain; a gain without one is a cession candidate."""
+"""A gain without one of these readings is a cession candidate."""
 LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
-"""Statistics whose ``metric_shifts`` entries rank ahead of any relative change when the entries are bounded; a
-shift from zero has no relative change but is the story."""
+"""Rank ahead of any relative change when shifts are bounded: a shift from zero has no relative change but is the
+story."""
 
 
 # --- Situation context -------------------------------------------------------------------------------------------
@@ -100,7 +83,6 @@ def _nation(report: SituationReport, nation_id: EntityId) -> NationSituation | N
 
 
 def _refs(value: Observed) -> tuple[EntityRef, ...]:
-    """The references of a known list; nothing for an unknown or non-list value."""
     return tuple(item for item in value if isinstance(item, EntityRef)) if isinstance(value, tuple) else ()
 
 
@@ -109,7 +91,6 @@ def _members(value: Observed) -> set[EntityId]:
 
 
 def opposed(report: SituationReport, first: EntityId, second: EntityId) -> list[WarSituation]:
-    """The wars of the report with the two nations on opposite sides."""
     found = []
     for war in report.wars:
         attackers, defenders = _members(war.attacking_alliance), _members(war.defending_alliance)
@@ -119,7 +100,7 @@ def opposed(report: SituationReport, first: EntityId, second: EntityId) -> list[
 
 
 def _rank(report: SituationReport, nation_id: EntityId, value: Callable[[NationSituation], Observed]) -> int | None:
-    """The nation's place by ``value`` among the report's nations with a known one (1 is the largest)."""
+    """1 is the largest; nations without a known value are not ranked."""
     known = [
         (number, item.nation.entity_id)
         for item in report.nations
@@ -130,12 +111,12 @@ def _rank(report: SituationReport, nation_id: EntityId, value: Callable[[NationS
 
 
 def gdp_rank(report: SituationReport, nation_id: EntityId) -> int | None:
-    """The nation's place by ``GDP`` among the report's nations with a known value (1 is the largest)."""
+    """1 is the largest."""
     return _rank(report, nation_id, lambda item: dict(item.statistics).get("GDP"))
 
 
 def strength_rank(report: SituationReport, nation_id: EntityId) -> int | None:
-    """The nation's place by the published strength estimate among the report's nations with a known one."""
+    """1 is the strongest."""
     return _rank(report, nation_id, lambda item: item.strength)
 
 
@@ -156,15 +137,11 @@ def metric_shifts(
     intervals: Iterable[str],
     windows: Mapping[EntityId, Collection[str]] | None = None,
 ) -> tuple[FrozenMap, ...]:
-    """The ``nation.statistic_shifted`` events of ``nations`` in ``intervals``, one entry per nation, statistic and key.
+    """One net entry per nation, statistic and key over the ``nation.statistic_shifted`` events in ``intervals``.
 
-    An entry holds ``nation``, ``statistic``, ``key`` (public opinion only), ``before`` (the earliest shift's value),
-    ``after`` (the latest shift's), the unsigned ``relative_change`` between them, ``not_before`` (the earliest shift's)
-    and ``date`` with its ``date_basis`` (the latest shift's), which bound when the net change happened, the summed
-    per-reason ``causes`` when the shifts carry them, the game's ``from_band`` and ``to_band`` of a banded statistic,
-    and the shift ``events`` by ID. The net covers the reported shifts only: an interval in between whose change
-    stayed below the analyzer's threshold is not reported.
-    ``windows`` limits a nation to its own intervals; a nation without a window keeps all of ``intervals``.
+    The net covers the reported shifts only: an interval whose change stayed below the analyzer's threshold is missing
+    from it. ``relative_change`` is unsigned. ``windows`` limits a nation to its own intervals; a nation without a
+    window keeps all of ``intervals``. Shifts are context, never constituents.
     """
     wanted, keys = set(nations), set(intervals)
     groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
@@ -220,11 +197,10 @@ def _summed_causes(shifts: Sequence[Event]) -> FrozenMap | None:
 def bounded_shifts(
     entries: Sequence[FrozenMap], roles: Iterable[tuple[Role, EntityRef]], limit: int
 ) -> tuple[tuple[str, FieldValue], ...]:
-    """The ``metric_shifts`` attribute of at most ``limit`` of ``entries``, with ``metric_shifts_omitted`` when cut.
+    """At most ``limit`` entries, with ``metric_shifts_omitted`` counting the cut.
 
-    Entries of the development's role nations rank first, then ``LEADING_STATISTICS``, then the largest
-    ``relative_change``, entries without one last; ties keep the entries' order (by nation, statistic and key). The
-    kept entries stay in that order.
+    Selection prefers role nations, then ``LEADING_STATISTICS``, then the largest ``relative_change``; the kept entries
+    keep their original order.
     """
     first = {ref.entity_id for _, ref in roles if ref.entity_id.domain is EntityDomain.NATION}
 
@@ -254,21 +230,9 @@ def bounded_shifts(
 class TakeoverRule:
     """``faction.takeover``: a faction took a nation's executive or every control point, and what came with it.
 
-    Anchors are ``faction.nation_control_changed`` events of scope executive or sole with a faction as the new holder;
-    those of one nation and faction within the consolidation window after the first are one takeover (an executive
-    change, then every point, is its consolidation), until the faction loses the seat again. A control change caused
-    by ``Independence`` is left to the release and breakaway rule. Attached: the nation's control-point gains by the
-    faction from the precursor window before to the consolidation window after, its executive records, councilor
-    changes naming the losing faction in the anchor intervals, the faction's unrest attempts and the nation's unrest
-    and opinion shifts in the precursor window, and the faction's ``Coup``/``Purge``/``Crackdown`` charges dated from
-    the ledger window before an anchor to its date, only when no other faction carries the label then (architecture
-    11.3, bound 4). The earliest attached executive record gives ``executive_recorded_on`` and ``previous_executive``,
-    so the takeover states what the record says without it. Open while the last report has the faction holding the
-    executive but not every point.
-
-    Takeovers of one nation whose anchors share an interval have no order from the dates. When the later one's
-    ``loser`` is the earlier one's faction and not the reverse, the earlier carries ``succeeded_by`` and the later
-    ``succeeds``; otherwise each carries ``ambiguous`` and ``alternatives`` naming the others.
+    Executive, then sole control within the consolidation window is one takeover. Ledger charges corroborate only
+    when no other faction carries the label in the window (architecture 11.3, bound 4). Open while the faction holds
+    the executive but not every point.
     """
 
     settings: GeopoliticsSettings
@@ -430,7 +394,8 @@ def _role(event: Event, role: Role) -> EntityId | None:
 
 
 def _with_succession(built: Sequence[tuple[list[Event], Event]]) -> list[Event]:
-    """The takeovers of one nation with the order of those that share an anchor interval, or their ambiguity."""
+    """Takeovers sharing an anchor interval have no date order: derive one from actor and loser, else mark both
+    ``ambiguous``."""
     anchor_intervals = [set(intervals_of(anchors)) for anchors, _ in built]
     result = []
     for index, (_, event) in enumerate(built):
@@ -470,11 +435,7 @@ def _holds_executive_only(situations: Sequence[SituationReport], nation_id: Enti
 def _membership_windows(
     reports: Mapping[str, tuple[SituationReport, SituationReport]], federation_id: EntityId, nations: Iterable[EntityId]
 ) -> dict[EntityId, set[str]]:
-    """The intervals in which each nation was a member of the federation at either end of the interval.
-
-    The interval of a join or leave counts, as the change happened somewhere inside it; intervals wholly before a
-    join or after a leave do not.
-    """
+    """Intervals with the nation a member at either end, so the interval of a join or leave counts."""
     windows: dict[EntityId, set[str]] = {nation: set() for nation in nations}
     for key, pair in reports.items():
         for report in pair:
@@ -490,9 +451,7 @@ def _membership_windows(
 class FederationLifecycleRule:
     """``federation.lifecycle``: a federation's formation, member changes, renames and dissolution, by its ID.
 
-    Anchored by ``federation.appeared`` or by presence in the first report; a federation no event mentions is not
-    reported. Objective when every constituent is; open while the federation exists in the last report; ``major``,
-    like the federation's presence.
+    A federation no event mentions is not reported.
     """
 
     settings: GeopoliticsSettings
@@ -559,13 +518,9 @@ class FederationLifecycleRule:
 
 @dataclass(frozen=True)
 class CessionRule:
-    """``nation.cession``: in one interval, a nation's regions went to another with no reading that explains it.
+    """``nation.cession``: in one interval, a nation's regions went to another with no reading or war explaining it.
 
-    The pair is a ``nation.territory_gained`` of the gainer listing the loser and a ``nation.territory_lost`` of the
-    loser listing the gainer, with no unification, annexation or independence reading of the gainer in the interval
-    and no war with the two on opposite sides in either report around it. A conquest without a war looks the same,
-    so the heuristic join keeps the confidence at medium at most. Allies and a shared federation, from the earlier
-    report, are context.
+    A conquest without a war looks the same, hence the heuristic join.
     """
 
     settings: GeopoliticsSettings
@@ -632,7 +587,6 @@ class CessionRule:
 
 
 def _readings(stream: Iterable[Event]) -> set[tuple[EntityId, str]]:
-    """The (gainer, interval) pairs with a unification, annexation or independence reading."""
     return {
         (key, interval_of(event.id)) for event in by_type(stream, *READINGS) if (key := subject_id(event)) is not None
     }
@@ -642,10 +596,7 @@ def _readings(stream: Iterable[Event]) -> set[tuple[EntityId, str]]:
 class IndependenceRule:
     """``nation.release`` / ``nation.breakaway``: a nation became independent, with its own events that follow.
 
-    Anchored by ``nation.independence``; ``released`` decides the type. Attached within the release window: the new
-    nation's ``nation.appeared``, ``nation.breakaway_parent_changed`` and ``faction.nation_control_changed``. The
-    faction holding its executive afterwards is context (``executive_faction``), never a claim that it acted. Open
-    while a later save could still fall in the window.
+    ``executive_faction`` is context, never a claim that the faction acted.
     """
 
     settings: GeopoliticsSettings
@@ -721,10 +672,9 @@ def _executive_after(
 
 @dataclass(frozen=True)
 class ClaimsDeclaredRule:
-    """``nation.claims_declared``: a nation's claim list gained regions held by other nations (``added_owners``).
+    """``nation.claims_declared``: a nation's claim list gained regions held by other nations.
 
-    Additions on regions the claimant holds itself name no target and emit nothing, and neither do the alien
-    administration's, whose claims cover every region implicitly.
+    The alien administration is skipped: its claims cover every region implicitly.
     """
 
     settings: GeopoliticsSettings
@@ -770,12 +720,7 @@ class ClaimsDeclaredRule:
 class ExpansionRule:
     """``nation.expansion``: one nation gained from others two or more times, each gain soon after the previous.
 
-    A gain is a ``nation.unification``, a ``nation.annexation``, a ``nation.cession`` to the nation (nested, order 0)
-    or a ``nation.territory_gained`` no cession covers in an interval without an independence reading for the
-    gainer; a territory aggregate in an interval with a unification or annexation reading is part of that reading,
-    not a gain of its own. Attached: the gainer's territory aggregates in the run's intervals, the losers'
-    ``nation.disappeared`` and the gainer's ``nation.renamed`` in the span. ``mode`` is ``unification`` or
-    ``annexation`` when the readings are of one kind, ``mixed`` when they are not, ``None`` with no reading.
+    A territory aggregate in an interval with a reading is part of that reading, not a gain of its own.
     """
 
     settings: GeopoliticsSettings
@@ -886,12 +831,12 @@ def _losers(gain: Event) -> tuple[EntityRef, ...]:
 
 
 def _since(keys: Iterable[str], started: str | None) -> list[str]:
-    """The interval keys that do not close before the ``started`` date (all of them when it is unknown)."""
+    """All keys when ``started`` is unknown."""
     return [key for key in keys if (gap := days_between(started, key.partition(TIE_SEPARATOR)[0])) is None or gap >= 0]
 
 
 def _closed_before(event: Event, started: str | None) -> bool:
-    """Whether every interval of the event closes before ``started``; the event cannot belong to a war begun later."""
+    """Such an event cannot belong to a war begun later."""
     keys = intervals_of([event])
     return bool(keys) and not _since(keys, started) and event.event_type != "war.appeared"
 
@@ -900,13 +845,8 @@ def _closed_before(event: Event, started: str | None) -> bool:
 class WarArcRule:
     """``war.arc``: a war from its start (or the first save) to its end (or the last save), joined by the war's ID.
 
-    Anchored by ``war.appeared`` or by presence in the first report. Attached: its alliance, last-fighting and
-    disappearance events; every ``nation.annexation`` in an interval the war spans whose gainer and loser are on
-    opposite sides in a report around it; and every ``nation.expansion`` with such a pair in an interval both span,
-    nested, in place of the annexations it already holds. Sides are the union over the reports and the alliance
-    events. ``nuclear_strikes`` is the campaign-wide counter's change between the reports bounding the war's
-    intervals: it is not attributed to the war. Objective when every constituent is; open while the war exists in
-    the last report; ``major``, like the war's presence, even when only its last-fighting date moved.
+    Expansions between belligerents nest in place of the annexations they hold. ``nuclear_strikes`` is the
+    campaign-wide counter over the war's span, not attributed to the war.
     """
 
     settings: GeopoliticsSettings
@@ -1072,7 +1012,6 @@ def geopolitical_rules(
     ExpansionRule,
     WarArcRule,
 ]:
-    """The geopolitical rules under ``settings``."""
     return (
         TakeoverRule(settings),
         FederationLifecycleRule(settings),

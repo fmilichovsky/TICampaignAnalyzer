@@ -1,22 +1,9 @@
-"""Ordered save sequences: the per-interval pipeline run over every pair of consecutive saves (architecture 15, Mode B).
+"""Ordered save sequences: the per-interval pipeline run over every pair of consecutive saves (architecture 15).
 
-The saves of a plan belong to one campaign: ``grouping.group_saves`` splits surveyed saves by campaign first. Ordering
-follows ``docs/game-data-notes/chronology-and-deduplication.md``:
-
-1. ``survey`` reads each save once for its SHA-256, serialized game time (``TITimeState``) and campaign profile
-   (``parsing.continuity``); a save without a game time has unknown chronology and is rejected, never placed by its
-   file name or modification time.
-2. ``plan_sequence`` merges byte-identical saves into one ``SaveRef`` (every path kept as provenance) and sorts the
-   rest by game time, then path. Equal times with different bytes are both kept. Argument order never matters.
-3. ``run_sequence`` normalizes the saves in that order, holding two snapshots at a time, builds each save's situation
-   report (``narrative.situation``) while it holds the snapshot, and runs ``analyze_interval`` (diff, analyzers,
-   significance and, when asked, reconstruction) on each consecutive pair; the first pair also reports the history
-   its earlier save carries from before the sequence. The reports are kept, the snapshots not.
-
-Consecutive intervals share their boundary snapshot, so every change is reported in exactly one interval and a
-save-carried log entry once. The events of an interval are qualified by its key (``narrative.chronology``) so that
-IDs stay unique across the sequence. Rules still see one interval: evidence that straddles a boundary is not
-combined. ``narrative_events`` runs narrative aggregation over the whole stream and the situation reports.
+Saves are ordered by serialized game time only, never by file name or modification time
+(``docs/game-data-notes/chronology-and-deduplication.md``); byte-identical saves are merged. Consecutive intervals
+share their boundary snapshot, so every change is reported in exactly one interval, and event IDs are qualified by
+the interval key to stay unique. Rules see one interval: evidence straddling a boundary is not combined.
 """
 
 from __future__ import annotations
@@ -54,7 +41,7 @@ class UnknownChronologyError(SaveLoadError):
 
 @dataclass(frozen=True)
 class SaveRef:
-    """One distinct snapshot of a sequence: its path, its byte-identical aliases, its hash, game time and profile."""
+    """One distinct snapshot of a sequence, with the paths of its byte-identical aliases."""
 
     source: str
     sha256: str
@@ -240,8 +227,7 @@ def run_sequence(
 ) -> Iterator[IntervalResult]:
     """The results of every interval in order; each save is normalized once and at most two are held at a time.
 
-    With ``changes`` every result also keeps its literal state changes. Every result carries the situation reports of
-    its two saves, each listing ``spaceports`` regions by boost.
+    With ``changes`` every result also keeps its literal state changes.
     """
     if len(plan.saves) < 2:
         return

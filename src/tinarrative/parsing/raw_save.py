@@ -23,11 +23,7 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True)
 class RawSave:
-    """A validated, otherwise uninterpreted decoded save.
-
-    ``root`` is the decoded JSON object exactly as serialized; normalizers read
-    it and keep ``source`` for provenance.
-    """
+    """A validated, otherwise uninterpreted decoded save; ``root`` is the JSON object exactly as serialized."""
 
     source: str
     format: str
@@ -75,9 +71,8 @@ def _decode_json(data: bytes) -> Any:
 
 
 def parse_raw_save(data: bytes, *, source: str, format: str = DEFAULT_FORMAT) -> RawSave:
-    """Validate ``data`` as a save of ``format`` and return it as a ``RawSave``.
+    """Raises a :class:`~tinarrative.parsing.errors.SaveLoadError` subclass on failure.
 
-    Raises a :class:`~tinarrative.parsing.errors.SaveLoadError` subclass on failure.
     State types are not checked, so added or removed ones never cause a rejection.
     """
     require_supported_format(format)

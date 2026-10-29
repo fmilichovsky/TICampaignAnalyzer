@@ -1,19 +1,9 @@
 """Nation population moving beyond what territory explains, with the nuclear detonations and tracked causes.
 
-A nation has no population field; its population is the summed ``populationInMillions`` of its regions
-(``Lookup.population``). A region changing hands moves its population with it, so the analyzer compares the regions
-the nation held before with the same regions after: the *residual* is the later population, minus the population of
-the regions gained, plus the population of the regions lost (both read in the later save), and ``relative_change`` is
-the residual relative to the earlier population. Regions moved are the ``nation`` changes of regions in the diff, the
-changes ``region.nation_changed`` is built from.
-
-Routine growth and decline beyond territory are slow (``docs/game-data-notes/nation-metrics.md``, "Population"), so
-an event needs the residual to move by ``max(POPULATION_DROP_FLOOR, POPULATION_DROP_RATE_PER_YEAR × years)``, in
-either direction; without a known interval the floor alone applies. The threshold is a hypothesis until a
-depopulation is observed (the note says so). ``nuked_regions`` are the
-nation's regions whose ``nuclearDetonations`` rose, and ``causes`` the interval's deltas of the tracker reasons that
-name population (``POPULATION_CAUSES``). Whether a drop is a collapse is the narrative stage's call. Placeholder
-nations are skipped.
+Population is the sum over the nation's regions, so the *residual* (later population minus regions gained plus
+regions lost, both read in the later save) separates real growth or decline from territory changing hands. The
+threshold is a hypothesis until a depopulation is observed (``docs/game-data-notes/nation-metrics.md``,
+"Population"). Whether a drop is a collapse is the narrative stage's call. Placeholder nations are skipped.
 """
 
 from __future__ import annotations
@@ -44,7 +34,7 @@ GROWTH = "growth"
 
 
 def population_limit(days: float | None) -> float:
-    """The residual move a population event needs over an interval of ``days`` (``None``: the floor alone)."""
+    """The relative residual move needed over ``days``, in either direction (``None``: the floor alone)."""
     if days is None:
         return POPULATION_DROP_FLOOR
     return max(POPULATION_DROP_FLOOR, POPULATION_DROP_RATE_PER_YEAR * days / DAYS_PER_YEAR)

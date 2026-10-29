@@ -1,8 +1,7 @@
 """Machinery shared by the analyzers: change lookup, transition classification and event construction.
 
-An analyzer reads the :class:`StateDiff` (never re-deriving a fact from the snapshots) and emits events
-whose sources are the literal changes. The snapshots are consulted only for context: the reference of an
-entity named by a change, the owner of a councilor, the nation of a control point.
+Facts come from the :class:`StateDiff` only; the snapshots are consulted for context (names, owners), never to
+re-derive a fact.
 """
 
 from __future__ import annotations
@@ -93,8 +92,6 @@ def same_entity(value: Observed, entity_id: EntityId) -> bool:
 
 
 class ChangeIndex:
-    """The changes of one diff, addressable by entity and field or by domain and field."""
-
     def __init__(self, diff: StateDiff) -> None:
         self._by_entity_field: dict[tuple[EntityId, str], StateChange] = {}
         self._by_domain_field: dict[tuple[str, str], list[StateChange]] = {}
@@ -295,8 +292,7 @@ class EventBuilder:
     ) -> Event:
         """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it.
 
-        Every event naming a faction entity carries ``faction_kinds`` (see :meth:`Lookup.faction_kind`): context for
-        a narrator telling alien and human factions apart, read from the snapshots, never evidence.
+        Events naming a faction carry ``faction_kinds`` (alien or human): snapshot context, never evidence.
         """
         date: Observed = self.observed
         basis = DateBasis.INTERVAL
@@ -378,8 +374,6 @@ def value_transition_event(
     """One field of an entity changed: the literal transition, the subject, ``context`` and both values' entities.
 
     ``None`` when a side is missing or unparseable (a schema gap, not a transition) or the change has no entity.
-    ``attributes`` are added to the transition's own; ``recorded_on`` dates the event by a record (see
-    ``EventBuilder.event``).
     """
     transition = classify(change.before, change.after)
     if transition is None or change.entity_id is None:

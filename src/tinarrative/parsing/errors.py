@@ -1,7 +1,6 @@
 """User-facing failure categories for turning save bytes into a ``RawSave``.
 
-Unreadable paths are not covered here: :mod:`tinarrative.io` lets ``OSError``
-propagate and the CLI reports it separately.
+Unreadable paths are not covered: ``OSError`` propagates from :mod:`tinarrative.io` and the CLI reports it.
 """
 
 from __future__ import annotations

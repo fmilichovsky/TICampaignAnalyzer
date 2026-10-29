@@ -1,26 +1,8 @@
-"""Opt-in diagnostic logging for the pipeline.
+"""Opt-in diagnostic logging: ``LEVEL logger: key=value`` lines on stderr, silent by default.
 
-Every module logs through ``logger = get_logger(__name__)`` and writes one line per
-decision in the form ``LEVEL logger: message key=value key=value``. Lines go to stderr
-only, carry no timestamps, and are emitted only when the CLI (or a test) has called
-:func:`configure_logging`; the default level, ``warning``, keeps normal runs silent.
-
-Levels:
-
-- ``INFO``: one line per command stage (start, done).
-- ``DEBUG``: parser decisions and per-state-type aggregates. Never one line per entity;
-  real saves hold tens of thousands of entries.
-- ``WARNING`` and above: something the user should see without opting in. The success
-  path must not log at this level, because the CLI promises an empty stderr there.
-
-Redaction rules, so a debug log can be pasted into an issue:
-
-- Safe verbatim: counts, byte offsets, JSON pointers, state-type and field names, map IDs,
-  format identifiers, ``game_version`` strings, exception class names, and the messages
-  of this package's own errors.
-- Never verbatim: file paths (log :func:`safe_path`, the base name only) and any string
-  value read from a save, such as a faction or player name (log :func:`shape`, or at most
-  a bounded :func:`excerpt`).
+The success path must not log above INFO (the CLI promises an empty stderr), and a log must stay safe to paste
+into an issue: log paths through :func:`safe_path` and save strings through :func:`shape` or :func:`excerpt`.
+See docs/debugging.md.
 """
 
 from __future__ import annotations
@@ -56,8 +38,7 @@ def get_logger(name: str) -> logging.Logger:
 def configure_logging(level: str, stream: TextIO | None = None) -> None:
     """Send package log lines at ``level`` or above to ``stream`` (default: current stderr).
 
-    Calling it again replaces the handler installed by the previous call, so a process
-    that runs ``main()`` several times (tests) never logs twice or to a stale stream.
+    Replaces the previous call's handler, so repeated ``main()`` runs never log twice or to a stale stream.
     """
     global _handler
     if level not in LEVELS:

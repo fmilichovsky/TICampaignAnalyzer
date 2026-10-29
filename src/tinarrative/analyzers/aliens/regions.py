@@ -1,10 +1,8 @@
-"""Region alien sub-state transitions a save shows directly: crashdown, landing, facility, xenoforming level.
+"""Region alien sub-state transitions: crashdown, landing, facility, xenoforming level.
 
-Each ``TIRegion*State`` belongs to one region through its ``region`` back-reference, so every event names that
-region first and the sub-state second. A crashdown carries its own ``crashdownTime`` record, which dates the
-event when it is set. Levels and flags are reported literally: whether xenoforming was detected or cleared, or
-a landing repelled, is a reconstruction question. ``currentHP``, ``deployingArmy``, ``supportingArmyBuildup``,
-``alienMissionsDetected`` and sub-state presence stay in the diff.
+Events name the region (the sub-state's ``region`` back-reference) first, then the sub-state; a set
+``crashdownTime`` dates the crashdown event. Flags and levels are literal: what they mean (a landing repelled,
+xenoforming cleared) is a reconstruction question.
 """
 
 from __future__ import annotations
@@ -66,7 +64,6 @@ def _region_event(
     attributes: tuple[tuple[str, Observed], ...] = (),
     recorded_on: Observed = None,
 ) -> Event | None:
-    """One sub-state field changed: the region first, then the sub-state, the literal transition and ``extra``."""
     transition = classify(change.before, change.after)
     if transition is None or change.entity_id is None:
         return None

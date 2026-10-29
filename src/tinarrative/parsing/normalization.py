@@ -1,17 +1,7 @@
 """Turn a validated ``RawSave`` into a ``SaveSnapshot``.
 
-Only fields observed in ``docs/game-data-notes/domain-field-map.md`` are copied; a listed field that the
-save omits is ``Unknown``, fields the save adds are not copied, and no ownership or cause is inferred. A list
-field in ``KEYED_LIST_FIELDS`` (faction ``shipDesigns``) is copied as a map keyed by a member of its elements.
-Save-carried records (dated logs and cumulative counters listed in ``RECORD_FIELDS``) are decoded by
-:mod:`tinarrative.parsing.records` into ``SaveSnapshot.records`` next to the entity collections.
-A reference to an ID absent from the save (for example a fleet's ``parentFleet`` after a merge) stays an
-unresolved ``Unknown`` carrying the raw ID, so fleet-ID lifetime limits remain visible downstream.
-
-Nothing is ignored silently: every structure the schema does not describe (an unlisted field, an unknown
-state type, an unexpected shape or reference target) is reported through an
-:class:`~tinarrative.parsing.unknowns.UnknownCollector` as a content-free finding, without changing the
-snapshot. See ``docs/game-data-notes/unknowns/README.md``.
+Only listed fields are copied (a missing one is ``Unknown``) and nothing is inferred. Every structure the schema
+does not describe is reported through ``UnknownCollector`` without changing the snapshot.
 """
 
 from __future__ import annotations
@@ -59,11 +49,7 @@ def _observed(value: dict[str, Any], name: str) -> Observed:
 
 
 def _single_entry(gamestates: dict[str, Any], short_type: str, collector: UnknownCollector) -> dict[str, Any]:
-    """The ``Value`` of a singleton state (metadata, time); ``{}`` when absent.
-
-    An absent singleton is ordinary missing evidence (its fields become ``Unknown``); more than one entry is
-    an unexpected structure and is reported.
-    """
+    """The ``Value`` of a singleton state; ``{}`` when absent, and more than one entry is reported."""
     entries = decode_state_map(gamestates, short_type)
     if len(entries) != 1:
         logger.debug("singleton state %s", log_fields(state_type=short_type, entries=len(entries), used="first"))
@@ -75,7 +61,6 @@ def _single_entry(gamestates: dict[str, Any], short_type: str, collector: Unknow
 
 
 def _unknown_counts(states: tuple[EntityState, ...]) -> dict[str, int]:
-    """How many normalized fields are unknown, by reason; a cheap aggregate for the debug log."""
     counts = {reason.value: 0 for reason in UnknownReason}
     for state in states:
         for _name, value in state.fields:
@@ -87,8 +72,8 @@ def _unknown_counts(states: tuple[EntityState, ...]) -> dict[str, int]:
 def _keyed_list(short_type: str, name: str, raw: Any, key: str, collector: UnknownCollector) -> Observed:
     """``raw`` as a ``FrozenMap`` from each element's ``key`` member to the whole element.
 
-    Anything else (not a list, an element that is not an object or lacks a string key, a repeated key) is
-    reported and kept raw as ``Unknown(unparseable)``; no element is dropped or renamed.
+    Any deviation (non-object element, missing or repeated string key) reports the field and keeps it raw as
+    ``Unknown(unparseable)``.
     """
     items: dict[str, FieldValue] = {}
     if isinstance(raw, list):
@@ -111,10 +96,9 @@ def _pair_map_field(
     index: ReferenceIndex,
     collector: UnknownCollector,
 ) -> Observed:
-    """A ``PAIR_MAP_FIELDS`` value: reference keys resolved like a reference list, integer keys as text, values frozen.
+    """Reference keys resolve like a reference list; with ``keys is None`` integer keys become text.
 
-    A value that is not a pair map, that repeats a key, or (``keys is None``) has a key that is not an integer is
-    ``Unknown(unparseable)`` and reported as an unexpected shape; reference keys are checked like a reference list.
+    A non-pair-map, a repeated key or a non-integer key (``keys is None``) is reported and ``Unknown(unparseable)``.
     """
     pairs = decode_pair_map(raw)
     key_ids: list[int] | None = None
@@ -186,9 +170,8 @@ def _research(
 ) -> tuple[ResearchState, tuple[EntityState, ...]]:
     """The research singleton and the name-keyed technology states derived from it.
 
-    A technology exists for every string in ``finishedTechsNames`` and for every ``techProgress`` element
-    with a string ``techTemplateName`` (observed: a finished tech may still carry a progress entry).
-    Elements of another shape create no identity; they remain visible raw on the ``ResearchState``.
+    A technology exists for every string in ``finishedTechsNames`` and every ``techProgress`` element with a
+    string ``techTemplateName`` (a finished tech may still carry progress); other elements stay raw only.
     """
     entries = decode_state_map(gamestates, RESEARCH_STATE_TYPE)
     if not entries:
@@ -249,11 +232,10 @@ def _research(
 
 
 def save_timestamp(raw_save: RawSave) -> datetime | None:
-    """The game time of a save (``TITimeState.currentDateTime``, first entry); ``None`` when absent or unparseable.
+    """The game time of a save (``TITimeState.currentDateTime``); ``None`` when absent or unparseable.
 
-    The chronology key of a save sequence (``docs/game-data-notes/chronology-and-deduplication.md``). It reads
-    only the time singleton, so ordering saves does not require normalizing them; ``normalize`` derives
-    ``SaveSnapshot.timestamp`` from the same field.
+    Reads only the time singleton so saves can be ordered without normalizing them
+    (docs/game-data-notes/chronology-and-deduplication.md).
     """
     entries = decode_state_map(raw_save.root["gamestates"], "TITimeState")
     if not entries or "currentDateTime" not in entries[0].value:
@@ -262,11 +244,7 @@ def save_timestamp(raw_save: RawSave) -> datetime | None:
 
 
 def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -> SaveSnapshot:
-    """Normalize campaign time and metadata, the entity collections in ``NORMALIZED_DOMAINS``, and research.
-
-    Structures outside the schema are always detected and summarized in the log; pass a ``collector`` to
-    receive them as findings. The snapshot does not depend on whether one is passed.
-    """
+    """Pass a ``collector`` to receive unknown-structure findings; the snapshot does not depend on it."""
     if collector is None:
         collector = UnknownCollector()
     scan_envelope(raw_save.root, collector)

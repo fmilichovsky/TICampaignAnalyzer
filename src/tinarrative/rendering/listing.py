@@ -1,11 +1,8 @@
 """Which events a sequence report lists, shared by the Markdown and the JSON renderer so the two cannot drift.
 
-Without a narrative, objective and inferred events are filtered by significance. With one, the minimum filters the
-narrative events, and an atomic event is listed only as a constituent of a listed narrative event, followed
-transitively through lower-order narrative events and inferred events, as the ``constituents`` mode says: ``all`` of
-them, the narrator ``evidence`` among them (``narrative.evidence``), or ``none``. The walk passes through an event that
-is not evidence to reach the evidence beneath it. A lower-order narrative event that a listed one cites is listed
-whatever its significance, so every cited narrative ID resolves.
+With a narrative, an atomic event is listed only as a transitive constituent of a listed narrative event (filtered
+by the ``constituents`` mode). A lower-order narrative event that a listed one cites is listed whatever its
+significance, so every cited narrative ID resolves.
 """
 
 from __future__ import annotations
@@ -29,7 +26,7 @@ NOT_EVIDENCE: Final = "omitted: not narrator evidence"
 
 @dataclass(frozen=True)
 class Listing:
-    """The events a report lists; ``constituents`` is ``None`` when atomic events are filtered by significance.
+    """``constituents`` is ``None`` when atomic events are filtered by significance.
 
     ``reached`` holds every objective and inferred event the listed narrative events are built from, listed or not.
     """
@@ -41,7 +38,6 @@ class Listing:
     mode: Constituents
 
     def keeps(self, event: Event) -> bool:
-        """Whether an objective or inferred event is listed."""
         if self.constituents is None:
             return event.significance.rank >= self.minimum.rank
         return event.id in self.constituents
@@ -78,7 +74,6 @@ def listing(
     minimum: Significance,
     constituents: Constituents = "none",
 ) -> Listing:
-    """What to list of ``intervals`` and ``narrative`` at ``minimum``."""
     if narrative is None:
         return Listing(minimum, None, None, frozenset(), constituents)
     listed = {event.id for event in narrative if event.significance.rank >= minimum.rank}

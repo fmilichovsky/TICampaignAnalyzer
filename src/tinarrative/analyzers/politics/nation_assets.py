@@ -1,18 +1,8 @@
 """A nation's military and space-support assets, the game's strength estimate and the nation rankings.
 
-Both kinds of army (``deploymentType`` ``Standard`` and ``Naval``) are listed in the nation's ``armies``; a navy is
-a naval army. Boost (``boostPerYear_dekatons``), mission control (``missionControl``), space defences
-(``antiSpaceDefenses``) and STO fighters (``numSTOFighters``) are region fields, summed over the nation's regions. A
-region is occupied when it has a ``leadOccupier`` or a non-empty ``occupations`` map.
-
-The strength estimate is the game's own, as published (``docs/game-data-notes/nation-metrics.md``, "Armies, navies
-and a strength estimate"): unoccupied regions × military tech × 0.7, plus standard armies × military tech × 3 × their
-mean remaining ``strength``, plus naval armies, minus unrest, plus 100 when the nation holds any nuclear weapon, plus
-5 per weapon. No save field carries its result.
-
-A value the snapshot does not establish is ``Unknown``, never zero: one region or army with an unreadable field makes
-its sum unknown. The analyzers and the situation report read these through the same functions, so a ranking an
-event states is the ranking the report shows.
+The strength formula is the game's published one, not a save field (``docs/game-data-notes/nation-metrics.md``,
+"Armies, navies and a strength estimate"). An unreadable input makes a sum ``Unknown``, never zero. The analyzers and
+the situation report share these functions so an event's ranking matches the report's.
 """
 
 from __future__ import annotations
@@ -37,7 +27,6 @@ REGION_FIELDS = (BOOST, MISSION_CONTROL, SPACE_DEFENCES, STO_FIGHTERS, "leadOccu
 NATION_FIELDS = ("GDP", "militaryTechLevel", "unrest", "numNuclearWeapons", "armies", "regions")
 """The nation fields the assets, the strength estimate and the GDP rank read."""
 ARMY_FIELDS = ("strength", "deploymentType")
-"""The army fields the strength estimate reads."""
 
 REGION_WEIGHT = 0.7
 ARMY_WEIGHT = 3.0
@@ -135,7 +124,6 @@ def _count(flags: list[bool | None], raws: list[Observed]) -> int | Unknown:
 
 
 def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
-    """The nation's assets as ``side`` of ``lookup`` shows them."""
     regions = refs(nation.get("regions"))
     armies = refs(nation.get("armies"))
     standard: int | Unknown = _unparseable()
@@ -178,7 +166,7 @@ def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
 
 
 def strength(nation: EntityState, held: NationAssets) -> float | Unknown:
-    """The game's published strength estimate (module docstring); unknown, as its first unknown input, when any is."""
+    """The game's published strength estimate; unknown, as its first unknown input, when any input is."""
     inputs = {name: nation.get(name) for name in ("militaryTechLevel", "unrest", "numNuclearWeapons")}
     miltech, unrest, weapons = (_number(value) for value in inputs.values())
     regions, armies, navies, mean = held.unoccupied_regions, held.armies, held.navies, held.mean_army_strength

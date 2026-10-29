@@ -1,28 +1,9 @@
-"""Literal comparison of two normalized snapshots.
+"""Literal comparison of two normalized snapshots: what differs, never why.
 
-The diff reports what differs and nothing about why. Entities are matched by ``EntityId`` across the
-snapshot collections; a field is compared with one of the kinds in :class:`ChangeKind`. Every change
-carries both values and a :class:`SourceLocation` for each side. Only model types are used here, so
-the comparison is independent of the save format.
-
-Comparison rules (also documented in ``docs/commands/diff.md``):
-
-- Equality is strict: ``1`` and ``1.0``, or ``True`` and ``1``, are different values.
-- A tuple whose elements are all ``EntityRef`` or all ``str`` is a *member list* and is compared as a
-  multiset (``membership``); a tuple with the same members in another order is not a change. Any
-  other tuple is one atomic value.
-- Two ``FrozenMap`` values are compared key by key (``map``); the detail names the keys, the values
-  stay whole in the evidence.
-- When either side is ``Unknown`` the kind is ``unknown``; nothing is inferred from the known side.
-- An entity present in one snapshot only yields a single ``appeared`` or ``disappeared`` change and no
-  per-field changes.
-- Save-carried records (``SaveSnapshot.records``) are compared per owning entity and field. A log is
-  compared as a multiset of entries (``records``: entries added and removed, index aside; a notification
-  entry is matched by template, date and summary, and one whose other members differ is
-  changed); a keyed record by key (added, removed and changed keys); a scalar record like an ordinary
-  field. A removed entry is
-  reported literally (some ledger labels are observed to be rewritten between saves); nothing is
-  inferred from it.
+Equality is strict (``1 != 1.0``, ``True != 1``). A tuple of only ``EntityRef`` or only ``str`` is a member list,
+compared as a multiset; any other tuple is atomic. ``Unknown`` on either side yields ``unknown`` and nothing is
+inferred from the known side. An entity on one side only yields a single ``appeared``/``disappeared`` change.
+Records are compared per owner and field: logs as multisets of entries, keyed records by key, scalars as fields.
 """
 
 from __future__ import annotations

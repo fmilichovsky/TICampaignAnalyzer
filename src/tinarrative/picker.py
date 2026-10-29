@@ -1,13 +1,7 @@
 """Interactive campaign picker for ``events``: a line prompt over the campaign listing, with fuzzy search.
 
-A CLI helper, not a pipeline stage. It only chooses among the groups ``grouping.group_saves`` formed; it never groups,
-orders or reads saves. Input and output are injected so that the prompt can write to stderr (the report owns stdout)
-and tests can script the answers. Only the standard library is used, so it works on every platform.
-
-An answer is resolved in this order: empty cancels; anything ``select_campaign`` accepts (a key, a unique key
-prefix, a listing number, ``latest``) selects; otherwise the answer is a fuzzy search over each group's key, faction
-name, scenario and real-world start. One match selects it; several narrow the listing and ask again, keeping every
-group's listing number; none shows the full listing again.
+Only chooses among the groups ``grouping.group_saves`` formed. Input and output are injected so the prompt can use
+stderr (the report owns stdout) and tests can script the answers.
 """
 
 from __future__ import annotations
@@ -97,9 +91,8 @@ def pick_campaign(
 ) -> CampaignGroup | None:
     """Ask for a campaign until one is chosen; ``None`` when the user cancels (empty answer, end of input, Ctrl-C).
 
-    ``read`` shows a prompt and returns one line (``input``-like, raising ``EOFError`` or ``KeyboardInterrupt``);
-    ``write`` shows text. ``initial`` is resolved as the first answer, before anything is read. ``file_time`` is
-    passed to ``select_campaign`` for ``latest``.
+    An answer ``select_campaign`` accepts selects; otherwise it is a fuzzy search: one match selects, several narrow
+    the listing and ask again, none shows the full listing. ``initial`` is resolved before anything is read.
     """
     shown: Sequence[CampaignGroup] = groups
     heading: str | None = None

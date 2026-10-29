@@ -1,8 +1,7 @@
 """Objective state changes and the diff that collects them.
 
-A change records what differs between two snapshots and nothing about why. The wording is
-deliberately literal: an entity *appeared* or *disappeared* from a snapshot; whether that is a
-creation, destruction, merge or filter is an inference left to later stages.
+Deliberately literal: an entity *appeared* or *disappeared*; whether that is a creation, destruction, merge or
+filter is an inference left to later stages.
 """
 
 from __future__ import annotations
@@ -62,10 +61,9 @@ class MapDetail:
 
 @dataclass(frozen=True)
 class RecordsDetail:
-    """Record entries present on one side only, and, for keyed kinds, the pairs whose value changed for one key.
+    """Entries on one side only, plus (keyed kinds) before/after pairs whose value changed for one key.
 
-    Entries keep their serialized order and index. A removed entry is reported literally: the diff never
-    assumes a log is append-only.
+    A removed entry is reported literally: the diff never assumes a log is append-only.
     """
 
     added: tuple[RecordEntry, ...] = ()

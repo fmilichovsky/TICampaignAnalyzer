@@ -1,27 +1,7 @@
-"""The nation metric narrative rules of architecture 11.3: a nation moving into another of the game's value bands, a
-population collapse and a per-capita GDP trajectory.
+"""The nation metric narrative rules: band shifts, population collapse, per-capita GDP trajectory. See architecture
+11.3.
 
-``BandShiftRule`` builds one development per ``nation.band_crossed`` of its statistic that is a story on its own,
-named by the game's band labels (``analyzers.politics.bands``). A crossing is a story when:
-
-- it survives the *rest-value filter* where the game converges the statistic towards a rest value (unrest,
-  cohesion): the later value minus the interval's ``*MovementToRestValue`` cause delta is still past the boundary.
-  Cohesion bands are one unit wide, so a cohesion crossing also has to move two bands, with and without the rest
-  value, or cross an extreme;
-- it holds: when the report after the crossing's interval is dated within ``band_hold_days`` of the crossing, the
-  nation's value there is still on the new side of the boundary. A later report cannot refute it (a band held that
-  long is a story even if it reverts), and a crossing in the last interval has none yet: it is kept and ``open``;
-- no development already carries it: a takeover, expansion, cession, release or breakaway naming the nation in the
-  same interval states the shift in its ``metric_shifts`` (and a ``war.arc`` does for unrest and cohesion).
-
-A shift of a nation among the ``top_gdp_nations`` by ``GDP`` is promoted one level. No rule names why the band
-changed: the causes stay evidence for the narrator.
-
-``PopulationCollapseRule`` builds one ``nation.population_collapse`` per ``nation.population_changed`` drop, campaign
-defining when a region of the nation saw a nuclear detonation or the campaign's nuclear strikes rose in the interval.
-``EconomicTrajectoryRule`` chains a nation's ``nation.pcgdp_trend`` events of one direction into one
-``nation.economic_trajectory`` while each follows the previous within the trend window; its span starts where the
-first trend's window does, a record date the series carries, possibly before the first save (``before_sequence``).
+No rule names why a value changed: the causes stay evidence for the narrator.
 """
 
 from __future__ import annotations
@@ -57,7 +37,6 @@ POPULATION_COLLAPSE = "nation.population_collapse"
 ECONOMIC_TRAJECTORY = "nation.economic_trajectory"
 NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
 TREND_WINDOW_DAYS = round(TREND_QUARTERS * MONTHS_PER_QUARTER * 365.25 / 12)
-"""The trend window in game days: the span over which a trajectory joins trend events."""
 
 BAND_SHIFTS: Mapping[str, str] = {
     "unrest": "nation.unrest_shift",
@@ -67,18 +46,17 @@ BAND_SHIFTS: Mapping[str, str] = {
     "inequality": "nation.inequality_shift",
     "militaryTechLevel": "nation.miltech_shift",
 }
-"""The development type of each banded statistic."""
 
 SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, RELEASE, BREAKAWAY})
-"""Developments whose ``metric_shifts`` already state a band shift of their nations."""
+"""Their ``metric_shifts`` already state a band shift of their nations, so no separate development is built."""
 WAR_CARRIED = frozenset({"unrest", "cohesion"})
 """Statistics a war moves, so a ``war.arc`` naming the nation carries their shifts too."""
 REST_VALUE_FILTERED = frozenset({"unrest", "cohesion"})
-"""Statistics the game converges towards a rest value, so their crossings pass the rest-value filter."""
+"""The game converges these towards a rest value; a crossing that drift alone explains is not a story."""
 UNREST_SEVERE = 4.5
-"""The lower bound of Insurgency: entering or leaving it or worse is a major unrest shift."""
+"""The lower bound of Insurgency."""
 COHESION_EXTREMES = (1.0, 9.0)
-"""Fragmented below the first, Hegemonic and Monolithic from the second: cohesion crossing one is a story."""
+"""Fragmented below the first, Hegemonic and Monolithic from the second."""
 ALWAYS_MAJOR = frozenset({"democracy", "education", "militaryTechLevel"})
 
 PROMOTED = {
@@ -87,7 +65,6 @@ PROMOTED = {
     Significance.MAJOR: Significance.CAMPAIGN_DEFINING,
     Significance.CAMPAIGN_DEFINING: Significance.CAMPAIGN_DEFINING,
 }
-"""One level up, for a development of a leading nation."""
 
 
 def _number(value: Observed) -> float | None:
@@ -102,7 +79,8 @@ def _crosses(boundary: float, before: float, after: float) -> bool:
 class BandShiftRule:
     """``nation.<statistic>_shift``: a nation's ``statistic`` moved into another game band, and held there.
 
-    One development per qualifying ``nation.band_crossed``, by entity; the levels are in ``_level``.
+    Cohesion bands are one unit wide, so a cohesion crossing must also move two bands or cross an extreme. A report
+    after ``band_hold_days`` cannot refute a crossing: a band held that long is a story even if it reverts.
     """
 
     statistic: str
@@ -214,7 +192,6 @@ def _boundary(statistic: str, before: float, after: float) -> float:
 
 
 def _holds(report: SituationReport, nation_id: EntityId, statistic: str, before: float, boundary: float) -> bool:
-    """Whether the nation's value in ``report`` is still on the far side of ``boundary`` from ``before``."""
     item = next((item for item in report.nations if item.nation.entity_id == nation_id), None)
     value = _number(dict(item.statistics).get(statistic)) if item is not None else None
     return value is not None and _crosses(boundary, before, value)
@@ -229,12 +206,7 @@ def _carried(crossing: Event, nation_id: EntityId, carriers: Sequence[Event]) ->
 
 @dataclass(frozen=True)
 class PopulationCollapseRule:
-    """``nation.population_collapse``: a nation's population fell beyond what territory explains, in one interval.
-
-    One development per ``nation.population_changed`` drop, by entity. It is campaign defining when ``nuked_regions``
-    names a region or a ``campaign.nuclear_strikes_changed`` falls in the interval (cited as corroboration), else
-    major.
-    """
+    """``nation.population_collapse``: a nation's population fell beyond what territory explains, in one interval."""
 
     settings: GeopoliticsSettings
     name: str = POPULATION_COLLAPSE
@@ -286,12 +258,8 @@ class PopulationCollapseRule:
 class EconomicTrajectoryRule:
     """``nation.economic_trajectory``: a nation's per-capita GDP boomed or slumped over years.
 
-    A nation's ``nation.pcgdp_trend`` events in quarter order form one trajectory while the direction holds and each
-    follows the previous within ``TREND_QUARTERS`` quarters; a lone trend is a trajectory of its own. The span starts
-    on the first trend's ``window_start`` and ends on the last trend's quarter. ``first_value`` is the per-capita GDP
-    at the start, ``last_value`` at the last trend's quarter and ``ratio`` the second over the first. Major, promoted
-    one level for a nation among the ``top_gdp_nations`` in the report after its last trend's interval; open when
-    that interval is the last, since a later save may continue it.
+    The span starts on the first trend's ``window_start``, which can lie before the first save
+    (``before_sequence``).
     """
 
     settings: GeopoliticsSettings
@@ -350,7 +318,6 @@ def _quarter(event: Event) -> int:
 
 
 def _trend_runs(events: Sequence[Event]) -> list[list[Event]]:
-    """One nation's trend events in quarter order, split where the direction changes or a gap exceeds the window."""
     runs: list[list[Event]] = []
     for event in sorted(events, key=_quarter):
         previous = runs[-1][-1] if runs else None
@@ -368,8 +335,6 @@ def _trend_runs(events: Sequence[Event]) -> list[list[Event]]:
 def nation_metric_rules(
     settings: NarrativeSettings,
 ) -> tuple[BandShiftRule | PopulationCollapseRule | EconomicTrajectoryRule, ...]:
-    """One band-shift rule per banded statistic, the population collapse and the economic trajectory, under
-    ``settings``."""
     return (
         *(BandShiftRule(statistic, settings.nation_metrics, settings.geopolitics) for statistic in BANDS),
         PopulationCollapseRule(settings.geopolitics),

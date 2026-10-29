@@ -1,13 +1,7 @@
 """Measure what a build of tinarrative sends to an LLM, from the benchmark samples, and compare two measurements.
 
-``measure`` runs the ``events`` and ``narrate`` combinations of a matrix file against every campaign under the samples
-directory, with the interpreter given (so it can measure any installed revision), and writes ``metrics.json``: the size
-of each narrator package and of each chapter plan, and how the characters split over the package members. Campaigns and
-runs are measured concurrently, each ``narrate`` run once the package it plans is written. ``compare``
-turns two such files into a Markdown report of the differences, which CI posts on every pull request. ``samples``
-verifies or rewrites the samples manifest. See ``benchmarks/README.md``.
-
-The script never imports ``tinarrative``: it reads only the commands' output, so one copy measures base and head alike.
+The script never imports ``tinarrative``: it runs the given interpreter and reads only the commands' output, so one
+copy measures base and head alike. See ``benchmarks/README.md``.
 """
 
 from __future__ import annotations

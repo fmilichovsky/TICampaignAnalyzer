@@ -1,8 +1,7 @@
 """The HTTP transport of the providers: one JSON POST behind a small protocol, so tests replace it with a fake.
 
-The project keeps no runtime dependencies, so the real transport is the standard library's :mod:`urllib.request`.
-An HTTP error status is a response like any other; only a missing response (a connection that fails or times out)
-is an exception.
+Standard library only, as the project keeps no runtime dependencies. An HTTP error status is a response like any
+other; only a missing response is an exception.
 """
 
 from __future__ import annotations
@@ -17,7 +16,7 @@ from typing import Protocol
 
 @dataclass(frozen=True)
 class HttpResponse:
-    """A response of any status; header names are lower case."""
+    """Header names are lower case."""
 
     status: int
     headers: Mapping[str, str]
@@ -25,7 +24,7 @@ class HttpResponse:
 
 
 class TransportError(Exception):
-    """No response: the connection failed, or timed out when ``timeout`` is true."""
+    """No response arrived."""
 
     def __init__(self, reason: str, *, timeout: bool) -> None:
         super().__init__(reason)
@@ -34,13 +33,11 @@ class TransportError(Exception):
 
 class Transport(Protocol):
     def post(self, url: str, headers: Mapping[str, str], body: bytes, timeout: float) -> HttpResponse:
-        """Send ``body`` to ``url``; raises ``TransportError`` when no response arrives."""
+        """Raises ``TransportError`` when no response arrives."""
         ...
 
 
 class UrllibTransport:
-    """``Transport`` over :mod:`urllib.request`."""
-
     def post(self, url: str, headers: Mapping[str, str], body: bytes, timeout: float) -> HttpResponse:
         request = urllib.request.Request(url, data=body, headers=dict(headers), method="POST")
         try:

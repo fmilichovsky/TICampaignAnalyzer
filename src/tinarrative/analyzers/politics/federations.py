@@ -1,12 +1,7 @@
-"""Federations as the save shows them: presence, the ``members`` list and the literal names.
+"""Federation events: presence, ``members`` changes and renames.
 
-A nation's ``federation`` reference mirrors the ``members`` list of that federation, so a member change cites the
-matching ``nation.federation`` change as corroboration. A ``nation.federation`` change no member change or presence
-explains is reported on its own as ``nation.federation_changed``.
-
-A change of ``displayName`` or ``federationName`` is one ``federation.renamed`` per federation citing each changed
-field; ``before``/``after`` are the display names when those changed, else the federation names, and federation
-names that differ from changed display names are carried as ``federation_name_before``/``federation_name_after``.
+``nation.federation`` mirrors ``members``, so a member change cites it as corroboration; only an unexplained one
+becomes ``nation.federation_changed``. A rename is one event per federation citing both name fields.
 """
 
 from __future__ import annotations
@@ -81,7 +76,6 @@ class FederationAnalyzer:
 
 
 def _renames(index: ChangeIndex, lookup: Lookup, build: EventBuilder) -> list[Event]:
-    """One event per federation whose display or federation name changed, citing every changed name field."""
     by_federation: dict[EntityId, list[StateChange]] = {}
     for field_name in NAME_FIELDS:
         for change in index.fields(EntityDomain.FEDERATION, field_name):

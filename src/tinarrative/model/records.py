@@ -1,10 +1,7 @@
 """Save-carried records: dated logs and cumulative counters the game appends to an entity.
 
-A record is neither objective snapshot state (it cannot be re-derived from other fields of the same save)
-nor an inferred event (the save literally carries it). Each :class:`RecordSet` belongs to one entity and one
-serialized field; its entries keep serialized order and their index, so every entry is addressable as
-state type + map ID + field + index. A set whose field is absent or has an undocumented shape has
-``entries = Unknown(...)``, never an empty tuple. See ``docs/architecture.md`` section 4.3.
+Entries keep serialized order and index, so each is addressable as state type + map ID + field + index.
+See ``docs/architecture.md`` section 4.3.
 """
 
 from __future__ import annotations
@@ -127,9 +124,8 @@ class ItemEntry:
 class NotificationEntry:
     """``notificationSummaryQueue[index]``: one entry of the game's notification log.
 
-    ``template`` is the log template identifier, ``date`` the ISO-8601 entry date and ``summary`` the localized
-    free text (campaign content: never logged). ``subject`` is the resolved ``gotoGameState`` (``EntityRef``,
-    ``None`` or unresolved ``Unknown``); the faction lists are resolved reference tuples.
+    ``summary`` is localized free text (campaign content: never logged). ``subject`` is the resolved
+    ``gotoGameState`` (``EntityRef``, ``None`` or unresolved ``Unknown``).
     """
 
     index: int
@@ -147,11 +143,9 @@ class NotificationEntry:
 class CombatEntry:
     """``CombatLogs[index]``: one combat recorded by a faction.
 
-    ``date`` is the ISO-8601 ``Date`` or ``None`` (``null`` in every observed entry). ``sides`` is the resolved
-    ``Ships`` pair map in serialized order, as ``((faction EntityRef, FrozenMap(hull class -> ship count)), ...)``;
-    one unresolvable faction makes it ``Unknown``. Ship design names are campaign content (players name designs)
-    and are deliberately not kept. ``hab_faction`` and ``winner`` are resolved references or ``None``;
-    ``attacks`` is the raw ``Attacks`` list and ``surprising`` the raw ``WasSurprising`` label.
+    ``sides`` is the resolved ``Ships`` pair map in serialized order, as
+    ``((faction EntityRef, FrozenMap(hull class -> ship count)), ...)``; one unresolvable faction makes it
+    ``Unknown``. Ship design names are player-chosen campaign content and deliberately not kept.
     """
 
     index: int
@@ -169,9 +163,8 @@ RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry | Notifica
 def diff_key(entry: RecordEntry) -> Hashable:
     """What identifies a log entry across two saves, index aside.
 
-    A notification is identified by template, date and summary, so an entry whose other members differ is the
-    same entry changed: the game was observed to rewrite ``gotoGameState`` of kept entries (to ``null`` or to
-    another entity) between saves. Any other entry is identified by its whole content.
+    A notification is identified by template, date and summary only, because the game rewrites
+    ``gotoGameState`` of kept entries between saves. Any other entry is identified by its whole content.
     """
     if isinstance(entry, NotificationEntry):
         return (entry.template, entry.date, entry.summary)
@@ -186,9 +179,8 @@ def entry_to_dict(entry: RecordEntry) -> dict[str, Any]:
 class RecordSet:
     """Every record of one kind carried by one entity's serialized field.
 
-    ``location`` points at the field (``<entity Value path>/<field>``); :meth:`entry_location` extends it
-    to one entry. ``entries`` is ``Unknown`` when the field is absent (``missing``) or does not have the
-    documented shape (``unparseable``, raw attached).
+    ``entries`` is ``Unknown`` when the field is absent (``missing``) or has an undocumented shape
+    (``unparseable``, raw attached), never an empty tuple.
     """
 
     owner: EntityRef

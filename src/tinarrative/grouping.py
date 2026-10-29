@@ -1,17 +1,8 @@
-"""Campaign grouping: split surveyed saves into campaigns before a sequence is planned (architecture 15, Mode C).
+"""Campaign grouping: split surveyed saves into campaigns before a sequence is planned (architecture 15).
 
-The format has no campaign ID (``docs/game-data-notes/campaign-grouping.md``). Two saves belong to one campaign when
-their ``CampaignProfile.identity`` is equal: the same human faction reference, faction name, scenario and real-world
-campaign start. Nothing else is compared; file names, file times and ``currentID`` are never used to group. A save
-whose human player cannot be resolved is unclassified and forms a group of its own (byte-identical copies stay
-together), so it is never merged into a campaign silently.
-
-The grouping is inference: every group carries the signals it was formed on, and the reports show them.
-
-Each group has a selector ``key``: the slug of the faction name and, when known, the real-world start
-(``resistance-20260104-113751``). ``select_campaign`` accepts a key, a unique key prefix, the 1-based listing index,
-or ``latest``, the group holding the file with the newest modification time; ``latest`` is the only use of file
-times.
+The format has no campaign ID (``docs/game-data-notes/campaign-grouping.md``), so saves group by equal
+``CampaignProfile.identity`` only, never by file name, file time or ``currentID``. A save whose human player does not
+resolve forms a group of its own and is never merged silently. File times are used only by the ``latest`` selector.
 """
 
 from __future__ import annotations
@@ -30,7 +21,7 @@ from .sequence import SaveRef, SkippedSave, merge_identical
 logger = get_logger(__name__)
 
 LATEST = "latest"
-"""The selector for the campaign that holds the most recently modified save file."""
+"""Selects the campaign holding the most recently modified save file."""
 
 UNKNOWN_FACTION = "unknown"
 """The key slug of a group without a readable faction name."""
@@ -49,8 +40,7 @@ def slug(name: str | None) -> str:
 class CampaignGroup:
     """The saves of one campaign and the signals they were grouped on.
 
-    ``members`` are the surveyed saves as given (byte-identical copies included); ``saves`` are the distinct ones in
-    chronological order.
+    ``members`` include byte-identical copies; ``saves`` are the distinct ones in chronological order.
     """
 
     index: int
@@ -212,7 +202,6 @@ def render_listing(groups: Sequence[CampaignGroup], heading: str | None = None) 
 
 
 def listing_document(groups: Sequence[CampaignGroup], skipped: Sequence[SkippedSave]) -> dict[str, Any]:
-    """The JSON form of the listing."""
     inputs = sum(len(group.members) for group in groups)
     return {
         "inputs": inputs,

@@ -1,4 +1,4 @@
-"""The narrative rules ``aggregate`` runs by default: the catalogue of architecture 11.3 under runtime settings."""
+"""The narrative rules ``aggregate`` runs by default. See architecture 11.3."""
 
 from __future__ import annotations
 
@@ -11,7 +11,6 @@ from .space import space_rules
 
 
 def narrative_rules(settings: NarrativeSettings) -> tuple[NarrativeRule, ...]:
-    """Every implemented narrative rule, with its thresholds and windows from ``settings``."""
     return (
         *geopolitical_rules(settings.geopolitics),
         *nation_metric_rules(settings),
@@ -21,4 +20,3 @@ def narrative_rules(settings: NarrativeSettings) -> tuple[NarrativeRule, ...]:
 
 
 NARRATIVE_RULES: tuple[NarrativeRule, ...] = narrative_rules(DEFAULT_SETTINGS.narrative)
-"""The catalogue under the default settings."""

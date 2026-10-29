@@ -4,50 +4,47 @@
 tinarrative save parse <save> [--record-unknowns] [--registry PATH]
 ```
 
-Reads one save, validates it as a `terra_invicta_json_v1` raw save (see the
-[format note](../game-data-notes/terra_invicta_json_v1.md#loader-validation)), normalizes it
-into a `SaveSnapshot`, and prints a short summary:
+Reads one save, checks that it is a supported Terra Invicta save, and prints a short summary of
+what it holds. Use it to check that a save loads before passing it to `events` or `narrate`, and
+to count the structures the parser does not yet describe.
 
-- envelope: source path, format identifier, game version (`TIGlobalValuesState.latestSaveVersion`,
-  else `not serialized`), size in
-  bytes, top-level keys, and the number of state types;
-- snapshot: the game `date` (ISO-8601 from `TITimeState.currentDateTime`, no timezone),
-  `campaign day`, `player faction`, and the number of normalized `factions`, `nations`,
-  `regions`, `control points`, `councilors`, `armies` (regular and megafauna), `fleets`,
-  `ships`, `habs`, `space bodies`, `technologies` (name-keyed, derived from the research singleton),
-  `organizations`, `wars`, `federations`, `region alien states` (the five per-region alien sub-state types together),
-  `global values` (the `TIGlobalValuesState` singleton as one entity), and `notification queue` (the
-  `TINotificationQueueState` singleton, owner of the notification log);
-- `records`: how many save-carried record fields were decoded with a known value across all
-  entities and how many entries they hold in total (see the
-  [save-carried records](../game-data-notes/domain-field-map.md#save-carried-records) table;
-  a field an entity does not carry is unknown and not counted);
-- `unknown structures`: how many structures outside the parser's schema the save contains
-  (undocumented fields, unknown state types, unexpected shapes or reference targets). They
-  never change the snapshot; `tinarrative unknowns` lists them.
+## Options
 
-A value the save does not establish prints as `unknown (<reason>)`, where the reason is
-`missing`, `unparseable`, or `unresolved_reference`; it is never replaced by a default.
-The normalizer copies only the fields listed in the
-[domain field map](../game-data-notes/domain-field-map.md), resolves references only to
-entities present in the same save, and infers nothing about causes.
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `save` | required | Path to a single save file. |
+| `--record-unknowns` | off | Also fold the unknown structures found in this save into the unknowns registry. |
+| `--registry PATH` | `$TINARRATIVE_UNKNOWNS_REGISTRY` | The registry file to update; created when missing. Without `--record-unknowns` nothing is written. |
 
-With `--record-unknowns`, those findings are also folded into the unknowns registry named by
-`--registry PATH` or the `TINARRATIVE_UNKNOWNS_REGISTRY` environment variable (see the
-[unknowns registry](../game-data-notes/unknowns/README.md)), and a final
-`registry: <path>: N added, M updated, P pruned, T total` line is printed. `--registry`
-without `--record-unknowns` writes nothing.
+## Output
 
-Failures print one message to stderr and no traceback. To see which parser decisions
-led there, run with the global `--log-level debug` option (before `save`); see the
-[debugging guide](../debugging.md). The summary on stdout is unaffected.
+- the file: path, format, game version, size, top-level keys and number of state types;
+- the snapshot: game `date`, `campaign day`, `player faction`, and how many factions, nations,
+  regions, councilors, fleets, habs and other entities the save holds;
+- `records`: how many save-carried logs and counters were read, and their entries;
+- `unknown structures`: how many structures outside the parser's schema the save contains;
+  [`unknowns`](unknowns.md) lists them.
+
+A value the save does not establish prints as `unknown (<reason>)` and is never replaced by a
+default. With `--record-unknowns`, a final `registry: <path>: N added, M updated, P pruned, T total`
+line is printed (see the [unknowns registry](../game-data-notes/unknowns/README.md)).
+
+Failures print one message to stderr. To see why, run with the global `--log-level debug` option
+(before `save`); see the [debugging guide](../debugging.md).
 
 ## Exit codes
 
 | Code | When |
 | --- | --- |
-| 0 | The save was loaded, validated, and normalized. |
+| 0 | The save was loaded and read. |
 | 2 | Usage error, including `--record-unknowns` without `--registry` or the environment variable (the summary is still printed). |
 | 4 | The path cannot be read (missing, unreadable, or a directory). |
-| 5 | The bytes are empty, compressed, not UTF-8 JSON, lack the documented envelope, carry an unsupported format, or a normalized state collection does not follow the documented pair-map shape. |
+| 5 | The file is not a supported save: empty, compressed, not UTF-8 JSON, an unsupported format, or an unexpected shape. |
 | 7 | `--record-unknowns` was given but the registry cannot be read, is invalid, or cannot be written; the summary is still printed. |
+
+## Examples
+
+```sh
+tinarrative save parse Autosave.json
+tinarrative save parse Autosave.json --record-unknowns --registry docs/game-data-notes/unknowns/registry.json
+```

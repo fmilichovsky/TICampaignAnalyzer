@@ -1,20 +1,6 @@
 """Narrative aggregation: named rules that join the qualified event stream of a sequence into developments.
 
-A narrative event is an ``Event`` with its narrative fields set (architecture 11.2). Rules see the whole qualified
-stream and one situation report per save (11.1), never a snapshot, and declare their window in game days. A rule
-emits only from its anchor evidence; it decides which further events join the anchor, and ``NarrativeBuilder``
-applies the shared policy to what it joins:
-
-- span: ``start`` is the earliest constituent start (its ``not_before``, or its record date when it is record-dated,
-  which narrows the span), ``end`` the latest constituent date, each with the basis it came from; corroborating
-  events (a rule passes them apart) are cited but only narrow a start, never set the end;
-- ``open`` when the rule's anchor entity is still present in the last save, unless the rule states it;
-- confidence: the minimum over the constituents, lowered one level for a heuristic join;
-- significance: the rule's level, never below the most significant constituent;
-- status: objective only when every constituent is objective and the join is by entity ID.
-
-Nesting is one rule order at a time: a rule sees the atomic stream and the narrative events of lower orders only, so
-it can never build on a rule of its own order and there are no cycles.
+See architecture 11.1 and 11.2. A rule sees only lower orders, so rules cannot form cycles.
 """
 
 from __future__ import annotations
@@ -47,7 +33,7 @@ _CONFIDENCE_ORDER = (Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH)
 
 
 class Join(StrEnum):
-    """How a rule joined its constituents to the anchor."""
+    """A heuristic join lowers confidence one level and is never objective."""
 
     ENTITY = "entity"
     """By a stable entity ID: a war, a federation, a nation across its own events."""
@@ -58,8 +44,7 @@ class Join(StrEnum):
 class NarrativeRule(Protocol):
     """A named rule building one kind of narrative event.
 
-    ``order`` places it among the rules: it sees the narrative events of lower orders. ``window_days`` is the span of
-    game days it joins evidence over, ``None`` for the whole sequence.
+    It sees the narrative events of lower ``order`` only. ``window_days`` is ``None`` for the whole sequence.
     """
 
     @property
@@ -111,7 +96,7 @@ def _intervals(event: Event) -> tuple[str, ...]:
 
 
 def days_between(earlier: Observed, later: Observed) -> float | None:
-    """Game days from ``earlier`` to ``later`` (ISO dates); ``None`` when either is unknown or unparseable."""
+    """``None`` when either date is unknown or unparseable."""
     if not isinstance(earlier, str) or not isinstance(later, str):
         return None
     try:
@@ -121,14 +106,13 @@ def days_between(earlier: Observed, later: Observed) -> float | None:
 
 
 def interval_reports(situations: Sequence[SituationReport]) -> dict[str, tuple[SituationReport, SituationReport]]:
-    """The reports before and after each interval, by interval key (the keys ``sequence.plan_sequence`` gives)."""
+    """Keyed as ``sequence.plan_sequence`` keys intervals."""
     dates = [str(report.date) for report in situations]
     keys = interval_keys(dates)
     return {keys[index]: (situations[index - 1], situations[index]) for index in range(1, len(situations))}
 
 
 def present_in(report: SituationReport, ref: EntityRef) -> bool:
-    """Whether the report lists the entity as a nation, federation, war or faction."""
     listed = (
         *(nation.nation for nation in report.nations),
         *(federation.federation for federation in report.federations),
@@ -139,7 +123,8 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 
 class NarrativeBuilder:
-    """Builds narrative events under the shared policy of the module docstring, against one sequence's reports."""
+    """Applies the shared policy: confidence is the constituents' minimum, significance never below the most
+    significant constituent, and ``open`` while the anchor is in the last report."""
 
     def __init__(self, situations: Sequence[SituationReport]) -> None:
         self._last = situations[-1] if situations else None
@@ -160,14 +145,10 @@ class NarrativeBuilder:
         starts_on: str | None = None,
         corroborating: Sequence[Event] = (),
     ) -> Event:
-        """A narrative event over ``constituents`` and ``corroborating``; the ID is qualified by its first interval.
+        """The ID is qualified by the first interval.
 
-        ``confidence`` overrides the minimum-over-constituents policy, ``open`` the anchor-presence policy and
-        ``starts_on`` the earliest-constituent start (a record date, even one before every constituent); a rule that
-        passes any of them documents why.
-
-        ``corroborating`` events are cited like constituents but date only a start: they precede the effect they
-        corroborate, so they never set the end.
+        A rule that overrides ``confidence``, ``open`` or ``starts_on`` documents why. ``corroborating`` events date
+        only a start: they precede the effect they corroborate.
         """
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
@@ -229,11 +210,10 @@ def aggregate(
     situations: Sequence[SituationReport],
     rules: Sequence[NarrativeRule],
 ) -> list[Event]:
-    """The narrative events the rules build over a qualified chronological stream, sorted.
+    """Rules run by order, then name.
 
-    Rules run by order, then name; each sees ``stream`` and the narrative events of lower orders. A rule name used
-    twice, a narrative event that cites a narrative event of its own or a higher order or an ID it cannot see, an
-    event that is not narrative, and a duplicate ID are programming errors (``ValueError``).
+    A duplicate rule name or ID, a non-narrative event, or a citation of an event of the same or a higher order or
+    of an unseen ID raises ``ValueError``: these are programming errors.
     """
     names = [rule.name for rule in rules]
     duplicated = sorted({name for name in names if names.count(name) > 1})

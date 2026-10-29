@@ -1,26 +1,4 @@
-"""The military, space-support and ranking narrative rules of architecture 11.3.
-
-``MilitaryBuildupRule`` chains a nation's army appearances, disappearances and deployment changes within
-``BUILDUP_WINDOW_DAYS``; a run whose standard armies (the situation reports' ``armies``, before its first interval and
-after its last) moved by ``buildup_min_armies`` or more is a ``nation.military_buildup`` or a
-``nation.demobilization``. ``NavyEstablishedRule`` builds ``nation.navy_established`` where a report's ``navies``
-goes from zero to more. Both are major, promoted one level for a nation among the ``top_gdp_nations`` by ``GDP`` or
-by the strength estimate.
-
-``SpaceProgramGrowthRule`` chains a nation's ``nation.space_assets_changed`` growth of boost or mission control within
-``space_assets_window_days`` into one ``nation.space_program_growth``, with the share of each statistic's growth that
-regions changing hands carried: minor, major when the nation enters the top ``ranking_top_n`` by boost or mission
-control over the run. ``SpaceDefencesEstablishedRule`` builds ``nation.space_defences_established`` from a
-``spaceDefences`` rise from zero, major.
-
-``RankingRule`` builds one ``world.ranking_changed`` per interval and ranked metric whose top ``ranking_top_n``
-(at most ``RANKED_PLACES``) changed membership between the interval's reports, from the ``nation.rank_changed``
-events of the nations entering and leaving it. A nation enters from a place outside the top into clear membership
-(``top_members``: above zero and above the first value outside it) and leaves from clear membership to a place
-outside, so a tie across the boundary (many nations share small mission control values) never enters or leaves. An
-entry the next report reverses is dropped; with no report after the interval it is kept and the development is
-``open``. Major.
-"""
+"""The military, space-support and ranking narrative rules. See architecture 11.3."""
 
 from __future__ import annotations
 
@@ -65,9 +43,7 @@ SPACE_DEFENCES_ESTABLISHED = "nation.space_defences_established"
 RANKING_CHANGED = "world.ranking_changed"
 NATION_ARMIES_CHANGED = "nation.armies_changed"
 BUILDUP_WINDOW_DAYS = 365
-"""Army changes of one nation this soon after the previous join one buildup or demobilization."""
 SPACE_METRICS = ((BOOST_STATISTIC, BOOST_METRIC), (MISSION_CONTROL_STATISTIC, MISSION_CONTROL_METRIC))
-"""Each grown ``nation.space_assets_changed`` statistic and the metric it is ranked by."""
 
 _REPORTED: dict[str, Callable[[NationSituation], Observed]] = {
     GDP: lambda item: dict(item.statistics).get(GDP),
@@ -75,7 +51,6 @@ _REPORTED: dict[str, Callable[[NationSituation], Observed]] = {
     BOOST_METRIC: lambda item: item.boost,
     MISSION_CONTROL_METRIC: lambda item: item.mission_control,
 }
-"""Each ranked metric as a situation report states it."""
 
 
 def _number(value: Observed) -> float | None:
@@ -87,8 +62,7 @@ def _row(report: SituationReport, nation_id: EntityId) -> NationSituation | None
 
 
 def _ordered(report: SituationReport, metric: str) -> list[tuple[float, NationSituation]]:
-    """The report's nations holding regions with a known value of ``metric``, largest first, ties by ID: the places
-    ``nation.rank_changed`` reports."""
+    """Must order exactly as ``nation.rank_changed`` places nations: landless nations excluded, ties by ID."""
     value = _REPORTED[metric]
     known = [
         (number, item)
@@ -99,7 +73,7 @@ def _ordered(report: SituationReport, metric: str) -> list[tuple[float, NationSi
 
 
 def report_rank(report: SituationReport, nation_id: EntityId, metric: str) -> int | None:
-    """The nation's place by ``metric`` in the report (1 is the largest)."""
+    """1 is the largest."""
     ordered = _ordered(report, metric)
     return next((place for place, (_, item) in enumerate(ordered, start=1) if item.nation.entity_id == nation_id), None)
 
@@ -112,8 +86,8 @@ class _Place:
 
 
 def top_members(report: SituationReport, metric: str, top: int) -> dict[EntityId, _Place]:
-    """The nations clearly in the report's top ``top`` by ``metric``: within it, above zero and above the first value
-    outside it, so a tie across the boundary (many nations share small mission control values) is in neither."""
+    """Only clear members, above zero and above the first value outside, so a tie across the boundary never enters
+    or leaves the top."""
     ordered = _ordered(report, metric)
     outside = ordered[top][0] if len(ordered) > top else None
     return {
@@ -134,14 +108,13 @@ def _promoted(level: Significance, report: SituationReport, nation_id: EntityId,
 
 
 def _home(event: Event) -> EntityRef | None:
-    """The nation an army event belongs to: its ``home_nation``; a nation list event's own subject."""
     if event.event_type == NATION_ARMIES_CHANGED:
         return subject(event)
     return ref_attribute(event, "home_nation")
 
 
 def _of_kind(event: Event, kind: str) -> bool:
-    """Whether an army event concerns an army of deployment ``kind``; a nation list event always may."""
+    """A nation list event always may concern ``kind``."""
     if event.event_type in (APPEARED, DISAPPEARED):
         return event.attribute("deployment_type") == kind
     if event.event_type == DEPLOYMENT_TYPE_CHANGED:
@@ -160,7 +133,10 @@ def _by_home(events: Sequence[Event]) -> dict[EntityId, list[Event]]:
 
 @dataclass(frozen=True)
 class MilitaryBuildupRule:
-    """``nation.military_buildup`` / ``nation.demobilization``: a nation's standard armies grew or shrank."""
+    """``nation.military_buildup`` / ``nation.demobilization``: a nation's standard armies grew or shrank.
+
+    The size of the move comes from the reports around the run, not from counting its events.
+    """
 
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
@@ -328,7 +304,7 @@ class SpaceProgramGrowthRule:
 
 
 def _territory_share(moves: Sequence[Event]) -> float | None:
-    """The share of the summed change of ``moves`` that regions changing hands carried; ``None`` without a change."""
+    """The share of the change that regions changing hands carried; ``None`` without a change."""
     deltas = [_number(event.attribute("territory_delta")) for event in moves]
     changes = [
         (after - before)
@@ -378,7 +354,7 @@ class SpaceDefencesEstablishedRule:
 
 
 def _placed(report: SituationReport, nation_id: EntityId, metric: str, top: int) -> bool:
-    """Whether the nation's place in the report is within the top ``top``, tied or not."""
+    """Tied places count, unlike ``top_members``."""
     return _in_top(report_rank(report, nation_id, metric), top)
 
 
@@ -388,7 +364,10 @@ def _entry(place: _Place) -> FrozenMap:
 
 @dataclass(frozen=True)
 class RankingRule:
-    """``world.ranking_changed``: nations entered or left the top ``ranking_top_n`` by one metric in one interval."""
+    """``world.ranking_changed``: nations entered or left the top ``ranking_top_n`` by one metric in one interval.
+
+    An entry the next report reverses is dropped; with no later report it is kept and the development is open.
+    """
 
     settings: NationMetricsSettings
     name: str = RANKING_CHANGED
@@ -460,7 +439,6 @@ AssetRule = (
 
 
 def asset_rules(settings: NarrativeSettings) -> tuple[AssetRule, ...]:
-    """The military, space-support and ranking rules under ``settings``."""
     return (
         MilitaryBuildupRule(settings.nation_metrics, settings.geopolitics),
         NavyEstablishedRule(settings.geopolitics),

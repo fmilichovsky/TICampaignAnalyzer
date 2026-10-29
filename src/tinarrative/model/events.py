@@ -1,10 +1,7 @@
-"""Structured events; prose is intentionally not part of this model.
+"""Structured events: categorized claims backed by literal state changes; prose is not part of this model.
 
-An event is a categorized claim about one transition between two snapshots (or about one save-carried
-record entry). Its ``sources`` are the literal :class:`StateChange` objects that support it, so every
-event traces back to the diff and, through each change's evidence, to the saves. Attributes are literal
-copies of normalized values and never a reinterpretation of them. An inferred event also names the objective
-events it was reconstructed from in ``constituents``, and its ``sources`` include every source they cite.
+Attributes are literal copies of normalized values, never a reinterpretation. An inferred event's ``sources``
+include every source of its ``constituents``.
 """
 
 from __future__ import annotations
@@ -32,10 +29,9 @@ class Confidence(StrEnum):
 
 
 class Significance(StrEnum):
-    """How much an event matters to a campaign history; independent of how certain it is (architecture 12).
+    """How much an event matters to a campaign history; independent of confidence (architecture 12).
 
-    Assigned by the narrative stage (``tinarrative.narrative.significance``) from the event type and its
-    context; the model only carries the value. ``SIGNIFICANCE_ORDER`` is the explicit ranking.
+    Assigned by ``tinarrative.narrative.significance``; ``SIGNIFICANCE_ORDER`` is the ranking.
     """
 
     TRIVIAL = "trivial"
@@ -142,16 +138,10 @@ def _member_key(member: FieldValue | None) -> str:
 class Event:
     """A categorized, evidence-backed development; sorted deterministically on construction.
 
-    ``date`` is the game date the event is dated by (``date_basis`` says how) and ``not_before`` the date of
-    the earlier snapshot of the interval; either may be ``Unknown`` when a snapshot has no date. ``entities``
-    are the affected entities (subject first by domain order after sorting), ``attributes`` literal values
-    keyed by name. ``significance`` is assigned by the narrative stage; analyzers leave the default.
-    ``constituents`` are the IDs of the events an inferred event was reconstructed from (empty for an objective
-    event); kept sorted and unique.
-
-    A narrative event (architecture 11.2) also carries its span (``start`` and ``end``, each with its basis), whether
-    it is ``open`` at the last save, the interval keys it spans and its entities by role; ``intervals`` is empty for
-    every other event, and the other narrative fields then keep their defaults. ``roles`` are kept sorted and unique.
+    ``not_before`` is the date of the interval's earlier snapshot; it and ``date`` may be ``Unknown``.
+    ``significance`` is set by the narrative stage; analyzers leave the default. Only a narrative event
+    (architecture 11.2) has non-empty ``intervals``; for every other event the span, ``open`` and ``roles`` fields
+    keep their defaults.
     """
 
     id: str
@@ -188,8 +178,7 @@ class Event:
 
     @property
     def sort_key(self) -> tuple[str, str, str]:
-        """Dated events in date order (undated first), then by type and ID; a narrative event is placed by its start,
-        since a history lists a development where it begins."""
+        """Date (undated first), type, ID; a narrative event is placed by its start, where a history lists it."""
         placed = self.start if self.is_narrative else self.date
         date = "" if isinstance(placed, Unknown) else str(placed)
         return (date, self.event_type, self.id)

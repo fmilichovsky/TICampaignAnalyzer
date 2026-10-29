@@ -1,7 +1,4 @@
-"""The JSON report of an analyzed save sequence: the narrator package when narrative events are supplied.
-
-Like the Markdown renderer, this presents already-computed results; it never compares snapshots or infers facts.
-"""
+"""The JSON report of an analyzed save sequence: the narrator package when narrative events are supplied."""
 
 from __future__ import annotations
 
@@ -41,15 +38,10 @@ def build_document(
     min_significance: Significance = Significance.TRIVIAL,
     constituents: Constituents = "none",
 ) -> dict[str, Any]:
-    """The report document.
+    """The report document; events are chosen by ``listing``.
 
-    Without ``narrative``, objective and inferred events below ``min_significance`` are dropped. With it, narrative
-    events below ``min_significance`` are dropped, and an objective or inferred event is kept only as a constituent
-    of a kept narrative event that the ``constituents`` mode keeps (``listing``). Dropped events are counted
-    (``omitted`` per interval, ``narrative_omitted``), so an omission is never hidden; state changes are never
-    filtered. With ``narrative``, the document is the narrator package: it also holds the narrative rules'
-    ``settings`` and the ``glossary`` of every entity ID it references, and leaves out provenance and paths
-    (``_narrator_package``).
+    Dropped events are counted (``omitted`` per interval, ``narrative_omitted``) so an omission is never hidden;
+    state changes are never filtered.
     """
     document: dict[str, Any] = {"campaign": campaign.to_dict(), **plan.to_dict()}
     reports = situations(intervals)
@@ -86,13 +78,7 @@ def build_document(
 def _narrator_package(document: dict[str, Any]) -> dict[str, Any]:
     """The narrator package (architecture 13.1): the report without provenance and paths, for a reader that cites IDs.
 
-    Every event loses its ``sources``, and the campaign, skipped files, saves and intervals lose their file paths; the
-    report without ``--narrative`` (at ``trivial``) keeps both, and every ID here resolves in it. A nation that holds no
-    region in any save and is not referenced by a listed event is left out of the situation reports, and the reports
-    are slimmed (``_slim_situations``). A ``metric_shifts`` entry loses its ``events``, which name shift events the
-    package does not list (``_drop_shift_events``). The glossary is built from what remains, then references are
-    reduced to ``ref`` and ``name`` (and ``confidence`` when the identity is not an in-save ID), and floats are rounded
-    to ``FLOAT_DIGITS`` significant digits.
+    Every ID here still resolves in the full report. The glossary is built before references are slimmed.
     """
     document["campaign"] = {key: value for key, value in document["campaign"].items() if key != "sources"}
     document["skipped"] = [{"error_class": skipped["error_class"]} for skipped in document["skipped"]]
@@ -127,7 +113,7 @@ def _referenced(node: Any) -> set[str]:
 
 
 def _drop_shift_events(narrative: list[dict[str, Any]]) -> None:
-    """Remove the ``events`` ID list from every ``metric_shifts`` entry of the narrative events."""
+    """They name shift events the package does not list."""
     for event in narrative:
         for entry in event["attributes"].get("metric_shifts") or ():
             entry.pop("events", None)
@@ -147,12 +133,7 @@ def _prune_nations(saves: list[dict[str, Any]], referenced: set[str]) -> None:
 
 
 def _slim_situations(saves: list[dict[str, Any]]) -> None:
-    """Reduce every report to what a reader narrates from.
-
-    A nation's ``allies`` become bare ref strings (the glossary names them) and it loses ``seat_basis``, and each of
-    ``ZERO_DROPPED`` that is ``0``. A faction's ``habs_by_body`` keeps the bodies with two or more habs;
-    ``other_bodies`` counts the bodies with one. ``habs`` still counts every hab.
-    """
+    """Reduce every report to what a reader narrates from; a faction's ``habs`` still counts every hab."""
     for report in (save["situation"] for save in saves if save["situation"] is not None):
         for nation in report["nations"]:
             if isinstance(nation.get("allies"), list):

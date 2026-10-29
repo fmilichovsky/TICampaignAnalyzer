@@ -1,11 +1,7 @@
 """Hab (``TIHabState``, domain ``space object``) transitions and the faction's literal hab destruction log.
 
-Events here speak about a hab's ``faction``, ``habType``, ``tier``, combat and assault flags, core completion and
-presence, and about every entry added to a faction's ``HabDestructionLog``. The log names a hab type and a space
-body, not a hab ID, so the two stay separate events. A recorded destruction carries a ``hab`` attribute only when
-exactly one entry and exactly one hab gone from the later save share the log owner, hab type and body; the
-``owner`` attribute is the log's faction. ``sectors``, ``councilorsOnBoard``, ``officersOnBoard``, orbit and
-position fields stay in the diff; ``dockedFleets`` belongs to the fleet analyzer.
+The log names a hab type and a space body, not a hab ID, so a recorded destruction stays separate from the hab's
+disappearance. ``dockedFleets`` belongs to the fleet analyzer.
 """
 
 from __future__ import annotations

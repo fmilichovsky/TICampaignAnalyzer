@@ -1,8 +1,4 @@
-"""Decode the observed typed-state pair-map containers.
-
-See ``docs/game-data-notes/containers-and-references.md``: a populated state collection is an array of
-``{"Key": {"value": id}, "Value": {"ID": {"value": id}, ...}}`` pairs, and an empty one is ``{}``.
-"""
+"""Decode the typed-state pair-map containers (``docs/game-data-notes/containers-and-references.md``)."""
 
 from __future__ import annotations
 
@@ -16,7 +12,7 @@ from .errors import UnsupportedSaveShapeError
 
 @dataclass(frozen=True)
 class StateEntry:
-    """One decoded pair: its map ID, its index in the serialized array, and the ``Value`` object."""
+    """One decoded pair; ``index`` is its position in the serialized array."""
 
     map_id: int
     index: int
@@ -29,11 +25,9 @@ def entry_path(full_type: str, index: int) -> str:
 
 
 def decode_pair_map(value: Any) -> tuple[tuple[Any, Any], ...] | None:
-    """Decode a field-level dictionary (``containers-and-references.md``, "Field-level dictionaries").
+    """Decode a field-level ``{}`` or ``[{"Key", "Value"}, ...]`` dictionary to pairs in serialized order.
 
-    An empty dictionary serializes as ``{}`` and a populated one as an array of ``{"Key", "Value"}`` objects;
-    both decode to ``(key, value)`` pairs in serialized order. Any other value, including an array with one
-    element that is not such an object, returns ``None`` so the caller can report the shape.
+    Any other shape, including an array with one non-pair element, returns ``None`` so the caller can report it.
     """
     if value == {}:
         return ()

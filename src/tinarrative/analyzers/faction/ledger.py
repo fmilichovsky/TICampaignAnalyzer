@@ -1,22 +1,10 @@
 """A faction's resource ledger (``TIFactionState.Transactions``) as dated mission and operation charges.
 
-Each entry of the later snapshot whose label is allow-listed and whose date falls inside the interval becomes one
-objective ``faction.transaction_recorded`` event, dated by the entry. The entry is a cost charged when a mission or
-operation is assigned, some days to weeks before it resolves, and a charge does not mean the mission succeeded. It
-names no target. So the event is corroborating and dating evidence for an effect that is already evidenced, under the
-bounds of architecture 11.3; no rule anchors on it, and confidence on ledger evidence alone stays at most medium in
-the consumers. This event itself records a literal entry and is high confidence, like ``faction.combat_recorded``.
-
-Entries are read **by date from the later snapshot**, not from the diff's ``added`` list, as the architecture asks;
-the ledger's ``records`` change of the interval is still the cited source, so every event is backed by a literal
-change. Entries are never rewritten, and an entry pruned between two saves is dated at or before the earlier save, so an
-entry dated inside ``(before, after]`` is reliably present in the later save (evidence:
-``higher-level-event-sources.md``, ``TIFactionState.Transactions``). Dates are compared as full timestamps: saves
-are written at midnight and charges carry the time of day, so a charge made later on the earlier save's day
-belongs to this interval. The allow-list holds the labels whose charges agree with a visible effect; income, spoils,
-trade, council transfers, ``Effect.*`` bookkeeping, org purchases, project and objective rewards and the hashed
-numeric labels are never emitted. Labels are game identifiers (mission and operation template names, like notification
-template names), not player text, so they appear in IDs and rendered lines; amounts and labels are never logged.
+A charge is made at assignment, before the outcome, and proves neither success nor a target: the events are
+corroborating and dating evidence only (architecture 11.3). Entries are read by date from the later snapshot, with
+the ledger's ``records`` change as the cited source; the evidence that ``(before, after]`` entries are reliably
+present is in ``higher-level-event-sources.md``. Labels are game identifiers and may appear in IDs and lines; amounts
+and labels are never logged.
 """
 
 from __future__ import annotations
@@ -88,12 +76,10 @@ SPACE_OPERATIONS: frozenset[str] = frozenset(
         "TransferOfficersOperation",
     }
 )
-"""Space operation labels, listed by name rather than by suffix so that an unseen label is reviewed before it is
-emitted. ``Found*Operation`` charges accompany a hab gained in the same interval."""
+"""Listed by name rather than by suffix so that an unseen label is reviewed before it is emitted."""
 
 ASSET_CHARGES: frozenset[str] = frozenset({"Ship Construction", "Hire Councilor", "Global Milestone"})
-"""``Ship Construction`` charges (one entry per resource) accompany ships gained by the faction; ``Hire Councilor``
-matches councilors that gained a faction; ``Global Milestone`` accompanies a global milestone."""
+"""``Ship Construction`` has one entry per resource."""
 
 ALLOWED_LABELS: frozenset[str] = COUNCILOR_MISSIONS | SPACE_OPERATIONS | ASSET_CHARGES
 """The labels whose entries become events. Everything else is left in the diff."""
@@ -102,7 +88,7 @@ ALLOWED_LABELS: frozenset[str] = COUNCILOR_MISSIONS | SPACE_OPERATIONS | ASSET_C
 def in_window(before_date: Observed, after_date: Observed, entry_date: Observed) -> bool:
     """Whether an ISO-dated entry falls inside ``(before, after]``; false when any date is not a string.
 
-    The snapshot dates and record dates are ISO-8601 texts of the same shape, so text order is date order.
+    Compared as full timestamps in text order (same ISO shape): a charge later on the earlier save's day belongs here.
     """
     if not (isinstance(before_date, str) and isinstance(after_date, str) and isinstance(entry_date, str)):
         return False
