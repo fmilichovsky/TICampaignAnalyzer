@@ -7,7 +7,7 @@ tinarrative narrate --assemble <dir>
 
 options: [--period year|half|quarter] [--audience public|insider] [--citations footnotes|none]
          [--style chronicle|headlines] [--length <words>] [--focus <name>] [--output <dir>] [--config <file>]
-         [--send] [--force] [--profile <name>] [--provider anthropic|openai|ollama] [--model <id>] [--base-url <url>]
+         [--send] [--force] [--profile <name>] [--provider anthropic|openai|openrouter|ollama] [--model <id>] [--base-url <url>]
          [--max-input-tokens <tokens>] [--max-output-tokens <tokens>] [--temperature <t>]
 ```
 
@@ -87,7 +87,7 @@ the previous one:
 but they do carry faction, nation and leader names and the whole history.
 
 `--send` needs `--output DIR`, a provider and a model (there is no default model), and, for
-`anthropic` and for `openai` without a `base_url`, an `api_key_env` setting naming the environment
+`anthropic`, `openrouter`, and for `openai` without a `base_url`, an `api_key_env` setting naming the environment
 variable that holds the API key. The key is read only from that variable. Anything missing is a
 usage error and nothing is contacted.
 

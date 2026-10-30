@@ -74,7 +74,10 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
             "'narrative.geopolitics.metric_shifts_max' must be at least 0",
         ),
         ("[narrative.geopolitics\n", "not valid TOML"),
-        ("[narrator]\nprovider = 'gemini'\n", "'narrator.provider' must be one of: anthropic, openai, ollama"),
+        (
+            "[narrator]\nprovider = 'gemini'\n",
+            "'narrator.provider' must be one of: anthropic, openai, openrouter, ollama",
+        ),
         ("[narrator]\nmodel = 3\n", "'narrator.model' must be a non-empty string"),
         ("[narrator]\nmodel = ''\n", "'narrator.model' must be a non-empty string"),
         ("[narrator]\ntemperature = true\n", "'narrator.temperature' must be a number"),

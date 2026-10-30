@@ -851,8 +851,8 @@ closing situation.
 ## 20.5 Providers
 
 The narrator talks to a model through one provider-neutral request and one neutral completion (text, finish
-reason, token counts); adapters translate for the `anthropic`, `openai` (also OpenAI-compatible servers) and
-`ollama` APIs. Design rules:
+reason, token counts); adapters translate for the `anthropic`, `openai` (also OpenAI-compatible servers),
+`openrouter` and `ollama` APIs. Design rules:
 
 -   no runtime dependencies: a standard-library HTTP transport behind an interface that tests replace with a
     fake; no test touches the network;

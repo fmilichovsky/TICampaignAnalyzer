@@ -87,10 +87,10 @@ until a file, a profile or a flag sets it.
 
 | Key | Type | Default | Meaning |
 | --- | --- | --- | --- |
-| `narrator.provider` | string: `anthropic`, `openai`, `ollama` | unset | The API the requests are sent to: Anthropic Messages, OpenAI Chat Completions (or any server implementing it), Ollama's native chat. |
+| `narrator.provider` | string: `anthropic`, `openai`, `openrouter`, `ollama` | unset | The API the requests are sent to: Anthropic Messages, OpenAI Chat Completions (or any server implementing it), OpenRouter Chat Completions, Ollama's native chat. |
 | `narrator.model` | string | unset | The model every request names. There is no built-in model, so a stale ID is never sent by default. |
-| `narrator.base_url` | string, `http://` or `https://` | unset: the provider's public API, for Ollama `http://localhost:11434` | The API root, for a gateway, a compatible server or a remote Ollama. |
-| `narrator.api_key_env` | string | unset | The **name** of the environment variable holding the API key. Required for `anthropic`, and for `openai` without a `base_url`. |
+| `narrator.base_url` | string, `http://` or `https://` | unset: the provider's public API, for OpenRouter `https://openrouter.ai/api/v1`, for Ollama `http://localhost:11434` | The API root, for a gateway, a compatible server or a remote Ollama. |
+| `narrator.api_key_env` | string | unset | The **name** of the environment variable holding the API key. Required for `anthropic`, `openrouter`, and for `openai` without a `base_url`. |
 | `narrator.max_output_tokens` | integer, minimum 1 | 16000 | One completion stops at this many tokens; one that reaches it fails its chapter. Models that think count their thinking here. |
 | `narrator.context_window` | integer, minimum 1 | unset | The model's context window, when stated. `max_input_tokens + max_output_tokens` above it is rejected before sending. |
 | `narrator.temperature` | number, minimum 0 | unset | Sent with each request when set. Current Claude models reject it. |
@@ -117,6 +117,11 @@ max_input_tokens = 24000
 max_output_tokens = 4000
 context_window = 32768
 timeout_seconds = 1800
+
+[narrator.profiles.openrouter]
+provider = "openrouter"
+model = "..."
+api_key_env = "OPENROUTER_API_KEY"
 ```
 
 **Keys.** An API key is never a setting: a settings file names only the environment variable, and
