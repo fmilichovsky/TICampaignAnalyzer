@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_ENV_VAR = "TINARRATIVE_CONFIG"
-PROVIDERS = ("anthropic", "openai", "ollama")
+PROVIDERS = ("anthropic", "openai", "openrouter", "ollama")
 PROFILE_KEYS = (
     "provider",
     "model",

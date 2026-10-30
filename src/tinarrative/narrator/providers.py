@@ -23,6 +23,7 @@ FINISHES = ("complete", "length", "refused", "other")
 DEFAULT_URLS = {
     "anthropic": "https://api.anthropic.com",
     "openai": "https://api.openai.com/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
     "ollama": "http://localhost:11434",
 }
 ANTHROPIC_VERSION = "2023-06-01"
@@ -89,7 +90,9 @@ def endpoint(settings: NarratorSettings, environ: Mapping[str, str]) -> Endpoint
     if not base_url.startswith(("http://", "https://")):
         raise ValueError("base_url must start with http:// or https://")
     name = settings.api_key_env
-    if name is None and (provider == "anthropic" or (provider == "openai" and settings.base_url is None)):
+    if name is None and (
+        provider in {"anthropic", "openrouter"} or (provider == "openai" and settings.base_url is None)
+    ):
         raise ValueError(
             f"{provider} needs an API key: set narrator.api_key_env to the name of the environment variable that "
             "holds it"
@@ -281,6 +284,7 @@ def _ollama_decode(document: Mapping[str, Any]) -> Completion:
 ADAPTERS = {
     "anthropic": _Adapter("/v1/messages", _anthropic_headers, _anthropic_body, _anthropic_decode),
     "openai": _Adapter("/chat/completions", _bearer, _openai_body, _openai_decode),
+    "openrouter": _Adapter("/chat/completions", _bearer, _openai_body, _openai_decode),
     "ollama": _Adapter("/api/chat", _bearer, _ollama_body, _ollama_decode),
 }
 

@@ -47,7 +47,11 @@ def ok(document: Any, status: int = 200, **headers: str) -> HttpResponse:
 
 
 def target(provider: str, *, key: str | None = "KEY", base_url: str | None = None) -> Endpoint:
-    urls = {"anthropic": "https://api.anthropic.com", "openai": "https://api.openai.com/v1"}
+    urls = {
+        "anthropic": "https://api.anthropic.com",
+        "openai": "https://api.openai.com/v1",
+        "openrouter": "https://openrouter.ai/api/v1",
+    }
     return Endpoint(provider, base_url or urls.get(provider, "http://localhost:11434"), key, 30.0, 12_000)
 
 
@@ -135,6 +139,23 @@ def test_openai_compatible_server_without_key() -> None:
     url, headers, _, _ = transport.calls[0]
     assert url == "http://127.0.0.1:1234/v1/chat/completions"
     assert "authorization" not in headers
+
+
+def test_openrouter_wire_format_and_mapping() -> None:
+    transport = FakeTransport(ok(openai_response()))
+
+    completion = send(transport, "openrouter", replace(REQUEST, temperature=0.5))
+
+    url, headers, body, _ = transport.calls[0]
+    assert url == "https://openrouter.ai/api/v1/chat/completions"
+    assert headers == {"content-type": "application/json", "authorization": "Bearer KEY"}
+    assert body == {
+        "model": "some-model",
+        "messages": [{"role": "system", "content": "SYSTEM"}, {"role": "user", "content": "USER"}],
+        "max_completion_tokens": 900,
+        "temperature": 0.5,
+    }
+    assert completion == Completion("Once upon", "complete", "reported-model", 1200, 340)
 
 
 def test_ollama_sets_the_context_length_from_budget_and_output() -> None:
@@ -324,6 +345,9 @@ def test_endpoint_resolves_defaults_and_the_key() -> None:
         "http://box:11434"
     )
     assert endpoint(settings(provider="openai", model="m", base_url="http://127.0.0.1:1234/v1"), {}).key is None
+    assert endpoint(settings(provider="openrouter", model="m", api_key_env="MY_KEY"), {"MY_KEY": "secret"}) == Endpoint(
+        "openrouter", "https://openrouter.ai/api/v1", "secret", 600.0, 216_000
+    )
 
 
 @pytest.mark.parametrize(
@@ -333,6 +357,7 @@ def test_endpoint_resolves_defaults_and_the_key() -> None:
         ({"provider": "ollama"}, {}, "no model"),
         ({"provider": "anthropic", "model": "m"}, {}, "anthropic needs an API key"),
         ({"provider": "openai", "model": "m"}, {}, "openai needs an API key"),
+        ({"provider": "openrouter", "model": "m"}, {}, "openrouter needs an API key"),
         ({"provider": "openai", "model": "m", "api_key_env": "MY_KEY"}, {"MY_KEY": ""}, "MY_KEY"),
         ({"provider": "ollama", "model": "m", "base_url": "file:///etc"}, {}, "http:// or https://"),
         (
