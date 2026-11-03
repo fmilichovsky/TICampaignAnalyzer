@@ -26,8 +26,8 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 - [`tinarrative campaigns <path>...`](docs/commands/campaigns.md): list the campaigns
   that saves belong to, with the selector for `events --campaign`.
 - [`tinarrative councilors <path>...`](docs/commands/councilors.md): select a campaign's
-  notable councilors and write the dossier their articles are written from (a dry run, no
-  model involved).
+  notable councilors, write the dossier and one article request per councilor, and with
+  `--send` have a model write the neutral, public-perception articles.
 - [`tinarrative events <path> <path>...`](docs/commands/events.md): group saves
   (files, or directories read one level deep) by campaign, order one campaign's saves
   by game time and report the analyzer results (and, with

@@ -229,21 +229,40 @@ def assemble(
     return Assembly(history=history, manifest=_manifest(chapters, plan, generated, version, audit))
 
 
-def _header(chapters: Sequence[StoredChapter], plan: Mapping[str, Any], generated: datetime) -> str:
-    responses = [chapter.response for chapter in chapters]
+def provider_lines(responses: Sequence[Mapping[str, Any]]) -> list[str]:
+    """The header bullets naming the provider and the model as reported (and as requested when it differs)."""
     reported = _distinct(response.get("reported_model") or "not reported" for response in responses)
     requested = _distinct(str(response.get("model")) for response in responses)
     model = ", ".join(reported) + ("" if requested == reported else f" (requested {', '.join(requested)})")
+    return [
+        f"- Provider: {', '.join(_distinct(str(response.get('provider')) for response in responses))}",
+        f"- Model: {model}",
+    ]
+
+
+def sent_settings(responses: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Each ``SENT_WITH`` member as one value, or the list of distinct values when the responses differ."""
+    settings: dict[str, Any] = {}
+    for key in SENT_WITH:
+        values = list(dict.fromkeys(json.dumps(response.get(key)) for response in responses))
+        settings[key] = json.loads(values[0]) if len(values) == 1 else [json.loads(value) for value in values]
+    return settings
+
+
+def timestamp(moment: datetime) -> str:
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _header(chapters: Sequence[StoredChapter], plan: Mapping[str, Any], generated: datetime) -> str:
     covers = _covers(chapters)
     lines = [
         "# Campaign history",
         "",
-        f"- Provider: {', '.join(_distinct(str(response.get('provider')) for response in responses))}",
-        f"- Model: {model}",
+        *provider_lines([chapter.response for chapter in chapters]),
         f"- Prompt version: {plan.get('prompt_version')}",
         f"- Campaign: {_campaign(chapters) or 'unknown'}",
         f"- Period: {covers['from'][:10]} to {covers['to'][:10]}",
-        f"- Generated: {_timestamp(generated)}",
+        f"- Generated: {timestamp(generated)}",
     ]
     return "\n".join(lines)
 
@@ -255,11 +274,8 @@ def _manifest(
     version: str,
     audit: dict[str, Any],
 ) -> dict[str, Any]:
-    responses = [chapter.response for chapter in chapters]
     settings = {key: plan["settings"].get(key) for key in PLANNER_KEYS}
-    for key in SENT_WITH:
-        values = list(dict.fromkeys(json.dumps(response.get(key)) for response in responses))
-        settings[key] = json.loads(values[0]) if len(values) == 1 else [json.loads(value) for value in values]
+    settings.update(sent_settings([chapter.response for chapter in chapters]))
     entries = [
         {
             "index": chapter.index,
@@ -282,7 +298,7 @@ def _manifest(
     ]
     return {
         "program": {"name": "tinarrative", "version": version},
-        "generated": _timestamp(generated),
+        "generated": timestamp(generated),
         "prompt_version": plan.get("prompt_version"),
         "package_sha256": plan.get("package_sha256"),
         "campaign": _campaign(chapters),
@@ -331,10 +347,6 @@ def _campaign(chapters: Sequence[StoredChapter]) -> str | None:
 
 def _distinct(values: Iterable[str]) -> list[str]:
     return list(dict.fromkeys(values))
-
-
-def _timestamp(moment: datetime) -> str:
-    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _renumbered(body: str, numbers: Mapping[str, int]) -> str:

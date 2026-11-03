@@ -43,6 +43,7 @@ def _councilor(
         "orgs": tuple(org_ref(org) for org in orgs),
         "traitTemplateNames": ("Charming",),
         "typeTemplateName": "Operative",
+        "gender": "Female",
         "homeRegion": region_ref("40"),
     }
     fields.update(extra)
@@ -155,6 +156,28 @@ def test_portrait_facts() -> None:
     }
     assert entry["traits"] == ["Charming"]
     assert entry["orgs"][0]["category"] == "criminal"
+    assert entry["gender"] == "female"
+    assert entry["profession"] == "security contractor"
+
+
+def test_profession_is_plain_language_and_unknown_types_are_split_into_words() -> None:
+    snap = _world(
+        _councilor("100", "1", typeTemplateName="Spy"),
+        _councilor("101", "1", typeTemplateName="DeepSeaDiver"),
+        _councilor("102", "1", typeTemplateName=None),
+    )
+    assert [entry["profession"] for entry in _build(snap)["councilors"]] == [
+        "intelligence officer",
+        "deep sea diver",
+        None,
+    ]
+
+
+def test_gender_is_lowercased_and_the_saves_none_is_null() -> None:
+    snap = _world(_councilor("100", "1", gender="Male"), _councilor("101", "1", gender="None"))
+    first, second = _build(snap)["councilors"]
+    assert first["gender"] == "male"
+    assert second["gender"] is None
 
 
 def test_generated_org_category_comes_from_the_template() -> None:
@@ -236,9 +259,9 @@ def test_missions_are_player_only_and_counted_by_mission_and_target() -> None:
     assert "missions" not in rival
 
 
-def _event(event_type: str, councilor: str, date: str) -> Event:
+def _event(event_type: str, councilor: str, date: str, transition: str = "changed") -> Event:
     return Event(
-        id=f"{event_type}/councilor:{councilor}",
+        id=f"{event_type}/councilor:{councilor}@{date}",
         event_type=event_type,
         status=EventStatus.OBJECTIVE,
         confidence=Confidence.HIGH,
@@ -247,13 +270,14 @@ def _event(event_type: str, councilor: str, date: str) -> Event:
         not_before=None,
         sources=(),
         entities=(councilor_ref(councilor),),
-        attributes=(("transition", "changed"),),
+        attributes=(("transition", transition),),
     )
 
 
 def test_career_is_attributed_by_the_first_named_entity_and_limited_to_career_types() -> None:
     snap = _world(_councilor("100", "1"), _councilor("101", "1"))
     career = [
+        _event("councilor.faction_changed", "100", "2029-06-01T00:00:00", transition="set"),
         _event("councilor.faction_changed", "100", "2030-01-01T00:00:00"),
         _event("councilor.location_changed", "100", "2030-02-01T00:00:00"),
         _event("councilor.status_changed", "101", "2030-03-01T00:00:00"),

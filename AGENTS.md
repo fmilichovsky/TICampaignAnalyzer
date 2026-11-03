@@ -18,8 +18,8 @@ before touching the model or pipeline.
 - `src/tinarrative/inspection/` — `save inspect`; raw structure only, must not import `parsing`.
 - `src/tinarrative/maintenance/` — `unknowns`; maintains the registry in `docs/game-data-notes/unknowns/`
   (machine-written, never edited by hand).
-- `src/tinarrative/narrator/` — LLM request, chapters, providers, assembly; the system prompt is `prompt.md`
-  (the only copy). It reads the narrator package dict only and must not import `parsing`, `sequence` or `model`
+- `src/tinarrative/narrator/` — LLM request, chapters, providers, assembly, councilor articles; the system
+  prompts are `prompt.md` and `councilor_prompt.md` (the only copies). It reads the narrator package dict only and must not import `parsing`, `sequence` or `model`
   (a test enforces it). No test touches the network.
 - `tests/` — mirrors the package; fixtures in `tests/fixtures/`.
 - `docs/commands/` — one user-facing page per CLI command.

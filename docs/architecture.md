@@ -545,7 +545,9 @@ Defined in `src/tinarrative/rendering/markdown.py` and `rendering/json_report.py
 
 Councilor articles are kept apart from the campaign narrative: a deterministic dossier of selected councilors
 (player's, plus the most prominent of each rival faction) is the only input an article writer sees, and it never
-carries loyalty. Defined in `src/tinarrative/narrative/councilors.py`; `tinarrative councilors` builds it.
+carries loyalty. Defined in `src/tinarrative/narrative/councilors.py`; `tinarrative councilors` builds it. The
+articles are one model request per councilor, holding the dossier header and that entry, assembled with a manifest
+by `src/tinarrative/narrator/councilors.py`; the sending and reuse rules are those of 20.5 and 20.6.
 
 ## 13.1 Narrator input
 

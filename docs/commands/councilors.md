@@ -2,12 +2,16 @@
 
 ```
 tinarrative councilors <path> [<path>...] [--campaign <selector>] [--player-only] [--output <dir>] [--config <file>]
+                       [--send] [--force] [--profile <name>] [--provider anthropic|openai|openrouter|ollama]
+                       [--model <id>] [--base-url <url>] [--max-output-tokens <tokens>] [--temperature <t>]
 ```
 
-Selects the notable councilors of a campaign and builds the dossier a neutral, public-perception
-article about each would be written from. It is a dry run: it never contacts the network and never
-calls a model. Stdout gets a one-line summary per selected councilor, and `--output` writes
-`dossier.json`.
+Selects the notable councilors of a campaign, builds the dossier a neutral, public-perception
+article about each is written from, and builds one model request per councilor. Without `--send`
+it is a dry run: it never contacts the network and never calls a model. Stdout gets a one-line
+summary per selected councilor, and `--output` writes `dossier.json` and the requests. With
+`--send` the requests go to the configured provider and the answers are assembled into
+`councilors.md`, with the run record in `manifest.json`.
 
 ## Who is selected
 
@@ -32,7 +36,8 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
   councilors the other factions have not detected. `Loyalty` and `ApparentLoyalty` are never
   written.
 - **The career** (faction, detention, status and organization changes) comes from the events
-  between the saves. One save gives an empty career.
+  between the saves. One save gives an empty career. Recruitment from the unemployed pool is not a
+  career milestone: `recruited` dates it exactly, where the event could only date it to a save.
 - **Missions** are listed for the player's councilors only, as mission and target groups with their
   counts (`councilors.missions_per_councilor` of them, the most frequent first).
 
@@ -43,15 +48,60 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 | `PATH...` | | One save, or save files and directories of one campaign. |
 | `--campaign SELECTOR` | | The campaign to use when the saves hold several. |
 | `--player-only` | off | Select the player's councilors only. |
-| `--output DIR` | | Write `dossier.json` here; without it only the summary is printed. |
-| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file; the `[councilors]` keys are in [configuration](../configuration.md). |
+| `--output DIR` | | Write `dossier.json` and the requests here; without it only the summary is printed. |
+| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: the `[councilors]` selection keys and the `[narrator]` provider and profiles ([configuration](../configuration.md)). |
+| `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
+| `--force` | off | With `--send`, send every article again, even one with a matching stored response. |
+| `--profile NAME` | | Apply the settings profile `[narrator.profiles.NAME]`. |
+| `--provider`, `--model`, `--base-url`, `--max-output-tokens`, `--temperature` | | Override the `narrator` setting of the same name, as [`narrate`](narrate.md#provider-and-budget) does. |
+
+## Requests
+
+Each request holds the dossier header and one councilor's entry, with a request block naming the
+councilor, the faction and the length (`about <councilors.article_words> words`). The system
+prompt asks for an encyclopedia entry about the person's public standing: a lead, then background,
+career and public profile ([narrator](../narrator.md#councilor-articles)). The same dossier always
+gives the same request files, so a request can be reviewed, or run by hand against any model.
+
+## Sending
+
+**`--send` hands the dossier to the provider, a third party unless it runs on your machine**
+(Ollama, or an OpenAI-compatible server at a local `base_url`). The requests carry no file paths,
+but they do carry councilor, faction, nation and organization names.
+
+`--send` needs `--output DIR`, a provider and a model (there is no default model), and, for
+`anthropic`, `openrouter`, and for `openai` without a `base_url`, an `api_key_env` setting naming
+the environment variable that holds the API key. Anything missing is a usage error and nothing is
+contacted.
+
+Articles are sent in dossier order. An article whose stored response was made from the same
+request, provider and model is kept, not sent again; `--force` sends every article again. A failed
+request, or a completion cut off at the output limit or refused, skips that article only: the run
+goes on, the other articles are written, and the command exits 10 at the end. A rerun sends only
+the missing articles and reuses the stored responses.
 
 ## Output
 
+stdout gets the selection summary (as of the latest save, the player faction and, per councilor,
+the faction, player or rival, rank and tenure), then what was written. With `--send` it adds one
+line per article (`sent` or `kept`, with token counts) and names the articles file. With
+`--output DIR`, the command writes:
+
+```text
+DIR/
+  dossier.json       # the dossier
+  requests/01.json   # one request per councilor, in dossier order
+  responses/01.json  # with --send: one per completed article
+  councilors.md      # with --send: the articles
+  manifest.json      # with --send: the run record, written with councilors.md
+```
+
 `dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`
 and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
-carries identity, traits, the seven skills, age, home region and nation, recruitment date and
-tenure, organizations, prominence, career and, for the player's councilors, missions.
+carries identity, the profession in plain words (an intelligence officer, not the game's `Spy`),
+gender (`male`, `female` or `null`), traits, the seven skills, age, home region and nation,
+recruitment date and tenure, organizations, prominence, career and, for the player's councilors,
+missions.
 
 An organization entry names its nature: `origin` (`generated` or `real`), `category` and the
 `basis` of the category. A generated organization takes its category from its template (`template`).
@@ -61,20 +111,30 @@ categories are `research`, `security_intelligence`, `military`, `militant`, `aer
 `public_interest`, `commercial`, `engineering_industry`, `technology`, `mining_resources`,
 `media_influence`, `ngo`, `criminal`, `vigilante` and `other`. The raw `template` is kept for audit.
 
+`councilors.md` opens with a header naming the provider, the model as reported, the prompt
+version, the dossier date and the player faction, then one `##` section per faction, the player's
+first, with one `###` article per councilor. It carries no citations. An article that was not
+written is left out of it and listed in `manifest.json`, which records the prompt version, the
+dossier hash, the selection and provider settings and, per article, the request hash, whether it
+was written, the finish, the reason when it failed, and the token counts. When an article is
+missing, stderr gets one summary line.
+
 ## Exit codes
 
 | Code | When |
 | --- | --- |
-| 0 | The summary was printed and, with `--output`, the dossier was written. |
-| 2 | Usage error: the save input errors of `events` (several campaigns without `--campaign`, fewer than two usable saves among several inputs). |
+| 0 | The summary was printed and, with `--output`, the dossier and requests were written; with `--send`, every article was written. |
+| 2 | Usage error: the save input errors of `events` (several campaigns without `--campaign`, fewer than two usable saves among several inputs); `--force` without `--send`; an unknown `--profile` or an invalid override; `--send` without `--output`, provider, model or API key, or over the context window. |
 | 4 | A save cannot be read. |
 | 5 | A save is not a supported save. |
 | 8 | The settings file cannot be read or is not valid settings. |
-| 9 | `--output` cannot be written. |
+| 9 | `--output`, or the articles and manifest, cannot be written. |
+| 10 | `--send`: an article request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit or was refused. The other articles are written. |
 
 ## Examples
 
 ```sh
 tinarrative councilors saves/Protectorate00092.json
-tinarrative councilors saves/ --campaign protectorate --player-only --output dossier/
+tinarrative councilors saves/ --campaign protectorate --player-only --output profiles/
+tinarrative councilors saves/ --campaign latest --output profiles/ --send --profile local
 ```
