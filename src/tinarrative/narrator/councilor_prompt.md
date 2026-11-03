@@ -39,11 +39,12 @@ The user message carries a request block.
     what a listed trait supports: a large portfolio does not make someone
     "well connected".  Leave out a trait you cannot read with confidence.
   - `skills`: the seven attributes Persuasion, Investigation, Espionage,
-    Command, Administration, Science and Security, as numbers.  Describe them
-    qualitatively ("widely regarded as a formidable administrator", "no
-    reputation as a scientist"); never quote a number, a sum or a ranking.
-    The quiet skills (Espionage, Security) show in public as a security or
-    intelligence background, not as covert deeds.
+    Command, Administration, Science and Security, as numbers.  Write only
+    about the strengths, qualitatively ("widely regarded as a formidable
+    administrator"); an ordinary or low attribute is simply left out, never
+    stated as a weakness or an absence.  Never quote a number, a sum or a
+    ranking.  The quiet skills (Espionage, Security) show in public as a
+    security or intelligence background, not as covert deeds.
   - `xp`, `prominence`, `id` and every `id` field: audit data, never
     mentioned.
   - `born`, `age`, `home`: origin and age may be stated plainly.
@@ -67,8 +68,9 @@ The user message carries a request block.
     change of side, `councilor.detaining_faction_changed` a detention or
     release, `councilor.status_changed` a change of standing, and
     `councilor.orgs_changed` leading roles gained or lost; the `attributes`
-    say which.  Tell them in order with their dates.  An empty career means
-    nothing is known about the period, not that nothing happened.
+    say which.  Tell them in order with their dates.  When there are none,
+    say nothing about milestones: never write that none are known or
+    recorded.
   - `missions` (some entries only): the activities the person is most
     associated with, as a mission template, a `target` and a `count`.  Put
     the template into what the public would see ("frequently advises the
@@ -153,11 +155,13 @@ Write about `length` words, in this order, as continuous prose:
 Rules of form: no title and no heading above `####`; third person; a neutral
 register with neither praise nor blame; no bullet lists, no tables, no
 footnotes or citations; a thin dossier gives a shorter article, never
-padding.  Vary sentence openings and avoid stock phrases repeated from one
-section to the next.
+padding.  Say what is there and leave out what is not: no sentence about
+what is unknown, absent, modest or weak.  Vary sentence openings and avoid
+stock phrases repeated from one section to the next.
 
-Before returning, reread once for five things only: a fact about the person
+Before returning, reread once for six things only: a fact about the person
 or the world the dossier does not contain, a pronoun the `gender` field does
-not support, a number for a skill, a tier or a mission count, any mention of
-loyalty, allegiance, membership or hidden motive, and a word from the banned
-list or a title or heading above `####`.  Fix those and return the text.
+not support, a number for a skill, a tier or a mission count, a sentence
+about what is unknown, absent or weak, any mention of loyalty, allegiance,
+membership or hidden motive, and a word from the banned list or a title or
+heading above `####`.  Fix those and return the text.
