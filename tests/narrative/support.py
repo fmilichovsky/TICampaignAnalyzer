@@ -96,6 +96,26 @@ def atomic(
     )
 
 
+def unification(
+    key: str, gainer: EntityRef, absorbed: EntityRef, *, not_before: Observed, unifier: EntityRef | None = None
+) -> Event:
+    """The inferred reading of ``gainer`` absorbing ``absorbed`` in interval ``key``, as the reconstruction emits it."""
+    return atomic(
+        f"nation.unification/{gainer.entity_id}",
+        key,
+        not_before=not_before,
+        status=EventStatus.INFERRED,
+        significance=Significance.MAJOR,
+        entities=(gainer, absorbed, *((unifier,) if unifier is not None else ())),
+        attributes=(
+            ("unified", (absorbed,)),
+            ("unifying_faction", unifier),
+            ("bases", (FrozenMap((("nation", absorbed), ("basis", "federation"), ("federation", None))),)),
+            ("executive_since", None),
+        ),
+    )
+
+
 def situation(
     date: Observed,
     *,

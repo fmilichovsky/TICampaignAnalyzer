@@ -359,6 +359,7 @@ Geopolitics:
 | `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war |
 | `nation.release` / `nation.breakaway` | parent released N / N broke away under faction X |
 | `nation.cession` | N transferred regions to M without war (medium at most: a conquest without a war looks the same) |
+| `nation.merger` | N absorbed M1..Mk whole by unification under faction X, with what the merge did to both |
 | `nation.claims_declared` | N claims regions of M |
 | `nation.<statistic>_shift` | N moved into another of the game's bands of unrest, democracy, education, cohesion, inequality or military tech, and held it |
 | `nation.population_collapse` | N's population fell beyond what territory explains |
@@ -373,7 +374,9 @@ Geopolitics:
 
 Every geopolitical development carries `metric_shifts`: the statistic shifts of its nations inside its span,
 as context rather than constituents, so a takeover or merger states what it did to democracy, GDP and
-inequality without a separate event. A band shift is suppressed when such a development already carries it.
+inequality without a separate event. A band shift is suppressed when such a development already carries it. A
+merger goes further: in its interval, its nations' rank exits, arsenal, asset, population and control changes are
+part of it, and no other rule reports them.
 The only band labels assigned are the game's own (`analyzers/politics/bands.py`, provenance in [nation
 statistics](game-data-notes/nation-metrics.md#value-bands)); no label of ours ("democratic") is.
 

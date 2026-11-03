@@ -9,7 +9,18 @@ from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
+from ..analyzers.military.armies import APPEARED as ARMY_APPEARED
+from ..analyzers.military.armies import DEPLOYMENT_TYPE_CHANGED
+from ..analyzers.military.armies import DISAPPEARED as ARMY_DISAPPEARED
 from ..analyzers.politics.bands import BANDS, band
+from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
+from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
+from ..analyzers.politics.nation_economy import PCGDP_TREND
+from ..analyzers.politics.nation_population import POPULATION_CHANGED
+from ..analyzers.politics.nation_rank import RANK_CHANGED
+from ..analyzers.politics.nation_space import SPACE_ASSETS_CHANGED
+from ..analyzers.politics.nations import DISAPPEARED as NATION_DISAPPEARED
+from ..analyzers.politics.nations import RELATION_CHANGED, RENAMED
 from ..config import GeopoliticsSettings
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
@@ -17,6 +28,8 @@ from ..model.values import FieldValue, FrozenMap, Observed, Unknown
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
 from .rulekit import (
+    NATION_ARMIES_CHANGED,
+    army_home,
     by_subject,
     by_type,
     chained,
@@ -44,6 +57,7 @@ WAR_ARC = "war.arc"
 FEDERATION_LIFECYCLE = "federation.lifecycle"
 EXPANSION = "nation.expansion"
 CESSION = "nation.cession"
+MERGER = "nation.merger"
 RELEASE = "nation.release"
 BREAKAWAY = "nation.breakaway"
 CLAIMS_DECLARED = "nation.claims_declared"
@@ -73,6 +87,58 @@ READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
 """Rank ahead of any relative change when shifts are bounded: a shift from zero has no relative change but is the
 story."""
+MERGED_EITHER = frozenset({TERRITORY_GAINED, TERRITORY_LOST, RENAMED, SPACE_ASSETS_CHANGED})
+"""Events of either merged nation that the merger carries in its interval."""
+MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, POPULATION_CHANGED, PCGDP_TREND})
+"""Events of the absorbed nation only that the merger carries in its interval."""
+MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED})
+MERGED_ARMIES = frozenset({ARMY_APPEARED, ARMY_DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED})
+
+
+# --- Mergers -----------------------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class MergerParties:
+    """The nations of every ``nation.unification`` by interval: what a merger carries, no other rule reports."""
+
+    unifications: Mapping[tuple[EntityId, str], Event]
+
+    @classmethod
+    def of(cls, stream: Iterable[Event]) -> MergerParties:
+        found: dict[tuple[EntityId, str], Event] = {}
+        for event in by_type(stream, UNIFICATION):
+            key = interval_of(event.id)
+            for ref in (event.entities[0], *refs_attribute(event, "unified")):
+                found[(ref.entity_id, key)] = event
+        return cls(found)
+
+    def merged(self, nation: EntityRef | EntityId | None, event: Event) -> bool:
+        """Whether ``nation`` gained or was absorbed in ``event``'s interval."""
+        return self._unification(nation, event) is not None
+
+    def absorbed(self, nation: EntityRef | EntityId | None, event: Event) -> bool:
+        """Whether ``nation`` was absorbed in ``event``'s interval."""
+        found = self._unification(nation, event)
+        return found is not None and found.entities[0].entity_id != _id(nation)
+
+    def gainer(self, nation: EntityRef | EntityId | None, key: str) -> EntityRef | None:
+        """The nation that absorbed ``nation`` in interval ``key``."""
+        nation_id = _id(nation)
+        found = self.unifications.get((nation_id, key)) if nation_id is not None else None
+        if found is None or found.entities[0].entity_id == nation_id:
+            return None
+        return found.entities[0]
+
+    def _unification(self, nation: EntityRef | EntityId | None, event: Event) -> Event | None:
+        nation_id = _id(nation)
+        if nation_id is None or event.is_narrative:
+            return None
+        return self.unifications.get((nation_id, interval_of(event.id)))
+
+
+def _id(nation: EntityRef | EntityId | None) -> EntityId | None:
+    return nation.entity_id if isinstance(nation, EntityRef) else nation
 
 
 # --- Situation context -------------------------------------------------------------------------------------------
@@ -466,6 +532,7 @@ class FederationLifecycleRule:
         by_federation = by_subject(by_type(stream, *types))
         first = {item.federation.entity_id for item in situations[0].federations} if situations else set()
         reports = interval_reports(situations)
+        parties = MergerParties.of(stream)
         built = []
         for federation_id in sorted_keys(by_federation):
             events = sorted(by_federation[federation_id], key=event_order)
@@ -480,13 +547,7 @@ class FederationLifecycleRule:
             initial = unique_refs(_refs(listed[0].members)) if listed else ()
             final = unique_refs(_refs(listed[-1].members)) if listed else ()
             changes = tuple(
-                FrozenMap(
-                    (
-                        ("date", _literal(event.date)),
-                        ("nation", ref_attribute(event, "member")),
-                        ("transition", _literal(event.attribute("transition"))),
-                    )
-                )
+                _member_change(event, parties)
                 for event in events
                 if event.event_type == "federation.members_changed" and ref_attribute(event, "member") is not None
             )
@@ -514,6 +575,20 @@ class FederationLifecycleRule:
                 )
             )
         return built
+
+
+def _member_change(event: Event, parties: MergerParties) -> FrozenMap:
+    """A member that left by merging into another nation names it in ``merged_into``."""
+    member = ref_attribute(event, "member")
+    items: list[tuple[str, FieldValue]] = [
+        ("date", _literal(event.date)),
+        ("nation", member),
+        ("transition", _literal(event.attribute("transition"))),
+    ]
+    gainer = parties.gainer(member, interval_of(event.id)) if event.attribute("transition") == "removed" else None
+    if gainer is not None:
+        items.append(("merged_into", gainer))
+    return FrozenMap(tuple(items))
 
 
 @dataclass(frozen=True)
@@ -584,6 +659,87 @@ class CessionRule:
             significance=Significance.MAJOR,
             open=False,
         )
+
+
+@dataclass(frozen=True)
+class MergerRule:
+    """``nation.merger``: a nation absorbed others by unification, with what the merge did to both in that interval.
+
+    The absorbed nation's lost executive, control points, alliances and rank, and either nation's renaming, territory
+    and space assets, are the merger, not stories of their own; ``MergerParties`` keeps the other rules off them.
+    """
+
+    settings: GeopoliticsSettings
+    name: str = MERGER
+    order: int = 0
+    window_days: int | None = 0
+
+    def apply(
+        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+    ) -> list[Event]:
+        built = []
+        for anchor in sorted(by_type(stream, UNIFICATION), key=lambda event: event.id):
+            key = interval_of(anchor.id)
+            gainer, absorbed = anchor.entities[0], refs_attribute(anchor, "unified")
+            absorbed_ids = {ref.entity_id for ref in absorbed}
+            attached = [
+                event
+                for event in stream
+                if event is not anchor
+                and not event.is_narrative
+                and interval_of(event.id) == key
+                and _carried_by_merger(event, gainer.entity_id, absorbed_ids)
+            ]
+            regions = unique_refs(
+                region
+                for event in attached
+                if event.event_type == TERRITORY_LOST and subject_id(event) in absorbed_ids
+                for region in refs_attribute(event, "regions")
+            )
+            roles = [
+                (Role.ACTOR, gainer),
+                *((Role.TARGET, ref) for ref in absorbed),
+                *((Role.LOCATION, region) for region in regions),
+            ]
+            shifts = metric_shifts(stream, [gainer.entity_id, *absorbed_ids], [key])
+            built.append(
+                build.event(
+                    MERGER,
+                    id_parts=[gainer.entity_id],
+                    constituents=[anchor, *attached],
+                    roles=roles,
+                    join=Join.ENTITY,
+                    attributes=(
+                        ("absorbed", absorbed),
+                        ("regions", regions),
+                        ("region_count", len(regions)),
+                        ("unifying_faction", anchor.attribute("unifying_faction")),
+                        ("bases", anchor.attribute("bases")),
+                        ("executive_since", anchor.attribute("executive_since")),
+                        *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
+                    ),
+                    significance=Significance.MAJOR,
+                    open=False,
+                )
+            )
+        return built
+
+
+def _carried_by_merger(event: Event, gainer: EntityId, absorbed: Collection[EntityId]) -> bool:
+    nation = subject_id(event)
+    if event.event_type in MERGED_EITHER:
+        return nation == gainer or nation in absorbed
+    if event.event_type in MERGED_ABSORBED:
+        return nation in absorbed
+    if event.event_type in MERGED_POINTS:
+        point_nation = entity_of(event, EntityDomain.NATION)
+        return point_nation is not None and point_nation.entity_id in absorbed
+    if event.event_type == RELATION_CHANGED:
+        return any(ref.entity_id in absorbed for ref in event.entities)
+    if event.event_type in MERGED_ARMIES:
+        home = army_home(event)
+        return home is not None and home.entity_id in absorbed
+    return False
 
 
 def _readings(stream: Iterable[Event]) -> set[tuple[EntityId, str]]:
@@ -735,14 +891,14 @@ class ExpansionRule:
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
         explained = _readings(stream)
-        cessions = [event for event in stream if event.event_type == CESSION]
-        covered = {constituent for event in cessions for constituent in event.constituents}
+        nested = [event for event in stream if event.event_type in (CESSION, MERGER)]
+        covered = {constituent for event in nested for constituent in event.constituents}
         gains: dict[EntityId, list[Event]] = defaultdict(list)
-        for event in by_type(stream, UNIFICATION, ANNEXATION):
+        for event in by_type(stream, ANNEXATION):
             key = subject_id(event)
             if key is not None:
                 gains[key].append(event)
-        for event in cessions:
+        for event in nested:
             gains[_gainer(event).entity_id].append(event)
         aggregates = by_subject(by_type(stream, TERRITORY_GAINED))
         for gainer_id, events in aggregates.items():
@@ -782,15 +938,16 @@ class ExpansionRule:
                 or (event.event_type == "nation.renamed" and subject_id(event) == gainer.entity_id)
             )
             and overlaps(event, start, end)
+            and event.id not in inside
         ]
         constituents = [*run, *(event for event in territory if event not in run), *attached]
         regions = unique_refs(region for event in (*run, *territory) for region in refs_attribute(event, "regions"))
         kinds = {gain.event_type for gain in run}
-        readings = kinds & {UNIFICATION, ANNEXATION}
+        readings = kinds & {MERGER, ANNEXATION}
         mode = None
         if readings:
             mode = (
-                ("unification" if readings == {UNIFICATION} else "annexation")
+                ("unification" if readings == {MERGER} else "annexation")
                 if kinds == readings and len(readings) == 1
                 else "mixed"
             )
@@ -815,14 +972,14 @@ class ExpansionRule:
 
 
 def _gainer(gain: Event) -> EntityRef:
-    if gain.is_narrative:
+    if gain.event_type == CESSION:
         return next(ref for role, ref in gain.roles if role is Role.BENEFICIARY)
     return gain.entities[0]
 
 
 def _losers(gain: Event) -> tuple[EntityRef, ...]:
-    if gain.event_type == UNIFICATION:
-        return refs_attribute(gain, "unified")
+    if gain.event_type == MERGER:
+        return refs_attribute(gain, "absorbed")
     if gain.event_type == ANNEXATION:
         return tuple(ref for ref in gain.entities[1:2] if ref.entity_id.domain is EntityDomain.NATION)
     if gain.event_type == CESSION:
@@ -1007,6 +1164,7 @@ def geopolitical_rules(
     TakeoverRule,
     FederationLifecycleRule,
     CessionRule,
+    MergerRule,
     IndependenceRule,
     ClaimsDeclaredRule,
     ExpansionRule,
@@ -1016,6 +1174,7 @@ def geopolitical_rules(
         TakeoverRule(settings),
         FederationLifecycleRule(settings),
         CessionRule(settings),
+        MergerRule(settings),
         IndependenceRule(settings),
         ClaimsDeclaredRule(settings),
         ExpansionRule(settings),

@@ -1,7 +1,7 @@
 """Territorial reconstruction rules: territory gained/lost, independence, unification, annexation.
 
-The tracker reasons and records each rule reads are in ``docs/game-data-notes/higher-level-event-sources.md``.
-Territory events aggregate a nation's region transfers (high with a territory tracker reason, else medium); the
+The evidence each rule reads (tracker reasons, records, the game's unification conditions) is in
+``docs/game-data-notes/higher-level-event-sources.md``. Territory events aggregate a nation's region transfers; the
 interpretations of one gainer compete, and when more than one fits, every candidate is lowered one level, marked
 ``ambiguous`` and names the others in ``alternatives``.
 """
@@ -13,11 +13,16 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
 from ..analyzers.common import ChangeIndex, EventBuilder, Lookup, Side, event_id
+from ..analyzers.politics.control_points import CONTROLLER_CHANGED
+from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
+from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
+from ..analyzers.politics.federations import MEMBERS_CHANGED
 from ..analyzers.politics.nation_metrics import STATISTIC_SHIFTED, TRACKERS, cause_deltas
 from ..analyzers.politics.nations import (
     BREAKAWAY_PARENT_CHANGED,
     DISAPPEARED,
     EXECUTIVE_CHANGE_RECORDED,
+    EXECUTIVE_FIELD,
     REGION_NATION_CHANGED,
     RELATION_CHANGED,
 )
@@ -25,9 +30,10 @@ from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, side_members
 from ..model.changes import StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event, EventStatus
+from ..model.records import KeyedEntry
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown
-from .common import Support, executive_seat, inferred, lower
+from .common import Support, control_points, executive_seat, inferred, lower
 
 TERRITORY_GAINED = "nation.territory_gained"
 TERRITORY_LOST = "nation.territory_lost"
@@ -53,9 +59,13 @@ ANNEXATION_FIELDS = ("isBeingAnnexed", "annexingArmy")
 """Region fields that track an annexation in progress; left in the diff by every analyzer."""
 WAR_PREFIX = "war."
 WAR_RELATION = "wars"
-MIN_UNIFIED = 2
-"""Nations giving up every region to one gainer that make a unification; with one, a release or plain conquest
-looks the same."""
+FEDERATION_BASIS = "federation"
+BREAKAWAY_BASIS = "breakaway"
+"""Why the game let the two nations unify: a shared federation, or the absorbed nation broke away from the gainer."""
+UNIFICATION_SUPPORT_TYPES = frozenset(
+    {MEMBERS_CHANGED, BREAKAWAY_PARENT_CHANGED, CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED}
+)
+"""Objective events about an absorbed nation that corroborate its unification."""
 
 _TRACKER_STATISTICS = {tracker: statistic for statistic, tracker in TRACKERS.items()}
 
@@ -339,14 +349,27 @@ def _releaser(context: Context, gainer: EntityId, transfers: Sequence[Transfer])
 
 
 def _unification(context: Context, gainer: EntityId, transfers: Sequence[Transfer]) -> list[Event]:
+    """The game's conditions, read from the earlier snapshot: one faction holds every control point of the absorbed
+    nation and the gainer's executive seat, and the two share a federation or the absorbed nation broke away from the
+    gainer. Every region of the absorbed nation went to the gainer.
+    """
+    faction = _executive_holder(context, gainer)
+    if faction is None:
+        return []
     whole: list[EntityId] = []
+    bases: dict[EntityId, FrozenMap] = {}
     support = Support()
     for loser in dict.fromkeys(transfer.loser for transfer in transfers):
         emptied = context.region_less_after(loser)
-        if emptied is not None:
-            whole.append(loser)
-            support += emptied
-    if len(whole) < MIN_UNIFIED:
+        if emptied is None or context.gainers_of[loser] != {gainer} or not _holds_all(context, loser, faction):
+            continue
+        basis = _unification_basis(context, gainer, loser)
+        if basis is None:
+            continue
+        whole.append(loser)
+        bases[loser] = basis
+        support += emptied + Support(events=_unification_support(context, loser))
+    if not whole:
         return []
     unified = _unique_refs(context, whole)
     return [
@@ -356,11 +379,91 @@ def _unification(context: Context, gainer: EntityId, transfers: Sequence[Transfe
             id_parts=(gainer,),
             transfers=[transfer for transfer in transfers if transfer.loser in whole],
             support=support,
-            entities=(context.ref(gainer), *unified),
-            attributes=(("unified", unified),),
-            confidence=Confidence.MEDIUM,
+            entities=(context.ref(gainer), *unified, context.lookup.resolve(faction) or faction),
+            attributes=(
+                ("unified", unified),
+                ("unifying_faction", context.lookup.resolve(faction) or faction),
+                ("bases", tuple(bases[key] for key in sorted(bases, key=lambda entity_id: entity_id.sort_key))),
+                ("executive_since", _executive_since(context, gainer, faction)),
+            ),
+            confidence=Confidence.HIGH,
         )
     ]
+
+
+def _faction_of(state_faction: Observed) -> EntityRef | None:
+    if isinstance(state_faction, EntityRef) and state_faction.entity_id.domain is EntityDomain.FACTION:
+        return state_faction
+    return None
+
+
+def _executive_holder(context: Context, nation: EntityId) -> EntityRef | None:
+    seat = executive_seat(context.lookup, nation, Side.BEFORE)
+    return _faction_of(seat.state.get("faction")) if seat is not None else None
+
+
+def _holds_all(context: Context, nation: EntityId, faction: EntityRef) -> bool:
+    """``faction`` holds the nation's executive seat and every one of its control points in the earlier snapshot."""
+    holder = _executive_holder(context, nation)
+    points = control_points(context.lookup, nation, Side.BEFORE)
+    if holder is None or holder.entity_id != faction.entity_id or not points:
+        return False
+    for point in points:
+        state = context.lookup.state(point.entity_id, Side.BEFORE)
+        held = _faction_of(state.get("faction")) if state is not None else None
+        if held is None or held.entity_id != faction.entity_id:
+            return False
+    return True
+
+
+def _unification_basis(context: Context, gainer: EntityId, loser: EntityId) -> FrozenMap | None:
+    loser_state = context.lookup.state(loser, Side.BEFORE)
+    gainer_state = context.lookup.state(gainer, Side.BEFORE)
+    if loser_state is None or gainer_state is None:
+        return None
+    federation, shared = loser_state.get("federation"), gainer_state.get("federation")
+    if isinstance(federation, EntityRef) and isinstance(shared, EntityRef) and federation.entity_id == shared.entity_id:
+        resolved = context.lookup.resolve(federation) or federation
+        return FrozenMap((("nation", context.ref(loser)), ("basis", FEDERATION_BASIS), ("federation", resolved)))
+    parent = loser_state.get("breakawayParent")
+    if isinstance(parent, EntityRef) and parent.entity_id == gainer:
+        return FrozenMap((("nation", context.ref(loser)), ("basis", BREAKAWAY_BASIS), ("federation", None)))
+    return None
+
+
+def _unification_support(context: Context, loser: EntityId) -> tuple[Event, ...]:
+    """The absorbed nation's federation exit, breakaway link change and control point changes of the interval."""
+    found = []
+    for event in context.events:
+        if event.event_type not in UNIFICATION_SUPPORT_TYPES:
+            continue
+        if event.event_type == MEMBERS_CHANGED:
+            member = event.attribute("member")
+            if (
+                isinstance(member, EntityRef)
+                and member.entity_id == loser
+                and event.attribute("transition") == "removed"
+            ):
+                found.append(event)
+        elif event.event_type == BREAKAWAY_PARENT_CHANGED:
+            if event.entities and event.entities[0].entity_id == loser:
+                found.append(event)
+        elif any(ref.entity_id == loser for ref in event.entities[1:]):
+            found.append(event)
+    return tuple(found)
+
+
+def _executive_since(context: Context, nation: EntityId, faction: EntityRef) -> Observed:
+    """The date of the nation's last executive change when it names ``faction``; ``None`` otherwise."""
+    record = context.lookup.record_set(nation, EXECUTIVE_FIELD, Side.BEFORE)
+    if record is None or isinstance(record.entries, Unknown):
+        return None
+    values = {entry.key: entry.value for entry in record.entries if isinstance(entry, KeyedEntry)}
+    holder = values.get("newExecutive")
+    if not isinstance(holder, EntityRef) or holder.entity_id != faction.entity_id:
+        return None
+    date = values.get("date")
+    return date if isinstance(date, str) else None
 
 
 def _annexations(context: Context, gainer: EntityId, transfers: Sequence[Transfer]) -> list[Event]:

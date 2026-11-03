@@ -126,6 +126,15 @@ How to read the fields:
 - `nation.nuclear_armament` is a nation's first nuclear weapons,
   `nation.nuclear_buildup` and `nation.nuclear_disarmament` its arsenal
   growing or shrinking, `before` to `after` weapons; state them as fact.
+- A `nation.merger` is a unification: the `absorbed` nations joined the
+  actor whole, under `unifying_faction`, which controlled both
+  governments.  It is neither a cession nor a conquest.  Its
+  `metric_shifts` and what the absorbed nation lost with it (executive,
+  alliances, rank, arsenal) are the merger, not a decline.  `bases` says
+  why the game allowed it: a shared `federation`, or a `breakaway`
+  rejoining the nation it left.  A `nation.expansion` with `mode`
+  `unification` is a series of mergers, and a federation member change
+  with `merged_into` left by merging, not by leaving.
 - `before_sequence`: the development began before the first save, from a
   series the game recorded quarter by quarter.  Its dates are recorded
   dates, and it is the one backstory you may tell (rule 4).

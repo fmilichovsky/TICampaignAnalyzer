@@ -328,6 +328,39 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   parent, `breakaways` lost the released nation and a `hostileClaims` entry on the moved region was cleared. No
   `policy_*` field and no notification entry added in the interval named the release (*hypothesis:* the game
   logs it as `LogIndependence`, a template seen only in `panelSummaryQueue`).
+- **Unifications** (observed 2026-11-03, the Protectorate saves up to 2028-06 and the Resist saves; four cases:
+  three nations absorbed by the European Union, formerly France, in Protectorate and one by the United States in
+  Resist; structure and counts only). *Published* (Terra Invicta wiki, transcribed 2026-11-03): a faction can
+  unify a nation into another when it holds every control point of the absorbed nation, holds a consolidated
+  executive in the absorbing nation, and the two share a federation or the absorbed nation is a breakaway of the
+  absorbing one; the executive is consolidated once it has been held for 365 days.
+  - *Conditions in the saves.* In all four cases, in the save before the merge, one faction held every control
+    point of the absorbed nation and the absorbing nation's `Executive` point. The three Protectorate pairs shared
+    a `federation`; in Resist the absorbed nation's `breakawayParent` was the absorbing nation. The absorbing
+    nation's other control points do not matter: in Resist one of them was held by another faction before and
+    after.
+  - *Tenure is not visible.* The absorbing nation's `lastExecutiveChange` named the unifying faction in all four
+    cases, but in two it was dated less than 365 days before the later save (at most 337 and 188 days), and no
+    control point field dates when its controller took it. *Hypothesis:* `lastExecutiveChange` is rewritten by
+    events that keep the controller, so it does not date the tenure.
+  - *`LogControlConsolidated`* ("has consolidated executive control in ...") names a nation in its
+    `gotoGameState`; for all 21 entries in one later Protectorate save the logging faction held every control
+    point of that nation in that save. It was not checked whether the log fires on consolidation by tenure.
+  - *Outcome.* Every region of the absorbed nation went to the absorbing nation in one interval. The absorbed
+    nation stays in the save with an empty `regions` list (no `nation.disappeared`), `federation` `null`, and empty
+    `allies`, `rivals` and `adjacentNations`. Its `Executive` control point disappears and its other points keep
+    existing with `faction` `null`. One absorbed nation was renamed (United Kingdom to England) and one absorbing
+    nation (France to European Union) in the interval of their merger. The absorbing nation's trackers moved under
+    `*Reason_Annexation` and `*RegionTransfer`, as on every territory gain, so no tracker reason marks a
+    unification. The absorbed nation's arsenal (`numNuclearWeapons`), armies and space assets moved to the
+    absorbing nation in the same interval.
+  - *Not unifications.* The 18 other nations that left the European Union's federation in Protectorate lost no
+    region in the interval they left.
+
+  Implemented as the unification rule of `reconstruction/territorial.py` (holder only, `executive_since` as
+  context) and the `nation.merger` rule of `narrative/geopolitics.py`, which carries the merged nations' side
+  effects. Of the 4 Resist cessions under the narrative rules below, the one that emptied its nation is now this
+  `nation.merger`.
 - **Metric shift magnitudes** (observed 2026-10-18, six private saves of the two campaigns, intervals of 7,
   21, 28, 92 and 113 days, aggregate counts only). Nations with an empty `regions` list (242 of 295 on the
   older build, 121 of 295 on the newer) changed no statistic and no `publicOpinion` share in any interval.
@@ -479,19 +512,6 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
     release, cession or takeover in the same interval, which already carries the shifts. The
     rules built 2 standalone transformations, one of them spanning two intervals. Appease had no
     shifts of these statistics.
-
-  Implemented as the rules of `narrative/geopolitics.py`. Under the defaults the rules build:
-
-  | Rule | Resist | Appease |
-  | --- | --- | --- |
-  | `faction.takeover` | 6 | 32 |
-  | `war.arc` | 1 | 1 |
-  | `federation.lifecycle` | 1 | 0 |
-  | `nation.expansion` | 1 (of 2 cessions) | 0 |
-  | `nation.cession` | 4 | 0 |
-  | `nation.release` | 2 | 0 |
-  | `nation.claims_declared` | 0 | 0 |
-  | `nation.transformation` | 2 | 0 |
 
 - **Narrative rules (space)** (observed 2026-10-20 for the template names, from the latest older save;
   the other counts are the space observations of 2026-10-18 above; evidence for the space narrative

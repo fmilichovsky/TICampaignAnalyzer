@@ -121,6 +121,16 @@ def entity_of(event: Event, domain: EntityDomain) -> EntityRef | None:
     return next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
 
 
+NATION_ARMIES_CHANGED = "nation.armies_changed"
+
+
+def army_home(event: Event) -> EntityRef | None:
+    """The nation an army event belongs to: the subject of a nation's army list change, else the army's home."""
+    if event.event_type == NATION_ARMIES_CHANGED:
+        return subject(event)
+    return ref_attribute(event, "home_nation")
+
+
 def unique_refs(refs: Iterable[EntityRef]) -> tuple[EntityRef, ...]:
     """The first seen keeps its name."""
     seen: dict[EntityId, EntityRef] = {}
