@@ -69,6 +69,20 @@ nuclear_buildup_min = 5
 # this many spaceports.
 ranking_top_n = 10
 
+[councilors]
+# The most prominent councilors of each other human faction that join the
+# player's councilors in the dossier of tinarrative councilors.
+rivals_per_faction = 2
+
+# A councilor is selected only after being employed this many game days.
+min_tenure_days = 365
+
+# A player councilor's dossier keeps this many mission and target groups.
+missions_per_councilor = 3
+
+# The article length carried in the dossier header (minimum 1).
+article_words = 250
+
 [narrator]
 # The budget of tinarrative narrate; it never changes what events builds. 
 # One request's estimated input, system prompt, request block

@@ -541,6 +541,12 @@ conceptually:
 
 Defined in `src/tinarrative/rendering/markdown.py` and `rendering/json_report.py`.
 
+### Councilor dossier
+
+Councilor articles are kept apart from the campaign narrative: a deterministic dossier of selected councilors
+(player's, plus the most prominent of each rival faction) is the only input an article writer sees, and it never
+carries loyalty. Defined in `src/tinarrative/narrative/councilors.py`; `tinarrative councilors` builds it.
+
 ## 13.1 Narrator input
 
 The product handed to an LLM, or to a reader who wants the facts without prose, is a *narrator package*, built

@@ -74,7 +74,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [ ] Narrator length and recall by score (#201).
 - [ ] Councilor profiles (#222):
   - [x] Missions and councilor dates (#228).
-  - [ ] Dossier and dry run (#229).
+  - [x] Dossier and dry run (#229).
   - [ ] LLM articles (#230).
 
 ## CLI user experience

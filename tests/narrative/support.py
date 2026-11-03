@@ -244,3 +244,13 @@ class CitingRule:
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
         return [build.event("test.citing", id_parts=[self.name], constituents=self.cites, roles=(), join=Join.ENTITY)]
+
+
+def loyalty_keys(document: object) -> list[str]:
+    """The keys of a JSON document that name loyalty; a value may (the ``LoyaltyMonitor`` augment is a trait)."""
+    if isinstance(document, Mapping):
+        own = [str(key) for key in document if "loyalty" in str(key).lower()]
+        return own + [key for value in document.values() for key in loyalty_keys(value)]
+    if isinstance(document, list):
+        return [key for item in document for key in loyalty_keys(item)]
+    return []

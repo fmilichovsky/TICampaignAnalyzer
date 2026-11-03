@@ -159,9 +159,24 @@ class NarratorSettings:
 
 
 @dataclass(frozen=True)
+class CouncilorSettings:
+    """Selection and size of the councilor dossier of ``tinarrative councilors`` (``councilors``)."""
+
+    rivals_per_faction: int = _int(2, 0)
+    """The most prominent councilors of each other human faction that join the player's councilors."""
+    min_tenure_days: int = _int(365, 0)
+    """A councilor is selected only after being employed this many game days."""
+    missions_per_councilor: int = _int(3, 0)
+    """A player councilor's dossier keeps this many mission and target groups, the most frequent first."""
+    article_words: int = _int(250, 1)
+    """The length an article is asked to have; carried in the dossier header for the article writer."""
+
+
+@dataclass(frozen=True)
 class Settings:
     narrative: NarrativeSettings = field(default_factory=NarrativeSettings)
     narrator: NarratorSettings = field(default_factory=NarratorSettings)
+    councilors: CouncilorSettings = field(default_factory=CouncilorSettings)
 
     def to_dict(self) -> dict[str, Any]:
         """The settings as nested tables; unset (``None``) keys are left out."""

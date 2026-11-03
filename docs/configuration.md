@@ -68,6 +68,15 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.nation_metrics.nuclear_buildup_min` | 5 | 1 | A `nation.nuclear_buildup` gains at least this many weapons, or half the arsenal it started from. |
 | `narrative.nation_metrics.ranking_top_n` | 10 | 1 | `world.ranking_changed` reports nations entering or leaving the top this many by GDP, strength, boost or mission control; `nation.space_program_growth` is `major` when its nation enters that top by boost or mission control, and each situation report lists this many `spaceports`. Values above 20, the places `nation.rank_changed` reports, count as 20. |
 
+The `councilors` keys ([councilors](commands/councilors.md)):
+
+| Key | Default | Minimum | Meaning |
+| --- | --- | --- | --- |
+| `councilors.rivals_per_faction` | 2 | 0 | The most prominent councilors of each other human faction that join the player's councilors in the dossier. |
+| `councilors.min_tenure_days` | 365 | 0 | A councilor is selected only after being employed this many game days. |
+| `councilors.missions_per_councilor` | 3 | 0 | A player councilor's dossier keeps this many mission and target groups, the most frequent first. |
+| `councilors.article_words` | 250 | 1 | The article length carried in the dossier header for the article writer. |
+
 The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](architecture.md#203-token-budget-and-chapters)):
 
 | Key | Default | Minimum | Meaning |

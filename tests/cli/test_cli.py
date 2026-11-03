@@ -58,6 +58,7 @@ class CliSkeletonTests(unittest.TestCase):
             ["save", "diff"],
             ["unknowns"],
             ["events"],
+            ["councilors"],
             ["narrate"],
             ["campaigns"],
         ):
@@ -66,10 +67,12 @@ class CliSkeletonTests(unittest.TestCase):
                     main([*command, "--help"])
             self.assertEqual(result.exception.code, EXIT_SUCCESS)
 
-    def test_top_level_lists_campaigns_events_narrate_save_and_unknowns(self) -> None:
+    def test_top_level_lists_every_command(self) -> None:
         with redirect_stdout(StringIO()) as out, self.assertRaises(SystemExit):
             main(["--help"])
-        self.assertEqual(listed_commands(out.getvalue()), ["campaigns", "events", "narrate", "save", "unknowns"])
+        self.assertEqual(
+            listed_commands(out.getvalue()), ["campaigns", "councilors", "events", "narrate", "save", "unknowns"]
+        )
 
     def test_save_group_lists_inspect_parse_and_diff(self) -> None:
         with redirect_stdout(StringIO()) as out, self.assertRaises(SystemExit):

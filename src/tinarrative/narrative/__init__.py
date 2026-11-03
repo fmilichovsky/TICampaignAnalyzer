@@ -2,6 +2,7 @@
 
 from .aggregation import Join, NarrativeBuilder, NarrativeRule, aggregate
 from .catalogue import NARRATIVE_RULES, narrative_rules
+from .councilors import build_dossier
 from .significance import assign_significance, significance_of
 from .situation import SituationReport, build_situation
 
@@ -13,6 +14,7 @@ __all__ = [
     "SituationReport",
     "aggregate",
     "assign_significance",
+    "build_dossier",
     "build_situation",
     "narrative_rules",
     "significance_of",
