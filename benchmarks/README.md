@@ -11,8 +11,9 @@ benchmarks/
   config.toml                    # the settings file every run is given: empty, so the code's defaults apply
 ```
 
-The tool is [`scripts/package_metrics.py`](../scripts/package_metrics.py). It never imports `tinarrative`: it runs the
-commands with the interpreter it is given (`--python`) and reads their output, so the same copy measures any revision.
+The tool is `tinarrative benchmark metrics`. Its CLI code runs from the current checkout; it runs `events` and
+`narrate` with the interpreter it is given (`--python`) and reads their output, so the same checkout can measure any
+revision. Progress is shown as one aggregate terminal line while campaigns continue to print their completed run trees.
 
 ## What is measured
 
@@ -46,7 +47,7 @@ the estimates with each other, not with a provider's bill.
 ## On pull requests
 
 [`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml) installs the pull request's base and
-head into two virtual environments and measures both with the head's script, samples, matrix and settings. It posts
+head into two virtual environments and measures both with the head checkout's CLI, samples, matrix and settings. It posts
 `compare`'s report as one comment, which every later push edits, and writes the report to the job summary. It
 uploads both sides' outputs as the `package-metrics` artifact, kept 14 days, so any package or request can be diffed
 locally. The check never fails because a size changed.
@@ -73,9 +74,9 @@ To compare with another revision, install that revision into its own environment
 ```sh
 git worktree add ../tinarrative-main main
 python3 -m venv ../tinarrative-main/.venv && ../tinarrative-main/.venv/bin/python -m pip install -q ../tinarrative-main
-.venv/bin/python scripts/package_metrics.py measure --python ../tinarrative-main/.venv/bin/python \
+    .venv/bin/python -m tinarrative.cli benchmark metrics measure --python ../tinarrative-main/.venv/bin/python \
     --out build/package-metrics-main --label main
-.venv/bin/python scripts/package_metrics.py compare build/package-metrics-main/metrics.json \
+.venv/bin/python -m tinarrative.cli benchmark metrics compare build/package-metrics-main/metrics.json \
     build/package-metrics/metrics.json --out build/package-metrics/report.md
 ```
 
@@ -118,7 +119,7 @@ add or refresh a campaign manually:
 3. Run `tinarrative benchmark sample <campaign> <save-directory>` (or list the selected save files). Supply
    `--description` to write the campaign description; otherwise add one to `samples.json` if it is missing.
 4. Review the campaign's runs in `matrix.toml` and add entries where needed. Run
-   `python scripts/package_metrics.py samples` until it reports nothing.
+   `tinarrative benchmark metrics samples` until it reports nothing.
 
 A pull request that changes the samples or the matrix measures both sides with the new ones, so its report compares
 code only. The next pull requests measure against the new samples from then on.

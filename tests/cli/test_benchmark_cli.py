@@ -6,9 +6,9 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from scripts.package_metrics import verify_samples
 from tests.fixtures import fixture_path
 from tinarrative import cli
+from tinarrative.benchmarking.manifest import verify_samples
 
 
 def run_cli(argv: list[str]) -> tuple[int, str, str]:
@@ -116,3 +116,13 @@ def test_progress_tracker_reports_phase_filename_and_count_only_on_tty(monkeypat
     tracker = cli._ProgressTracker("benchmark sample", 3)
     tracker.update("Compressing saves", 2, 3, "save.json")
     assert plain.getvalue() == ""
+    tracker.advance("Measuring runs", 1)
+    assert plain.getvalue() == ""
+
+
+def test_metrics_defaults_resolve_from_the_working_directory() -> None:
+    args = cli.build_parser().parse_args(["benchmark", "metrics", "measure", "--out", "out"])
+
+    assert args.samples == Path.cwd() / "benchmarks" / "samples"
+    assert args.matrix == Path.cwd() / "benchmarks" / "matrix.toml"
+    assert args.config == Path.cwd() / "benchmarks" / "config.toml"

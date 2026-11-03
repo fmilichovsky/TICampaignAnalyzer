@@ -16,8 +16,8 @@ from ..grouping import CampaignGroup, group_saves
 from ..io.save_discovery import SaveInput, expand_inputs
 from ..parsing.errors import SaveLoadError
 from ..sequence import SaveRef, SkippedSave, survey
+from .manifest import MANIFEST
 
-MANIFEST = "samples.json"
 DEFAULT_MAX_FILE_BYTES = 5_000_000
 CHUNK_BYTES = 1 << 20
 
