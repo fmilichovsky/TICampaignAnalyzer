@@ -352,12 +352,43 @@ def _survey_found(command: str, item: SaveInput) -> SaveRef | SkippedSave:
     return SkippedSave(str(item.path), error_class, reason)
 
 
-def _survey_inputs(command: str, inputs: Sequence[SaveInput]) -> tuple[list[SaveRef], list[SkippedSave]] | int:
+class _ProgressTracker:
+    """Show save work on one terminal line and report its total elapsed time on stderr."""
+
+    def __init__(self, command: str, total: int) -> None:
+        self.command = command
+        self.total = total
+        self.started = time.perf_counter()
+        self.terminal = sys.stderr.isatty()
+        self.width = 0
+
+    def update(self, phase: str, completed: int, total: int | None = None) -> None:
+        if not self.terminal:
+            return
+        count = self.total if total is None else total
+        label = f"tinarrative {self.command}: {phase} {completed}/{count}"
+        sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
+        sys.stderr.flush()
+        self.width = len(label)
+
+    def finish(self) -> None:
+        elapsed = time.perf_counter() - self.started
+        if self.terminal:
+            sys.stderr.write("\r" + " " * self.width + "\r")
+        sys.stderr.write(f"tinarrative {self.command}: parsing and processing took {elapsed:.1f}s\n")
+        sys.stderr.flush()
+
+
+def _survey_inputs(
+    command: str, inputs: Sequence[SaveInput], progress: _ProgressTracker | None = None
+) -> tuple[list[SaveRef], list[SkippedSave]] | int:
     """Survey every input; only a path named on the command line can fail the run (exit 4 beats nothing found)."""
     surveyed: list[SaveRef] = []
     skipped: list[SkippedSave] = []
     usable: dict[Path, int] = {}
-    for item in inputs:
+    for index, item in enumerate(inputs, start=1):
+        if progress is not None:
+            progress.update("Parsing saves", index)
         if item.empty_directory:
             print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
             return EXIT_INPUT_ERROR
@@ -437,8 +468,10 @@ def _run_saves(
         print(f"tinarrative {command}: at least two saves are required", file=sys.stderr)
         return EXIT_USAGE_ERROR
     logger.info("%s start %s", command, fields(inputs=len(paths), candidates=len(inputs)))
-    outcome = _survey_inputs(command, inputs)
+    progress = _ProgressTracker(command, len(inputs))
+    outcome = _survey_inputs(command, inputs, progress)
     if isinstance(outcome, int):
+        progress.finish()
         return outcome
     surveyed, skipped = outcome
     if len(surveyed) < 2:
@@ -446,9 +479,11 @@ def _run_saves(
             f"tinarrative {command}: at least two saves are required ({len(surveyed)} usable, {len(skipped)} skipped)",
             file=sys.stderr,
         )
+        progress.finish()
         return EXIT_USAGE_ERROR
     campaign = _choose_campaign(command, group_saves(surveyed), selector)
     if isinstance(campaign, int):
+        progress.finish()
         return campaign
     if len(campaign.members) < 2:
         print(
@@ -456,10 +491,16 @@ def _run_saves(
             f"{len(campaign.members)})",
             file=sys.stderr,
         )
+        progress.finish()
         return EXIT_USAGE_ERROR
     plan = plan_sequence(campaign.members, skipped)
+    progress.update("Processing saves", 0, len(plan.saves))
+    loaded_saves = 0
 
     def load(source: str) -> SaveSnapshot:
+        nonlocal loaded_saves
+        loaded_saves += 1
+        progress.update("Processing saves", loaded_saves, len(plan.saves))
         loaded = _load_snapshot(command, Path(source))
         if isinstance(loaded, int):
             raise _LoadFailed(loaded)
@@ -476,8 +517,10 @@ def _run_saves(
             )
         )
     except _LoadFailed as failure:
+        progress.finish()
         return failure.code
     events = narrative_events(intervals, narrative_rules(settings.narrative)) if narrative else None
+    progress.finish()
     return _SequenceRun(plan, intervals, campaign, len(surveyed), events)
 
 

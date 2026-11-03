@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -273,7 +274,7 @@ def test_send_assembles_the_history_and_a_clean_audit_keeps_stderr_empty(
     assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
 
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s\n", captured.err)
     out = tmp_path / "out"
     history = (out / "history.md").read_text(encoding="utf-8")
     plan = json.loads((out / "plan.json").read_text(encoding="utf-8"))
@@ -302,9 +303,10 @@ def test_audit_findings_are_one_stderr_line_and_never_fail_the_run(
     assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
 
     err = capsys.readouterr().err
-    assert err == (
-        f"tinarrative narrate: citation audit: 2 unmatched citations; see {tmp_path / 'out' / 'manifest.json'}\n"
-    )
+    progress, audit = err.splitlines()
+    assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s", progress)
+    manifest = tmp_path / "out" / "manifest.json"
+    assert audit == f"tinarrative narrate: citation audit: 2 unmatched citations; see {manifest}"
 
 
 @pytest.mark.fixture
