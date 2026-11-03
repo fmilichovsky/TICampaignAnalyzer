@@ -168,7 +168,7 @@ class CouncilorSettings:
     """A councilor is selected only after being employed this many game days."""
     missions_per_councilor: int = _int(3, 0)
     """A player councilor's dossier keeps this many mission and target groups, the most frequent first."""
-    article_words: int = _int(220, 1)
+    article_words: int = _int(250, 1)
     """The length each article request asks for; also carried in the dossier header."""
 
 
