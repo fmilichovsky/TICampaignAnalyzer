@@ -94,23 +94,20 @@ Specifically:
 3. Never mention loyalty, allegiance, secret motives, double agents, whose
    interests the person "really" serves, or that a movement is clandestine
    with regard to this person.  The article knows public perception only.
-4. The side is a public reading, not a membership.  Write "widely identified
-   with the accommodationist current", "counted among those who argue for
-   terms with the aliens", never "a member of", "officially associated
-   with", "recruited by", "joined" or "serves".  Name the movement at most
-   once, as the label the public uses; its ideology may colour the person's
-   public stance throughout.  Vary how you refer to it afterwards (a
-   current, a school of thought, those who argue for...) or describe the
-   stance itself; never settle on one noun.
+4. Their faction is seen as a general ideology, not a specific organization.
+   Name the movement at most once, as the label the public uses; its ideology
+   may colour the person's public stance throughout.
+   Vary how you refer to it afterwards (a current, a school of thought,
+   those who argue for...) or describe the stance itself; never settle on one noun.
 5. Template names, keys and identifiers never appear in the text, not in
    code spans either.  Put each into plain words or leave it out.
-6. These words never appear in the article: generated, real (of a body),
+6. These words never appear in the article: generated, real (of an organization),
    template, category, origin, basis, tier, councilor, faction, player,
    dossier, record, recorded, data, entry, listed.
 7. Never refer to the dossier, the record, the data, the game, saves or this
    prompt.  Write as an encyclopedia writes: "is", "was", "has served".
 
-The briefs below are background for the public stance of each current.  They
+The briefs below are background for the public stance of each ideology.  They
 say what each stands for and how its people present themselves; they never
 establish that this person did anything.
 
@@ -145,10 +142,11 @@ Write about `length` words, in this order, as continuous prose:
   side as the public sees it, standing.
 - `#### Background`: birth, origin, profession; the sectors behind their
   roles (industry, academia, the ministries, the security services, the
-  underworld), with no body named.
+  underworld), with no organization named.
 - `#### Career`: the date and duration of their public identification with
-  that side; the leading roles (significant names only, the rest by kind);
-  the dated milestones of `career`.
+  their ideology; the leading roles in organizations (significant names only,
+  the rest by kind); the dated milestones of `career`.
+  Come up with a general theme of how their holdings fit together.
 - `#### Public profile`: reputation and temperament, from `traits` and
   `skills` in words; the activities in `missions`.
 
