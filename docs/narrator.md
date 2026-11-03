@@ -69,9 +69,11 @@ councilor dossier's header and one councilor's entry per request, and asks for
 a neutral encyclopedia entry: a lead, then background, career and public
 profile, at the length `councilors.article_words` sets. Its rules answer the
 dossier's shape: template names become prose, skills and tiers are described
-qualitatively and never as numbers, the faction is the movement the person is
-publicly associated with, and loyalty or hidden allegiance is never mentioned
-(the dossier never carries it either). As with the history prompt, stable
+qualitatively and never as numbers, pronouns come from the dossier's gender,
+organizations are leading roles rather than possessions and only the significant
+ones are named, the faction is the camp the public places the person in rather
+than a membership, a list of audit words is banned from the text, and loyalty
+or hidden allegiance is never mentioned (the dossier never carries it either). As with the history prompt, stable
 geography is allowed and campaign facts from outside the dossier are not. That
 prompt is
 [`src/tinarrative/narrator/councilor_prompt.md`](../src/tinarrative/narrator/councilor_prompt.md),
