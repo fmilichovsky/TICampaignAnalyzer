@@ -303,9 +303,10 @@ def test_audit_findings_are_one_stderr_line_and_never_fail_the_run(
     assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
 
     err = capsys.readouterr().err
-    assert err == (
-        f"tinarrative narrate: citation audit: 2 unmatched citations; see {tmp_path / 'out' / 'manifest.json'}\n"
-    )
+    progress, audit = err.splitlines()
+    assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s", progress)
+    manifest = tmp_path / "out" / "manifest.json"
+    assert audit == f"tinarrative narrate: citation audit: 2 unmatched citations; see {manifest}"
 
 
 @pytest.mark.fixture
