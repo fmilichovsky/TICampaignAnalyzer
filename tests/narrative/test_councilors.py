@@ -41,7 +41,7 @@ def _councilor(
         "attributes": freeze(SKILLS),
         "XP": 10,
         "orgs": tuple(org_ref(org) for org in orgs),
-        "traitTemplateNames": ("Charming",),
+        "traitTemplateNames": ("Famous",),
         "typeTemplateName": "Operative",
         "gender": "Female",
         "homeRegion": region_ref("40"),
@@ -142,7 +142,7 @@ def test_no_loyalty_anywhere() -> None:
     dossier = _build(snap)
     assert loyalty_keys(dossier) == []
     assert dossier["councilors"][0]["skills"] == {"Persuasion": 3, "Investigation": 2}
-    assert dossier["councilors"][0]["traits"] == ["LoyaltyMonitor"]
+    assert dossier["councilors"][0]["traits"] == {}
 
 
 def test_portrait_facts() -> None:
@@ -154,10 +154,23 @@ def test_portrait_facts() -> None:
         "region": {"id": "region:40", "name": "Fixture region 40"},
         "nation": {"id": "nation:20", "name": "Fixture nation 20"},
     }
-    assert entry["traits"] == ["Charming"]
+    assert entry["traits"] == {"reputation": ["Famous"]}
     assert entry["orgs"][0]["category"] == "criminal"
     assert entry["gender"] == "female"
     assert entry["profession"] == "security contractor"
+
+
+def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:
+    templates = ("Wealthy", "Averse", "Datajack", "PhysicistII", "SecondWave", "FooBar", "Government", "Paranoid")
+    entry = _build(_world(_councilor("100", "1", traitTemplateNames=templates)))["councilors"][0]
+    assert entry["traits"] == {
+        "temperament": ["Cautious", "Paranoid"],
+        "expertise": ["Senior Physicist"],
+        "reputation": ["Wealthy"],
+        "affiliation": ["Government"],
+        "other": ["Foo Bar"],
+    }
+    assert list(entry["traits"]) == ["temperament", "expertise", "reputation", "affiliation", "other"]
 
 
 def test_profession_is_plain_language_and_unknown_types_are_split_into_words() -> None:

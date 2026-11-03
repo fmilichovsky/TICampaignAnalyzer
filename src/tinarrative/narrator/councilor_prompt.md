@@ -33,11 +33,16 @@ The user message carries a request block.
   - `gender`: `male`, `female` or null.  Pronouns come from it alone: he and
     him, she and her, and when it is null use the name and write around
     pronouns.  Never infer a pronoun from the name.
-  - `traits`: template names of temperament and circumstances.  Describe them
-    qualitatively as the public would perceive them ("known for a quick
-    temper", "a devout public manner"), never as a list of labels.  Say only
-    what a listed trait supports: a large portfolio does not make someone
-    "well connected".  Leave out a trait you cannot read with confidence.
+  - `traits`: short labels by kind.  `temperament` is manner and
+    character; `expertise` is professional standing and the field it lies
+    in; `reputation` is public image, renown and wealth; `circumstance` is
+    the person's present situation, stated soberly; `affiliation` is the
+    sphere they belong to or came from; `other` is anything else.  Describe
+    them qualitatively as the public would perceive them ("known for a
+    quick temper", "one of the country's leading physicists"), never as a
+    list of labels.  Say only what a trait supports: a large portfolio does
+    not make someone "well connected".  Leave out a trait you cannot read
+    with confidence.
   - `skills`: the seven attributes Persuasion, Investigation, Espionage,
     Command, Administration, Science and Security, as numbers.  Write only
     about the strengths, qualitatively ("widely regarded as a formidable
@@ -140,15 +145,15 @@ Write about `length` words, in this order, as continuous prose:
 
 - A lead paragraph without a heading: name, profession, home, political
   side as the public sees it, standing.
-- `#### Background`: birth, origin, profession; the sectors behind their
-  roles (industry, academia, the ministries, the security services, the
+- `#### Background`: birth, origin, profession and `expertise`; the sectors
+  behind their roles (industry, academia, the ministries, the security services, the
   underworld), with no organization named.
 - `#### Career`: the date and duration of their public identification with
   their ideology; the leading roles in organizations (significant names only,
   the rest by kind); the dated milestones of `career`.
   Come up with a general theme of how their holdings fit together.
-- `#### Public profile`: reputation and temperament, from `traits` and
-  `skills` in words; the activities in `missions`.
+- `#### Public profile`: reputation, temperament and circumstances, from
+  `traits` and `skills` in words; the activities in `missions`.
 
 Rules of form: no title and no heading above `####`; third person; a neutral
 register with neither praise nor blame; no bullet lists, no tables, no
