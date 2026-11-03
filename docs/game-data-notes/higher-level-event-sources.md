@@ -404,6 +404,32 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   sample; the labels of the latest older save (`FirstBaseOnLuna`, `FirstBaseOnMars`, `FirstAsteroidBase`,
   `FirstMercuryBase`, `FirstKuiperBeltObjectBase`, `FirstJupiterSystemBase`, `FirstUranusSystemBase`,
   `FirstWarship`, `FirstSpaceCombatVictoryAgainstAliens`) name places or achievements, never a body ID.
+- **Hab lifecycle** (observed 2026-11-03, Protectorate saves 00087–00102 and Resist saves 00079–00083, every
+  consecutive pair, structure and counts only; read by `parsing/cores.py` and the `hab.established` rule in
+  `reconstruction/space.py`).
+  - *Core module.* A hab is created at launch, and its core module only completes long after. Every hab's
+    first sector (`sectorNum` 0) holds the core in slot 0: 52 of 52 Protectorate habs and 269 of 269 Resist
+    habs, exactly one core each (`templateName` ending in `Core`).
+  - *A launched hab.* Of the habs that appeared with an unfinished core (64 Protectorate, 11 Resist), all had
+    `anyCoreCompleted` false and a module `startBuildDate` (the arrival, when construction starts) and
+    `completionDate` after the later save, up to 13 months after launch for a Mars base.
+  - *Built within the interval.* 13 and 5 habs appeared with a finished core, each with its `completionDate`
+    inside the interval.
+  - *Completion.* `anyCoreCompleted` flipped false→true once per hab (45 and 12 times), never back, and it
+    stays true while a later core upgrade is under construction. The core's `completionDate` fell inside the
+    flip's interval in 38 and 12 cases.
+  - *Same-interval upgrades.* All 7 exceptions had been upgraded within that interval (an outpost to a
+    settlement core, or the alien equivalents). The module keeps its ID, and `priorModuleCompletionDate` (a
+    componentized date; `null` on a never-upgraded core) holds the first core's completion, equal to the
+    earlier save's projected date each time.
+  - *Projections.* Projected dates moved in 1 of 79 pairs in which a core stayed unfinished (an alien
+    station's, by three months). 2 Resist habs vanished before their core completed.
+  - *Module dates.* They are .NET strings (`2029-03-17T22:42:25.6840000`), with `0001-01-01T00:00:00` meaning
+    no date (habs created from a template).
+  - *Milestones and notifications.* A `First*Base*` milestone entered `globalMilestones` in the interval in
+    which the base's core completed, not the one in which it was launched (`FirstBaseOnMars`, Protectorate).
+    `TIHabSiteState.pendingHab` stayed true after completion, so it marks no stage. `LogHabFounded`
+    notifications (player faction only) carry the launch day, before the core's arrival.
 - **Nuclear.** `numNuclearWeapons` went from 0 to 1 on two nations in the last older interval while
   `nuclearProgram` changed on two; `nuclearDetonations` stayed 0 everywhere.
 - **Nation control** (observed 2026-10-18, the five older saves, counts only; evidence for the

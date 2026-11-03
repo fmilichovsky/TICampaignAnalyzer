@@ -19,6 +19,7 @@ from ..model.records import RecordSet, record_counts
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_pair_map, decode_state_map, entry_path
+from .cores import HAB_STATE_TYPE, HabCores
 from .dates import COMPONENTIZED_DATE, game_datetime, iso_date
 from .fields import (
     DATE_FIELDS,
@@ -123,6 +124,7 @@ def _entity_state(
     index: ReferenceIndex,
     source: str,
     collector: UnknownCollector,
+    cores: HabCores,
 ) -> EntityState:
     references = REFERENCE_FIELDS.get(short_type, {})
     keyed_lists = KEYED_LIST_FIELDS.get(short_type, {})
@@ -146,6 +148,8 @@ def _entity_state(
             fields.append((name, iso_date(raw, short_type, name, collector)))
         else:
             fields.append((name, freeze(raw)))
+    if short_type == HAB_STATE_TYPE:
+        fields.extend(cores.fields(entry.value, collector))
     scan_fields(short_type, entry.value, collector)
     display_name = entry.value.get("displayName")
     ref = EntityRef(
@@ -285,13 +289,16 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
         selected_factions_for_scenario=metadata["selectedFactionsForScenario"],
     )
 
+    cores = HabCores(gamestates)
     collections: dict[str, tuple[EntityState, ...]] = {}
     records: list[RecordSet] = []
     for domain, short_type, attribute in NORMALIZED_DOMAINS:
         entries = decode_state_map(gamestates, short_type)
         if short_type in SINGLETON_ENTITY_TYPES and len(entries) > 1:
             collector.singleton_count(short_type, len(entries))
-        states = tuple(_entity_state(domain, short_type, entry, index, raw_save.source, collector) for entry in entries)
+        states = tuple(
+            _entity_state(domain, short_type, entry, index, raw_save.source, collector, cores) for entry in entries
+        )
         collections[attribute] = collections.get(attribute, ()) + states
         records.extend(decode_records(short_type, entries, states, index, raw_save.source, collector))
         if logger.isEnabledFor(logging.DEBUG):

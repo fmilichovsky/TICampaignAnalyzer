@@ -10,7 +10,7 @@ from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import DestructionEntry
-from ...model.snapshot import SaveSnapshot
+from ...model.snapshot import EntityState, SaveSnapshot
 from ...model.values import Observed
 from ..common import ChangeIndex, EventBuilder, Lookup, Side, is_unresolved, primary, value_transition_event
 
@@ -67,13 +67,38 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     side = Side.AFTER if appeared else Side.BEFORE
     hab_id = change.entity_id
     assert hab_id is not None
+    attributes: list[tuple[str, Observed]] = [("side", side.value)]
+    if appeared:
+        attributes.extend(_launch_attributes(lookup.state(hab_id, Side.AFTER)))
     return build.event(
         APPEARED if appeared else DISAPPEARED,
         id_parts=(hab_id,),
         sources=(primary(change),),
         entities=(lookup.ref(hab_id), lookup.ref_field(hab_id, "faction", side)),
-        attributes=(("side", side.value),),
+        attributes=attributes,
     )
+
+
+def _launch_attributes(state: EntityState | None) -> list[tuple[str, Observed]]:
+    """Whether a new hab's core already works and, while it does not, the core's projected arrival and completion.
+
+    A hab appears at launch; it is founded when its core completes (``reconstruction/space.py``).
+    """
+    if state is None:
+        return []
+    completed = state.get("anyCoreCompleted")
+    if not isinstance(completed, bool):
+        return []
+    found: list[tuple[str, Observed]] = [("core_completed", completed)]
+    if not completed:
+        for name, field_name in (
+            ("projected_arrival", "coreStartBuildDate"),
+            ("projected_completion", "coreCompletionDate"),
+        ):
+            value = state.get(field_name)
+            if isinstance(value, str):
+                found.append((name, value))
+    return found
 
 
 def _vanished_habs(index: ChangeIndex, lookup: Lookup) -> dict[HabKey, list[EntityId]]:

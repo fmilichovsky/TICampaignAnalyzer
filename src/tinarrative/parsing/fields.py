@@ -536,6 +536,21 @@ DATE_FIELDS: dict[str, tuple[str, ...]] = {
 }
 """Entity fields holding a componentized date; the snapshot carries ISO-8601 text (see ``parsing/dates.py``)."""
 
+HAB_CORE_FIELDS = (
+    "coreConstructionCompleted",
+    "coreStartBuildDate",
+    "coreCompletionDate",
+    "corePriorCompletionDate",
+)
+"""Copied from the hab's core module, the ``TIHabModuleState`` in slot 0 of its first sector (``parsing/cores.py``).
+
+``coreStartBuildDate`` and ``coreCompletionDate`` are projected until the core is built; ``corePriorCompletionDate``
+is the completion of the core an upgrade replaced. Dates are ISO-8601 text or ``None``.
+"""
+
+DERIVED_FIELDS: dict[str, tuple[str, ...]] = {"TIHabState": HAB_CORE_FIELDS}
+"""Entity fields joined from other state types; appended after ``ENTITY_FIELDS``, never raw ``Value`` members."""
+
 PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
     "TICouncilorState": {"assassinations": EntityDomain.FACTION},

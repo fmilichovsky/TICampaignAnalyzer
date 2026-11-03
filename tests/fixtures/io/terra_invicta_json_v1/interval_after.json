@@ -645,7 +645,37 @@
           "displayName": "Fixture Sector",
           "archived": false,
           "exists": true,
+          "habModules": [
+            {
+              "value": 170
+            }
+          ],
           "$type": "PavonisInteractive.TerraInvicta.TISectorState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIHabModuleState": [
+      {
+        "Key": {
+          "value": 170
+        },
+        "Value": {
+          "ID": {
+            "value": 170
+          },
+          "constructionCompleted": true,
+          "startBuildDate": "2030-11-01T00:00:00.0000000",
+          "completionDate": "2030-11-21T00:00:00.0000000",
+          "priorModuleCompletionDate": null,
+          "slot": 0,
+          "sector": {
+            "value": 160
+          },
+          "templateName": "FixtureCore",
+          "displayName": "Fixture Core",
+          "archived": false,
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIHabModuleState"
         }
       }
     ],

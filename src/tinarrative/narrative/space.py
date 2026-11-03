@@ -46,7 +46,7 @@ COMBAT_RECORDED = "faction.combat_recorded"
 BATTLE_NOTIFICATION = "notification.LogSpaceBattleTakesPlace"
 FLEET_DISAPPEARED = "fleet.disappeared"
 FIRST_HAB_ON_BODY = "faction.first_hab_on_body"
-HAB_APPEARED = "hab.appeared"
+HAB_ESTABLISHED = "hab.established"
 GLOBAL_MILESTONE = "campaign.global_milestone_recorded"
 TRANSACTION = "faction.transaction_recorded"
 SHIP_APPEARED = "ship.appeared"
@@ -237,7 +237,7 @@ class ColonisationWaveRule:
             key = subject_id(event)
             if key is not None:
                 by_faction.setdefault(key, []).append(event)
-        appeared = by_type(stream, HAB_APPEARED)
+        established = by_type(stream, HAB_ESTABLISHED)
         days = self.settings.colonisation_window_days
         built = []
         for faction_id in sorted(by_faction, key=lambda item: item.sort_key):
@@ -247,7 +247,9 @@ class ColonisationWaveRule:
                     continue
                 habs = {ref.entity_id for event in run for ref in refs_attribute(event, "habs")}
                 keys = set(intervals_of(run))
-                attached = [event for event in appeared if subject_id(event) in habs and interval_of(event.id) in keys]
+                attached = [
+                    event for event in established if subject_id(event) in habs and interval_of(event.id) in keys
+                ]
                 faction = run[0].entities[0]
                 built.append(
                     build.event(
