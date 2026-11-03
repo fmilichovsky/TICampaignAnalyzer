@@ -62,7 +62,7 @@ The user message carries a request block.
     on the board; for a ministry, agency or international body they hold a
     senior post; for a foundation or institute a trusteeship; for a
     syndicate, cartel or militant group they are linked to it.  State one
-    such role plainly for each body you name, never alternatives joined by
+    such role plainly for each asset you name, never alternatives joined by
     "or".  Name
     only the significant ones: those the public knows (`origin` `real`) and
     the largest of the rest, three or four names in all.  Fold the others into
@@ -70,7 +70,7 @@ The user message carries a request block.
     companies").  A fictional body (`origin` `generated`) is described by its
     `category` and nothing more.  `template` and `basis` are audit data.
   - `career`: dated public milestones.  `councilor.faction_changed` is a
-    change of side, `councilor.detaining_faction_changed` a detention or
+    change of ideology, `councilor.detaining_faction_changed` a detention or
     release, `councilor.status_changed` a change of standing, and
     `councilor.orgs_changed` leading roles gained or lost; the `attributes`
     say which.  Tell them in order with their dates.  When there are none,
@@ -81,8 +81,7 @@ The user message carries a request block.
     the template into what the public would see ("frequently advises the
     government of Kazakhstan", "known for humanitarian work in East Africa",
     "a fixture of public campaigns in Brazil"); `count` is frequency, so say
-    "often" or "repeatedly", never the number, and give no operational
-    detail.
+    "often" or "repeatedly", never the number.
 
 ## Facts
 
@@ -99,11 +98,9 @@ Specifically:
 3. Never mention loyalty, allegiance, secret motives, double agents, whose
    interests the person "really" serves, or that a movement is clandestine
    with regard to this person.  The article knows public perception only.
-4. Their faction is seen as a general ideology, not a specific organization.
-   Name the movement at most once, as the label the public uses; its ideology
-   may colour the person's public stance throughout.
-   Vary how you refer to it afterwards (a current, a school of thought,
-   those who argue for...) or describe the stance itself; never settle on one noun.
+4. Their faction is seen as a general ideology they support, not a specific organization.
+   Do not explicitly say that they belong to a faction, but it can
+   color their views and what goals they pursue in their life.
 5. Template names, keys and identifiers never appear in the text, not in
    code spans either.  Put each into plain words or leave it out.
 6. These words never appear in the article: generated, real (of an organization),
@@ -143,29 +140,29 @@ establish that this person did anything.
 
 Write about `length` words, in this order, as continuous prose:
 
-- A lead paragraph without a heading: name, profession, home, political
-  side as the public sees it, standing.
+- A lead paragraph without a heading: name, profession, home, the perception
+  that the general population might have about this person.
 - `#### Background`: birth, origin, profession and `expertise`; the sectors
-  behind their roles (industry, academia, the ministries, the security services, the
+  behind their holdings (industry, academia, the ministries, the security services, the
   underworld), with no organization named.
-- `#### Career`: the date and duration of their public identification with
-  their ideology; the leading roles in organizations (significant names only,
+  Mention when they roughly became visible supporters of their current ideology
+  and create a plausible reason why they support it.
+- `#### Career`: how their ideology shapes their professional life;
+  the leading roles in organizations (significant names only,
   the rest by kind); the dated milestones of `career`.
-  Come up with a general theme of how their holdings fit together.
+  Come up with a general theme of how their holdings fit together
+  and help them to push their agenda.
 - `#### Public profile`: reputation, temperament and circumstances, from
-  `traits` and `skills` in words; the activities in `missions`.
+  `traits` and `skills` in words; the activities in `missions` as a sample
+  of what they're commonly seen doing.
 
 Rules of form: no title and no heading above `####`; third person; a neutral
 register with neither praise nor blame; no bullet lists, no tables, no
 footnotes or citations; a thin dossier gives a shorter article, never
-padding.  Say what is there and leave out what is not: no sentence about
-what is unknown, absent, modest or weak.  Vary sentence openings, avoid
-stock phrases repeated from one section to the next, and do not reuse the
-wording of this prompt.
+padding. Vary sentence openings, avoid stock phrases repeated from one
+section to the next, and do not reuse the wording of this prompt.
 
 Before returning, reread once for six things only: a fact about the person
-or the world the dossier does not contain, a pronoun the `gender` field does
-not support, a number for a skill, a tier or a mission count, a sentence
-about what is unknown, absent or weak, any mention of loyalty, allegiance,
-membership or hidden motive, and a word from the banned list or a title or
+or the world the dossier does not contain, a number for a skill, a tier or
+a mission count, and a word from the banned list or a title or
 heading above `####`.  Fix those and return the text.
