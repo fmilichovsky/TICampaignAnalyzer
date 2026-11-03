@@ -157,6 +157,20 @@ def test_portrait_facts() -> None:
     assert entry["traits"] == ["Charming"]
     assert entry["orgs"][0]["category"] == "criminal"
     assert entry["gender"] == "female"
+    assert entry["profession"] == "security contractor"
+
+
+def test_profession_is_plain_language_and_unknown_types_are_split_into_words() -> None:
+    snap = _world(
+        _councilor("100", "1", typeTemplateName="Spy"),
+        _councilor("101", "1", typeTemplateName="DeepSeaDiver"),
+        _councilor("102", "1", typeTemplateName=None),
+    )
+    assert [entry["profession"] for entry in _build(snap)["councilors"]] == [
+        "intelligence officer",
+        "deep sea diver",
+        None,
+    ]
 
 
 def test_gender_is_lowercased_and_the_saves_none_is_null() -> None:

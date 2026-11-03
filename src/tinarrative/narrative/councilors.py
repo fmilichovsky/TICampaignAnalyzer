@@ -43,6 +43,36 @@ GENERATED_ORG_CATEGORIES = {
 """Organization category of a generated organization by the word after ``Random`` in its ``templateName``."""
 _GENERATED_TEMPLATE = re.compile(r"Random([A-Za-z]+?)\d")
 
+PROFESSIONS = {
+    "Activist": "activist",
+    "Astronaut": "astronaut",
+    "Attorney": "attorney",
+    "Celebrity": "celebrity",
+    "Commando": "special forces officer",
+    "Diplomat": "diplomat",
+    "Engineer": "engineer",
+    "Evangelist": "preacher",
+    "Executive": "corporate executive",
+    "Fixer": "political operator",
+    "Hacker": "computer security specialist",
+    "Inspector": "police inspector",
+    "Investigator": "private investigator",
+    "Journalist": "journalist",
+    "Judge": "judge",
+    "Kingpin": "crime boss",
+    "Officer": "military officer",
+    "Operative": "security contractor",
+    "Politician": "politician",
+    "Professor": "professor",
+    "Rebel": "insurgent leader",
+    "Scientist": "scientist",
+    "Spy": "intelligence officer",
+    "TechMogul": "technology entrepreneur",
+    "Tycoon": "business magnate",
+}
+"""The public profession of a councilor type, so the article never has to interpret a template name."""
+_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
+
 
 @dataclass(frozen=True)
 class _Candidate:
@@ -160,7 +190,7 @@ def _entry(
         "name": state.ref.name,
         "faction": _faction_name(lookup, candidate.faction.entity_id),
         "player": is_player,
-        "career_type": to_jsonable(state.get("typeTemplateName")),
+        "profession": _profession(state.get("typeTemplateName")),
         "gender": _gender(state.get("gender")),
         "traits": to_jsonable(traits) if isinstance(traits, tuple) else [],
         "skills": _skills(state),
@@ -181,6 +211,13 @@ def _entry(
     if is_player:
         entry["missions"] = _missions(snapshot, lookup, councilor_id, settings.missions_per_councilor)
     return entry
+
+
+def _profession(value: Observed) -> str | None:
+    """The plain-language profession of a councilor type; an unknown type is its name split into words."""
+    if not isinstance(value, str) or not value:
+        return None
+    return PROFESSIONS.get(value, _CAMEL.sub(" ", value).lower())
 
 
 def _gender(value: Observed) -> str | None:

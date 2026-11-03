@@ -98,9 +98,10 @@ DIR/
 
 `dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`
 and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
-carries identity, gender (`male`, `female` or `null`), traits, the seven skills, age, home region
-and nation, recruitment date and tenure, organizations, prominence, career and, for the player's
-councilors, missions.
+carries identity, the profession in plain words (an intelligence officer, not the game's `Spy`),
+gender (`male`, `female` or `null`), traits, the seven skills, age, home region and nation,
+recruitment date and tenure, organizations, prominence, career and, for the player's councilors,
+missions.
 
 An organization entry names its nature: `origin` (`generated` or `real`), `category` and the
 `basis` of the category. A generated organization takes its category from its template (`template`).
