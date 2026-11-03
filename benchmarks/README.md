@@ -93,7 +93,19 @@ These are the only real saves the repository holds, and an exception to the fixt
 content. Only the manifest test does, by hashing them. They are compressed, whole saves, left unedited. Each campaign
 directory holds consecutive saves of one campaign, so that grouping finds a single campaign there.
 
-To add or refresh a campaign:
+To add or refresh a campaign, run `tinarrative benchmark sample NAME PATH`. Pass a directory to select one of its
+detected campaigns with `--campaign SELECTOR` (or the interactive picker), or pass one or more save files directly.
+An import replaces the current files for `NAME`; invalid explicitly listed saves reject the import before replacement.
+In a terminal, progress on stderr names the current phase and file count.
+
+For example:
+
+```sh
+tinarrative benchmark sample protectorate ~/saves --campaign protectorate
+```
+
+The utility compresses the selected saves, moves them into the sample directory and refreshes `samples.json`. To
+add or refresh a campaign manually:
 
 1. Pick saves that differ in what they exercise: game phase, number of developments, chapter count. Avoid adding a
    campaign that only repeats an existing one. Every campaign multiplies the run time.
@@ -103,11 +115,10 @@ To add or refresh a campaign:
    grep -l -i -E '/Users/|/home/|C:\\\\|AppData|steamid|steam_id|"steam' real_saves/<files>
    ```
 
-3. Compress each one with `xz -9e -c SAVE > benchmarks/samples/<campaign>/SAVE.xz`. Every file must stay under the
-   manifest's `max_file_bytes`.
-4. Run `python scripts/package_metrics.py samples --update`. Then write the campaign's `description` in `samples.json`
-   (the phase of the game and what the campaign exercises). Then run `python scripts/package_metrics.py samples` until
-   it reports nothing.
+3. Run `tinarrative benchmark sample <campaign> <save-directory>` (or list the selected save files). Supply
+   `--description` to write the campaign description; otherwise add one to `samples.json` if it is missing.
+4. Review the campaign's runs in `matrix.toml` and add entries where needed. Run
+   `python scripts/package_metrics.py samples` until it reports nothing.
 
 A pull request that changes the samples or the matrix measures both sides with the new ones, so its report compares
 code only. The next pull requests measure against the new samples from then on.

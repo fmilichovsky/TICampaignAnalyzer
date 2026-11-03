@@ -49,6 +49,8 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   - [`tinarrative save diff <before> <after>`](docs/commands/diff.md): compare two saves and
     list every literal state change between them, with before/after values and
     evidence, without analyzing or inferring anything.
+- [`tinarrative benchmark sample <name> <path>...`](docs/commands/benchmark.md): import or refresh a campaign's
+  saves in the package-size benchmark samples.
 - [`tinarrative unknowns <path>...`](docs/commands/unknowns.md): scan saves for
   structures the parser does not describe and record them in the
   [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.

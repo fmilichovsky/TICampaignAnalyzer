@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from . import __version__
+from .benchmarking.samples import SampleImportError, import_sample_campaign
 from .config import (
     CONFIG_ENV_VAR,
     DEFAULT_SETTINGS,
@@ -90,6 +91,7 @@ EXIT_OUTPUT_ERROR = 9
 EXIT_PROVIDER_ERROR = 10
 """``--send``: a request failed, hit the output limit or was refused. ``narrate`` stops at the first failed chapter
 and keeps the earlier ones; ``councilors`` skips the failed articles and reports at the end."""
+BENCHMARK_SAMPLES_DIR = Path(__file__).resolve().parents[2] / "benchmarks" / "samples"
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -362,20 +364,21 @@ class _ProgressTracker:
         self.terminal = sys.stderr.isatty()
         self.width = 0
 
-    def update(self, phase: str, completed: int, total: int | None = None) -> None:
+    def update(self, phase: str, completed: int, total: int | None = None, filename: str | None = None) -> None:
         if not self.terminal:
             return
         count = self.total if total is None else total
-        label = f"tinarrative {self.command}: {phase} {completed}/{count}"
+        current = "" if filename is None else f": {filename}"
+        label = f"tinarrative {self.command}: {phase} {completed}/{count}{current}"
         sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
         sys.stderr.flush()
         self.width = len(label)
 
-    def finish(self) -> None:
+    def finish(self, activity: str = "parsing and processing") -> None:
         elapsed = time.perf_counter() - self.started
         if self.terminal:
             sys.stderr.write("\r" + " " * self.width + "\r")
-        sys.stderr.write(f"tinarrative {self.command}: parsing and processing took {elapsed:.1f}s\n")
+        sys.stderr.write(f"tinarrative {self.command}: {activity} took {elapsed:.1f}s\n")
         sys.stderr.flush()
 
 
@@ -388,7 +391,7 @@ def _survey_inputs(
     usable: dict[Path, int] = {}
     for index, item in enumerate(inputs, start=1):
         if progress is not None:
-            progress.update("Parsing saves", index)
+            progress.update("Parsing saves", index, filename=item.path.name)
         if item.empty_directory:
             print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
             return EXIT_INPUT_ERROR
@@ -410,6 +413,40 @@ def _survey_inputs(
             print(f"tinarrative {command}: {directory}: the directory holds no usable save", file=sys.stderr)
             return EXIT_INPUT_ERROR
     return surveyed, skipped
+
+
+def _run_benchmark_sample(args: argparse.Namespace) -> int:
+    """Import one benchmark campaign and render its CLI-facing result."""
+    name = cast(str, args.name)
+
+    def progress_factory(total: int) -> _ProgressTracker:
+        return _ProgressTracker("benchmark sample", total)
+
+    try:
+        result = import_sample_campaign(
+            name,
+            cast(list[Path], args.paths),
+            description=cast("str | None", args.description),
+            selector=cast("str | None", args.campaign),
+            samples_dir=BENCHMARK_SAMPLES_DIR,
+            progress_factory=progress_factory,
+            choose_campaign=lambda groups, selector: _choose_campaign("benchmark sample", groups, selector),
+        )
+    except SampleImportError as error:
+        if not error.reported:
+            print(f"tinarrative benchmark sample: {error}", file=sys.stderr)
+        return error.exit_code
+
+    for skipped in result.skipped:
+        print(
+            f"tinarrative benchmark sample: skipped {skipped.source}: {skipped.error_class}: {skipped.error}",
+            file=sys.stderr,
+        )
+    print(f"Imported {result.files} saves into benchmarks/samples/{result.name}/.")
+    if not result.description.strip():
+        print(f"Add a description for {name!r} in benchmarks/samples/samples.json.")
+    print("Review benchmarks/matrix.toml and add runs for this campaign if needed.")
+    return EXIT_SUCCESS
 
 
 def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
@@ -1929,6 +1966,28 @@ def _add_campaigns_parser(subcommands: argparse._SubParsersAction[argparse.Argum
     parser.set_defaults(handler=_run_campaigns)
 
 
+def _add_benchmark_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subcommands.add_parser("benchmark", help="Manage benchmark samples.")
+    commands = parser.add_subparsers(dest="benchmark_command", metavar="COMMAND", required=True)
+    sample = commands.add_parser(
+        "sample",
+        help="Import or refresh a campaign in benchmarks/samples/.",
+        description=(
+            "Import save files into benchmarks/samples/ and refresh samples.json. A single directory is grouped by "
+            "campaign; choose one with --campaign or the interactive picker. Refresh replaces the named campaign."
+        ),
+        epilog=(
+            "Progress is written to stderr in a terminal. After import, review samples.json and matrix.toml; "
+            "add a campaign description if one is not already present."
+        ),
+    )
+    sample.add_argument("name", help="Name of the campaign directory to create or replace.")
+    sample.add_argument("paths", type=Path, nargs="+", metavar="PATH", help="One directory or save file paths.")
+    sample.add_argument("--description", help="Campaign description to write to samples.json.")
+    sample.add_argument("--campaign", metavar="SELECTOR", help="Campaign to import from a directory input.")
+    sample.set_defaults(handler=_run_benchmark_sample)
+
+
 def _add_save_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     summary = "Inspect, parse or diff individual save files."
     parser = subcommands.add_parser(
@@ -1976,6 +2035,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Use 'tinarrative COMMAND --help' for command-specific help.",
     )
     _add_campaigns_parser(subcommands)
+    _add_benchmark_parser(subcommands)
     _add_councilors_parser(subcommands)
     _add_events_parser(subcommands)
     _add_narrate_parser(subcommands)
