@@ -48,8 +48,8 @@ The user message carries a request block.
   - `xp`, `prominence`, `id` and every `id` field: audit data, never
     mentioned.
   - `born`, `age`, `home`: origin and age may be stated plainly.
-  - `recruited`, `tenure_years`: since when the public has counted the person
-    among that side's voices, and for how long.
+  - `recruited`, `tenure_years`: the date from which the person has been
+    seen on that side, and the years since.
   - `orgs`: the organizations in which the person holds a leading role, each
     with a `name`, a `tier` (scale: higher is larger and more influential;
     describe it qualitatively, never as a number), a `category` and an
@@ -141,24 +141,24 @@ establish that this person did anything.
 
 Write about `length` words, in this order, as continuous prose:
 
-- A lead paragraph without a heading: who the person is, their profession,
-  their home, where the public places them and their standing.
-- `#### Background`: where and when they were born, where they are from and
-  how they made their living.  Then say which circles their roles place them
-  in, in your own words and without naming the bodies: industry, academia,
-  the ministries, the security services, the underworld.
-- `#### Career`: since when the public has counted them on that side and for
-  how long, the leading roles they hold (the significant names only, the
-  rest by kind), and the dated milestones of `career`.
-- `#### Public profile`: how the public regards them, from `traits` and
-  `skills` put into words, and what they are known for (`missions`).
+- A lead paragraph without a heading: name, profession, home, political
+  side as the public sees it, standing.
+- `#### Background`: birth, origin, profession; the sectors behind their
+  roles (industry, academia, the ministries, the security services, the
+  underworld), with no body named.
+- `#### Career`: the date and duration of their public identification with
+  that side; the leading roles (significant names only, the rest by kind);
+  the dated milestones of `career`.
+- `#### Public profile`: reputation and temperament, from `traits` and
+  `skills` in words; the activities in `missions`.
 
 Rules of form: no title and no heading above `####`; third person; a neutral
 register with neither praise nor blame; no bullet lists, no tables, no
 footnotes or citations; a thin dossier gives a shorter article, never
 padding.  Say what is there and leave out what is not: no sentence about
-what is unknown, absent, modest or weak.  Vary sentence openings and avoid
-stock phrases repeated from one section to the next.
+what is unknown, absent, modest or weak.  Vary sentence openings, avoid
+stock phrases repeated from one section to the next, and do not reuse the
+wording of this prompt.
 
 Before returning, reread once for six things only: a fact about the person
 or the world the dossier does not contain, a pronoun the `gender` field does
