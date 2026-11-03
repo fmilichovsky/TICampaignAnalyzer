@@ -60,3 +60,20 @@ so an installed wheel carries the text it sends. That file is the only copy:
 edit it there, not here. Its SHA-256 is the prompt version
 (`tinarrative.narrator.request.prompt_version`), and
 `python scripts/narrator_prompt.py` prints the request it produces.
+
+## Councilor articles
+
+[`tinarrative councilors`](commands/councilors.md) uses a second, shorter prompt
+for the public-perception articles about notable councilors. It receives the
+councilor dossier's header and one councilor's entry per request, and asks for
+a neutral encyclopedia entry: a lead, then background, career and public
+profile, at the length `councilors.article_words` sets. Its rules answer the
+dossier's shape: template names become prose, skills and tiers are described
+qualitatively and never as numbers, the faction is the movement the person is
+publicly associated with, and loyalty or hidden allegiance is never mentioned
+(the dossier never carries it either). As with the history prompt, stable
+geography is allowed and campaign facts from outside the dossier are not. That
+prompt is
+[`src/tinarrative/narrator/councilor_prompt.md`](../src/tinarrative/narrator/councilor_prompt.md),
+again the only copy, and its SHA-256 is the version
+(`tinarrative.narrator.councilors.prompt_version`) the articles' manifest records.

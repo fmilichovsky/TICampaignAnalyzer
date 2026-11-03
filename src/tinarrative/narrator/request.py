@@ -16,15 +16,23 @@ REQUEST_KEYS = ("chapter", "part", "covers", "period", "audience", "citations", 
 AUDIENCES = ("public", "insider")
 CITATIONS = ("footnotes", "none")
 STYLES = ("chronicle", "headlines")
+PROMPT_FILE = "prompt.md"
 
 
-def system_prompt() -> str:
-    return resources.files("tinarrative.narrator").joinpath("prompt.md").read_text(encoding="utf-8")
+def system_prompt(name: str = PROMPT_FILE) -> str:
+    """A system prompt packaged with the narrator; ``name`` is its file name."""
+    return resources.files("tinarrative.narrator").joinpath(name).read_text(encoding="utf-8")
 
 
-def prompt_version() -> str:
+def prompt_version(name: str = PROMPT_FILE) -> str:
     """The SHA-256 of the prompt text."""
-    return hashlib.sha256(system_prompt().encode("utf-8")).hexdigest()
+    return hashlib.sha256(system_prompt(name).encode("utf-8")).hexdigest()
+
+
+def digest(document: Mapping[str, Any]) -> str:
+    """The SHA-256 of a document's compact JSON, the identity of a package or a dossier."""
+    text = json.dumps(document, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def build_request(

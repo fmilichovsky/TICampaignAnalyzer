@@ -7,7 +7,6 @@ Continuity is built from the package, never from earlier prose, so a plan is det
 from __future__ import annotations
 
 import hashlib
-import json
 import math
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
@@ -16,7 +15,7 @@ from datetime import datetime
 from typing import Any
 
 from ..config import NarratorSettings
-from .request import build_request, prompt_version, render_request
+from .request import build_request, digest, prompt_version, render_request
 
 PERIODS = ("year", "half", "quarter")
 LONGEST_DAYS = {"year": 366, "half": 184, "quarter": 92}
@@ -394,7 +393,7 @@ class _Planner:
                 )
             )
         return ChapterPlan(
-            package_sha256=_sha256(self.package),
+            package_sha256=digest(self.package),
             options=self.options,
             length=self.length,
             settings=self.settings,
@@ -591,8 +590,3 @@ def _gdp(nation: Mapping[str, Any]) -> float | None:
     if isinstance(value, bool) or not isinstance(value, int | float):
         return None
     return float(value)
-
-
-def _sha256(package: Mapping[str, Any]) -> str:
-    text = json.dumps(package, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()

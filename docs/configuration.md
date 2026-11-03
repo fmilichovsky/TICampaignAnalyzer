@@ -75,7 +75,7 @@ The `councilors` keys ([councilors](commands/councilors.md)):
 | `councilors.rivals_per_faction` | 2 | 0 | The most prominent councilors of each other human faction that join the player's councilors in the dossier. |
 | `councilors.min_tenure_days` | 365 | 0 | A councilor is selected only after being employed this many game days. |
 | `councilors.missions_per_councilor` | 3 | 0 | A player councilor's dossier keeps this many mission and target groups, the most frequent first. |
-| `councilors.article_words` | 250 | 1 | The article length carried in the dossier header for the article writer. |
+| `councilors.article_words` | 250 | 1 | The article length each request asks for; also carried in the dossier header. |
 
 The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](architecture.md#203-token-budget-and-chapters)):
 
@@ -90,7 +90,7 @@ The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](archite
 
 ### Narrator provider and profiles
 
-These keys matter only to `narrate --send` ([sending](commands/narrate.md#sending),
+These keys matter only to `narrate --send` and `councilors --send` ([sending](commands/narrate.md#sending),
 [architecture 20.5](architecture.md#205-providers)). An optional key without a default is unset
 until a file, a profile or a flag sets it.
 

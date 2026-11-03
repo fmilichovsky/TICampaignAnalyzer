@@ -80,7 +80,7 @@ min_tenure_days = 365
 # A player councilor's dossier keeps this many mission and target groups.
 missions_per_councilor = 3
 
-# The article length carried in the dossier header (minimum 1).
+# The length each article request asks for (minimum 1).
 article_words = 250
 
 [narrator]
