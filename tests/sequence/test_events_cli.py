@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import re
 import shutil
 import sys
 from collections.abc import Callable
@@ -60,7 +61,8 @@ def test_events_matches_the_golden_report(
 
     assert first.out == expected
     assert second.out == first.out
-    assert first.err == ""
+    assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", first.err)
+    assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", second.err)
 
 
 @pytest.mark.fixture
@@ -325,7 +327,7 @@ def test_a_directory_is_expanded_and_its_invalid_files_are_skipped(
 
     assert main(["events", "saves"]) == EXIT_SUCCESS
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", captured.err)
     assert "3 saves given, 2 skipped; ordered by serialized game time." in captured.out
     assert "\n- `saves/malformed_truncated.json`: MalformedSaveError: " in captured.out
     assert "\n- `saves/representative_campaign.json`: UnknownChronologyError: " in captured.out

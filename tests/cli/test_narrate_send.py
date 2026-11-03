@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -273,7 +274,7 @@ def test_send_assembles_the_history_and_a_clean_audit_keeps_stderr_empty(
     assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
 
     captured = capsys.readouterr()
-    assert captured.err == ""
+    assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s\n", captured.err)
     out = tmp_path / "out"
     history = (out / "history.md").read_text(encoding="utf-8")
     plan = json.loads((out / "plan.json").read_text(encoding="utf-8"))
