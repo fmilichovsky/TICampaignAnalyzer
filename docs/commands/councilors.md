@@ -34,7 +34,8 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 
 - **The portrait** comes from the latest save and may use everything in it, including
   councilors the other factions have not detected. `Loyalty` and `ApparentLoyalty` are never
-  written.
+  written, and neither are traits the public cannot see: cybernetic implants, covert tradecraft and
+  pure game mechanics.
 - **The career** (faction, detention, status and organization changes) comes from the events
   between the saves. One save gives an empty career. Recruitment from the unemployed pool is not a
   career milestone: `recruited` dates it exactly, where the event could only date it to a save.
@@ -102,6 +103,10 @@ carries identity, the profession in plain words (an intelligence officer, not th
 gender (`male`, `female` or `null`), traits, the seven skills, age, home region and nation,
 recruitment date and tenure, organizations, prominence, career and, for the player's councilors,
 missions.
+
+Traits are listed by their in-game names (`Cautious`, not the game's `Averse`), grouped as
+`temperament`, `expertise`, `reputation`, `circumstance` and `affiliation`. A trait this version does
+not know yet is listed under `other`, its template name split into words.
 
 An organization entry names its nature: `origin` (`generated` or `real`), `category` and the
 `basis` of the category. A generated organization takes its category from its template (`template`).

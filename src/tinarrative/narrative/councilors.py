@@ -18,6 +18,7 @@ from ..model.events import Event
 from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, to_jsonable
 from .org_catalog import NAMED_ORG_CATEGORIES
+from .trait_catalog import KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
 
 CAREER_EVENT_TYPES = frozenset({FACTION_CHANGED, DETAINING_FACTION_CHANGED, STATUS_CHANGED, COUNCILOR_ORGS_CHANGED})
 SKILLS = ("Persuasion", "Investigation", "Espionage", "Command", "Administration", "Science", "Security")
@@ -183,7 +184,6 @@ def _entry(
     state = candidate.state
     councilor_id = state.ref.entity_id
     born = _datetime(state.get("dateBorn"))
-    traits = state.get("traitTemplateNames")
     orgs = _orgs(lookup, state)
     entry: dict[str, Any] = {
         "id": str(councilor_id),
@@ -192,7 +192,7 @@ def _entry(
         "player": is_player,
         "profession": _profession(state.get("typeTemplateName")),
         "gender": _gender(state.get("gender")),
-        "traits": to_jsonable(traits) if isinstance(traits, tuple) else [],
+        "traits": _traits(state.get("traitTemplateNames")),
         "skills": _skills(state),
         "xp": candidate.xp,
         "born": to_jsonable(state.get("dateBorn")),
@@ -218,6 +218,18 @@ def _profession(value: Observed) -> str | None:
     if not isinstance(value, str) or not value:
         return None
     return PROFESSIONS.get(value, _CAMEL.sub(" ", value).lower())
+
+
+def _traits(value: Observed) -> dict[str, list[str]]:
+    """Display names of the public traits by group; an uncatalogued template is its name split into words."""
+    grouped: dict[str, list[str]] = {}
+    for template in value if isinstance(value, tuple) else ():
+        if not isinstance(template, str) or not template:
+            continue
+        group, name = TRAITS.get(template, ("other", _CAMEL.sub(" ", template)))
+        if group not in WITHHELD_GROUPS:
+            grouped.setdefault(group, []).append(name)
+    return {group: grouped[group] for group in (*KEPT_GROUPS, "other") if group in grouped}
 
 
 def _gender(value: Observed) -> str | None:
