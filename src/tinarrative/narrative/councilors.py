@@ -161,6 +161,7 @@ def _entry(
         "faction": _faction_name(lookup, candidate.faction.entity_id),
         "player": is_player,
         "career_type": to_jsonable(state.get("typeTemplateName")),
+        "gender": _gender(state.get("gender")),
         "traits": to_jsonable(traits) if isinstance(traits, tuple) else [],
         "skills": _skills(state),
         "xp": candidate.xp,
@@ -180,6 +181,11 @@ def _entry(
     if is_player:
         entry["missions"] = _missions(snapshot, lookup, councilor_id, settings.missions_per_councilor)
     return entry
+
+
+def _gender(value: Observed) -> str | None:
+    """``male`` or ``female``; ``None`` for the save's ``"None"`` and anything else, so the article avoids pronouns."""
+    return value.lower() if isinstance(value, str) and value in ("Male", "Female") else None
 
 
 def _skills(state: EntityState) -> dict[str, int]:
@@ -317,11 +323,17 @@ def _missions(snapshot: SaveSnapshot, lookup: Lookup, councilor_id: EntityId, li
 def _career_by_councilor(career: Iterable[Event]) -> dict[EntityId, list[Event]]:
     grouped: dict[EntityId, list[Event]] = {}
     for event in career:
+        if _is_recruitment(event):
+            continue  # recruitment from the unemployed pool is dated by ``recruited``, not by the save that shows it
         if event.event_type in CAREER_EVENT_TYPES and event.entities:
             first = event.entities[0].entity_id
             if first.domain is EntityDomain.COUNCILOR:
                 grouped.setdefault(first, []).append(event)
     return grouped
+
+
+def _is_recruitment(event: Event) -> bool:
+    return event.event_type == FACTION_CHANGED and dict(event.attributes).get("transition") == "set"
 
 
 def _career_entry(event: Event) -> dict[str, Any]:

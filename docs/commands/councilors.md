@@ -36,7 +36,8 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
   councilors the other factions have not detected. `Loyalty` and `ApparentLoyalty` are never
   written.
 - **The career** (faction, detention, status and organization changes) comes from the events
-  between the saves. One save gives an empty career.
+  between the saves. One save gives an empty career. Recruitment from the unemployed pool is not a
+  career milestone: `recruited` dates it exactly, where the event could only date it to a save.
 - **Missions** are listed for the player's councilors only, as mission and target groups with their
   counts (`councilors.missions_per_councilor` of them, the most frequent first).
 
@@ -97,8 +98,9 @@ DIR/
 
 `dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`
 and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
-carries identity, traits, the seven skills, age, home region and nation, recruitment date and
-tenure, organizations, prominence, career and, for the player's councilors, missions.
+carries identity, gender (`male`, `female` or `null`), traits, the seven skills, age, home region
+and nation, recruitment date and tenure, organizations, prominence, career and, for the player's
+councilors, missions.
 
 An organization entry names its nature: `origin` (`generated` or `real`), `category` and the
 `basis` of the category. A generated organization takes its category from its template (`template`).
