@@ -37,7 +37,8 @@ jobs:
           .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
       - name: Measure base
         run: >-
-          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-base/bin/python --out .bench/base
+          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-base/bin/python
+          --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml --out .bench/base
           --label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -62,7 +63,8 @@ jobs:
           .bench/venv-head/bin/python -m pip install --quiet .
       - name: Measure head
         run: >-
-          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-head/bin/python --out .bench/head
+          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-head/bin/python
+          --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml --out .bench/head
           --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
         env:
           GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
