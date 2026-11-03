@@ -143,9 +143,10 @@ Write about `length` words, in this order, as continuous prose:
 
 - A lead paragraph without a heading: who the person is, their profession,
   their home, where the public places them and their standing.
-- `#### Background`: origin, age, home region and nation, profession and
-  what the kinds of body they lead say about their formative world, without
-  naming them.
+- `#### Background`: where and when they were born, where they are from and
+  how they made their living.  Then say which circles their roles place them
+  in, in your own words and without naming the bodies: industry, academia,
+  the ministries, the security services, the underworld.
 - `#### Career`: since when the public has counted them on that side and for
   how long, the leading roles they hold (the significant names only, the
   rest by kind), and the dated milestones of `career`.
