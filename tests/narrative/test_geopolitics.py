@@ -16,6 +16,7 @@ from tests.narrative.support import (
     ref,
     situation,
     state_change,
+    unification,
     war,
     war_row,
 )
@@ -779,6 +780,70 @@ def test_no_cession_with_a_reading_a_war_between_the_two_or_an_unmatched_loss() 
     assert of_type(built(annexation(K1, SOUTH, NORTH, SOUTH_REGION), plain(K0, K1)), "nation.cession") == []
     assert of_type(built(transfer(K1, SOUTH, NORTH, SOUTH_REGION), at_war), "nation.cession") == []
     assert of_type(built(unmatched, plain(K0, K1)), "nation.cession") == []
+
+
+# --- nation.merger -----------------------------------------------------------------------------------------------
+
+
+def merged(key: str, gainer: EntityRef, absorbed: EntityRef, region: EntityRef) -> list[Event]:
+    """A unification with the territory aggregates of the absorbed nation's one region."""
+    return [
+        unification(key, gainer, absorbed, not_before=PREVIOUS[key], unifier=RESISTANCE),
+        *transfer(key, gainer, absorbed, region),
+    ]
+
+
+def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes() -> None:
+    reading = merged(K1, NORTH, SOUTH, SOUTH_REGION)
+    lost_executive = control(K1, "executive", RESISTANCE, None, subject=SOUTH)
+    gone_point = event("control_point.disappeared", K1, POINT, entities=[SOUTH, RESISTANCE])
+    alliance = event("nation.relation_changed", K1, EAST, "allies", entities=[SOUTH])
+    fallen = event("nation.rank_changed", K1, SOUTH, "GDP", attributes=(("metric", "GDP"),))
+    renamed = event("nation.renamed", K1, NORTH, attributes=(("before", "Northland"), ("after", "Union")))
+    arsenal = shift(K1, "numNuclearWeapons", SOUTH, 2.0, 0.0)
+    unrelated = [
+        event("nation.rank_changed", K1, NORTH, "GDP", attributes=(("metric", "GDP"),)),
+        event("nation.rank_changed", K2, SOUTH, "GDP", attributes=(("metric", "GDP"),)),
+    ]
+    stream = [*reading, lost_executive, gone_point, alliance, fallen, renamed, arsenal, *unrelated]
+
+    events = built(stream, plain(K0, K1, K2))
+    merger = only(events, "nation.merger")
+
+    assert roles(merger) == [(Role.ACTOR, "nation:20"), (Role.TARGET, "nation:21"), (Role.LOCATION, "region:42")]
+    assert set(merger.constituents) == {
+        *(item.id for item in reading),
+        lost_executive.id,
+        gone_point.id,
+        alliance.id,
+        fallen.id,
+        renamed.id,
+    }
+    assert merger.attribute("absorbed") == (SOUTH,) and merger.attribute("regions") == (SOUTH_REGION,)
+    assert merger.attribute("unifying_faction") == RESISTANCE
+    assert shift_ids(merger) == [arsenal.id]
+    assert (merger.significance, merger.open) == (Significance.MAJOR, False)
+    assert of_type(events, "nation.cession") == [] and of_type(events, "faction.takeover") == []
+    assert describe_event(merger) == (
+        "Northland (nation:20) absorbed Southland (nation:21) by unification under Resistance (faction:15)"
+    )
+
+
+def test_an_expansion_of_mergers_is_a_unification_and_a_member_leaving_by_merger_names_its_new_nation() -> None:
+    situations = [situation(key, federations=[federation_row(UNION, [NORTH, SOUTH, EAST])]) for key in (K0, K1, K2)]
+    left = federation_event("federation.members_changed", K1, SOUTH, "removed")
+    stayed = federation_event("federation.members_changed", K2, WEST, "removed")
+    stream = [*merged(K1, NORTH, SOUTH, SOUTH_REGION), *merged(K2, NORTH, EAST, EAST_REGION), left, stayed]
+
+    events = built(stream, situations)
+    expansion = only(events, "nation.expansion")
+    mergers = of_type(events, "nation.merger")
+
+    assert set(expansion.constituents) == {merger.id for merger in mergers} and len(mergers) == 2
+    assert expansion.attribute("mode") == "unification"
+    assert expansion.attribute("losers") == (SOUTH, EAST)
+    changes = only(events, "federation.lifecycle").attribute("member_changes")
+    assert [dict(change.items).get("merged_into") for change in changes] == [NORTH, None]  # type: ignore[union-attr]
 
 
 # --- nation.release / nation.breakaway ---------------------------------------------------------------------------

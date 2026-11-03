@@ -24,9 +24,11 @@ from .geopolitics import (
     BREAKAWAY,
     CESSION,
     EXPANSION,
+    MERGER,
     RELEASE,
     TAKEOVER,
     WAR_ARC,
+    MergerParties,
     bounded_shifts,
     gdp_rank,
     metric_shifts,
@@ -73,7 +75,7 @@ BAND_SHIFTS: Mapping[str, str] = {
     "militaryTechLevel": "nation.miltech_shift",
 }
 
-SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, RELEASE, BREAKAWAY})
+SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY})
 """Their ``metric_shifts`` already state a band shift of their nations, so no separate development is built."""
 WAR_CARRIED = frozenset({"unrest", "cohesion"})
 """Statistics a war moves, so a ``war.arc`` naming the nation carries their shifts too."""
@@ -244,10 +246,11 @@ class PopulationCollapseRule:
     ) -> list[Event]:
         reports = interval_reports(situations)
         strikes = by_type(stream, NUCLEAR_STRIKES_CHANGED)
+        parties = MergerParties.of(stream)
         built = []
         for drop in by_type(stream, POPULATION_CHANGED):
             nation = subject(drop)
-            if nation is None or drop.attribute("direction") != DROP:
+            if nation is None or drop.attribute("direction") != DROP or parties.absorbed(nation, drop):
                 continue
             key = interval_of(drop.id)
             nuclear = [strike for strike in strikes if interval_of(strike.id) == key]
@@ -298,7 +301,9 @@ class EconomicTrajectoryRule:
     ) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
-        grouped = by_subject(by_type(stream, PCGDP_TREND))
+        parties = MergerParties.of(stream)
+        trends = [event for event in by_type(stream, PCGDP_TREND) if not parties.absorbed(subject(event), event)]
+        grouped = by_subject(trends)
         built = []
         for nation_id in sorted_keys(grouped):
             for run in _trend_runs(grouped[nation_id]):
@@ -379,8 +384,11 @@ class NuclearArcRule:
     ) -> list[Event]:
         days = self.settings.nuclear_window_days
         reports = interval_reports(situations)
+        parties = MergerParties.of(stream)
         shifts = [
-            event for event in by_type(stream, STATISTIC_SHIFTED) if event.attribute("statistic") == NUCLEAR_WEAPONS
+            event
+            for event in by_type(stream, STATISTIC_SHIFTED)
+            if event.attribute("statistic") == NUCLEAR_WEAPONS and not parties.merged(subject(event), event)
         ]
         programs = by_subject(
             event for event in by_type(stream, NUCLEAR_PROGRAM_CHANGED) if event.attribute("after") is True

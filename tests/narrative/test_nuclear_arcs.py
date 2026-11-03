@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.narrative.support import atomic, nation, nation_row, situation
+from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.model.entities import EntityRef
@@ -106,3 +106,12 @@ def test_a_disarmament_halves_the_arsenal_and_to_zero_from_ten_is_campaign_defin
     assert dismantled.significance is Significance.CAMPAIGN_DEFINING
     assert built([weapons(K1, 9, 0)])[0].significance is Significance.MAJOR
     assert built([weapons(K1, 8, 5)]) == []
+
+
+def test_weapons_moving_in_a_merger_are_the_mergers_not_an_arc() -> None:
+    absorbed = weapons(K1, 4, 0, SOUTH)
+    gained = weapons(K1, 6, 10)
+    merger = unification(K1, NORTH, SOUTH, not_before=K0)
+    assert built([merger, absorbed, gained]) == []
+    later = [event.event_type for event in built([merger, weapons(K2, 4, 0, SOUTH)])]
+    assert later == [NUCLEAR_DISARMAMENT]  # the merger's interval only

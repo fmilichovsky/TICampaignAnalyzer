@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation
+from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification
 from tinarrative.analyzers.politics.bands import BANDS, crossed
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
@@ -160,6 +160,12 @@ def test_a_development_naming_the_nation_in_the_interval_carries_the_shift() -> 
     assert built([control, event], situations) == []
     elsewhere = crossing(K1, "democracy", 5.5, 6.5, subject=SOUTH)
     assert [shift.event_type for shift in built([control, elsewhere], plain_reports())] == ["nation.government_shift"]
+
+
+def test_a_merger_carries_the_band_shifts_of_both_nations() -> None:
+    merger = unification(K1, SOUTH, NORTH, not_before=K0)
+    situations = reports(5.5, 6.5, 6.5, statistic="democracy")
+    assert built([merger, crossing(K1, "democracy", 5.5, 6.5)], situations) == []
 
 
 def plain_reports() -> list[SituationReport]:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import atomic, nation, nation_row, situation
+from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.model.events import DateBasis, Event, Significance
@@ -147,3 +147,11 @@ def test_a_backstory_trajectory_of_a_top_economy_is_promoted_and_closed_before_t
     assert trajectory.attribute("before_sequence") is True and trajectory.attribute("ratio") == 0.6
     assert trajectory.significance is Significance.CAMPAIGN_DEFINING and not trajectory.open
     assert TREND_WINDOW_DAYS == 1826
+
+
+def test_an_absorbed_nations_population_and_trend_are_the_mergers() -> None:
+    absorbed = unification(K1, SOUTH, NORTH, not_before=K0)
+    assert built([absorbed, population(K1, "drop")], reports(), POPULATION_COLLAPSE) == []
+    assert built([absorbed, trend(K1, 24, "slump", 2.0, 1.0)], reports(), ECONOMIC_TRAJECTORY) == []
+    gainer = unification(K1, NORTH, SOUTH, not_before=K0)
+    assert built([gainer, population(K1, "drop")], reports(), POPULATION_COLLAPSE) != []

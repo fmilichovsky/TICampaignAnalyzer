@@ -623,6 +623,12 @@ def _cession(event: Event) -> str:
     return f"{_role(event, Role.ACTOR)} ceded {_regions(event)} to {_role(event, Role.BENEFICIARY)}"
 
 
+def _merger(event: Event) -> str:
+    text = f"{_role(event, Role.ACTOR)} absorbed {_role(event, Role.TARGET)} by unification"
+    faction = event.attribute("unifying_faction")
+    return f"{text} under {_name(faction)}" if isinstance(faction, EntityRef) else text
+
+
 def _release(event: Event) -> str:
     if any(role is Role.ACTOR for role, _ in event.roles):
         return f"{_role(event, Role.ACTOR)} released {_role(event, Role.BENEFICIARY)}"
@@ -822,6 +828,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "federation.lifecycle": _federation_lifecycle,
     "nation.expansion": _expansion,
     "nation.cession": _cession,
+    "nation.merger": _merger,
     "nation.release": _release,
     "nation.breakaway": _breakaway,
     "nation.claims_declared": _claims_declared,

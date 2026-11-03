@@ -11,6 +11,7 @@ from tests.analyzers.support import (
     BEFORE,
     by_type,
     faction_ref,
+    federation_ref,
     nation_ref,
     pair,
     point_ref,
@@ -176,9 +177,65 @@ def breakaway_independence() -> Scenario:
     )
 
 
-def two_nation_unification() -> Scenario:
-    """Nations 22 and 23 give their only regions to nation 20."""
-    return territory_pair({"42": ("22", "20"), "43": ("23", "20")}, kept={"20": ("30",)})
+UNIFIER = "15"
+RIVAL = "16"
+FEDERATION = federation_ref("70")
+
+
+def control_point(save: str, key: str, nation: str, holder: str | None, kind: str) -> EntityState:
+    return state(
+        EntityDomain.CONTROL_POINT,
+        key,
+        save,
+        nation=nation_ref(nation),
+        controlPointType=kind,
+        positionInNation=0 if kind == "Executive" else 1,
+        faction=faction_ref(holder) if holder is not None else None,
+    )
+
+
+def merger(
+    losers: tuple[str, ...] = ("22",),
+    *,
+    basis: str = "federation",
+    loser_legislature: str = UNIFIER,
+    gainer_executive: str = UNIFIER,
+    kept_by_loser: bool = False,
+    region_before: Fields | None = None,
+    region_after: Fields | None = None,
+) -> Scenario:
+    """Nation 20 absorbs ``losers`` (region ``4<n>`` each) under faction 15, which holds nation 20's executive point
+    and both points of each loser; the losers share federation 70 with nation 20, or broke away from it."""
+    shared = {"federation": FEDERATION} if basis == "federation" else {}
+    link = {"breakawayParent": nation_ref("20")} if basis == "breakaway" else {}
+    nation_before: dict[str, dict[str, Observed]] = {"20": {"controlPoints": (point_ref("90"),), **shared}}
+    nation_after: dict[str, dict[str, Observed]] = {"20": {"controlPoints": (point_ref("90"),), **shared}}
+    points_before = [control_point(BEFORE, "90", "20", gainer_executive, "Executive")]
+    points_after = [control_point(AFTER, "90", "20", gainer_executive, "Executive")]
+    for loser in losers:
+        points = (point_ref(f"9{loser}0"), point_ref(f"9{loser}1"))
+        nation_before[loser] = {"controlPoints": points, **shared, **link}
+        nation_after[loser] = {"controlPoints": points[1:], "federation": None, **link}
+        points_before += [
+            control_point(BEFORE, f"9{loser}0", loser, UNIFIER, "Executive"),
+            control_point(BEFORE, f"9{loser}1", loser, loser_legislature, "Legislature"),
+        ]
+        points_after.append(control_point(AFTER, f"9{loser}1", loser, None, "Legislature"))
+    kept: dict[str, tuple[str, ...]] = {"20": ("30",)}
+    if kept_by_loser:
+        kept[losers[0]] = (f"3{losers[0]}",)
+    return territory_pair(
+        {f"4{loser[-1]}": (loser, "20") for loser in losers},
+        kept=kept,
+        nation_before=nation_before,
+        nation_after=nation_after,
+        region_before=region_before,
+        region_after=region_after,
+        extra_before=tuple(points_before),
+        extra_after=tuple(points_after),
+        records_before=(executive(BEFORE, "20", "Politics", "2030-01-10T00:00:00"),),
+        records_after=(executive(AFTER, "20", "Politics", "2030-01-10T00:00:00"),),
+    )
 
 
 AMICABLE = (
@@ -249,6 +306,7 @@ def last_region_release() -> Scenario:
 
 
 def single_whole_loser() -> Scenario:
+    """Nation 22 gives its only region to nation 20; no control point, federation or breakaway link says why."""
     return territory_pair({"42": ("22", "20")}, kept={"20": ("30",)})
 
 
@@ -270,13 +328,8 @@ def war_annexation() -> Scenario:
 
 
 def ambiguous() -> Scenario:
-    """Nations 22 and 23 give their only regions to 20 while region 42's annexation flag clears."""
-    return territory_pair(
-        {"42": ("22", "20"), "43": ("23", "20")},
-        kept={"20": ("30",)},
-        region_before={"42": {"isBeingAnnexed": True}},
-        region_after={"42": {"isBeingAnnexed": False}},
-    )
+    """A unification of nation 22 into 20 while region 42's annexation flag clears."""
+    return merger(region_before={"42": {"isBeingAnnexed": True}}, region_after={"42": {"isBeingAnnexed": False}})
 
 
 SCENARIOS: dict[str, Callable[[], Scenario]] = {
@@ -285,7 +338,9 @@ SCENARIOS: dict[str, Callable[[], Scenario]] = {
     "small_inequality_tracker": small_inequality_tracker,
     "executive_independence": executive_independence,
     "breakaway_independence": breakaway_independence,
-    "unification": two_nation_unification,
+    "federation_merger": merger,
+    "breakaway_merger": lambda: merger(basis="breakaway"),
+    "two_mergers": lambda: merger(("22", "23")),
     "capital_release": capital_release,
     "single_parent_release": single_parent_release,
     "unattributed_release": unattributed_release,
@@ -431,17 +486,51 @@ def test_a_release_from_several_parents_without_a_moved_capital_names_no_release
 # --- Unification ------------------------------------------------------------------------------------------
 
 
-def test_two_nations_giving_every_region_to_one_gainer_is_a_medium_unification() -> None:
-    _, inferred = run(two_nation_unification())
+def test_a_federation_member_absorbed_under_one_faction_is_a_high_unification() -> None:
+    _, inferred = run(merger())
     event = only(inferred, UNIFICATION)
-    assert event.id == "nation.unification/nation:20" and event.confidence is Confidence.MEDIUM
-    assert ids(event.attribute("unified")) == ["nation:22", "nation:23"]
-    assert set(event.constituents) == {"region.nation_changed/region:42", "region.nation_changed/region:43"}
+    assert event.id == "nation.unification/nation:20" and event.confidence is Confidence.HIGH
+    assert ids(event.attribute("unified")) == ["nation:22"]
+    faction = event.attribute("unifying_faction")
+    assert isinstance(faction, EntityRef) and str(faction.entity_id) == "faction:15"
+    assert event.attribute("bases") == (
+        freeze({"nation": event.entities[1], "basis": "federation", "federation": FEDERATION}),
+    )
+    assert event.attribute("executive_since") == "2030-01-10T00:00:00"
+    assert set(event.constituents) == {
+        "region.nation_changed/region:42",
+        "control_point.controller_changed/control point:9221",
+        "control_point.disappeared/control point:9220",
+    }
+    assert [str(ref.entity_id) for ref in event.entities] == ["nation:20", "nation:22", "faction:15"]
 
 
-def test_one_nation_giving_every_region_is_no_unification() -> None:
-    _, inferred = run(single_whole_loser())
-    assert sorted(event.event_type for event in inferred) == [TERRITORY_GAINED, TERRITORY_LOST]
+def test_a_breakaway_absorbed_by_its_parent_is_a_unification() -> None:
+    _, inferred = run(merger(basis="breakaway"))
+    event = only(inferred, UNIFICATION)
+    assert event.confidence is Confidence.HIGH
+    assert [dict(basis.items)["basis"] for basis in event.attribute("bases")] == ["breakaway"]  # type: ignore[union-attr]
+
+
+def test_every_nation_absorbed_in_one_interval_is_one_unification() -> None:
+    _, inferred = run(merger(("22", "23")))
+    assert ids(only(inferred, UNIFICATION).attribute("unified")) == ["nation:22", "nation:23"]
+
+
+@pytest.mark.parametrize(
+    "scenario",
+    [
+        pytest.param(single_whole_loser, id="no-conditions"),
+        pytest.param(lambda: merger(loser_legislature=RIVAL), id="loser-point-held-by-another-faction"),
+        pytest.param(lambda: merger(gainer_executive=RIVAL), id="gainer-executive-held-by-another-faction"),
+        pytest.param(lambda: merger(basis="none"), id="no-federation-and-no-breakaway"),
+        pytest.param(lambda: merger(kept_by_loser=True), id="loser-keeps-a-region"),
+    ],
+)
+def test_an_emptied_nation_without_every_game_condition_is_no_unification(scenario: Callable[[], Scenario]) -> None:
+    _, inferred = run(scenario())
+    assert not by_type(inferred, UNIFICATION)
+    assert {TERRITORY_GAINED, TERRITORY_LOST} <= {event.event_type for event in inferred}
 
 
 def test_a_release_of_a_parents_last_region_is_an_independence_not_a_unification() -> None:
@@ -488,7 +577,7 @@ def test_competing_readings_are_both_kept_one_level_lower_and_cross_referenced()
     _, inferred = run(ambiguous())
     unification = only(inferred, UNIFICATION)
     annexation = only(inferred, ANNEXATION)
-    assert unification.confidence is Confidence.LOW and annexation.confidence is Confidence.LOW
+    assert unification.confidence is Confidence.MEDIUM and annexation.confidence is Confidence.LOW
     assert unification.attribute("ambiguous") is True and annexation.attribute("ambiguous") is True
     assert unification.attribute("alternatives") == (annexation.id,)
     assert annexation.attribute("alternatives") == (unification.id,)
@@ -543,7 +632,7 @@ def test_lines_name_the_reading_and_significance_ranks_it() -> None:
         "Fixture nation 25 (nation:25) became independent of Fixture nation 21 (nation:21)",
         Significance.MAJOR,
     )
-    assert lines_of(two_nation_unification())["nation.unification/nation:20"] == (
+    assert lines_of(merger(("22", "23")))["nation.unification/nation:20"] == (
         "Fixture nation 20 (nation:20) unified with Fixture nation 22 (nation:22), Fixture nation 23 (nation:23)",
         Significance.MAJOR,
     )
