@@ -38,8 +38,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "0d0c454213ba9c7ce07dc50f26190e87af69ab2b99ed7ebbc21f24e82032de8f",
-      "purpose": "Normalize councilors (ISO dates), missions (cross-domain targets), armies (both state types), fleets, ships, habs, and research: resolved, null, and unresolved references per domain (including a councilor located at a hab, a fleet whose parentFleet ID is absent, and a ship in an absent fleet), missing fields, a megafauna-only field, and a research singleton whose techProgress overlaps finishedTechsNames and has one element without a template name."
+      "sha256": "e4f36a1edd37ab173d0fa682357f117b5321dea1a97501d9c81d95d84cc85bd7",
+      "purpose": "Normalize councilors (ISO dates), missions (cross-domain targets), armies (both state types), fleets, ships, habs (one with a core module in slot 0 of its sector, one without sectors), and research: resolved, null, and unresolved references per domain (including a councilor located at a hab, a fleet whose parentFleet ID is absent, and a ship in an absent fleet), missing fields, a megafauna-only field, and a research singleton whose techProgress overlaps finishedTechsNames and has one element without a template name."
     },
     {
       "path": "unknown_state_type.json",
@@ -93,7 +93,7 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "dcfcf1ad2071010e211041fb2aa6cef98ec2853ef1e350fa55ae873a2537c6ae",
+      "sha256": "721e46a5cadbd0f7b8986b3224e02f2392f71449249ff37fd5e2bdf08edc801c",
       "purpose": "Earlier snapshot of a synthetic campaign interval for `tinarrative save diff`; pair with interval_after.json. Holds the entities and values that change, disappear (control point 12, councilor 101) or stay in a different order (nation regions) in the later snapshot; control points 9..12 exercise natural ID ordering."
     },
     {
@@ -104,7 +104,7 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "64e5381dd32489d20cd63db5e87eab1d1d36dc414373ff5636cffb80488d797c",
+      "sha256": "59e3abdddb283fa4c6d29f1356124c018d400cfd1fb421847c53e7960302f6e6",
       "purpose": "Later snapshot of the same synthetic interval: scalar, reference (null to resolved, resolved to unresolved), membership, map-key and unknown-value changes; entities that appear (megafauna army 112, councilor 102, fleet 121); a reference list with a stale ID; a newly finished technology; a later date."
     },
     {
@@ -192,8 +192,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "626cccbcd08ed79a9c82af305714d973465ba43e1e67bac920bf6247803418bd",
-      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141, an orbit pair, a space body 50 with a moon 51 whose barycenter points at it, and a research singleton with two finished techs and one progress entry. Faction 15 carries shipDesigns (dataName, hullName) for every ship template; faction 16 an empty list."
+      "sha256": "e2932fe6379012e61b3c9c9ecdbcfa11812a3a12ec636a6fc6106df52a576869",
+      "purpose": "Earlier snapshot of a synthetic interval for the army, space and technology analyzers; pair with assets_after.json. Factions 15/16 with fleet and army rosters and a one-entry HabDestructionLog on faction 15, nations 20/21 and regions 40..42 with army lists, armies 110/111/113, fleets 120/121 with ships 130..132, habs 140/141 sharing sector 160 with core module 170, an orbit pair, a space body 50 with a moon 51 whose barycenter points at it, and a research singleton with two finished techs and one progress entry. Faction 15 carries shipDesigns (dataName, hullName) for every ship template; faction 16 an empty list."
     },
     {
       "path": "assets_after.json",
@@ -203,7 +203,7 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "a536468eca01cd13090a50621b2264fcdac7c4786d038ddd44de4abbb6e7bb10",
+      "sha256": "d5f30bc78d51d55d3ab7e7e8391c0f430ac92fcd6b3a8b4e30464525734c1cee",
       "purpose": "Later snapshot of the same synthetic interval: an army that changes region (region and nation lists mirror it) and strength; an army that changes faction (faction lists mirror it), type and destroyed flag; an army absent from the save; a megafauna army that appears; a fleet that docks (hab list mirrors it), changes orbit, gains a ship and gets an unresolved parentFleet; a fleet that changes faction and enters combat; a fleet that appears docked; a ship whose refit date is set; a ship that moves between fleets; a ship absent and one present only here; a hab whose faction, tier and assault flag change with an unexplained docked fleet; a hab absent from the save; two added destruction-log entries (one with an unresolved space body and a null destroyer); a tech that finishes, one that appears finished, one progress-only, and a finished name removed. The ship designs are unchanged, so the hulls of the ship present only here and of the absent one both resolve."
     },
     {

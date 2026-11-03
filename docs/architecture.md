@@ -385,7 +385,7 @@ Space:
 | Type | Says |
 | --- | --- |
 | `faction.space_campaign` | X destroyed k habs and fleets of Y over a period, winning n recorded battles |
-| `faction.colonisation_wave` | X established habs on bodies B1..Bn in a period |
+| `faction.colonisation_wave` | X established habs on bodies B1..Bn in a period (a hab is established when its core completes, not at launch) |
 | `campaign.first_milestone` | a campaign-wide first, dated |
 | `faction.fleet_buildup` | X commissioned n ships of class C |
 | `technology.milestone` | a technology or project from a curated list completed (the list is interpretation) |

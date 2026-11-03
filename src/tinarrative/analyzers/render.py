@@ -324,6 +324,19 @@ def _nation_control_changed(event: Event) -> str:
     return f"{_subject(event)} {_transition(event, _text(event, 'scope') + ' control changed')}"
 
 
+def _hab_presence(event: Event) -> str:
+    text = _presence_with(EntityDomain.FACTION, "faction")(event)
+    if not isinstance(event.attribute("projected_completion"), Unknown):
+        text += f"; core projected to arrive {_text(event, 'projected_arrival')}"
+        text += f" and complete {_text(event, 'projected_completion')}"
+    return text
+
+
+def _hab_established(event: Event) -> str:
+    faction = _name(_entity(event, EntityDomain.FACTION))
+    return f"{_subject(event)} ({faction}) became operational at {_attr(event, 'body')}"
+
+
 def _first_hab_on_body(event: Event) -> str:
     count = event.attribute("hab_count")
     habs = f"{render_value(count)} hab{'' if count == 1 else 's'}"
@@ -787,7 +800,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "hab.under_assault_changed": _with_context("under-assault flag", EntityDomain.FACTION),
     "hab.under_bombardment_changed": _with_context("under-bombardment flag", EntityDomain.FACTION),
     "hab.core_completed_changed": _with_context("core-completed flag", EntityDomain.FACTION),
-    "hab.appeared": _presence_with(EntityDomain.FACTION, "faction"),
+    "hab.appeared": _hab_presence,
     "hab.disappeared": _presence_with(EntityDomain.FACTION, "faction"),
     "faction.hab_destruction_recorded": _destruction_recorded,
     "faction.combat_recorded": _combat_recorded,
@@ -820,6 +833,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.unification": _unification,
     "nation.annexation": _annexation,
     "faction.nation_control_changed": _nation_control_changed,
+    "hab.established": _hab_established,
     "faction.first_hab_on_body": _first_hab_on_body,
     "hab.destroyed": _hab_destroyed,
     "faction.battle_outcome": _battle_outcome,

@@ -1,10 +1,12 @@
-"""Reconstruction rules for space: first hab on a body, hab destroyed, battle outcome.
+"""Reconstruction rules for space: hab established, first hab on a body, hab destroyed, battle outcome.
 
 The space analyzers only report presence and log entries; these rules name the development. The joins and their
-evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins).
+evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins, hab lifecycle).
 
-- ``faction.first_hab_on_body``: habs of a faction appear on a body where it held none; high. A ``First*Base*``
-  milestone is cited only when it is unambiguous (labels name places, not body IDs).
+- ``hab.established``: a hab's core completed (a hab appears at launch, long before); high, dated by the core's
+  completion when that falls inside the interval.
+- ``faction.first_hab_on_body``: habs of a faction are established on a body where it had no working hab; high. A
+  ``First*Base*`` milestone is cited only when it is unambiguous (labels name places, not body IDs).
 - ``hab.destroyed``: a vanished hab joined to destruction log entries by faction, hab type and body; high when
   one entry matches or a ``LogHabDestroyed`` notification pins the date, else medium (``ambiguous``) or low.
 - ``faction.battle_outcome``: ``Kills`` growth against a victim plus a loss of the victim; medium, high with a
@@ -24,7 +26,7 @@ from ..analyzers.common import ChangeIndex, EventBuilder, Lookup, Side
 from ..analyzers.space.combat import COMBAT_RECORDED, side_factions
 from ..analyzers.space.fleets import DISAPPEARED as FLEET_DISAPPEARED
 from ..analyzers.space.habs import APPEARED as HAB_APPEARED
-from ..analyzers.space.habs import DESTRUCTION_RECORDED
+from ..analyzers.space.habs import CORE_COMPLETED_CHANGED, DESTRUCTION_RECORDED
 from ..analyzers.space.habs import DISAPPEARED as HAB_DISAPPEARED
 from ..model.changes import ChangeKind, RecordsDetail, StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -34,10 +36,15 @@ from ..model.snapshot import SaveSnapshot
 from ..model.values import Observed
 from .common import ObjectiveIndex, Support, inferred
 
+HAB_ESTABLISHED = "hab.established"
 FIRST_HAB_ON_BODY = "faction.first_hab_on_body"
 HAB_DESTROYED = "hab.destroyed"
 BATTLE_OUTCOME = "faction.battle_outcome"
-RULE_TYPES = (FIRST_HAB_ON_BODY, HAB_DESTROYED, BATTLE_OUTCOME)
+RULE_TYPES = (HAB_ESTABLISHED, FIRST_HAB_ON_BODY, HAB_DESTROYED, BATTLE_OUTCOME)
+
+CORE_COMPLETED = "anyCoreCompleted"
+CORE_DATES = ("corePriorCompletionDate", "coreCompletionDate")
+"""Candidate completion dates; the prior one is the first core's when an upgrade began in the same interval."""
 
 HAB_DESTROYED_NOTIFICATION = NOTIFICATION_PREFIX + "LogHabDestroyed"
 BATTLE_NOTIFICATION = NOTIFICATION_PREFIX + "LogSpaceBattleTakesPlace"
@@ -75,35 +82,105 @@ class SpaceContext:
 def space_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
     """Every space inference of one interval (unsorted)."""
     context = SpaceContext(events, before, after, diff)
-    return [*_first_habs(context), *_destroyed_habs(context), *_battle_outcomes(context)]
+    foundings = _foundings(context)
+    return [
+        *(_established(context, founding) for founding in foundings),
+        *_first_habs(context, foundings),
+        *_destroyed_habs(context),
+        *_battle_outcomes(context),
+    ]
 
 
 def _subject(event: Event) -> EntityRef:
     return event.entities[0]
 
 
+# --- hab.established --------------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class _Founding:
+    """A hab whose core began to work in the interval; ``evidence`` is the objective event both space rules cite."""
+
+    evidence: Event
+    date: str | None
+    """The core's completion date, or ``None`` when it falls outside the interval."""
+
+    @property
+    def hab(self) -> EntityRef:
+        return _subject(self.evidence)
+
+
+def _foundings(context: SpaceContext) -> list[_Founding]:
+    """A core completed on a hab seen before, or a hab appeared with a working core (launched and built in one go)."""
+    evidence = [
+        event
+        for event in context.of_type(CORE_COMPLETED_CHANGED)
+        if event.attribute("before") is False and event.attribute("after") is True
+    ]
+    for event in context.of_type(HAB_APPEARED):
+        state = context.lookup.state(_subject(event).entity_id, Side.AFTER)
+        if state is not None and state.get(CORE_COMPLETED) is True:
+            evidence.append(event)
+    return [_Founding(event, _completion_date(context, _subject(event).entity_id)) for event in evidence]
+
+
+def _established(context: SpaceContext, founding: _Founding) -> Event:
+    hab = founding.hab
+    faction = context.lookup.ref_field(hab.entity_id, "faction", Side.AFTER)
+    body = context.lookup.ref_field(hab.entity_id, "barycenter", Side.AFTER)
+    return inferred(
+        context.build,
+        HAB_ESTABLISHED,
+        id_parts=(hab.entity_id,),
+        primary=(founding.evidence,),
+        support=Support(),
+        entities=(hab, faction, body),
+        attributes=(("faction", faction), ("body", body)),
+        confidence=Confidence.HIGH,
+        recorded_on=founding.date,
+    )
+
+
+def _completion_date(context: SpaceContext, hab_id: EntityId) -> str | None:
+    """The earliest core completion date inside the interval; ``None`` dates the event by the interval."""
+    state = context.lookup.state(hab_id, Side.AFTER)
+    low, high = context.build.not_before, context.build.observed
+    if state is None or not isinstance(high, str):
+        return None
+    dates = []
+    for name in CORE_DATES:
+        value = state.get(name)
+        if name == "coreCompletionDate" and state.get("coreConstructionCompleted") is not True:
+            continue
+        if isinstance(value, str) and value <= high and (not isinstance(low, str) or value > low):
+            dates.append(value)
+    return min(dates, default=None)
+
+
 # --- faction.first_hab_on_body ---------------------------------------------------------------------------------
 
 
-def _first_habs(context: SpaceContext) -> list[Event]:
+def _first_habs(context: SpaceContext, foundings: Sequence[_Founding]) -> list[Event]:
+    """Keyed on working habs: a hab still in transit or under construction is no presence."""
     held: set[tuple[EntityId, EntityId]] = set()
     occupied: set[EntityId] = set()
     for hab in context.before.habs:
         owner, place = hab.get("faction"), hab.get("barycenter")
-        if isinstance(place, EntityRef):
+        if isinstance(place, EntityRef) and hab.get(CORE_COMPLETED) is True:
             occupied.add(place.entity_id)
             if isinstance(owner, EntityRef):
                 held.add((owner.entity_id, place.entity_id))
 
-    groups: dict[tuple[EntityId, EntityId], list[Event]] = defaultdict(list)
+    groups: dict[tuple[EntityId, EntityId], list[_Founding]] = defaultdict(list)
     bodies: dict[EntityId, EntityRef] = {}
-    for event in context.of_type(HAB_APPEARED):
-        hab_id = _subject(event).entity_id
+    for founding in foundings:
+        hab_id = founding.hab.entity_id
         faction = context.faction_of(hab_id, Side.AFTER)
         body = context.lookup.ref_field(hab_id, "barycenter", Side.AFTER)
         if faction is None or body is None or (faction, body.entity_id) in held:
             continue
-        groups[(faction, body.entity_id)].append(event)
+        groups[(faction, body.entity_id)].append(founding)
         bodies[body.entity_id] = body
 
     firsts_overall: dict[EntityId, int] = defaultdict(int)
@@ -118,21 +195,21 @@ def _first_habs(context: SpaceContext) -> list[Event]:
                 milestones[faction_ref.entity_id].append(event)
 
     inferred_events: list[Event] = []
-    for (faction, body_id), appeared in sorted(
+    for (faction, body_id), founded in sorted(
         groups.items(), key=lambda item: (item[0][0].sort_key, item[0][1].sort_key)
     ):
         overall = body_id not in occupied
         cited = tuple(milestones[faction]) if overall and firsts_overall[faction] == 1 else ()
-        habs = tuple(
-            _subject(event) for event in sorted(appeared, key=lambda event: _subject(event).entity_id.sort_key)
-        )
+        habs = tuple(sorted((founding.hab for founding in founded), key=lambda ref: ref.entity_id.sort_key))
+        dates = [founding.date for founding in founded if founding.date is not None]
+        first = min(dates) if len(dates) == len(founded) else None  # one hab dated only by the interval: so is this
         body = bodies[body_id]
         inferred_events.append(
             inferred(
                 context.build,
                 FIRST_HAB_ON_BODY,
                 id_parts=(faction, body_id),
-                primary=appeared,
+                primary=[founding.evidence for founding in founded],
                 support=Support(events=cited),
                 entities=(context.ref(faction), body, *habs),
                 attributes=(
@@ -143,6 +220,7 @@ def _first_habs(context: SpaceContext) -> list[Event]:
                     ("milestones", tuple(sorted(str(event.attribute("milestone")) for event in cited))),
                 ),
                 confidence=Confidence.HIGH,
+                recorded_on=first,
             )
         )
     return inferred_events

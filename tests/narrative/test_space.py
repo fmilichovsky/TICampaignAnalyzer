@@ -227,6 +227,25 @@ def test_two_bodies_within_the_window_are_a_wave() -> None:
     assert "Luna" in describe_event(wave) and "Mars" in describe_event(wave)
 
 
+def test_a_wave_attaches_the_establishment_of_its_habs_not_their_launch() -> None:
+    luna_hab, mars_hab = ref(EntityDomain.SPACE_OBJECT, "60"), ref(EntityDomain.SPACE_OBJECT, "61")
+    stream = [
+        replace(first_hab(K1, LUNA), attributes=(("body", LUNA), ("habs", (luna_hab,)), ("hab_count", 1))),
+        replace(first_hab(K2, MARS), attributes=(("body", MARS), ("habs", (mars_hab,)), ("hab_count", 1))),
+        make("hab.established/space object:60", K1, [luna_hab, UNION, LUNA]),
+        make("hab.established/space object:61", K2, [mars_hab, UNION, MARS]),
+        make("hab.appeared/space object:61", K1, [mars_hab, UNION], status=EventStatus.OBJECTIVE),
+    ]
+
+    [wave] = of_type(built(stream), "faction.colonisation_wave")
+
+    attached = [event_id for event_id in wave.constituents if event_id.startswith("hab.")]
+    assert sorted(attached) == [
+        f"hab.established/space object:60@{K1}",
+        f"hab.established/space object:61@{K2}",
+    ]
+
+
 def test_a_single_body_or_a_distant_second_is_no_wave() -> None:
     assert of_type(built([first_hab(K1, LUNA)]), "faction.colonisation_wave") == []
     assert of_type(built([first_hab(K1, LUNA), first_hab(K4, MARS)]), "faction.colonisation_wave") == []

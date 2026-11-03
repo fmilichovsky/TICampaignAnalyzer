@@ -86,6 +86,8 @@ _TRIVIAL: tuple[str, ...] = (
 )
 
 _MINOR: tuple[str, ...] = (
+    # A hab appears at launch; it is founded when its core completes (``hab.established``), often a year later.
+    "hab.appeared",
     # Routine movement: fleets change orbit and dock constantly, armies redeploy.
     "fleet.orbit_changed",
     "fleet.barycenter_changed",
@@ -136,7 +138,6 @@ _MAJOR: tuple[str, ...] = (
     "region.nation_changed",
     "nation.federation_changed",
     "councilor.faction_changed",
-    "hab.appeared",
     "hab.disappeared",
     "faction.hab_destruction_recorded",
     # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
@@ -171,8 +172,9 @@ _MAJOR: tuple[str, ...] = (
     # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
     # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major.
     "faction.nation_control_changed",
-    # Inferred readings of space evidence: a new foothold, a hab lost to an enemy and a battle won are what a
-    # history reports about the ``hab.*`` and log events they cite.
+    # Inferred readings of space evidence: a working hab, a new foothold, a hab lost to an enemy and a battle won
+    # are what a history reports about the ``hab.*`` and log events they cite.
+    "hab.established",
     "faction.first_hab_on_body",
     "hab.destroyed",
     "faction.battle_outcome",

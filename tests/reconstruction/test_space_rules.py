@@ -20,6 +20,7 @@ from tests.analyzers.support import (
     state,
 )
 from tests.reconstruction.support import Scenario, assert_traceable, lines_of, only, run
+from tinarrative.analyzers.render import describe_event
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Significance, SourceRole
 from tinarrative.model.records import (
@@ -32,8 +33,9 @@ from tinarrative.model.records import (
     RecordSet,
 )
 from tinarrative.model.snapshot import EntityState
-from tinarrative.model.values import FrozenMap
-from tinarrative.reconstruction import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED
+from tinarrative.model.values import FrozenMap, Observed
+from tinarrative.narrative import assign_significance
+from tinarrative.reconstruction import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED
 
 FACTION = EntityDomain.FACTION
 HAB = EntityDomain.SPACE_OBJECT
@@ -44,9 +46,36 @@ GLOBAL_KEY = "70"
 ESCORTS = FrozenMap((("FixtureEscort", 2),))
 IN_INTERVAL = "2031-04-10T08:30:00.125000"
 LATER_IN_INTERVAL = "2031-05-02T11:00:00"
+BEFORE_INTERVAL = "2031-01-15T00:00:00"
+AFTER_INTERVAL = "2031-08-20T00:00:00"
 
-Hab = tuple[str, str, str]
-"""Owning faction key, hab type and body key."""
+Core = Mapping[str, Observed]
+"""A hab's ``anyCoreCompleted`` and ``core*`` fields."""
+WORKING: Core = {"anyCoreCompleted": True}
+"""A working core, the default: no dates (a hab created from a template)."""
+PENDING: Core = {
+    "anyCoreCompleted": False,
+    "coreConstructionCompleted": False,
+    "coreStartBuildDate": "2031-07-30T00:00:00",
+    "coreCompletionDate": AFTER_INTERVAL,
+    "corePriorCompletionDate": None,
+}
+"""A launched core still in transit: projected to arrive and complete after the later save."""
+
+
+def built(completion: str, *, upgrade: str | None = None, prior: str | None = None) -> Core:
+    """A core completed on ``completion``; with ``upgrade`` it is being replaced, due then (``prior`` is set)."""
+    return {
+        "anyCoreCompleted": True,
+        "coreConstructionCompleted": upgrade is None,
+        "coreStartBuildDate": "2031-03-20T00:00:00",
+        "coreCompletionDate": completion if upgrade is None else upgrade,
+        "corePriorCompletionDate": completion if upgrade is not None else prior,
+    }
+
+
+Hab = tuple[str, str, str] | tuple[str, str, str, Core]
+"""Owning faction key, hab type, body key and, optionally, the core (``WORKING`` by default)."""
 
 
 def body(key: str) -> EntityRef:
@@ -74,8 +103,11 @@ def space_pair(
             state(EntityDomain.NOTIFICATION_QUEUE, QUEUE_KEY, save),
             state(EntityDomain.GLOBAL_VALUES, GLOBAL_KEY, save),
         ]
-        for key, (faction, hab_type, place) in sorted(habs.items()):
-            found.append(state(HAB, key, save, faction=faction_ref(faction), habType=hab_type, barycenter=body(place)))
+        for key, hab in sorted(habs.items()):
+            faction, hab_type, place = hab[:3]
+            core = hab[3] if len(hab) == 4 else WORKING
+            fields = {"faction": faction_ref(faction), "habType": hab_type, "barycenter": body(place), **core}
+            found.append(state(HAB, key, save, **fields))
         for key, faction in sorted((fleets or {}).items()):
             found.append(state(EntityDomain.FLEET, key, save, faction=faction_ref(faction)))
         return found
@@ -163,6 +195,24 @@ def first_of_any_faction(*, second_body: bool = False) -> Scenario:
     )
 
 
+# --- Scenarios: hab lifecycle -----------------------------------------------------------------------------------
+
+
+def launched() -> Scenario:
+    """Faction 15 launches hab 56 to body 904, new to every faction; its core is still in transit."""
+    return space_pair({}, {"56": ("15", "Base", "904", PENDING)})
+
+
+def landed(core: Core | None = None, *, held: bool = False) -> Scenario:
+    """Hab 56, launched before, gets a working core on body 904; with ``held`` faction 15 also had a hab in transit
+    there."""
+    before: dict[str, Hab] = {"56": ("15", "Base", "904", PENDING)}
+    after: dict[str, Hab] = {"56": ("15", "Base", "904", core or built(IN_INTERVAL))}
+    if held:
+        before["57"] = after["57"] = ("15", "Station", "904", PENDING)
+    return space_pair(before, after)
+
+
 # --- Scenarios: hab destroyed -----------------------------------------------------------------------------------
 
 
@@ -232,6 +282,8 @@ def battle(
 
 
 SCENARIOS: dict[str, Callable[[], Scenario]] = {
+    "landed": landed,
+    "upgraded": lambda: landed(built(IN_INTERVAL, upgrade=AFTER_INTERVAL)),
     "new_body": new_body,
     "first_of_any_faction": first_of_any_faction,
     "unique_destruction": unique_destruction,
@@ -244,7 +296,70 @@ SCENARIOS: dict[str, Callable[[], Scenario]] = {
 }
 
 
+# --- hab.established --------------------------------------------------------------------------------------------
+
+
+def test_a_launch_is_a_minor_appearance_with_projected_dates_and_establishes_nothing() -> None:
+    scenario = launched()
+    objective, inferred = run(scenario)
+    assert inferred == []
+    (appeared,) = assign_significance(by_type(list(objective), "hab.appeared"), scenario[0], scenario[1])
+    assert appeared.attribute("core_completed") is False
+    assert appeared.attribute("projected_arrival") == "2031-07-30T00:00:00"
+    assert appeared.attribute("projected_completion") == AFTER_INTERVAL
+    assert appeared.significance is Significance.MINOR
+    assert describe_event(appeared) == (
+        "Fixture space object 56 (space object:56) (faction Fixture faction 15 (faction:15)) is present only in "
+        f"the after snapshot; core projected to arrive 2031-07-30T00:00:00 and complete {AFTER_INTERVAL}"
+    )
+
+
+def test_a_completed_core_establishes_the_hab_on_its_completion_date() -> None:
+    _, inferred = run(landed())
+    event = only(inferred, HAB_ESTABLISHED)
+    assert event.id == "hab.established/space object:56"
+    assert (event.date, event.date_basis, event.confidence) == (IN_INTERVAL, DateBasis.RECORD, Confidence.HIGH)
+    assert event.attribute("faction") == named(PLAYER)
+    assert ids((event.attribute("body"),)) == ["space body:904"]
+    assert event.constituents == ("hab.core_completed_changed/space object:56",)
+    assert lines_of(landed())["hab.established/space object:56"] == (
+        "Fixture space object 56 (space object:56) (Fixture faction 15 (faction:15)) became operational at "
+        "space body:904",
+        Significance.MAJOR,
+    )
+
+
+@pytest.mark.parametrize(
+    ("core", "date"),
+    [
+        (built(IN_INTERVAL, upgrade=AFTER_INTERVAL), IN_INTERVAL),  # upgrade under way: the replaced core's date
+        (built(LATER_IN_INTERVAL, prior=IN_INTERVAL), IN_INTERVAL),  # upgrade finished: the earlier date
+        (built(BEFORE_INTERVAL), "2031-06-01T00:00:00"),  # outside the interval: interval-dated
+    ],
+)
+def test_an_establishment_is_dated_by_the_earliest_core_completion_inside_the_interval(core: Core, date: str) -> None:
+    _, inferred = run(landed(core))
+    event = only(inferred, HAB_ESTABLISHED)
+    basis = DateBasis.INTERVAL if date == "2031-06-01T00:00:00" else DateBasis.RECORD
+    assert (event.date, event.date_basis) == (date, basis)
+
+
+def test_a_hab_that_appears_with_a_working_core_is_established_by_its_appearance() -> None:
+    _, inferred = run(space_pair({}, {"58": ("15", "Station", "904", built(IN_INTERVAL))}))
+    event = only(inferred, HAB_ESTABLISHED)
+    assert (event.date, event.constituents) == (IN_INTERVAL, ("hab.appeared/space object:58",))
+
+
 # --- faction.first_hab_on_body ----------------------------------------------------------------------------------
+
+
+def test_a_first_presence_waits_for_a_working_core_and_takes_its_date() -> None:
+    _, inferred = run(landed(held=True))  # the hab in transit there does not count as presence
+    event = only(inferred, FIRST_HAB_ON_BODY)
+    assert event.id == "faction.first_hab_on_body/faction:15/space body:904"
+    assert (event.date, event.date_basis) == (IN_INTERVAL, DateBasis.RECORD)
+    assert event.attribute("first_of_any_faction") is True
+    assert event.constituents == ("hab.core_completed_changed/space object:56",)
 
 
 def test_habs_on_a_body_new_to_their_faction_are_one_high_first_presence() -> None:
@@ -257,13 +372,14 @@ def test_habs_on_a_body_new_to_their_faction_are_one_high_first_presence() -> No
     assert event.attribute("first_of_any_faction") is False  # faction 16 was there before
     assert event.attribute("milestones") == ()
     assert set(event.constituents) == {"hab.appeared/space object:51", "hab.appeared/space object:52"}
+    assert event.date_basis is DateBasis.INTERVAL  # template-created cores carry no dates
     assert [str(ref.entity_id) for ref in event.entities[:2]] == ["faction:15", "space body:900"]
 
 
 def test_a_hab_on_a_body_the_faction_already_held_is_no_first_presence() -> None:
     scenario = space_pair({"50": ("15", "Base", "901")}, {"50": ("15", "Base", "901"), "55": ("15", "Station", "901")})
     objective, inferred = run(scenario)
-    assert by_type(list(objective), "hab.appeared") and inferred == []
+    assert by_type(list(objective), "hab.appeared") and by_type(inferred, FIRST_HAB_ON_BODY) == []
 
 
 def test_a_first_base_milestone_is_cited_for_the_factions_only_first_of_any_faction() -> None:

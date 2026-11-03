@@ -13,11 +13,13 @@ __all__ = ["EVIDENCE_PREFIXES", "NARRATOR_EVIDENCE", "is_evidence"]
 
 _EVIDENCE: tuple[str, ...] = (
     # Space combat and footholds: the game's own records date each battle and lost hab and name the sides; the
-    # inferred readings name who won, what was destroyed and where a faction first settled.
+    # inferred readings name who won, what was destroyed, when a hab began to work and where a faction first
+    # settled.
     "faction.hab_destruction_recorded",
     "faction.combat_recorded",
     "faction.battle_outcome",
     "hab.destroyed",
+    "hab.established",
     "faction.first_hab_on_body",
     # Territory: which region went to whom, and the inferred reading of the transfer.
     "region.nation_changed",

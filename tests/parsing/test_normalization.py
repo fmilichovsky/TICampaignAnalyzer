@@ -14,7 +14,7 @@ from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, Identi
 from tinarrative.model.snapshot import EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze
 from tinarrative.parsing.errors import UnsupportedSaveShapeError
-from tinarrative.parsing.fields import ENTITY_FIELDS, NORMALIZED_DOMAINS, RESEARCH_STATE_TYPE
+from tinarrative.parsing.fields import DERIVED_FIELDS, ENTITY_FIELDS, NORMALIZED_DOMAINS, RESEARCH_STATE_TYPE
 from tinarrative.parsing.normalization import game_datetime, normalize
 from tinarrative.parsing.raw_save import RawSave
 from tinarrative.parsing.unknowns import ShapeSummary, UnknownCollector, UnknownReport
@@ -145,7 +145,10 @@ def test_collections_are_typed_sorted_and_carry_provenance(fixture_name: str, ex
             assert state.location.provenance_key == f"{short_type}:{state.ref.entity_id.key}"
             assert state.location.path == f"/gamestates/{STATE_PREFIX}{short_type}/{positions[short_type]}/Value"
             positions[short_type] += 1
-            assert {name for name, _ in state.fields} == set(ENTITY_FIELDS[short_type])
+            assert {name for name, _ in state.fields} == {
+                *ENTITY_FIELDS[short_type],
+                *DERIVED_FIELDS.get(short_type, ()),
+            }
 
 
 @pytest.mark.fixture
@@ -631,6 +634,8 @@ def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: Save
     assert hab.get("districts") is None
     assert hab.get("tier") == 1
     assert hab.get("habType") == "Station"
+    assert hab.get("coreConstructionCompleted") is True
+    assert hab.get("coreCompletionDate") == "2030-11-21T00:00:00"
 
     site_hab = by_id(assets.habs, "141")
     assert site_hab.get("faction") == unresolved(999)
@@ -666,6 +671,98 @@ def test_hab_core_defense_position_and_crew_are_copied_with_officers_raw() -> No
     new_fields = ("coreDefended", "coreDefendExpiration", "globalPosition", "inEarthLEO", "officersOnBoard")
     assert all(bare.get(name) == Unknown() for name in new_fields + ("advisingCouncilors",))
     assert not [key for key in keys(report) if key[1] == "TIHabState"]
+
+
+CORE_FIELDS = DERIVED_FIELDS["TIHabState"]
+PRIOR = {"year": 2040, "month": 2, "day": 20, "hour": 6, "minute": 0, "second": 0, "millisecond": 250}
+
+
+def core_save(*habs: dict[str, object], sectors: list[dict[str, object]], modules: list[dict[str, object]]) -> RawSave:
+    return fragment_raw(
+        {
+            STATE_PREFIX + "TIHabState": list(habs),
+            STATE_PREFIX + "TISectorState": sectors,
+            STATE_PREFIX + "TIHabModuleState": modules,
+        }
+    )
+
+
+def test_a_habs_core_module_is_copied_from_slot_zero_of_its_first_sector() -> None:
+    raw = core_save(
+        pair(140, sectors=[{"value": 160}, {"value": 161}]),
+        sectors=[pair(160, habModules=[{"value": 170}, {"value": 171}]), pair(161, habModules=[{"value": 172}])],
+        modules=[
+            pair(
+                170,
+                slot=0,
+                constructionCompleted=False,
+                startBuildDate="2041-02-25T00:00:00.0000000",
+                completionDate="2041-03-17T12:30:00.1234567",
+                priorModuleCompletionDate=PRIOR,
+            ),
+            pair(171, slot=1, constructionCompleted=True, startBuildDate="2040-01-01T00:00:00.0000000"),
+            pair(172, slot=0, constructionCompleted=True),
+        ],
+    )
+    snapshot, report = collect(raw)
+    hab = by_id(snapshot.habs, "140")
+    assert [hab.get(name) for name in CORE_FIELDS] == [
+        False,
+        "2041-02-25T00:00:00",
+        "2041-03-17T12:30:00.123456",
+        "2040-02-20T06:00:00.250000",
+    ]
+    assert not report.findings
+
+
+def test_a_template_created_core_has_no_dates_and_a_hab_without_sectors_no_core() -> None:
+    raw = core_save(
+        pair(140, sectors=[{"value": 160}]),
+        pair(141, sectors=[]),
+        pair(142),
+        sectors=[pair(160, habModules=[{"value": 170}])],
+        modules=[
+            pair(
+                170,
+                slot=0,
+                constructionCompleted=True,
+                startBuildDate="0001-01-01T00:00:00.0000000",
+                completionDate="0001-01-01T00:00:00.0000000",
+                priorModuleCompletionDate=None,
+            )
+        ],
+    )
+    snapshot, report = collect(raw)
+    assert [by_id(snapshot.habs, "140").get(name) for name in CORE_FIELDS] == [True, None, None, None]
+    for key in ("141", "142"):
+        assert all(by_id(snapshot.habs, key).get(name) == Unknown() for name in CORE_FIELDS)
+    assert not report.findings
+
+
+def test_a_broken_core_chain_or_an_unparseable_core_date_is_reported_on_the_habs_sectors() -> None:
+    raw = core_save(
+        pair(140, sectors=[{"value": 160}]),
+        pair(141, sectors=[{"value": 161}]),
+        pair(142, sectors=[{"value": 999}]),
+        sectors=[pair(160, habModules=[{"value": 170}]), pair(161, habModules=[{"value": 171}])],
+        modules=[
+            pair(170, slot=1, constructionCompleted=True),
+            pair(171, slot=0, constructionCompleted=True, completionDate="soon", priorModuleCompletionDate="later"),
+        ],
+    )
+    snapshot, report = collect(raw)
+    for key in ("140", "142"):
+        hab = by_id(snapshot.habs, key)
+        assert all(hab.get(name) == Unknown(UnknownReason.UNRESOLVED_REFERENCE) for name in CORE_FIELDS)
+    dated = by_id(snapshot.habs, "141")
+    assert dated.get("coreCompletionDate") == Unknown(UnknownReason.UNPARSEABLE, "soon")
+    assert dated.get("corePriorCompletionDate") == Unknown(UnknownReason.UNPARSEABLE, "later")
+    assert dated.get("coreStartBuildDate") == Unknown()
+    assert sorted(key[3] for key in keys(report) if key[1:3] == ("TIHabState", "sectors")) == [
+        "componentized_date",
+        "core_module",
+        "module_date",
+    ]
 
 
 @pytest.mark.fixture
