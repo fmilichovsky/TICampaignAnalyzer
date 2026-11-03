@@ -71,6 +71,7 @@ STATE_COLLECTIONS = (
     "regions",
     "control_points",
     "councilors",
+    "missions",
     "armies",
     "fleets",
     "ships",
@@ -92,6 +93,7 @@ NORMALIZED_COLLECTION_LABELS = (
     ("regions", "regions"),
     ("control_points", "control points"),
     ("councilors", "councilors"),
+    ("missions", "missions"),
     ("armies", "armies"),
     ("fleets", "fleets"),
     ("ships", "ships"),
@@ -133,6 +135,7 @@ class SaveSnapshot:
     regions: tuple[EntityState, ...] = ()
     control_points: tuple[EntityState, ...] = ()
     councilors: tuple[EntityState, ...] = ()
+    missions: tuple[EntityState, ...] = ()
     armies: tuple[EntityState, ...] = ()
     fleets: tuple[EntityState, ...] = ()
     ships: tuple[EntityState, ...] = ()

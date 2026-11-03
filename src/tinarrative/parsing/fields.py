@@ -195,6 +195,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "priorMissionTemplateName",
         "protectingTarget",
     ),
+    "TIMissionState": COMMON_FIELDS + ("councilor", "target", "missionOutcome", "resources"),
     "TIArmyState": _ARMY_FIELDS,
     "TIMegafaunaArmyState": _ARMY_FIELDS + ("bonusTechLevel",),
     "TISpaceFleetState": COMMON_FIELDS
@@ -392,12 +393,30 @@ _FACTION = (EntityDomain.FACTION, False)
 _REGION = (EntityDomain.REGION, False)
 _COUNCILOR = (EntityDomain.COUNCILOR, False)
 _NATION = (EntityDomain.NATION, False)
+_MISSION = (EntityDomain.MISSION, False)
 _NATION_LIST = (EntityDomain.NATION, True)
 _SPACE_OBJECT = (EntityDomain.SPACE_OBJECT, False)
 _SPACE_BODY = (EntityDomain.SPACE_BODY, False)
 _ALIEN_STATE = (EntityDomain.REGION_ALIEN_STATE, False)
 _PLACE = (frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP)), False)
 """A councilor location: a ``TIRegionState``, a ``TIHabState`` or a ``TISpaceShipState``."""
+
+_MISSION_TARGET = (
+    frozenset(
+        (
+            EntityDomain.NATION,
+            EntityDomain.COUNCILOR,
+            EntityDomain.REGION,
+            EntityDomain.CONTROL_POINT,
+            EntityDomain.ORGANIZATION,
+            EntityDomain.SPACE_OBJECT,
+            EntityDomain.SHIP,
+            EntityDomain.REGION_ALIEN_STATE,
+        )
+    ),
+    False,
+)
+"""A mission target: any of the entity kinds a mission can be aimed at."""
 
 _ARMY_REFERENCES: dict[str, tuple[ExpectedDomains, bool]] = {
     "currentRegion": _REGION,
@@ -407,6 +426,7 @@ _ARMY_REFERENCES: dict[str, tuple[ExpectedDomains, bool]] = {
 }
 
 REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
+    "TIMissionState": {"councilor": _COUNCILOR, "target": _MISSION_TARGET},
     "TIFactionState": {
         "councilors": (EntityDomain.COUNCILOR, True),
         "fleets": (EntityDomain.FLEET, True),
@@ -449,6 +469,8 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "homeRegion": _REGION,
         "location": _PLACE,
         "priorLocation": _PLACE,
+        "activeMission": _MISSION,
+        "completedMission": _MISSION,
         "orgs": (EntityDomain.ORGANIZATION, True),
         "knowsIveBeenSeenBy": (EntityDomain.FACTION, True),
     },
@@ -509,6 +531,11 @@ KEYED_LIST_FIELDS: dict[str, dict[str, str]] = {
 Keying lets the diff compare elements one by one instead of the whole list as one value.
 """
 
+DATE_FIELDS: dict[str, tuple[str, ...]] = {
+    "TICouncilorState": ("recruitDate", "detainedReleaseDate", "dateBorn"),
+}
+"""Entity fields holding a componentized date; the snapshot carries ISO-8601 text (see ``parsing/dates.py``)."""
+
 PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
     "TICouncilorState": {"assassinations": EntityDomain.FACTION},
@@ -529,6 +556,7 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.REGION, "TIRegionState", "regions"),
     (EntityDomain.CONTROL_POINT, "TIControlPoint", "control_points"),
     (EntityDomain.COUNCILOR, "TICouncilorState", "councilors"),
+    (EntityDomain.MISSION, "TIMissionState", "missions"),
     (EntityDomain.ARMY, "TIArmyState", "armies"),
     (EntityDomain.ARMY, "TIMegafaunaArmyState", "armies"),
     (EntityDomain.FLEET, "TISpaceFleetState", "fleets"),
@@ -986,6 +1014,9 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
                 "targetedLastTurn",
             ),
         ),
+    ),
+    "TIMissionState": _reasons(
+        (UnsupportedReason.RUNTIME_INTERNAL, ("startTime", "resolveTime", "resolveTimeAssigned")),
     ),
     "TIArmyState": _ARMY_ACKNOWLEDGED,
     "TIMegafaunaArmyState": _ARMY_ACKNOWLEDGED,

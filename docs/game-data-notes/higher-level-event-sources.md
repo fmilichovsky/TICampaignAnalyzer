@@ -531,8 +531,10 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
   `derived_history`.
 - `FactionGoal_*` collections and `TIFactionState.factionGoals`: AI planning, per the inventory's
   interpretation boundary.
-- `TIMissionState` (337 per older save, 27–30 per newer): the missions currently assigned, fully replaced
-  each interval; `startTime`, `resolveTime` null, `missionOutcome` `None` or `Aborted`. Current intent only.
+- `TIMissionState` (337 per older save, 27–30 per newer; normalized as the mission domain, not an event
+  source): each player councilor keeps a rolling window of 7–89 retained missions and each AI councilor only
+  its active mission. States persist across intervals (292 of 339 carried over between two consecutive Resist
+  saves, 2026-11-03). `startTime`, `resolveTime` null, `missionOutcome` `None` or `Aborted`.
 - `TIMissionPhaseState`, `TIPromptQueueState`, `TITimeEvent`, `TIEffectsState`: engine phase, pending
   prompts, scheduled ticks, effect tables.
 - `TIOfficerState` (353–380 per older save, none in the newer): ship officers with `rank`, `maxRank`,

@@ -374,7 +374,9 @@
             "Loyalty": 5,
             "ApparentLoyalty": 5
           },
-          "activeMission": null,
+          "activeMission": {
+            "value": 200
+          },
           "completedMission": null,
           "orgs": [
             {
@@ -1073,6 +1075,89 @@
             "Xenology": 0
           },
           "$type": "PavonisInteractive.TerraInvicta.TIGlobalResearchState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIMissionState": [
+      {
+        "Key": {
+          "value": 200
+        },
+        "Value": {
+          "ID": {
+            "value": 200
+          },
+          "templateName": "FixturePropaganda",
+          "displayName": "Fixture FixturePropaganda",
+          "archived": false,
+          "exists": true,
+          "councilor": {
+            "value": 100
+          },
+          "target": {
+            "value": 20,
+            "$type": "PavonisInteractive.TerraInvicta.TINationState"
+          },
+          "missionOutcome": "None",
+          "resources": 40.0,
+          "startTime": null,
+          "resolveTime": null,
+          "resolveTimeAssigned": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMissionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 201
+        },
+        "Value": {
+          "ID": {
+            "value": 201
+          },
+          "templateName": "FixtureInvestigate",
+          "displayName": "Fixture FixtureInvestigate",
+          "archived": false,
+          "exists": true,
+          "councilor": {
+            "value": 100
+          },
+          "target": {
+            "value": 101,
+            "$type": "PavonisInteractive.TerraInvicta.TICouncilorState"
+          },
+          "missionOutcome": "Aborted",
+          "resources": 40.0,
+          "startTime": null,
+          "resolveTime": null,
+          "resolveTimeAssigned": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMissionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 202
+        },
+        "Value": {
+          "ID": {
+            "value": 202
+          },
+          "templateName": "FixtureSurvey",
+          "displayName": "Fixture FixtureSurvey",
+          "archived": false,
+          "exists": true,
+          "councilor": {
+            "value": 102
+          },
+          "target": {
+            "value": 40,
+            "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+          },
+          "missionOutcome": "None",
+          "resources": 40.0,
+          "startTime": null,
+          "resolveTime": null,
+          "resolveTimeAssigned": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIMissionState"
         }
       }
     ]

@@ -29,6 +29,7 @@ STATE_TYPES = {
     EntityDomain.REGION: ("TIRegionState", "regions"),
     EntityDomain.CONTROL_POINT: ("TIControlPoint", "control_points"),
     EntityDomain.COUNCILOR: ("TICouncilorState", "councilors"),
+    EntityDomain.MISSION: ("TIMissionState", "missions"),
     EntityDomain.ARMY: ("TIArmyState", "armies"),
     EntityDomain.FLEET: ("TISpaceFleetState", "fleets"),
     EntityDomain.SHIP: ("TISpaceShipState", "ships"),

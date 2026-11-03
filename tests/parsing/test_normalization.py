@@ -118,6 +118,7 @@ def test_campaign_time_and_metadata_are_extracted(political: SaveSnapshot) -> No
                 "nations": 1,
                 "regions": 2,
                 "councilors": 3,
+                "missions": 3,
                 "armies": 3,
                 "fleets": 2,
                 "ships": 3,
@@ -392,11 +393,38 @@ def test_councilors_carry_membership_location_and_unknowns(assets: SaveSnapshot)
     assert partial.get("priorLocation") == ref(EntityDomain.REGION, "41", "TIRegionState")
     assert partial.get("status") == Unknown()
     assert partial.get("XP") == Unknown()
-    assert partial.get("activeMission") == FrozenMap((("value", 998),))  # mission type has no domain: raw
+    assert partial.get("activeMission") == unresolved(998)
     assert by_id(assets.factions, "10").get("councilors") == (
         ref(EntityDomain.COUNCILOR, "100", "TICouncilorState"),
         ref(EntityDomain.COUNCILOR, "102", "TICouncilorState"),
     )
+
+
+@pytest.mark.fixture
+def test_missions_resolve_their_councilor_and_cross_domain_target(assets: SaveSnapshot) -> None:
+    propaganda = by_id(assets.missions, "200")
+    assert propaganda.get("councilor") == ref(EntityDomain.COUNCILOR, "100", "TICouncilorState")
+    assert propaganda.get("target") == ref(EntityDomain.NATION, "20", "TINationState")
+    assert propaganda.get("missionOutcome") == "None"
+    aborted = by_id(assets.missions, "201")
+    assert aborted.get("target") == ref(EntityDomain.COUNCILOR, "101", "TICouncilorState")
+    assert aborted.get("missionOutcome") == "Aborted"
+    assert by_id(assets.councilors, "100").get("activeMission") == ref(EntityDomain.MISSION, "200", "TIMissionState")
+
+
+def test_councilor_dates_are_iso_text_and_malformed_ones_are_reported() -> None:
+    gamestates = {
+        STATE_PREFIX + "TICouncilorState": [
+            pair(100, recruitDate={"year": 2030, "month": 6, "day": 1, "hour": 0, "minute": 0, "second": 0}),
+            pair(101, recruitDate={"year": 2030}),
+        ]
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert by_id(snapshot.councilors, "100").get("recruitDate") == "2030-06-01T00:00:00"
+    assert by_id(snapshot.councilors, "101").get("recruitDate") == Unknown(
+        UnknownReason.UNPARSEABLE, FrozenMap((("year", 2030),))
+    )
+    assert report.total > 0
 
 
 def design(name: str, **members: object) -> dict[str, object]:
@@ -774,7 +802,7 @@ def test_fixture_unknowns_are_reported_and_leave_the_snapshot_unchanged(politica
 def test_reference_fields_report_unexpected_shapes_and_owners_while_resolving_as_before() -> None:
     gamestates: dict[str, object] = {
         STATE_PREFIX + "TIFactionState": [pair(10)],
-        STATE_PREFIX + "TIMissionState": [pair(998)],  # inventory type without an entity domain
+        STATE_PREFIX + "TIMissionPhaseState": [pair(998)],  # inventory type without an entity domain
         STATE_PREFIX + "TIRegionState": [pair(40)],
         STATE_PREFIX + "TINationState": [
             pair(20, capital={"value": 10}, regions={"value": 40}, allies=[None], rivals=["x"]),
@@ -789,7 +817,7 @@ def test_reference_fields_report_unexpected_shapes_and_owners_while_resolving_as
         ("unexpected_field_shape", "TINationState", "regions", "array_of_references"),
         ("unexpected_field_shape", "TINationState", "rivals", "reference_object"),
         ("unexpected_reference_domain", "TINationState", "capital", "TIFactionState"),
-        ("unexpected_reference_domain", "TINationState", "capital", "TIMissionState"),
+        ("unexpected_reference_domain", "TINationState", "capital", "TIMissionPhaseState"),
     ]
     assert by_id(snapshot.nations, "20").get("capital") == unresolved(10)
     assert by_id(snapshot.nations, "20").get("regions") == Unknown(
@@ -913,7 +941,7 @@ def test_councilor_identity_detection_and_assassinations_are_normalized() -> Non
     assert onboard.get("priorMissionTemplateName") == "FixtureMission"
     assert onboard.get("protectingTarget") is None
     born = onboard.get("dateBorn")
-    assert isinstance(born, FrozenMap) and dict(born.items)["year"] == 1990  # componentized, like recruitDate
+    assert born == "1990-04-02T00:00:00"
 
     quiet = by_id(snapshot.councilors, "101")
     assert quiet.get("assassinations") == FrozenMap() and quiet.get("knowsIveBeenSeenBy") == ()
