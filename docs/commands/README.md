@@ -9,6 +9,7 @@ The top level holds the campaign commands and the maintenance command:
 | Command | Status | Page |
 | --- | --- | --- |
 | `campaigns <path>...` | Implemented | [campaigns.md](campaigns.md) |
+| `benchmark sample <name> <path>...` | Implemented | [benchmark.md](benchmark.md) |
 | `councilors <path>...` | Implemented | [councilors.md](councilors.md) |
 | `events <path> <path>...` | Implemented | [events.md](events.md) |
 | `narrate <path>...` / `narrate --package <file>` | Implemented | [narrate.md](narrate.md) |
