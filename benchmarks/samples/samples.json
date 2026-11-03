@@ -1,7 +1,7 @@
 {
   "max_file_bytes": 5000000,
   "campaigns": {
-    "protectorate": {
+    "protectorate-short": {
       "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political developments that needs several chapters.",
       "files": {
         "Protectorate00087_2026-2-13.json.xz": {
@@ -58,6 +58,101 @@
           "sha256": "33a645601328c0e7b9e492a651bb4f6d1846a5b42fb932e2da1d0601c339ba89",
           "bytes": 1052928,
           "raw_bytes": 84312715
+        }
+      }
+    },
+    "protectorate": {
+      "description": "Approximately 5 years of development from early to mid-game. Enough to start splitting into 1-year narrative intervals.",
+      "files": {
+        "Autosave3.json.xz": {
+          "sha256": "e3c7567f846f8d240db75d9c3fee5fbdafc8823102fefd5b8283c3604abdc931",
+          "bytes": 716880,
+          "raw_bytes": 62369052
+        },
+        "Protectorate00087_2026-2-13.json.xz": {
+          "sha256": "732ef1d334ad7349a0b97b8e332bbaf9a65ef01b263879838b435e2aed246d1c",
+          "bytes": 299976,
+          "raw_bytes": 28918552
+        },
+        "Protectorate00088_2026-4-15.json.xz": {
+          "sha256": "bc917b6525b9a0b2c723d233ab9732523682a74f1b385387d76ee4c603ec8929",
+          "bytes": 364312,
+          "raw_bytes": 32310547
+        },
+        "Protectorate00089_2026-6-1.json.xz": {
+          "sha256": "08a2d5bae17f6f684e5ed0baaab86da174a0005d9f694c8e36f2ad25977056f6",
+          "bytes": 389472,
+          "raw_bytes": 34537547
+        },
+        "Protectorate00090_2026-12-16.json.xz": {
+          "sha256": "129520bd126158b6519b6bcee69343cd86279e6db10f06501ab392e8bd65f9c9",
+          "bytes": 486944,
+          "raw_bytes": 44537873
+        },
+        "Protectorate00091_2027-4-1.json.xz": {
+          "sha256": "b568430442c5f324aaf329e989e2e37699a762c1fb70a7e045a5a0b424ded10f",
+          "bytes": 517756,
+          "raw_bytes": 47772458
+        },
+        "Protectorate00092_2027-7-16.json.xz": {
+          "sha256": "616ccca208edfd7791b774353e7eeca154d985647999241ecd35c938bceb7f64",
+          "bytes": 542852,
+          "raw_bytes": 49532018
+        },
+        "Protectorate00093_2027-10-1.json.xz": {
+          "sha256": "42684c27d225b7ef08b869790c8b4ebc94c81b9dddbc6cb669673bce717d094a",
+          "bytes": 549260,
+          "raw_bytes": 50680306
+        },
+        "Protectorate00094_2028-1-1.json.xz": {
+          "sha256": "b72ef30b54e6e4fcad0247216cdf086b4e14c9cf9395cb93d9536423497e7714",
+          "bytes": 561964,
+          "raw_bytes": 51633606
+        },
+        "Protectorate00095_2028-3-1.json.xz": {
+          "sha256": "1596c3363dce9fca1bb2479a7d90bc0d282f7239303264d87eaf39991528335a",
+          "bytes": 572016,
+          "raw_bytes": 52125406
+        },
+        "Protectorate00096_2028-6-1.json.xz": {
+          "sha256": "e1615db396fa05b13c2e161fe0bc8dfbbe3a8fb491f44c71afb203271d32210c",
+          "bytes": 580228,
+          "raw_bytes": 53002203
+        },
+        "Protectorate00097_2028-9-16.json.xz": {
+          "sha256": "a9d7408e088519edc1fb95767475fc668f956ae029932893e29603853fc699ad",
+          "bytes": 604136,
+          "raw_bytes": 53773322
+        },
+        "Protectorate00098_2028-12-16.json.xz": {
+          "sha256": "9fd9474ae77ecd621d99ba8d53713992638931198fcdd6f05f9c04bbb3a6e733",
+          "bytes": 608584,
+          "raw_bytes": 54366457
+        },
+        "Protectorate00099_2029-6-1.json.xz": {
+          "sha256": "25c8d14f34780853774c6b05b01ef95bb4b16c79ec11f2f09398e07ca5390c65",
+          "bytes": 645088,
+          "raw_bytes": 56494846
+        },
+        "Protectorate00100_2029-12-1.json.xz": {
+          "sha256": "fb7cdc3d46633fd7607d0f4fd3e17936fa3477db21b557c5fb16161cde3b8e28",
+          "bytes": 668464,
+          "raw_bytes": 58826227
+        },
+        "Protectorate00101_2030-3-4.json.xz": {
+          "sha256": "a00e7dbdcd56089c12201ccdd1d6f103c94e1019f3e8b6b64da2683d01ddc7d3",
+          "bytes": 679692,
+          "raw_bytes": 59704557
+        },
+        "Protectorate00102_2030-10-16.json.xz": {
+          "sha256": "f0eed695b5a1819dfb8aa1b57f29d0f0cccb2b3c374eb5e7918d1abe95710d13",
+          "bytes": 718188,
+          "raw_bytes": 62422428
+        },
+        "Protectorate00103_2031-6-1.json.xz": {
+          "sha256": "22241ffc662a302a086dbb84a33193e8cfd8a9dcb7dc1d800dbde20a7c06df2b",
+          "bytes": 738664,
+          "raw_bytes": 63931750
         }
       }
     }
