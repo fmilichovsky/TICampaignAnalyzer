@@ -20,7 +20,7 @@ jobs:
   measure-base:
     runs-on: ubuntu-latest
     steps:
-      # The head checkout supplies the script, samples, matrix and settings that both sides are measured with.
+      # The head checkout supplies the CLI, samples, matrix and settings that both sides are measured with.
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
@@ -29,13 +29,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install metrics CLI
+        run: python -m pip install --quiet .
       - name: Install base
         run: |
           python -m venv .bench/venv-base
           .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
       - name: Measure base
         run: >-
-          python scripts/package_metrics.py measure --python .bench/venv-base/bin/python --out .bench/base
+          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-base/bin/python --out .bench/base
           --label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -52,13 +54,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install metrics CLI
+        run: python -m pip install --quiet .
       - name: Install head
         run: |
           python -m venv .bench/venv-head
           .bench/venv-head/bin/python -m pip install --quiet .
       - name: Measure head
         run: >-
-          python scripts/package_metrics.py measure --python .bench/venv-head/bin/python --out .bench/head
+          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-head/bin/python --out .bench/head
           --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
         env:
           GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -76,6 +80,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install metrics CLI
+        run: python -m pip install --quiet .
       - uses: actions/download-artifact@v4
         with:
           name: metrics-base
@@ -86,7 +92,7 @@ jobs:
           path: .bench/head
       - name: Compare
         run: |
-          python scripts/package_metrics.py compare .bench/base/metrics.json .bench/head/metrics.json \
+          python -m tinarrative.cli benchmark metrics compare .bench/base/metrics.json .bench/head/metrics.json \
             --out .bench/report.md --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           cat .bench/report.md >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4

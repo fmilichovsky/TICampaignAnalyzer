@@ -1,13 +1,7 @@
-"""Measure what a build of tinarrative sends to an LLM, from the benchmark samples, and compare two measurements.
-
-The script never imports ``tinarrative``: it runs the given interpreter and reads only the commands' output, so one
-copy measures base and head alike. See ``benchmarks/README.md``.
-"""
+"""Measure and compare the narrator package sizes produced from benchmark samples."""
 
 from __future__ import annotations
 
-import argparse
-import hashlib
 import json
 import lzma
 import math
@@ -19,14 +13,14 @@ import sys
 import tempfile
 import time
 import tomllib
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, TextIO
 
+from .manifest import MANIFEST, sample_files, sha256_file
+
 TOOL_VERSION = 1
-MANIFEST = "samples.json"
-SAMPLE_SUFFIX = ".json.xz"
 MAX_DEPTH = 4
 """Members are broken down to this many keys below the package, ``saves[].situation.nations[].allies`` being four."""
 MAX_KEYS = 30
@@ -39,7 +33,7 @@ COMMENT_LIMIT = 65_536
 HIGHLIGHTS = 25
 MEMBER_FLOOR = 1.0
 """Breakdown tables list the members holding at least this share of the package (per cent), and every changed one."""
-REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 def compact(value: Any) -> int:
@@ -97,76 +91,6 @@ def request_package(content: str) -> tuple[str, dict[str, Any]]:
     if not isinstance(package, dict):
         raise ValueError("the request carries no narrator package")
     return body, package
-
-
-# Samples
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for block in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def sample_files(samples: Path) -> dict[str, list[Path]]:
-    """The compressed saves of every campaign directory under ``samples``, by campaign, in name order."""
-    return {
-        directory.name: sorted(path for path in directory.iterdir() if path.name.endswith(SAMPLE_SUFFIX))
-        for directory in sorted(path for path in samples.iterdir() if path.is_dir())
-    }
-
-
-def verify_samples(samples: Path) -> list[str]:
-    """Human-readable differences between ``samples`` and its manifest; empty when they match."""
-    try:
-        manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
-        limit = manifest["max_file_bytes"]
-        listed: dict[str, Any] = manifest["campaigns"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
-        return [f"cannot read {MANIFEST}: {error}"]
-    errors: list[str] = []
-    found = sample_files(samples)
-    for campaign in sorted(set(listed) | set(found)):
-        entry = listed.get(campaign)
-        if entry is None:
-            errors.append(f"{campaign}: not listed in {MANIFEST}")
-            continue
-        if not str(entry.get("description", "")).strip():
-            errors.append(f"{campaign}: no description")
-        files = entry.get("files", {})
-        paths = {path.name: path for path in found.get(campaign, [])}
-        if not paths:
-            errors.append(f"{campaign}: no {SAMPLE_SUFFIX} files")
-        for name in sorted(set(files) | set(paths)):
-            if name not in paths:
-                errors.append(f"{campaign}/{name}: listed but missing")
-            elif name not in files:
-                errors.append(f"{campaign}/{name}: not listed in {MANIFEST}")
-            else:
-                size = paths[name].stat().st_size
-                if size > limit:
-                    errors.append(f"{campaign}/{name}: {size} bytes, over max_file_bytes {limit}")
-                if size != files[name].get("bytes") or _sha256(paths[name]) != files[name].get("sha256"):
-                    errors.append(f"{campaign}/{name}: does not match its size and SHA-256 in {MANIFEST}")
-    return errors
-
-
-def update_samples(samples: Path) -> dict[str, Any]:
-    """The manifest for the files under ``samples``, keeping the limit and the descriptions of the current one."""
-    path = samples / MANIFEST
-    current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    descriptions = {name: entry.get("description", "") for name, entry in current.get("campaigns", {}).items()}
-    campaigns: dict[str, Any] = {}
-    for campaign, files in sample_files(samples).items():
-        entries = {}
-        for file in files:
-            with lzma.open(file) as handle:
-                raw = sum(len(block) for block in iter(lambda: handle.read(1 << 20), b""))
-            entries[file.name] = {"sha256": _sha256(file), "bytes": file.stat().st_size, "raw_bytes": raw}
-        campaigns[campaign] = {"description": descriptions.get(campaign, ""), "files": entries}
-    return {"max_file_bytes": current.get("max_file_bytes", 5_000_000), "campaigns": campaigns}
 
 
 # Measuring
@@ -294,6 +218,7 @@ def _measure_campaign(
     out: Path,
     chars_per_token: int,
     runs: ThreadPoolExecutor,
+    on_progress: Callable[[int], None] | None,
 ) -> tuple[dict[str, Any], list[str]]:
     """Run the matrix against one campaign on ``runs``; its results, in matrix order, and the lines of its log.
 
@@ -325,6 +250,8 @@ def _measure_campaign(
             results["events"][run_id] = _failure(completed)
             for entry in planned:
                 results["narrate"][entry["id"]] = {"exit": None, "error": f"events {run_id} failed"}
+            if on_progress is not None:
+                on_progress(1 + len(planned))
             continue
         package = packages / f"{run_id}.json"
         package.write_text(completed.stdout, encoding="utf-8", newline="\n")
@@ -333,14 +260,20 @@ def _measure_campaign(
             command = [*cli, "narrate", "--package", str(package), "--output", str(target)]
             narrations[runs.submit(_timed_run, [*command, *entry.get("args", []), "--config", str(config)])] = entry
         results["events"][run_id] = measure_package(completed.stdout, chars_per_token)
+        if on_progress is not None:
+            on_progress(1)
     for future in as_completed(narrations):
         entry = narrations[future]
         completed, seconds["narrate", entry["id"]] = future.result()
         if completed.returncode != 0:
             results["narrate"][entry["id"]] = _failure(completed)
+            if on_progress is not None:
+                on_progress(1)
             continue
         target = out / "narrate" / campaign / entry["id"]
         results["narrate"][entry["id"]] = {"package": entry["package"], **measure_narration(target)}
+        if on_progress is not None:
+            on_progress(1)
     shutil.rmtree(saves)
 
     ordered = {kind: {entry["id"]: results[kind][entry["id"]] for entry in matrix[kind]} for kind in results}
@@ -371,6 +304,8 @@ def measure(
     chars_per_token: int,
     jobs: int = os.cpu_count() or 1,
     log: TextIO | None = sys.stderr,
+    on_progress: Callable[[int], None] | None = None,
+    on_campaign_complete: Callable[[Sequence[str]], None] | None = None,
 ) -> dict[str, Any]:
     """Run the matrix against every sample campaign and return the metrics; packages and plans go under ``out``.
 
@@ -409,20 +344,24 @@ def measure(
                 out=out,
                 chars_per_token=chars_per_token,
                 runs=runs,
+                on_progress=on_progress,
             ): campaign
             for campaign, files in found.items()
         }
         for future in as_completed(futures):
             measured[futures[future]], lines = future.result()
-            print("\n".join(lines), file=log, flush=True)
+            if on_campaign_complete is None:
+                print("\n".join(lines), file=log, flush=True)
+            else:
+                on_campaign_complete(lines)
     print(f"package_metrics: done in {time.perf_counter() - started:.1f}s", file=log, flush=True)
     campaigns = {campaign: measured[campaign] for campaign in found}
     return {
         "tool_version": TOOL_VERSION,
         "label": label,
         "chars_per_token": chars_per_token,
-        "matrix_sha256": _sha256(matrix_path),
-        "samples_sha256": _sha256(samples / MANIFEST),
+        "matrix_sha256": sha256_file(matrix_path),
+        "samples_sha256": sha256_file(samples / MANIFEST),
         "matrix": {kind: [entry["id"] for entry in entries] for kind, entries in matrix.items()},
         "campaigns": campaigns,
     }
@@ -668,70 +607,3 @@ def _row(
         f"| {campaign} | `{run_id}` | {pair('chapters')} | {pair('estimate_total')} | {delta} | "
         f"{pair('estimate_max')} | {reduced} |"
     )
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    commands = parser.add_subparsers(dest="command", required=True)
-    samples = commands.add_parser("samples", help=f"Verify the samples against {MANIFEST}, or rewrite it.")
-    samples.add_argument("--samples", type=Path, default=REPOSITORY_ROOT / "benchmarks" / "samples")
-    samples.add_argument("--update", action="store_true", help="Rewrite the manifest from the files.")
-    run = commands.add_parser("measure", help="Run the matrix and write metrics.json.")
-    run.add_argument("--python", default=sys.executable, help="The interpreter with the tinarrative to measure.")
-    run.add_argument("--samples", type=Path, default=REPOSITORY_ROOT / "benchmarks" / "samples")
-    run.add_argument("--matrix", type=Path, default=REPOSITORY_ROOT / "benchmarks" / "matrix.toml")
-    run.add_argument("--config", type=Path, default=REPOSITORY_ROOT / "benchmarks" / "config.toml")
-    run.add_argument("--out", type=Path, required=True)
-    run.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
-    run.add_argument("--chars-per-token", type=int, default=3)
-    run.add_argument("--jobs", type=int, default=os.cpu_count() or 1, help="Commands to run at once (default: CPUs).")
-    report = commands.add_parser("compare", help="Write the Markdown report of two metrics files.")
-    report.add_argument("base", type=Path)
-    report.add_argument("head", type=Path)
-    report.add_argument("--out", type=Path, help="Where to write the report (default: stdout).")
-    report.add_argument("--threshold", type=float, default=1.0, help="Highlight changes of at least this per cent.")
-    report.add_argument("--run-url", help="The CI run whose artifact holds the outputs.")
-    args = parser.parse_args(argv)
-
-    if args.command == "compare":
-        text = compare(
-            json.loads(args.base.read_text(encoding="utf-8")),
-            json.loads(args.head.read_text(encoding="utf-8")),
-            threshold=args.threshold,
-            run_url=args.run_url,
-        )
-        if args.out is None:
-            sys.stdout.write(text)
-        else:
-            args.out.write_text(text, encoding="utf-8")
-        return 0
-    if args.command == "samples" and args.update:
-        manifest = update_samples(args.samples)
-        text = json.dumps(manifest, indent=2) + "\n"
-        (args.samples / MANIFEST).write_text(text, encoding="utf-8", newline="\n")
-    errors = verify_samples(args.samples)
-    for error in errors:
-        print(f"package_metrics: {error}", file=sys.stderr)
-    if errors or args.command == "samples":
-        return 2 if errors else 0
-    try:
-        metrics = measure(
-            python=args.python,
-            samples=args.samples,
-            matrix_path=args.matrix,
-            config=args.config,
-            out=args.out,
-            label=args.label,
-            chars_per_token=args.chars_per_token,
-            jobs=args.jobs,
-        )
-    except ValueError as error:
-        print(f"package_metrics: {error}", file=sys.stderr)
-        return 2
-    args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8", newline="\n")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

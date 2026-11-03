@@ -62,6 +62,7 @@ class CliSkeletonTests(unittest.TestCase):
             ["narrate"],
             ["campaigns"],
             ["benchmark", "sample"],
+            ["benchmark", "metrics", "samples"],
         ):
             with self.subTest(command=command), redirect_stdout(StringIO()):
                 with self.assertRaises(SystemExit) as result:
