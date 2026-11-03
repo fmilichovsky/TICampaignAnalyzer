@@ -94,7 +94,8 @@ EXIT_OUTPUT_ERROR = 9
 EXIT_PROVIDER_ERROR = 10
 """``--send``: a request failed, hit the output limit or was refused. ``narrate`` stops at the first failed chapter
 and keeps the earlier ones; ``councilors`` skips the failed articles and reports at the end."""
-BENCHMARK_SAMPLES_DIR = Path(__file__).resolve().parents[2] / "benchmarks" / "samples"
+BENCHMARK_ROOT = Path.cwd() / "benchmarks"
+BENCHMARK_SAMPLES_DIR = BENCHMARK_ROOT / "samples"
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -2101,8 +2102,8 @@ def _add_benchmark_parser(subcommands: argparse._SubParsersAction[argparse.Argum
     measure = metric_commands.add_parser("measure", help="Run the matrix and write metrics.json.")
     measure.add_argument("--python", default=sys.executable, help="The interpreter with the tinarrative to measure.")
     measure.add_argument("--samples", type=Path, default=BENCHMARK_SAMPLES_DIR)
-    measure.add_argument("--matrix", type=Path, default=BENCHMARK_SAMPLES_DIR.parent / "matrix.toml")
-    measure.add_argument("--config", type=Path, default=BENCHMARK_SAMPLES_DIR.parent / "config.toml")
+    measure.add_argument("--matrix", type=Path, default=BENCHMARK_ROOT / "matrix.toml")
+    measure.add_argument("--config", type=Path, default=BENCHMARK_ROOT / "config.toml")
     measure.add_argument("--out", type=Path, required=True)
     measure.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
     measure.add_argument("--chars-per-token", type=_positive_int, default=3)

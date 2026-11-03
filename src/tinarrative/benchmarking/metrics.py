@@ -33,7 +33,6 @@ COMMENT_LIMIT = 65_536
 HIGHLIGHTS = 25
 MEMBER_FLOOR = 1.0
 """Breakdown tables list the members holding at least this share of the package (per cent), and every changed one."""
-REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 
 
 def compact(value: Any) -> int:

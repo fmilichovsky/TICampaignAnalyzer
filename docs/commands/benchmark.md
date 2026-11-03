@@ -8,7 +8,8 @@ tinarrative benchmark sample <name> <path> [<path>...] [--description TEXT] [--c
 
 Compresses saves into `benchmarks/samples/<name>/` and refreshes `samples.json`. If that campaign already exists,
 its sample directory is replaced. Explicit save paths are all checked before replacement; an invalid save rejects the
-import. A directory is read one level deep, and unusable files are skipped and reported.
+import. The benchmark data directory is resolved from the current working directory. A directory is read one level
+deep, and unusable files are skipped and reported.
 
 ## Inputs and options
 
@@ -58,7 +59,8 @@ tinarrative benchmark metrics measure [--python PYTHON] [--samples PATH] [--matr
   --out PATH [--label TEXT] [--chars-per-token N] [--jobs N]
 ```
 
-Runs every matrix entry against every sample campaign, writes packages and narrator plans under `PATH`, then writes
+By default, reads `benchmarks/samples`, `benchmarks/matrix.toml`, and `benchmarks/config.toml` relative to the current
+working directory. Runs every matrix entry against every sample campaign, writes packages and narrator plans under `PATH`, then writes
 `metrics.json`. The selected `--python` runs `events` and `narrate`; the current CLI performs the measurement.
 Progress appears on stderr in a terminal. Failed runs are recorded in the metrics output.
 

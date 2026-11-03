@@ -21,7 +21,6 @@ from tinarrative.benchmarking.metrics import (
     MANIFEST,
     MARKER,
     MAX_KEYS,
-    REPOSITORY_ROOT,
     breakdown,
     compare,
     measure,
@@ -29,6 +28,7 @@ from tinarrative.benchmarking.metrics import (
 )
 
 SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _samples(root: Path) -> Path:
