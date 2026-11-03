@@ -74,6 +74,10 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
             "'narrative.geopolitics.metric_shifts_max' must be at least 0",
         ),
         ("[narrative.geopolitics\n", "not valid TOML"),
+        ("[councilors]\nrivals_per_faction = -1\n", "'councilors.rivals_per_faction' must be at least 0"),
+        ("[councilors]\narticle_words = 0\n", "'councilors.article_words' must be at least 1"),
+        ("[councilors]\nmin_tenure_days = 1.5\n", "'councilors.min_tenure_days' must be an integer"),
+        ("[councilors]\nloyalty = 1\n", "unknown setting 'councilors.loyalty'"),
         (
             "[narrator]\nprovider = 'gemini'\n",
             "'narrator.provider' must be one of: anthropic, openai, openrouter, ollama",
@@ -94,6 +98,14 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
 def test_invalid_settings_name_the_key(tmp_path: Path, text: str, message: str) -> None:
     with pytest.raises(ConfigError, match=re.escape(message)):
         load_settings(write(tmp_path, text))
+
+
+def test_councilor_settings_override_the_defaults(tmp_path: Path) -> None:
+    settings = load_settings(write(tmp_path, "[councilors]\nrivals_per_faction = 4\nmin_tenure_days = 0\n"))
+    assert settings.differences(DEFAULT_SETTINGS) == {
+        "councilors.rivals_per_faction": 4,
+        "councilors.min_tenure_days": 0,
+    }
 
 
 def test_a_missing_file_is_an_os_error(tmp_path: Path) -> None:

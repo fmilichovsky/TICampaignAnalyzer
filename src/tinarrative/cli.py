@@ -37,16 +37,18 @@ from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
 from .maintenance.scan import ScanRun, scan_inputs
+from .model.entities import EntityDomain, EntityId
 from .model.events import SIGNIFICANCE_ORDER, Event, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
-from .narrative import narrative_rules
+from .narrative import build_dossier, narrative_rules
 from .narrator.assembly import KEPT_FINISHES, assemble, parse_plan, stored_chapter
 from .narrator.chapters import ChapterPlan, OverBudget, PlannedChapter, base_options, plan_chapters, validate
 from .narrator.providers import CompletionRequest, Endpoint, ProviderError, complete, completion_request, endpoint
 from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
 from .narrator.transport import Transport, UrllibTransport
+from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
@@ -475,6 +477,84 @@ def _run_saves(
         return failure.code
     events = narrative_events(intervals, narrative_rules(settings.narrative)) if narrative else None
     return _SequenceRun(plan, intervals, campaign, len(surveyed), events)
+
+
+def _run_councilors(args: argparse.Namespace) -> int:
+    """Select the notable councilors of a campaign's latest save and write their dossier; never sends anything."""
+    settings = _resolve_settings("councilors", cast("Path | None", args.config))
+    if isinstance(settings, int):
+        return settings
+    paths = cast(list[Path], args.saves)
+    inputs = expand_inputs(paths)
+    career: list[Event] = []
+    profile: CampaignProfile | None = None
+    if len(inputs) == 1:
+        latest = inputs[0].path
+    else:
+        run = _run_saves(
+            "councilors",
+            paths,
+            cast("str | None", args.campaign),
+            settings,
+            inferred=False,
+            changes=False,
+            narrative=False,
+        )
+        if isinstance(run, int):
+            return run
+        career = event_stream(run.intervals)
+        newest = run.plan.saves[-1]
+        latest, profile = Path(newest.source), newest.profile
+    snapshot = _load_snapshot("councilors", latest)
+    if isinstance(snapshot, int):
+        return snapshot
+    dossier = build_dossier(
+        snapshot,
+        _player_faction(snapshot, profile),
+        career,
+        settings.councilors,
+        latest.name,
+        player_only=args.player_only,
+    )
+    sys.stdout.write(_dossier_summary(dossier))
+    sys.stdout.flush()
+    output = cast("Path | None", args.output)
+    if output is not None:
+        target = output / "dossier.json"
+        try:
+            output.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps(dossier, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        except OSError as error:
+            return _output_failed(target, error, "councilors")
+    logger.info(
+        "councilors done %s",
+        fields(saves=len(inputs), selected=len(dossier["councilors"]), written=output is not None),
+    )
+    return EXIT_SUCCESS
+
+
+def _player_faction(snapshot: SaveSnapshot, profile: CampaignProfile | None) -> EntityId | None:
+    """The human faction of the campaign: the profile's, else the one named by the save's metadata."""
+    if profile is not None and profile.human_faction is not None:
+        return EntityId(EntityDomain.FACTION, str(profile.human_faction))
+    name = snapshot.campaign.player_faction_name
+    matches = [state.ref.entity_id for state in snapshot.factions if isinstance(name, str) and state.ref.name == name]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _dossier_summary(dossier: dict[str, Any]) -> str:
+    chosen = dossier["councilors"]
+    lines = [
+        f"as of {dossier['as_of']}, player faction {dossier['player_faction'] or 'unknown'}: "
+        f"{len(chosen)} councilors selected"
+    ]
+    for entry in chosen:
+        marker = "player" if entry["player"] else "rival"
+        lines.append(
+            f"  {entry['name']} ({entry['faction']}, {marker}, rank {entry['prominence']['rank_in_faction']}, "
+            f"{entry['tenure_years']} years)"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _run_events(args: argparse.Namespace) -> int:
@@ -930,9 +1010,9 @@ def _read_optional(path: Path) -> bytes | None:
         return None
 
 
-def _output_failed(path: Path, error: OSError) -> int:
+def _output_failed(path: Path, error: OSError, command: str = "narrate") -> int:
     logger.debug("output failed %s", fields(output=safe_path(path), error=type(error).__name__))
-    print(f"tinarrative narrate: cannot write {path}: {error.strerror or error}", file=sys.stderr)
+    print(f"tinarrative {command}: cannot write {path}: {error.strerror or error}", file=sys.stderr)
     return EXIT_OUTPUT_ERROR
 
 
@@ -1279,6 +1359,44 @@ def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentPa
     parser.set_defaults(handler=_run_diff)
 
 
+def _add_councilors_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    summary = (
+        "Select a campaign's notable councilors and build the dossier an article about them would be written from."
+    )
+    parser = subcommands.add_parser(
+        "councilors",
+        help=summary,
+        description=(
+            f"{summary} The dossier lists every player councilor employed long enough, plus the most prominent "
+            "councilors of each other human faction (councilors.rivals_per_faction), from the latest save; with "
+            "several saves it adds each councilor's career from the events between them. It never sends "
+            "anything: stdout gets a selection summary and --output writes dossier.json."
+        ),
+        epilog=(
+            "Exit codes: 0 success; 2 usage error (including several campaigns without --campaign); 4 a save "
+            "cannot be read; 5 a save is not a supported save; 8 the settings file is invalid; 9 --output "
+            "cannot be written."
+        ),
+    )
+    parser.add_argument(
+        "saves",
+        type=Path,
+        nargs="+",
+        metavar="PATH",
+        help="One save, or saves and directories of one campaign, any order; a directory is read one level deep.",
+    )
+    parser.add_argument("--campaign", metavar="SELECTOR", help="The campaign to use when the saves hold several.")
+    parser.add_argument("--player-only", action="store_true", help="Select the player's councilors only.")
+    parser.add_argument("--output", type=Path, metavar="DIR", help="Write dossier.json into this directory.")
+    parser.add_argument(
+        "--config",
+        type=Path,
+        metavar="FILE",
+        help=f"A TOML settings file (default: ${CONFIG_ENV_VAR} if set, see docs/configuration.md).",
+    )
+    parser.set_defaults(handler=_run_councilors)
+
+
 def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     summary = "Order the saves of a campaign by game time and report the events of every consecutive pair."
     parser = subcommands.add_parser(
@@ -1603,6 +1721,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Use 'tinarrative COMMAND --help' for command-specific help.",
     )
     _add_campaigns_parser(subcommands)
+    _add_councilors_parser(subcommands)
     _add_events_parser(subcommands)
     _add_narrate_parser(subcommands)
     _add_save_parser(subcommands)
