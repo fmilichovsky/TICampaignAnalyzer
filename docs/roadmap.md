@@ -72,6 +72,10 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [ ] Developments scaled by stake (#199).
   - [ ] Space and faction stakes (#200).
   - [ ] Narrator length and recall by score (#201).
+- [ ] Councilor profiles (#222):
+  - [ ] Missions and councilor dates (#228).
+  - [ ] Dossier and dry run (#229).
+  - [ ] LLM articles (#230).
 
 ## CLI user experience
 
