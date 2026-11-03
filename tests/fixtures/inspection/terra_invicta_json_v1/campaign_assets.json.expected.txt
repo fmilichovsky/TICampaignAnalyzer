@@ -1,16 +1,16 @@
 tinarrative save inspect report
 file: campaign_assets.json
-  size_bytes: 27563
-  sha256: 116006425064d2a7ce115b18d9da931c1b02d2ae916dbc4f8cbd6bf243647dbf
+  size_bytes: 29862
+  sha256: 0d0c454213ba9c7ce07dc50f26190e87af69ab2b99ed7ebbc21f24e82032de8f
   leading_bytes: 7b 0a 20 20 22 63 75 72
   utf8_bom: no
   line_endings: lf
-  decoded_chars: 27563
+  decoded_chars: 29862
 decode: ok (json)
 root: object (2 keys)
 top-level keys:
   currentID: object (1 key)
-  gamestates: object (17 keys)
+  gamestates: object (18 keys)
 currentID keys:
   value: number
 gamestates keys:
@@ -31,9 +31,10 @@ gamestates keys:
   PavonisInteractive.TerraInvicta.TIHabState: array (2 items)
   PavonisInteractive.TerraInvicta.TISectorState: array (1 item)
   PavonisInteractive.TerraInvicta.TIGlobalResearchState: array (1 item)
+  PavonisInteractive.TerraInvicta.TIMissionState: array (3 items)
 identity:
-  ids: 26 distinct, 0 shared across state types
-  max_observed_id: 160
+  ids: 29 distinct, 0 shared across state types
+  max_observed_id: 202
   currentID: 999
   faction: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
@@ -55,6 +56,10 @@ identity:
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none
     TICouncilorState: 3 entries, ids 100..102, key==id 3, mismatch 0, missing 0, duplicate 0
+  mission: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIMissionState: 3 entries, ids 200..202, key==id 3, mismatch 0, missing 0, duplicate 0
   army: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none

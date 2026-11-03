@@ -71,6 +71,7 @@ def test_every_documented_domain_is_present() -> None:
         "region",
         "control point",
         "councilor",
+        "mission",
         "army",
         "fleet",
         "ship",

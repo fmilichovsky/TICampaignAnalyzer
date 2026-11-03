@@ -19,7 +19,7 @@ GAMESTATES: dict[str, object] = {
     STATE_PREFIX + "TIArmyState": [pair(50)],
     STATE_PREFIX + "TIMegafaunaArmyState": [pair(51)],
     STATE_PREFIX + "TIHabState": [pair(140)],
-    STATE_PREFIX + "TIMissionState": [pair(80)],  # no entity domain: never resolves
+    STATE_PREFIX + "TIMissionPhaseState": [pair(80)],  # no entity domain: never resolves
     STATE_PREFIX + "TICouncilorState": [{"Key": {"value": 1}, "Value": {"ID": {"value": 2}}}],  # malformed, skipped
 }
 INDEX = ReferenceIndex.from_gamestates(GAMESTATES)
@@ -99,10 +99,10 @@ def test_skipped_malformed_container_is_explained_in_the_debug_log(caplog: pytes
 
 
 def test_other_owners_name_ids_outside_the_entity_domains() -> None:
-    assert INDEX.other_owners == {80: "TIMissionState"}
+    assert INDEX.other_owners == {80: "TIMissionPhaseState"}
     nation = frozenset((EntityDomain.NATION,))
     assert INDEX.owner_state_type(50, nation) == "TIArmyState"  # exists, wrong domain
-    assert INDEX.owner_state_type(80, nation) == "TIMissionState"  # exists, no domain
+    assert INDEX.owner_state_type(80, nation) == "TIMissionPhaseState"  # exists, no domain
     assert INDEX.owner_state_type(20, nation) is None  # expected owner
     assert INDEX.owner_state_type(999, nation) is None  # absent
 

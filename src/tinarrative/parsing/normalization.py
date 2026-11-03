@@ -19,8 +19,9 @@ from ..model.records import RecordSet, record_counts
 from ..model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason, freeze
 from .containers import StateEntry, decode_pair_map, decode_state_map, entry_path
-from .dates import COMPONENTIZED_DATE, game_datetime
+from .dates import COMPONENTIZED_DATE, game_datetime, iso_date
 from .fields import (
+    DATE_FIELDS,
     ENTITY_FIELDS,
     KEYED_LIST_FIELDS,
     METADATA_FIELDS,
@@ -126,6 +127,7 @@ def _entity_state(
     references = REFERENCE_FIELDS.get(short_type, {})
     keyed_lists = KEYED_LIST_FIELDS.get(short_type, {})
     pair_maps = PAIR_MAP_FIELDS.get(short_type, {})
+    dates = DATE_FIELDS.get(short_type, ())
     fields: list[tuple[str, Observed]] = []
     for name in ENTITY_FIELDS[short_type]:
         if name not in entry.value:
@@ -140,6 +142,8 @@ def _entity_state(
             fields.append((name, _keyed_list(short_type, name, raw, keyed_lists[name], collector)))
         elif name in pair_maps:
             fields.append((name, _pair_map_field(short_type, name, raw, pair_maps[name], index, collector)))
+        elif name in dates:
+            fields.append((name, iso_date(raw, short_type, name, collector)))
         else:
             fields.append((name, freeze(raw)))
     scan_fields(short_type, entry.value, collector)

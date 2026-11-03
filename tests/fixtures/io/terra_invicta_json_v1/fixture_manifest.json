@@ -38,8 +38,8 @@
       "format_assumption": "terra_invicta_json_v1",
       "format_documentation": "docs/game-data-notes/domain-field-map.md",
       "version_assumption": "Observed JSON envelope and observed field names.",
-      "sha256": "116006425064d2a7ce115b18d9da931c1b02d2ae916dbc4f8cbd6bf243647dbf",
-      "purpose": "Normalize councilors, armies (both state types), fleets, ships, habs, and research: resolved, null, and unresolved references per domain (including a councilor located at a hab, a fleet whose parentFleet ID is absent, and a ship in an absent fleet), missing fields, a megafauna-only field, and a research singleton whose techProgress overlaps finishedTechsNames and has one element without a template name."
+      "sha256": "0d0c454213ba9c7ce07dc50f26190e87af69ab2b99ed7ebbc21f24e82032de8f",
+      "purpose": "Normalize councilors (ISO dates), missions (cross-domain targets), armies (both state types), fleets, ships, habs, and research: resolved, null, and unresolved references per domain (including a councilor located at a hab, a fleet whose parentFleet ID is absent, and a ship in an absent fleet), missing fields, a megafauna-only field, and a research singleton whose techProgress overlaps finishedTechsNames and has one element without a template name."
     },
     {
       "path": "unknown_state_type.json",

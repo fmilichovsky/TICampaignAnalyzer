@@ -76,7 +76,7 @@ defined in `src/tinarrative/model/`.
 
 A `SaveSnapshot` is the normalized, analyzer-friendly state extracted from one save: the game date and turn
 counters, entity collections per domain (factions, nations, regions, control points, councilors,
-organizations, armies, fleets, ships, habs, space bodies, wars, federations, technologies, campaign
+missions, organizations, armies, fleets, ships, habs, space bodies, wars, federations, technologies, campaign
 singletons) and the save-carried records (4.3).
 
 It is a **normalized semantic state**, not a 1:1 copy of the serialized structure. Every entity keeps a
@@ -207,7 +207,7 @@ Confidence describes **the analyzer's confidence in the reconstruction**, not ho
 # 8. Entity Model
 
 Events reference stable logical entities rather than embedding strings: factions, nations, regions,
-councilors, armies, fleets, ships, habs, space bodies, technologies, organizations, wars and federations.
+councilors, missions, armies, fleets, ships, habs, space bodies, technologies, organizations, wars and federations.
 
 Entity IDs are stable across snapshots whenever the underlying game entity can be identified. Where the game
 provides no stable ID, identity rests on documented heuristics and records its uncertainty
