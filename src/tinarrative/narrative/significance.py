@@ -324,9 +324,9 @@ def significance_of(event: Event, lookup: Lookup) -> Significance:
 
 
 def assign_significance(events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot) -> tuple[Event, ...]:
-    """Keeps the given order."""
+    """Each event gets its level and that level's base score; keeps the given order."""
     lookup = Lookup(before, after)
-    assigned = tuple(replace(event, significance=significance_of(event, lookup)) for event in events)
+    assigned = tuple(_ranked(event, significance_of(event, lookup)) for event in events)
     if logger.isEnabledFor(logging.DEBUG):
         counts = Counter(event.significance.value for event in assigned)
         logger.debug(
@@ -336,3 +336,7 @@ def assign_significance(events: Iterable[Event], before: SaveSnapshot, after: Sa
             ),
         )
     return assigned
+
+
+def _ranked(event: Event, level: Significance) -> Event:
+    return replace(event, significance=level, score=level.base)

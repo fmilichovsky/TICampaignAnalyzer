@@ -8,6 +8,8 @@ import pytest
 from tinarrative.model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import (
+    SCORE_BANDS,
+    SIGNIFICANCE_ORDER,
     Confidence,
     DateBasis,
     Event,
@@ -332,6 +334,7 @@ def test_event_sorts_its_parts_and_serializes_json_friendly() -> None:
     assert json.loads(json.dumps(data)) == data
     assert data["date_basis"] == "interval" and data["attributes"]["raw"] == {"unknown": "missing"}
     assert event.significance is Significance.MINOR and data["significance"] == "minor"  # analyzers leave the default
+    assert event.score == 37 and data["score"] == 37  # the default level's base
     assert data["sources"][0] == {
         "role": "primary",
         "member": to_jsonable(_ref("2")),
@@ -345,6 +348,47 @@ def test_event_sorts_its_parts_and_serializes_json_friendly() -> None:
     assert undated.sort_key[0] == "" and undated.sort_key < event.sort_key
     assert undated.to_dict()["date"] == {"unknown": "missing"}
     assert event.constituents == () and data["constituents"] == []  # objective events cite no events
+
+
+def test_the_score_bands_cover_0_to_100_in_level_order_with_their_midpoints_as_bases() -> None:
+    assert tuple(SCORE_BANDS) == SIGNIFICANCE_ORDER
+    assert [level.band for level in SIGNIFICANCE_ORDER] == [(0, 24), (25, 49), (50, 74), (75, 100)]
+    assert [level.base for level in SIGNIFICANCE_ORDER] == [12, 37, 62, 87]
+    edges = {0: "trivial", 24: "trivial", 25: "minor", 49: "minor", 50: "major", 74: "major", 75: "campaign_defining"}
+    for score, level in {**edges, 100: "campaign_defining"}.items():
+        assert Significance.of(score) is Significance(level), score
+    for invalid in (-1, 101, True, 50.0):
+        with pytest.raises(ValueError, match="significance score"):
+            Significance.of(invalid)  # type: ignore[arg-type]
+
+
+def test_an_event_score_defaults_to_its_level_base_and_never_leaves_its_band() -> None:
+    event = _event(significance=Significance.MAJOR)
+    assert event.score == 62 and event.to_dict()["score"] == 62
+    assert _event(significance=Significance.MAJOR, score=74).score == 74
+    assert replace(event, significance=Significance.TRIVIAL, score=0).score == 0
+    with pytest.raises(ValueError, match="score 75 is outside the major band"):
+        _event(significance=Significance.MAJOR, score=75)
+    with pytest.raises(ValueError, match="outside the trivial band"):
+        replace(event, significance=Significance.TRIVIAL)  # a level change must bring its score
+    with pytest.raises(ValueError, match="runs 0-100"):
+        _event(significance=Significance.CAMPAIGN_DEFINING, score=101)
+
+
+def _event(**overrides: object) -> Event:
+    fields: dict[str, object] = {
+        "id": "nation.renamed/nation:1",
+        "event_type": "nation.renamed",
+        "status": EventStatus.OBJECTIVE,
+        "confidence": Confidence.HIGH,
+        "date": "2030-02-01",
+        "date_basis": DateBasis.INTERVAL,
+        "not_before": "2030-01-01",
+        "sources": (),
+        "entities": (),
+        **overrides,
+    }
+    return Event(**fields)  # type: ignore[arg-type]
 
 
 def test_inferred_event_constituents_are_sorted_unique_and_serialized() -> None:

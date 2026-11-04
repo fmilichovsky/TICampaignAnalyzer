@@ -74,7 +74,7 @@ redaction could miss private data and give false confidence.
 ## Real saves
 
 Real saves are never fixtures, sanitized or not. The only committed real saves are the benchmark samples in
-`benchmarks/samples/`, used to measure package size; adding one follows
+`benchmarks/samples/`, used to measure package size and runtime; adding one follows
 [benchmarks/README.md](../benchmarks/README.md#samples).
 
 ## Unknowns registry

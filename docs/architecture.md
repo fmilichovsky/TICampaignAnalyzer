@@ -447,9 +447,13 @@ Principles:
     geopolitical relations stay `minor`, so the unexplained residue is never hidden.
 -   **Narrative events are ranked by their rule**, never below their most significant constituent.
 
-Defined in `src/tinarrative/narrative/significance.py` (`assign_significance`, `significance_of`) and
-`model/events.py` (`Significance`, `SIGNIFICANCE_ORDER`). `tinarrative events --min-significance` is the first
-consumer.
+Every event also carries an integer `score` from 0 to 100, and its level is a fixed band over the score, so the
+two never disagree. Until a stake scales a type, every score is the base of its level, and a narrative event
+takes the highest of its rule's base and its cited events' scores.
+
+Defined in `src/tinarrative/narrative/significance.py` (`assign_significance`, `significance_of`),
+`model/events.py` (`Significance`, `SIGNIFICANCE_ORDER`, `SCORE_BANDS`, `Event.score`) and
+`narrative/aggregation.py` (`NarrativeBuilder`). `tinarrative events --min-significance` is the first consumer.
 
 ### Entity-scaled score (design)
 
@@ -466,10 +470,10 @@ score = clamp(base(type) + scale(stake), 0, 100)
 scale = clamp(round(10 · log10(share / reference)), scale_min, scale_max)
 ```
 
-The level is a fixed band over the score (`trivial` 0–24, `minor` 25–49, `major` 50–74, `campaign_defining`
-75–100). `base(type)` is the midpoint of the band the type's rule or table names today, so an event without a
-stake, or with a stake at the reference share, keeps its present level and the rules migrate one at a time.
-The bands, the clamp and one reference share per measure are runtime settings, calibrated per measure.
+The level is a fixed band over the score, and `base(type)` is the midpoint of the band the type's rule or table
+names today (both implemented, above). An event without a stake, or with a stake at the reference share, keeps
+its present level, and the rules migrate one at a time. The clamp (`config.SignificanceSettings`) and one
+reference share per measure are runtime settings, calibrated per measure.
 
 **Stake.** A stake is a share of a world total in the same snapshot, never an absolute magnitude: magnitudes
 grow by orders of magnitude over a campaign, shares stay comparable. It measures what the event moved, not

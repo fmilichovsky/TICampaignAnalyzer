@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -14,6 +15,10 @@ from pathlib import Path
 from typing import Any, cast
 
 from . import __version__
+from .benchmarking import metrics as benchmark_metrics
+from .benchmarking import runtime as benchmark_runtime
+from .benchmarking.manifest import MANIFEST, sample_files, update_samples, verify_samples
+from .benchmarking.samples import SampleImportError, import_sample_campaign
 from .config import (
     CONFIG_ENV_VAR,
     DEFAULT_SETTINGS,
@@ -31,7 +36,7 @@ from .grouping import CampaignGroup, group_saves, listing_document, render_listi
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_discovery import SaveInput, expand_inputs
 from .io.save_loader import load_raw_save, load_save
-from .log import DEFAULT_LEVEL, ENV_VAR, LEVELS, configure_logging, fields, get_logger, safe_path
+from .log import DEFAULT_LEVEL, ENV_VAR, LEVELS, TIMING_ENV_VAR, configure_logging, fields, get_logger, safe_path
 from .maintenance import REGISTRY_ENV_VAR
 from .maintenance.registry import RegistryError, RegistryUpdate, record
 from .maintenance.render import render_json as render_unknowns_json
@@ -90,6 +95,8 @@ EXIT_OUTPUT_ERROR = 9
 EXIT_PROVIDER_ERROR = 10
 """``--send``: a request failed, hit the output limit or was refused. ``narrate`` stops at the first failed chapter
 and keeps the earlier ones; ``councilors`` skips the failed articles and reports at the end."""
+BENCHMARK_ROOT = Path.cwd() / "benchmarks"
+BENCHMARK_SAMPLES_DIR = BENCHMARK_ROOT / "samples"
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -361,22 +368,50 @@ class _ProgressTracker:
         self.started = time.perf_counter()
         self.terminal = sys.stderr.isatty()
         self.width = 0
+        self.completed = 0
+        self.label = ""
+        self.lock = threading.Lock()
 
-    def update(self, phase: str, completed: int, total: int | None = None) -> None:
+    def update(self, phase: str, completed: int, total: int | None = None, filename: str | None = None) -> None:
         if not self.terminal:
             return
+        with self.lock:
+            self._write_update(phase, completed, total, filename)
+
+    def advance(self, phase: str, amount: int = 1) -> None:
+        """Advance aggregate progress safely when workers finish concurrently."""
+        if not self.terminal:
+            return
+        with self.lock:
+            self.completed += amount
+            self._write_update(phase, self.completed, None, None)
+
+    def _write_update(self, phase: str, completed: int, total: int | None, filename: str | None) -> None:
         count = self.total if total is None else total
-        label = f"tinarrative {self.command}: {phase} {completed}/{count}"
+        current = "" if filename is None else f": {filename}"
+        label = f"tinarrative {self.command}: {phase} {completed}/{count}{current}"
+        self.label = label
         sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
         sys.stderr.flush()
         self.width = len(label)
 
-    def finish(self) -> None:
+    def report(self, lines: Sequence[str]) -> None:
+        """Write a completed work group without colliding with the live progress line."""
+        with self.lock:
+            if self.terminal:
+                sys.stderr.write("\r" + " " * self.width + "\r")
+            sys.stderr.write("\n".join(lines) + "\n")
+            if self.terminal and self.label:
+                sys.stderr.write("\r" + self.label + " " * max(self.width - len(self.label), 0))
+            sys.stderr.flush()
+
+    def finish(self, activity: str = "parsing and processing") -> None:
         elapsed = time.perf_counter() - self.started
-        if self.terminal:
-            sys.stderr.write("\r" + " " * self.width + "\r")
-        sys.stderr.write(f"tinarrative {self.command}: parsing and processing took {elapsed:.1f}s\n")
-        sys.stderr.flush()
+        with self.lock:
+            if self.terminal:
+                sys.stderr.write("\r" + " " * self.width + "\r")
+            sys.stderr.write(f"tinarrative {self.command}: {activity} took {elapsed:.1f}s\n")
+            sys.stderr.flush()
 
 
 def _survey_inputs(
@@ -388,7 +423,7 @@ def _survey_inputs(
     usable: dict[Path, int] = {}
     for index, item in enumerate(inputs, start=1):
         if progress is not None:
-            progress.update("Parsing saves", index)
+            progress.update("Parsing saves", index, filename=item.path.name)
         if item.empty_directory:
             print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
             return EXIT_INPUT_ERROR
@@ -410,6 +445,180 @@ def _survey_inputs(
             print(f"tinarrative {command}: {directory}: the directory holds no usable save", file=sys.stderr)
             return EXIT_INPUT_ERROR
     return surveyed, skipped
+
+
+def _run_benchmark_sample(args: argparse.Namespace) -> int:
+    """Import one benchmark campaign and render its CLI-facing result."""
+    name = cast(str, args.name)
+
+    def progress_factory(total: int) -> _ProgressTracker:
+        return _ProgressTracker("benchmark sample", total)
+
+    try:
+        result = import_sample_campaign(
+            name,
+            cast(list[Path], args.paths),
+            description=cast("str | None", args.description),
+            selector=cast("str | None", args.campaign),
+            samples_dir=BENCHMARK_SAMPLES_DIR,
+            progress_factory=progress_factory,
+            choose_campaign=lambda groups, selector: _choose_campaign("benchmark sample", groups, selector),
+        )
+    except SampleImportError as error:
+        if not error.reported:
+            print(f"tinarrative benchmark sample: {error}", file=sys.stderr)
+        return error.exit_code
+
+    for skipped in result.skipped:
+        print(
+            f"tinarrative benchmark sample: skipped {skipped.source}: {skipped.error_class}: {skipped.error}",
+            file=sys.stderr,
+        )
+    print(f"Imported {result.files} saves into benchmarks/samples/{result.name}/.")
+    if not result.description.strip():
+        print(f"Add a description for {name!r} in benchmarks/samples/samples.json.")
+    print("Review benchmarks/matrix.toml and add runs for this campaign if needed.")
+    return EXIT_SUCCESS
+
+
+def _run_benchmark_metrics(args: argparse.Namespace) -> int:
+    """Verify samples, measure narrator packages, or compare two metrics files."""
+    operation = cast(str, args.metrics_command)
+    if operation == "samples":
+        samples = cast(Path, args.samples)
+        try:
+            if args.update:
+                updated = update_samples(samples)
+                (samples / MANIFEST).write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8", newline="\n")
+            errors = verify_samples(samples)
+        except (OSError, json.JSONDecodeError) as exception:
+            print(f"tinarrative benchmark metrics samples: {exception}", file=sys.stderr)
+            return EXIT_OUTPUT_ERROR
+        for sample_error in errors:
+            print(f"tinarrative benchmark metrics samples: {sample_error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR if errors else EXIT_SUCCESS
+
+    if operation == "compare":
+        try:
+            report = benchmark_metrics.compare(
+                json.loads(cast(Path, args.base).read_text(encoding="utf-8")),
+                json.loads(cast(Path, args.head).read_text(encoding="utf-8")),
+                threshold=cast(float, args.threshold),
+                run_url=cast("str | None", args.run_url),
+            )
+            output = cast("Path | None", args.out)
+            if output is None:
+                sys.stdout.write(report)
+            else:
+                output.write_text(report, encoding="utf-8")
+            return EXIT_SUCCESS
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exception:
+            print(f"tinarrative benchmark metrics compare: {exception}", file=sys.stderr)
+            return EXIT_INPUT_ERROR
+
+    samples = cast(Path, args.samples)
+    progress: _ProgressTracker | None = None
+    try:
+        errors = verify_samples(samples)
+        for sample_error in errors:
+            print(f"tinarrative benchmark metrics measure: {sample_error}", file=sys.stderr)
+        if errors:
+            return EXIT_USAGE_ERROR
+        matrix = benchmark_metrics.load_matrix(cast(Path, args.matrix))
+        total = len(sample_files(samples)) * sum(len(entries) for entries in matrix.values())
+        progress_tracker = _ProgressTracker("benchmark metrics measure", total)
+        progress = progress_tracker
+        metrics = benchmark_metrics.measure(
+            python=cast(str, args.python),
+            samples=samples,
+            matrix_path=cast(Path, args.matrix),
+            config=cast(Path, args.config),
+            out=cast(Path, args.out),
+            label=cast(str, args.label),
+            chars_per_token=cast(int, args.chars_per_token),
+            jobs=cast(int, args.jobs),
+            on_progress=lambda amount: progress_tracker.advance("Measuring runs", amount),
+            on_campaign_complete=progress_tracker.report,
+        )
+        output = cast(Path, args.out)
+        output.mkdir(parents=True, exist_ok=True)
+        (output / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8", newline="\n")
+        return EXIT_SUCCESS
+    except ValueError as error:
+        print(f"tinarrative benchmark metrics measure: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    except OSError as error:
+        print(f"tinarrative benchmark metrics measure: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    finally:
+        if progress is not None:
+            progress.finish("measurement")
+
+
+def _run_benchmark_runtime(args: argparse.Namespace) -> int:
+    """Measure the runtime of ``events`` on one or two revisions, or write the report of a measurement."""
+    command = f"tinarrative benchmark runtime {args.runtime_command}"
+    if args.runtime_command == "report":
+        try:
+            report = benchmark_runtime.report(
+                json.loads(cast(Path, args.runtime).read_text(encoding="utf-8")),
+                run_url=cast("str | None", args.run_url),
+            )
+            output = cast("Path | None", args.out)
+            if output is None:
+                sys.stdout.write(report)
+            else:
+                output.write_text(report, encoding="utf-8")
+            return EXIT_SUCCESS
+        except (OSError, json.JSONDecodeError, KeyError, TypeError, ValueError, StopIteration) as exception:
+            print(f"{command}: {exception}", file=sys.stderr)
+            return EXIT_INPUT_ERROR
+
+    samples = cast(Path, args.samples)
+    sides = [benchmark_runtime.Side("head", cast(str, args.python), cast(str, args.label))]
+    if args.base_python is not None:
+        sides.insert(0, benchmark_runtime.Side("base", cast(str, args.base_python), cast(str, args.base_label)))
+    progress: _ProgressTracker | None = None
+    try:
+        if not samples.is_dir():
+            print(f"{command}: {samples}: not a directory", file=sys.stderr)
+            return EXIT_INPUT_ERROR
+        errors = verify_samples(samples) if (samples / MANIFEST).exists() else []
+        for sample_error in errors:
+            print(f"{command}: {sample_error}", file=sys.stderr)
+        if errors:
+            return EXIT_USAGE_ERROR
+        campaigns = len(sample_files(samples)) if (samples / MANIFEST).exists() else 1
+        progress_tracker = _ProgressTracker("benchmark runtime measure", campaigns * len(sides) * args.repeats)
+        progress = progress_tracker
+
+        def completed(line: str) -> None:
+            progress_tracker.report([line])
+            progress_tracker.advance("Measuring runs")
+
+        runtime = benchmark_runtime.measure(
+            sides=sides,
+            samples=samples,
+            matrix_path=cast(Path, args.matrix),
+            run_id=cast(str, args.run),
+            config=cast(Path, args.config),
+            repeats=cast(int, args.repeats),
+            campaign=cast("str | None", args.campaign),
+            on_run_complete=completed,
+        )
+        output = cast(Path, args.out)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(runtime, indent=2) + "\n", encoding="utf-8", newline="\n")
+        return EXIT_SUCCESS
+    except ValueError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    finally:
+        if progress is not None:
+            progress.finish("measurement")
 
 
 def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
@@ -1929,6 +2138,81 @@ def _add_campaigns_parser(subcommands: argparse._SubParsersAction[argparse.Argum
     parser.set_defaults(handler=_run_campaigns)
 
 
+def _add_benchmark_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
+    parser = subcommands.add_parser("benchmark", help="Manage benchmark samples.")
+    commands = parser.add_subparsers(dest="benchmark_command", metavar="COMMAND", required=True)
+    sample = commands.add_parser(
+        "sample",
+        help="Import or refresh a campaign in benchmarks/samples/.",
+        description=(
+            "Import save files into benchmarks/samples/ and refresh samples.json. A single directory is grouped by "
+            "campaign; choose one with --campaign or the interactive picker. Refresh replaces the named campaign."
+        ),
+        epilog=(
+            "Progress is written to stderr in a terminal. After import, review samples.json and matrix.toml; "
+            "add a campaign description if one is not already present."
+        ),
+    )
+    sample.add_argument("name", help="Name of the campaign directory to create or replace.")
+    sample.add_argument("paths", type=Path, nargs="+", metavar="PATH", help="One directory or save file paths.")
+    sample.add_argument("--description", help="Campaign description to write to samples.json.")
+    sample.add_argument("--campaign", metavar="SELECTOR", help="Campaign to import from a directory input.")
+    sample.set_defaults(handler=_run_benchmark_sample)
+
+    metrics = commands.add_parser("metrics", help="Measure and compare narrator package sizes.")
+    metric_commands = metrics.add_subparsers(dest="metrics_command", metavar="OPERATION", required=True)
+    samples = metric_commands.add_parser("samples", help=f"Verify the sample files against {MANIFEST}, or rewrite it.")
+    samples.add_argument("--samples", type=Path, default=BENCHMARK_SAMPLES_DIR)
+    samples.add_argument("--update", action="store_true", help="Rewrite the manifest from the files.")
+    samples.set_defaults(handler=_run_benchmark_metrics)
+
+    measure = metric_commands.add_parser("measure", help="Run the matrix and write metrics.json.")
+    measure.add_argument("--python", default=sys.executable, help="The interpreter with the tinarrative to measure.")
+    measure.add_argument("--samples", type=Path, default=BENCHMARK_SAMPLES_DIR)
+    measure.add_argument("--matrix", type=Path, default=BENCHMARK_ROOT / "matrix.toml")
+    measure.add_argument("--config", type=Path, default=BENCHMARK_ROOT / "config.toml")
+    measure.add_argument("--out", type=Path, required=True)
+    measure.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
+    measure.add_argument("--chars-per-token", type=_positive_int, default=3)
+    measure.add_argument("--jobs", type=_positive_int, default=os.cpu_count() or 1, help="Commands to run at once.")
+    measure.set_defaults(handler=_run_benchmark_metrics)
+
+    compare = metric_commands.add_parser("compare", help="Write the Markdown report of two metrics files.")
+    compare.add_argument("base", type=Path)
+    compare.add_argument("head", type=Path)
+    compare.add_argument("--out", type=Path, help="Where to write the report (default: stdout).")
+    compare.add_argument("--threshold", type=float, default=1.0, help="Highlight changes of at least this per cent.")
+    compare.add_argument("--run-url", help="The CI run whose artifact holds the outputs.")
+    compare.set_defaults(handler=_run_benchmark_metrics)
+
+    runtime = commands.add_parser("runtime", help="Measure and report the processing runtime of events.")
+    runtime_commands = runtime.add_subparsers(dest="runtime_command", metavar="OPERATION", required=True)
+    timed = runtime_commands.add_parser("measure", help="Time one events run per campaign and write runtime JSON.")
+    timed.add_argument("--python", default=sys.executable, help="The interpreter with the tinarrative to measure.")
+    timed.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
+    timed.add_argument("--base-python", help="A second interpreter to measure as the base, alternating with --python.")
+    timed.add_argument("--base-label", default="base", help="What the base is, for example a commit.")
+    timed.add_argument(
+        "--samples",
+        type=Path,
+        default=BENCHMARK_SAMPLES_DIR,
+        help=f"Benchmark samples (a directory with {MANIFEST}), or one directory of saves.",
+    )
+    timed.add_argument("--campaign", help="Passed to events as --campaign, for a directory of several campaigns.")
+    timed.add_argument("--matrix", type=Path, default=BENCHMARK_ROOT / "matrix.toml")
+    timed.add_argument("--run", default="major", help="The events run of the matrix to time (default major).")
+    timed.add_argument("--config", type=Path, default=BENCHMARK_ROOT / "config.toml")
+    timed.add_argument("--repeats", type=_positive_int, default=1, help="Runs per side; the fastest is kept.")
+    timed.add_argument("--out", type=Path, required=True, help="The runtime JSON file to write.")
+    timed.set_defaults(handler=_run_benchmark_runtime)
+
+    reported = runtime_commands.add_parser("report", help="Write the Markdown report of a runtime JSON file.")
+    reported.add_argument("runtime", type=Path)
+    reported.add_argument("--out", type=Path, help="Where to write the report (default: stdout).")
+    reported.add_argument("--run-url", help="The CI run whose artifact holds the measurements.")
+    reported.set_defaults(handler=_run_benchmark_runtime)
+
+
 def _add_save_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     summary = "Inspect, parse or diff individual save files."
     parser = subcommands.add_parser(
@@ -1976,6 +2260,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Use 'tinarrative COMMAND --help' for command-specific help.",
     )
     _add_campaigns_parser(subcommands)
+    _add_benchmark_parser(subcommands)
     _add_councilors_parser(subcommands)
     _add_events_parser(subcommands)
     _add_narrate_parser(subcommands)
@@ -1989,7 +2274,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     level = _resolve_log_level(parser, args)
-    configure_logging(level)
+    configure_logging(level, timing=os.environ.get(TIMING_ENV_VAR, "").strip() not in ("", "0"))
     if not hasattr(args, "handler"):
         parser.print_help()
         return EXIT_SUCCESS

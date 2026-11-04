@@ -61,6 +61,8 @@ class CliSkeletonTests(unittest.TestCase):
             ["councilors"],
             ["narrate"],
             ["campaigns"],
+            ["benchmark", "sample"],
+            ["benchmark", "metrics", "samples"],
         ):
             with self.subTest(command=command), redirect_stdout(StringIO()):
                 with self.assertRaises(SystemExit) as result:
@@ -71,7 +73,8 @@ class CliSkeletonTests(unittest.TestCase):
         with redirect_stdout(StringIO()) as out, self.assertRaises(SystemExit):
             main(["--help"])
         self.assertEqual(
-            listed_commands(out.getvalue()), ["campaigns", "councilors", "events", "narrate", "save", "unknowns"]
+            listed_commands(out.getvalue()),
+            ["campaigns", "benchmark", "councilors", "events", "narrate", "save", "unknowns"],
         )
 
     def test_save_group_lists_inspect_parse_and_diff(self) -> None:

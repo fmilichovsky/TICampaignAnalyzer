@@ -1,0 +1,74 @@
+name: Runtime metrics
+
+# Times `events` on the benchmark samples for the pull request's base and head, on one runner and alternating, and
+# posts the report as one comment that every later push edits. Timings from different runners are not comparable,
+# so both sides run in this one job. Informational: a slower stage never fails the check. See benchmarks/README.md.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: runtime-metrics-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    steps:
+      # The head checkout supplies the CLI, samples, matrix and settings that both sides are measured with.
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .bench/base-src
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install runtime CLI
+        run: python -m pip install --quiet .
+      - name: Install base and head
+        run: |
+          python -m venv .bench/venv-base
+          .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
+          python -m venv .bench/venv-head
+          .bench/venv-head/bin/python -m pip install --quiet .
+      - name: Measure
+        run: >-
+          python -m tinarrative.cli benchmark runtime measure --repeats 3
+          --base-python .bench/venv-base/bin/python --base-label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
+          --python .bench/venv-head/bin/python --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
+          --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml
+          --out .bench/runtime.json
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      - name: Report
+        run: |
+          python -m tinarrative.cli benchmark runtime report .bench/runtime.json --out .bench/runtime.md \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          cat .bench/runtime.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-metrics
+          path: |
+            .bench/runtime.json
+            .bench/runtime.md
+          retention-days: 14
+      - name: Post comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- runtime-metrics -->")))][0].id // empty' \
+            | head -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.bench/runtime.md > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.bench/runtime.md > /dev/null
+          fi

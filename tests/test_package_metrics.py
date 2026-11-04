@@ -1,4 +1,4 @@
-"""Coverage for scripts/package_metrics.py: the breakdown, the samples manifest, a measurement and the report."""
+"""Coverage for package breakdown, the samples manifest, measurement and comparison reports."""
 
 from __future__ import annotations
 
@@ -12,23 +12,23 @@ from typing import Any
 
 import pytest
 
-from scripts.package_metrics import (
+from tests.fixtures import fixture_path
+from tinarrative import cli
+from tinarrative.benchmarking import metrics as benchmark_metrics
+from tinarrative.benchmarking.manifest import update_samples, verify_samples
+from tinarrative.benchmarking.metrics import (
     COMMENT_LIMIT,
     MANIFEST,
     MARKER,
     MAX_KEYS,
-    REPOSITORY_ROOT,
     breakdown,
     compare,
-    main,
     measure,
     member_changes,
-    update_samples,
-    verify_samples,
 )
-from tests.fixtures import fixture_path
 
 SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _samples(root: Path) -> Path:
@@ -153,6 +153,62 @@ def test_the_committed_samples_match_their_manifest() -> None:
     assert verify_samples(REPOSITORY_ROOT / "benchmarks" / "samples") == []
 
 
+def test_metrics_cli_samples_update_and_compare_write_their_outputs(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    samples = _samples(tmp_path)
+    extra = samples / "politics" / "extra.json.xz"
+    extra.write_bytes(lzma.compress(b"{}"))
+
+    code = cli.main(["benchmark", "metrics", "samples", "--samples", str(samples)])
+    assert code == cli.EXIT_USAGE_ERROR
+    assert "not listed" in capsys.readouterr().err
+
+    assert cli.main(["benchmark", "metrics", "samples", "--samples", str(samples), "--update"]) == cli.EXIT_SUCCESS
+    assert verify_samples(samples) == []
+
+    base, head, report = tmp_path / "base.json", tmp_path / "head.json", tmp_path / "report.md"
+    base.write_text(json.dumps(_metrics("base", members={"saves": 100})), encoding="utf-8")
+    head.write_text(json.dumps(_metrics("head", members={"saves": 100})), encoding="utf-8")
+    assert cli.main(["benchmark", "metrics", "compare", str(base), str(head), "--out", str(report)]) == cli.EXIT_SUCCESS
+    assert report.read_text(encoding="utf-8").startswith(MARKER)
+
+
+def test_metrics_cli_measure_writes_the_metrics_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    samples = _samples(tmp_path)
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text('[[events]]\nid = "bare"\nargs = []\n', encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    out = tmp_path / "out"
+    monkeypatch.setattr(benchmark_metrics, "measure", lambda **kwargs: {"label": kwargs["label"]})
+
+    code = cli.main(
+        [
+            "benchmark",
+            "metrics",
+            "measure",
+            "--samples",
+            str(samples),
+            "--matrix",
+            str(matrix),
+            "--config",
+            str(config),
+            "--out",
+            str(out),
+            "--label",
+            "test label",
+            "--chars-per-token",
+            "4",
+            "--jobs",
+            "2",
+        ]
+    )
+
+    assert code == cli.EXIT_SUCCESS
+    assert json.loads((out / "metrics.json").read_text(encoding="utf-8")) == {"label": "test label"}
+
+
 @pytest.mark.fixture
 def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) -> None:
     samples = _samples(tmp_path)
@@ -208,6 +264,7 @@ def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tm
     config = tmp_path / "config.toml"
     config.write_text("", encoding="utf-8")
     log = io.StringIO()
+    progress: list[int] = []
 
     metrics = measure(
         python=sys.executable,
@@ -219,6 +276,7 @@ def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tm
         chars_per_token=3,
         jobs=4,
         log=log,
+        on_progress=progress.append,
     )
 
     assert list(metrics["campaigns"]) == ["politics", "politics-copy"]
@@ -230,6 +288,7 @@ def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tm
     lines = log.getvalue().splitlines()
     headers = [index for index, line in enumerate(lines) if line.startswith("package_metrics: politics")]
     assert len(headers) == 2
+    assert sum(progress) == 10
     for start in headers:
         block = lines[start + 1 : start + 8]
         names = [line.split("─ ", 1)[1].split()[0] for line in block]
@@ -243,7 +302,21 @@ def test_a_malformed_matrix_is_a_usage_error(tmp_path: Path, capsys: pytest.Capt
     matrix = tmp_path / "matrix.toml"
     matrix.write_text('[[events]]\nid = "a"\n[[narrate]]\nid = "b"\npackage = "missing"\n', encoding="utf-8")
 
-    code = main(["measure", "--samples", str(samples), "--matrix", str(matrix), "--out", str(tmp_path / "out")])
+    from tinarrative.cli import main
+
+    code = main(
+        [
+            "benchmark",
+            "metrics",
+            "measure",
+            "--samples",
+            str(samples),
+            "--matrix",
+            str(matrix),
+            "--out",
+            str(tmp_path / "out"),
+        ]
+    )
 
     assert code == 2
     assert "narrate.b: package must name an events run" in capsys.readouterr().err

@@ -1,4 +1,4 @@
-# The runs `scripts/package_metrics.py measure` makes against every sample campaign. See README.md.
+# The runs `tinarrative benchmark metrics measure` makes against every sample campaign. See README.md.
 #
 # Each `events` run writes one narrator package; each `narrate` run plans the package of the `events` run it names
 # (`narrate --package`, never `--send`). `--config` is added to every command.

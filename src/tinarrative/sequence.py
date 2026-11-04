@@ -9,9 +9,10 @@ the interval key to stay unique. Rules see one interval: evidence straddling a b
 from __future__ import annotations
 
 import hashlib
+import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,7 @@ from typing import Any
 from .analyzers import ALL_ANALYZERS, FIRST_INTERVAL_ANALYZERS, run_analyzers
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
-from .log import fields, get_logger
+from .log import TIMING_LOGGER, fields, get_logger
 from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
@@ -33,6 +34,7 @@ from .parsing.raw_save import parse_raw_save
 from .reconstruction import infer_events
 
 logger = get_logger(__name__)
+timing = get_logger(TIMING_LOGGER)
 
 
 class UnknownChronologyError(SaveLoadError):
@@ -105,6 +107,8 @@ class IntervalAnalysis:
     diff: StateDiff
     objective: tuple[Event, ...]
     inferred: tuple[Event, ...] | None
+    seconds: dict[str, float] = field(default_factory=dict, compare=False)
+    """Wall time per stage (``diff``, ``analyzers``, ``reconstruction``, ``significance``), for the timing log."""
 
 
 @dataclass(frozen=True)
@@ -155,29 +159,52 @@ def analyze_interval(
 
     ``first`` marks the first interval of a sequence, which also runs ``FIRST_INTERVAL_ANALYZERS``.
     """
+    clock = time.perf_counter()
+    seconds = dict.fromkeys(("diff", "analyzers", "reconstruction", "significance"), 0.0)
+
+    def lap(stage: str) -> None:
+        nonlocal clock
+        now = time.perf_counter()
+        seconds[stage] += now - clock
+        clock = now
+
     diff = diff_states(before, after)
+    lap("diff")
     analyzers = ALL_ANALYZERS + FIRST_INTERVAL_ANALYZERS if first else ALL_ANALYZERS
-    objective = assign_significance(run_analyzers(analyzers, before, after, diff), before, after)
-    reconstructed = (
-        assign_significance(infer_events(objective, before, after, diff), before, after) if inferred else None
-    )
-    return IntervalAnalysis(diff, objective, reconstructed)
+    found = run_analyzers(analyzers, before, after, diff)
+    lap("analyzers")
+    objective = assign_significance(found, before, after)
+    lap("significance")
+    reconstructed = None
+    if inferred:
+        events = infer_events(objective, before, after, diff)
+        lap("reconstruction")
+        reconstructed = assign_significance(events, before, after)
+        lap("significance")
+    return IntervalAnalysis(diff, objective, reconstructed, seconds)
 
 
 def survey(path: Path) -> SaveRef:
     """Hash a save and read its game time and campaign profile; ``OSError`` for the path, ``SaveLoadError`` for the
     content."""
+    started = time.perf_counter()
     data = load_save(path)
     raw = parse_raw_save(data, source=str(path))
     timestamp = save_timestamp(raw)
     if timestamp is None:
         raise UnknownChronologyError("no parseable TITimeState.currentDateTime; the save cannot be ordered")
-    return SaveRef(
+    surveyed = SaveRef(
         source=str(path),
         sha256=hashlib.sha256(data).hexdigest(),
         timestamp=timestamp,
         profile=campaign_profile(raw),
     )
+    timing.info("survey %s", fields(seconds=_seconds(started)))
+    return surveyed
+
+
+def _seconds(started: float) -> float:
+    return round(time.perf_counter() - started, 4)
 
 
 def merge_identical(saves: Iterable[SaveRef]) -> list[SaveRef]:
@@ -231,12 +258,23 @@ def run_sequence(
     """
     if len(plan.saves) < 2:
         return
-    before = load(plan.saves[0].source)
-    before_situation = build_situation(before, spaceports=spaceports)
+
+    def prepared(index: int) -> tuple[SaveSnapshot, SituationReport]:
+        started = time.perf_counter()
+        snapshot = load(plan.saves[index].source)
+        loaded = time.perf_counter()
+        situation = build_situation(snapshot, spaceports=spaceports)
+        timing.info("save %s", fields(index=index, load=round(loaded - started, 4), situation=_seconds(loaded)))
+        return snapshot, situation
+
+    before, before_situation = prepared(0)
     for index in range(1, len(plan.saves)):
-        after = load(plan.saves[index].source)
-        after_situation = build_situation(after, spaceports=spaceports)
+        after, after_situation = prepared(index)
         analysis = analyze_interval(before, after, inferred=inferred, first=index == 1)
+        timing.info(
+            "interval %s",
+            fields(index=index - 1, **{stage: round(value, 4) for stage, value in analysis.seconds.items()}),
+        )
         key = plan.keys[index]
         result = IntervalResult(
             index=index - 1,

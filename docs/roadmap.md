@@ -66,7 +66,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [ ] Campaign baseline from cumulative trackers (#194).
 - [ ] Entity-scaled significance ([design](architecture.md#entity-scaled-score-design)):
   - [x] Design.
-  - [ ] Numeric score with unchanged levels (#196).
+  - [x] Numeric score with unchanged levels (#196).
   - [ ] Prominence shares (#197).
   - [ ] Atomic events scaled by stake (#198).
   - [ ] Developments scaled by stake (#199).
@@ -100,3 +100,14 @@ Target: record every save the game writes and narrate on demand in installments
 - [ ] Lines across reloads (#216).
 - [ ] Interval cache (#213).
 - [ ] Narration installments (#214).
+
+## Processing runtime
+
+Tracking #249.
+
+- [x] Runtime benchmark and per-stage timing lines.
+- [ ] Record-log diff keys computed once (#253).
+- [ ] Shared snapshot and interval indexes (#254).
+- [ ] Indexed event stream for narrative rules (#255).
+- [ ] Normalization and model hot-path costs (#256).
+- [ ] Parallel survey and interval processing (#257).

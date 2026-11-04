@@ -7,9 +7,10 @@ include every source of its ``constituents``.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, Final
 
 from .changes import StateChange
 from .entities import EntityRef
@@ -31,7 +32,8 @@ class Confidence(StrEnum):
 class Significance(StrEnum):
     """How much an event matters to a campaign history; independent of confidence (architecture 12).
 
-    Assigned by ``tinarrative.narrative.significance``; ``SIGNIFICANCE_ORDER`` is the ranking.
+    Assigned by ``tinarrative.narrative.significance``; ``SIGNIFICANCE_ORDER`` is the ranking. Each level is a fixed
+    band of the 0-100 ``Event.score`` (``SCORE_BANDS``).
     """
 
     TRIVIAL = "trivial"
@@ -47,6 +49,27 @@ class Significance(StrEnum):
     def rank(self) -> int:
         return SIGNIFICANCE_ORDER.index(self)
 
+    @property
+    def band(self) -> tuple[int, int]:
+        """The lowest and highest score of this level, both inclusive."""
+        return SCORE_BANDS[self]
+
+    @property
+    def base(self) -> int:
+        """The band's midpoint: the score of an event whose type alone decides its level."""
+        low, high = self.band
+        return (low + high) // 2
+
+    @classmethod
+    def of(cls, score: int) -> Significance:
+        """The level whose band holds ``score``; ``ValueError`` outside 0-100 or for a non-integer."""
+        if isinstance(score, bool) or not isinstance(score, int):
+            raise ValueError(f"a significance score is an integer, not {score!r}")
+        for level, (low, high) in SCORE_BANDS.items():
+            if low <= score <= high:
+                return level
+        raise ValueError(f"a significance score runs 0-100, not {score}")
+
 
 SIGNIFICANCE_ORDER: tuple[Significance, ...] = (
     Significance.TRIVIAL,
@@ -55,6 +78,17 @@ SIGNIFICANCE_ORDER: tuple[Significance, ...] = (
     Significance.CAMPAIGN_DEFINING,
 )
 """Least to most significant; compare levels through ``Significance.rank``, never by enum declaration order."""
+
+SCORE_BANDS: Mapping[Significance, tuple[int, int]] = {
+    Significance.TRIVIAL: (0, 24),
+    Significance.MINOR: (25, 49),
+    Significance.MAJOR: (50, 74),
+    Significance.CAMPAIGN_DEFINING: (75, 100),
+}
+"""Fixed, so an event's score and level can never disagree; the scaling that moves a score is configured."""
+
+UNSCORED: Final = -1
+"""The ``Event.score`` default: replaced by the base of the event's level on construction."""
 
 
 class DateBasis(StrEnum):
@@ -139,9 +173,10 @@ class Event:
     """A categorized, evidence-backed development; sorted deterministically on construction.
 
     ``not_before`` is the date of the interval's earlier snapshot; it and ``date`` may be ``Unknown``.
-    ``significance`` is set by the narrative stage; analyzers leave the default. Only a narrative event
-    (architecture 11.2) has non-empty ``intervals``; for every other event the span, ``open`` and ``roles`` fields
-    keep their defaults.
+    ``significance`` and ``score`` are set by the narrative stage; analyzers leave the defaults. A score left
+    ``UNSCORED`` becomes the level's base, and one outside the level's band raises ``ValueError``. Only a narrative
+    event (architecture 11.2) has non-empty ``intervals``; for every other event the span, ``open`` and ``roles``
+    fields keep their defaults.
     """
 
     id: str
@@ -155,6 +190,7 @@ class Event:
     entities: tuple[EntityRef, ...]
     attributes: tuple[tuple[str, Observed], ...] = ()
     significance: Significance = Significance.MINOR
+    score: int = UNSCORED
     constituents: tuple[str, ...] = ()
     start: Observed = None
     start_basis: DateBasis | None = None
@@ -165,6 +201,10 @@ class Event:
     roles: tuple[tuple[Role, EntityRef], ...] = ()
 
     def __post_init__(self) -> None:
+        if self.score == UNSCORED:
+            object.__setattr__(self, "score", self.significance.base)
+        elif Significance.of(self.score) is not self.significance:
+            raise ValueError(f"event {self.id}: score {self.score} is outside the {self.significance} band")
         object.__setattr__(self, "sources", tuple(sorted(self.sources, key=lambda source: source.sort_key)))
         object.__setattr__(self, "constituents", tuple(sorted(set(self.constituents))))
         object.__setattr__(self, "entities", _unique(self.entities))
@@ -197,6 +237,7 @@ class Event:
             "status": self.status.value,
             "confidence": self.confidence.value,
             "significance": self.significance.value,
+            "score": self.score,
             "date": to_jsonable(self.date),
             "date_basis": self.date_basis.value,
             "not_before": to_jsonable(self.not_before),
