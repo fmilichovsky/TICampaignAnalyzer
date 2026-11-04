@@ -260,6 +260,23 @@ def test_a_completion_takes_its_curated_tier_and_an_unlisted_one_is_minor() -> N
     assert significance_of(bare_event("faction.project_completed"), lookup) is Significance.MINOR
 
 
+def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
+    def technology(name: str) -> Event:
+        return replace(bare_event("technology.completed"), entities=(ref(EntityDomain.TECHNOLOGY, name),))
+
+    snap = snapshot(BEFORE)
+    events = [
+        technology("DeuteriumTritiumFusion"),  # campaign_defining milestone
+        technology("SpaceNavies"),  # major milestone
+        bare_event("fleet.orbit_changed"),  # minor in the table
+        bare_event("nation.rank_changed"),  # trivial in the table
+        bare_event("nation.relation_changed", relation="wars"),  # major by its context rule
+    ]
+    assigned = assign_significance(events, snap, snap)
+    assert [event.score for event in assigned] == [87, 62, 37, 12, 62]
+    assert all(event.score == event.significance.base for event in assigned)
+
+
 def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
     assert "faction.transaction_recorded" in BASE  # corroboration only (architecture 11.3)
     assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
@@ -293,12 +310,13 @@ def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
     assert [event.id for event in assigned] == [event.id for event in raw]
     assert assign_significance(assigned, before, after) == assigned
     assert {event.significance for event in assigned} == {Significance.TRIVIAL}
+    assert {event.score for event in assigned} == {Significance.TRIVIAL.base}
     assert len(assigned) == 3  # two recruit-pool presences and one location move
 
 
-def test_serialization_carries_the_level() -> None:
+def test_serialization_carries_the_level_and_score() -> None:
     event = bare_event("fleet.orbit_changed")
-    assert event.to_dict()["significance"] == "minor"
+    assert event.to_dict()["significance"] == "minor" and event.to_dict()["score"] == 37
     assert (
         Significance.CAMPAIGN_DEFINING.rank
         > Significance.MAJOR.rank

@@ -123,8 +123,8 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 
 class NarrativeBuilder:
-    """Applies the shared policy: confidence is the constituents' minimum, significance never below the most
-    significant constituent, and ``open`` while the anchor is in the last report."""
+    """Applies the shared policy: confidence is the constituents' minimum, the score never below the highest-scored
+    cited event or the base of the rule's level, and ``open`` while the anchor is in the last report."""
 
     def __init__(self, situations: Sequence[SituationReport]) -> None:
         self._last = situations[-1] if situations else None
@@ -162,6 +162,7 @@ class NarrativeBuilder:
         end = max(ends, key=lambda dated: (dated.date, -dated.key[1])) if ends else None
         bounds = [event.not_before for event in cited if isinstance(event.not_before, str)]
         role_list = tuple(roles)
+        score = self._score(cited, significance)
         return Event(
             id=qualified_id(event_id(event_type, *id_parts), intervals[0]),
             event_type=event_type,
@@ -173,7 +174,8 @@ class NarrativeBuilder:
             sources=tuple(cite(cited, Support())),
             entities=tuple(ref for _, ref in sorted(role_list, key=lambda item: item[0].rank)),
             attributes=tuple(attributes),
-            significance=self._significance(cited, significance),
+            significance=Significance.of(score),
+            score=score,
             constituents=tuple(event.id for event in cited),
             start=start.date if start else Unknown(),
             start_basis=start.basis if start else None,
@@ -198,11 +200,12 @@ class NarrativeBuilder:
         return lower(least) if join is Join.HEURISTIC else least
 
     @staticmethod
-    def _significance(constituents: Sequence[Event], ruled: Significance | None) -> Significance:
-        levels = [event.significance for event in constituents]
+    def _score(cited: Sequence[Event], ruled: Significance | None) -> int:
+        """Never a sum: one fact is often recorded several times."""
+        scores = [event.score for event in cited]
         if ruled is not None:
-            levels.append(ruled)
-        return max(levels, key=lambda level: level.rank)
+            scores.append(ruled.base)
+        return max(scores)
 
 
 def aggregate(

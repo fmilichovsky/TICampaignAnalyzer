@@ -66,7 +66,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [ ] Campaign baseline from cumulative trackers (#194).
 - [ ] Entity-scaled significance ([design](architecture.md#entity-scaled-score-design)):
   - [x] Design.
-  - [ ] Numeric score with unchanged levels (#196).
+  - [x] Numeric score with unchanged levels (#196).
   - [ ] Prominence shares (#197).
   - [ ] Atomic events scaled by stake (#198).
   - [ ] Developments scaled by stake (#199).

@@ -30,11 +30,12 @@ PROFILE_KEYS = (
 """The ``narrator`` keys a profile may set; every other key is shared by all profiles."""
 _KIND = "kind"
 _MINIMUM = "minimum"
+_MAXIMUM = "maximum"
 _CHOICES = "choices"
 
 
-def _int(default: int | None, minimum: int) -> Any:
-    return field(default=default, metadata={_KIND: "int", _MINIMUM: minimum})
+def _int(default: int | None, minimum: int, maximum: int | None = None) -> Any:
+    return field(default=default, metadata={_KIND: "int", _MINIMUM: minimum, _MAXIMUM: maximum})
 
 
 def _float(minimum: float) -> Any:
@@ -108,10 +109,22 @@ class NationMetricsSettings:
 
 
 @dataclass(frozen=True)
+class SignificanceSettings:
+    """How far an event's stake may move its score from its type's base (architecture 12); not applied yet, as no
+    event type is scaled."""
+
+    scale_min: int = _int(-20, -100, 0)
+    """The stake lowers a score by at most this many points."""
+    scale_max: int = _int(15, 0, 100)
+    """The stake raises a score by at most this many points."""
+
+
+@dataclass(frozen=True)
 class NarrativeSettings:
     geopolitics: GeopoliticsSettings = field(default_factory=GeopoliticsSettings)
     space: SpaceSettings = field(default_factory=SpaceSettings)
     nation_metrics: NationMetricsSettings = field(default_factory=NationMetricsSettings)
+    significance: SignificanceSettings = field(default_factory=SignificanceSettings)
 
 
 @dataclass(frozen=True)
@@ -268,6 +281,9 @@ def _value(metadata: Mapping[str, Any], value: Any, dotted: str) -> Any:
     minimum = metadata.get(_MINIMUM)
     if minimum is not None and value < minimum:
         raise ConfigError(f"{dotted!r} must be at least {minimum}")
+    maximum = metadata.get(_MAXIMUM)
+    if maximum is not None and value > maximum:
+        raise ConfigError(f"{dotted!r} must be at most {maximum}")
     return value
 
 

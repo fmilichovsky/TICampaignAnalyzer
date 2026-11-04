@@ -69,6 +69,13 @@ nuclear_buildup_min = 5
 # this many spaceports.
 ranking_top_n = 10
 
+[narrative.significance]
+# How far an event's stake may lower (scale_min, -100 to 0) or raise
+# (scale_max, 0 to 100) its significance score; not applied yet, as no event
+# type is scaled.
+scale_min = -20
+scale_max = 15
+
 [councilors]
 # The most prominent councilors of each other human faction that join the
 # player's councilors in the dossier of tinarrative councilors.

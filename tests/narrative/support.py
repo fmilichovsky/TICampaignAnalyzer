@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import (
+    UNSCORED,
     Confidence,
     DateBasis,
     Event,
@@ -75,6 +76,7 @@ def atomic(
     status: EventStatus = EventStatus.OBJECTIVE,
     confidence: Confidence = Confidence.HIGH,
     significance: Significance = Significance.MINOR,
+    score: int = UNSCORED,
     entities: Sequence[EntityRef] = (),
     sources: Sequence[EventSource] = (),
     attributes: Sequence[tuple[str, Observed]] = (),
@@ -93,6 +95,7 @@ def atomic(
         entities=tuple(entities),
         attributes=tuple(attributes),
         significance=significance,
+        score=score,
     )
 
 
