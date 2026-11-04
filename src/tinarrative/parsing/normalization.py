@@ -7,12 +7,13 @@ does not describe is reported through ``UnknownCollector`` without changing the 
 from __future__ import annotations
 
 import logging
+import time
 from datetime import datetime
 from typing import Any
 
 from ..identity import STATE_PREFIX, read_id_value
+from ..log import TIMING_LOGGER, get_logger, shape
 from ..log import fields as log_fields
-from ..log import get_logger, shape
 from ..model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from ..model.evidence import SourceLocation
 from ..model.records import RecordSet, record_counts
@@ -41,6 +42,7 @@ from .unknowns import PAIR_MAP, UnknownCollector, check_reference, scan_envelope
 __all__ = ["game_datetime", "normalize", "save_timestamp"]
 
 logger = get_logger(__name__)
+timing = get_logger(TIMING_LOGGER)
 
 ARRAY_OF_KEYED_OBJECTS = "array_of_keyed_objects"
 """``field_shape`` detail: expected a list of objects with a unique string key member (``KEYED_LIST_FIELDS``)."""
@@ -253,6 +255,7 @@ def save_timestamp(raw_save: RawSave) -> datetime | None:
 
 def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -> SaveSnapshot:
     """Pass a ``collector`` to receive unknown-structure findings; the snapshot does not depend on it."""
+    started = time.perf_counter()
     if collector is None:
         collector = UnknownCollector()
     scan_envelope(raw_save.root, collector)
@@ -333,7 +336,7 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
         ("current_id", read_id_value(raw_save.root.get("currentID"))),
         ("state_types", tuple(sorted(gamestates))),
     )
-    return SaveSnapshot(
+    snapshot = SaveSnapshot(
         source=raw_save.source,
         date=date,
         game_version=raw_save.game_version,
@@ -347,3 +350,5 @@ def normalize(raw_save: RawSave, *, collector: UnknownCollector | None = None) -
         raw_metadata=raw_metadata,
         **collections,
     )
+    timing.info("normalize %s", log_fields(seconds=round(time.perf_counter() - started, 4)))
+    return snapshot

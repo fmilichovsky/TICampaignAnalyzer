@@ -24,7 +24,8 @@ before touching the model or pipeline.
 - `tests/` — mirrors the package; fixtures in `tests/fixtures/`.
 - `docs/commands/` — one user-facing page per CLI command.
 - `docs/game-data-notes/` — the evidence log of the observed save format ([README](docs/game-data-notes/README.md)).
-- `benchmarks/` — real sample campaigns and the package-size matrix ([README](benchmarks/README.md)).
+- `benchmarks/` — real sample campaigns, the package-size matrix and the runtime measurement
+  ([README](benchmarks/README.md)).
 - `scripts/` — standalone utilities, not fit to be part of the main product.
   ([observe_saves.md](scripts/observe_saves.md)). Only `narrator_prompt.py` imports `tinarrative`.
 

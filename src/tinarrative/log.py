@@ -24,10 +24,15 @@ LEVELS: Mapping[str, int] = {
 }
 DEFAULT_LEVEL = "warning"
 ENV_VAR = "TINARRATIVE_LOG_LEVEL"
+TIMING_LOGGER = "tinarrative.timing"
+"""Stage durations for the runtime benchmark; silent unless ``configure_logging(timing=True)``, at any level."""
+TIMING_ENV_VAR = "TINARRATIVE_TIMING"
 LINE_FORMAT = "%(levelname)s %(name)s: %(message)s"
 
 _BARE_VALUE = re.compile(r"^[\w./:+~-]+$")
+_TIMING_OFF = logging.CRITICAL + 1
 _handler: logging.Handler | None = None
+logging.getLogger(TIMING_LOGGER).setLevel(_TIMING_OFF)
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -35,10 +40,11 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def configure_logging(level: str, stream: TextIO | None = None) -> None:
+def configure_logging(level: str, stream: TextIO | None = None, *, timing: bool = False) -> None:
     """Send package log lines at ``level`` or above to ``stream`` (default: current stderr).
 
-    Replaces the previous call's handler, so repeated ``main()`` runs never log twice or to a stale stream.
+    Replaces the previous call's handler, so repeated ``main()`` runs never log twice or to a stale stream. Timing
+    lines are opt-in and independent of ``level``, because durations would make two runs' logs differ.
     """
     global _handler
     if level not in LEVELS:
@@ -51,6 +57,7 @@ def configure_logging(level: str, stream: TextIO | None = None) -> None:
     _handler.setFormatter(logging.Formatter(LINE_FORMAT))
     root.addHandler(_handler)
     root.setLevel(LEVELS[level])
+    logging.getLogger(TIMING_LOGGER).setLevel(logging.INFO if timing else _TIMING_OFF)
 
 
 def fields(**values: object) -> str:

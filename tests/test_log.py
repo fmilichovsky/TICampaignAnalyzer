@@ -4,7 +4,16 @@ import logging
 import unittest
 from io import StringIO
 
-from tinarrative.log import ROOT_LOGGER, configure_logging, excerpt, fields, get_logger, safe_path, shape
+from tinarrative.log import (
+    ROOT_LOGGER,
+    TIMING_LOGGER,
+    configure_logging,
+    excerpt,
+    fields,
+    get_logger,
+    safe_path,
+    shape,
+)
 
 
 class FieldRenderingTests(unittest.TestCase):
@@ -63,6 +72,16 @@ class ConfigureLoggingTests(unittest.TestCase):
         self.assertEqual(len([h for h in root.handlers if isinstance(h, logging.StreamHandler)]), 1)
         self.assertEqual(first.getvalue(), "")
         self.assertEqual(second.getvalue(), "INFO tinarrative.example: once\n")
+
+    def test_timing_lines_are_off_at_every_level_unless_asked_for(self) -> None:
+        quiet, timed = StringIO(), StringIO()
+        configure_logging("debug", quiet)
+        get_logger(TIMING_LOGGER).info("normalize %s", fields(seconds=0.5))
+        configure_logging("warning", timed, timing=True)
+        get_logger(TIMING_LOGGER).info("normalize %s", fields(seconds=0.5))
+        get_logger("tinarrative.example").info("hidden")
+        self.assertEqual(quiet.getvalue(), "")
+        self.assertEqual(timed.getvalue(), "INFO tinarrative.timing: normalize seconds=0.5\n")
 
     def test_unknown_level_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

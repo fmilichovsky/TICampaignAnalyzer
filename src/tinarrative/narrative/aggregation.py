@@ -5,6 +5,7 @@ See architecture 11.1 and 11.2. A rule sees only lower orders, so rules cannot f
 
 from __future__ import annotations
 
+import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,7 +13,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from ..analyzers.common import event_id
-from ..log import fields, get_logger
+from ..log import TIMING_LOGGER, fields, get_logger
 from ..model.entities import EntityRef
 from ..model.events import (
     Confidence,
@@ -28,6 +29,7 @@ from .chronology import chronological, interval_keys, interval_of, interval_sort
 from .situation import SituationReport
 
 logger = get_logger(__name__)
+timing = get_logger(TIMING_LOGGER)
 
 _CONFIDENCE_ORDER = (Confidence.LOW, Confidence.MEDIUM, Confidence.HIGH)
 
@@ -222,13 +224,14 @@ def aggregate(
     duplicated = sorted({name for name in names if names.count(name) > 1})
     if duplicated:
         raise ValueError(f"narrative rules share a name: {duplicated}")
+    started = time.perf_counter()
     build = NarrativeBuilder(situations)
     built: list[Event] = []
     for order in sorted({rule.order for rule in rules}):
         visible = chronological([*stream, *built])
         visible_ids = {event.id for event in visible}
         produced = [
-            (rule, rule.apply(visible, situations, build))
+            (rule, _timed_apply(rule, visible, situations, build))
             for rule in sorted((rule for rule in rules if rule.order == order), key=lambda rule: rule.name)
         ]
         same_order = {event.id for _, events in produced for event in events}
@@ -240,7 +243,17 @@ def aggregate(
     chronological([*stream, *built])
     narrative = chronological(built)
     logger.info("narrative aggregated %s", fields(rules=len(rules), stream=len(stream), events=len(narrative)))
+    timing.info("aggregate %s", fields(seconds=round(time.perf_counter() - started, 4)))
     return narrative
+
+
+def _timed_apply(
+    rule: NarrativeRule, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+) -> list[Event]:
+    started = time.perf_counter()
+    events = rule.apply(stream, situations, build)
+    timing.info("rule %s", fields(name=rule.name, seconds=round(time.perf_counter() - started, 4)))
+    return events
 
 
 def _check(rule: NarrativeRule, event: Event, visible: set[str], same_order: set[str]) -> None:

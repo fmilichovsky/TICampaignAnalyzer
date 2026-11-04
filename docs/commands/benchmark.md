@@ -72,3 +72,37 @@ tinarrative benchmark metrics compare BASE HEAD [--out PATH] [--threshold PERCEN
 
 Writes a Markdown comparison to stdout or `PATH`. The report highlights package-size changes at or above the threshold
 (1% by default). `--run-url` links the report to its CI artifact.
+
+## `tinarrative benchmark runtime`
+
+### Measure
+
+```sh
+tinarrative benchmark runtime measure --out FILE [--python PYTHON] [--label TEXT] [--base-python PYTHON]
+  [--base-label TEXT] [--samples PATH] [--campaign SELECTOR] [--matrix PATH] [--run ID] [--config PATH] [--repeats N]
+```
+
+Times one `events` run per campaign and writes the runtime JSON to `FILE`. `--run` names the matrix's `events` run
+to time (default `major`). `--samples` is either a benchmark samples directory (it holds `samples.json`, which is
+verified first) or one directory of saves. For a directory of saves that holds several campaigns, `--campaign` is
+passed on to `events`. With `--base-python`, the base and `--python` are measured in alternation. Each side keeps
+the fastest of `--repeats` runs (default 1). Commands run one at a time. A failed run is recorded with its exit
+code and the end of its stderr. See [benchmarks](../../benchmarks/README.md#runtime) for what is measured.
+
+### Report
+
+```sh
+tinarrative benchmark runtime report FILE [--out PATH] [--run-url URL]
+```
+
+Writes the Markdown report of a runtime JSON file to stdout or `PATH`: wall time, seconds per stage and peak memory
+per campaign, base → head when both were measured. `--run-url` links the report to its CI artifact.
+
+### Exit codes
+
+| Code | When |
+| --- | --- |
+| 0 | The runtime JSON or report was written. |
+| 2 | Invalid arguments, a sample that does not match `samples.json`, or a `--run` the matrix does not have. |
+| 4 | `--samples` is not a directory, or the runtime JSON cannot be read. |
+| 9 | The runtime JSON cannot be written. |
