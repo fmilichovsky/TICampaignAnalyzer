@@ -150,6 +150,24 @@ def test_significance_is_the_rule_level_but_never_below_the_most_significant_con
     assert only(stream, defining).significance is Significance.CAMPAIGN_DEFINING
 
 
+def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_their_sum() -> None:
+    stream = [changed(K1), changed(K2, significance=Significance.MAJOR)]
+    assert only(stream).score == Significance.MAJOR.base
+    assert only(stream, GroupRule("d", "nation.changed", significance=Significance.CAMPAIGN_DEFINING)).score == 87
+
+    scaled = [changed(K1, significance=Significance.CAMPAIGN_DEFINING, score=80), changed(K2)]
+    development = only(scaled, GroupRule("m", "nation.changed", significance=Significance.MAJOR))
+    assert (development.score, development.significance) == (80, Significance.CAMPAIGN_DEFINING)
+    assert development.to_dict()["score"] == 80
+
+    low = [
+        changed(K1, significance=Significance.MAJOR, score=50),
+        changed(K2, significance=Significance.MAJOR, score=51),
+    ]
+    assert only(low, GroupRule("m", "nation.changed", significance=Significance.MAJOR)).score == 62
+    assert only(low).score == 51
+
+
 @pytest.mark.parametrize(
     ("join", "constituent_status", "expected"),
     [

@@ -14,6 +14,7 @@ from tinarrative.config import (
     GeopoliticsSettings,
     NarratorSettings,
     Settings,
+    SignificanceSettings,
     load_settings,
     override,
 )
@@ -74,6 +75,10 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
             "'narrative.geopolitics.metric_shifts_max' must be at least 0",
         ),
         ("[narrative.geopolitics\n", "not valid TOML"),
+        ("[narrative.significance]\nscale_min = 1\n", "'narrative.significance.scale_min' must be at most 0"),
+        ("[narrative.significance]\nscale_min = -101\n", "'narrative.significance.scale_min' must be at least -100"),
+        ("[narrative.significance]\nscale_max = 101\n", "'narrative.significance.scale_max' must be at most 100"),
+        ("[narrative.significance]\nscale_max = -1\n", "'narrative.significance.scale_max' must be at least 0"),
         ("[councilors]\nrivals_per_faction = -1\n", "'councilors.rivals_per_faction' must be at least 0"),
         ("[councilors]\narticle_words = 0\n", "'councilors.article_words' must be at least 1"),
         ("[councilors]\nmin_tenure_days = 1.5\n", "'councilors.min_tenure_days' must be an integer"),
@@ -98,6 +103,16 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
 def test_invalid_settings_name_the_key(tmp_path: Path, text: str, message: str) -> None:
     with pytest.raises(ConfigError, match=re.escape(message)):
         load_settings(write(tmp_path, text))
+
+
+def test_the_significance_scale_clamp_defaults_and_overrides(tmp_path: Path) -> None:
+    assert DEFAULT_SETTINGS.narrative.significance == SignificanceSettings(scale_min=-20, scale_max=15)
+    settings = load_settings(write(tmp_path, "[narrative.significance]\nscale_min = -100\nscale_max = 0\n"))
+    assert settings.narrative.significance == SignificanceSettings(scale_min=-100, scale_max=0)
+    assert settings.differences(DEFAULT_SETTINGS) == {
+        "narrative.significance.scale_min": -100,
+        "narrative.significance.scale_max": 0,
+    }
 
 
 def test_councilor_settings_override_the_defaults(tmp_path: Path) -> None:

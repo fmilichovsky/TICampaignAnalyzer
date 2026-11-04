@@ -206,7 +206,11 @@ def test_inferred_events_name_confidence_alternatives_and_constituents_before_th
 def test_inferred_events_below_the_minimum_are_counted_in_their_own_section() -> None:
     change = _control_change()
     objective = _control_event(change, significance=Significance.TRIVIAL)
-    inferred = replace(_inferred_event(change, event_id="i-1", constituents=("e-1",)), significance=Significance.MINOR)
+    inferred = replace(
+        _inferred_event(change, event_id="i-1", constituents=("e-1",)),
+        significance=Significance.MINOR,
+        score=Significance.MINOR.base,
+    )
     listed = _control_event(change, event_id="e-2", significance=Significance.MAJOR)
     rendered = _render([objective, listed], inferred=[inferred], min_significance=Significance.MAJOR, verbose=True)
     section = _section(rendered, "Inferred events")

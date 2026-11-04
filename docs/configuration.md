@@ -67,6 +67,8 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.nation_metrics.nuclear_window_days` | 365 | 0 | Changes of one nation's nuclear arsenal chain into one `nation.nuclear_armament`, `nation.nuclear_buildup` or `nation.nuclear_disarmament` while each follows the previous one this soon ([events](commands/events.md#narrative-events)). |
 | `narrative.nation_metrics.nuclear_buildup_min` | 5 | 1 | A `nation.nuclear_buildup` gains at least this many weapons, or half the arsenal it started from. |
 | `narrative.nation_metrics.ranking_top_n` | 10 | 1 | `world.ranking_changed` reports nations entering or leaving the top this many by GDP, strength, boost or mission control; `nation.space_program_growth` is `major` when its nation enters that top by boost or mission control, and each situation report lists this many `spaceports`. Values above 20, the places `nation.rank_changed` reports, count as 20. |
+| `narrative.significance.scale_min` | -20 | -100 (at most 0) | An event's stake lowers its significance score by at most this many points. Not applied yet: no event type is scaled, so every score is the base of its level ([events](commands/events.md#json-output)). |
+| `narrative.significance.scale_max` | 15 | 0 (at most 100) | An event's stake raises its significance score by at most this many points. Not applied yet. |
 
 The `councilors` keys ([councilors](commands/councilors.md)):
 
