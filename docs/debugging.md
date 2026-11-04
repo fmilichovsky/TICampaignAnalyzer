@@ -53,6 +53,11 @@ Levels:
 | `debug` | Parser decisions and per-state-type aggregates: decode rejections with their byte offset or line/column, envelope checks, the game-version decision, containers the reference index skipped and why, singleton entries, date parsing, per-domain entity and unknown-field counts, per-type record-set counts (sets, entries, unparseable dates, unresolved references; never a label or value), research counts, root shape, ID census totals, each `--path` resolution, registry load/update counts, and for `save diff` one line per compared collection, one for the record sets and one for the singletons, with counts on each side and the number of changes per kind (never the entities or values themselves). |
 | `warning`, `error` | Nothing on the success path. The CLI promises an empty stderr there, so a warning in normal operation is a bug. |
 
+Stage durations stay out of these levels, so the log is the same on every run. `TINARRATIVE_TIMING=1` adds
+`INFO tinarrative.timing:` lines at any level, each with its seconds: one per surveyed, normalized and loaded save,
+one per interval and per narrative rule, and one for the aggregation. `tinarrative benchmark runtime` reads them
+([benchmarks](../benchmarks/README.md#runtime)).
+
 When `save parse` rejects a save, the one-line stderr message is unchanged; at `debug` it is
 preceded by a `parse failed save=... error=<ErrorClass>` line and the traceback. `save diff`
 normalizes both saves with the same lines, then adds its own aggregates:

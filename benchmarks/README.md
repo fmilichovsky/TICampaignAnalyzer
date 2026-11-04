@@ -1,7 +1,8 @@
-# Benchmarks: package size
+# Benchmarks
 
-What `events --narrative --format json` and `narrate` hand to an LLM is measured on real campaigns, so a change's effect
-on the package can be read off every pull request instead of being measured by hand.
+Two things are measured on real campaigns, so that every pull request shows a change's effect instead of someone
+measuring it by hand: the size of what `events --narrative --format json` and `narrate` hand to an LLM (package size,
+below), and how long `events` takes ([runtime](#runtime)).
 
 ```text
 benchmarks/
@@ -86,6 +87,45 @@ Add an entry to `matrix.toml`. An `[[events]]` entry needs an `id` and its `args
 `package` (an `events` id) it plans. Every combination is run against every campaign, so a run that cannot succeed for
 one campaign records its failure. That failure is still a measurement: the budget a campaign needs falls as the
 package shrinks.
+
+## Runtime
+
+`tinarrative benchmark runtime measure` times one `events` run per campaign: the matrix entry named by `--run`, which
+defaults to `major`. It runs commands one at a time, because concurrent runs would slow each other down. With
+`--base-python` it measures a second interpreter as the base, alternating with `--python` and reversing the order on
+every other repeat, so a machine that slows down during the run slows both sides alike. Each side keeps its fastest of
+`--repeats` runs.
+
+Each run sets `TINARRATIVE_TIMING=1`, so `events` adds the stage seconds of its
+[timing lines](../docs/debugging.md) to its log: survey, decode, normalize, situation, diff, analyzers,
+reconstruction, significance and aggregation. The wall time not covered by any stage is `other`: start-up,
+rendering and writing the output. Peak memory is the child process's maximum resident set. A revision older than
+the timing lines reports wall time and peak memory only. The runtime JSON also holds the seconds of every interval
+(including loading its later save) and of every narrative rule.
+
+`report` writes the Markdown. It shows base → head per campaign and stage. A change goes in bold, and under
+**Highlights**, when it is at least 10% and 0.5 s and more than twice the spread (slowest less fastest) of either
+side's runs, because a laptop's timings easily move by 10% from one run to the next. The report also gives each
+side's interval growth (the mean seconds of the last third of the intervals over the first third, which stays near
+×1 when cost per save is flat) and the slowest narrative rules. Rising growth, or a rule that keeps getting slower,
+is the sign of superlinear cost.
+
+[`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) measures the pull request's base
+and head on one runner, with three repeats, and posts the report as one comment that later pushes edit. Timings from
+different runners are not comparable, which is why this check does not reuse the two package-metrics jobs. Like
+package size, it never fails because of a change.
+
+Locally:
+
+```sh
+make runtime-metrics PYTHON=.venv/bin/python          # this tree → build/runtime-metrics/
+.venv/bin/python -m tinarrative.cli benchmark runtime measure --python .venv/bin/python \
+    --base-python ../tinarrative-main/.venv/bin/python --base-label main --repeats 2 --out build/runtime.json
+.venv/bin/python -m tinarrative.cli benchmark runtime measure --samples ~/saves --campaign latest \
+    --out build/runtime-long.json                      # any save directory, for a longer campaign
+```
+
+The second command needs a base environment, set up as in [Running it locally](#running-it-locally).
 
 ## Samples
 
