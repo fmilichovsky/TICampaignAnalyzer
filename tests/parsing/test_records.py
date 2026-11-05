@@ -135,44 +135,12 @@ def test_ledger_and_destruction_log_are_dated_entries_with_resolved_references(b
 @pytest.mark.fixture
 def test_pair_maps_decode_from_both_forms_and_keys_resolve_against_their_domains(before: SaveSnapshot) -> None:
     assert record(before, "15", "Kills").entries == ()
-    assert record(before, "15", "factionAssassinations").entries == ()
     assert record(before, "15", "lostControlPoints").entries == ()
-    assert record(before, "15", "factionHate").entries == (KeyedEntry(0, FACTION_16, 0.5),)
-    sites = record(before, "15", "knownAlienSites")
-    assert sites.entries == (
-        KeyedEntry(0, ref(EntityDomain.REGION, "40", "TIRegionState"), "2030-12-01T00:00:00"),
-        KeyedEntry(1, ref(EntityDomain.SPACE_OBJECT, "140", "TIHabState"), "2031-01-05T00:00:00"),
-        KeyedEntry(2, ref(EntityDomain.SHIP, "130", "TISpaceShipState"), "2031-01-20T00:00:00"),
-        KeyedEntry(3, unresolved(999, "TIRegionState"), "2031-02-14T00:00:00"),
-    )
-    assert sites.entry_location(sites.entries[3]).path == f"{sites.location.path}/3"
 
 
 @pytest.mark.fixture
 def test_label_maps_counters_dates_and_reference_lists(before: SaveSnapshot, after: SaveSnapshot) -> None:
-    assert record(before, "15", "boostAccounts").entries == (
-        KeyedEntry(0, "Base", "2031-02-10T00:00:00"),
-        KeyedEntry(1, "Station", None),
-        KeyedEntry(2, "Probe", None),
-        KeyedEntry(3, "Org", None),
-    )
-    armies = record(before, "15", "armiesLost")
-    assert armies.entries == (
-        KeyedEntry(0, "Human", 0),
-        KeyedEntry(1, "AlienMegafauna", 0),
-        KeyedEntry(2, "AlienInvader", 0),
-    )
-    assert armies.entry_location(armies.entries[0]).path == f"{armies.location.path}/Human"
-    assert record(before, "15", "objectiveNames").entries == (
-        KeyedEntry(0, "FixtureObjectiveA", "Locked"),
-        KeyedEntry(1, "FixtureObjectiveB", "Completed"),
-    )
     assert record(before, "15", "milestones").entries == (ItemEntry(0, "FixtureMilestoneA"),)
-    counter = record(before, "15", "abductions")
-    assert counter.entries == (ItemEntry(0, 0),)
-    assert counter.entry_location(counter.entries[0]) == counter.location
-    assert record(before, "15", "intelSharingFactions").entries == (ItemEntry(0, ()),)
-    assert record(after, "15", "intelSharingFactions").entries == (ItemEntry(0, (FACTION_16,)),)
     assert record(after, "15", "lostControlPoints").entries == (
         KeyedEntry(0, ref(EntityDomain.CONTROL_POINT, "9", "TIControlPoint"), "2031-04-10T00:00:00"),
     )
@@ -223,7 +191,6 @@ def test_record_fields_are_not_copied_into_the_entity_state() -> None:
     faction = next(state for state in snapshot.factions if state.ref.entity_id.key == "15")
     assert faction.get("abductions") == Unknown()
     assert faction.get("milestones") == Unknown()
-    assert record(snapshot, "15", "abductions").entries == (ItemEntry(0, 3),)
     assert record(snapshot, "15", "milestones").entries == (ItemEntry(0, "A"),)
     assert record(snapshot, "15", "Transactions").entries == Unknown()
     assert report.total == 0
@@ -236,8 +203,6 @@ def test_a_record_field_of_the_wrong_shape_is_unparseable_and_reported() -> None
             Kills="text",
             HabDestructionLog={"a": 1},
             milestones=5,
-            armiesLost=[1],
-            boostAccounts=None,
         )
     )
     assert record(snapshot, "15", "Transactions").entries == Unknown(UnknownReason.UNPARSEABLE, ())
@@ -246,14 +211,10 @@ def test_a_record_field_of_the_wrong_shape_is_unparseable_and_reported() -> None
         UnknownReason.UNPARSEABLE, FrozenMap((("a", 1),))
     )
     assert record(snapshot, "15", "milestones").entries == Unknown(UnknownReason.UNPARSEABLE, 5)
-    assert record(snapshot, "15", "armiesLost").entries == Unknown(UnknownReason.UNPARSEABLE, (1,))
-    assert record(snapshot, "15", "boostAccounts").entries == Unknown(UnknownReason.UNPARSEABLE, None)
     assert keys(report) == [
         ("unexpected_field_shape", "TIFactionState", "HabDestructionLog", "array"),
         ("unexpected_field_shape", "TIFactionState", "Kills", "pair_map"),
         ("unexpected_field_shape", "TIFactionState", "Transactions", "object"),
-        ("unexpected_field_shape", "TIFactionState", "armiesLost", "object"),
-        ("unexpected_field_shape", "TIFactionState", "boostAccounts", "object"),
         ("unexpected_field_shape", "TIFactionState", "milestones", "array"),
     ]
     shapes = {finding.key[2]: finding.shape for finding in report.findings}
@@ -270,8 +231,6 @@ def test_problems_inside_one_element_stay_inside_that_entry() -> None:
                 {"HabType": "Station"},
             ],
             Transactions={"Good": [{"Resource": "Money", "Amount": 1.0, "Date": DATE}, 7], "Bad": "text"},
-            knownAlienSites=[{"Key": {"value": 16}, "Value": DATE}, {"Key": "oops", "Value": None}],
-            intelSharingFactions={"value": 16},
         )
     )
     bad_item = Unknown(UnknownReason.UNPARSEABLE, "not an object")
@@ -287,22 +246,12 @@ def test_problems_inside_one_element_stay_inside_that_entry() -> None:
         LedgerEntry(0, "Good", "Money", 1.0, ISO),
         LedgerEntry(1, "Good", bad_ledger_item, bad_ledger_item, bad_ledger_item),
     )
-    assert record(snapshot, "15", "knownAlienSites").entries == (
-        KeyedEntry(0, unresolved(16), ISO),
-        KeyedEntry(1, Unknown(UnknownReason.UNRESOLVED_REFERENCE, "oops"), None),
-    )
-    assert record(snapshot, "15", "intelSharingFactions").entries == (
-        ItemEntry(0, Unknown(UnknownReason.UNPARSEABLE, FrozenMap((("value", 16),)))),
-    )
     assert keys(report) == [
         ("unexpected_field_shape", "TIFactionState", "HabDestructionLog", "array_of_objects"),
         ("unexpected_field_shape", "TIFactionState", "HabDestructionLog", "componentized_date"),
         ("unexpected_field_shape", "TIFactionState", "Transactions", "array"),
         ("unexpected_field_shape", "TIFactionState", "Transactions", "array_of_objects"),
-        ("unexpected_field_shape", "TIFactionState", "intelSharingFactions", "array_of_references"),
-        ("unexpected_field_shape", "TIFactionState", "knownAlienSites", "reference_object"),
         ("unexpected_reference_domain", "TIFactionState", "HabDestructionLog.Destroyer", "TINationState"),
-        ("unexpected_reference_domain", "TIFactionState", "knownAlienSites", "TIFactionState"),
     ]
 
 
@@ -335,7 +284,7 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
         )
     lines = [record.getMessage() for record in caplog.records if record.name == "tinarrative.parsing.records"]
     assert lines == [
-        "records normalized state_type=TIFactionState fields=18 entities=2 sets=36 known_sets=2 missing=34 entries=2 "
+        "records normalized state_type=TIFactionState fields=6 entities=2 sets=12 known_sets=2 missing=10 entries=2 "
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TINationState fields=2 entities=1 sets=2 known_sets=0 missing=2 entries=0 "
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
@@ -343,7 +292,7 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
         "unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIRegionUFOCrashdownState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
         "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-        "records normalized state_type=TIGlobalValuesState fields=5 entities=0 sets=0 known_sets=0 missing=0 "
+        "records normalized state_type=TIGlobalValuesState fields=3 entities=0 sets=0 known_sets=0 missing=0 "
         "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TINotificationQueueState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
         "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
@@ -387,24 +336,17 @@ def test_labelled_references_of_the_wrong_shape_are_unparseable_and_reported() -
     assert keys(report) == [("unexpected_field_shape", "TIGlobalValuesState", "globalMilestones", "object")]
 
 
-def test_global_values_name_logs_and_cooldowns_are_records() -> None:
+def test_global_values_retained_name_logs_are_records() -> None:
     gamestates: dict[str, object] = {
         GLOBAL_VALUES_TYPE: [
             pair(
                 70,
-                removedNarrativeEvents=["event_A", "event_A"],
                 triggeredOncePerCampaignEvents=[],
-                narrativeEventsOnCooldown_months={"event_B": 2.0},
             )
         ]
     }
     snapshot, report = collect(gamestates)
-    assert record(snapshot, "70", "removedNarrativeEvents").entries == (
-        ItemEntry(0, "event_A"),
-        ItemEntry(1, "event_A"),
-    )
     assert record(snapshot, "70", "triggeredOncePerCampaignEvents").entries == ()
-    assert record(snapshot, "70", "narrativeEventsOnCooldown_months").entries == (KeyedEntry(0, "event_B", 2.0),)
     assert report.findings == ()
 
 

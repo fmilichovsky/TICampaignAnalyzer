@@ -5,49 +5,41 @@ before: interval_before.json
 after: interval_after.json
   date: "2031-06-01T00:00:00"
   game_version: not serialized
-changes: 59
-  army: 4
+changes: 48
+  army: 3
   campaign: 4
-  control point: 6
-  councilor: 8
-  faction: 7
+  control point: 2
+  councilor: 7
+  faction: 5
   federation: 1
   fleet: 4
   nation: 8
   organization: 1
   region: 4
   research: 2
-  ship: 4
-  space object: 3
+  ship: 2
+  space object: 2
   technology: 3
 changes:
   army:110 currentRegion: region:40 -> region:42
-  army:110 priorRegion: region:41 -> region:40
   army:110 strength: 3.5 -> 2.0
   army:112: present only in the after snapshot
   campaign campaign_day: 425 -> 517
   campaign campaign_quarter: 4 -> 5
   campaign date: "2031-03-01T00:00:00" -> "2031-06-01T00:00:00"
   campaign game_time_string: "3/1/2031 12:00:00 AM" -> "6/1/2031 12:00:00 AM"
-  control point:9 defended: false -> true
   control point:9 faction: null -> faction:15
-  control point:10 crackdownExpiration: {"day": 1, "hour": 0, "millisecond": 0, "minute": 0, "month": 6, "second": 0, "year": 2031} -> null
-  control point:10 defended: false -> unknown (missing)
-  control point:11 defendExpiration: changed month
   control point:12: absent from the after snapshot
   councilor:100 XP: 12 -> 20
   councilor:100 attributes: changed Persuasion
   councilor:100 location: region:40 -> unknown (unresolved_reference, raw={"$type": "PavonisInteractive.TerraInvicta.TIRegionState", "value": 999})
   councilor:100 orgs: -organization:70
-  councilor:100 priorLocation: null -> region:40
   councilor:100 traitTemplateNames: +"FixtureTraitB"
   councilor:101: absent from the after snapshot
   councilor:102: present only in the after snapshot
   faction:15 councilors: +councilor:102 -councilor:101
   faction:15 finishedProjectNames: +"Project_Fixture"
   faction:15 fleets: +fleet:121
-  faction:15 researchWeights: [1, 2, 3] -> [3, 2, 1]
-  faction:15 resources: changed Money
   faction:16 armies: +army:112
   faction:16 controlPoints: -control point:12
   federation:80 members: +nation:20
@@ -70,11 +62,8 @@ changes:
   region:42 isBeingAnnexed: false -> true
   research finished_techs_names: +"FixtureTechB"
   research tech_progress: [{"accumulatedResearch": 5.0, "factionContributions": [{"Key": {"value": 15}, "Value": 5.0}], "selector": {"value": 15}, "techTemplateName": "FixtureTechB"}] -> [{"accumulatedResearch": 3.0, "factionContributions": [{"Key": {"value": 15}, "Value": 3.0}], "selector": {"value": 15}, "techTemplateName": "FixtureTechC"}]
-  ship:130 armor: changed Nose
-  ship:130 propellant_tons: 100.0 -> 80.0
   ship:131 fleet: fleet:120 -> unknown (unresolved_reference, raw={"value": 999})
   ship:131 kills: +"FixtureKill"
-  space object:140 councilorsOnBoard: +councilor:102
   space object:140 dockedFleets: +fleet:120 +fleet:121
   space object:140 tier: 1 -> 2
   technology:FixtureTechB finished: false -> true

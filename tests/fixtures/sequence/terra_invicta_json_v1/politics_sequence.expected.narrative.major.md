@@ -52,5 +52,5 @@ Aggregated from the events of every interval below.
 
 ## Intervals
 
-- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed (34 state changes; 27 events omitted with --constituents none)
+- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed (33 state changes; 27 events omitted with --constituents none)
 - `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed (10 state changes; 7 events omitted with --constituents none)

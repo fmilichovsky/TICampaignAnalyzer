@@ -441,31 +441,6 @@ def test_missions_of_a_councilor_without_outcomes_are_an_empty_sample() -> None:
     assert missions["period"] == {"from": None, "to": "2031-06-01"}
 
 
-def test_the_active_mission_is_the_one_the_councilor_references() -> None:
-    def mission(key: str, template: str) -> Any:
-        return state(
-            EntityDomain.MISSION,
-            key,
-            AFTER,
-            templateName=template,
-            councilor=councilor_ref("100"),
-            target=nation_ref("20"),
-        )
-
-    snap = _world(
-        _councilor("100", "1", activeMission=ref(EntityDomain.MISSION, "200")),
-        _councilor("101", "1"),
-        mission("200", "Propaganda"),
-        mission("201", "Coup"),
-    )
-    first, second = _build(snap)["councilors"]
-    assert first["active_mission"] == {
-        "mission": "Propaganda",
-        "target": {"id": "nation:20", "name": "Fixture nation 20"},
-    }
-    assert second["active_mission"] is None
-
-
 def _event(event_type: str, councilor: str, date: str, transition: str = "changed") -> Event:
     return Event(
         id=f"{event_type}/councilor:{councilor}@{date}",

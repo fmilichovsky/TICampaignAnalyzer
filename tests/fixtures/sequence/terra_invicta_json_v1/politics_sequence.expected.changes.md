@@ -21,7 +21,7 @@ Grouped by matching human faction, faction name and scenario; no real-world star
 
 ### 2032-01-01T00:00:00 to 2032-04-01T00:00:00
 
-- 34 state changes
+- 33 state changes
 
 #### Objective analyzer results
 
@@ -80,7 +80,6 @@ Councilor:
 - councilor:100 faction: faction:15 -> faction:16
 - councilor:100 status: "Available" -> "FixtureStatusB"
 - councilor:101 location: region:40 -> space object:140
-- councilor:101 priorLocation: null -> region:40
 - councilor:102 faction: faction:16 -> null
 
 Faction:

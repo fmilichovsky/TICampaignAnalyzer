@@ -95,7 +95,7 @@ def test_without_constituents_the_narrative_report_lists_no_atomic_event(
     intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
     assert [line for line in intervals.splitlines() if line] == [
         "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(34 state changes; 27 events omitted with --constituents none)",
+        "(33 state changes; 27 events omitted with --constituents none)",
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
         "(10 state changes; 7 events omitted with --constituents none)",
     ]
@@ -781,7 +781,7 @@ def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
     assert "###" not in intervals
     assert [line for line in intervals.splitlines() if line] == [
         "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(34 state changes; 27 events below campaign_defining significance omitted)",
+        "(33 state changes; 27 events below campaign_defining significance omitted)",
         "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
         "(10 state changes; 7 events below campaign_defining significance omitted)",
     ]

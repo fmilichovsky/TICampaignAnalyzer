@@ -54,7 +54,7 @@ Aggregated from the events of every interval below.
 
 ### 2032-01-01T00:00:00 to 2032-04-01T00:00:00
 
-- 34 state changes
+- 33 state changes
 
 #### Inferred events
 

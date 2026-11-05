@@ -6,7 +6,7 @@ from datetime import datetime
 import pytest
 
 from tests.fixtures import fixture_path
-from tinarrative.diff.state_diff import compare_values, diff_states
+from tinarrative.diff.state_diff import compare_values
 from tinarrative.identity import STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.changes import ChangeKind, MapDetail
@@ -156,44 +156,17 @@ def test_control_point_ownership_is_copied_not_invented(political: SaveSnapshot)
     owned = by_id(political.control_points, "30")
     assert owned.get("nation") == ref(EntityDomain.NATION, "20", "TINationState")
     assert owned.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
-    assert owned.get("defended") is True
-    assert isinstance(owned.get("crackdownExpiration"), FrozenMap)
     assert owned.ref.name == "Fixture CP 30"
 
     unowned = by_id(political.control_points, "31")
     assert unowned.get("faction") is None
-    assert unowned.get("crackdownExpiration") is None
 
     missing_field = by_id(political.control_points, "32")
-    assert missing_field.get("defended") == Unknown()
     assert missing_field.get("faction") == ref(EntityDomain.FACTION, "11", "TIFactionState")
 
     dangling = by_id(political.control_points, "33")
     assert dangling.get("nation") == Unknown(UnknownReason.UNRESOLVED_REFERENCE, FrozenMap((("value", 999),)))
     assert dangling.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
-
-
-def control_points(**priorities: dict[str, int]) -> dict[str, object]:
-    entries = [pair(int(key), controlPointPriorities=weights) for key, weights in priorities.items()]
-    return {STATE_PREFIX + "TIControlPoint": entries + [pair(39)]}  # 39 serializes no priorities
-
-
-def test_control_point_priorities_are_a_name_to_weight_map_diffed_per_weight() -> None:
-    weights = {"Economy": 2, "Unity": 0, "Military_BuildArmy": 1}
-    snapshot, report = collect(fragment_raw(control_points(**{"30": weights})))
-    assert report.total == 0
-    point = by_id(snapshot.control_points, "30")
-    assert point.get("controlPointPriorities") == FrozenMap((("Economy", 2), ("Military_BuildArmy", 1), ("Unity", 0)))
-    assert by_id(snapshot.control_points, "39").get("controlPointPriorities") == Unknown()
-
-    after = fragment(control_points(**{"30": {**weights, "Unity": 3}}))
-    (change,) = diff_states(snapshot, after).changes
-    assert (change.entity_id, change.field, change.kind) == (
-        point.ref.entity_id,
-        "controlPointPriorities",
-        ChangeKind.MAP,
-    )
-    assert change.detail == MapDetail(added=(), removed=(), changed=("Unity",))
 
 
 @pytest.mark.fixture
@@ -226,7 +199,6 @@ def test_nation_and_region_references_resolve_through_documented_domains(politic
     region = by_id(political.regions, "42")
     assert region.get("nation") == ref(EntityDomain.NATION, "21", "TINationState")
     assert region.get("armies") == (ref(EntityDomain.ARMY, "51", "TIMegafaunaArmyState"),)
-    assert region.get("alienFacility") == unresolved(70)  # the fixture carries no alien sub-states
     assert region.get("leadOccupier") is None
 
     faction = by_id(political.factions, "10")
@@ -234,84 +206,46 @@ def test_nation_and_region_references_resolve_through_documented_domains(politic
         ref(EntityDomain.CONTROL_POINT, key, "TIControlPoint") for key in ("30", "31", "33")
     )
     assert faction.get("player") == FrozenMap((("value", 60),))
-    assert faction.get("resources") == FrozenMap((("Influence", 2.5), ("Money", 10.0)))
 
 
-REGION_FACILITIES = {
-    "boostFacility": "TILaunchFacilityState",
-    "missionControlFacility": "TIMissionControlFacilityState",
-    "spaceDefenseFacility": "TISpaceDefensesFacilityState",
-}
-
-
-def test_region_facilities_stay_raw_alien_sub_states_resolve_and_scalars_are_copied() -> None:
-    facilities = {name: {"value": 100 + offset} for offset, name in enumerate(REGION_FACILITIES)}
-    typed_facilities = [
-        {"$type": STATE_PREFIX + state_type, "value": 100 + offset}
-        for offset, state_type in enumerate(REGION_FACILITIES.values())
-    ]
+def test_region_alien_sub_states_resolve_and_retained_scalars_are_copied() -> None:
     region = pair(
         40,
         nation={"value": 20},
-        originalColony={"value": 21},
-        alienCrashdown={"value": 110},
-        alienLanding={"value": 111},
-        spaceFacilities=typed_facilities,
-        annexationBeginDate=None,
-        annexationDaysLeft=0.0,
         antiSpaceDefenses=True,
         boostPerYear_dekatons=1.5,
         missionControl=2,
         numSTOFighters=3,
-        isCounterfiring=False,
         nuclearDetonations=0,
         underBombardment=False,
-        colonyRegion=True,
         permanentlyDecolonized=False,
         coreEconomicRegion=True,
         oilRegion=False,
         resourceRegion=True,
-        oceanType="FixtureOcean",
-        **facilities,
     )
     gamestates: dict[str, object] = {
         STATE_PREFIX + "TINationState": [pair(20), pair(21)],
         STATE_PREFIX + "TIRegionState": [
             region,
-            pair(41, originalColony={"value": 999}),
-            pair(42, originalColony=None),
+            pair(41),
+            pair(42),
         ],
-        **{
-            STATE_PREFIX + state_type: [pair(100 + offset)]
-            for offset, state_type in enumerate(REGION_FACILITIES.values())
-        },
         STATE_PREFIX + "TIRegionUFOCrashdownState": [pair(110, region={"value": 40})],
-        STATE_PREFIX + "TIRegionUFOLandingState": [pair(111, region={"value": 40})],
     }
     snapshot, report = collect(fragment_raw(gamestates))
     assert [key for key in keys(report) if key[1] == "TIRegionState"] == []
 
     full = by_id(snapshot.regions, "40")
-    assert full.get("originalColony") == ref(EntityDomain.NATION, "21", "TINationState")
-    # Facility state types have no entity domain and are copied raw; the alien sub-states resolve both ways.
-    assert full.get("boostFacility") == FrozenMap((("value", 100),))
-    assert full.get("alienCrashdown") == ref(EntityDomain.REGION_ALIEN_STATE, "110", "TIRegionUFOCrashdownState")
-    assert full.get("alienLanding") == ref(EntityDomain.REGION_ALIEN_STATE, "111", "TIRegionUFOLandingState")
+    # The retained alien sub-state keeps its back-reference to the region.
     crashdown = by_id(snapshot.region_alien_states, "110")
     assert crashdown.get("region") == ref(EntityDomain.REGION, "40", "TIRegionState")
-    assert full.get("spaceFacilities") == tuple(freeze(item) for item in typed_facilities)
-    assert full.get("annexationBeginDate") is None
     assert full.get("boostPerYear_dekatons") == 1.5
     assert full.get("numSTOFighters") == 3
     assert full.get("underBombardment") is False
-    assert full.get("colonyRegion") is True
-    assert full.get("oceanType") == "FixtureOcean"
+    assert full.get("resourceRegion") is True
 
     dangling = by_id(snapshot.regions, "41")
-    assert dangling.get("originalColony") == unresolved(999)
     assert dangling.get("nuclearDetonations") == Unknown()  # omitted by the save
-    assert dangling.get("spaceFacilities") == Unknown()
-    assert by_id(snapshot.regions, "42").get("originalColony") is None
 
 
 @pytest.mark.fixture
@@ -365,7 +299,7 @@ def test_organizations_carry_resolved_references_and_scalars() -> None:
     assert state.get("assignedCouncilor") == ref(EntityDomain.COUNCILOR, "100", "TICouncilorState")
     assert state.get("factionOrbit") is None
     assert isinstance(state.get("homeRegion"), Unknown)  # no region entity in this fragment
-    assert state.get("tier") == 2 and state.get("costMoney") == 1.5
+    assert state.get("tier") == 2
     assert report.total == 0  # the icon path is acknowledged presentation data
 
 
@@ -379,8 +313,6 @@ def test_councilors_carry_membership_location_and_unknowns(assets: SaveSnapshot)
     assert affiliated.get("orgs") == (ref(EntityDomain.ORGANIZATION, "70", "TIOrgState"),)
     assert affiliated.get("status") == "Available"
     assert affiliated.get("XP") == 12
-    assert affiliated.get("agentForFaction") is None
-    assert affiliated.get("priorLocation") is None
     attributes = affiliated.get("attributes")
     assert isinstance(attributes, FrozenMap) and dict(attributes.items)["Loyalty"] == 5
 
@@ -393,10 +325,8 @@ def test_councilors_carry_membership_location_and_unknowns(assets: SaveSnapshot)
 
     partial = by_id(assets.councilors, "102")
     assert partial.get("location") == unresolved(999, "TIRegionState")
-    assert partial.get("priorLocation") == ref(EntityDomain.REGION, "41", "TIRegionState")
     assert partial.get("status") == Unknown()
     assert partial.get("XP") == Unknown()
-    assert partial.get("activeMission") == unresolved(998)
     assert by_id(assets.factions, "10").get("councilors") == (
         ref(EntityDomain.COUNCILOR, "100", "TICouncilorState"),
         ref(EntityDomain.COUNCILOR, "102", "TICouncilorState"),
@@ -408,11 +338,8 @@ def test_missions_resolve_their_councilor_and_cross_domain_target(assets: SaveSn
     propaganda = by_id(assets.missions, "200")
     assert propaganda.get("councilor") == ref(EntityDomain.COUNCILOR, "100", "TICouncilorState")
     assert propaganda.get("target") == ref(EntityDomain.NATION, "20", "TINationState")
-    assert propaganda.get("missionOutcome") == "None"
     aborted = by_id(assets.missions, "201")
     assert aborted.get("target") == ref(EntityDomain.COUNCILOR, "101", "TICouncilorState")
-    assert aborted.get("missionOutcome") == "Aborted"
-    assert by_id(assets.councilors, "100").get("activeMission") == ref(EntityDomain.MISSION, "200", "TIMissionState")
 
 
 def test_councilor_dates_are_iso_text_and_malformed_ones_are_reported() -> None:
@@ -437,14 +364,8 @@ def design(name: str, **members: object) -> dict[str, object]:
 def test_faction_flags_counters_orgs_and_name_keyed_ship_designs() -> None:
     faction = pair(
         10,
-        knowsWinCondition=True,
-        unlockedVictoryObjective=False,
-        defeated=False,
-        sabotagedProjects=["FixtureProject"],
         unassignedOrgs=[{"value": 70}, {"value": 71}],
         shipDesigns=[design("FixtureDesignB", refitIteration=1), design("FixtureDesignA")],
-        shipsBuiltInClass={"FixtureDesignA": 3},
-        techNameContributionHistory={"FixtureTech": 0.25},
     )
     gamestates: dict[str, object] = {
         STATE_PREFIX + "TIFactionState": [faction],
@@ -453,15 +374,9 @@ def test_faction_flags_counters_orgs_and_name_keyed_ship_designs() -> None:
     snapshot, report = collect(fragment_raw(gamestates))
     assert report.total == 0
     state = by_id(snapshot.factions, "10")
-    assert state.get("knowsWinCondition") is True
-    assert state.get("unlockedVictoryObjective") is False
-    assert state.get("defeated") is False
-    assert state.get("sabotagedProjects") == ("FixtureProject",)
     # resolved like councilor ``orgs``
     org_refs = (ref(EntityDomain.ORGANIZATION, "70", "TIOrgState"), ref(EntityDomain.ORGANIZATION, "71", "TIOrgState"))
     assert state.get("unassignedOrgs") == org_refs
-    assert state.get("shipsBuiltInClass") == FrozenMap((("FixtureDesignA", 3),))
-    assert state.get("techNameContributionHistory") == FrozenMap((("FixtureTech", 0.25),))
     designs = state.get("shipDesigns")
     assert isinstance(designs, FrozenMap)
     assert [name for name, _ in designs.items] == ["FixtureDesignA", "FixtureDesignB"]
@@ -497,15 +412,12 @@ def test_armies_merge_both_state_types_and_keep_destruction_literal(
     assert active.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
     assert active.get("strength") == 3.5
     assert active.get("destroyed") is False
-    assert active.get("destinationQueue") == ()
-    assert active.get("operationTarget") is None
     assert "bonusTechLevel" not in dict(active.fields)
 
     assert by_id(assets.armies, "111").get("destroyed") is True
 
     megafauna = by_id(assets.armies, "112")
     assert megafauna.ref.entity_id.domain is EntityDomain.ARMY
-    assert megafauna.get("bonusTechLevel") == 1.5
     assert megafauna.get("currentRegion") == unresolved(999)
     assert megafauna.get("faction") == ref(EntityDomain.FACTION, "11", "TIFactionState")
 
@@ -513,48 +425,6 @@ def test_armies_merge_both_state_types_and_keep_destruction_literal(
     bare = by_id(political.armies, "50")
     assert bare.get("templateName") == "FixtureArmy"
     assert all(bare.get(name) == Unknown() for name in ("currentRegion", "faction", "strength", "destroyed"))
-
-
-def test_army_operations_transit_dates_and_hunting_flag_are_copied_raw() -> None:
-    operation = {"operationDataName": "FixtureOperation", "target": {"value": 40}, "startDate": None}
-    gamestates: dict[str, object] = {
-        STATE_PREFIX + "TIRegionState": [pair(40)],
-        STATE_PREFIX + "TIArmyState": [
-            pair(
-                110,
-                currentOperations=[operation],
-                destinationSeaDate=None,
-                embarkDate=None,
-                huntingXenofauna=False,
-            ),
-            pair(111),
-        ],
-        STATE_PREFIX + "TIMegafaunaArmyState": [pair(112, currentOperations=[], huntingXenofauna=True)],
-    }
-    snapshot, report = collect(fragment_raw(gamestates))
-    assert report.total == 0
-
-    army = by_id(snapshot.armies, "110")
-    # copied as-is: the operation's target stays a raw reference object, it is not resolved
-    assert army.get("currentOperations") == (
-        FrozenMap(
-            (("operationDataName", "FixtureOperation"), ("startDate", None), ("target", FrozenMap((("value", 40),))))
-        ),
-    )
-    assert army.get("destinationSeaDate") is None
-    assert army.get("embarkDate") is None
-    assert army.get("huntingXenofauna") is False
-
-    megafauna = by_id(snapshot.armies, "112")
-    assert megafauna.get("currentOperations") == ()
-    assert megafauna.get("huntingXenofauna") is True
-    # absent in the save: unknown, never a default
-    assert megafauna.get("embarkDate") == Unknown()
-    bare = by_id(snapshot.armies, "111")
-    assert all(
-        bare.get(name) == Unknown()
-        for name in ("currentOperations", "destinationSeaDate", "embarkDate", "huntingXenofauna")
-    )
 
 
 @pytest.mark.fixture
@@ -585,16 +455,11 @@ def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSn
     assert fleet.get("barycenter") == ref(EntityDomain.SPACE_BODY, "50", "TISpaceBodyState")
     assert fleet.get("dockedLocation") == ref(EntityDomain.SPACE_OBJECT, "140", "TIHabState")
     assert fleet.get("inCombat") is False
-    assert fleet.get("inAccelerationPhase") is False
-    assert fleet.get("homeport") is None
-    assert isinstance(fleet.get("trajectory"), FrozenMap)
-    assert fleet.get("globalPosition") == FrozenMap((("x", 1.0), ("y", 2.0), ("z", 3.0)))
 
     merged_child = by_id(assets.fleets, "121")
     assert merged_child.get("ships") == ()
     assert merged_child.get("parentFleet") == unresolved(999)  # fleet IDs are not carried over merges
     assert merged_child.get("orbitState") is None
-    assert merged_child.get("trajectory") == Unknown()
     assert by_id(assets.factions, "11").get("fleets") == (ref(EntityDomain.FLEET, "121", "TISpaceFleetState"),)
 
 
@@ -602,21 +467,12 @@ def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSn
 def test_ships_reference_their_fleet_and_keep_measurements(assets: SaveSnapshot) -> None:
     ship = by_id(assets.ships, "131")
     assert ship.get("fleet") == ref(EntityDomain.FLEET, "120", "TISpaceFleetState")
-    assert ship.get("propellant_tons") == 100.0
-    assert ship.get("currentDeltaV_kps") == 20.0
-    assert ship.get("currentMass_kg") == 5000.0
     assert ship.get("kills") == ()
-    assert ship.get("officers") == ()
-    assert ship.get("storedFaction") is None
     assert isinstance(ship.get("lastRefitDate"), FrozenMap)
-    assert ship.get("damagedSystems") == FrozenMap((("Bridge", 0.5),))
-    armor = ship.get("armor")
-    assert isinstance(armor, FrozenMap) and set(dict(armor.items)) == {"Nose", "Left", "Right", "Tail"}
     assert by_id(assets.ships, "130").get("lastRefitDate") is None
 
     orphan = by_id(assets.ships, "132")
     assert orphan.get("fleet") == unresolved(999)
-    assert orphan.get("propellant_tons") == Unknown()
     assert orphan.get("kills") == ("FixtureKill",)
 
 
@@ -627,11 +483,7 @@ def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: Save
     assert hab.ref.state_type == "TIHabState"
     assert hab.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
     assert hab.get("orbitState") == ref(EntityDomain.SPACE_OBJECT, "60", "TIOrbitState")
-    assert hab.get("habSite") is None
     assert hab.get("dockedFleets") == (ref(EntityDomain.FLEET, "120", "TISpaceFleetState"),)
-    assert hab.get("councilorsOnBoard") == (ref(EntityDomain.COUNCILOR, "101", "TICouncilorState"),)
-    assert hab.get("sectors") == (FrozenMap((("value", 160),)),)  # sector type has no domain: raw
-    assert hab.get("districts") is None
     assert hab.get("tier") == 1
     assert hab.get("habType") == "Station"
     assert hab.get("coreConstructionCompleted") is True
@@ -640,37 +492,7 @@ def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: Save
     site_hab = by_id(assets.habs, "141")
     assert site_hab.get("faction") == unresolved(999)
     assert site_hab.get("orbitState") is None
-    assert site_hab.get("habSite") == ref(EntityDomain.SPACE_OBJECT, "61", "TIHabSiteState")
     assert site_hab.get("dockedFleets") == ()
-
-
-def test_hab_core_defense_position_and_crew_are_copied_with_officers_raw() -> None:
-    expiration = {"year": 2040, "month": 3, "day": 1, "hour": 0, "minute": 0, "second": 0, "millisecond": 0}
-    defended = pair(
-        140,
-        templateName=None,
-        coreDefended=True,
-        coreDefendExpiration=expiration,
-        globalPosition={"x": 1.0, "y": 2.0, "z": 3.0},
-        inEarthLEO=True,
-        officersOnBoard=[{"value": 170}],
-        advisingCouncilors=[],
-    )
-    raw = fragment_raw({STATE_PREFIX + "TIHabState": [defended, pair(141, templateName=None)]})
-    snapshot, report = collect(raw)
-
-    hab = by_id(snapshot.habs, "140")
-    assert hab.get("coreDefended") is True
-    assert hab.get("coreDefendExpiration") == FrozenMap(tuple(sorted(expiration.items())))
-    assert hab.get("globalPosition") == FrozenMap((("x", 1.0), ("y", 2.0), ("z", 3.0)))
-    assert hab.get("inEarthLEO") is True
-    assert hab.get("officersOnBoard") == (FrozenMap((("value", 170),)),)  # officer type has no domain: raw
-    assert hab.get("advisingCouncilors") == ()
-
-    bare = by_id(snapshot.habs, "141")
-    new_fields = ("coreDefended", "coreDefendExpiration", "globalPosition", "inEarthLEO", "officersOnBoard")
-    assert all(bare.get(name) == Unknown() for name in new_fields + ("advisingCouncilors",))
-    assert not [key for key in keys(report) if key[1] == "TIHabState"]
 
 
 CORE_FIELDS = DERIVED_FIELDS["TIHabState"]
@@ -944,84 +766,13 @@ FLEET_OPERATION = {
     "startDate": FIRE_MISSION,
     "completionDate": {"$ref": "1"},
 }
-FLEET_ORDERS = {
-    "currentOperations": [FLEET_OPERATION],
-    "huntingXenofauna": False,
-    "unavailableForOperations": True,
-    "bombardmentTarget": None,
-    "bombardmentTargetBracketStatus": "FixtureStatus",
-    "endBombardmentReason": "FixtureReason",
-    "timeOfLastFireMission": FIRE_MISSION,
-}
-
-
-def test_fleet_names_operations_and_bombardment_state_are_normalized() -> None:
-    gamestates: dict[str, object] = {
-        STATE_PREFIX + "TIFactionState": [pair(10), pair(11)],
-        STATE_PREFIX + "TISpaceFleetState": [
-            pair(
-                80,
-                displayNameByFaction=[
-                    {"Key": {"value": 10}, "Value": "Fixture Fleet"},
-                    {"Key": {"value": 11}, "Value": "Fixture Contact"},
-                ],
-                **FLEET_ORDERS,
-            ),
-            pair(81, displayNameByFaction={}),
-        ],
-    }
-    snapshot, report = collect(fragment_raw(gamestates))
-    assert report.total == 0
-    fleet = by_id(snapshot.fleets, "80")
-    assert fleet.get("displayNameByFaction") == FrozenMap(
-        (("faction:10", "Fixture Fleet"), ("faction:11", "Fixture Contact"))
-    )
-    for name, value in FLEET_ORDERS.items():
-        assert fleet.get(name) == freeze(value)  # operations (a `$ref` date, a fleet target) and dates stay raw
-
-    quiet = by_id(snapshot.fleets, "81")
-    assert quiet.get("displayNameByFaction") == FrozenMap()
-    for name in FLEET_ORDERS:
-        assert quiet.get(name) == Unknown()  # missing, not coerced
-
-    renamed = FrozenMap((("faction:10", "Fixture Fleet"), ("faction:11", "Fixture Renamed")))
-    assert compare_values(fleet.get("displayNameByFaction"), renamed) == (
-        ChangeKind.MAP,
-        MapDetail(changed=("faction:11",)),
-    )
-
-
-def test_fleet_names_keyed_by_another_type_are_reported() -> None:
-    gamestates: dict[str, object] = {
-        STATE_PREFIX + "TINationState": [pair(20)],
-        STATE_PREFIX + "TISpaceFleetState": [
-            pair(80, displayNameByFaction=[{"Key": {"value": 20}, "Value": "Fixture Fleet"}]),
-            pair(81, displayNameByFaction="Fixture Fleet"),
-        ],
-    }
-    snapshot, report = collect(fragment_raw(gamestates))
-    assert keys(report) == [
-        ("unexpected_field_shape", "TISpaceFleetState", "displayNameByFaction", "pair_map"),
-        ("unexpected_reference_domain", "TISpaceFleetState", "displayNameByFaction", "TINationState"),
-    ]
-    assert "Fixture" not in json.dumps(report.to_dict())  # fleet names are campaign content
-    unresolved_names = by_id(snapshot.fleets, "80").get("displayNameByFaction")
-    assert isinstance(unresolved_names, Unknown) and unresolved_names.reason is UnknownReason.UNRESOLVED_REFERENCE
-    assert by_id(snapshot.fleets, "81").get("displayNameByFaction") == Unknown(
-        UnknownReason.UNPARSEABLE, "Fixture Fleet"
-    )
-
-
 COUNCILOR_IDENTITY = {
-    "ancestry": "FixtureAncestry",
     "gender": "Female",
     "dateBorn": {"year": 1990, "month": 4, "day": 2, "hour": 0, "minute": 0, "second": 0, "millisecond": 0},
-    "priorMissionTemplateName": "FixtureMission",
-    "protectingTarget": None,
 }
 
 
-def test_councilor_identity_detection_and_assassinations_are_normalized() -> None:
+def test_councilor_location_and_retained_details_are_normalized() -> None:
     gamestates: dict[str, object] = {
         STATE_PREFIX + "TIFactionState": [pair(10), pair(11)],
         STATE_PREFIX + "TISpaceShipState": [pair(60)],
@@ -1029,72 +780,23 @@ def test_councilor_identity_detection_and_assassinations_are_normalized() -> Non
             pair(
                 100,
                 location={"$type": STATE_PREFIX + "TISpaceShipState", "value": 60},
-                priorLocation={"$type": STATE_PREFIX + "TISpaceShipState", "value": 60},
-                knowsIveBeenSeenBy=[{"value": 11}],
-                assassinations=[{"Key": {"value": 11}, "Value": 2}, {"Key": {"value": 10}, "Value": 1}],
                 **COUNCILOR_IDENTITY,
             ),
-            pair(101, assassinations={}, knowsIveBeenSeenBy=[]),
+            pair(101),
         ],
     }
     snapshot, report = collect(fragment_raw(gamestates))
     assert report.total == 0
     onboard = by_id(snapshot.councilors, "100")
     ship = ref(EntityDomain.SHIP, "60", "TISpaceShipState")
-    assert onboard.get("location") == ship and onboard.get("priorLocation") == ship
-    assert onboard.get("knowsIveBeenSeenBy") == (ref(EntityDomain.FACTION, "11", "TIFactionState"),)
-    assert onboard.get("assassinations") == FrozenMap((("faction:10", 1), ("faction:11", 2)))
-    assert onboard.get("ancestry") == "FixtureAncestry" and onboard.get("gender") == "Female"
-    assert onboard.get("priorMissionTemplateName") == "FixtureMission"
-    assert onboard.get("protectingTarget") is None
+    assert onboard.get("location") == ship
+    assert onboard.get("gender") == "Female"
     born = onboard.get("dateBorn")
     assert born == "1990-04-02T00:00:00"
 
     quiet = by_id(snapshot.councilors, "101")
-    assert quiet.get("assassinations") == FrozenMap() and quiet.get("knowsIveBeenSeenBy") == ()
     for name in COUNCILOR_IDENTITY:
         assert quiet.get(name) == Unknown()  # missing, not coerced
-
-    # a reference-keyed pair map diffs key by key
-    assert compare_values(quiet.get("assassinations"), onboard.get("assassinations")) == (
-        ChangeKind.MAP,
-        MapDetail(added=("faction:10", "faction:11")),
-    )
-
-
-def test_pair_map_fields_report_unexpected_shapes_and_key_owners() -> None:
-    def assassinations(*keys: object) -> list[dict[str, object]]:
-        return [{"Key": key, "Value": 1} for key in keys]
-
-    gamestates: dict[str, object] = {
-        STATE_PREFIX + "TIFactionState": [pair(10)],
-        STATE_PREFIX + "TINationState": [pair(20)],
-        STATE_PREFIX + "TICouncilorState": [
-            pair(100, assassinations="none"),
-            pair(101, assassinations=[{"Key": {"value": 10}}]),
-            pair(102, assassinations=assassinations({"value": 10}, {"value": 10})),
-            pair(103, assassinations=assassinations({"value": 20})),
-            pair(104, assassinations=assassinations({"value": 999})),
-            pair(105, assassinations=assassinations("10")),
-        ],
-    }
-    snapshot, report = collect(fragment_raw(gamestates))
-    assert keys(report) == [
-        ("unexpected_field_shape", "TICouncilorState", "assassinations", "pair_map"),
-        ("unexpected_field_shape", "TICouncilorState", "assassinations", "reference_object"),
-        ("unexpected_reference_domain", "TICouncilorState", "assassinations", "TINationState"),
-    ]
-    assert next(finding for finding in report.findings if finding.detail == "pair_map").occurrences == 3
-    councilors = snapshot.councilors
-    assert by_id(councilors, "100").get("assassinations") == Unknown(UnknownReason.UNPARSEABLE, "none")
-    for key in ("101", "102"):
-        value = by_id(councilors, key).get("assassinations")
-        assert isinstance(value, Unknown) and value.reason is UnknownReason.UNPARSEABLE
-    for key in ("103", "104", "105"):  # wrong owner, absent ID, malformed key: unresolved, raw kept
-        value = by_id(councilors, key).get("assassinations")
-        assert isinstance(value, Unknown) and value.reason is UnknownReason.UNRESOLVED_REFERENCE
-        assert isinstance(value.raw, tuple) and len(value.raw) == 1
-    assert snapshot == fragment(gamestates)
 
 
 NATION_SCALARS = {
@@ -1229,11 +931,8 @@ def test_wars_and_federations_normalize_with_provenance_and_resolved_references(
     assert war.ref.entity_id == EntityId(EntityDomain.WAR, "90") and war.ref.name == "Fixture War 90"
     assert war.location is not None and war.location.state_type == "TIWarState"
     assert war.location.path == "/gamestates/PavonisInteractive.TerraInvicta.TIWarState/0/Value"
-    assert war.get("attacker") == nation("20") and war.get("originalDefender") == nation("21")
+    assert war.get("attacker") == nation("20") and war.get("defender") == nation("21")
     assert war.get("_attackingAlliance") == (nation("20"),)
-    assert war.get("cohesionGainByNation") == FrozenMap((("nation:21", 0.5),))
-    assert war.get("peaceOfferHistory") == FrozenMap(())
-    assert war.get("nukedRegions") == () and war.get("defensiveNukes") == 0
     records = {(record.owner.entity_id.key, record.field): record for record in snapshot.records}
     start = records[("90", "startDate")]
     assert [entry.value for entry in start.entries] == ["2031-06-01T00:00:00"]  # type: ignore[union-attr]
@@ -1265,16 +964,21 @@ def test_the_global_values_singleton_normalizes_as_one_entity_with_provenance() 
         ref(EntityDomain.WAR, "91", "TIWarState"),
     )
     assert singleton.get("nuclearStrikes") == 0 and singleton.get("globalSeaLevelRise1Triggered") is False
-    assert singleton.get("latestSaveVersion") == "fixture-build-1"
-    assert singleton.get("bestGlobalHumanEducation") == Unknown()  # observed on the newer build only
     fields = dict(singleton.fields)
-    for acknowledged in ("difficulty", "narrativeEvents", "pastEarthAtmosphericCO2_ppm", "showFinderArmies"):
+    for acknowledged in (
+        "difficulty",
+        "narrativeEvents",
+        "pastEarthAtmosphericCO2_ppm",
+        "showFinderArmies",
+        "latestSaveVersion",
+        "bestGlobalHumanEducation",
+        "campaignStartVersion",
+        "realWorldCampaignStart",
+    ):
         assert acknowledged not in fields
     owned = {record.field for record in snapshot.records if record.owner.entity_id == singleton.ref.entity_id}
     assert owned == {
         "globalMilestones",
-        "narrativeEventsOnCooldown_months",
-        "removedNarrativeEvents",
         "triggeredOncePerCampaignEvents",
         "triggeredOncePerTargetEvents",
     }
@@ -1285,8 +989,8 @@ def test_a_missing_save_version_is_unknown() -> None:
     raw = fragment_raw({GLOBAL_VALUES_TYPE: [pair(70, campaignStartVersion="fixture-build-1")]})
     snapshot = normalize(raw)
     (singleton,) = snapshot.global_values
-    assert singleton.get("latestSaveVersion") == Unknown()
-    assert singleton.get("campaignStartVersion") == "fixture-build-1"
+    assert "latestSaveVersion" not in dict(singleton.fields)
+    assert "campaignStartVersion" not in dict(singleton.fields)
 
 
 def test_a_second_global_values_entry_is_reported_and_kept() -> None:

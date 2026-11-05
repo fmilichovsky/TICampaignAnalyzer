@@ -265,7 +265,6 @@ def _entry(
     }
     if is_player:
         entry["missions"] = _missions(outcomes.get(councilor_id, []), now, settings)
-        entry["active_mission"] = _active_mission(lookup, state)
     return entry
 
 
@@ -518,17 +517,6 @@ def _missions(outcomes: list[_Outcome], now: datetime | None, settings: Councilo
         "outcomes_seen": len(outcomes),
         "types": types,
     }
-
-
-def _active_mission(lookup: Lookup, state: EntityState) -> dict[str, Any] | None:
-    """The mission the councilor is on now; the only use of ``TIMissionState``, whose other entries are leftovers."""
-    reference = state.get("activeMission")
-    mission = lookup.state(reference.entity_id, Side.AFTER) if isinstance(reference, EntityRef) else None
-    if mission is None:
-        return None
-    template = mission.get("templateName")
-    target = lookup.resolve(mission.get("target"))
-    return {"mission": template if isinstance(template, str) else None, "target": _named(target)}
 
 
 def _career_by_councilor(career: Iterable[Event]) -> dict[EntityId, list[Event]]:
