@@ -186,7 +186,9 @@ class CouncilorSettings:
     min_tenure_days: int = _int(365, 0)
     """A councilor is selected only after being employed this many game days."""
     missions_per_councilor: int = _int(3, 0)
-    """A player councilor's dossier keeps this many mission and target groups, the most frequent first."""
+    """A player councilor's dossier keeps this many mission types, the most frequent first."""
+    missions_window_years: int = _int(2, 1)
+    """The dossier counts the missions resolved in this many years before the latest save."""
     article_words: int = _int(270, 1)
     """The length each article request asks for; also carried in the dossier header."""
 

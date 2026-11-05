@@ -10,14 +10,17 @@ from tests.analyzers.support import (
     faction_ref,
     nation_ref,
     org_ref,
+    record_set,
+    ref,
     region_ref,
     snapshot,
     state,
 )
 from tests.narrative.support import loyalty_keys
 from tinarrative.config import CouncilorSettings
-from tinarrative.model.entities import EntityDomain, EntityId
+from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
+from tinarrative.model.records import NotificationEntry, RecordKind
 from tinarrative.model.values import freeze
 from tinarrative.narrative.councilors import build_dossier
 
@@ -245,31 +248,160 @@ def test_uncatalogued_org_category_comes_from_its_stats() -> None:
         assert (org["origin"], org["category"], org["basis"], org["template"]) == ("real", category, "stats", template)
 
 
-def test_missions_are_player_only_and_counted_by_mission_and_target() -> None:
-    def mission(key: str, councilor: str, template: str, target: str) -> Any:
+ROUTINE = "{day} May 2031: Name rolled a Success for the {mission} mission in the {region} region of Fixture."
+COMPLETED = "<color=#fff>01 May 2031</color>: Name completed their {mission} mission in the {region} region of Fixture."
+
+
+def _outcome_event(
+    councilor: str, date: str, summary: str, outcome: str = "Success", template: str = "LogMissionOutcome"
+) -> Event:
+    return Event(
+        id=f"notification.{template}/{councilor}@{date}",
+        event_type=f"notification.{template}",
+        status=EventStatus.OBJECTIVE,
+        confidence=Confidence.HIGH,
+        date=date,
+        date_basis=DateBasis.RECORD,
+        not_before=None,
+        sources=(),
+        entities=(
+            EntityRef(EntityId(EntityDomain.NOTIFICATION_QUEUE, "0"), IdentityConfidence.IN_SAVE_ID, None, "Log"),
+            councilor_ref(councilor),
+        ),
+        attributes=(("template", template), ("summary", summary), ("outcome", outcome)),
+    )
+
+
+def _mission_world() -> Any:
+    return _world(_councilor("100", "1"), _councilor("110", "2"))
+
+
+def test_missions_come_from_the_outcomes_of_the_whole_career_ranked_by_type_with_regions() -> None:
+    def routine(councilor: str, date: str, mission: str, region: str) -> Event:
+        return _outcome_event(councilor, date, ROUTINE.format(day="01", mission=mission, region=region))
+
+    career = [
+        routine("100", "2031-05-01T00:00:00", "Advise", "Washington"),
+        routine("100", "2031-04-01T00:00:00", "Advise", "Washington"),
+        routine("100", "2031-03-01T00:00:00", "Advise", "Beijing"),
+        routine("100", "2031-02-01T00:00:00", "Advise", "Beijing"),
+        routine("100", "2031-01-01T00:00:00", "Advise", "Beijing"),
+        routine("100", "2030-12-01T00:00:00", "Advise", "Cairo"),
+        routine("100", "2030-11-01T00:00:00", "Advise", "Delhi"),
+        routine("100", "2030-10-01T00:00:00", "Turn Councilor", "Lima"),
+        routine("100", "2030-09-01T00:00:00", "Turn Councilor", "Lima"),
+        routine("100", "2030-08-01T00:00:00", "Inspire", "Oslo"),
+        routine("110", "2031-05-01T00:00:00", "Advise", "Washington"),
+    ]
+    dossier = _build(_mission_world(), CouncilorSettings(missions_per_councilor=2), career=career)
+    player, rival = dossier["councilors"]
+    assert player["missions"] == {
+        "sample": True,
+        "window_years": 2,
+        "period": {"from": "2030-08-01", "to": "2031-06-01"},
+        "outcomes_seen": 10,
+        "types": [
+            {
+                "mission": "Advise",
+                "count": 7,
+                "regions": [
+                    {"name": "Beijing", "count": 3},
+                    {"name": "Washington", "count": 2},
+                    {"name": "Cairo", "count": 1},
+                ],
+            },
+            {"mission": "Turn Councilor", "count": 2, "regions": [{"name": "Lima", "count": 2}]},
+        ],
+    }
+    assert "missions" not in rival
+
+
+def test_missions_skip_aborted_unreadable_unattributed_and_old_outcomes() -> None:
+    career = [
+        _outcome_event("100", "2031-05-01T00:00:00", ROUTINE.format(day="01", mission="Advise", region="Oslo")),
+        _outcome_event("100", "2031-05-02T00:00:00", COMPLETED.format(mission="Advise", region="Oslo")),
+        _outcome_event("100", "2031-05-03T00:00:00", "Name aborted a pending Inspire mission.", outcome="Aborted"),
+        _outcome_event("100", "2031-05-04T00:00:00", "Something else happened."),
+        _outcome_event("100", "2028-05-01T00:00:00", ROUTINE.format(day="01", mission="Coup", region="Oslo")),
+        _outcome_event("100", "2031-05-05T00:00:00", "x", template="LogNewCouncilorTurn"),
+    ]
+    missions = _build(_mission_world(), career=career)["councilors"][0]["missions"]
+    assert [(item["mission"], item["count"]) for item in missions["types"]] == [("Advise", 2)]
+    assert missions["outcomes_seen"] == 2
+
+
+def test_missions_of_a_single_save_come_from_its_own_log() -> None:
+    owner = EntityRef(EntityId(EntityDomain.NOTIFICATION_QUEUE, "0"), IdentityConfidence.IN_SAVE_ID, None, "Log")
+
+    def entry(index: int, subject: Any, summary: str, outcome: str = "Success") -> NotificationEntry:
+        return NotificationEntry(
+            index,
+            "LogMissionOutcome",
+            f"2031-05-0{index + 1}T00:00:00",
+            summary,
+            outcome,
+            subject,
+            False,
+            (),
+            (),
+        )
+
+    log = record_set(
+        AFTER,
+        owner,
+        "notificationSummaryQueue",
+        RecordKind.NOTIFICATION_LOG,
+        (
+            entry(0, councilor_ref("100"), ROUTINE.format(day="01", mission="Advise", region="Oslo")),
+            entry(1, None, ROUTINE.format(day="02", mission="Advise", region="Oslo")),
+            entry(2, councilor_ref("100"), "Name aborted a pending Inspire mission.", "Aborted"),
+        ),
+    )
+    snap = snapshot(
+        AFTER,
+        _faction("1"),
+        _faction("2"),
+        state(EntityDomain.REGION, "40", AFTER, nation=nation_ref("20")),
+        state(EntityDomain.NATION, "20", AFTER),
+        _councilor("100", "1"),
+        records=(log,),
+        date=NOW,
+    )
+    missions = _build(snap)["councilors"][0]["missions"]
+    assert missions["outcomes_seen"] == 1
+    assert missions["types"] == [{"mission": "Advise", "count": 1, "regions": [{"name": "Oslo", "count": 1}]}]
+
+
+def test_missions_of_a_councilor_without_outcomes_are_an_empty_sample() -> None:
+    missions = _build(_mission_world())["councilors"][0]["missions"]
+    assert missions["types"] == []
+    assert missions["outcomes_seen"] == 0
+    assert missions["period"] == {"from": None, "to": "2031-06-01"}
+
+
+def test_the_active_mission_is_the_one_the_councilor_references() -> None:
+    def mission(key: str, template: str) -> Any:
         return state(
             EntityDomain.MISSION,
             key,
             AFTER,
             templateName=template,
-            councilor=councilor_ref(councilor),
-            target=nation_ref(target),
+            councilor=councilor_ref("100"),
+            target=nation_ref("20"),
         )
 
     snap = _world(
-        _councilor("100", "1"),
-        _councilor("110", "2"),
-        mission("200", "100", "Propaganda", "20"),
-        mission("201", "100", "Propaganda", "20"),
-        mission("202", "100", "Coup", "20"),
-        mission("203", "110", "Coup", "20"),
+        _councilor("100", "1", activeMission=ref(EntityDomain.MISSION, "200")),
+        _councilor("101", "1"),
+        mission("200", "Propaganda"),
+        mission("201", "Coup"),
     )
-    dossier = _build(snap, CouncilorSettings(missions_per_councilor=1))
-    player, rival = dossier["councilors"]
-    assert player["missions"] == [
-        {"mission": "Propaganda", "target": {"id": "nation:20", "name": "Fixture nation 20"}, "count": 2}
-    ]
-    assert "missions" not in rival
+    first, second = _build(snap)["councilors"]
+    assert first["active_mission"] == {
+        "mission": "Propaganda",
+        "target": {"id": "nation:20", "name": "Fixture nation 20"},
+    }
+    assert second["active_mission"] is None
 
 
 def _event(event_type: str, councilor: str, date: str, transition: str = "changed") -> Event:

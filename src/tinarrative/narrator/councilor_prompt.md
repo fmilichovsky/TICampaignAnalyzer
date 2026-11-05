@@ -77,11 +77,14 @@ The user message carries a request block.
     say nothing about milestones: never write that none are known or
     recorded.
   - `missions` (some entries only): the activities the person is most
-    associated with, as a mission template, a `target` and a `count`.  Put
-    the template into what the public would see ("frequently advises the
-    government of Kazakhstan", "known for humanitarian work in East Africa",
-    "a fixture of public campaigns in Brazil"); `count` is frequency, so say
-    "often" or "repeatedly", never the number.
+    associated with, from a sample of the recent past.  `types` lists mission
+    types, each with a `count` and its most frequent `regions`.  Put the type
+    into what the public would see ("frequently advises the government of
+    Kazakhstan", "known for humanitarian work in East Africa", "a series of
+    public campaigns in Brazil"); `count` is frequency, so say "often" or
+    "repeatedly", never the number.
+  - `active_mission`: what the person is doing now, as a
+    mission.
 
 ## Facts
 
