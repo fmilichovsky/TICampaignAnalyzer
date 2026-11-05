@@ -11,7 +11,8 @@ from __future__ import annotations
 import hashlib
 import time
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+from concurrent.futures import Future
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -20,7 +21,7 @@ from typing import Any
 from .analyzers import ALL_ANALYZERS, FIRST_INTERVAL_ANALYZERS, run_analyzers
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
-from .log import TIMING_LOGGER, fields, get_logger
+from .log import TIMING_LOGGER, fields, get_logger, safe_path
 from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
@@ -32,9 +33,13 @@ from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize, save_timestamp
 from .parsing.raw_save import parse_raw_save
 from .reconstruction import infer_events
+from .workers import memory_line, pool, tick
 
 logger = get_logger(__name__)
 timing = get_logger(TIMING_LOGGER)
+
+MIN_CHUNK_INTERVALS = 2
+"""A worker's chunk has at least this many intervals, because each chunk normalizes its boundary save once more."""
 
 
 class UnknownChronologyError(SaveLoadError):
@@ -203,6 +208,55 @@ def survey(path: Path) -> SaveRef:
     return surveyed
 
 
+@dataclass(frozen=True)
+class SurveyFailure:
+    """Why one path could not be surveyed: unreadable (``content`` false) or not a usable save."""
+
+    source: str
+    content: bool
+    error_class: str
+    reason: str
+
+
+def survey_outcome(path: Path) -> SaveRef | SurveyFailure:
+    """``survey``, with a read or content failure returned instead of raised, so a worker can hand it back."""
+    try:
+        return survey(path)
+    except OSError as error:
+        logger.debug("read failed %s", fields(save=safe_path(path), errno=error.errno, error=type(error).__name__))
+        return SurveyFailure(str(path), False, type(error).__name__, error.strerror or str(error))
+    except SaveLoadError as error:
+        logger.debug("survey failed %s", fields(save=safe_path(path), error=type(error).__name__), exc_info=True)
+        return SurveyFailure(str(path), True, type(error).__name__, str(error))
+
+
+def survey_all(
+    paths: Sequence[Path], *, jobs: int = 1, on_save: Callable[[Path], None] | None = None
+) -> Generator[SaveRef | SurveyFailure, None, None]:
+    """The survey outcome of every path, in order; ``on_save`` follows each survey.
+
+    With one job each path is surveyed when its outcome is asked for, so a consumer that stops early stops the work.
+    """
+    if jobs <= 1 or len(paths) < 2:
+        for path in paths:
+            outcome = survey_outcome(path)
+            if on_save is not None:
+                on_save(path)
+            yield outcome
+        return
+    with pool(min(jobs, len(paths))) as executor:
+        futures = [executor.submit(survey_outcome, path) for path in paths]
+        if on_save is not None:
+            for path, future in zip(paths, futures, strict=True):
+                future.add_done_callback(_reporter(on_save, path))
+        for future in futures:
+            yield future.result()
+
+
+def _reporter(on_save: Callable[[Path], None], path: Path) -> Callable[[Future[SaveRef | SurveyFailure]], None]:
+    return lambda _: on_save(path)
+
+
 def _seconds(started: float) -> float:
     return round(time.perf_counter() - started, 4)
 
@@ -244,6 +298,24 @@ def load_snapshot(source: str) -> SaveSnapshot:
     return normalize(load_raw_save(Path(source)))
 
 
+@dataclass(frozen=True)
+class _Options:
+    inferred: bool
+    changes: bool
+    spaceports: int
+    load: Callable[[str], SaveSnapshot]
+
+
+@dataclass(frozen=True)
+class _Chunk:
+    """Consecutive saves of a plan, the first of which is save ``start``: the work of one worker."""
+
+    start: int
+    saves: tuple[SaveRef, ...]
+    keys: tuple[str, ...]
+    options: _Options
+
+
 def run_sequence(
     plan: SequencePlan,
     *,
@@ -251,40 +323,86 @@ def run_sequence(
     changes: bool = False,
     load: Callable[[str], SaveSnapshot] = load_snapshot,
     spaceports: int = SPACEPORTS,
+    jobs: int = 1,
+    on_save: Callable[[], None] | None = None,
 ) -> Iterator[IntervalResult]:
     """The results of every interval in order; each save is normalized once and at most two are held at a time.
 
-    With ``changes`` every result also keeps its literal state changes.
+    With ``changes`` every result also keeps its literal state changes. With ``jobs`` above one the intervals are cut
+    into contiguous chunks run by worker processes (``load`` must then be picklable); each chunk normalizes its first
+    save once more, and the results are the same. ``on_save`` is called once per save of the plan.
     """
     if len(plan.saves) < 2:
         return
+    options = _Options(inferred, changes, spaceports, load)
+    chunks = [
+        _Chunk(start, plan.saves[start : end + 1], plan.keys[start : end + 1], options)
+        for start, end in _chunks(len(plan.saves) - 1, jobs)
+    ]
+    if len(chunks) == 1:
+        yield from _interval_results(chunks[0], on_save)
+        return
+    logger.info("sequence parallel %s", fields(workers=len(chunks)))
+    with pool(len(chunks), on_save, tasks_per_child=1) as executor:  # one chunk per process: its memory line is its own
+        futures: list[Future[list[IntervalResult]]] = [executor.submit(_run_chunk, chunk) for chunk in chunks]
+        for future in futures:
+            yield from future.result()
 
-    def prepared(index: int) -> tuple[SaveSnapshot, SituationReport]:
+
+def _chunks(intervals: int, jobs: int) -> list[tuple[int, int]]:
+    """Contiguous, near-equal ranges of saves (first and last index) covering ``intervals`` intervals once."""
+    count = max(1, min(jobs, intervals // MIN_CHUNK_INTERVALS))
+    size, extra = divmod(intervals, count)
+    ranges: list[tuple[int, int]] = []
+    start = 0
+    for chunk in range(count):
+        end = start + size + (chunk < extra)
+        ranges.append((start, end))
+        start = end
+    return ranges
+
+
+def _run_chunk(chunk: _Chunk) -> list[IntervalResult]:
+    """A worker's chunk; the snapshots stay in the worker, only the results go back."""
+    results = list(_interval_results(chunk, tick))
+    memory_line()
+    return results
+
+
+def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iterator[IntervalResult]:
+    """The intervals of one chunk; the first save of a later chunk is not reported to ``on_save`` again."""
+    options = chunk.options
+
+    def prepared(offset: int) -> tuple[SaveSnapshot, SituationReport]:
+        if on_save is not None and (offset > 0 or chunk.start == 0):
+            on_save()
+        index = chunk.start + offset
         started = time.perf_counter()
-        snapshot = load(plan.saves[index].source)
+        snapshot = options.load(chunk.saves[offset].source)
         loaded = time.perf_counter()
-        situation = build_situation(snapshot, spaceports=spaceports)
+        situation = build_situation(snapshot, spaceports=options.spaceports)
         timing.info("save %s", fields(index=index, load=round(loaded - started, 4), situation=_seconds(loaded)))
         return snapshot, situation
 
     before, before_situation = prepared(0)
-    for index in range(1, len(plan.saves)):
-        after, after_situation = prepared(index)
-        analysis = analyze_interval(before, after, inferred=inferred, first=index == 1)
+    for offset in range(1, len(chunk.saves)):
+        index = chunk.start + offset
+        after, after_situation = prepared(offset)
+        analysis = analyze_interval(before, after, inferred=options.inferred, first=index == 1)
         timing.info(
             "interval %s",
             fields(index=index - 1, **{stage: round(value, 4) for stage, value in analysis.seconds.items()}),
         )
-        key = plan.keys[index]
+        key = chunk.keys[offset]
         result = IntervalResult(
             index=index - 1,
             key=key,
-            before=plan.saves[index - 1],
-            after=plan.saves[index],
+            before=chunk.saves[offset - 1],
+            after=chunk.saves[offset],
             changes=len(analysis.diff.changes),
             objective=tuple(qualify(event, key) for event in analysis.objective),
             inferred=None if analysis.inferred is None else tuple(qualify(event, key) for event in analysis.inferred),
-            state_changes=analysis.diff.changes if changes else None,
+            state_changes=analysis.diff.changes if options.changes else None,
             before_situation=before_situation,
             after_situation=after_situation,
         )

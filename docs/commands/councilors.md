@@ -51,6 +51,7 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 | `--player-only` | off | Select the player's councilors only. |
 | `--output DIR` | | Write `dossier.json` and the requests here; without it only the summary is printed. |
 | `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: the `[councilors]` selection keys and the `[narrator]` provider and profiles ([configuration](../configuration.md)). |
+| `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | With several saves, worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
 | `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
 | `--force` | off | With `--send`, send every article again, even one with a matching stored response. |
 | `--profile NAME` | | Apply the settings profile `[narrator.profiles.NAME]`. |

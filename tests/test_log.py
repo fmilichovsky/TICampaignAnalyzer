@@ -11,6 +11,7 @@ from tinarrative.log import (
     excerpt,
     fields,
     get_logger,
+    logging_state,
     safe_path,
     shape,
 )
@@ -72,6 +73,12 @@ class ConfigureLoggingTests(unittest.TestCase):
         self.assertEqual(len([h for h in root.handlers if isinstance(h, logging.StreamHandler)]), 1)
         self.assertEqual(first.getvalue(), "")
         self.assertEqual(second.getvalue(), "INFO tinarrative.example: once\n")
+
+    def test_the_state_repeats_the_last_configuration(self) -> None:
+        configure_logging("info", StringIO(), timing=True)
+        self.assertEqual(logging_state(), ("info", True))
+        configure_logging("warning", StringIO())
+        self.assertEqual(logging_state(), ("warning", False))
 
     def test_timing_lines_are_off_at_every_level_unless_asked_for(self) -> None:
         quiet, timed = StringIO(), StringIO()

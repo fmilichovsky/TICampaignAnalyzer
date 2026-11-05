@@ -19,7 +19,12 @@ from tinarrative.narrative.situation import build_situation
 from tinarrative.parsing.normalization import normalize
 from tinarrative.sequence import (
     SaveRef,
+    SurveyFailure,
     UnknownChronologyError,
+    _Chunk,
+    _chunks,
+    _interval_results,
+    _Options,
     analyze_interval,
     event_stream,
     load_snapshot,
@@ -27,6 +32,7 @@ from tinarrative.sequence import (
     run_sequence,
     situations,
     survey,
+    survey_all,
 )
 
 FIXTURE_SET = "terra_invicta_json_v1"
@@ -186,3 +192,86 @@ def test_fewer_than_two_distinct_saves_produce_no_interval() -> None:
     assert (len(plan.saves), plan.duplicates) == (1, 1)
     assert list(run_sequence(plan, inferred=False)) == []
     assert situations([]) == ()
+
+
+def test_chunks_cover_every_interval_once_in_contiguous_near_equal_ranges() -> None:
+    assert _chunks(17, 8) == [(0, 3), (3, 5), (5, 7), (7, 9), (9, 11), (11, 13), (13, 15), (15, 17)]
+    assert _chunks(5, 8) == [(0, 3), (3, 5)]  # at least MIN_CHUNK_INTERVALS each
+    assert _chunks(3, 8) == [(0, 3)]
+    assert _chunks(9, 1) == [(0, 9)]
+    for intervals in range(1, 30):
+        for jobs in range(1, 10):
+            ranges = _chunks(intervals, jobs)
+            assert ranges[0][0] == 0 and ranges[-1][1] == intervals
+            assert all(left[1] == right[0] for left, right in zip(ranges, ranges[1:], strict=False))
+            sizes = [end - start for start, end in ranges]
+            assert max(sizes) - min(sizes) <= 1
+
+
+@pytest.mark.fixture
+def test_workers_give_the_results_and_reports_of_one_process(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)  # two chunks over the three fixture saves
+    plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
+    loads: list[int] = []
+
+    serial = list(run_sequence(plan, inferred=True, changes=True))
+    parallel = list(run_sequence(plan, inferred=True, changes=True, jobs=2, on_save=lambda: loads.append(1)))
+
+    assert [result.to_dict() for result in parallel] == [result.to_dict() for result in serial]
+    assert situations(parallel) == situations(serial)
+    assert event_stream(parallel) == event_stream(serial)
+    assert len(loads) == len(SEQUENCE)  # the boundary save of the second chunk is not counted twice
+
+
+@pytest.mark.fixture
+def test_a_later_chunk_does_not_run_the_first_interval_analyzers(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[object] = []
+
+    class Recording:
+        def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
+            seen.append(before.date)
+            return []
+
+    monkeypatch.setattr("tinarrative.sequence.FIRST_INTERVAL_ANALYZERS", (Recording(),))
+    plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
+    options = _Options(inferred=False, changes=False, spaceports=10, load=load_snapshot)
+    loads: list[int] = []
+
+    later = list(_interval_results(_Chunk(1, plan.saves[1:], plan.keys[1:], options), lambda: loads.append(1)))
+
+    assert seen == []
+    assert [result.index for result in later] == [1]
+    assert later[0].key == plan.keys[2]
+    assert len(loads) == 1
+    list(_interval_results(_Chunk(0, plan.saves[:2], plan.keys[:2], options), None))
+    assert seen == [DATES[0]]
+
+
+@pytest.mark.fixture
+def test_a_worker_failure_is_raised_by_the_coordinator(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)
+    copies = []
+    for name in SEQUENCE:
+        shutil.copyfile(fixture(name), tmp_path / name)
+        copies.append(tmp_path / name)
+    plan = plan_sequence(surveyed(*copies))
+    copies[2].unlink()
+
+    with pytest.raises(FileNotFoundError):
+        list(run_sequence(plan, inferred=False, jobs=2))
+
+
+@pytest.mark.fixture
+def test_surveys_in_workers_keep_input_order_and_return_failures(tmp_path: Path) -> None:
+    paths = [fixture(name) for name in reversed(SEQUENCE)] + [tmp_path / "missing.json"]
+    names: list[str] = []
+
+    serial = list(survey_all(paths))
+    parallel = list(survey_all(paths, jobs=2, on_save=lambda path: names.append(path.name)))
+
+    assert parallel == serial
+    assert [ref.source for ref in parallel[:3] if isinstance(ref, SaveRef)] == [str(path) for path in paths[:3]]
+    failure = parallel[3]
+    assert isinstance(failure, SurveyFailure) and not failure.content
+    assert failure.error_class == "FileNotFoundError"
+    assert sorted(names) == sorted(path.name for path in paths)

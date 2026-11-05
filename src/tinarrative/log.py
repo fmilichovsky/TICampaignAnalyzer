@@ -32,6 +32,7 @@ LINE_FORMAT = "%(levelname)s %(name)s: %(message)s"
 _BARE_VALUE = re.compile(r"^[\w./:+~-]+$")
 _TIMING_OFF = logging.CRITICAL + 1
 _handler: logging.Handler | None = None
+_state: tuple[str, bool] = (DEFAULT_LEVEL, False)
 logging.getLogger(TIMING_LOGGER).setLevel(_TIMING_OFF)
 
 
@@ -46,7 +47,7 @@ def configure_logging(level: str, stream: TextIO | None = None, *, timing: bool 
     Replaces the previous call's handler, so repeated ``main()`` runs never log twice or to a stale stream. Timing
     lines are opt-in and independent of ``level``, because durations would make two runs' logs differ.
     """
-    global _handler
+    global _handler, _state
     if level not in LEVELS:
         known = ", ".join(LEVELS)
         raise ValueError(f"unknown log level {level!r}; expected one of: {known}")
@@ -58,6 +59,12 @@ def configure_logging(level: str, stream: TextIO | None = None, *, timing: bool 
     root.addHandler(_handler)
     root.setLevel(LEVELS[level])
     logging.getLogger(TIMING_LOGGER).setLevel(logging.INFO if timing else _TIMING_OFF)
+    _state = (level, timing)
+
+
+def logging_state() -> tuple[str, bool]:
+    """The level and timing switch of the last ``configure_logging`` call, for worker processes to repeat it."""
+    return _state
 
 
 def fields(**values: object) -> str:

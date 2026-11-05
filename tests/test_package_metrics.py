@@ -6,6 +6,7 @@ import io
 import json
 import lzma
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -245,6 +246,16 @@ def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) ->
     assert (out / "narrate" / "politics" / "default" / "plan.json").is_file()
     tiny = metrics["campaigns"]["politics"]["narrate"]["tiny"]
     assert tiny["exit"] == 2
+
+
+def test_events_runs_get_one_job_only_where_the_revision_takes_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    def helped(text: str) -> Any:
+        return lambda command: subprocess.CompletedProcess(command, 0, stdout=text, stderr="")
+
+    monkeypatch.setattr(benchmark_metrics, "_run", helped("usage: ... [--jobs N] ..."))
+    assert benchmark_metrics._serial(["python"]) == ["--jobs", "1"]
+    monkeypatch.setattr(benchmark_metrics, "_run", helped("usage: ... [--campaign SELECTOR] ..."))
+    assert benchmark_metrics._serial(["python"]) == []
 
 
 @pytest.mark.fixture

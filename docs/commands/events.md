@@ -24,6 +24,7 @@ source of the package that [`narrate`](narrate.md) tells.
 | `--period year\|half\|quarter` | `year` | How the Markdown narrative section is grouped. The JSON is not grouped. |
 | `--changes` | off | Also list every literal state change under its interval. A usage error with `--narrative --format json`. |
 | `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file for the narrative rules' thresholds and windows ([configuration](../configuration.md)). Read and validated on every run. |
+| `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | Worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
 
 ## Input
 

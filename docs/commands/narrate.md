@@ -24,8 +24,8 @@ provider and assembles the answers into one footnoted `history.md`, with a citat
   [campaign picker](events.md#campaign-picker). The package is built as
   `events --narrative --format json` builds it.
 - **`--package FILE`** narrates a package written earlier by `events --narrative --format json`;
-  `-` reads it from stdin. Save paths, `--campaign`, `--min-significance` and `--constituents` are
-  usage errors with it.
+  `-` reads it from stdin. Save paths, `--campaign`, `--min-significance`, `--constituents` and
+  `--jobs` are usage errors with it.
 
 ## Options
 
@@ -44,6 +44,7 @@ provider and assembles the answers into one footnoted `history.md`, with a citat
 | `--focus NAME` | player faction for `insider` | A faction or nation to centre the account on. |
 | `--output DIR` | | Write the plan and the requests here; without it only the plan summary is printed. |
 | `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: narrative rules and the `[narrator]` budget, provider and profiles ([configuration](../configuration.md)). |
+| `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | Saves only: worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
 | `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
 | `--force` | off | With `--send`, send every chapter again, even one with a matching stored response. |
 | `--assemble DIR` | | Assemble `history.md` and `manifest.json` from a directory written earlier. Takes no other option. |
@@ -127,7 +128,7 @@ the run still exits 0; the details are in `manifest.json`. Assembly and the audi
 | Code | When |
 | --- | --- |
 | 0 | The plan was printed and, with `--output`, written; with `--send`, the history was assembled, whatever the audit found. |
-| 2 | Usage error: no save paths and no `--package`; `--force` without `--send`; `--assemble` with another option; `--package` with save paths, `--campaign`, `--min-significance` or `--constituents`; a package with no interval; a single interval over the token budget; the save input errors of `events`; an unknown `--profile` or an invalid override; `--send` without `--output`, provider, model or API key, or over the context window. |
+| 2 | Usage error: no save paths and no `--package`; `--force` without `--send`; `--assemble` with another option; `--package` with save paths, `--campaign`, `--min-significance`, `--constituents` or `--jobs`; a package with no interval; a single interval over the token budget; the save input errors of `events`; an unknown `--profile` or an invalid override; `--send` without `--output`, provider, model or API key, or over the context window. |
 | 4 | A save or the `--package` file cannot be read; `--assemble`: DIR or its `plan.json` cannot be read. |
 | 5 | A save is not a supported save, or the package is not a narrator package. `--assemble` (and the assembly after `--send`): the plan, a request or a response is missing, invalid or does not match. |
 | 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |

@@ -1,9 +1,11 @@
 # Configuration
 
-The narrative rules' thresholds and windows, and the budget and provider of `narrate`, are
-runtime settings with built-in defaults (`src/tinarrative/config.py`). The `narrative` tables change
-what `events --narrative` (and `narrate` from saves) builds and nothing else; the `narrator` table
-changes how `narrate` cuts, requests and sends a package, and never what `events` builds.
+The narrative rules' thresholds and windows, the budget and provider of `narrate`, and the worker
+processes of the save-input commands are runtime settings with built-in defaults
+(`src/tinarrative/config.py`). The `narrative` tables change what `events --narrative` (and
+`narrate` from saves) builds and nothing else; the `narrator` table changes how `narrate` cuts,
+requests and sends a package, and never what `events` builds; the `processing` table changes only
+how long a run takes and how much memory it uses.
 
 ## Where settings come from
 
@@ -78,6 +80,12 @@ The `councilors` keys ([councilors](commands/councilors.md)):
 | `councilors.min_tenure_days` | 365 | 0 | A councilor is selected only after being employed this many game days. |
 | `councilors.missions_per_councilor` | 3 | 0 | A player councilor's dossier keeps this many mission and target groups, the most frequent first. |
 | `councilors.article_words` | 250 | 1 | The article length each request asks for; also carried in the dossier header. |
+
+The `processing` keys, for `events`, `narrate` from saves and `councilors` with several saves:
+
+| Key | Default | Minimum | Meaning |
+| --- | --- | --- | --- |
+| `processing.jobs` | unset | 1 | Worker processes for surveying the saves and analyzing the intervals; `--jobs` overrides it. Unset picks a count bounded by the CPUs and the memory the saves need, and one process for small inputs; 1 runs everything in one process. The output is the same for every value. |
 
 The `narrator` keys ([narrate](commands/narrate.md), [architecture 20.3](architecture.md#203-token-budget-and-chapters)):
 

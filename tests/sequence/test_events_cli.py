@@ -310,6 +310,68 @@ def test_an_unorderable_or_unsupported_save_stops_the_run(
     assert message in captured.err
 
 
+@pytest.mark.fixture
+@pytest.mark.parametrize(
+    ("suffix", "flags"),
+    [("md", []), ("narrative.md", ["--narrative"]), ("changes.md", ["--changes"]), ("json", ["--format", "json"])],
+)
+def test_workers_write_the_golden_report_byte_for_byte(
+    suffix: str, flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)  # two chunks over the three fixture saves
+
+    assert main(["events", *flags, "--jobs", "2", *SHUFFLED]) == EXIT_SUCCESS
+    parallel = capsys.readouterr()
+    assert main(["events", *flags, "--jobs", "1", *SHUFFLED]) == EXIT_SUCCESS
+    serial = capsys.readouterr()
+
+    assert parallel.out == serial.out
+    if suffix != "json":
+        assert parallel.out == (EXPECTED_DIR / f"politics_sequence.expected.{suffix}").read_text(encoding="utf-8")
+    assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", parallel.err)
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("jobs", ["1", "2"])
+def test_a_save_that_fails_in_a_worker_gives_the_code_and_message_of_one_process(
+    jobs: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)
+    saves = _directory(tmp_path, *SHUFFLED)
+    planned = cli.plan_sequence
+
+    def vanish(*args: Any) -> Any:
+        plan = planned(*args)
+        Path(plan.saves[-1].source).unlink()  # surveyed, then gone before its chunk loads it
+        return plan
+
+    monkeypatch.setattr(cli, "plan_sequence", vanish)
+
+    assert main(["events", "--jobs", jobs, str(saves)]) == EXIT_INPUT_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    missing = saves / "politics_reverted.json"
+    assert captured.err.splitlines()[0] == f"tinarrative events: cannot read {missing}: No such file or directory"
+
+
+@pytest.mark.fixture
+@pytest.mark.parametrize("name", ["missing.json", "malformed_truncated.json"])
+def test_a_survey_failure_in_a_worker_gives_the_code_and_message_of_one_process(
+    name: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    path = str(FIXTURE_DIR / name) if name != "missing.json" else str(tmp_path / name)
+    outcomes = []
+    for jobs in ("1", "2"):
+        code = main(["events", "--jobs", jobs, str(FIXTURE_DIR / "politics_after.json"), path])
+        outcomes.append((code, capsys.readouterr()))
+
+    (serial_code, serial), (parallel_code, parallel) = outcomes
+    assert parallel_code == serial_code in (EXIT_INPUT_ERROR, EXIT_UNSUPPORTED_INPUT)
+    assert parallel.err.splitlines()[0] == serial.err.splitlines()[0]
+    assert parallel.out == serial.out == ""
+
+
 def _directory(root: Path, *names: str) -> Path:
     directory = root / "saves"
     directory.mkdir()

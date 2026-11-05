@@ -55,7 +55,9 @@ Levels:
 
 Stage durations stay out of these levels, so the log is the same on every run. `TINARRATIVE_TIMING=1` adds
 `INFO tinarrative.timing:` lines at any level, each with its seconds: one per surveyed, normalized and loaded save,
-one per interval and per narrative rule, and one for the aggregation. `tinarrative benchmark runtime` reads them
+one per interval and per narrative rule, and one for the aggregation. Worker processes (`--jobs`) write their own
+lines, so a save that starts a worker's chunk is loaded and reported twice. Each worker and the command add a
+`memory` line with their peak resident bytes (not on Windows). `tinarrative benchmark runtime` reads them
 ([benchmarks](../benchmarks/README.md#runtime)).
 
 When `save parse` rejects a save, the one-line stderr message is unchanged; at `debug` it is

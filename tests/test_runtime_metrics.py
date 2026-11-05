@@ -109,6 +109,31 @@ def test_timing_lines_give_stage_totals_the_interval_series_and_rules() -> None:
     assert timings["rules"] == {"faction.takeover": 0.5, "war.arc": 0.25}
 
 
+def test_memory_lines_sum_every_process_peak() -> None:
+    lines = (
+        TIMING_LINES + "INFO tinarrative.timing: memory peak=300\n" * 2 + "INFO tinarrative.timing: memory peak=100\n"
+    )
+
+    timings = parse_timings(lines)
+
+    assert timings is not None
+    assert (timings["processes"], timings["peak_memory"]) == (3, 700)
+    parsed = parse_timings(TIMING_LINES)
+    assert parsed is not None and (parsed["processes"], parsed["peak_memory"]) == (0, None)
+
+
+def test_a_run_with_workers_reports_summed_peaks_and_no_other_row() -> None:
+    stages = {"diff": 4.0}
+    workers = _run(5.0, stages)
+    workers["timings"].update(processes=3, peak_memory=1_500_000_000)
+
+    text = report(_runtime(_run(10.0, stages), workers))
+
+    assert "| peak memory | 500 MB | 1,500 MB | |" in text
+    assert "camp · head ran 2 worker processes" in text
+    assert "| other | 6.00s | – |" in text
+
+
 def test_a_revision_without_timing_lines_has_no_timings() -> None:
     assert parse_timings("tinarrative events: parsing and processing took 4.0s\n") is None
 

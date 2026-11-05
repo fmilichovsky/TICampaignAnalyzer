@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from collections.abc import Callable, Sequence
+from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -67,12 +68,14 @@ from .sequence import (
     SaveRef,
     SequencePlan,
     SkippedSave,
+    SurveyFailure,
     event_stream,
     narrative_events,
     plan_sequence,
     run_sequence,
-    survey,
+    survey_all,
 )
+from .workers import default_jobs, memory_line
 
 logger = get_logger(__name__)
 
@@ -285,20 +288,43 @@ def _unknowns_exit_code(run: ScanRun) -> int:
     return EXIT_SUCCESS
 
 
+class _LoadFailed(Exception):
+    """A save could not be loaded; carries the exit code and the stderr message, and survives pickling."""
+
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(code, message)
+        self.code = code
+        self.message = message
+
+
+@dataclass(frozen=True)
+class _SnapshotLoader:
+    """Load and normalize one save of ``command``; picklable, so a worker process can run it."""
+
+    command: str
+
+    def __call__(self, source: str) -> SaveSnapshot:
+        save_path = Path(source)
+        save_name = safe_path(save_path)
+        try:
+            return normalize(load_raw_save(save_path))
+        except OSError as error:
+            reason = error.strerror or str(error)
+            logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
+            message = f"tinarrative {self.command}: cannot read {save_path}: {reason}"
+            raise _LoadFailed(EXIT_INPUT_ERROR, message) from None
+        except SaveLoadError as error:
+            logger.debug("parse failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
+            raise _LoadFailed(EXIT_UNSUPPORTED_INPUT, f"tinarrative {self.command}: {save_path}: {error}") from None
+
+
 def _load_snapshot(command: str, save_path: Path) -> SaveSnapshot | int:
     """Load and normalize one save, or print the failure and return the exit code."""
-    save_name = safe_path(save_path)
     try:
-        return normalize(load_raw_save(save_path))
-    except OSError as error:
-        reason = error.strerror or str(error)
-        logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
-        print(f"tinarrative {command}: cannot read {save_path}: {reason}", file=sys.stderr)
-        return EXIT_INPUT_ERROR
-    except SaveLoadError as error:
-        logger.debug("parse failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
-        print(f"tinarrative {command}: {save_path}: {error}", file=sys.stderr)
-        return EXIT_UNSUPPORTED_INPUT
+        return _SnapshotLoader(command)(str(save_path))
+    except _LoadFailed as failure:
+        print(failure.message, file=sys.stderr)
+        return failure.code
 
 
 def _run_diff(args: argparse.Namespace) -> int:
@@ -323,40 +349,13 @@ def _run_diff(args: argparse.Namespace) -> int:
     return EXIT_SUCCESS
 
 
-class _LoadFailed(Exception):
-    """A save of a sequence failed to load after ``_load_snapshot`` reported it; carries the exit code."""
-
-    def __init__(self, code: int) -> None:
-        super().__init__(code)
-        self.code = code
-
-
-def _survey(command: str, save_path: Path) -> SaveRef | int:
-    """Hash one save and read its game time and profile, or print the failure and return the exit code."""
-    save_name = safe_path(save_path)
-    try:
-        return survey(save_path)
-    except OSError as error:
-        reason = error.strerror or str(error)
-        logger.debug("read failed %s", fields(save=save_name, errno=error.errno, error=type(error).__name__))
-        print(f"tinarrative {command}: cannot read {save_path}: {reason}", file=sys.stderr)
-        return EXIT_INPUT_ERROR
-    except SaveLoadError as error:
-        logger.debug("survey failed %s", fields(save=save_name, error=type(error).__name__), exc_info=True)
-        print(f"tinarrative {command}: {save_path}: {error}", file=sys.stderr)
+def _survey_failed(command: str, failure: SurveyFailure) -> int:
+    """Print why a path named on the command line could not be surveyed and return the exit code."""
+    if failure.content:
+        print(f"tinarrative {command}: {failure.source}: {failure.reason}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
-
-
-def _survey_found(command: str, item: SaveInput) -> SaveRef | SkippedSave:
-    """Survey a file found inside a given directory; a failure skips it instead of stopping the run."""
-    try:
-        return survey(item.path)
-    except OSError as error:
-        reason, error_class = error.strerror or str(error), type(error).__name__
-    except SaveLoadError as error:
-        reason, error_class = str(error), type(error).__name__
-    logger.debug("%s skipped %s", command, fields(save=safe_path(item.path), error=error_class))
-    return SkippedSave(str(item.path), error_class, reason)
+    print(f"tinarrative {command}: cannot read {failure.source}: {failure.reason}", file=sys.stderr)
+    return EXIT_INPUT_ERROR
 
 
 class _ProgressTracker:
@@ -415,36 +414,62 @@ class _ProgressTracker:
 
 
 def _survey_inputs(
-    command: str, inputs: Sequence[SaveInput], progress: _ProgressTracker | None = None
+    command: str, inputs: Sequence[SaveInput], progress: _ProgressTracker | None = None, jobs: int = 1
 ) -> tuple[list[SaveRef], list[SkippedSave]] | int:
-    """Survey every input; only a path named on the command line can fail the run (exit 4 beats nothing found)."""
+    """Survey every input; only a path named on the command line can fail the run (exit 4 beats nothing found).
+
+    Outcomes are judged in input order, so the failure reported is the same whatever ``jobs`` is.
+    """
     surveyed: list[SaveRef] = []
     skipped: list[SkippedSave] = []
     usable: dict[Path, int] = {}
-    for index, item in enumerate(inputs, start=1):
+    done = 0
+
+    def on_save(path: Path) -> None:
+        nonlocal done
+        done += 1
         if progress is not None:
-            progress.update("Parsing saves", index, filename=item.path.name)
-        if item.empty_directory:
-            print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
-            return EXIT_INPUT_ERROR
-        if item.directory is None:
-            save = _survey(command, item.path)
-            if isinstance(save, int):
-                return save
-            surveyed.append(save)
-            continue
-        usable.setdefault(item.directory, 0)
-        found = _survey_found(command, item)
-        if isinstance(found, SkippedSave):
-            skipped.append(found)
-        else:
-            surveyed.append(found)
-            usable[item.directory] += 1
+            progress.update("Parsing saves", done, filename=path.name)
+
+    paths = [item.path for item in inputs if not item.empty_directory]
+    with closing(survey_all(paths, jobs=jobs, on_save=on_save)) as outcomes:
+        for item in inputs:
+            if item.empty_directory:
+                print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
+                return EXIT_INPUT_ERROR
+            found = next(outcomes)
+            if item.directory is None:
+                if isinstance(found, SurveyFailure):
+                    return _survey_failed(command, found)
+                surveyed.append(found)
+                continue
+            usable.setdefault(item.directory, 0)
+            if isinstance(found, SurveyFailure):
+                logger.debug("%s skipped %s", command, fields(save=safe_path(item.path), error=found.error_class))
+                skipped.append(SkippedSave(str(item.path), found.error_class, found.reason))
+            else:
+                surveyed.append(found)
+                usable[item.directory] += 1
     for directory, count in usable.items():
         if count == 0:
             print(f"tinarrative {command}: {directory}: the directory holds no usable save", file=sys.stderr)
             return EXIT_INPUT_ERROR
     return surveyed, skipped
+
+
+def _jobs(requested: int | None, settings: Settings, sources: Sequence[str | Path]) -> int:
+    """``--jobs`` wins over ``processing.jobs``; neither gives the default for these files' sizes."""
+    if requested is not None:
+        return requested
+    if settings.processing.jobs is not None:
+        return settings.processing.jobs
+    sizes: list[int] = []
+    for source in sources:
+        try:
+            sizes.append(os.stat(source).st_size)
+        except OSError:
+            continue  # the survey reports it
+    return default_jobs(sizes)
 
 
 def _run_benchmark_sample(args: argparse.Namespace) -> int:
@@ -669,16 +694,18 @@ def _run_saves(
     inferred: bool,
     changes: bool,
     narrative: bool,
+    jobs: int | None = None,
 ) -> _SequenceRun | int:
     """Survey the inputs, choose the campaign and analyze its saves in order; a failure is printed and returned as
-    the exit code."""
+    the exit code. ``jobs`` is ``--jobs``; unset falls back to the settings, then to ``workers.default_jobs``."""
     inputs = expand_inputs(paths)
     if len(inputs) < 2:
         print(f"tinarrative {command}: at least two saves are required", file=sys.stderr)
         return EXIT_USAGE_ERROR
     logger.info("%s start %s", command, fields(inputs=len(paths), candidates=len(inputs)))
     progress = _ProgressTracker(command, len(inputs))
-    outcome = _survey_inputs(command, inputs, progress)
+    survey_jobs = _jobs(jobs, settings, [item.path for item in inputs if not item.empty_directory])
+    outcome = _survey_inputs(command, inputs, progress, survey_jobs)
     if isinstance(outcome, int):
         progress.finish()
         return outcome
@@ -703,17 +730,15 @@ def _run_saves(
         progress.finish()
         return EXIT_USAGE_ERROR
     plan = plan_sequence(campaign.members, skipped)
+    interval_jobs = _jobs(jobs, settings, [save.source for save in plan.saves])
+    logger.debug("%s jobs %s", command, fields(survey=survey_jobs, intervals=interval_jobs))
     progress.update("Processing saves", 0, len(plan.saves))
     loaded_saves = 0
 
-    def load(source: str) -> SaveSnapshot:
+    def on_save() -> None:
         nonlocal loaded_saves
         loaded_saves += 1
         progress.update("Processing saves", loaded_saves, len(plan.saves))
-        loaded = _load_snapshot(command, Path(source))
-        if isinstance(loaded, int):
-            raise _LoadFailed(loaded)
-        return loaded
 
     try:
         intervals = list(
@@ -721,14 +746,18 @@ def _run_saves(
                 plan,
                 inferred=inferred or narrative,
                 changes=changes,
-                load=load,
+                load=_SnapshotLoader(command),
                 spaceports=settings.narrative.nation_metrics.ranking_top_n,
+                jobs=interval_jobs,
+                on_save=on_save,
             )
         )
     except _LoadFailed as failure:
+        print(failure.message, file=sys.stderr)
         progress.finish()
         return failure.code
     events = narrative_events(intervals, narrative_rules(settings.narrative)) if narrative else None
+    memory_line()
     progress.finish()
     return _SequenceRun(plan, intervals, campaign, len(surveyed), events)
 
@@ -771,6 +800,7 @@ def _run_councilors(args: argparse.Namespace) -> int:
             inferred=False,
             changes=False,
             narrative=False,
+            jobs=cast("int | None", args.jobs),
         )
         if isinstance(run, int):
             return run
@@ -925,6 +955,7 @@ def _run_events(args: argparse.Namespace) -> int:
         inferred=args.inferred,
         changes=args.changes,
         narrative=args.narrative,
+        jobs=cast("int | None", args.jobs),
     )
     if isinstance(run, int):
         return run
@@ -1008,11 +1039,15 @@ def _run_narrate(args: argparse.Namespace) -> int:
     saves = cast(list[Path], args.saves)
     source = cast("str | None", args.package)
     if source is not None and (
-        saves or args.campaign is not None or args.min_significance is not None or args.constituents is not None
+        saves
+        or args.campaign is not None
+        or args.min_significance is not None
+        or args.constituents is not None
+        or args.jobs is not None
     ):
         print(
             "tinarrative narrate: --package is narrated as it was built; drop the save paths, --campaign, "
-            "--min-significance and --constituents",
+            "--min-significance, --constituents and --jobs",
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
@@ -1123,6 +1158,7 @@ _ASSEMBLE_EXCLUDED = (
     ("--max-output-tokens", "max_output_tokens"),
     ("--temperature", "temperature"),
     ("--config", "config"),
+    ("--jobs", "jobs"),
 )
 """The options ``narrate --assemble`` refuses: it reads the plan, requests and responses of DIR and nothing else."""
 
@@ -1467,6 +1503,7 @@ def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settin
         inferred=True,
         changes=False,
         narrative=True,
+        jobs=cast("int | None", args.jobs),
     )
     if isinstance(run, int):
         return run
@@ -1858,6 +1895,15 @@ def _add_councilors_parser(subcommands: argparse._SubParsersAction[argparse.Argu
             f"${CONFIG_ENV_VAR} if set, see docs/configuration.md)."
         ),
     )
+    parser.add_argument(
+        "--jobs",
+        type=_positive_int,
+        metavar="N",
+        help=(
+            "Worker processes for surveying the saves and analyzing the intervals; 1 runs everything in one process "
+            "(default: processing.jobs, else bounded by the CPUs and the memory the saves need)."
+        ),
+    )
     parser.set_defaults(handler=_run_councilors)
 
 
@@ -1963,6 +2009,15 @@ def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.Argument
         help=(
             f"A TOML settings file for the narrative rules' thresholds and windows (default: ${CONFIG_ENV_VAR} if "
             "set, else the built-in defaults; see docs/configuration.md)."
+        ),
+    )
+    parser.add_argument(
+        "--jobs",
+        type=_positive_int,
+        metavar="N",
+        help=(
+            "Worker processes for surveying the saves and analyzing the intervals; 1 runs everything in one process "
+            "(default: processing.jobs, else bounded by the CPUs and the memory the saves need)."
         ),
     )
     parser.set_defaults(handler=_run_events)
@@ -2100,6 +2155,15 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         help=(
             f"A TOML settings file: the narrative rules, and the [narrator] budget, provider and profiles (default: "
             f"${CONFIG_ENV_VAR} if set, else the built-in defaults; see docs/configuration.md)."
+        ),
+    )
+    parser.add_argument(
+        "--jobs",
+        type=_positive_int,
+        metavar="N",
+        help=(
+            "Worker processes for surveying the saves and analyzing the intervals; 1 runs everything in one process "
+            "(default: processing.jobs, else bounded by the CPUs and the memory the saves need)."
         ),
     )
     parser.set_defaults(handler=_run_narrate)
