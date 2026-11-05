@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 from collections import deque
 from collections.abc import Callable
@@ -60,7 +61,7 @@ class RateLimiter:
             self._tokens -= tokens
 
 
-def estimate_tokens(system: str, user: str, chars_per_token: int, max_output_tokens: int) -> int:
+def estimate_tokens(system: str, user: str, chars_per_token: float, max_output_tokens: int) -> int:
     """Estimate input from request text and reserve the full configured output allowance."""
     characters = len(system) + len(user)
-    return (characters + chars_per_token - 1) // chars_per_token + max_output_tokens
+    return math.ceil((characters + chars_per_token - 1) // chars_per_token) + max_output_tokens

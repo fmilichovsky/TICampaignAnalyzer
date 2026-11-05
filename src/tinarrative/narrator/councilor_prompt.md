@@ -155,6 +155,9 @@ Write about `length` words, in this order, as continuous prose:
 - `#### Public profile`: reputation, temperament and circumstances, from
   `traits` and `skills` in words; the activities in `missions` as a sample
   of what they're commonly seen doing.
+- `#### Controversy`: bring up potential inconsistencies and oddities in the
+  person's profile, which the perceptive part of the public could catch onto.
+  You are allowed to omit this section if the person seems completely impeccable.
 
 Rules of form: no title and no heading above `####`; third person; a neutral
 register with neither praise nor blame; no bullet lists, no tables, no
