@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 
@@ -41,6 +41,17 @@ class EntityId:
 
     domain: EntityDomain
     key: str
+    # Identities key most dictionaries of the pipeline; the generated hash re-hashed the StrEnum (in Python) each time.
+    _hash: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_hash", hash((self.domain, self.key)))
+
+    def __hash__(self) -> int:
+        return self._hash
+
+    def __reduce__(self) -> tuple[type[EntityId], tuple[EntityDomain, str]]:
+        return (EntityId, (self.domain, self.key))  # string hashes differ between processes: rehash on unpickling
 
     def __str__(self) -> str:
         return f"{self.domain.value}:{self.key}"
@@ -60,6 +71,16 @@ class EntityRef:
     confidence: IdentityConfidence
     state_type: str | None = None
     name: str | None = None
+    _hash: int = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "_hash", hash((self.entity_id, self.confidence, self.state_type, self.name)))
+
+    def __hash__(self) -> int:
+        return self._hash
+
+    def __reduce__(self) -> tuple[type[EntityRef], tuple[EntityId, IdentityConfidence, str | None, str | None]]:
+        return (EntityRef, (self.entity_id, self.confidence, self.state_type, self.name))
 
     def label(self) -> str:
         """``Name (nation:3857)``: the display name with the ID kept for audit; the bare ID without a name.

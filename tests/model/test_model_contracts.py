@@ -1,6 +1,7 @@
 """Construction, equality, unknown-vs-empty and deterministic ordering of the model contracts."""
 
 import json
+import pickle
 from dataclasses import FrozenInstanceError, replace
 
 import pytest
@@ -81,6 +82,22 @@ def test_freeze_keeps_scalar_types_and_accepts_subclasses() -> None:
     assert freeze(Text("x")) == "x"
     assert freeze((1, [2])) == (1, (2,))
     assert freeze(_ref("1")) == _ref("1")
+
+
+def test_identity_hash_is_cached_without_changing_equality_order_or_repr() -> None:
+    entity_id = EntityId(EntityDomain.NATION, "9")
+    assert hash(entity_id) == hash((EntityDomain.NATION, "9")) == hash(EntityId(EntityDomain.NATION, "9"))
+    assert repr(entity_id) == "EntityId(domain=<EntityDomain.NATION: 'nation'>, key='9')"
+    assert sorted([EntityId(EntityDomain.REGION, "1"), EntityId(EntityDomain.NATION, "9")])[0] == entity_id
+    ref = _ref("9")
+    assert hash(ref) == hash((ref.entity_id, ref.confidence, ref.state_type, ref.name))
+    renamed = replace(ref, name="Fixtureland")
+    assert renamed != ref
+    assert hash(renamed) == hash((ref.entity_id, ref.confidence, ref.state_type, "Fixtureland"))
+    assert ref == _ref("9") and {ref: 1}[_ref("9")] == 1
+    restored = pickle.loads(pickle.dumps(renamed))
+    assert restored == renamed and hash(restored) == hash(renamed)
+    assert pickle.loads(pickle.dumps(entity_id)) == entity_id
 
 
 def test_to_jsonable_keeps_unknown_visible() -> None:
