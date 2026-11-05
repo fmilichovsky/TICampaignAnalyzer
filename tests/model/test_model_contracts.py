@@ -67,6 +67,22 @@ def test_freeze_is_hashable_and_deterministic() -> None:
         freeze(object())
 
 
+def test_freeze_keeps_scalar_types_and_accepts_subclasses() -> None:
+    class Text(str):
+        pass
+
+    for scalar in (True, 1, 1.0, "x", None):
+        frozen = freeze(scalar)
+        assert frozen == scalar
+        assert type(frozen) is type(scalar)
+    assert freeze([True, 1, 1.0]) == (True, 1, 1.0)
+    assert [type(item) for item in freeze([True, 1, 1.0])] == [bool, int, float]  # type: ignore[union-attr]
+    assert freeze({"a": {"b": [1]}}) == FrozenMap((("a", FrozenMap((("b", (1,)),))),))
+    assert freeze(Text("x")) == "x"
+    assert freeze((1, [2])) == (1, (2,))
+    assert freeze(_ref("1")) == _ref("1")
+
+
 def test_to_jsonable_keeps_unknown_visible() -> None:
     assert to_jsonable(Unknown()) == {"unknown": "missing"}
     assert to_jsonable(()) == []
