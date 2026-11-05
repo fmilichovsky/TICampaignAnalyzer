@@ -7,13 +7,12 @@ xenoforming cleared) is a reconstruction question.
 
 from __future__ import annotations
 
-from ...model.changes import StateChange, StateDiff
+from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId
 from ...model.events import Event
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     classify,
@@ -40,9 +39,9 @@ VALUE_FIELDS = (
 
 class RegionAlienAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         events.extend(_crashdowns(index, lookup, build))

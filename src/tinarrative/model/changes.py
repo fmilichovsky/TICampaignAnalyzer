@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from functools import cached_property
 from typing import Any
 
-from .entities import EntityId
+from .entities import EntityDomain, EntityId
 from .evidence import Evidence, SourceLocation
 from .records import RecordEntry, entry_to_dict
 from .snapshot import SaveSnapshot
@@ -125,6 +126,11 @@ class StateDiff:
     def __post_init__(self) -> None:
         object.__setattr__(self, "changes", tuple(sorted(self.changes, key=lambda change: change.sort_key)))
 
+    @cached_property
+    def index(self) -> ChangeIndex:
+        """The changes by entity, field and domain; built once, shared by every analyzer and rule."""
+        return ChangeIndex(self)
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "before": self.before.source,
@@ -133,3 +139,33 @@ class StateDiff:
             "after_date": to_jsonable(self.after.date),
             "changes": [change.to_dict() for change in self.changes],
         }
+
+
+class ChangeIndex:
+    def __init__(self, diff: StateDiff) -> None:
+        self._by_entity_field: dict[tuple[EntityId, str], StateChange] = {}
+        self._by_domain_field: dict[tuple[str, str], list[StateChange]] = {}
+        self._presence: dict[str, list[StateChange]] = {}
+        for change in diff.changes:
+            if change.field is None:
+                self._presence.setdefault(change.domain, []).append(change)
+                continue
+            if change.entity_id is not None:
+                self._by_entity_field[(change.entity_id, change.field)] = change
+            self._by_domain_field.setdefault((change.domain, change.field), []).append(change)
+
+    def field(self, entity_id: EntityId, field_name: str) -> StateChange | None:
+        return self._by_entity_field.get((entity_id, field_name))
+
+    def fields(self, domain: EntityDomain, field_name: str) -> tuple[StateChange, ...]:
+        return tuple(self._by_domain_field.get((domain.value, field_name), ()))
+
+    def presence(self, domain: EntityDomain) -> tuple[StateChange, ...]:
+        return tuple(self._presence.get(domain.value, ()))
+
+    def singleton(self, domain: str, field_name: str) -> StateChange | None:
+        """The one change of a pseudo-domain field (``campaign``, ``research``: no entity), if any."""
+        for change in self._by_domain_field.get((domain, field_name), ()):
+            if change.entity_id is None:
+                return change
+        return None

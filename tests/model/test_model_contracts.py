@@ -292,6 +292,29 @@ def test_snapshot_orders_records_by_owner_then_field_and_serializes_them() -> No
     assert SaveSnapshot(source="a.save", date="d").records == ()
 
 
+def test_a_snapshot_indexes_its_states_and_records_once_without_changing_equality() -> None:
+    nation, faction = EntityState(_ref("3")), EntityState(_ref("15", EntityDomain.FACTION))
+    record = _record("Transactions", RecordKind.LEDGER)
+    snapshot = SaveSnapshot(source="a.save", date="d", nations=(nation,), factions=(faction,), records=(record,))
+    fresh = replace(snapshot)
+    assert snapshot.state_index is snapshot.state_index
+    assert snapshot.collection_index is snapshot.collection_index
+    assert snapshot.record_index is snapshot.record_index
+    assert snapshot.state_index == {nation.ref.entity_id: nation, faction.ref.entity_id: faction}
+    assert snapshot.collection_index["nations"] == {nation.ref.entity_id: nation}
+    assert snapshot.collection_index["ships"] == {}
+    assert snapshot.record_index == {(FACTION.entity_id, "Transactions"): record}
+    assert snapshot == fresh and hash(snapshot) == hash(fresh)  # a filled cache is not part of the value
+    assert repr(snapshot) == repr(fresh) and snapshot.to_dict() == fresh.to_dict()
+
+
+def test_a_diff_indexes_its_changes_once() -> None:
+    snapshot = SaveSnapshot(source="a.save", date="d")
+    diff = StateDiff(before=snapshot, after=snapshot, changes=(_change("gdp"),))
+    assert diff.index is diff.index
+    assert diff.index.fields(EntityDomain.NATION, "gdp") == diff.changes
+
+
 def test_records_detail_serializes_entries_and_changed_pairs() -> None:
     before, after = KeyedEntry(0, "Human", 0), KeyedEntry(0, "Human", 1)
     detail = RecordsDetail(added=(ItemEntry(1, "B"),), changed=((before, after),))

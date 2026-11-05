@@ -20,7 +20,7 @@ from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import LedgerEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
-from ..common import ChangeIndex, EventBuilder, Lookup, Side
+from ..common import EventBuilder, Lookup, Side
 
 logger = get_logger(__name__)
 
@@ -97,9 +97,9 @@ def in_window(before_date: Observed, after_date: Observed, entry_date: Observed)
 
 class LedgerAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         counts: Counter[str] = Counter()
         events: list[Event] = []
         for change in index.fields(EntityDomain.FACTION, LEDGER_FIELD):

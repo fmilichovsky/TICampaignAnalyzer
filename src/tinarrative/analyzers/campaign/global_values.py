@@ -13,7 +13,6 @@ from ...model.records import ItemEntry, KeyedEntry, RecordEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed, Unknown
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     Side,
@@ -50,9 +49,9 @@ HANDLED_ELSEWHERE = frozenset((INTERSTATE_WARS,))
 
 class GlobalValuesAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for change in index.presence(DOMAIN):

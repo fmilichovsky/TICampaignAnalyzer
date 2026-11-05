@@ -11,12 +11,12 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable
 
-from ...model.changes import StateChange, StateDiff
+from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import FieldValue, FrozenMap, Unknown
-from ..common import ChangeIndex, EventBuilder, Lookup, Side, primary
+from ..common import EventBuilder, Lookup, Side, primary
 from .nation_metrics import TRACKERS, cause_deltas, interval_days, number, placeholder
 
 POPULATION_CHANGED = "nation.population_changed"
@@ -42,9 +42,9 @@ def population_limit(days: float | None) -> float:
 
 class NationPopulationAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         days = interval_days(before, after)
         moves = region_moves(index)
         events: list[Event] = []

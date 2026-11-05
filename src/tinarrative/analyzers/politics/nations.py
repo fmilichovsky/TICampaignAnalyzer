@@ -14,7 +14,6 @@ from ...model.records import KeyedEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import FrozenMap, Observed, Unknown
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -64,10 +63,10 @@ def list_event_type(field_name: str) -> str:
 
 class NationAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for change in index.fields(EntityDomain.REGION, "nation"):

@@ -10,7 +10,6 @@ from ...model.entities import EntityDomain
 from ...model.events import Event, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -43,10 +42,10 @@ VALUE_FIELDS = (
 
 class CouncilorAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for change in index.fields(EntityDomain.COUNCILOR, "faction"):

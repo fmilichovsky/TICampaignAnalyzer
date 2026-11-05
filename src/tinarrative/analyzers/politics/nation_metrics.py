@@ -15,12 +15,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
-from ...model.changes import ChangeKind, StateChange, StateDiff
+from ...model.changes import ChangeIndex, ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId
 from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import FrozenMap, Observed, Unknown
-from ..common import ChangeIndex, EventBuilder, Lookup, Side, primary
+from ..common import EventBuilder, Lookup, Side, primary
 
 STATISTIC_SHIFTED = "nation.statistic_shifted"
 PUBLIC_OPINION = "publicOpinion"
@@ -146,9 +146,9 @@ def is_shift(before: float, after: float, threshold: StatisticThreshold, days: f
 
 class NationMetricAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         days = interval_days(before, after)
         events: list[Event] = []
         for statistic, threshold in STATISTIC_THRESHOLDS.items():

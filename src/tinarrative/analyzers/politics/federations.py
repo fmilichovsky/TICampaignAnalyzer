@@ -6,13 +6,12 @@ becomes ``nation.federation_changed``. A rename is one event per federation citi
 
 from __future__ import annotations
 
-from ...model.changes import ChangeKind, StateChange, StateDiff
+from ...model.changes import ChangeIndex, ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -39,10 +38,10 @@ HANDLED_LISTS = ((EntityDomain.FEDERATION, "members"),)
 
 class FederationAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         mirror = _NationFederations(index)
         events: list[Event] = []
 

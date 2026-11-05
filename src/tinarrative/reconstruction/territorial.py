@@ -12,7 +12,7 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
-from ..analyzers.common import ChangeIndex, EventBuilder, Lookup, Side, event_id
+from ..analyzers.common import EventBuilder, Lookup, Side, event_id
 from ..analyzers.politics.control_points import CONTROLLER_CHANGED
 from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
 from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
@@ -84,9 +84,9 @@ class Context:
     """The interval's events indexed for the rules, with the diff and snapshot lookups beside them."""
 
     def __init__(self, events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> None:
-        self.index = ChangeIndex(diff)
+        self.index = diff.index
         self.lookup = Lookup(before, after)
-        self.build = EventBuilder(before, after)
+        self.build = EventBuilder(before, after, self.lookup)
         self.events: list[Event] = []
         self.by_id: dict[str, Event] = {}
         self.by_subject: dict[tuple[str, EntityId], list[Event]] = defaultdict(list)

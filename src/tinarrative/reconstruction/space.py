@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 
 from ..analyzers.campaign.global_values import MILESTONE_RECORDED
 from ..analyzers.campaign.notifications import PREFIX as NOTIFICATION_PREFIX
-from ..analyzers.common import ChangeIndex, EventBuilder, Lookup, Side
+from ..analyzers.common import EventBuilder, Lookup, Side
 from ..analyzers.space.combat import COMBAT_RECORDED, side_factions
 from ..analyzers.space.fleets import DISAPPEARED as FLEET_DISAPPEARED
 from ..analyzers.space.habs import APPEARED as HAB_APPEARED
@@ -63,9 +63,9 @@ class SpaceContext:
 
     def __init__(self, events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> None:
         self.objective = ObjectiveIndex(events)
-        self.index = ChangeIndex(diff)
+        self.index = diff.index
         self.lookup = Lookup(before, after)
-        self.build = EventBuilder(before, after)
+        self.build = EventBuilder(before, after, self.lookup)
         self.before = before
 
     def of_type(self, event_type: str) -> tuple[Event, ...]:

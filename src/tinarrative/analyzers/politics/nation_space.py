@@ -10,12 +10,12 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
-from ...model.changes import StateChange, StateDiff
+from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Unknown
-from ..common import ChangeIndex, EventBuilder, Lookup, Side, primary
+from ..common import EventBuilder, Lookup, Side, primary
 from .nation_assets import BOOST, MISSION_CONTROL, SPACE_DEFENCES, STO_FIGHTERS, defended, refs, region_sum
 from .nation_metrics import interval_days, placeholder
 from .nation_population import moved, region_moves
@@ -59,9 +59,9 @@ def is_space_change(statistic: str, before: float, after: float) -> bool:
 
 class NationSpaceAssetsAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         days = interval_days(before, after)
         moves = region_moves(index)
         events: list[Event] = []
