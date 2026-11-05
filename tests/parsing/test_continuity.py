@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
 import pytest
 
 from tinarrative.identity import STATE_PREFIX
-from tinarrative.parsing.continuity import CampaignProfile, campaign_profile, campaign_profile_from_bytes
+from tinarrative.parsing.continuity import CampaignProfile, campaign_profile
 from tinarrative.parsing.errors import UnsupportedSaveShapeError
 from tinarrative.parsing.raw_save import RawSave
 
@@ -49,23 +48,6 @@ def test_one_human_player_gives_the_full_identity() -> None:
         started=datetime(2026, 1, 4, 11, 37, 51, 759000),
     )
     assert result.identity == (15, "The Resistance", ("FullScenario", "2026Scenario"), result.started)
-
-
-def test_bytes_entry_point_matches_raw_save_entry_point() -> None:
-    value = {"currentID": {"value": 1}, "gamestates": {}}
-    value["gamestates"].update(
-        {
-            STATE_PREFIX + "TIFactionState": [pair(15)],
-            STATE_PREFIX + "TIPlayerState": [player(60, ai=False)],
-            STATE_PREFIX + "TIMetadataState": [pair(1, playerFactionName="The Resistance")],
-            STATE_PREFIX + "TITimeState": [pair(2)],
-            STATE_PREFIX + "TIGlobalValuesState": [pair(3, realWorldCampaignStart=START)],
-        }
-    )
-    data = json.dumps(value).encode()
-    raw = RawSave("fragment.json", "terra_invicta_json_v1", None, value, len(data))
-
-    assert campaign_profile_from_bytes(data) == campaign_profile(raw)
 
 
 @pytest.mark.parametrize(

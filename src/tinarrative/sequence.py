@@ -28,10 +28,10 @@ from .model.snapshot import SaveSnapshot
 from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
 from .narrative.chronology import TIE_SEPARATOR, chronological, interval_keys, qualify
 from .narrative.situation import SPACEPORTS
-from .parsing.continuity import CampaignProfile, campaign_profile, campaign_profile_from_states
+from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
-from .parsing.normalization import normalize, save_timestamp, save_timestamp_from_states
-from .parsing.raw_save import SURVEY_STATE_TYPES, parse_raw_save, parse_survey_states
+from .parsing.normalization import normalize
+from .parsing.survey import survey_metadata
 from .reconstruction import infer_events
 from .workers import memory_line, pool, tick
 
@@ -194,14 +194,7 @@ def survey(path: Path) -> SaveRef:
     content."""
     started = time.perf_counter()
     data = load_save(path)
-    states = parse_survey_states(data)
-    if states is None or not all(f"PavonisInteractive.TerraInvicta.{name}" in states for name in SURVEY_STATE_TYPES):
-        raw = parse_raw_save(data, source=str(path))
-        timestamp = save_timestamp(raw)
-        profile = campaign_profile(raw)
-    else:
-        timestamp = save_timestamp_from_states(states)
-        profile = campaign_profile_from_states(states)
+    timestamp, profile = survey_metadata(data, source=str(path))
     if timestamp is None:
         raise UnknownChronologyError("no parseable TITimeState.currentDateTime; the save cannot be ordered")
     surveyed = SaveRef(
