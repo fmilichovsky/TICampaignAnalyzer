@@ -1,4 +1,4 @@
-"""Runtime settings: thresholds and windows of the narrative rules, the narrator's budget and provider.
+"""Runtime settings: thresholds and windows of the narrative rules, the narrator's budget and provider, the workers.
 
 A TOML file mirrors the dataclasses below and names only the keys it changes. Validation is strict (``bool`` is not
 a number, an integer is a valid float); keys in docs/configuration.md, evidence for the narrative defaults in
@@ -186,10 +186,20 @@ class CouncilorSettings:
 
 
 @dataclass(frozen=True)
+class ProcessingSettings:
+    """How the save-input commands use the machine (``processing``); never changes what they report."""
+
+    jobs: int | None = _int(None, 1)
+    """Worker processes for surveying the saves and analyzing the intervals; unset picks a count bounded by the CPUs
+    and the memory the saves need, and 1 runs everything in one process."""
+
+
+@dataclass(frozen=True)
 class Settings:
     narrative: NarrativeSettings = field(default_factory=NarrativeSettings)
     narrator: NarratorSettings = field(default_factory=NarratorSettings)
     councilors: CouncilorSettings = field(default_factory=CouncilorSettings)
+    processing: ProcessingSettings = field(default_factory=ProcessingSettings)
 
     def to_dict(self) -> dict[str, Any]:
         """The settings as nested tables; unset (``None``) keys are left out."""

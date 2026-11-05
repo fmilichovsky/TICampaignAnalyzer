@@ -13,7 +13,7 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TextIO, TypeGuard
+from typing import Any, TextIO, TypeGuard, cast
 
 from ..log import ENV_VAR, TIMING_ENV_VAR
 from .manifest import MANIFEST, sample_files, sha256_file
@@ -57,12 +57,15 @@ class Side:
 def parse_timings(stderr: str) -> dict[str, Any] | None:
     """Stage totals, seconds per interval and per narrative rule from the timing lines; ``None`` without any.
 
-    An interval's seconds include loading and reporting its later save, so the series shows growth per save.
+    An interval's seconds include loading and reporting its later save, so the series shows growth per save. With
+    worker processes the stages are CPU seconds summed over them; ``peak_memory`` sums every process's ``memory``
+    line, an upper bound because the peaks need not coincide.
     """
     stages = dict.fromkeys(STAGES, 0.0)
     saves: dict[int, float] = {}
     intervals: dict[int, float] = {}
     rules: dict[str, float] = {}
+    peaks: list[int] = []
     found = False
     for line in stderr.splitlines():
         match = _LINE.match(line)
@@ -85,6 +88,8 @@ def parse_timings(stderr: str) -> dict[str, Any] | None:
             intervals[int(values["index"])] = sum(seconds)
         elif kind == "rule":
             rules[values["name"]] = rules.get(values["name"], 0.0) + float(values["seconds"])
+        elif kind == "memory":
+            peaks.append(int(values["peak"]))
     if not found:
         return None
     stages["decode"] = max(stages["decode"] - stages["normalize"], 0.0)
@@ -94,6 +99,8 @@ def parse_timings(stderr: str) -> dict[str, Any] | None:
         "stages": {stage: round(value, 3) for stage, value in stages.items()},
         "intervals": [round(value, 3) for value in series],
         "rules": {name: round(value, 3) for name, value in sorted(rules.items())},
+        "processes": len(peaks),
+        "peak_memory": sum(peaks) if peaks else None,
     }
 
 
@@ -250,8 +257,20 @@ def _stage_rows(run: Mapping[str, Any] | None) -> dict[str, float | None]:
     if timings is None:
         return rows
     rows.update(timings["stages"])
-    rows["other"] = max(run["seconds"] - sum(timings["stages"].values()), 0.0)
+    if not _workers(run):
+        rows["other"] = max(run["seconds"] - sum(timings["stages"].values()), 0.0)
     return rows
+
+
+def _workers(run: Mapping[str, Any] | None) -> int:
+    """The worker processes of a run: its ``memory`` lines less the coordinator's."""
+    return max(int(((run or {}).get("timings") or {}).get("processes") or 0) - 1, 0)
+
+
+def _peak(run: Mapping[str, Any] | None) -> int | None:
+    """Every process's peak summed from the timing lines, else the command's own maximum resident set."""
+    summed = ((run or {}).get("timings") or {}).get("peak_memory")
+    return cast("int | None", summed if summed is not None else (run or {}).get("max_rss"))
 
 
 def _growth(run: Mapping[str, Any] | None) -> float | None:
@@ -299,6 +318,12 @@ def report(runtime: Mapping[str, Any], *, run_url: str | None = None) -> str:
                 notes.append(f"{name} · {side} failed with exit {run.get('exit')}: `{run.get('error', '')[-200:]}`")
             elif _ok(run) and run.get("timings") is None:
                 notes.append(f"{name} · {side} writes no timing lines; only its wall time and peak memory are shown.")
+            elif _workers(run):
+                notes.append(
+                    f"{name} · {side} ran {_workers(run)} worker processes: its stages are CPU seconds summed over "
+                    "them, so `total` is the time to compare and `other` is not shown; peak memory sums every "
+                    "process's peak."
+                )
         saves = next((run["timings"]["saves"] for run in (after, before) if _ok(run) and run.get("timings")), None)
         title = f"### {name}" + ("" if saves is None else f" · {saves} saves")
         head_rows, base_rows = _stage_rows(after), _stage_rows(before)
@@ -312,12 +337,12 @@ def report(runtime: Mapping[str, Any], *, run_url: str | None = None) -> str:
                 table.append(f"| {row} | {_seconds(old)} | {_seconds(new)} | {text} |")
                 if flag:
                     flagged.append(f"{name} · {row}: {_seconds(old)} → {_seconds(new)} ({text.strip('*')})")
-            peaks = [(run or {}).get("max_rss") for run in (before, after)]
+            peaks = [_peak(run) for run in (before, after)]
             table.append(f"| peak memory | {_megabytes(peaks[0])} | {_megabytes(peaks[1])} | |")
         else:
             table = ["| Stage | Seconds |", "| --- | ---: |"]
             table += [f"| {row} | {_seconds(head_rows.get(row))} |" for row in names]
-            table.append(f"| peak memory | {_megabytes((after or {}).get('max_rss'))} |")
+            table.append(f"| peak memory | {_megabytes(_peak(after))} |")
         extra: list[str] = []
         growth = {side: _growth(run) for side, run in (("base", before), ("head", after))}
         if growth["head"] is not None:

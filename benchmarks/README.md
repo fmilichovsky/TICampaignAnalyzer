@@ -26,6 +26,7 @@ revision. Progress is shown as one aggregate terminal line while campaigns conti
 
 The campaigns are measured at once. Within a campaign every `events` run starts at once, and each `narrate` run as
 soon as the package it plans is written. `--jobs` bounds the commands running together (default: the CPU count). Each
+`events` run gets `events --jobs 1` when the revision measured takes it, so the runs do not each start workers. Each
 `events` run holds a whole campaign in memory, so lower it on a machine with little RAM. The log shows one tree per
 campaign, `events` and `narrate` runs with their times, written in one piece when the campaign is done.
 
@@ -99,7 +100,9 @@ every other repeat, so a machine that slows down during the run slows both sides
 Each run sets `TINARRATIVE_TIMING=1`, so `events` adds the stage seconds of its
 [timing lines](../docs/debugging.md) to its log: survey, decode, normalize, situation, diff, analyzers,
 reconstruction, significance and aggregation. The wall time not covered by any stage is `other`: start-up,
-rendering and writing the output. Peak memory is the child process's maximum resident set. A revision older than
+rendering and writing the output. Peak memory is the child process's maximum resident set. `events` runs with its
+default worker count, so where it starts workers the stages are CPU seconds summed over them, `other` is not shown
+and `total` is the measure to compare. Peak memory then sums the `memory` line of every process, an upper bound. A revision older than
 the timing lines reports wall time and peak memory only. The runtime JSON also holds the seconds of every interval
 (including loading its later save) and of every narrative rule.
 

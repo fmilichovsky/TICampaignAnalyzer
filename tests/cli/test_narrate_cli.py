@@ -166,6 +166,7 @@ def test_usage_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> Non
     assert main(["narrate", "--package", str(package), "--min-significance", "minor"]) == EXIT_USAGE_ERROR
     assert main(["narrate", "--package", str(package), "--constituents", "all"]) == EXIT_USAGE_ERROR
     assert main(["narrate", "--package", str(package), "save.json"]) == EXIT_USAGE_ERROR
+    assert main(["narrate", "--package", str(package), "--jobs", "2"]) == EXIT_USAGE_ERROR
     assert "give save paths or --package FILE" in capsys.readouterr().err
 
 

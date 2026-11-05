@@ -83,6 +83,8 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
         ("[councilors]\narticle_words = 0\n", "'councilors.article_words' must be at least 1"),
         ("[councilors]\nmin_tenure_days = 1.5\n", "'councilors.min_tenure_days' must be an integer"),
         ("[councilors]\nloyalty = 1\n", "unknown setting 'councilors.loyalty'"),
+        ("[processing]\njobs = 0\n", "'processing.jobs' must be at least 1"),
+        ("[processing]\njobs = 'auto'\n", "'processing.jobs' must be an integer"),
         (
             "[narrator]\nprovider = 'gemini'\n",
             "'narrator.provider' must be one of: anthropic, openai, openrouter, ollama",
@@ -113,6 +115,13 @@ def test_the_significance_scale_clamp_defaults_and_overrides(tmp_path: Path) -> 
         "narrative.significance.scale_min": -100,
         "narrative.significance.scale_max": 0,
     }
+
+
+def test_processing_jobs_is_unset_by_default_and_overridable(tmp_path: Path) -> None:
+    assert DEFAULT_SETTINGS.processing.jobs is None
+    settings = load_settings(write(tmp_path, "[processing]\njobs = 3\n"))
+    assert settings.processing.jobs == 3
+    assert settings.differences(DEFAULT_SETTINGS) == {"processing.jobs": 3}
 
 
 def test_councilor_settings_override_the_defaults(tmp_path: Path) -> None:

@@ -110,4 +110,4 @@ Tracking #249.
 - [x] Shared snapshot and interval indexes (#254).
 - [x] Indexed event stream for narrative rules (#255).
 - [x] Normalization and model hot-path costs (#256).
-- [ ] Parallel survey and interval processing (#257).
+- [x] Parallel survey and interval processing (#257).

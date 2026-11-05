@@ -76,6 +76,13 @@ ranking_top_n = 10
 scale_min = -20
 scale_max = 15
 
+[processing]
+# Worker processes for surveying the saves and analyzing the intervals of
+# events, narrate and councilors (minimum 1; --jobs overrides it). Unset picks
+# a count bounded by the CPUs and the memory the saves need; 1 runs everything
+# in one process. Never changes what a command reports.
+# jobs = 4
+
 [councilors]
 # The most prominent councilors of each other human faction that join the
 # player's councilors in the dossier of tinarrative councilors.

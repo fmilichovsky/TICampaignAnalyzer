@@ -605,7 +605,9 @@ Principles:
     rejected rather than placed by name. Byte-identical saves are one save with several paths.
 -   **Two snapshots at most.** Each consecutive pair is analysed as one interval (diff, analyzers,
     significance, reconstruction), keyed by its later save. Consecutive intervals share their boundary
-    snapshot, so the per-interval results concatenate without overlap.
+    snapshot, so the per-interval results concatenate without overlap. The same holds for contiguous chunks of
+    intervals run by worker processes: each worker loads its chunk's first save once more, and the results are
+    the same.
 -   **IDs are qualified by interval.** An event ID is unique within an interval only, so every ID gets an
     `@<interval key>` suffix before the streams are merged
     ([chronology](game-data-notes/chronology-and-deduplication.md)).
@@ -615,7 +617,8 @@ Principles:
     which hides intermediate states.
 
 Defined in `src/tinarrative/sequence.py` (`survey`, `plan_sequence`, `run_sequence`, `analyze_interval`,
-`narrative_events`) and `narrative/chronology.py` (`qualify`, `chronological`); the command is
+`narrative_events`), `workers.py` (the worker pool and its default size) and `narrative/chronology.py` (`qualify`,
+`chronological`); the command is
 [events](commands/events.md).
 
 ## Mode C --- Campaign directory

@@ -132,6 +132,12 @@ def _timed_run(command: Sequence[str]) -> Timed:
     return completed, time.perf_counter() - started
 
 
+def _serial(cli: Sequence[str]) -> list[str]:
+    """``--jobs 1`` when the revision's ``events`` takes it: the runs already fill the CPUs, and workers per run would
+    multiply processes and memory. An older revision is run as it is."""
+    return ["--jobs", "1"] if "--jobs" in _run([*cli, "events", "--help"]).stdout else []
+
+
 def _failure(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
     error = completed.stderr.strip()[-STDERR_TAIL:]
     failure: dict[str, Any] = {"exit": completed.returncode, "error": error}
@@ -212,6 +218,7 @@ def _measure_campaign(
     matrix: Mapping[str, Sequence[Mapping[str, Any]]],
     *,
     cli: Sequence[str],
+    serial: Sequence[str] = (),
     config: Path,
     scratch: Path,
     out: Path,
@@ -235,9 +242,9 @@ def _measure_campaign(
     results: dict[str, dict[str, Any]] = {"events": {}, "narrate": {}}
     seconds: dict[tuple[str, str], float] = {}
     events: dict[Future[Timed], str] = {
-        runs.submit(_timed_run, [*cli, "events", str(saves), *entry.get("args", []), "--config", str(config)]): entry[
-            "id"
-        ]
+        runs.submit(
+            _timed_run, [*cli, "events", str(saves), *entry.get("args", []), *serial, "--config", str(config)]
+        ): entry["id"]
         for entry in matrix["events"]
     }
     narrations: dict[Future[Timed], Mapping[str, Any]] = {}
@@ -325,6 +332,7 @@ def measure(
     started = time.perf_counter()
     measured: dict[str, Any] = {}
     cli = [python, "-m", "tinarrative.cli"]
+    serial = _serial(cli)
     with (
         tempfile.TemporaryDirectory(prefix="package-metrics-") as scratch,
         ThreadPoolExecutor(max_workers=jobs) as runs,
@@ -338,6 +346,7 @@ def measure(
                 files,
                 matrix,
                 cli=cli,
+                serial=serial,
                 config=config,
                 scratch=Path(scratch),
                 out=out,
