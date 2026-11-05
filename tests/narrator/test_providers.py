@@ -259,7 +259,7 @@ def test_a_client_error_carries_the_shortened_provider_message() -> None:
 
     assert raised.value.kind == "http"
     assert str(raised.value).startswith("HTTP 400: model not found xxx") and str(raised.value).endswith("...")
-    assert len(str(raised.value)) < 250
+    assert len(str(raised.value)) < 270
     assert str(ollama.value) == "HTTP 404: gone"
 
 

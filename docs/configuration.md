@@ -79,7 +79,7 @@ The `councilors` keys ([councilors](commands/councilors.md)):
 | `councilors.rivals_per_faction` | 2 | 0 | The most prominent councilors of each other human faction that join the player's councilors in the dossier. |
 | `councilors.min_tenure_days` | 365 | 0 | A councilor is selected only after being employed this many game days. |
 | `councilors.missions_per_councilor` | 3 | 0 | A player councilor's dossier keeps this many mission and target groups, the most frequent first. |
-| `councilors.article_words` | 250 | 1 | The article length each request asks for; also carried in the dossier header. |
+| `councilors.article_words` | 270 | 1 | The article length each request asks for; also carried in the dossier header. |
 
 The `processing` keys, for `events`, `narrate` from saves and `councilors` with several saves:
 
