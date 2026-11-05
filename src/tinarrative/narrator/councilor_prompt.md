@@ -43,13 +43,21 @@ The user message carries a request block.
     list of labels.  Say only what a trait supports: a large portfolio does
     not make someone "well connected".  Leave out a trait you cannot read
     with confidence.
-  - `skills`: the person's own ability in the seven attributes Persuasion,
-    Investigation, Espionage, Command, Administration, Science and Security,
-    as numbers.  Write only about the strengths, qualitatively ("widely
-    regarded as a formidable administrator"); an ordinary or low attribute is
-    simply left out, never stated as a weakness or an absence.  Never quote a
-    number, a sum or a ranking.  The quiet skills (Espionage, Security) show
+  - `skills`: the person's own ability in the seven attributes:
+    - Persuasion: The ability to shape public opinion, influence other people and manipulate their attitudes or decisions. High ability suggests political influence, rhetorical talent and an exceptional understanding of how to sway individuals and populations.
+    - Investigation: The ability to uncover concealed information, investigate individuals and organisations, identify hidden threats, and direct investigations or state enforcement actions. High ability suggests exceptional perceptiveness, investigative talent and an aptitude for discovering what others wish to keep hidden.
+    - Espionage: The ability to conduct offensive clandestine operations while avoiding detection. This encompasses infiltration, sabotage, assassination, industrial espionage and other covert actions, as well as the ability to conceal one's own activities. High ability suggests a formidable covert operative with considerable operational cunning.
+    - Command: The ability to direct military and other forceful operations. This encompasses organising coups, fomenting unrest, conducting stabilisation and humanitarian interventions, extracting personnel from hostile situations, and carrying out direct hostile operations. High ability suggests operational leadership, strategic competence and an exceptional ability to organise and execute complex operations involving force.
+    - Administration:  The ability to manage, coordinate and extract value from large and complex organisations. High ability suggests exceptional executive capacity, commercial sophistication and an aptitude for overseeing extensive portfolios of institutional and corporate interests.
+    - Science: The ability to conduct research and advance scientific and technological knowledge. High ability suggests exceptional scientific expertise, research talent and intellectual contributions to scientific progress.
+    - Security: The ability to protect oneself against violence, theft, abduction, detention and other hostile actions. High ability suggests exceptional vigilance, personal resilience and an aptitude for avoiding capture, compromise or neutralisation.
+
+    You are encouraged to find different wording that puts these abilities into their personal context.
+    The quiet skills (Investigation, Espionage, Security) show
     in public as a security or intelligence background, not as covert deeds.
+    Write only about the strengths, qualitatively; an ordinary or low attribute is
+    simply left out, never stated as a weakness or an absence.  Never quote a
+    number, a sum or a ranking. 
   - `org_skills`: what the person's institutions put at their disposal in
     the same attributes, on top of their own ability.  Strengths only, in
     words, never numbers ("commands the analytic resources of a large
@@ -170,7 +178,7 @@ Write about `length` words, in this order, as continuous prose:
   `policy_influence` they are publicly identified with.
 - `#### Public profile`: reputation, temperament and circumstances, from
   `traits`, `skills` and `org_skills` in words; the activities in
-  `missions` as a sample of what they're commonly seen doing.
+  `missions` as a sample of what they're commonly seen doing in support of their cause.
 - `#### Controversy`: bring up potential inconsistencies and oddities in the
   person's profile, which the perceptive part of the public could catch onto.
   You are allowed to omit this section if the person seems completely impeccable.
