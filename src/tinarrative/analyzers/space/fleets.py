@@ -11,7 +11,6 @@ from ...model.entities import EntityDomain
 from ...model.events import Event, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -52,10 +51,10 @@ _LIST_EVENT = {EntityDomain.FACTION.value: FACTION_LIST_CHANGED, EntityDomain.SP
 
 class FleetAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for field_name, event_type, list_field in MIRRORED_FIELDS:

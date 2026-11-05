@@ -14,7 +14,6 @@ from ...model.events import Event
 from ...model.snapshot import SaveSnapshot
 from ...model.values import FieldValue, Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     Transition,
@@ -31,9 +30,9 @@ FINISHED_LIST = "finishedProjectNames"
 
 class ProjectAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
         for change in index.fields(EntityDomain.FACTION, FINISHED_LIST):
             events.extend(_finished(change, lookup, build))

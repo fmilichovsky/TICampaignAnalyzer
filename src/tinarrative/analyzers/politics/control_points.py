@@ -5,14 +5,13 @@ Which faction thereby "controls a nation" is left to reconstruction.
 
 from __future__ import annotations
 
-from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
+from ...model.changes import ChangeIndex, ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import KeyedEntry
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -55,10 +54,10 @@ class _LossRecord:
 
 class ControlPointAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         losses = _loss_records(index, lookup)
         events: list[Event] = []
 

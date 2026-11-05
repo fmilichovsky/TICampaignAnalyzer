@@ -17,7 +17,6 @@ from ...model.records import NotificationEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     Side,
@@ -55,9 +54,9 @@ def entry_event_type(template: Observed) -> str:
 
 class NotificationAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for change in index.presence(DOMAIN):

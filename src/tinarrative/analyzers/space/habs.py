@@ -6,13 +6,13 @@ disappearance. ``dockedFleets`` belongs to the fleet analyzer.
 
 from __future__ import annotations
 
-from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
+from ...model.changes import ChangeIndex, ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import DestructionEntry
 from ...model.snapshot import EntityState, SaveSnapshot
 from ...model.values import Observed
-from ..common import ChangeIndex, EventBuilder, Lookup, Side, is_unresolved, primary, value_transition_event
+from ..common import EventBuilder, Lookup, Side, is_unresolved, primary, value_transition_event
 
 FACTION_CHANGED = "hab.faction_changed"
 TYPE_CHANGED = "hab.type_changed"
@@ -42,9 +42,9 @@ HabKey = tuple[EntityId, str, EntityId]
 
 class HabAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for field_name, event_type in VALUE_FIELDS:

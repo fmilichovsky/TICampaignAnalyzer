@@ -13,7 +13,7 @@ from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import CombatEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
-from ..common import ChangeIndex, EventBuilder, Lookup, Side, is_unresolved
+from ..common import EventBuilder, Lookup, Side, is_unresolved
 
 LOG_FIELD = "CombatLogs"
 COMBAT_RECORDED = "faction.combat_recorded"
@@ -22,9 +22,9 @@ ENTRY_REMOVED = "faction.combat_entry_removed"
 
 class CombatAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
         for change in index.fields(EntityDomain.FACTION, LOG_FIELD):
             events.extend(_log_events(change, lookup, build))

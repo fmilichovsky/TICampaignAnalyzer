@@ -203,10 +203,8 @@ def _presence_change(kind: ChangeKind, domain: str, state: EntityState, absent_s
 
 
 def _collection_changes(name: str, before: SaveSnapshot, after: SaveSnapshot) -> list[StateChange]:
-    before_states: tuple[EntityState, ...] = getattr(before, name)
-    after_states: tuple[EntityState, ...] = getattr(after, name)
-    before_index = {state.ref.entity_id: state for state in before_states}
-    after_index = {state.ref.entity_id: state for state in after_states}
+    before_index = before.collection_index[name]
+    after_index = after.collection_index[name]
     changes: list[StateChange] = []
     matched = 0
     for entity_id, state in before_index.items():
@@ -226,8 +224,8 @@ def _collection_changes(name: str, before: SaveSnapshot, after: SaveSnapshot) ->
             "collection compared %s",
             log_fields(
                 collection=name,
-                before=len(before_states),
-                after=len(after_states),
+                before=len(getattr(before, name)),
+                after=len(getattr(after, name)),
                 matched=matched,
                 **{kind.value: counts.get(kind.value, 0) for kind in ChangeKind},
             ),
@@ -364,8 +362,8 @@ def _single_item(entries: tuple[RecordEntry, ...]) -> ItemEntry | None:
 def _record_changes(before: SaveSnapshot, after: SaveSnapshot) -> list[StateChange]:
     """Record sets matched by owner and field; a set whose owner is on one side only is covered by that entity's
     ``appeared``/``disappeared`` change."""
-    before_index = {(record.owner.entity_id, record.field): record for record in before.records}
-    after_index = {(record.owner.entity_id, record.field): record for record in after.records}
+    before_index = before.record_index
+    after_index = after.record_index
     changes: list[StateChange] = []
     matched = 0
     for key, record in before_index.items():

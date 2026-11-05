@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field, fields
 from datetime import datetime
+from functools import cached_property
 from typing import Any
 
-from .entities import EntityRef
+from .entities import EntityId, EntityRef
 from .evidence import SourceLocation
 from .records import RecordSet
 from .values import FieldValue, Observed, Unknown, to_jsonable
@@ -157,6 +159,22 @@ class SaveSnapshot:
             object.__setattr__(self, name, _sorted_states(getattr(self, name)))
         object.__setattr__(self, "records", tuple(sorted(self.records, key=lambda record: record.sort_key)))
         object.__setattr__(self, "raw_metadata", tuple(sorted(self.raw_metadata, key=lambda item: item[0])))
+
+    # The indexes are cached on the instance; that is sound only because a snapshot is never mutated.
+    @cached_property
+    def collection_index(self) -> Mapping[str, Mapping[EntityId, EntityState]]:
+        """Each collection of ``STATE_COLLECTIONS``, by entity ID."""
+        return {name: {state.ref.entity_id: state for state in getattr(self, name)} for name in STATE_COLLECTIONS}
+
+    @cached_property
+    def state_index(self) -> Mapping[EntityId, EntityState]:
+        """Every entity state by ID, over all collections."""
+        return {entity_id: state for states in self.collection_index.values() for entity_id, state in states.items()}
+
+    @cached_property
+    def record_index(self) -> Mapping[tuple[EntityId, str], RecordSet]:
+        """Every record set by owner and field."""
+        return {(record.owner.entity_id, record.field): record for record in self.records}
 
     def to_dict(self) -> dict[str, Any]:
         def states(items: tuple[EntityState, ...]) -> list[dict[str, Any]]:

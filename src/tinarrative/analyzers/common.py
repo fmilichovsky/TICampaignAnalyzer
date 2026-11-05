@@ -15,11 +15,11 @@ from enum import StrEnum
 
 from ..log import fields as log_fields
 from ..log import get_logger
-from ..model.changes import ChangeKind, MembershipDetail, StateChange, StateDiff
+from ..model.changes import ChangeIndex, ChangeKind, MembershipDetail, StateChange, StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, DateBasis, Event, EventSource, EventStatus, SourceRole
 from ..model.records import RecordSet
-from ..model.snapshot import STATE_COLLECTIONS, EntityState, SaveSnapshot
+from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason
 from .base import Analyzer
 
@@ -91,42 +91,12 @@ def same_entity(value: Observed, entity_id: EntityId) -> bool:
     return isinstance(value, EntityRef) and value.entity_id == entity_id
 
 
-class ChangeIndex:
-    def __init__(self, diff: StateDiff) -> None:
-        self._by_entity_field: dict[tuple[EntityId, str], StateChange] = {}
-        self._by_domain_field: dict[tuple[str, str], list[StateChange]] = {}
-        self._presence: dict[str, list[StateChange]] = {}
-        for change in diff.changes:
-            if change.field is None:
-                self._presence.setdefault(change.domain, []).append(change)
-                continue
-            if change.entity_id is not None:
-                self._by_entity_field[(change.entity_id, change.field)] = change
-            self._by_domain_field.setdefault((change.domain, change.field), []).append(change)
-
-    def field(self, entity_id: EntityId, field_name: str) -> StateChange | None:
-        return self._by_entity_field.get((entity_id, field_name))
-
-    def fields(self, domain: EntityDomain, field_name: str) -> tuple[StateChange, ...]:
-        return tuple(self._by_domain_field.get((domain.value, field_name), ()))
-
-    def presence(self, domain: EntityDomain) -> tuple[StateChange, ...]:
-        return tuple(self._presence.get(domain.value, ()))
-
-    def singleton(self, domain: str, field_name: str) -> StateChange | None:
-        """The one change of a pseudo-domain field (``campaign``, ``research``: no entity), if any."""
-        for change in self._by_domain_field.get((domain, field_name), ()):
-            if change.entity_id is None:
-                return change
-        return None
-
-
 class Lookup:
     """Context from the two snapshots: entity states, their references and record sets, by side."""
 
     def __init__(self, before: SaveSnapshot, after: SaveSnapshot) -> None:
-        self._states = {Side.BEFORE: _index_states(before), Side.AFTER: _index_states(after)}
-        self._records = {Side.BEFORE: _index_records(before), Side.AFTER: _index_records(after)}
+        self._states = {Side.BEFORE: before.state_index, Side.AFTER: after.state_index}
+        self._records = {Side.BEFORE: before.record_index, Side.AFTER: after.record_index}
 
     def state(self, entity_id: EntityId, side: Side) -> EntityState | None:
         return self._states[side].get(entity_id)
@@ -175,19 +145,6 @@ class Lookup:
                 return Unknown()
             values.append(value)
         return math.fsum(values)
-
-
-def _index_states(snapshot: SaveSnapshot) -> dict[EntityId, EntityState]:
-    index: dict[EntityId, EntityState] = {}
-    for name in STATE_COLLECTIONS:
-        states: tuple[EntityState, ...] = getattr(snapshot, name)
-        for state in states:
-            index[state.ref.entity_id] = state
-    return index
-
-
-def _index_records(snapshot: SaveSnapshot) -> dict[tuple[EntityId, str], RecordSet]:
-    return {(record.owner.entity_id, record.field): record for record in snapshot.records}
 
 
 @dataclass
@@ -260,10 +217,10 @@ class EventBuilder:
     Analyzers build objective events; the reconstruction stage passes ``status`` and ``constituents``.
     """
 
-    def __init__(self, before: SaveSnapshot, after: SaveSnapshot) -> None:
+    def __init__(self, before: SaveSnapshot, after: SaveSnapshot, lookup: Lookup | None = None) -> None:
         self.not_before: Observed = before.date
         self.observed: Observed = after.date
-        self._lookup = Lookup(before, after)
+        self._lookup = lookup if lookup is not None else Lookup(before, after)
 
     def _named(self, value: Observed) -> Observed:
         """The value with every reference replaced by the entity's own (named) reference, where it is normalized."""

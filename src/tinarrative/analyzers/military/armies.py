@@ -12,7 +12,6 @@ from ...model.events import Event, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -59,10 +58,10 @@ def list_event_type(domain: str) -> str:
 
 class ArmyAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         for field_name, event_type in MIRRORED_FIELDS:

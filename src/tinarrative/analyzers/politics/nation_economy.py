@@ -17,7 +17,7 @@ from ...model.entities import EntityDomain
 from ...model.events import Event
 from ...model.snapshot import SaveSnapshot
 from ...model.values import FrozenMap
-from ..common import ChangeIndex, EventBuilder, Lookup, primary
+from ..common import EventBuilder, Lookup, primary
 from .nation_metrics import number, placeholder
 
 PCGDP_TREND = "nation.pcgdp_trend"
@@ -43,9 +43,9 @@ class NationEconomyAnalyzer:
     """
 
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         start = campaign_start(after)
         events: list[Event] = []
         for change in index.fields(EntityDomain.NATION, SERIES):

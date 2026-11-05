@@ -12,7 +12,6 @@ from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     Side,
@@ -54,9 +53,9 @@ class _Names:
 
 class TechnologyAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         names = _Names(index.singleton(RESEARCH_DOMAIN, FINISHED_LIST))
         events: list[Event] = []
 

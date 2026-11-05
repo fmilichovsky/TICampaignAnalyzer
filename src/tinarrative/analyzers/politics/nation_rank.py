@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
-from ...model.changes import StateChange, StateDiff
+from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityId
 from ...model.events import Event, EventSource, SourceRole
 from ...model.snapshot import SaveSnapshot
-from ..common import ChangeIndex, EventBuilder, Lookup, Side, primary
+from ..common import EventBuilder, Lookup, Side, primary
 from .nation_assets import (
     ARMY_FIELDS,
     BOOST,
@@ -47,9 +47,9 @@ _ARMY_INPUTS: Mapping[str, tuple[str, ...]] = {STRENGTH: ARMY_FIELDS}
 
 class NationRankAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         earlier, later = standings(before, lookup, Side.BEFORE), standings(after, lookup, Side.AFTER)
         events: list[Event] = []
         for name in RANKED_METRICS:

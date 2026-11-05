@@ -17,7 +17,6 @@ from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..campaign.global_values import INTERSTATE_WARS, INTERSTATE_WARS_CHANGED
 from ..common import (
-    ChangeIndex,
     EventBuilder,
     Lookup,
     MembershipLedger,
@@ -71,10 +70,10 @@ LAST_FIGHTING = "dateOfLastFighting"
 
 class WarAnalyzer:
     def analyze(self, before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> list[Event]:
-        index = ChangeIndex(diff)
+        index = diff.index
         lookup = Lookup(before, after)
         ledger = MembershipLedger(index, HANDLED_LISTS)
-        build = EventBuilder(before, after)
+        build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
         global_values = tuple(change.entity_id for change in index.fields(EntityDomain.GLOBAL_VALUES, INTERSTATE_WARS))

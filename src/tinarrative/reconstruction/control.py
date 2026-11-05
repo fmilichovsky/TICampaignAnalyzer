@@ -95,7 +95,7 @@ class ControlContext:
     def __init__(self, events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot) -> None:
         self.objective = ObjectiveIndex(events)
         self.lookup = Lookup(before, after)
-        self.build = EventBuilder(before, after)
+        self.build = EventBuilder(before, after, self.lookup)
 
     def of_type(self, event_type: str) -> tuple[Event, ...]:
         return self.objective.of_type(event_type)
