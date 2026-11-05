@@ -50,6 +50,14 @@ def is_unknown(value: Observed) -> bool:
 
 def freeze(value: Any) -> FieldValue:
     """Convert decoded JSON (lists/dicts) into an immutable, deterministic value."""
+    kind = type(value)
+    # Exact-type checks first: decoded JSON is almost all plain scalars, and the union isinstance below is slower.
+    if kind is str or kind is int or kind is float or kind is bool or value is None:
+        return value  # type: ignore[no-any-return]
+    if kind is list:
+        return tuple(freeze(item) for item in value)
+    if kind is dict:
+        return FrozenMap(tuple((str(key), freeze(item)) for key, item in value.items()))
     if value is None or isinstance(value, bool | int | float | str | EntityRef):
         return value
     if isinstance(value, list | tuple):
