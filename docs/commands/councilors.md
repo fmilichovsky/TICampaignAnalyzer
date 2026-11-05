@@ -106,9 +106,23 @@ DIR/
 `dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`
 and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
 carries identity, the profession in plain words (an intelligence officer, not the game's `Spy`),
-gender (`male`, `female` or `null`), traits, the seven skills, age, home region and nation,
-recruitment date and tenure, organizations, prominence, career and, for the player's councilors,
-missions and the active mission.
+gender (`male`, `female` or `null`), traits, the seven skills, the organization skills, age, home
+region and nation, recruitment date and tenure, organizations, policy influence, prominence, career
+and, for the player's councilors, missions and the active mission.
+
+`skills` are the councilor's own values, implants included. `org_skills` are what their organizations
+add on top: per skill, the sum of the organization bonuses, capped so that `skills` plus `org_skills`
+never exceed the game's limit of 25. Only nonzero skills are listed in either.
+
+`policy_influence` lists the causes the councilor's organizations push, from their nonzero priority
+and space bonuses, strongest first: `economic growth`, `welfare spending`, `education and research`,
+`government reform`, `national unity`, `military strength`, `law and order`, `environmental
+protection`, `patronage`, `space mining`, `space program development`, `launch capacity` and `mission
+control`.
+
+`prominence` is audit data: the organization tier squared and the skill sum the ranking uses, the
+capped organization skill sum (`org_skill_sum`, which does not affect the ranking) and the rank in
+the faction.
 
 Traits are listed by their in-game names (`Cautious`, not the game's `Averse`), grouped as
 `temperament`, `expertise`, `reputation`, `circumstance` and `affiliation`. A trait this version does
@@ -121,6 +135,8 @@ A real-world organization takes it from a hand-assigned catalog of the game's na
 categories are `research`, `security_intelligence`, `military`, `militant`, `aerospace`, `government`,
 `public_interest`, `commercial`, `engineering_industry`, `technology`, `mining_resources`,
 `media_influence`, `ngo`, `criminal`, `vigilante` and `other`. The raw `template` is kept for audit.
+`nation` is the name of the nation that holds the organization's home region now; it is `null` for
+an organization without a home region, such as a faction's own special organization.
 
 `councilors.md` opens with a header naming the provider, the model as reported, the prompt
 version, the dossier date and the player faction, then one `##` section per faction, the player's

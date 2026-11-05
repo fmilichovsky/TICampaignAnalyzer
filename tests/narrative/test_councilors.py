@@ -1,4 +1,4 @@
-"""The councilor dossier: selection, exclusions, ranking, org nature, missions, career and the loyalty rule."""
+"""The councilor dossier: selection, ranking, org nature and effects, missions, career and the loyalty rule."""
 
 from __future__ import annotations
 
@@ -137,7 +137,24 @@ def test_ranking_orders_by_org_tier_squared_then_skills_then_xp_then_id() -> Non
     )
     dossier = _build(snap, CouncilorSettings(rivals_per_faction=5))
     assert _ids(dossier) == ["councilor:111", "councilor:112", "councilor:113", "councilor:114", "councilor:110"]
-    assert dossier["councilors"][0]["prominence"] == {"org_tier2": 4, "skill_sum": 5, "rank_in_faction": 1}
+    assert dossier["councilors"][0]["prominence"] == {
+        "org_tier2": 4,
+        "skill_sum": 5,
+        "org_skill_sum": 0,
+        "rank_in_faction": 1,
+    }
+
+
+def test_org_skills_feed_prominence_but_not_the_ranking() -> None:
+    snap = _world(
+        _org("70", 2),
+        _org("71", 2, persuasion=5, science=3),
+        _councilor("110", "2", orgs=("70",), XP=50),
+        _councilor("111", "2", orgs=("71",)),
+    )
+    dossier = _build(snap, CouncilorSettings(rivals_per_faction=5))
+    assert _ids(dossier) == ["councilor:110", "councilor:111"]
+    assert [entry["prominence"]["org_skill_sum"] for entry in dossier["councilors"]] == [0, 8]
 
 
 def test_no_loyalty_anywhere() -> None:
@@ -161,6 +178,51 @@ def test_portrait_facts() -> None:
     assert entry["orgs"][0]["category"] == "criminal"
     assert entry["gender"] == "female"
     assert entry["profession"] == "security contractor"
+
+
+def test_org_nation_is_the_current_nation_of_its_home_region() -> None:
+    snap = _world(
+        state(EntityDomain.REGION, "41", AFTER),
+        state(EntityDomain.REGION, "42", AFTER, nation=nation_ref("29")),
+        _org("70", 2, homeRegion=region_ref("40")),
+        _org("71", 1, template="ResistSpecial", homeRegion=None),
+        _org("72", 1, homeRegion=region_ref("41")),
+        _org("73", 1, homeRegion=region_ref("42")),
+        _councilor("100", "1", orgs=("70", "71", "72", "73")),
+    )
+    orgs = _build(snap)["councilors"][0]["orgs"]
+    assert [org["nation"] for org in orgs] == ["Fixture nation 20", None, None, None]
+
+
+def test_org_skills_add_to_personal_skills_up_to_the_cap() -> None:
+    snap = _world(
+        _org("70", 2, persuasion=3, science=2, command=0),
+        _org("71", 1, persuasion=2, administration=5, security=4),
+        _councilor(
+            "100",
+            "1",
+            orgs=("70", "71"),
+            attributes=freeze({**SKILLS, "Administration": 22, "Security": 25}),
+        ),
+    )
+    entry = _build(snap)["councilors"][0]
+    assert entry["skills"] == {"Persuasion": 3, "Investigation": 2, "Administration": 22, "Security": 25}
+    assert entry["org_skills"] == {"Persuasion": 5, "Administration": 3, "Science": 2}
+    assert entry["prominence"]["org_skill_sum"] == 10
+    assert loyalty_keys(entry) == []
+
+
+def test_policy_influence_is_the_labelled_org_bonuses_strongest_first() -> None:
+    snap = _world(
+        _org("70", 2, welfareBonus=0.02, economyBonus=0.01, militaryBonus=0.0, incomeMoney_month=5.0),
+        _org("71", 1, economyBonus=0.02, spaceflightBonus=0.03),
+        _councilor("100", "1", orgs=("70", "71")),
+        _councilor("101", "1"),
+    )
+    first, second = _build(snap)["councilors"]
+    assert first["policy_influence"] == ["economic growth", "launch capacity", "welfare spending"]
+    assert second["policy_influence"] == []
+    assert second["org_skills"] == {}
 
 
 def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:

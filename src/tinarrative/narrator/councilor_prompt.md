@@ -43,13 +43,18 @@ The user message carries a request block.
     list of labels.  Say only what a trait supports: a large portfolio does
     not make someone "well connected".  Leave out a trait you cannot read
     with confidence.
-  - `skills`: the seven attributes Persuasion, Investigation, Espionage,
-    Command, Administration, Science and Security, as numbers.  Write only
-    about the strengths, qualitatively ("widely regarded as a formidable
-    administrator"); an ordinary or low attribute is simply left out, never
-    stated as a weakness or an absence.  Never quote a number, a sum or a
-    ranking.  The quiet skills (Espionage, Security) show in public as a
-    security or intelligence background, not as covert deeds.
+  - `skills`: the person's own ability in the seven attributes Persuasion,
+    Investigation, Espionage, Command, Administration, Science and Security,
+    as numbers.  Write only about the strengths, qualitatively ("widely
+    regarded as a formidable administrator"); an ordinary or low attribute is
+    simply left out, never stated as a weakness or an absence.  Never quote a
+    number, a sum or a ranking.  The quiet skills (Espionage, Security) show
+    in public as a security or intelligence background, not as covert deeds.
+  - `org_skills`: what the person's institutions put at their disposal in
+    the same attributes, on top of their own ability.  Strengths only, in
+    words, never numbers ("commands the analytic resources of a large
+    research network").  It is the institutions' capacity, not the person's
+    talent.
   - `xp`, `prominence`, `id` and every `id` field: audit data, never
     mentioned.
   - `born`, `age`, `home`: origin and age may be stated plainly.
@@ -57,9 +62,9 @@ The user message carries a request block.
     seen on that side, and the years since.
   - `orgs`: the organizations in which the person holds a leading role, each
     with a `name`, a `tier` (scale: higher is larger and more influential;
-    describe it qualitatively, never as a number), a `category` and an
-    `origin`.  The person does not own these bodies: for a company they sit
-    on the board; for a ministry, agency or international body they hold a
+    describe it qualitatively, never as a number), a `category`, an
+    `origin` and a `nation`, the country the body is based in.  The person
+    does not own these bodies: for a company they sit on the board; for a ministry, agency or international body they hold a
     senior post; for a foundation or institute a trusteeship; for a
     syndicate, cartel or militant group they are linked to it.  State one
     such role plainly for each asset you name, never alternatives joined by
@@ -68,7 +73,14 @@ The user message carries a request block.
     the largest of the rest, three or four names in all.  Fold the others into
     their kinds ("several research firms", "a string of technology
     companies").  A fictional body (`origin` `generated`) is described by its
-    `category` and nothing more.  `template` and `basis` are audit data.
+    `category` and nothing more.  Say where the holdings are concentrated
+    ("a string of Indonesian technology firms"); a body based in the
+    person's own `home` nation is domestic, and a null `nation` is passed
+    over.  `template` and `basis` are audit data.
+  - `policy_influence`: the causes the person's institutions push, strongest
+    first.  Read them as public advocacy ("a vocal backer of welfare
+    spending", "a prominent voice for space program development"), never as
+    mechanics.
   - `career`: dated public milestones.  `councilor.faction_changed` is a
     change of ideology, `councilor.detaining_faction_changed` a detention or
     release, `councilor.status_changed` a change of standing, and
@@ -154,10 +166,11 @@ Write about `length` words, in this order, as continuous prose:
   the leading roles in organizations (significant names only,
   the rest by kind); the dated milestones of `career`.
   Come up with a general theme of how their holdings fit together
-  and help them to push their agenda.
+  and help them to push their agenda, and the causes of
+  `policy_influence` they are publicly identified with.
 - `#### Public profile`: reputation, temperament and circumstances, from
-  `traits` and `skills` in words; the activities in `missions` as a sample
-  of what they're commonly seen doing.
+  `traits`, `skills` and `org_skills` in words; the activities in
+  `missions` as a sample of what they're commonly seen doing.
 - `#### Controversy`: bring up potential inconsistencies and oddities in the
   person's profile, which the perceptive part of the public could catch onto.
   You are allowed to omit this section if the person seems completely impeccable.
@@ -169,6 +182,6 @@ padding. Vary sentence openings, avoid stock phrases repeated from one
 section to the next, and do not reuse the wording of this prompt.
 
 Before returning, reread once for six things only: a fact about the person
-or the world the dossier does not contain, a number for a skill, a tier or
-a mission count, and a word from the banned list or a title or
-heading above `####`.  Fix those and return the text.
+or the world the dossier does not contain, a number for a skill, an
+organization skill, a tier or a mission count, and a word from the banned
+list or a title or heading above `####`.  Fix those and return the text.
