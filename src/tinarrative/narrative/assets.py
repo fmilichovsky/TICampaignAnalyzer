@@ -34,6 +34,7 @@ from .geopolitics import MergerParties, gdp_rank, strength_rank
 from .nation_metrics import PROMOTED
 from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chained, intervals_of, sorted_keys, subject
 from .situation import NationSituation, SituationReport
+from .stream import EventStream
 
 MILITARY_BUILDUP = "nation.military_buildup"
 DEMOBILIZATION = "nation.demobilization"
@@ -137,9 +138,7 @@ class MilitaryBuildupRule:
     order: int = 0
     window_days: int | None = BUILDUP_WINDOW_DAYS
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         parties = MergerParties.of(stream)
@@ -194,9 +193,7 @@ class NavyEstablishedRule:
     order: int = 0
     window_days: int | None = 0
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         parties = MergerParties.of(stream)
         candidates = [
             event
@@ -245,9 +242,7 @@ class SpaceProgramGrowthRule:
     def window_days(self) -> int:
         return self.settings.space_assets_window_days
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         parties = MergerParties.of(stream)
@@ -323,9 +318,7 @@ class SpaceDefencesEstablishedRule:
     order: int = 0
     window_days: int | None = 0
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         parties = MergerParties.of(stream)
         built = []
         for event in by_type(stream, SPACE_ASSETS_CHANGED):
@@ -373,9 +366,7 @@ class RankingRule:
     order: int = 0
     window_days: int | None = 0
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         following = {id(report): later for report, later in zip(situations, situations[1:], strict=False)}
         top = min(self.settings.ranking_top_n, RANKED_PLACES)

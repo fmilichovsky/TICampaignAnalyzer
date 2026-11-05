@@ -32,6 +32,7 @@ from .rulekit import (
     within,
 )
 from .situation import SituationReport
+from .stream import EventStream
 
 SPACE_CAMPAIGN = "faction.space_campaign"
 COLONISATION_WAVE = "faction.colonisation_wave"
@@ -97,9 +98,7 @@ class SpaceCampaignRule:
     def window_days(self) -> int:
         return self.settings.campaign_gap_days
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         pairs: dict[tuple[EntityId, EntityId], list[Event]] = {}
         for outcome in by_type(stream, BATTLE_OUTCOME):
             victim = ref_attribute(outcome, "victim")
@@ -114,7 +113,7 @@ class SpaceCampaignRule:
 
     def _campaign(
         self,
-        stream: Sequence[Event],
+        stream: EventStream,
         situations: Sequence[SituationReport],
         build: NarrativeBuilder,
         pair: tuple[EntityId, EntityId],
@@ -126,34 +125,27 @@ class SpaceCampaignRule:
         assert victim is not None
         keys = set(intervals_of(run))
 
-        def here(event: Event) -> bool:
-            return interval_of(event.id) in keys
-
         habs = [
             event
-            for event in by_type(stream, HAB_DESTROYED)
-            if here(event)
-            and event.attribute("ambiguous") is False
+            for event in stream.in_intervals(keys, HAB_DESTROYED)
+            if event.attribute("ambiguous") is False
             and len(event.entities) > 3
             and event.entities[1].entity_id == victim_id
             and event.entities[3].entity_id == killer_id
         ]
         fleets = [
             event
-            for event in by_type(stream, FLEET_DISAPPEARED)
-            if here(event) and len(event.entities) > 1 and event.entities[1].entity_id == victim_id
+            for event in stream.in_intervals(keys, FLEET_DISAPPEARED)
+            if len(event.entities) > 1 and event.entities[1].entity_id == victim_id
         ]
         lost_fleets = {event.entities[0].entity_id for event in fleets}
         combats = [
-            event
-            for event in by_type(stream, COMBAT_RECORDED)
-            if here(event) and {killer_id, victim_id} <= _side_ids(event)
+            event for event in stream.in_intervals(keys, COMBAT_RECORDED) if {killer_id, victim_id} <= _side_ids(event)
         ]
         notices = [
             event
-            for event in by_type(stream, BATTLE_NOTIFICATION)
-            if here(event)
-            and (
+            for event in stream.in_intervals(keys, BATTLE_NOTIFICATION)
+            if (
                 any(
                     isinstance(ref, EntityRef) and ref.entity_id in lost_fleets for ref in (event.attribute("subject"),)
                 )
@@ -229,9 +221,7 @@ class ColonisationWaveRule:
     def window_days(self) -> int:
         return self.settings.colonisation_window_days
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         by_faction: dict[EntityId, list[Event]] = {}
         for event in by_type(stream, FIRST_HAB_ON_BODY):
             key = subject_id(event)
@@ -285,17 +275,13 @@ class FirstMilestoneRule:
     def window_days(self) -> None:
         return None
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         built = []
         for anchor in by_type(stream, GLOBAL_MILESTONE):
             faction = ref_attribute(anchor, "faction")
             charges: list[Event] = []
             if faction is not None:
-                same = [
-                    event for event in by_type(stream, TRANSACTION) if interval_of(event.id) == interval_of(anchor.id)
-                ]
+                same = stream.in_intervals(interval_of(anchor.id), TRANSACTION)
                 charges = _ledger(same, MILESTONE_LEDGER_LABEL, faction.entity_id, earliest(anchor), latest(anchor))
             roles = [(Role.ACTOR, faction)] if faction is not None else []
             event = build.event(
@@ -329,9 +315,7 @@ class FleetBuildupRule:
     def window_days(self) -> None:
         return None
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         groups: dict[tuple[str, EntityId, str], list[Event]] = {}
         for ship in by_type(stream, SHIP_APPEARED):
             hull = ship.attribute("hull")
@@ -345,7 +329,7 @@ class FleetBuildupRule:
                 continue
             key_interval, owner_id, hull = key
             charges = _ledger(
-                [event for event in by_type(stream, TRANSACTION) if interval_of(event.id) == key_interval],
+                stream.in_intervals(key_interval, TRANSACTION),
                 SHIP_LEDGER_LABEL,
                 owner_id,
                 earliest(ships[0]),
@@ -382,9 +366,7 @@ class TechnologyMilestoneRule:
     def window_days(self) -> None:
         return None
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         built = []
         for event in by_type(stream, TECHNOLOGY_COMPLETED, PROJECT_COMPLETED):
             ref, milestone, name = subject(event), milestone_of(event), completed_template(event)

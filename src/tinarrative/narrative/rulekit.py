@@ -5,6 +5,7 @@ Windows are in game days.
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
@@ -15,6 +16,7 @@ from ..model.values import Observed
 from .aggregation import days_between
 from .chronology import interval_of, interval_sort_key
 from .situation import SituationReport
+from .stream import EventStream
 
 # --- Dates and windows -------------------------------------------------------------------------------------------
 
@@ -44,6 +46,41 @@ def overlaps(event: Event, low: str | None, high: str | None) -> bool:
     """Inclusive; an unknown bound never matches."""
     after_low, before_high = days_between(low, latest(event)), days_between(earliest(event), high)
     return after_low is not None and before_high is not None and after_low >= 0 and before_high >= 0
+
+
+class DatedEvents:
+    """Events queried repeatedly by ``overlaps``: a point-dated event is found by bisection, any other one is checked
+    with ``overlaps``. Results keep the input order."""
+
+    def __init__(self, events: Iterable[Event]) -> None:
+        points: list[tuple[datetime, int, Event]] = []
+        self._others: list[tuple[int, Event]] = []
+        for position, event in enumerate(events):
+            moment = _moment(latest(event)) if earliest(event) == latest(event) else None
+            if moment is None:
+                self._others.append((position, event))
+            else:
+                points.append((moment, position, event))
+        points.sort(key=lambda point: (point[0], point[1]))
+        self._moments = [moment for moment, _, _ in points]
+        self._points = [(position, event) for _, position, event in points]
+
+    def overlapping(self, low: str | None, high: str | None) -> list[Event]:
+        """Equals ``[event for event in events if overlaps(event, low, high)]``."""
+        first, last = _moment(low), _moment(high)
+        if first is None or last is None:
+            return []
+        found = self._points[bisect_left(self._moments, first) : bisect_right(self._moments, last)]
+        found += [(position, event) for position, event in self._others if overlaps(event, low, high)]
+        return [event for _, event in sorted(found, key=lambda item: item[0])]
+
+
+def _moment(date: str | None) -> datetime | None:
+    """Parsed as ``days_between`` parses."""
+    try:
+        return datetime.fromisoformat(date) if date is not None else None
+    except ValueError:
+        return None
 
 
 def shifted(date: str | None, days: int) -> str | None:
@@ -140,6 +177,8 @@ def unique_refs(refs: Iterable[EntityRef]) -> tuple[EntityRef, ...]:
 
 
 def by_type(stream: Iterable[Event], *types: str) -> list[Event]:
+    if isinstance(stream, EventStream):
+        return stream.of_type(*types)
     return [event for event in stream if event.event_type in types]
 
 

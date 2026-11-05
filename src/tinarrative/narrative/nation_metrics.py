@@ -50,6 +50,7 @@ from .rulekit import (
     within,
 )
 from .situation import SituationReport
+from .stream import EventStream
 
 BAND_CROSSED = "nation.band_crossed"
 POPULATION_COLLAPSE = "nation.population_collapse"
@@ -124,9 +125,7 @@ class BandShiftRule:
     def window_days(self) -> int:
         return self.settings.band_hold_days
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         crossings = [event for event in by_type(stream, BAND_CROSSED) if event.attribute("statistic") == self.statistic]
         carriers = by_type(stream, *SHIFT_CARRIERS, *((WAR_ARC,) if self.statistic in WAR_CARRIED else ()))
         reports = interval_reports(situations)
@@ -241,9 +240,7 @@ class PopulationCollapseRule:
     order: int = 0
     window_days: int | None = 0
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         strikes = by_type(stream, NUCLEAR_STRIKES_CHANGED)
         parties = MergerParties.of(stream)
@@ -296,9 +293,7 @@ class EconomicTrajectoryRule:
     order: int = 0
     window_days: int | None = TREND_WINDOW_DAYS
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         parties = MergerParties.of(stream)
@@ -379,9 +374,7 @@ class NuclearArcRule:
     def window_days(self) -> int:
         return self.settings.nuclear_window_days
 
-    def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-    ) -> list[Event]:
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.nuclear_window_days
         reports = interval_reports(situations)
         parties = MergerParties.of(stream)
