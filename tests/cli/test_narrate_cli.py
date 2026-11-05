@@ -37,7 +37,7 @@ def _package(tmp_path: Path, capsys: pytest.CaptureFixture[str], constituents: s
 
 def _settings(tmp_path: Path, budget: int) -> Path:
     path = tmp_path / "settings.toml"
-    path.write_text(f"[narrator]\nmax_input_tokens = {budget}\n", encoding="utf-8")
+    path.write_text(f"[narrator]\nmax_input_tokens = {budget}\nchars_per_token = 3\n", encoding="utf-8")
     return path
 
 
@@ -119,7 +119,7 @@ def test_without_output_only_the_plan_is_printed(capsys: pytest.CaptureFixture[s
     assert main(["narrate", *SAVES]) == EXIT_SUCCESS
 
     out = capsys.readouterr().out
-    assert out.startswith("1 chapter by quarter, max_input_tokens 200000 at 3 characters per token:\n- 1 (whole) ")
+    assert out.startswith("1 chapter by quarter, max_input_tokens 200000 at 2.4 characters per token:\n- 1 (whole) ")
     assert out.endswith("Nothing written; give --output DIR for the plan and the requests.\n")
 
 

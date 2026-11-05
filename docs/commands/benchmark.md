@@ -56,13 +56,14 @@ descriptions and the configured size limit. A mismatch exits with code 2.
 
 ```sh
 tinarrative benchmark metrics measure [--python PYTHON] [--samples PATH] [--matrix PATH] [--config PATH]
-  --out PATH [--label TEXT] [--chars-per-token N] [--jobs N]
+  --out PATH [--label TEXT] [--chars-per-token FLOAT] [--jobs N]
 ```
 
 By default, reads `benchmarks/samples`, `benchmarks/matrix.toml`, and `benchmarks/config.toml` relative to the current
 working directory. Runs every matrix entry against every sample campaign, writes packages and narrator plans under `PATH`, then writes
 `metrics.json`. The selected `--python` runs `events` and `narrate`; the current CLI performs the measurement.
-Progress appears on stderr in a terminal. Failed runs are recorded in the metrics output.
+`--chars-per-token` accepts a decimal estimate (minimum 1). Progress appears on stderr in a terminal. Failed runs are
+recorded in the metrics output.
 
 ### Compare
 

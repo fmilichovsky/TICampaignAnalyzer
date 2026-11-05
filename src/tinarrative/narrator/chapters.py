@@ -172,7 +172,7 @@ def base_options(
     return {key: value for key, value in chosen.items() if value}
 
 
-def estimate(request: Mapping[str, Any], chars_per_token: int) -> int:
+def estimate(request: Mapping[str, Any], chars_per_token: float) -> int:
     characters = len(request["system"]) + sum(len(message["content"]) for message in request["messages"])
     return math.ceil(characters / chars_per_token)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import lzma
+import math
 import shutil
 import subprocess
 import sys
@@ -25,11 +26,19 @@ from tinarrative.benchmarking.metrics import (
     breakdown,
     compare,
     measure,
+    measure_package,
     member_changes,
 )
 
 SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_package_estimate_accepts_fractional_chars_per_token() -> None:
+    text = '{"saves":[],"narrative":[]}'
+    result = measure_package(text, 2.4)
+
+    assert result["est_tokens"] == math.ceil(result["chars"] / 2.4)
 
 
 def _samples(root: Path) -> Path:
@@ -182,7 +191,11 @@ def test_metrics_cli_measure_writes_the_metrics_file(tmp_path: Path, monkeypatch
     config = tmp_path / "config.toml"
     config.write_text("", encoding="utf-8")
     out = tmp_path / "out"
-    monkeypatch.setattr(benchmark_metrics, "measure", lambda **kwargs: {"label": kwargs["label"]})
+    monkeypatch.setattr(
+        benchmark_metrics,
+        "measure",
+        lambda **kwargs: {"label": kwargs["label"], "chars_per_token": kwargs["chars_per_token"]},
+    )
 
     code = cli.main(
         [
@@ -200,14 +213,17 @@ def test_metrics_cli_measure_writes_the_metrics_file(tmp_path: Path, monkeypatch
             "--label",
             "test label",
             "--chars-per-token",
-            "4",
+            "4.5",
             "--jobs",
             "2",
         ]
     )
 
     assert code == cli.EXIT_SUCCESS
-    assert json.loads((out / "metrics.json").read_text(encoding="utf-8")) == {"label": "test label"}
+    assert json.loads((out / "metrics.json").read_text(encoding="utf-8")) == {
+        "label": "test label",
+        "chars_per_token": 4.5,
+    }
 
 
 @pytest.mark.fixture

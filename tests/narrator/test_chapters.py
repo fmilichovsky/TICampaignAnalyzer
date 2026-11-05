@@ -187,6 +187,10 @@ def test_a_small_package_is_one_whole_chapter() -> None:
     assert embedded["continuity"] == {"continuing": [], "earlier": [], "earlier_omitted": 0}
 
 
+def test_estimate_uses_fractional_chars_per_token_and_rounds_up() -> None:
+    assert estimate({"system": "", "messages": [{"content": "abcdef"}]}, 2.4) == 3
+
+
 def test_chapters_are_runs_of_whole_periods_within_the_budget() -> None:
     package = _quarterly({position: 20_000 for position in range(4)})
     settings = _budget(30_000)

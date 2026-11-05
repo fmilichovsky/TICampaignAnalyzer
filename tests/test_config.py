@@ -93,6 +93,12 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
         ("[narrator]\nmodel = ''\n", "'narrator.model' must be a non-empty string"),
         ("[narrator]\ntemperature = true\n", "'narrator.temperature' must be a number"),
         ("[narrator]\ntemperature = '0.5'\n", "'narrator.temperature' must be a number"),
+        ("[narrator]\nchars_per_token = true\n", "'narrator.chars_per_token' must be a number"),
+        ("[narrator]\nchars_per_token = 0.9\n", "'narrator.chars_per_token' must be at least 1.0"),
+        (
+            "[narrator.profiles.local]\nchars_per_token = 0.9\n",
+            "'narrator.profiles.local.chars_per_token' must be at least 1.0",
+        ),
         ("[narrator]\ntemperature = -0.1\n", "'narrator.temperature' must be at least 0.0"),
         ("[narrator]\ncontext_window = 0\n", "'narrator.context_window' must be at least 1"),
         ("[narrator]\nprofiles = 3\n", "'narrator.profiles' must be a table"),
@@ -159,6 +165,18 @@ def test_provider_keys_and_profiles(tmp_path: Path) -> None:
     assert local.profiles == narrator.profiles
     with pytest.raises(KeyError):
         narrator.with_profile("absent")
+
+
+def test_chars_per_token_accepts_fractional_and_integer_values(tmp_path: Path) -> None:
+    fractional = load_settings(write(tmp_path, "[narrator]\nchars_per_token = 2.4\n"))
+    integer = load_settings(write(tmp_path, "[narrator]\nchars_per_token = 2\n"))
+    profile = load_settings(write(tmp_path, "[narrator.profiles.local]\nchars_per_token = 2.25\n"))
+
+    assert DEFAULT_SETTINGS.narrator.chars_per_token == 2.4
+    assert fractional.narrator.chars_per_token == 2.4
+    assert integer.narrator.chars_per_token == 2.0
+    assert integer.narrator.chars_per_token.__class__ is float
+    assert profile.narrator.with_profile("local").chars_per_token == 2.25
 
 
 def test_unset_keys_are_left_out_of_the_tables() -> None:
