@@ -249,6 +249,18 @@ def test_send_writes_responses_articles_and_manifest(
     assert captured.err == ""
 
 
+def test_impossible_token_reservation_fails_before_sending_articles(
+    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
+) -> None:
+    with Path(sending).open("a", encoding="utf-8") as config:
+        config.write("tokens_per_minute = 1\n")
+
+    assert _send(tmp_path, sending) == EXIT_PROVIDER_ERROR
+
+    assert transport.calls == []
+    assert "exceeds tokens_per_minute 1" in capsys.readouterr().err
+
+
 @pytest.mark.fixture
 @pytest.mark.parametrize(
     ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]

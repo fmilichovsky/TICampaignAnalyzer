@@ -114,10 +114,13 @@ until a file, a profile or a flag sets it.
 | `narrator.context_window` | integer, minimum 1 | unset | The model's context window, when stated. `max_input_tokens + max_output_tokens` above it is rejected before sending. |
 | `narrator.temperature` | number, minimum 0 | unset | Sent with each request when set. Current Claude models reject it. |
 | `narrator.timeout_seconds` | integer, minimum 1 | 600 | One HTTP request is abandoned after this many seconds. Raise it for a slow local model. |
+| `narrator.requests_per_minute` | integer, minimum 1 | unset | Maximum provider request attempts in any rolling 60-second window. Retries count. |
+| `narrator.tokens_per_minute` | integer, minimum 1 | unset | Maximum reserved tokens in any rolling 60-second window. Each request reserves its estimated input plus `max_output_tokens`; a request that cannot fit fails before sending. |
 
 **Profiles.** A table `[narrator.profiles.NAME]` names a set of values. A profile may set any of
 `provider`, `model`, `base_url`, `api_key_env`, `max_input_tokens`, `max_output_tokens`,
-`chars_per_token`, `context_window`, `temperature` and `timeout_seconds`. These are validated as the
+`chars_per_token`, `context_window`, `temperature`, `timeout_seconds`, `requests_per_minute` and
+`tokens_per_minute`. These are validated as the
 keys of the same name; any other key is an error. `narrate --profile NAME` applies the profile over
 the `[narrator]` keys, and the override flags apply over both
 ([narrate](commands/narrate.md#provider-and-budget)). Without `--profile`, the `[narrator]` keys

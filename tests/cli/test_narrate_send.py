@@ -126,6 +126,25 @@ def test_send_writes_one_response_per_chapter(
     assert out.endswith(f"Wrote history.md and manifest.json to {tmp_path / 'out'}.\n")
 
 
+def test_impossible_token_reservation_fails_before_sending_and_cached_responses_are_kept(
+    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    limited = _settings(tmp_path, "tokens_per_minute = 1\n")
+
+    assert _narrate(tmp_path, "--send", settings=limited) == EXIT_PROVIDER_ERROR
+    assert transport.calls == []
+    assert "exceeds tokens_per_minute 1" in capsys.readouterr().err
+
+    assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
+    sent = len(transport.calls)
+    with limited.open("a", encoding="utf-8") as config:
+        config.write("\n[narrator.profiles.limited]\ntokens_per_minute = 1\n")
+
+    assert _narrate(tmp_path, "--send", "--profile", "limited", settings=limited) == EXIT_SUCCESS
+    assert len(transport.calls) == sent
+    assert "kept: complete" in capsys.readouterr().out
+
+
 @pytest.mark.fixture
 def test_the_provider_settings_never_change_the_plan_or_the_requests(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]

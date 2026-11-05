@@ -26,6 +26,8 @@ PROFILE_KEYS = (
     "context_window",
     "temperature",
     "timeout_seconds",
+    "requests_per_minute",
+    "tokens_per_minute",
 )
 """The ``narrator`` keys a profile may set; every other key is shared by all profiles."""
 _KIND = "kind"
@@ -163,6 +165,10 @@ class NarratorSettings:
     """The sampling temperature sent with each request; unset sends none."""
     timeout_seconds: int = _int(600, 1)
     """One HTTP request is abandoned after this many seconds."""
+    requests_per_minute: int | None = _int(None, 1)
+    """Maximum provider request attempts in any rolling 60-second window; unset is unlimited."""
+    tokens_per_minute: int | None = _int(None, 1)
+    """Maximum reserved request tokens in any rolling 60-second window; unset is unlimited."""
     profiles: Mapping[str, Mapping[str, Any]] = field(default_factory=dict, metadata={_KIND: "profiles"})
     """Named sets of ``PROFILE_KEYS`` values over the keys above, chosen with ``narrate --profile``."""
 

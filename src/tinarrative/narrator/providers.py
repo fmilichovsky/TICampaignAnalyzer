@@ -123,6 +123,7 @@ def complete(
     transport: Transport,
     *,
     sleep: Callable[[float], None] = time.sleep,
+    before_attempt: Callable[[], None] | None = None,
     chapter: int | None = None,
 ) -> Completion:
     """Retries rate limits and server errors, honouring ``Retry-After``; raises ``ProviderError`` once the retries
@@ -134,6 +135,8 @@ def complete(
     attempt = 0
     while True:
         attempt += 1
+        if before_attempt is not None:
+            before_attempt()
         try:
             response = transport.post(url, headers, body, target.timeout)
         except TransportError as error:

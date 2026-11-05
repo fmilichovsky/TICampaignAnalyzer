@@ -101,6 +101,12 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
         ),
         ("[narrator]\ntemperature = -0.1\n", "'narrator.temperature' must be at least 0.0"),
         ("[narrator]\ncontext_window = 0\n", "'narrator.context_window' must be at least 1"),
+        ("[narrator]\nrequests_per_minute = 0\n", "'narrator.requests_per_minute' must be at least 1"),
+        ("[narrator]\ntokens_per_minute = true\n", "'narrator.tokens_per_minute' must be an integer"),
+        (
+            "[narrator.profiles.local]\ntokens_per_minute = 0\n",
+            "'narrator.profiles.local.tokens_per_minute' must be at least 1",
+        ),
         ("[narrator]\nprofiles = 3\n", "'narrator.profiles' must be a table"),
         ("[narrator.profiles]\nlocal = 3\n", "'narrator.profiles.local' must be a table"),
         ("[narrator.profiles.local]\ntop_economies = 3\n", "unknown setting 'narrator.profiles.local.top_economies'"),
@@ -165,6 +171,20 @@ def test_provider_keys_and_profiles(tmp_path: Path) -> None:
     assert local.profiles == narrator.profiles
     with pytest.raises(KeyError):
         narrator.with_profile("absent")
+
+
+def test_profile_rate_limits_override_or_inherit_global_limits(tmp_path: Path) -> None:
+    narrator = load_settings(
+        write(
+            tmp_path,
+            "[narrator]\nrequests_per_minute = 20\ntokens_per_minute = 50000\n"
+            "[narrator.profiles.local]\nrequests_per_minute = 4\n",
+        )
+    ).narrator
+
+    local = narrator.with_profile("local")
+
+    assert (local.requests_per_minute, local.tokens_per_minute) == (4, 50000)
 
 
 def test_chars_per_token_accepts_fractional_and_integer_values(tmp_path: Path) -> None:
