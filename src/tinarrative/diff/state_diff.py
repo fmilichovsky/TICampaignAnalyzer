@@ -57,10 +57,22 @@ def diff_states(before: SaveSnapshot, after: SaveSnapshot) -> StateDiff:
     return StateDiff(before=before, after=after, changes=tuple(changes))
 
 
+_ATOMIC_TYPES = frozenset({str, int, float, bool, type(None), EntityRef})
+"""Types compared with ``==`` alone: same type on both sides makes Python equality strict."""
+
+
 def strict_equal(a: Observed, b: Observed) -> bool:
-    """Type-aware structural equality: ``1 != 1.0`` and ``True != 1``, recursing into containers."""
-    if type(a) is not type(b):
+    """Type-aware structural equality: ``1 != 1.0`` and ``True != 1``, recursing into containers.
+
+    One object is equal to itself, as in Python's containers (so a NaN compared with itself is equal).
+    """
+    if a is b:
+        return True
+    kind = type(a)
+    if kind is not type(b):
         return False
+    if kind in _ATOMIC_TYPES:
+        return bool(a == b)
     if isinstance(a, tuple) and isinstance(b, tuple):
         return len(a) == len(b) and all(strict_equal(x, y) for x, y in zip(a, b, strict=True))
     if isinstance(a, FrozenMap) and isinstance(b, FrozenMap):
@@ -168,11 +180,25 @@ def _field_change(
 
 
 def _entity_changes(domain: str, before: EntityState, after: EntityState) -> list[StateChange]:
-    names = sorted({name for name, _ in before.fields} | {name for name, _ in after.fields})
+    if before.fields is after.fields:
+        return []
+    pairs: list[tuple[str, Observed, Observed]]
+    if len(before.fields) == len(after.fields) and all(
+        before_name == after_name for (before_name, _), (after_name, _) in zip(before.fields, after.fields, strict=True)
+    ):
+        # Both sides of an entity normally carry the same sorted names; pair them without a lookup per name.
+        pairs = [
+            (name, before_value, after_value)
+            for (name, before_value), (_, after_value) in zip(before.fields, after.fields, strict=True)
+            if not strict_equal(before_value, after_value)
+        ]
+    else:
+        names = sorted({name for name, _ in before.fields} | {name for name, _ in after.fields})
+        pairs = [(name, before.get(name), after.get(name)) for name in names]
     changes: list[StateChange] = []
-    for name in names:
+    for name, before_value, after_value in pairs:
         change = _field_change(
-            domain, name, before.get(name), after.get(name), before.location, after.location, after.ref.entity_id
+            domain, name, before_value, after_value, before.location, after.location, after.ref.entity_id
         )
         if change is not None:
             changes.append(change)
