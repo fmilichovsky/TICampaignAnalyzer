@@ -38,8 +38,8 @@ def _int(default: int | None, minimum: int, maximum: int | None = None) -> Any:
     return field(default=default, metadata={_KIND: "int", _MINIMUM: minimum, _MAXIMUM: maximum})
 
 
-def _float(minimum: float) -> Any:
-    return field(default=None, metadata={_KIND: "float", _MINIMUM: minimum})
+def _float(default: float | None, minimum: float) -> Any:
+    return field(default=default, metadata={_KIND: "float", _MINIMUM: minimum})
 
 
 def _str(choices: tuple[str, ...] | None = None) -> Any:
@@ -134,7 +134,7 @@ class NarratorSettings:
 
     max_input_tokens: int = _int(200_000, 1_000)
     """The estimated input of one request (system prompt, request block and chapter package) stays within this."""
-    chars_per_token: int = _int(3, 1)
+    chars_per_token: float = _float(2.4, 1.0)
     """The estimate divides the serialized request's characters by this; a low value is conservative."""
     quarter_span_days: int = _int(730, 0)
     """A campaign spanning this many game days or fewer is told by quarter."""
@@ -159,7 +159,7 @@ class NarratorSettings:
     context_window: int | None = _int(None, 1)
     """The model's context window, when stated: ``max_input_tokens`` plus ``max_output_tokens`` above it is
     rejected before sending."""
-    temperature: float | None = _float(0.0)
+    temperature: float | None = _float(None, 0.0)
     """The sampling temperature sent with each request; unset sends none."""
     timeout_seconds: int = _int(600, 1)
     """One HTTP request is abandoned after this many seconds."""

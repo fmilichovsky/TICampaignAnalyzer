@@ -121,6 +121,16 @@ def _positive_int(text: str) -> int:
     return value
 
 
+def _positive_float(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected a number, got {text!r}") from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"expected a value >= 1, got {value}")
+    return value
+
+
 def _run_inspect(args: argparse.Namespace) -> int:
     """Print a raw structural report for one save without interpreting it."""
     save_path = cast(Path, args.save)
@@ -560,7 +570,7 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
             config=cast(Path, args.config),
             out=cast(Path, args.out),
             label=cast(str, args.label),
-            chars_per_token=cast(int, args.chars_per_token),
+            chars_per_token=cast(float, args.chars_per_token),
             jobs=cast(int, args.jobs),
             on_progress=lambda amount: progress_tracker.advance("Measuring runs", amount),
             on_campaign_complete=progress_tracker.report,
@@ -1556,7 +1566,7 @@ def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
     count = len(plan.chapters)
     lines = [
         f"{_count(count, 'chapter')} by {plan.options.get('period', 'year')}, max_input_tokens "
-        f"{settings.max_input_tokens} at {settings.chars_per_token} characters per token:"
+        f"{settings.max_input_tokens} at {settings.chars_per_token:g} characters per token:"
     ]
     reductions = {"atomic_dropped": "; atomic stream left out", "split": "; period split at saves, no atomic stream"}
     coarsened = {"save_spacing": f" (saves too far apart for a {plan.options.get('period', 'year')})"}
@@ -2237,7 +2247,7 @@ def _add_benchmark_parser(subcommands: argparse._SubParsersAction[argparse.Argum
     measure.add_argument("--config", type=Path, default=BENCHMARK_ROOT / "config.toml")
     measure.add_argument("--out", type=Path, required=True)
     measure.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
-    measure.add_argument("--chars-per-token", type=_positive_int, default=3)
+    measure.add_argument("--chars-per-token", type=_positive_float, default=2.4)
     measure.add_argument("--jobs", type=_positive_int, default=os.cpu_count() or 1, help="Commands to run at once.")
     measure.set_defaults(handler=_run_benchmark_metrics)
 

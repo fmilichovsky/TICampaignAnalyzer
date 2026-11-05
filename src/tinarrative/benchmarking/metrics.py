@@ -159,7 +159,7 @@ def _tree(groups: Sequence[tuple[str, Sequence[tuple[str, str]]]]) -> list[str]:
     return lines
 
 
-def measure_package(text: str, chars_per_token: int) -> dict[str, Any]:
+def measure_package(text: str, chars_per_token: float) -> dict[str, Any]:
     """The metrics of one narrator package, given as the text ``events`` wrote."""
     package = json.loads(text)
     chars = compact(package)
@@ -222,7 +222,7 @@ def _measure_campaign(
     config: Path,
     scratch: Path,
     out: Path,
-    chars_per_token: int,
+    chars_per_token: float,
     runs: ThreadPoolExecutor,
     on_progress: Callable[[int], None] | None,
 ) -> tuple[dict[str, Any], list[str]]:
@@ -307,7 +307,7 @@ def measure(
     config: Path,
     out: Path,
     label: str,
-    chars_per_token: int,
+    chars_per_token: float,
     jobs: int = os.cpu_count() or 1,
     log: TextIO | None = sys.stderr,
     on_progress: Callable[[int], None] | None = None,

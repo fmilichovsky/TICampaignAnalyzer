@@ -105,7 +105,7 @@ max_input_tokens = 200000
 
 # The estimate divides the request's characters by this (minimum 1)
 # to calculate the expected token count; a lower value is more conservative.
-chars_per_token = 3
+chars_per_token = 2.4
 
 # A campaign spanning this many game days or fewer is told by quarter.
 quarter_span_days = 730

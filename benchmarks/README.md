@@ -36,7 +36,7 @@ the tokens the largest interval needs. `metrics.json` holds, per campaign and ru
 
 | Run | Metrics |
 | --- | --- |
-| `events` | `bytes` as written; `chars` of the compact JSON a request embeds; `est_tokens` (`chars` ÷ `--chars-per-token`, 3 by default, as `narrator.chars_per_token`); `counts` of narrative events (also by significance), atomic and inferred events, glossary entries and saves; `members` |
+| `events` | `bytes` as written; `chars` of the compact JSON a request embeds; `est_tokens` (`chars` ÷ `--chars-per-token`, 2.4 by default, as `narrator.chars_per_token`); `counts` of narrative events (also by significance), atomic and inferred events, glossary entries and saves; `members` |
 | `narrate` | `chapters`, `estimate_total` and `estimate_max` from `plan.json`, `reductions`, the request `chars` split into `system`, `block` (request block and framing) and `package`, `members` summed over the chapter packages, `per_chapter`, `prompt_version` |
 
 `members` maps each member path to its compact characters, key included, summed over list elements:
