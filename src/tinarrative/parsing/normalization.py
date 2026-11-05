@@ -34,7 +34,7 @@ from .fields import (
     SINGLETON_ENTITY_TYPES,
     TIME_FIELDS,
 )
-from .raw_save import RawSave
+from .raw_save import SURVEY_STATE_TYPES, RawSave, parse_survey_states
 from .records import decode_records
 from .references import ExpectedDomains, ReferenceIndex
 from .unknowns import PAIR_MAP, UnknownCollector, check_reference, scan_envelope, scan_fields
@@ -247,7 +247,25 @@ def save_timestamp(raw_save: RawSave) -> datetime | None:
     Reads only the time singleton so saves can be ordered without normalizing them
     (docs/game-data-notes/chronology-and-deduplication.md).
     """
-    entries = decode_state_map(raw_save.root["gamestates"], "TITimeState")
+    return save_timestamp_from_states(raw_save.root["gamestates"])
+
+
+def save_timestamp_from_bytes(data: bytes) -> datetime | None:
+    """Read game time from the survey containers in save bytes, falling back to a full parse when needed."""
+    states = parse_survey_states(data)
+    if states is None:
+        from .raw_save import parse_raw_save
+
+        return save_timestamp(parse_raw_save(data, source="<survey>"))
+    if not all(f"{STATE_PREFIX}{name}" in states for name in SURVEY_STATE_TYPES):
+        from .raw_save import parse_raw_save
+
+        return save_timestamp(parse_raw_save(data, source="<survey>"))
+    return save_timestamp_from_states(states)
+
+
+def save_timestamp_from_states(gamestates: dict[str, Any]) -> datetime | None:
+    entries = decode_state_map(gamestates, "TITimeState")
     if not entries or "currentDateTime" not in entries[0].value:
         return None
     return game_datetime(entries[0].value["currentDateTime"])

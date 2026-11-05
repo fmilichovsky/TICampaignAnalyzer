@@ -10,10 +10,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from ..identity import read_id_value
+from ..identity import STATE_PREFIX, read_id_value
 from .containers import decode_state_map
 from .dates import game_datetime
-from .raw_save import RawSave
+from .raw_save import SURVEY_STATE_TYPES, RawSave, parse_survey_states
 
 CampaignIdentity = tuple[int, str | None, tuple[str | None, str | None], datetime | None]
 """Human faction reference, faction name, (master, scenario) template names, real-world start."""
@@ -49,7 +49,20 @@ def _first(gamestates: dict[str, Any], short_type: str) -> dict[str, Any]:
 
 def campaign_profile(raw_save: RawSave) -> CampaignProfile:
     """A missing singleton or member leaves its signal ``None``; raises only for a malformed pair container."""
-    gamestates: dict[str, Any] = raw_save.root["gamestates"]
+    return campaign_profile_from_states(raw_save.root["gamestates"])
+
+
+def campaign_profile_from_bytes(data: bytes) -> CampaignProfile:
+    """Read campaign continuity from survey containers in save bytes, falling back to a full parse as needed."""
+    states = parse_survey_states(data)
+    if states is None or not all(f"{STATE_PREFIX}{name}" in states for name in SURVEY_STATE_TYPES):
+        from .raw_save import parse_raw_save
+
+        return campaign_profile(parse_raw_save(data, source="<survey>"))
+    return campaign_profile_from_states(states)
+
+
+def campaign_profile_from_states(gamestates: dict[str, Any]) -> CampaignProfile:
     humans = [
         entry.value for entry in decode_state_map(gamestates, "TIPlayerState") if entry.value.get("isAI") is False
     ]
