@@ -846,6 +846,16 @@ def test_game_datetime_accepts_only_complete_integer_components(components: obje
     assert game_datetime(components) == expected
 
 
+def test_game_datetime_repeats_give_the_same_result_and_a_cached_int_date_never_answers_for_bools() -> None:
+    components = {"year": 2031, "month": 1, "day": 1, "hour": 1, "minute": 0, "second": 0}
+    assert game_datetime(components) == game_datetime(dict(components)) == datetime(2031, 1, 1, 1)
+    assert game_datetime({**components, "day": True}) is None
+    assert game_datetime({**components, "millisecond": False}) is None
+    invalid = {**components, "month": 13}
+    assert game_datetime(invalid) is None
+    assert game_datetime(invalid) is None
+
+
 def test_unparseable_time_keeps_the_raw_value() -> None:
     time_state = {"Key": {"value": 2}, "Value": {"ID": {"value": 2}, "currentDateTime": {"year": 2031}}}
     snapshot = fragment({STATE_PREFIX + "TITimeState": [time_state]})

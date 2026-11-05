@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 
 from ..model.values import Observed, Unknown, UnknownReason, freeze
@@ -10,7 +11,6 @@ from ..model.values import Observed, Unknown, UnknownReason, freeze
 if TYPE_CHECKING:
     from .unknowns import UnknownCollector
 
-_DATE_COMPONENTS = ("year", "month", "day", "hour", "minute", "second")
 
 COMPONENTIZED_DATE = "componentized_date"
 """``field_shape`` detail for a date field whose value is not a complete componentized date."""
@@ -21,13 +21,32 @@ def game_datetime(components: Any) -> datetime | None:
     if not isinstance(components, dict):
         return None
     try:
-        parts: list[Any] = [components[name] for name in _DATE_COMPONENTS]
-        millisecond: Any = components.get("millisecond", 0)
-        if any(isinstance(part, bool) or not isinstance(part, int) for part in [*parts, millisecond]):
-            return None
-        year, month, day, hour, minute, second = (int(part) for part in parts)
-        return datetime(year, month, day, hour, minute, second, int(millisecond) * 1000)
-    except (KeyError, TypeError, ValueError):
+        key = (
+            components["year"],
+            components["month"],
+            components["day"],
+            components["hour"],
+            components["minute"],
+            components["second"],
+            components.get("millisecond", 0),
+        )
+    except KeyError:
+        return None
+    # The same dates recur across entries and saves. Only exact ints are cached: ``True == 1`` as a cache key.
+    if set(map(type, key)) == {int}:
+        return _cached_datetime(*key)
+    if any(isinstance(part, bool) or not isinstance(part, int) for part in key):
+        return None
+    return _cached_datetime.__wrapped__(*(int(part) for part in key))
+
+
+@lru_cache(maxsize=8192)
+def _cached_datetime(
+    year: int, month: int, day: int, hour: int, minute: int, second: int, millisecond: int
+) -> datetime | None:
+    try:
+        return datetime(year, month, day, hour, minute, second, millisecond * 1000)
+    except ValueError:
         return None
 
 
