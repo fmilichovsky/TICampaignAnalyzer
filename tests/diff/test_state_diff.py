@@ -10,6 +10,7 @@ from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, Identi
 from tinarrative.model.evidence import SourceLocation
 from tinarrative.model.records import (
     CombatEntry,
+    DestructionEntry,
     ItemEntry,
     KeyedEntry,
     LedgerEntry,
@@ -334,6 +335,20 @@ def test_log_entries_match_by_content_not_by_index() -> None:
         record(AFTER, "Transactions", RecordKind.LEDGER, (ledger(0, 1.0, "a"), ledger(1, 1.0, "a"))),
     )
     assert duplicated is not None and duplicated.detail == RecordsDetail(added=(ledger(1, 1.0, "a"),))
+
+
+def test_log_entries_that_differ_only_by_index_are_unchanged() -> None:
+    assert (
+        record_change(
+            record(
+                BEFORE, "HabDestructionLog", RecordKind.DESTRUCTION_LOG, (DestructionEntry(0, "Base", None, 1, None),)
+            ),
+            record(
+                AFTER, "HabDestructionLog", RecordKind.DESTRUCTION_LOG, (DestructionEntry(4, "Base", None, 1, None),)
+            ),
+        )
+        is None
+    )
 
 
 def test_keyed_records_report_added_removed_and_changed_keys() -> None:
