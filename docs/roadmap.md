@@ -76,6 +76,13 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Missions and councilor dates (#228).
   - [x] Dossier and dry run (#229).
   - [x] LLM articles (#230).
+- [ ] Slim down narrative package (#267):
+  - [ ] Exclude relations and default values (#268).
+  - [ ] Reduce carried statistics (#269).
+  - [ ] Drop duplicate fields (#270).
+  - [ ] Drop unresolvable constituent IDs (#271).
+  - [ ] Slim down atomic event attributes (#272).
+  - [ ] Apply slimming to continuing events (#273)
 
 ## CLI user experience
 
@@ -111,3 +118,7 @@ Tracking #249.
 - [x] Indexed event stream for narrative rules (#255).
 - [x] Normalization and model hot-path costs (#256).
 - [x] Parallel survey and interval processing (#257).
+- [ ] Read only required sections during save survey (#274).
+- [ ] Ignore low-value and unused fields from normalization (#275).
+- [ ] Stop decoding unnecessary ledger labels (#276).
+- [ ] Run analyzers selectively (#277).
