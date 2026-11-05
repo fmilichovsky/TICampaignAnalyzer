@@ -25,6 +25,24 @@ from .trait_catalog import KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
 CAREER_EVENT_TYPES = frozenset({FACTION_CHANGED, DETAINING_FACTION_CHANGED, STATUS_CHANGED, COUNCILOR_ORGS_CHANGED})
 SKILLS = ("Persuasion", "Investigation", "Espionage", "Command", "Administration", "Science", "Security")
 """The councilor attributes a dossier carries; ``Loyalty`` and ``ApparentLoyalty`` are never emitted."""
+SKILL_CAP = 25
+"""The game's limit on a councilor attribute: personal value and organization bonuses together."""
+POLICY_LABELS = {
+    "economyBonus": "economic growth",
+    "welfareBonus": "welfare spending",
+    "knowledgeBonus": "education and research",
+    "governmentBonus": "government reform",
+    "unityBonus": "national unity",
+    "militaryBonus": "military strength",
+    "oppressionBonus": "law and order",
+    "environmentBonus": "environmental protection",
+    "spoilsBonus": "patronage",
+    "miningBonus": "space mining",
+    "spaceDevBonus": "space program development",
+    "spaceflightBonus": "launch capacity",
+    "MCBonus": "mission control",
+}
+"""The public cause an organization's priority or space bonus stands for, so the article never reads a field name."""
 DAYS_PER_YEAR = 365.25
 
 GENERATED_ORG_CATEGORIES = {
@@ -95,12 +113,21 @@ class _Outcome:
 
 
 @dataclass(frozen=True)
+class _Org:
+    org_id: EntityId
+    name: str | None
+    tier: int
+    state: EntityState | None
+
+
+@dataclass(frozen=True)
 class _Candidate:
     state: EntityState
     faction: EntityRef
     tenure_days: int
     org_tier2: int
     skill_sum: int
+    org_skill_sum: int
     xp: int
 
 
@@ -174,16 +201,17 @@ def _candidates(
         if now is None or recruited is None or (now - recruited).days < settings.min_tenure_days:
             continue
         skills = _skills(state)
-        xp = state.get("XP")
+        orgs = _orgs(lookup, state)
         candidates.append(
             _Candidate(
                 state=state,
                 faction=lookup.resolve(faction) or faction,
                 tenure_days=(now - recruited).days,
                 # TODO(#197): use the organization prominence share once it exists.
-                org_tier2=sum(tier * tier for _, _, tier in _orgs(lookup, state)),
+                org_tier2=sum(org.tier * org.tier for org in orgs),
                 skill_sum=sum(skills.values()),
-                xp=xp if isinstance(xp, int) and not isinstance(xp, bool) else 0,
+                org_skill_sum=sum(_org_skills(orgs, skills).values()),
+                xp=_int(state.get("XP")),
             )
         )
     return candidates
@@ -208,6 +236,7 @@ def _entry(
     councilor_id = state.ref.entity_id
     born = _datetime(state.get("dateBorn"))
     orgs = _orgs(lookup, state)
+    skills = _skills(state)
     entry: dict[str, Any] = {
         "id": str(councilor_id),
         "name": state.ref.name,
@@ -216,17 +245,20 @@ def _entry(
         "profession": _profession(state.get("typeTemplateName")),
         "gender": _gender(state.get("gender")),
         "traits": _traits(state.get("traitTemplateNames")),
-        "skills": _skills(state),
+        "skills": skills,
+        "org_skills": _org_skills(orgs, skills),
         "xp": candidate.xp,
         "born": to_jsonable(state.get("dateBorn")),
         "age": None if born is None or now is None else _years(now, born),
         "home": _home(lookup, state),
         "recruited": to_jsonable(state.get("recruitDate")),
         "tenure_years": round(candidate.tenure_days / DAYS_PER_YEAR, 1),
-        "orgs": [_org_entry(lookup, org_id, name, tier) for org_id, name, tier in orgs],
+        "orgs": [_org_entry(lookup, org) for org in orgs],
+        "policy_influence": _policy_influence(orgs),
         "prominence": {
             "org_tier2": candidate.org_tier2,
             "skill_sum": candidate.skill_sum,
+            "org_skill_sum": candidate.org_skill_sum,
             "rank_in_faction": ranks[councilor_id],
         },
         "career": [_career_entry(event) for event in career.get(councilor_id, [])],
@@ -269,32 +301,57 @@ def _skills(state: EntityState) -> dict[str, int]:
     }
 
 
-def _orgs(lookup: Lookup, state: EntityState) -> list[tuple[EntityId, str | None, int]]:
+def _orgs(lookup: Lookup, state: EntityState) -> list[_Org]:
     members = state.get("orgs")
-    found: list[tuple[EntityId, str | None, int]] = []
+    found: list[_Org] = []
     for member in members if isinstance(members, tuple) else ():
         if not isinstance(member, EntityRef):
             continue
         org = lookup.state(member.entity_id, Side.AFTER)
         tier = org.get("tier") if org is not None else None
         found.append(
-            (
+            _Org(
                 member.entity_id,
                 org.ref.name if org is not None else member.name,
-                tier if isinstance(tier, int) and not isinstance(tier, bool) else 0,
+                _int(tier),
+                org,
             )
         )
     return found
 
 
-def _org_entry(lookup: Lookup, org_id: EntityId, name: str | None, tier: int) -> dict[str, Any]:
-    org = lookup.state(org_id, Side.AFTER)
-    template = org.get("templateName") if org is not None else None
-    origin, category, basis = org_nature(org)
+def _org_skills(orgs: list[_Org], skills: Mapping[str, int]) -> dict[str, int]:
+    """The skill bonuses of the councilor's organizations, capped so that ``skills`` plus them never exceed the cap.
+
+    ``attributes`` leaves organization bonuses out, so the two add up.
+    """
+    found: dict[str, int] = {}
+    for name in SKILLS:
+        bonus = sum(_int(org.state.get(name.lower())) for org in orgs if org.state is not None)
+        capped = min(bonus, max(0, SKILL_CAP - skills.get(name, 0)))
+        if capped:
+            found[name] = capped
+    return found
+
+
+def _policy_influence(orgs: list[_Org]) -> list[str]:
+    """The causes the councilor's organizations push, strongest summed bonus first."""
+    totals = {
+        field: sum(_number(org.state.get(field)) for org in orgs if org.state is not None) for field in POLICY_LABELS
+    }
+    ranked = sorted((field for field in POLICY_LABELS if totals[field] > 0), key=lambda field: -totals[field])
+    return [POLICY_LABELS[field] for field in ranked]
+
+
+def _org_entry(lookup: Lookup, org: _Org) -> dict[str, Any]:
+    template = org.state.get("templateName") if org.state is not None else None
+    origin, category, basis = org_nature(org.state)
+    nation = _region_nation(lookup, lookup.resolve(org.state.get("homeRegion"))) if org.state is not None else None
     return {
-        "id": str(org_id),
-        "name": name,
-        "tier": tier,
+        "id": str(org.org_id),
+        "name": org.name,
+        "tier": org.tier,
+        "nation": nation.name if nation is not None else None,
         "template": template if isinstance(template, str) else None,
         "origin": origin,
         "category": category,
@@ -322,8 +379,7 @@ def org_nature(org: EntityState | None) -> tuple[str, str, str]:
 
 def _category_from_stats(org: EntityState) -> str:
     def number(name: str) -> float:
-        value = org.get(name)
-        return value if isinstance(value, int | float) and not isinstance(value, bool) else 0
+        return _number(org.get(name))
 
     money = number("incomeMoney_month")
     if number("spoilsBonus") >= 0.02 and money > 0:
@@ -354,11 +410,12 @@ def _category_from_stats(org: EntityState) -> str:
 
 def _home(lookup: Lookup, state: EntityState) -> dict[str, Any]:
     region = lookup.resolve(state.get("homeRegion"))
-    nation: EntityRef | None = None
-    if region is not None:
-        region_state = lookup.state(region.entity_id, Side.AFTER)
-        nation = lookup.resolve(region_state.get("nation")) if region_state is not None else None
-    return {"region": _named(region), "nation": _named(nation)}
+    return {"region": _named(region), "nation": _named(_region_nation(lookup, region))}
+
+
+def _region_nation(lookup: Lookup, region: EntityRef | None) -> EntityRef | None:
+    region_state = lookup.state(region.entity_id, Side.AFTER) if region is not None else None
+    return lookup.resolve(region_state.get("nation")) if region_state is not None else None
 
 
 def _named(ref: EntityRef | None) -> dict[str, Any] | None:
@@ -497,6 +554,14 @@ def _career_entry(event: Event) -> dict[str, Any]:
         "date": to_jsonable(event.date),
         "attributes": {key: to_jsonable(value) for key, value in event.attributes},
     }
+
+
+def _int(value: Observed) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _number(value: Observed) -> float:
+    return value if isinstance(value, int | float) and not isinstance(value, bool) else 0
 
 
 def _datetime(value: Observed) -> datetime | None:
