@@ -184,6 +184,17 @@ held `LogShipComplete`, `LogHabModuleComplete`, `LogCriticalHabModuleComplete`,
 `LogFleetAvailableForOperations`, `LogOurFleetRepaired`, `LogOurFleetRefueled`, `LogCrackdownExpires`,
 `LogControlPointDefenseExpires`, `LogFleetUndocked`, `LogAlarmTriggered`.
 
+Mission outcomes (observed 2026-11-05, all 15 Protectorate saves and two Resist saves): each
+`LogMissionOutcome*` entry is one resolved mission, with `gotoGameState` the councilor, `outcome`, the
+componentized date and an `iconResource` that differs by mission type (`councilor_missions/ICO_<mission>_off`).
+The mission's display name and target region appear only in `itemSummary`, in at least two phrasings
+("… completed their Advise mission in the Washington region of …", "… rolled a Success for the Investigate
+Councilor mission in the …"). They cover only the last two months or so of each save (Protectorate 5–32
+entries per save, Resist 14–15), although other templates reach back to the campaign start. Taking each
+outcome once across all 15 Protectorate saves, three to six months apart, gave 376 distinct outcomes;
+comparing the covered windows with the gaps between them, that is roughly half of all mission turns
+(estimate, not counted).
+
 Retention, observed across the older sample (summary queue sizes 771, 732, 733, 737, 691; timer queue 60
 in every save): the oldest entry was dated five years before the save date in all five saves, so the queue
 is a five-year window. It is not only age-pruned: between consecutive saves 82, 19, 79 and 136 entries
@@ -578,9 +589,16 @@ as its source; `minor`, corroboration and dating only under architecture 11.3. I
 - `FactionGoal_*` collections and `TIFactionState.factionGoals`: AI planning, per the inventory's
   interpretation boundary.
 - `TIMissionState` (337 per older save, 27–30 per newer; normalized as the mission domain, not an event
-  source): each player councilor keeps a rolling window of 7–89 retained missions and each AI councilor only
-  its active mission. States persist across intervals (292 of 339 carried over between two consecutive Resist
-  saves, 2026-11-03). `startTime`, `resolveTime` null, `missionOutcome` `None` or `Aborted`.
+  source). Not a mission history: the states referenced by a councilor's `activeMission` or `completedMission`
+  sit beside states nothing in the save references (Protectorate 2030-10: 36 active, 2 completed, 54
+  unreferenced of 92; Resist 2046-02 and 2046-10: 47 active, 292 and 294 unreferenced; 2026-11-05).
+  *Hypothesis:* the game deletes a state when its mission resolves and the unreferenced ones are leftovers it
+  never cleaned up. They accumulate without pattern: a Protectorate `GainInfluence` state from the first
+  save (2026-02) survives to the last, while a councilor who chose Advise on nearly every turn keeps two.
+  In Protectorate only player councilors keep leftovers; an AI councilor has its active mission at most. States persist across
+  intervals (292 of 339 carried over between two consecutive Resist saves, 2026-11-03). `startTime`,
+  `resolveTime` null, `missionOutcome` `None` or `Aborted`. Mission outcomes are in the notification log
+  instead (`TINotificationQueueState`, above).
 - `TIMissionPhaseState`, `TIPromptQueueState`, `TITimeEvent`, `TIEffectsState`: engine phase, pending
   prompts, scheduled ticks, effect tables.
 - `TIOfficerState` (353–380 per older save, none in the newer): ship officers with `rank`, `maxRank`,

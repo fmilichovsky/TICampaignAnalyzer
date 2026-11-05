@@ -76,6 +76,8 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Missions and councilor dates (#228).
   - [x] Dossier and dry run (#229).
   - [x] LLM articles (#230).
+  - [ ] Enrich package data (#243).
+  - [ ] Fix councilor mission detection (#281).
 - [ ] Slim down narrative package (#267):
   - [ ] Exclude relations and default values (#268).
   - [ ] Reduce carried statistics (#269).
