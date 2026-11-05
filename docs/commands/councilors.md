@@ -39,8 +39,13 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 - **The career** (faction, detention, status and organization changes) comes from the events
   between the saves. One save gives an empty career. Recruitment from the unemployed pool is not a
   career milestone: `recruited` dates it exactly, where the event could only date it to a save.
-- **Missions** are listed for the player's councilors only, as mission and target groups with their
-  counts (`councilors.missions_per_councilor` of them, the most frequent first).
+- **Missions** are listed for the player's councilors only. They come from the game's notification log, which
+  keeps only the last two months of resolved missions per save, so with several saves each outcome is
+  counted once across all of them; one save gives its own two months. Only the last
+  `councilors.missions_window_years` years count; aborted missions do not. The dossier lists the
+  `councilors.missions_per_councilor` most frequent mission types with their counts and most frequent regions,
+  and says that it is a sample: the period covered and how many outcomes were seen. The mission a
+  councilor is on now is listed separately as `active_mission`.
 
 ## Options
 
@@ -103,7 +108,7 @@ and the `selection` settings) and a `councilors` list, the player's councilors f
 carries identity, the profession in plain words (an intelligence officer, not the game's `Spy`),
 gender (`male`, `female` or `null`), traits, the seven skills, age, home region and nation,
 recruitment date and tenure, organizations, prominence, career and, for the player's councilors,
-missions.
+missions and the active mission.
 
 Traits are listed by their in-game names (`Cautious`, not the game's `Averse`), grouped as
 `temperament`, `expertise`, `reputation`, `circumstance` and `affiliation`. A trait this version does

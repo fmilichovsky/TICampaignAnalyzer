@@ -6,15 +6,17 @@ import re
 from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
+from ..analyzers.campaign.notifications import LOG, PREFIX
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.councilors import DETAINING_FACTION_CHANGED, FACTION_CHANGED, STATUS_CHANGED
 from ..analyzers.politics.organizations import COUNCILOR_ORGS_CHANGED
 from ..config import CouncilorSettings
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event
+from ..model.records import NotificationEntry
 from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, to_jsonable
 from .org_catalog import NAMED_ORG_CATEGORIES
@@ -74,6 +76,23 @@ PROFESSIONS = {
 """The public profession of a councilor type, so the article never has to interpret a template name."""
 _CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
 
+MISSION_OUTCOME_PREFIX = "LogMissionOutcome"
+"""Template prefix of the notification log entries that record a resolved mission."""
+REGIONS_PER_MISSION = 3
+_MARKUP = re.compile(r"<[^>]+>")
+_MISSION_TEXT = re.compile(
+    r"(?:rolled an? \w+ for the|completed their) (?P<mission>.+?) mission(?: in the (?P<region>.+?) region of )?"
+)
+"""The two summary phrasings of a resolved mission; an aborted mission has another and is skipped."""
+
+
+@dataclass(frozen=True)
+class _Outcome:
+    councilor: EntityId
+    date: datetime
+    mission: str
+    region: str | None
+
 
 @dataclass(frozen=True)
 class _Candidate:
@@ -114,7 +133,9 @@ def build_dossier(
             selected.extend(ranked[: settings.rivals_per_faction])
     selected.sort(key=lambda item: (item.faction.entity_id != player, _rank_key(item)))
 
+    career = list(career)
     events = _career_by_councilor(career)
+    outcomes = _mission_outcomes(career, snapshot, now, settings.missions_window_years)
     ranks = {
         candidate.state.ref.entity_id: place
         for ranked in by_faction.values()
@@ -129,10 +150,11 @@ def build_dossier(
             "rivals_per_faction": settings.rivals_per_faction,
             "min_tenure_days": settings.min_tenure_days,
             "missions_per_councilor": settings.missions_per_councilor,
+            "missions_window_years": settings.missions_window_years,
             "article_words": settings.article_words,
         },
         "councilors": [
-            _entry(snapshot, lookup, item, item.faction.entity_id == player, ranks, now, events, settings)
+            _entry(snapshot, lookup, item, item.faction.entity_id == player, ranks, now, events, outcomes, settings)
             for item in selected
         ],
     }
@@ -179,6 +201,7 @@ def _entry(
     ranks: Mapping[EntityId, int],
     now: datetime | None,
     career: Mapping[EntityId, list[Event]],
+    outcomes: Mapping[EntityId, list[_Outcome]],
     settings: CouncilorSettings,
 ) -> dict[str, Any]:
     state = candidate.state
@@ -209,7 +232,8 @@ def _entry(
         "career": [_career_entry(event) for event in career.get(councilor_id, [])],
     }
     if is_player:
-        entry["missions"] = _missions(snapshot, lookup, councilor_id, settings.missions_per_councilor)
+        entry["missions"] = _missions(outcomes.get(councilor_id, []), now, settings)
+        entry["active_mission"] = _active_mission(lookup, state)
     return entry
 
 
@@ -346,27 +370,108 @@ def _faction_name(lookup: Lookup, faction_id: EntityId | None) -> str | None:
     return ref.name if ref is not None else None
 
 
-def _missions(snapshot: SaveSnapshot, lookup: Lookup, councilor_id: EntityId, limit: int) -> list[dict[str, Any]]:
-    counts: Counter[tuple[str, EntityId | None]] = Counter()
-    targets: dict[EntityId, EntityRef] = {}
-    for mission in snapshot.missions:
-        owner = mission.get("councilor")
-        if not isinstance(owner, EntityRef) or owner.entity_id != councilor_id:
-            continue
-        template = mission.get("templateName")
-        target = lookup.resolve(mission.get("target"))
-        counts[
-            (template if isinstance(template, str) else "unknown", None if target is None else target.entity_id)
-        ] += 1
-        if target is not None:
-            targets[target.entity_id] = target
-    ordered = sorted(
-        counts.items(), key=lambda item: (-item[1], item[0][0], "" if item[0][1] is None else str(item[0][1]))
+def _mission_outcomes(
+    career: list[Event], snapshot: SaveSnapshot, now: datetime | None, window_years: int
+) -> dict[EntityId, list[_Outcome]]:
+    """The resolved missions of the last ``window_years`` by councilor.
+
+    The log keeps about two months per save, so with several saves each entry is taken once, from the event of the
+    interval it appeared in. A single save has no events and gives the entries of its own log.
+    """
+    found = [outcome for event in career if (outcome := _event_outcome(event)) is not None]
+    if not found:
+        found = [
+            outcome
+            for record in snapshot.records
+            if record.field == LOG and not isinstance(record.entries, Unknown)
+            for entry in record.entries
+            if isinstance(entry, NotificationEntry)
+            and (outcome := _outcome(entry.template, entry.summary, entry.outcome, entry.subject, entry.date))
+            is not None
+        ]
+    if now is None:
+        return {}
+    since = now - timedelta(days=window_years * DAYS_PER_YEAR)
+    grouped: dict[EntityId, list[_Outcome]] = {}
+    for outcome in found:
+        if since <= outcome.date <= now:
+            grouped.setdefault(outcome.councilor, []).append(outcome)
+    return grouped
+
+
+def _event_outcome(event: Event) -> _Outcome | None:
+    if not event.event_type.startswith(PREFIX + MISSION_OUTCOME_PREFIX):
+        return None
+    attributes = dict(event.attributes)
+    subject = event.entities[1] if len(event.entities) > 1 else None
+    return _outcome(
+        attributes.get("template"), attributes.get("summary"), attributes.get("outcome"), subject, event.date
     )
-    return [
-        {"mission": template, "target": _named(targets.get(target_id)) if target_id else None, "count": count}
-        for (template, target_id), count in ordered[:limit]
-    ]
+
+
+def _outcome(
+    template: Observed, summary: Observed, outcome: Observed, subject: Observed, date: Observed
+) -> _Outcome | None:
+    """A resolved mission of a councilor, or ``None`` for another entry, an abort, an unattributed or unreadable one."""
+    when = _datetime(date)
+    if (
+        not isinstance(template, str)
+        or not template.startswith(MISSION_OUTCOME_PREFIX)
+        or outcome == "Aborted"
+        or not isinstance(subject, EntityRef)
+        or subject.entity_id.domain is not EntityDomain.COUNCILOR
+        or not isinstance(summary, str)
+        or when is None
+    ):
+        return None
+    match = _MISSION_TEXT.search(_MARKUP.sub("", summary))
+    if match is None:
+        return None
+    return _Outcome(subject.entity_id, when, match.group("mission"), match.group("region"))
+
+
+def _missions(outcomes: list[_Outcome], now: datetime | None, settings: CouncilorSettings) -> dict[str, Any]:
+    """Mission types ranked by frequency, each with its most frequent regions.
+
+    The log shows only part of the mission turns, so the result is a sample of the period; it says so itself.
+    """
+    by_type: dict[str, Counter[str | None]] = {}
+    for outcome in outcomes:
+        by_type.setdefault(outcome.mission, Counter())[outcome.region] += 1
+    ranked = sorted(by_type.items(), key=lambda item: (-item[1].total(), item[0]))
+    types = []
+    for mission, regions in ranked[: settings.missions_per_councilor]:
+        named = sorted(
+            ((name, count) for name, count in regions.items() if name is not None), key=lambda i: (-i[1], i[0])
+        )
+        types.append(
+            {
+                "mission": mission,
+                "count": regions.total(),
+                "regions": [{"name": name, "count": count} for name, count in named[:REGIONS_PER_MISSION]],
+            }
+        )
+    return {
+        "sample": True,
+        "window_years": settings.missions_window_years,
+        "period": {
+            "from": min(o.date for o in outcomes).date().isoformat() if outcomes else None,
+            "to": None if now is None else now.date().isoformat(),
+        },
+        "outcomes_seen": len(outcomes),
+        "types": types,
+    }
+
+
+def _active_mission(lookup: Lookup, state: EntityState) -> dict[str, Any] | None:
+    """The mission the councilor is on now; the only use of ``TIMissionState``, whose other entries are leftovers."""
+    reference = state.get("activeMission")
+    mission = lookup.state(reference.entity_id, Side.AFTER) if isinstance(reference, EntityRef) else None
+    if mission is None:
+        return None
+    template = mission.get("templateName")
+    target = lookup.resolve(mission.get("target"))
+    return {"mission": template if isinstance(template, str) else None, "target": _named(target)}
 
 
 def _career_by_councilor(career: Iterable[Event]) -> dict[EntityId, list[Event]]:

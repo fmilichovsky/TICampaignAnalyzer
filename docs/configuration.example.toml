@@ -91,8 +91,11 @@ rivals_per_faction = 2
 # A councilor is selected only after being employed this many game days.
 min_tenure_days = 365
 
-# A player councilor's dossier keeps this many mission and target groups.
+# A player councilor's dossier keeps this many mission types.
 missions_per_councilor = 3
+
+# The dossier counts missions resolved this many years before the latest save (minimum 1).
+missions_window_years = 2
 
 # The length each article request asks for (minimum 1).
 article_words = 270
