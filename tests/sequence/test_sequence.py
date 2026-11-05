@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import gc
+import hashlib
 import shutil
 import weakref
 from datetime import datetime
@@ -16,7 +17,9 @@ from tinarrative.model.changes import StateDiff
 from tinarrative.model.events import Event, EventStatus
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.narrative.situation import build_situation
+from tinarrative.parsing.continuity import campaign_profile
 from tinarrative.parsing.normalization import normalize
+from tinarrative.parsing.raw_save import parse_raw_save
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
@@ -55,6 +58,42 @@ def test_saves_are_ordered_by_game_time_whatever_the_argument_order() -> None:
     assert [Path(save.source).name for save in plan.saves] == list(SEQUENCE)
     assert plan.keys == DATES
     assert (plan.inputs, plan.duplicates) == (3, 0)
+
+
+@pytest.mark.fixture
+def test_survey_uses_full_byte_hash_and_matches_raw_save_metadata(tmp_path: Path) -> None:
+    original = fixture(SEQUENCE[0]).read_bytes()
+    path = tmp_path / "save.json"
+    path.write_bytes(original + b" \n")
+
+    surveyed_save = survey(path)
+    parsed = parse_raw_save(path.read_bytes(), source=str(path))
+
+    assert surveyed_save.sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert surveyed_save.timestamp.isoformat() == "2032-01-01T00:00:00"
+    assert surveyed_save.profile == campaign_profile(parsed)
+
+
+@pytest.mark.parametrize(
+    ("data", "error_class"),
+    [
+        (b"", "MalformedSaveError"),
+        (b'{"currentID": {"value": 1}, "gamestates": []}', "UnsupportedSaveShapeError"),
+        (b'{"currentID": {"value": 1}, "gamestates": {"broken": ]}', "MalformedSaveError"),
+    ],
+)
+def test_survey_fallback_keeps_full_parser_error(tmp_path: Path, data: bytes, error_class: str) -> None:
+    from tinarrative.parsing.errors import SaveLoadError
+
+    path = tmp_path / "invalid.json"
+    path.write_bytes(data)
+    with pytest.raises(SaveLoadError) as error:
+        survey(path)
+    assert type(error.value).__name__ == error_class
+    with pytest.raises(SaveLoadError) as parsed_error:
+        parse_raw_save(data, source=str(path))
+    assert type(error.value) is type(parsed_error.value)
+    assert str(error.value) == str(parsed_error.value)
 
 
 @pytest.mark.fixture

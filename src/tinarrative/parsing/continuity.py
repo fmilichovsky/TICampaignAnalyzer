@@ -49,7 +49,10 @@ def _first(gamestates: dict[str, Any], short_type: str) -> dict[str, Any]:
 
 def campaign_profile(raw_save: RawSave) -> CampaignProfile:
     """A missing singleton or member leaves its signal ``None``; raises only for a malformed pair container."""
-    gamestates: dict[str, Any] = raw_save.root["gamestates"]
+    return campaign_profile_from_states(raw_save.root["gamestates"])
+
+
+def campaign_profile_from_states(gamestates: dict[str, Any]) -> CampaignProfile:
     humans = [
         entry.value for entry in decode_state_map(gamestates, "TIPlayerState") if entry.value.get("isAI") is False
     ]

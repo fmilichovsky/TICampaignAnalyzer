@@ -17,6 +17,9 @@ _UTF8_BOM = b"\xef\xbb\xbf"
 _UTF16_BOMS = (b"\xff\xfe", b"\xfe\xff")
 _GZIP_MAGIC = b"\x1f\x8b"
 _ZIP_MAGIC = b"PK\x03\x04"
+SURVEY_STATE_TYPES = frozenset(
+    {"TITimeState", "TIMetadataState", "TIPlayerState", "TIGlobalValuesState", "TIFactionState"}
+)
 
 logger = get_logger(__name__)
 
@@ -93,3 +96,55 @@ def parse_raw_save(data: bytes, *, source: str, format: str = DEFAULT_FORMAT) ->
         root=root,
         size_bytes=len(data),
     )
+
+
+def parse_survey_states(data: bytes) -> dict[str, Any] | None:
+    """Decode only survey's required state containers; return ``None`` when a full parse is needed."""
+    if not data or any(data.startswith(magic) for magic in (_GZIP_MAGIC, _ZIP_MAGIC, *_UTF16_BOMS, _UTF8_BOM)):
+        return None
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+    decoder = json.JSONDecoder()
+
+    def member_position(member: bytes, start: int) -> int | None:
+        needle = b'"' + member + b'"'
+        position = start
+        while (position := data.find(needle, position)) >= 0:
+            before = position - 1
+            while before >= 0 and data[before] in b" \t\r\n":
+                before -= 1
+            if before >= 0 and data[before] in (ord("{"), ord(",")):
+                after = position + len(needle)
+                while after < len(data) and data[after] in b" \t\r\n":
+                    after += 1
+                if after < len(data) and data[after] == ord(":"):
+                    after += 1
+                    while after < len(data) and data[after] in b" \t\r\n":
+                        after += 1
+                    return after
+            position += len(needle)
+        return None
+
+    try:
+        root = data.find(b"{")
+        if root < 0:
+            return None
+        current_id_position = member_position(b"currentID", root + 1)
+        gamestates_position = member_position(b"gamestates", root + 1)
+        if current_id_position is None or gamestates_position is None or text[gamestates_position] != "{":
+            return None
+        decoder.raw_decode(text, current_id_position)
+        states: dict[str, Any] = {}
+        start = gamestates_position + 1
+        for short_type in SURVEY_STATE_TYPES:
+            found = member_position(("PavonisInteractive.TerraInvicta." + short_type).encode(), start)
+            if found is None:
+                return None
+            value, _end = decoder.raw_decode(text, found)
+            states["PavonisInteractive.TerraInvicta." + short_type] = value
+        return states
+    except (ValueError, json.JSONDecodeError, RecursionError):
+        return None

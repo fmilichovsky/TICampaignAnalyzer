@@ -28,10 +28,10 @@ from .model.snapshot import SaveSnapshot
 from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
 from .narrative.chronology import TIE_SEPARATOR, chronological, interval_keys, qualify
 from .narrative.situation import SPACEPORTS
-from .parsing.continuity import CampaignProfile, campaign_profile
+from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
-from .parsing.normalization import normalize, save_timestamp
-from .parsing.raw_save import parse_raw_save
+from .parsing.normalization import normalize
+from .parsing.survey import survey_metadata
 from .reconstruction import infer_events
 from .workers import memory_line, pool, tick
 
@@ -194,15 +194,14 @@ def survey(path: Path) -> SaveRef:
     content."""
     started = time.perf_counter()
     data = load_save(path)
-    raw = parse_raw_save(data, source=str(path))
-    timestamp = save_timestamp(raw)
+    timestamp, profile = survey_metadata(data, source=str(path))
     if timestamp is None:
         raise UnknownChronologyError("no parseable TITimeState.currentDateTime; the save cannot be ordered")
     surveyed = SaveRef(
         source=str(path),
         sha256=hashlib.sha256(data).hexdigest(),
         timestamp=timestamp,
-        profile=campaign_profile(raw),
+        profile=profile,
     )
     timing.info("survey %s", fields(seconds=_seconds(started)))
     return surveyed

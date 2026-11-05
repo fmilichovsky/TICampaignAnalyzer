@@ -123,7 +123,7 @@ def _survey_sample_inputs(
     skipped: list[SkippedSave] = []
     usable: dict[Path, int] = {}
     for index, item in enumerate(inputs, start=1):
-        progress.update("Parsing saves", index, filename=item.path.name)
+        progress.update("Scanning saves", index, filename=item.path.name)
         if item.empty_directory:
             raise SampleImportError(f"{item.path}: the directory holds no files", 4)
         try:
