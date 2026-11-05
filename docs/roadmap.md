@@ -108,6 +108,6 @@ Tracking #249.
 - [x] Runtime benchmark and per-stage timing lines.
 - [x] Record-log diff keys computed once (#253).
 - [x] Shared snapshot and interval indexes (#254).
-- [ ] Indexed event stream for narrative rules (#255).
+- [x] Indexed event stream for narrative rules (#255).
 - [ ] Normalization and model hot-path costs (#256).
 - [ ] Parallel survey and interval processing (#257).

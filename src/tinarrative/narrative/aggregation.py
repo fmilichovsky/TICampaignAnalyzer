@@ -27,6 +27,7 @@ from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
 from .situation import SituationReport
+from .stream import EventStream
 
 logger = get_logger(__name__)
 timing = get_logger(TIMING_LOGGER)
@@ -46,7 +47,8 @@ class Join(StrEnum):
 class NarrativeRule(Protocol):
     """A named rule building one kind of narrative event.
 
-    It sees the narrative events of lower ``order`` only. ``window_days`` is ``None`` for the whole sequence.
+    It sees the narrative events of lower ``order`` only, in chronological order. ``window_days`` is ``None`` for the
+    whole sequence.
     """
 
     @property
@@ -59,7 +61,7 @@ class NarrativeRule(Protocol):
     def window_days(self) -> int | None: ...
 
     def apply(
-        self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+        self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]: ...
 
 
@@ -228,7 +230,7 @@ def aggregate(
     build = NarrativeBuilder(situations)
     built: list[Event] = []
     for order in sorted({rule.order for rule in rules}):
-        visible = chronological([*stream, *built])
+        visible = EventStream(chronological([*stream, *built]))
         visible_ids = {event.id for event in visible}
         produced = [
             (rule, _timed_apply(rule, visible, situations, build))
@@ -248,7 +250,7 @@ def aggregate(
 
 
 def _timed_apply(
-    rule: NarrativeRule, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+    rule: NarrativeRule, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder
 ) -> list[Event]:
     started = time.perf_counter()
     events = rule.apply(stream, situations, build)
