@@ -28,6 +28,7 @@ from tinarrative.model.records import (
     LedgerEntry,
     RecordKind,
     RecordSet,
+    diff_key,
     record_counts,
 )
 from tinarrative.model.snapshot import STATE_COLLECTIONS, EntityState, ResearchState, SaveSnapshot
@@ -471,3 +472,10 @@ def test_a_narrative_event_serializes_its_span_and_sorted_unique_roles() -> None
 
 def test_a_narrative_event_is_placed_by_its_start() -> None:
     assert _narrative_event().sort_key[0] == "2032-01-01T00:00:00"
+
+
+def test_a_diff_key_ignores_the_index_but_not_the_entry_type() -> None:
+    assert diff_key(ItemEntry(0, "a")) == diff_key(ItemEntry(3, "a"))
+    assert diff_key(ItemEntry(0, "a")) != diff_key(ItemEntry(0, "b"))
+    assert diff_key(ItemEntry(0, "a")) != diff_key(KeyedEntry(0, "a", None))
+    assert diff_key(KeyedEntry(0, "a", None)) != diff_key(DestructionEntry(0, "a", None, None, None))

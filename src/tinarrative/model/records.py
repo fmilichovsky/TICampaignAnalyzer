@@ -7,7 +7,7 @@ See ``docs/architecture.md`` section 4.3.
 from __future__ import annotations
 
 from collections.abc import Hashable, Iterable
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from dataclasses import fields as dataclass_fields
 from enum import StrEnum
 from typing import Any
@@ -159,6 +159,11 @@ class CombatEntry:
 
 RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry | NotificationEntry | CombatEntry
 
+_CONTENT_FIELDS: dict[type, tuple[str, ...]] = {
+    entry_type: tuple(item.name for item in dataclass_fields(entry_type) if item.name != "index")
+    for entry_type in (LedgerEntry, DestructionEntry, KeyedEntry, ItemEntry, NotificationEntry, CombatEntry)
+}
+
 
 def diff_key(entry: RecordEntry) -> Hashable:
     """What identifies a log entry across two saves, index aside.
@@ -168,7 +173,15 @@ def diff_key(entry: RecordEntry) -> Hashable:
     """
     if isinstance(entry, NotificationEntry):
         return (entry.template, entry.date, entry.summary)
-    return replace(entry, index=0)
+    return content_key(entry)
+
+
+def content_key(entry: RecordEntry) -> tuple[Hashable, ...]:
+    """The entry's type and every field but ``index``: two entries with the same content are the same record.
+
+    A plain tuple, because log diffs build one per entry and a copied frozen dataclass costs several times more.
+    """
+    return (type(entry), *(getattr(entry, name) for name in _CONTENT_FIELDS[type(entry)]))
 
 
 def entry_to_dict(entry: RecordEntry) -> dict[str, Any]:

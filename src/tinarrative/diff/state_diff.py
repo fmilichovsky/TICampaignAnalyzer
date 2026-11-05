@@ -13,14 +13,23 @@ import logging
 from collections import Counter
 from collections.abc import Hashable
 from dataclasses import fields as dataclass_fields
-from dataclasses import replace
 
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from ..model.entities import EntityId, EntityRef
 from ..model.evidence import Evidence, SourceLocation
-from ..model.records import KEYED_KINDS, SCALAR_KINDS, ItemEntry, KeyedEntry, RecordEntry, RecordSet, diff_key
+from ..model.records import (
+    KEYED_KINDS,
+    SCALAR_KINDS,
+    ItemEntry,
+    KeyedEntry,
+    NotificationEntry,
+    RecordEntry,
+    RecordSet,
+    content_key,
+    diff_key,
+)
 from ..model.snapshot import STATE_COLLECTIONS, CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, to_jsonable
 
@@ -226,11 +235,6 @@ def _collection_changes(name: str, before: SaveSnapshot, after: SaveSnapshot) ->
     return changes
 
 
-def _content(entry: RecordEntry) -> RecordEntry:
-    """The entry without its position: two entries with the same content are the same record."""
-    return replace(entry, index=0)
-
-
 def _side_count(entries: tuple[RecordEntry, ...] | Unknown) -> Observed:
     return entries if isinstance(entries, Unknown) else len(entries)
 
@@ -242,15 +246,17 @@ def _log_detail(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...])
     (a notification with the same key but another outcome) is ``changed``. For a kind whose key is its
     content no pair can differ.
     """
-    before_counts = Counter(diff_key(entry) for entry in before)
-    after_counts = Counter(diff_key(entry) for entry in after)
-    added = _surplus(after, after_counts - before_counts)
-    removed = _surplus(before, before_counts - after_counts)
-    kept_before = _kept(before, removed)
+    before_keys = [diff_key(entry) for entry in before]
+    after_keys = [diff_key(entry) for entry in after]
+    before_counts = Counter(before_keys)
+    after_counts = Counter(after_keys)
+    added = _surplus(after, after_keys, after_counts - before_counts)
+    removed = _surplus(before, before_keys, before_counts - after_counts)
+    kept_before = _kept(before, before_keys, removed)
     changed: list[tuple[RecordEntry, RecordEntry]] = []
-    for key, kept_after in _kept(after, added).items():
+    for key, kept_after in _kept(after, after_keys, added).items():
         for old, new in zip(kept_before[key], kept_after, strict=True):
-            if _content(old) != _content(new):
+            if content_key(old) != content_key(new):
                 changed.append((old, new))
     return RecordsDetail(
         added=tuple(entry for _, entry in added),
@@ -259,12 +265,14 @@ def _log_detail(before: tuple[RecordEntry, ...], after: tuple[RecordEntry, ...])
     )
 
 
-def _surplus(entries: tuple[RecordEntry, ...], extra: Counter[Hashable]) -> tuple[tuple[int, RecordEntry], ...]:
+def _surplus(
+    entries: tuple[RecordEntry, ...], keys: list[Hashable], extra: Counter[Hashable]
+) -> tuple[tuple[int, RecordEntry], ...]:
     """(position, entry) accounting for ``extra``; among equal keys the later ones, since logs grow at the end."""
     remaining = Counter(extra)
     picked: list[tuple[int, RecordEntry]] = []
     for position in reversed(range(len(entries))):
-        key = diff_key(entries[position])
+        key = keys[position]
         if remaining[key] > 0:
             remaining[key] -= 1
             picked.append((position, entries[position]))
@@ -272,14 +280,17 @@ def _surplus(entries: tuple[RecordEntry, ...], extra: Counter[Hashable]) -> tupl
 
 
 def _kept(
-    entries: tuple[RecordEntry, ...], picked: tuple[tuple[int, RecordEntry], ...]
+    entries: tuple[RecordEntry, ...], keys: list[Hashable], picked: tuple[tuple[int, RecordEntry], ...]
 ) -> dict[Hashable, list[RecordEntry]]:
-    """The entries not ``picked``, grouped by ``diff_key`` in serialized order."""
+    """The notifications not ``picked``, grouped by their ``keys`` in serialized order.
+
+    Only a notification's key is narrower than its content, so no other kept pair can differ.
+    """
     skip = {position for position, _ in picked}
     groups: dict[Hashable, list[RecordEntry]] = {}
     for position, entry in enumerate(entries):
-        if position not in skip:
-            groups.setdefault(diff_key(entry), []).append(entry)
+        if isinstance(entry, NotificationEntry) and position not in skip:
+            groups.setdefault(keys[position], []).append(entry)
     return groups
 
 
