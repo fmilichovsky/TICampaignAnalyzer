@@ -106,7 +106,7 @@ Target: record every save the game writes and narrate on demand in installments
 Tracking #249.
 
 - [x] Runtime benchmark and per-stage timing lines.
-- [ ] Record-log diff keys computed once (#253).
+- [x] Record-log diff keys computed once (#253).
 - [ ] Shared snapshot and interval indexes (#254).
 - [ ] Indexed event stream for narrative rules (#255).
 - [ ] Normalization and model hot-path costs (#256).
