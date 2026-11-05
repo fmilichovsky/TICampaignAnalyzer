@@ -22,6 +22,7 @@ from tinarrative.narrator.providers import (
     completion_request,
     endpoint,
 )
+from tinarrative.narrator.rate_limit import RateLimiter
 from tinarrative.narrator.transport import HttpResponse, TransportError
 
 REQUEST = CompletionRequest(system="SYSTEM", user="USER", model="some-model", max_output_tokens=900)
@@ -282,12 +283,27 @@ def test_a_success_without_a_completion_is_an_invalid_response(provider: str, bo
 def test_a_rate_limit_waits_as_retry_after_asks() -> None:
     transport = FakeTransport(ok({}, 429, **{"retry-after": "7"}), ok(anthropic_response()))
     waits: list[float] = []
+    limiter_waits: list[float] = []
+    clock = [0.0]
 
-    completion = send(transport, "anthropic", waits=waits)
+    def rate_sleep(seconds: float) -> None:
+        limiter_waits.append(seconds)
+        clock[0] += seconds
+
+    limiter = RateLimiter(1, None, clock=lambda: clock[0], sleep=rate_sleep)
+
+    completion = complete(
+        REQUEST,
+        target("anthropic"),
+        transport,
+        sleep=waits.append,
+        before_attempt=lambda: limiter.acquire(1),
+    )
 
     assert completion.finish == "complete"
     assert waits == [7.0]
     assert len(transport.calls) == 2
+    assert limiter_waits == [60.0]
 
 
 def test_retry_after_as_a_date_and_capped() -> None:

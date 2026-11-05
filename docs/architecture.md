@@ -879,6 +879,9 @@ reason, token counts); adapters translate for the `anthropic`, `openai` (also Op
     fake; no test touches the network;
 -   bounded retries on rate limits and server errors, honouring the provider's hint; a completion cut at its
     length limit or refused is a failed chapter, never a short one;
+-   optional per-profile request and token limits pace attempts in a rolling 60-second window; retries count,
+    token reservations use estimated input plus the configured output allowance, and a request larger than the
+    token limit fails before the run sends anything;
 -   a local model's context is set from the budget, since a too-small context truncates input silently;
 -   the model is always named by the user (no default model ID, which would go stale); settings profiles
     choose provider, model and limits;

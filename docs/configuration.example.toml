@@ -147,10 +147,15 @@ max_output_tokens = 16000
 # One HTTP request is abandoned after this many seconds (minimum 1).
 timeout_seconds = 600
 
+# Optional per-profile throughput caps. Request attempts include retries; the
+# token estimate reserves estimated input plus max_output_tokens.
+# requests_per_minute = 30
+# tokens_per_minute = 100000
+
 # Named profiles, chosen with --profile NAME. A profile sets provider, model,
 # base_url, api_key_env, max_input_tokens, max_output_tokens, chars_per_token,
-# context_window, temperature or timeout_seconds over the keys above; flags
-# override both.
+# context_window, temperature, timeout_seconds, requests_per_minute or
+# tokens_per_minute over the keys above; flags override both.
 [narrator.profiles]
 
 # [narrator.profiles.claude]

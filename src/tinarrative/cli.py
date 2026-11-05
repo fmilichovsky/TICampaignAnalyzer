@@ -11,7 +11,7 @@ import time
 from collections.abc import Callable, Sequence
 from contextlib import closing
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -53,6 +53,7 @@ from .narrator.assembly import KEPT_FINISHES, assemble, parse_plan, stored_chapt
 from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
 from .narrator.councilors import article_requests, assemble_articles, missing, request_sha256
 from .narrator.providers import CompletionRequest, Endpoint, ProviderError, complete, completion_request, endpoint
+from .narrator.rate_limit import RateLimiter, estimate_tokens
 from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
 from .narrator.transport import Transport, UrllibTransport
 from .parsing.continuity import CampaignProfile
@@ -1220,6 +1221,29 @@ def _sleep(seconds: float) -> None:
     time.sleep(seconds)
 
 
+class _RateLimitStatus:
+    """Show and clear the expected retry time on one terminal line."""
+
+    def __init__(self) -> None:
+        self.width = 0
+
+    def wait(self, seconds: float) -> None:
+        if not sys.stderr.isatty():
+            return
+        expected = (datetime.now().astimezone() + timedelta(seconds=seconds)).strftime("%H:%M:%S")
+        label = f"tinarrative: rate limit wait; next attempt expected at {expected}"
+        sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
+        sys.stderr.flush()
+        self.width = len(label)
+
+    def clear(self) -> None:
+        if not sys.stderr.isatty():
+            return
+        sys.stderr.write("\r" + " " * self.width + "\r")
+        sys.stderr.flush()
+        self.width = 0
+
+
 def _now() -> datetime:
     """The generation time of an assembled history; tests replace it."""
     return datetime.now(UTC)
@@ -1287,10 +1311,43 @@ def _send(
     transport = _transport()
     outcomes: list[_Outcome] = []
     stopped = False
+    prepared: list[tuple[_SendItem, CompletionRequest, Path, dict[str, Any] | None, int]] = []
+    impossible: list[tuple[_SendItem, int]] = []
     for item in items:
         request = completion_request(item.request, settings)
         path = responses / _chapter_file(item.index, count)
         stored = None if force else _stored(path, item.request_sha256, request, target.provider)
+        reserved = estimate_tokens(request.system, request.user, settings.chars_per_token, request.max_output_tokens)
+        if stored is None and settings.tokens_per_minute is not None and reserved > settings.tokens_per_minute:
+            impossible.append((item, reserved))
+        prepared.append((item, request, path, stored, reserved))
+
+    if impossible:
+        offending = {item.index: reserved for item, reserved in impossible}
+        for item, _, _, stored, _ in prepared:
+            if stored is not None:
+                outcomes.append(_Outcome(item, stored, True, stored["finish"], None))
+                continue
+            if item.index in offending:
+                reason = (
+                    f"estimated request reservation {offending[item.index]} tokens exceeds "
+                    f"tokens_per_minute {settings.tokens_per_minute}"
+                )
+            else:
+                reason = "not sent because another request exceeds tokens_per_minute"
+            outcomes.append(_Outcome(item, None, False, "error", reason))
+            print(f"tinarrative {command}: {item.label}: {target.provider}: {reason}", file=sys.stderr)
+        return outcomes, EXIT_PROVIDER_ERROR
+
+    status = _RateLimitStatus()
+    limiter = RateLimiter(
+        settings.requests_per_minute,
+        settings.tokens_per_minute,
+        sleep=_sleep,
+        on_wait=status.wait,
+        on_ready=status.clear,
+    )
+    for item, request, path, stored, reserved in prepared:
         if stored is not None:
             outcomes.append(_Outcome(item, stored, True, stored["finish"], None))
             logger.info(
@@ -1303,7 +1360,18 @@ def _send(
             continue
         failure: tuple[str, str] | None = None
         try:
-            completion = complete(request, target, transport, sleep=_sleep, chapter=item.index)
+
+            def before_attempt(reservation: int = reserved) -> None:
+                limiter.acquire(reservation)
+
+            completion = complete(
+                request,
+                target,
+                transport,
+                sleep=_sleep,
+                before_attempt=before_attempt,
+                chapter=item.index,
+            )
         except ProviderError as error:
             logger.info(
                 "%s send failed %s",
