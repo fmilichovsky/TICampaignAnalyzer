@@ -5,7 +5,15 @@ import json
 import pytest
 
 from tinarrative.diff.render import render_change
-from tinarrative.diff.state_diff import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, diff_states
+from tinarrative.diff.state_diff import (
+    ChangeKind,
+    MapDetail,
+    MembershipDetail,
+    RecordsDetail,
+    StateChange,
+    diff_states,
+    strict_equal,
+)
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.evidence import SourceLocation
 from tinarrative.model.records import (
@@ -83,6 +91,30 @@ def test_scalar_transition_is_a_value_change_with_both_locations() -> None:
 def test_equality_is_strict_about_types(before: Observed, after: Observed) -> None:
     change = single(before, after)
     assert change is not None and change.kind is ChangeKind.VALUE
+
+
+def test_strict_equality_recurses_into_containers_and_treats_one_object_as_equal_to_itself() -> None:
+    nested = (freeze({"a": [1, True]}),)
+    assert strict_equal(nested, nested)
+    assert strict_equal(nested, (freeze({"a": [1, True]}),))
+    assert not strict_equal(nested, (freeze({"a": [1.0, True]}),))
+    assert not strict_equal(nested, (freeze({"a": [1, 1]}),))
+    assert not strict_equal(freeze({"a": 1}), freeze({"b": 1}))
+    assert not strict_equal(Unknown(UnknownReason.UNPARSEABLE, 1), Unknown(UnknownReason.UNPARSEABLE, 1.0))
+    assert strict_equal(ref("2"), ref("2")) and not strict_equal(ref("2"), ref("3"))
+    nan = float("nan")
+    assert strict_equal(nan, nan) and not strict_equal(nan, float("nan"))
+
+
+def test_a_field_on_one_side_only_is_an_unknown_change_in_name_order() -> None:
+    before = snapshot(BEFORE, nation("1", BEFORE, a=1, b=2, c=3))
+    after = snapshot(AFTER, nation("1", AFTER, b=2, c=4, d=5))
+    changes = changes_of(before, after)
+    assert [(change.field, change.kind) for change in changes] == [
+        ("a", ChangeKind.UNKNOWN),
+        ("c", ChangeKind.VALUE),
+        ("d", ChangeKind.UNKNOWN),
+    ]
 
 
 def test_reference_transitions_are_value_changes() -> None:
