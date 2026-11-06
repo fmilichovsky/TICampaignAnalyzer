@@ -391,9 +391,10 @@ Space:
 | `technology.milestone` | a technology or project from a curated list completed (the list is interpretation) |
 
 **Dated mission records as evidence.** Every faction carries a `Transactions` ledger (section 4.3) whose
-labels include mission and operation names. It can attribute an action to a faction and narrow its date where
-a visible effect already exists. The councilor's current mission field is never used. A ledger entry names no
-target, some labels are hashed, each label's list is pruned, and an entry is a cost charged when the mission
+labels include mission and operation names. Only allow-listed councilor missions and asset charges produce
+transaction events; space-operation labels are excluded from the allow-list. It can attribute an action to a
+faction and narrow its date where a visible effect already exists. The councilor's current mission field is never
+used. A ledger entry names no target, some labels are hashed, each label's list is pruned, and an entry is a cost charged when the mission
 is assigned, some time before it resolves (see the `Transactions` section of the [higher-level event
 sources](game-data-notes/higher-level-event-sources.md)). So the bounds are:
 

@@ -259,10 +259,11 @@ Observed on 2026-10-19 on the eight private saves of two campaigns (Appease: 7 a
   `Crackdown`, `HostileTakeover`, `Propaganda`, `Stabilize`, `Inspire`, `Unrest`, `Assassinate`, `Detain`,
   `Turn`, `Advise`, `Extract`, `Augmentation`, `SetNationalPolicy`, `DefendInterests`, `InvestigateCouncilor`,
   `StealProject`, `SabotageProject`, `SabotageFacilities`, `Abductions`, `EnthrallElites`, `TerrorizeRegion`,
-  `Xenoform`, `AssaultAlienAsset`, `Contact`), a space operation name (`FoundColonyOperation`,
+  `Xenoform`, `AssaultAlienAsset`, `Contact`), an observed space operation name (`FoundColonyOperation`,
   `FoundOrbitalOperation`, `FoundOutpostOperation`, `FoundPlatformOperation`, `FoundRingOperation`,
   `FoundSettlementOperation`, `LaunchProbeOperation`, `LaunchAllProbeOperation`, `RepairFleetOperation`,
-  `ResupplyOperation`, `ResupplyAndRepairOperation`, `TransferOfficersOperation`), an asset charge (`Ship
+  `ResupplyOperation`, `ResupplyAndRepairOperation`, `TransferOfficersOperation`; space operation labels are
+  excluded from the event allow-list), an asset charge (`Ship
   Construction`, `Hire Councilor`, `Purchase Org`, `Sell Org`, `Cancel Ship`, `Salvage`, `Scuttle`, ...) or one of
   66 hashed numeric labels. A charge that costs several resources is several entries with the same date (`Ship
   Construction` 3-6, `FoundColonyOperation` 2). No entry names a target.

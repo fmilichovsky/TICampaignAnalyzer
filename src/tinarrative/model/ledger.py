@@ -33,23 +33,6 @@ COUNCILOR_MISSIONS: frozenset[str] = frozenset(
     }
 )
 
-SPACE_OPERATIONS: frozenset[str] = frozenset(
-    {
-        "FoundColonyOperation",
-        "FoundOrbitalOperation",
-        "FoundOutpostOperation",
-        "FoundPlatformOperation",
-        "FoundRingOperation",
-        "FoundSettlementOperation",
-        "LaunchProbeOperation",
-        "LaunchAllProbeOperation",
-        "RepairFleetOperation",
-        "ResupplyOperation",
-        "ResupplyAndRepairOperation",
-        "TransferOfficersOperation",
-    }
-)
-
 ASSET_CHARGES: frozenset[str] = frozenset({"Ship Construction", "Hire Councilor", "Global Milestone"})
 
-ALLOWED_LEDGER_LABELS: frozenset[str] = COUNCILOR_MISSIONS | SPACE_OPERATIONS | ASSET_CHARGES
+ALLOWED_LEDGER_LABELS: frozenset[str] = COUNCILOR_MISSIONS | ASSET_CHARGES
