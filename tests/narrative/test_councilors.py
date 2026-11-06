@@ -237,6 +237,51 @@ def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:
     assert list(entry["traits"]) == ["temperament", "expertise", "reputation", "affiliation", "other"]
 
 
+def _visibility(espionage: int, traits: tuple[str, ...], *orgs: Any) -> dict[str, Any]:
+    councilor = _councilor(
+        "100",
+        "1",
+        orgs=tuple(org.ref.entity_id.key for org in orgs),
+        attributes=freeze({**SKILLS, "Espionage": espionage}),
+        traitTemplateNames=traits,
+    )
+    entry: dict[str, Any] = _build(_world(*orgs, councilor))["councilors"][0]
+    return entry["visibility"]
+
+
+def test_visibility_concealment_is_espionage_with_trait_mods_and_orgs_up_to_the_cap_plus_detection_bonuses() -> None:
+    assert _visibility(4, ()) == {"level": "public", "concealment": 4}
+    assert _visibility(4, ("Furtive", "Streetwise", "Addict")) == {"level": "private", "concealment": 7}
+    assert _visibility(20, ("Vengeful",), _org("70", 2, espionage=4)) == {"level": "shadow", "concealment": 25}
+    assert _visibility(5, ("FooBar",))["concealment"] == 5
+
+
+def test_visibility_weights_public_profile_traits_up() -> None:
+    assert _visibility(10, ("LowProfile",))["concealment"] == 16
+    assert _visibility(10, ("Undercover", "PuppetMaster"))["concealment"] == 16
+    assert _visibility(10, ("Famous",))["concealment"] == 2
+    assert _visibility(25, ("Megastar",))["concealment"] == 9
+    assert _visibility(10, ("NationalHero", "Brazen"))["concealment"] == 2
+
+
+def test_visibility_level_thresholds() -> None:
+    assert [_visibility(value, ())["level"] for value in (5, 6, 17, 18)] == ["public", "private", "private", "shadow"]
+
+
+def test_visibility_always_revealed_is_never_shadow_and_low_profile_never_public() -> None:
+    assert _visibility(25, ("Eminent",)) == {"level": "private", "concealment": 21}
+    assert _visibility(0, ("LowProfile",)) == {"level": "private", "concealment": 6}
+    assert _visibility(0, ("Undercover",)) == {"level": "private", "concealment": 3}
+    assert _visibility(25, ("Undercover", "Firebrand")) == {"level": "private", "concealment": 22}
+    assert _visibility(0, ("Undercover", "Famous"))["level"] == "private"
+
+
+def test_visibility_low_profile_traits_stay_out_of_the_traits() -> None:
+    councilor = _councilor("100", "1", traitTemplateNames=("LowProfile", "Undercover", "Famous"))
+    entry = _build(_world(councilor))["councilors"][0]
+    assert entry["traits"] == {"reputation": ["Famous"]}
+
+
 def test_profession_is_plain_language_and_unknown_types_are_split_into_words() -> None:
     snap = _world(
         _councilor("100", "1", typeTemplateName="Spy"),

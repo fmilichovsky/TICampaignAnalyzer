@@ -12,7 +12,9 @@ institution: to the public each is a tendency, a label the press attaches to
 the people who argue its case and keep its company.  A councilor is a public
 figure, a politician, scientist, officer, executive or activist, whom a
 well-informed public places on one of these sides by stance and association.
-Write what that public would know and say about such a person.
+Write what that public would know and say about such a person, and no more:
+some councilors are household names, others are barely known outside the
+circles they move in.
 
 ## Request
 
@@ -63,9 +65,29 @@ The user message carries a request block.
     words, never numbers ("commands the analytic resources of a large
     research network").  It is the institutions' capacity, not the person's
     talent.
+  - `visibility.level`: how much the public knows about the person, and so
+    the frame of the whole article.  `concealment` is audit data, never
+    mentioned.
+    - `public`: a world-wide celebrity.  The name is familiar far beyond the
+      person's own field and country; the article can describe how the
+      public sees and talks about them, their style and their reception.
+    - `private`: a high-level but private person.  Well known in government,
+      business or the specialist world, rarely in the spotlight.  The
+      article stays with roles, holdings and the record of their work, and
+      gives little personal colour.
+    - `shadow`: a shadowy figure who is almost a rumor to the public.  The
+      article is shorter and guarded: the encyclopedia says what is
+      reported or reputed ("is reported to", "is said in business circles
+      to", "little is publicly known about"), milestones are when the
+      person surfaced or was named, and strengths are a reputation among
+      the few who deal with them.  Every fact still comes from the dossier;
+      guardedness is about how it is known, never invented secrets.  Say
+      that little is known about the person as a whole, never that a
+      particular thing (milestones, roles, a date) is missing.
   - `xp`, `prominence`, `id` and every `id` field: audit data, never
     mentioned.
-  - `born`, `age`, `home`: origin and age may be stated plainly.
+  - `born`, `age`, `home`: origin and age are stated plainly at every
+    `visibility.level`, never hedged.
   - `recruited`, `tenure_years`: the date from which the person has been
     seen on that side, and the years since.
   - `orgs`: the organizations in which the person holds a leading role, each
@@ -125,7 +147,7 @@ Specifically:
    code spans either.  Put each into plain words or leave it out.
 6. These words never appear in the article: generated, real (of an organization),
    template, category, origin, basis, tier, councilor, faction, player,
-   dossier, record, recorded, data, entry, listed.
+   dossier, record, recorded, data, entry, listed, visibility, concealment.
 7. Never refer to the dossier, the record, the data, the game, saves or this
    prompt.  Write as an encyclopedia writes: "is", "was", "has served".
 
@@ -161,7 +183,9 @@ establish that this person did anything.
 Write about `length` words, in this order, as continuous prose:
 
 - A lead paragraph without a heading: name, profession, home, the perception
-  that the general population might have about this person.
+  that the general population might have about this person, set by
+  `visibility.level`: fame for `public`, standing among insiders for
+  `private`, the little that is known for `shadow`.
 - `#### Background`: birth, origin, profession and `expertise`; the sectors
   behind their holdings (industry, academia, the ministries, the security services, the
   underworld), with no organization named.
@@ -176,6 +200,8 @@ Write about `length` words, in this order, as continuous prose:
 - `#### Public profile`: reputation, temperament and circumstances, from
   `traits`, `skills` and `org_skills` in words; the activities in
   `missions` as a sample of what they're commonly seen doing in support of their cause.
+  For `shadow`, this is what is rumored or reputed; for `private`, what is
+  known within their circles.
 - `#### Controversy`: bring up potential inconsistencies and oddities in the
   person's profile, which the perceptive part of the public could catch onto.
   You are allowed to omit this section if the person seems completely impeccable.
@@ -186,7 +212,8 @@ footnotes or citations; a thin dossier gives a shorter article, never
 padding. Vary sentence openings, avoid stock phrases repeated from one
 section to the next, and do not reuse the wording of this prompt.
 
-Before returning, reread once for six things only: a fact about the person
+Before returning, reread once for seven things only: a fact about the person
 or the world the dossier does not contain, a number for a skill, an
-organization skill, a tier or a mission count, and a word from the banned
-list or a title or heading above `####`.  Fix those and return the text.
+organization skill, a tier or a mission count, a word from the banned list,
+a title or heading above `####`, and a tone that does not match
+`visibility.level`.  Fix those and return the text.

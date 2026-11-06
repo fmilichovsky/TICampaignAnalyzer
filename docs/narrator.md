@@ -73,7 +73,9 @@ qualitatively and never as numbers, pronouns come from the dossier's gender,
 organizations are leading roles rather than possessions and only the significant
 ones are named, the faction is the camp the public places the person in rather
 than a membership, a list of audit words is banned from the text, and loyalty
-or hidden allegiance is never mentioned (the dossier never carries it either). As with the history prompt, stable
+or hidden allegiance is never mentioned (the dossier never carries it either). The
+dossier's visibility level frames the article as a celebrity's, a private person's or a
+near-rumor's. As with the history prompt, stable
 geography is allowed and campaign facts from outside the dossier are not. That
 prompt is
 [`src/tinarrative/narrator/councilor_prompt.md`](../src/tinarrative/narrator/councilor_prompt.md),

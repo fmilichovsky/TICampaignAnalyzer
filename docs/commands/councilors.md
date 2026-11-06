@@ -36,6 +36,12 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
   councilors the other factions have not detected. `Loyalty` and `ApparentLoyalty` are never
   written, and neither are traits the public cannot see: cybernetic implants, covert tradecraft and
   pure game mechanics.
+- **Visibility** sets how well known the article makes the person: `public` (a world-wide
+  celebrity), `private` (high-level but out of the spotlight) or `shadow` (almost a rumor). It
+  follows the councilor's espionage, with trait and organization bonuses, and how much the traits
+  hide or expose the person; fame traits such as Famous or Megastar push strongly towards
+  `public`, Low Profile and Undercover towards `shadow`. A trait the game always reveals rules out
+  `shadow`; a low-profile trait rules out `public`.
 - **The career** (faction, detention, status and organization changes) comes from the events
   between the saves. One save gives an empty career. Recruitment from the unemployed pool is not a
   career milestone: `recruited` dates it exactly, where the event could only date it to a save.
