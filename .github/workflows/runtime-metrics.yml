@@ -1,8 +1,8 @@
 name: Runtime metrics
 
-# Times `events` on the benchmark samples for the pull request's base and head, on one runner and alternating, and
-# posts the report as one comment that every later push edits. Timings from different runners are not comparable,
-# so both sides run in this one job. Informational: a slower stage never fails the check. See benchmarks/README.md.
+# Times `events` on the benchmark samples for the pull request's base and head, alternating on each runner, and posts
+# the combined report as one comment that every later push edits. Timings from different runners are not comparable.
+# Informational: a slower stage never fails the check. See benchmarks/README.md.
 
 on:
   pull_request:
@@ -17,10 +17,31 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  measure:
+  samples:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
     steps:
-      # The head checkout supplies the CLI, samples, matrix and settings that both sides are measured with.
+      - uses: actions/checkout@v4
+      - id: matrix
+        name: Read sample campaigns
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("benchmarks/samples/samples.json").read_text(encoding="utf-8"))
+          print("value=" + json.dumps({"sample": list(manifest["campaigns"])}, separators=(",", ":")))
+          PY
+
+  measure:
+    needs: samples
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.samples.outputs.matrix) }}
+    steps:
+      # The head checkout supplies the CLI, sample, matrix and settings used to measure both revisions.
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
@@ -37,16 +58,83 @@ jobs:
           .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
           python -m venv .bench/venv-head
           .bench/venv-head/bin/python -m pip install --quiet .
+      - name: Prepare sample
+        env:
+          SAMPLE: ${{ matrix.sample }}
+        run: |
+          mkdir -p ".bench/sample/$SAMPLE"
+          for file in "benchmarks/samples/$SAMPLE"/*.json.xz; do
+            xz -dc "$file" > ".bench/sample/$SAMPLE/$(basename "$file" .xz)"
+          done
       - name: Measure
         run: >-
           python -m tinarrative.cli benchmark runtime measure --repeats 3
           --base-python .bench/venv-base/bin/python --base-label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
           --python .bench/venv-head/bin/python --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
-          --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml
+          --samples ".bench/sample/${{ matrix.sample }}" --matrix benchmarks/matrix.toml --config benchmarks/config.toml
           --out .bench/runtime.json
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.sample }}
+          path: .bench/runtime.json
+          retention-days: 1
+
+  report:
+    needs: measure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install runtime CLI
+        run: python -m pip install --quiet .
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-*
+          path: .bench/results
+      - name: Combine measurements
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          result_paths = sorted(Path(".bench/results").glob("*/runtime.json"))
+          if not result_paths:
+              raise SystemExit("No per-sample runtime measurements were downloaded")
+
+          results = [json.loads(path.read_text(encoding="utf-8")) for path in result_paths]
+          combined = dict(results[0])
+          for key in ("tool_version", "run", "args", "repeats", "samples_sha256"):
+              if any(result[key] != combined[key] for result in results[1:]):
+                  raise SystemExit(f"Per-sample runtime metadata differs for {key}")
+
+          combined["sides"] = {
+              side: {
+                  "label": results[0]["sides"][side]["label"],
+                  "campaigns": {
+                      campaign: campaign_result
+                      for result in results
+                      for campaign, campaign_result in result["sides"][side]["campaigns"].items()
+                  },
+              }
+              for side in results[0]["sides"]
+          }
+          campaigns = [campaign for result in results for campaign in result["sides"]["head"]["campaigns"]]
+          if len(campaigns) != len(set(campaigns)):
+              raise SystemExit("A campaign appears in more than one runtime measurement")
+          combined["samples_sha256"] = hashlib.sha256(
+              Path("benchmarks/samples/samples.json").read_bytes()
+          ).hexdigest()
+
+          output = Path(".bench/runtime.json")
+          output.parent.mkdir(parents=True, exist_ok=True)
+          output.write_text(json.dumps(combined, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Report
         run: |
           python -m tinarrative.cli benchmark runtime report .bench/runtime.json --out .bench/runtime.md \
