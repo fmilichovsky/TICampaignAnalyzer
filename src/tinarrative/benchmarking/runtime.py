@@ -367,9 +367,10 @@ def report(runtime: Mapping[str, Any], *, run_url: str | None = None) -> str:
         else:
             lines.append("No stage changed by more than the thresholds and the noise between runs.")
         lines.append("")
-    lines += sections
+    lines += ["<details><summary>Detailed runtime tables</summary>", "", *sections]
     if notes:
         lines += ["### Notes", "", *(f"- {note}" for note in notes), ""]
     if run_url:
         lines.append(f"Both sides' measurements are in the [`runtime-metrics` artifact]({run_url}).")
+    lines += ["", "</details>"]
     return "\n".join(lines).rstrip("\n") + "\n"
