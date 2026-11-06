@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling==1.28.0"]
+requires = ["hatchling==1.33.0"]
 build-backend = "hatchling.build"
 
 [project]
@@ -22,11 +22,11 @@ classifiers = [
 tinarrative = "tinarrative.cli:main"
 
 [project.optional-dependencies]
-test = ["pytest==9.1.1"]
+test = ["pytest==9.2.0"]
 dev = [
-  "mypy==2.3.1",
-  "pytest==9.1.1",
-  "ruff==0.16.6",
+  "mypy==2.4.1",
+  "pytest==9.2.0",
+  "ruff==0.17.3",
 ]
 
 [tool.ruff]
