@@ -141,7 +141,7 @@ _BY_GROUP: dict[str, tuple[tuple[str, str], ...]] = {
     "affiliation": (
         ("Government", "Government"),
         ("Criminal", "Criminal"),
-        ("Crew", "Crew"),
+        ("Crew", "Security Detail"),
     ),
     "implant": (
         ("LoyaltyMonitor", "Loyalty Monitor"),

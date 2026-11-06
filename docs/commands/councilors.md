@@ -120,11 +120,24 @@ and, for the player's councilors, missions and the active mission.
 add on top: per skill, the sum of the organization bonuses, capped so that `skills` plus `org_skills`
 never exceed the game's limit of 25. Only nonzero skills are listed in either.
 
-`policy_influence` lists the causes the councilor's organizations push, from their nonzero priority
-and space bonuses, strongest first: `economic growth`, `welfare spending`, `education and research`,
+`policy_influence` describes the causes the councilor's organizations push, from their priority and
+space bonuses summed per cause: `economic growth`, `welfare spending`, `education and research`,
 `government reform`, `national unity`, `military strength`, `law and order`, `environmental
-protection`, `patronage`, `space mining`, `space program development`, `launch capacity` and `mission
-control`.
+protection`, `patronage`, `space mining`, `space program development`, `launch capacity` and
+`spaceflight ground control`. `causes` lists them strongest first, leaving out any cause below +3%
+or below half of the strongest one. Each has a `strength`: `leading` from +10%, `strong` from +5%,
+`modest` below. `focus` is `single-issue`, `focused` or `broad`, from the effective number of causes
+(all nonzero ones, including those left out of the list), and `null` when no cause is listed.
+
+```json
+"policy_influence": {
+  "focus": "focused",
+  "causes": [
+    {"cause": "law and order", "strength": "leading"},
+    {"cause": "patronage", "strength": "strong"}
+  ]
+}
+```
 
 `prominence` is audit data: the organization tier squared and the skill sum the ranking uses, the
 capped organization skill sum (`org_skill_sum`, which does not affect the ranking) and the rank in
