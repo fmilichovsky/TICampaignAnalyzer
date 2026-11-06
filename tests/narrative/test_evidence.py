@@ -41,6 +41,7 @@ EVIDENCE = [
     "nation.pcgdp_trend",
     "nation.space_assets_changed",
     "nation.nuclear_program_changed",
+    "nation.relation_changed",
 ]
 BOOKKEEPING = [
     "nation.rank_changed",
@@ -61,7 +62,6 @@ BOOKKEEPING = [
     "nation.breakaway_parent_changed",
     "war.attacker_changed",
     "war.defending_alliance_changed",
-    "nation.relation_changed",
     "ship.appeared",
 ]
 

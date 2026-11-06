@@ -126,6 +126,14 @@ How to read the fields:
 - `nation.nuclear_armament` is a nation's first nuclear weapons,
   `nation.nuclear_buildup` and `nation.nuclear_disarmament` its arsenal
   growing or shrinking, `before` to `after` weapons; state them as fact.
+- A `nation.diplomatic_realignment` is a nation gaining or losing several
+  partner nations as allies or rivals within a period: `allies_gained`,
+  `allies_lost`, `rivals_gained` and `rivals_lost` name them, and
+  `reversed_partners` those that went from ally to rival or back.  An
+  alliance or rivalry is a standing relation between two governments, not a
+  war fought or a treaty signed.  `executive` names the faction that took the
+  nation's government inside the period, when one did: it says who held the
+  nation, not why it realigned.
 - A `nation.merger` is a unification: the `absorbed` nations joined the
   actor whole, under `unifying_faction`, which controlled both
   governments.  It is neither a cession nor a conquest.  Its

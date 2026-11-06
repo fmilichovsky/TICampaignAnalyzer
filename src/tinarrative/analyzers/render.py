@@ -557,6 +557,23 @@ def _nuclear_arsenal(event: Event, change: str) -> str:
     return f"{_role(event, Role.ACTOR)} {change}: {_attr(event, 'before')} -> {_attr(event, 'after')} nuclear weapons"
 
 
+def _diplomatic_realignment(event: Event) -> str:
+    def count(name: str) -> int:
+        value = event.attribute(name)
+        return len(value) if isinstance(value, tuple) else 0
+
+    text = (
+        f"{_role(event, Role.ACTOR)} realigned its diplomacy with {_attr(event, 'partner_count')} partners: "
+        f"allies +{count('allies_gained')}/-{count('allies_lost')}, "
+        f"rivals +{count('rivals_gained')}/-{count('rivals_lost')}"
+    )
+    if count("reversed_partners"):
+        text += f"; reversed with {_attr(event, 'reversed_partners')}"
+    if event.attribute("executive") is not None:
+        text += f"; executive {_attr(event, 'executive')}"
+    return text
+
+
 def _nuclear_armament(event: Event) -> str:
     return _nuclear_arsenal(event, "armed with nuclear weapons")
 
@@ -854,6 +871,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.miltech_shift": _band_shift,
     "nation.population_collapse": _population_collapse,
     "nation.economic_trajectory": _economic_trajectory,
+    "nation.diplomatic_realignment": _diplomatic_realignment,
     "nation.nuclear_armament": _nuclear_armament,
     "nation.nuclear_buildup": _nuclear_buildup,
     "nation.nuclear_disarmament": _nuclear_disarmament,
