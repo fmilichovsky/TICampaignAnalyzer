@@ -159,6 +159,14 @@ def test_a_nation_reports_its_executive_holder_and_point_shares() -> None:
     }
 
 
+def test_the_full_report_carries_allies_and_default_values() -> None:
+    report = build_situation(campaign())
+
+    entry = nation(report, "20").to_dict()
+    assert [ally["ref"] for ally in entry["allies"]] == ["nation:21"]
+    assert {"alien", "wars", "federation"} <= set(nation(report, "21").to_dict())
+
+
 def test_a_nation_reports_whether_it_is_the_alien_administration() -> None:
     states = [state(NATION, "30", AFTER, alienNation=True), state(NATION, "31", AFTER, alienNation=False)]
     report = build_situation(snapshot(AFTER, *states))

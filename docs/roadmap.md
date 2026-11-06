@@ -82,7 +82,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Public visibility in councilor articles (#284).
 - [x] Diplomatic realignments as developments (#173).
 - [ ] Slim down narrative package (#267):
-  - [ ] Exclude relations and default values (#268).
+  - [x] Exclude relations and default values (#268).
   - [ ] Reduce carried statistics (#269).
   - [ ] Drop duplicate fields (#270).
   - [ ] Drop unresolvable constituent IDs (#271).
