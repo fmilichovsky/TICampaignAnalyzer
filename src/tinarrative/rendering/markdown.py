@@ -32,6 +32,7 @@ _ATTRIBUTE_NAMES: Final = (
     "milestone",
     "hull",
     "count",
+    "partner_count",
     "template",
     "succeeds",
     "succeeded_by",

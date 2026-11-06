@@ -59,6 +59,8 @@ _EVIDENCE: tuple[str, ...] = (
     "nation.space_assets_changed",
     # A nuclear program starting, behind a nation's first nuclear weapons.
     "nation.nuclear_program_changed",
+    # An alliance or rivalry formed or broken, behind a diplomatic realignment.
+    "nation.relation_changed",
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)

@@ -28,6 +28,14 @@ expansion_gap_days = 365
 # are attached.
 release_window_days = 180
 
+# Alliance and rivalry changes of one nation chain into one
+# nation.diplomatic_realignment while each follows the previous one this soon.
+realignment_window_days = 365
+
+# A nation.diplomatic_realignment needs the nation to gain or lose at least
+# this many distinct partner nations as allies or rivals within one chain.
+realignment_min_partners = 3
+
 # A development keeps at most this many metric_shifts entries: its role
 # nations' first, then nuclear weapons, then the largest relative change; the
 # rest are counted as metric_shifts_omitted (minimum 0).

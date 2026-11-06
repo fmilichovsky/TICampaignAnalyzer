@@ -551,6 +551,24 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
     release, cession or takeover in the same interval, which already carries the shifts. The
     rules built 2 standalone transformations, one of them spanning two intervals. Appease had no
     shifts of these statistics.
+  - *Realignments* (observed 2026-11-06; Protectorate: 15 saves, 2026-02 to 2030-10, 14 intervals of 2 to 7
+    months; Resist: 5 saves, 4 intervals; counts read from `events --inferred` and `events --narrative`;
+    evidence for `nation.diplomatic_realignment` and the `realignment_*` defaults of
+    `config.GeopoliticsSettings`). `nation.relation_changed` with relation `allies` or `rivals`: 374 in
+    Protectorate (allies added 60, removed 273; rivals added 9, removed 32) and 50 in Resist (allies added 28,
+    removed 3; rivals added 12, removed 7), every one reciprocal; 8 to 60 per interval in Protectorate, 0 to 33
+    in Resist. Nations touched: 84 and 31; with 3 or more distinct partners over the whole campaign: 51 and 9.
+    At the defaults (365 days, 3 partners) the rule built 40 and 9 realignments, citing 218 of the 374 and 45
+    of the 50 changes, with 3 to 18 partners (28 of the 40 between 3 and 8) and 3 to 12. Protectorate runs span
+    1 to 11 intervals: the early game is one long chain of alliance losses per nation, 14 of 40 losses only,
+    and a takeover of the nation (mostly Servants or Initiative) fell inside the window in 30 of 40; 15 carried
+    a reversed partner. Resist's 9 are mostly gains (6 gains only) and 2 cite a takeover. War evidence of the
+    nation fell inside the span in only 5 and 1, so the moves are not war-driven (*hypothesis:* alliances
+    dissolve between nations whose executives are held by hostile factions, which fits the takeovers). No
+    unification occurred in either campaign, so the merger exclusion rests on synthetic tests. A cited takeover
+    sets the realignment's confidence (Protectorate: 26 medium, 4 low, 10 objective high), by the builder's
+    minimum rule. The 365-day window is a *hypothesis* sized like the other chained rules; consecutive saves
+    always chain, so a run splits only across more than a year without a change.
 
 - **Narrative rules (space)** (observed 2026-10-20 for the template names, from the latest older save;
   the other counts are the space observations of 2026-10-18 above; evidence for the space narrative

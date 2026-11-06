@@ -361,6 +361,7 @@ Geopolitics:
 | `nation.cession` | N transferred regions to M without war (medium at most: a conquest without a war looks the same) |
 | `nation.merger` | N absorbed M1..Mk whole by unification under faction X, with what the merge did to both |
 | `nation.claims_declared` | N claims regions of M |
+| `nation.diplomatic_realignment` | N formed or broke alliances and rivalries with several partners over a period, naming those it reversed |
 | `nation.<statistic>_shift` | N moved into another of the game's bands of unrest, democracy, education, cohesion, inequality or military tech, and held it |
 | `nation.population_collapse` | N's population fell beyond what territory explains |
 | `nation.economic_trajectory` | N's per-capita GDP boomed or slumped over years |
@@ -412,8 +413,9 @@ sources](game-data-notes/higher-level-event-sources.md)). So the bounds are:
 7.  `Unrest` entries are cross-checked against `factionUnrestAttempts` before either is trusted.
 
 Defined in `src/tinarrative/narrative/catalogue.py` (`NARRATIVE_RULES`, `narrative_rules`), with the rules in
-`narrative/geopolitics.py`, `narrative/nation_metrics.py`, `narrative/assets.py` and `narrative/space.py`, the
-curated milestones in `narrative/milestones.py` and the ledger analyzer in `analyzers/faction/ledger.py`.
+`narrative/geopolitics.py`, `narrative/diplomacy.py`, `narrative/nation_metrics.py`, `narrative/assets.py` and
+`narrative/space.py`, the curated milestones in `narrative/milestones.py` and the ledger analyzer in
+`analyzers/faction/ledger.py`.
 Their settings are `config.GeopoliticsSettings`, `config.NationMetricsSettings` and `config.SpaceSettings`.
 
 ## 11.4 Situation reports

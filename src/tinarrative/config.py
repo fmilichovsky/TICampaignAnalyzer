@@ -71,6 +71,12 @@ class GeopoliticsSettings:
     """Gains of one nation chain into one expansion while each follows the previous one this soon."""
     release_window_days: int = _int(180, 0)
     """A released or breakaway nation's own events this soon after its independence are attached."""
+    realignment_window_days: int = _int(365, 0)
+    """Alliance and rivalry changes of one nation chain into one diplomatic realignment while each follows the
+    previous one this soon."""
+    realignment_min_partners: int = _int(3, 1)
+    """A diplomatic realignment needs the nation to gain or lose at least this many distinct partner nations as
+    allies or rivals within one chain."""
     metric_shifts_max: int = _int(12, 0)
     """A development keeps at most this many ``metric_shifts`` entries: its role nations' first, then nuclear
     weapons, then the largest relative change; the rest are counted as ``metric_shifts_omitted``."""
