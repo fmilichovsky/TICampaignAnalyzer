@@ -211,7 +211,7 @@ def test_org_skills_add_to_personal_skills_up_to_the_cap() -> None:
     assert loyalty_keys(entry) == []
 
 
-def test_policy_influence_is_the_labelled_org_bonuses_strongest_first() -> None:
+def test_policy_influence_sums_org_bonuses_and_drops_token_causes() -> None:
     snap = _world(
         _org("70", 2, welfareBonus=0.02, economyBonus=0.01, militaryBonus=0.0, incomeMoney_month=5.0),
         _org("71", 1, economyBonus=0.02, spaceflightBonus=0.03),
@@ -219,9 +219,42 @@ def test_policy_influence_is_the_labelled_org_bonuses_strongest_first() -> None:
         _councilor("101", "1"),
     )
     first, second = _build(snap)["councilors"]
-    assert first["policy_influence"] == ["economic growth", "launch capacity", "welfare spending"]
-    assert second["policy_influence"] == []
+    assert first["policy_influence"] == {
+        "focus": "broad",  # the dropped welfare spending still dilutes the focus
+        "causes": [
+            {"cause": "economic growth", "strength": "modest"},
+            {"cause": "launch capacity", "strength": "modest"},
+        ],
+    }
+    assert second["policy_influence"] == {"focus": None, "causes": []}
     assert second["org_skills"] == {}
+
+
+def test_policy_influence_drops_overshadowed_causes_and_grades_the_rest() -> None:
+    snap = _world(
+        _org("70", 3, oppressionBonus=0.10, militaryBonus=0.04),
+        _org("71", 2, spoilsBonus=0.05),
+        _org("72", 1, spoilsBonus=0.01),
+        _councilor("100", "1", orgs=("70", "71", "72")),
+    )
+    (entry,) = _build(snap)["councilors"]
+    assert entry["policy_influence"]["causes"] == [
+        {"cause": "law and order", "strength": "leading"},
+        {"cause": "patronage", "strength": "strong"},
+    ]
+
+
+def test_policy_influence_focus_is_the_effective_number_of_causes() -> None:
+    snap = _world(
+        _org("70", 3, unityBonus=0.20, economyBonus=0.01),
+        _org("71", 3, militaryBonus=0.10, miningBonus=0.05),
+        _org("72", 1, economyBonus=0.02),
+        _councilor("100", "1", orgs=("70",)),
+        _councilor("101", "1", orgs=("71",)),
+        _councilor("102", "1", orgs=("72",)),
+    )
+    focus = {entry["id"]: entry["policy_influence"]["focus"] for entry in _build(snap)["councilors"]}
+    assert focus == {"councilor:100": "single-issue", "councilor:101": "focused", "councilor:102": None}
 
 
 def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:

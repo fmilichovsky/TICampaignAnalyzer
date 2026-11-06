@@ -107,10 +107,16 @@ The user message carries a request block.
     ("a string of Indonesian technology firms"); a body based in the
     person's own `home` nation is domestic, and a null `nation` is passed
     over.  `template` and `basis` are audit data.
-  - `policy_influence`: the causes the person's institutions push, strongest
-    first.  Read them as public advocacy ("a vocal backer of welfare
-    spending", "a prominent voice for space program development"), never as
-    mechanics.
+  - `policy_influence`: the causes the person's institutions push.  Read them
+    as public advocacy. `causes` come strongest first;
+    each `strength` sets how closely the person is tied to it: `leading` is a
+    cause they are known for ("one of the loudest voices for law and
+    order"), `strong` one they visibly champion ("a vocal backer of welfare
+    spending"), `modest` one they lend support to.  `focus` frames the whole:
+    `single-issue` a person defined by one cause, `focused` a few signature
+    causes, `broad` a wide-ranging agenda in which the listed causes stand
+    out among many smaller ones.  When `causes` is empty, say nothing about
+    causes.
   - `career`: dated public milestones.  `councilor.faction_changed` is a
     change of ideology, `councilor.detaining_faction_changed` a detention or
     release, `councilor.status_changed` a change of standing, and

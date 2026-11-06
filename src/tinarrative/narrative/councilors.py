@@ -51,6 +51,15 @@ POLICY_LABELS = {
     "MCBonus": "spaceflight ground control",
 }
 """The public cause an organization's priority or space bonus stands for, so the article never reads a field name."""
+POLICY_MIN = 0.03
+"""A cause's summed bonus below this is a token tie of one small organization, not advocacy."""
+POLICY_RELATIVE = 0.5
+"""A cause below this share of the councilor's strongest one is overshadowed and left out."""
+POLICY_STRENGTHS = ((0.10, "leading"), (0.05, "strong"), (0.0, "modest"))
+"""The strength of a kept cause by its summed bonus, the first threshold it reaches."""
+POLICY_FOCUS = ((1.5, "single-issue"), (2.5, "focused"))
+"""The focus by the effective number of causes, the first bound it stays under; anything above is ``broad``."""
+_EPSILON = 1e-9
 DAYS_PER_YEAR = 365.25
 
 PUBLIC_MAX = 5
@@ -378,13 +387,35 @@ def _org_skills(orgs: list[_Org], skills: Mapping[str, int]) -> dict[str, int]:
     return found
 
 
-def _policy_influence(orgs: list[_Org]) -> list[str]:
-    """The causes the councilor's organizations push, strongest summed bonus first."""
+def _policy_influence(orgs: list[_Org]) -> dict[str, Any]:
+    """The causes the councilor's organizations push, strongest summed bonus first, and how focused they are.
+
+    A cause is kept from ``POLICY_MIN`` and from ``POLICY_RELATIVE`` of the strongest. The focus is the effective
+    number of causes, (sum)^2 / sum of squares, over all nonzero ones, so the dropped ones still dilute it.
+    """
     totals = {
         field: sum(_number(org.state.get(field)) for org in orgs if org.state is not None) for field in POLICY_LABELS
     }
     ranked = sorted((field for field in POLICY_LABELS if totals[field] > 0), key=lambda field: -totals[field])
-    return [POLICY_LABELS[field] for field in ranked]
+    top = totals[ranked[0]] if ranked else 0.0
+    kept = [
+        field
+        for field in ranked
+        if totals[field] >= POLICY_MIN - _EPSILON and totals[field] >= top * POLICY_RELATIVE - _EPSILON
+    ]
+    focus = None
+    if kept:
+        values = [totals[field] for field in ranked]
+        effective = sum(values) ** 2 / sum(value * value for value in values)
+        focus = next((name for bound, name in POLICY_FOCUS if effective < bound), "broad")
+    return {
+        "focus": focus,
+        "causes": [{"cause": POLICY_LABELS[field], "strength": _policy_strength(totals[field])} for field in kept],
+    }
+
+
+def _policy_strength(value: float) -> str:
+    return next(name for floor, name in POLICY_STRENGTHS if value >= floor - _EPSILON)
 
 
 def _org_entry(lookup: Lookup, org: _Org) -> dict[str, Any]:
