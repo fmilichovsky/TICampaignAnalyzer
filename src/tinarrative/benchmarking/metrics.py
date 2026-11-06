@@ -563,7 +563,7 @@ def compare(
                     ]
                     changed = bool(member_changes(before["members"], after["members"]))
                     details.append((changed, kind == "events" and run_id == ids[0], section))
-    body = [*summary, *events, "", *narrate, ""]
+    body = [*summary, "<details><summary>Detailed package tables</summary>", "", *events, "", *narrate, ""]
     if notes:
         body += ["### Notes", "", *(f"- {note}" for note in notes), ""]
     footer = []
@@ -583,7 +583,7 @@ def compare(
             breakdowns.append("The remaining breakdowns did not fit in a comment; they are in `metrics.json`.")
             break
         breakdowns.append(text)
-    return "\n".join([report, *(breakdowns if shown else []), *footer]) + "\n"
+    return "\n".join([report, *(breakdowns if shown else []), *footer, "", "</details>"]) + "\n"
 
 
 def _row(
