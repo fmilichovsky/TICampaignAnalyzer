@@ -52,10 +52,10 @@ The user message may carry a request block.  Defaults in brackets.
   headline only.  Tell it inside that development, not as an entry of its
   own; it may be cited like any other ID.
 - `saves[].situation`: a literal snapshot at each save: who holds each
-  nation's executive, control-point shares, federations, allies (IDs), wars
-  and their sides, regions, population, statistics, armies, navies, the
+  nation's executive, control-point shares (only when control is split up), federations, wars and their
+  sides, regions, population, statistics, armies, navies, the
   game's own `strength` estimate, `boost`, `mission_control`, space defences
-  and STO fighters (each of these counts is left out when zero), habs and fleets by faction (`habs_by_body` lists the
+  and STO fighters, habs and fleets by faction (`habs_by_body` lists the
   bodies with two or more habs; `other_bodies` counts those with one),
   milestones, nuclear and climate counters, and the `spaceports`: the
   regions with the most boost, largest first.

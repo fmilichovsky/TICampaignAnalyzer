@@ -935,7 +935,7 @@ def test_the_narrator_package_slims_the_situation_reports_and_the_audit_form_doe
     for nation in (nation for report in reports(package) for nation in report["nations"]):
         assert "seat_basis" not in nation
         assert nation.get("unresolved_points") != 0
-        assert all(isinstance(ally, str) for ally in nation["allies"])
+        assert "allies" not in nation
     for faction in (faction for report in reports(package) for faction in report["factions"]):
         assert all(entry["habs"] > 1 for entry in faction["habs_by_body"])
         assert faction["habs"] >= sum(entry["habs"] for entry in faction["habs_by_body"]) + faction["other_bodies"]

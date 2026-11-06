@@ -20,7 +20,7 @@ def _body(ref: str, habs: int) -> dict[str, Any]:
     return {"body": {"ref": ref, "name": ref}, "habs": habs}
 
 
-def test_situations_lose_bookkeeping_and_list_allies_as_refs() -> None:
+def test_situations_lose_bookkeeping_and_allies() -> None:
     nation = {
         "nation": {"ref": "nation:1"},
         "seat_basis": "executive_point",
@@ -31,18 +31,63 @@ def test_situations_lose_bookkeeping_and_list_allies_as_refs() -> None:
 
     _slim_situations(saves)
 
-    assert saves[1]["situation"]["nations"] == [
-        {"nation": {"ref": "nation:1"}, "allies": ["nation:4", {"unknown": "unresolved"}]}
-    ]
+    assert saves[1]["situation"]["nations"] == [{"nation": {"ref": "nation:1"}}]
+    saves = _saves({"allies": {"unknown": "missing"}}, {"habs_by_body": []})
+
+    _slim_situations(saves)
+
+    assert saves[1]["situation"]["nations"] == [{}]
 
 
 def test_unresolved_points_stay_when_not_zero() -> None:
     for value in (2, {"unknown": "missing"}):
-        saves = _saves({"unresolved_points": value, "allies": {"unknown": "missing"}}, {"habs_by_body": []})
+        saves = _saves({"unresolved_points": value}, {"habs_by_body": []})
 
         _slim_situations(saves)
 
-        assert saves[1]["situation"]["nations"] == [{"unresolved_points": value, "allies": {"unknown": "missing"}}]
+        assert saves[1]["situation"]["nations"] == [{"unresolved_points": value}]
+
+
+def test_defaults_are_dropped_and_set_values_stay() -> None:
+    defaults = {"alien": False, "wars": [], "federation": None}
+    saves = _saves(dict(defaults), {"habs_by_body": []})
+
+    _slim_situations(saves)
+
+    assert saves[1]["situation"]["nations"] == [{}]
+    war = {"war": {"ref": "war:1"}, "side": "a"}
+    federation = {"ref": "federation:2"}
+    unknown = {"unknown": "missing"}
+    for set_values in ({"alien": True}, {"wars": [war]}, {"federation": federation}, {"federation": unknown}):
+        saves = _saves({**defaults, **set_values}, {"habs_by_body": []})
+
+        _slim_situations(saves)
+
+        assert saves[1]["situation"]["nations"] == [set_values]
+
+
+def test_shares_are_dropped_only_when_they_repeat_the_executive_and_control_points() -> None:
+    executive = {"ref": "faction:1", "name": "Fixture"}
+    repeated = {"executive": executive, "control_points": 4, "shares": {"faction:1": 4}}
+    kept = [
+        {**repeated, "shares": {"faction:1": 3}},
+        {**repeated, "shares": {"faction:1": 3, "faction:2": 1}},
+        {**repeated, "shares": {"faction:2": 4}},
+        {**repeated, "shares": {"unknown": "missing"}},
+        {**repeated, "executive": {"unknown": "missing"}},
+        {**repeated, "shares": {}},
+    ]
+    saves = _saves(dict(repeated), {"habs_by_body": []})
+
+    _slim_situations(saves)
+
+    assert saves[1]["situation"]["nations"] == [{"executive": executive, "control_points": 4}]
+    for nation in kept:
+        saves = _saves(dict(nation), {"habs_by_body": []})
+
+        _slim_situations(saves)
+
+        assert saves[1]["situation"]["nations"] == [nation]
 
 
 def test_single_hab_bodies_are_counted_not_listed() -> None:

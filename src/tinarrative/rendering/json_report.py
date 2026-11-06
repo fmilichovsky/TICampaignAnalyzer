@@ -16,6 +16,8 @@ from .listing import Constituents, listing
 
 FLOAT_DIGITS = 4
 """Significant digits of a float in the narrator package."""
+DEFAULT_DROPPED: tuple[tuple[str, Any], ...] = (("alien", False), ("wars", []), ("federation", None))
+"""Nation members left out of the narrator package while they hold their default."""
 ZERO_DROPPED = (
     "unresolved_points",
     "armies",
@@ -143,14 +145,18 @@ def _prune_nations(saves: list[dict[str, Any]], referenced: set[str]) -> None:
 
 
 def _slim_situations(saves: list[dict[str, Any]]) -> None:
-    """Reduce every report to what a reader narrates from; a faction's ``habs`` still counts every hab."""
+    """Reduce every report to what a reader narrates from; a faction's ``habs`` still counts every hab.
+
+    Allies stay in the full report only.
+    """
     for report in (save["situation"] for save in saves if save["situation"] is not None):
         for nation in report["nations"]:
-            if isinstance(nation.get("allies"), list):
-                nation["allies"] = [
-                    ally["ref"] if isinstance(ally, dict) and isinstance(ally.get("ref"), str) else ally
-                    for ally in nation["allies"]
-                ]
+            nation.pop("allies", None)
+            for key, default in DEFAULT_DROPPED:
+                if key in nation and nation[key] == default and type(nation[key]) is type(default):
+                    del nation[key]
+            if _executive_holds_all(nation):
+                del nation["shares"]
             nation.pop("seat_basis", None)
             for key in ZERO_DROPPED:
                 if _is_zero(nation.get(key)):
@@ -166,6 +172,14 @@ def _slim_situations(saves: list[dict[str, Any]]) -> None:
                     slim["other_bodies"] = len(bodies) - len(shared)
             factions.append(slim)
         report["factions"] = factions
+
+
+def _executive_holds_all(nation: dict[str, Any]) -> bool:
+    """The one faction in ``shares`` is the executive and holds every control point: both fields already say so."""
+    shares, executive = nation.get("shares"), nation.get("executive")
+    if not isinstance(shares, dict) or not isinstance(executive, dict) or not isinstance(executive.get("ref"), str):
+        return False
+    return list(shares) == [executive["ref"]] and shares[executive["ref"]] == nation.get("control_points")
 
 
 def _is_zero(value: Any) -> bool:
