@@ -294,10 +294,11 @@ Observed on 2026-10-19 on the eight private saves of two campaigns (Appease: 7 a
   Resist intervals (the last over 228 days), out of 587-14194 ledger entries per later save; `Ship Construction`
   and the operations dominate because each charge is one entry per resource.
 
-Implemented as `LedgerAnalyzer` (`analyzers/faction/ledger.py`): every allow-listed entry of the later save dated
-inside the interval becomes `faction.transaction_recorded`, dated by the entry, with the ledger's `records` change
-as its source; `minor`, corroboration and dating only under architecture 11.3. Income, spoils, trade, transfers,
-`Effect.*`, org trades, rewards and hashed labels are left in the diff.
+Implemented as `LedgerAnalyzer` (`analyzers/faction/ledger.py`): normalization decodes only the analyzer's shared
+allow-list and records the count of other ledger entries on each `RecordSet`. Every decoded entry of the later
+save dated inside the interval becomes `faction.transaction_recorded`, dated by the entry, with the ledger's
+`records` change as its source; `minor`, corroboration and dating only under architecture 11.3. Income, spoils,
+trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted but not decoded.
 
 ## Observations on already-normalized fields
 

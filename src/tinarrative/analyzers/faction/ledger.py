@@ -17,6 +17,7 @@ from ...log import get_logger
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId
 from ...model.events import Confidence, Event, EventSource, SourceRole
+from ...model.ledger import ALLOWED_LEDGER_LABELS
 from ...model.records import LedgerEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
@@ -27,62 +28,7 @@ logger = get_logger(__name__)
 LEDGER_FIELD = "Transactions"
 TRANSACTION_RECORDED = "faction.transaction_recorded"
 
-COUNCILOR_MISSIONS: frozenset[str] = frozenset(
-    {
-        "Coup",
-        "Purge",
-        "Crackdown",
-        "HostileTakeover",
-        "Propaganda",
-        "Stabilize",
-        "Inspire",
-        "Unrest",
-        "Assassinate",
-        "Detain",
-        "Turn",
-        "Advise",
-        "Extract",
-        "Augmentation",
-        "SetNationalPolicy",
-        "DefendInterests",
-        "InvestigateCouncilor",
-        "StealProject",
-        "SabotageProject",
-        "SabotageFacilities",
-        "Abductions",
-        "EnthrallElites",
-        "TerrorizeRegion",
-        "Xenoform",
-        "AssaultAlienAsset",
-        "Contact",
-    }
-)
-"""Councilor mission labels (evidence in ``higher-level-event-sources.md``). ``Unrest`` entries are cross-checked
-against ``factionUnrestAttempts`` by the consumers (bound 7)."""
-
-SPACE_OPERATIONS: frozenset[str] = frozenset(
-    {
-        "FoundColonyOperation",
-        "FoundOrbitalOperation",
-        "FoundOutpostOperation",
-        "FoundPlatformOperation",
-        "FoundRingOperation",
-        "FoundSettlementOperation",
-        "LaunchProbeOperation",
-        "LaunchAllProbeOperation",
-        "RepairFleetOperation",
-        "ResupplyOperation",
-        "ResupplyAndRepairOperation",
-        "TransferOfficersOperation",
-    }
-)
-"""Listed by name rather than by suffix so that an unseen label is reviewed before it is emitted."""
-
-ASSET_CHARGES: frozenset[str] = frozenset({"Ship Construction", "Hire Councilor", "Global Milestone"})
-"""``Ship Construction`` has one entry per resource."""
-
-ALLOWED_LABELS: frozenset[str] = COUNCILOR_MISSIONS | SPACE_OPERATIONS | ASSET_CHARGES
-"""The labels whose entries become events. Everything else is left in the diff."""
+ALLOWED_LABELS = ALLOWED_LEDGER_LABELS
 
 
 def in_window(before_date: Observed, after_date: Observed, entry_date: Observed) -> bool:

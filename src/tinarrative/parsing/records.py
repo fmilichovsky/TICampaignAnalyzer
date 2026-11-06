@@ -15,6 +15,7 @@ from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityRef
 from ..model.evidence import SourceLocation, pointer_path
+from ..model.ledger import ALLOWED_LEDGER_LABELS
 from ..model.records import (
     CombatEntry,
     DestructionEntry,
@@ -99,15 +100,19 @@ class _Context:
         return value
 
 
-def _ledger(raw: Any, ctx: _Context) -> Entries:
+def _ledger(raw: Any, ctx: _Context) -> tuple[Entries, int]:
     if not isinstance(raw, dict):
-        return ctx.unparseable(OBJECT, raw)
+        return ctx.unparseable(OBJECT, raw), 0
     entries: list[RecordEntry] = []
+    skipped = 0
     for label in sorted(raw):
         items = raw[label]
         if not isinstance(items, list):
             ctx.collector.field_shape(ctx.state_type, ctx.field, ARRAY, items)
             ctx.shape_findings += 1
+            continue
+        if label not in ALLOWED_LEDGER_LABELS:
+            skipped += len(items)
             continue
         for position, item in enumerate(items):
             if not isinstance(item, dict):
@@ -123,7 +128,7 @@ def _ledger(raw: Any, ctx: _Context) -> Entries:
                     ctx.member_date(item, "Date"),
                 )
             )
-    return tuple(entries)
+    return tuple(entries), skipped
 
 
 def _destruction_log(raw: Any, ctx: _Context) -> Entries:
@@ -302,7 +307,7 @@ def _combat_sides(item: dict[str, Any], ctx: _Context) -> Observed:
 def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:
     kind = spec.kind
     if kind is RecordKind.LEDGER:
-        return _ledger(raw, ctx)
+        return _ledger(raw, ctx)[0]
     if kind is RecordKind.DESTRUCTION_LOG:
         return _destruction_log(raw, ctx)
     if kind is RecordKind.NAME_LOG:
@@ -333,6 +338,7 @@ class _Totals:
     unparseable_dates: int = 0
     unresolved_references: int = 0
     shape_findings: int = 0
+    skipped_entries: int = 0
     kinds: dict[str, int] = field(default_factory=dict)
 
 
@@ -366,6 +372,7 @@ def decode_records(
             known_sets=known_sets,
             missing=totals.missing,
             entries=known_entries,
+            skipped_entries=totals.skipped_entries,
             unparseable_dates=totals.unparseable_dates,
             unresolved_references=totals.unresolved_references,
             shape_findings=totals.shape_findings,
@@ -389,8 +396,13 @@ def _record_set(
         totals.missing += 1
         return RecordSet(owner, name, spec.kind, location)
     ctx = _Context(owner.state_type or "", name, index, collector)
-    entries = _entries(spec, value[name], ctx)
+    skipped_entries = 0
+    if spec.kind is RecordKind.LEDGER:
+        entries, skipped_entries = _ledger(value[name], ctx)
+        totals.skipped_entries += skipped_entries
+    else:
+        entries = _entries(spec, value[name], ctx)
     totals.unparseable_dates += ctx.unparseable_dates
     totals.unresolved_references += ctx.unresolved_references
     totals.shape_findings += ctx.shape_findings
-    return RecordSet(owner, name, spec.kind, location, entries)
+    return RecordSet(owner, name, spec.kind, location, entries, skipped_entries)

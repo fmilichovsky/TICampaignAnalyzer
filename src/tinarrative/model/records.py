@@ -201,6 +201,7 @@ class RecordSet:
     kind: RecordKind
     location: SourceLocation
     entries: tuple[RecordEntry, ...] | Unknown = Unknown()
+    skipped_entries: int = 0
 
     @property
     def sort_key(self) -> tuple[tuple[str, int, int, str], str]:
@@ -232,15 +233,16 @@ class RecordSet:
             "kind": self.kind.value,
             "location": self.location.to_dict(),
             "entries": entries,
+            "skipped_entries": self.skipped_entries,
         }
 
 
 def record_counts(records: Iterable[RecordSet]) -> tuple[int, int]:
-    """``(known sets, entries)``: sets whose entries are known, and the entries they hold in total."""
+    """``(known sets, entries)``: sets whose entries are known, and all entries represented by those sets."""
     sets = 0
     entries = 0
     for record in records:
         if not isinstance(record.entries, Unknown):
             sets += 1
-            entries += len(record.entries)
+            entries += len(record.entries) + record.skipped_entries
     return sets, entries

@@ -88,7 +88,7 @@ def test_record_changes_carry_entries_in_json_but_only_counts_in_text(capsys: py
     assert kills["before_location"]["path"].endswith("/Value/Kills")
     assert kills["description"] == "Kills records changed: 1 added, 0 removed, 0 changed"
     ledger = by_key[("faction:15", "Transactions")]
-    assert [entry["label"] for entry in ledger["detail"]["added"]] == ["1234567890", "FixtureCause"]
+    assert [entry["label"] for entry in ledger["detail"]["added"]] == ["Coup", "Purge"]
     assert ledger["detail"]["removed"] == []
     executive = by_key[("nation:20", "lastExecutiveChange")]
     assert [pair["after"]["key"] for pair in executive["detail"]["changed"]] == ["cause", "date", "newExecutive"]
@@ -100,7 +100,7 @@ def test_record_changes_carry_entries_in_json_but_only_counts_in_text(capsys: py
     text = capsys.readouterr().out
     assert "  faction:15 Kills: +1 entries\n" in text
     assert "  faction:15 lastExecutiveChange" not in text and "  nation:20 lastExecutiveChange: ~3 entries\n" in text
-    for content in ("Fixture Hull A", "FixtureCause", "1234567890", "FixtureMilestone", "Coup"):
+    for content in ("Fixture Hull A", "Coup", "Purge", "FixtureMilestone"):
         assert content not in text
 
 
