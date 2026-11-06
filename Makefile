@@ -1,6 +1,7 @@
 .DEFAULT_GOAL := check
 
-PYTHON ?= python
+# Prefer an activated environment, then a Codex or project environment, then PATH.
+PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.venv-codex/bin/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,python)))
 
 .PHONY: install format lint typecheck test check package-metrics runtime-metrics
 
@@ -19,7 +20,7 @@ typecheck:
 test:
 	$(PYTHON) -m pytest
 
-check: install format lint typecheck test
+check: format lint typecheck test
 
 # Measure the LLM-bound packages of the benchmark samples with this tree; see benchmarks/README.md.
 package-metrics:
