@@ -117,7 +117,8 @@ def test_a_change_is_highlighted_with_its_member() -> None:
     assert "| camp · events `major` | 100 → 80 | ▼ -20 (-20.0%) | `saves[].seat` -60 |" in report
     assert "### Member changes" in report
     assert "| `saves[].seat` | 60 | – | ▼ -60 (-100.0%) | 0.0% |" in report
-    assert report.rstrip().endswith("(https://example.invalid/run).")
+    assert report.rstrip().endswith("</details>")
+    assert "(https://example.invalid/run)." in report
 
 
 def test_failures_and_new_failures_are_noted() -> None:
