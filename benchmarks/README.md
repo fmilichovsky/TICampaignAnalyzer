@@ -113,10 +113,11 @@ side's interval growth (the mean seconds of the last third of the intervals over
 ×1 when cost per save is flat) and the slowest narrative rules. Rising growth, or a rule that keeps getting slower,
 is the sign of superlinear cost.
 
-[`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) measures the pull request's base
-and head on one runner, with three repeats, and posts the report as one comment that later pushes edit. Timings from
-different runners are not comparable, which is why this check does not reuse the two package-metrics jobs. Like
-package size, it never fails because of a change.
+[`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) measures each sample campaign in a
+separate job. Each job measures the pull request's base and head on the same runner, with three repeats, and a final
+job combines the results into one report comment that later pushes edit. Timings from different runners are not
+comparable, which is why each campaign's two revisions stay together. Like package size, this check never fails
+because of a change.
 
 Locally:
 
