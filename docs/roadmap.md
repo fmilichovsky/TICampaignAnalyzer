@@ -78,6 +78,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] LLM articles (#230).
   - [x] Enrich package data (#243).
   - [x] Fix councilor mission detection (#281).
+  - [x] Public visibility in councilor articles (#284).
 - [ ] Slim down narrative package (#267):
   - [ ] Exclude relations and default values (#268).
   - [ ] Reduce carried statistics (#269).

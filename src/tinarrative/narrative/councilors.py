@@ -20,7 +20,15 @@ from ..model.records import NotificationEntry
 from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, to_jsonable
 from .org_catalog import NAMED_ORG_CATEGORIES
-from .trait_catalog import KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
+from .trait_catalog import (
+    DETECTION_BONUS,
+    EASILY_VISIBLE,
+    ESPIONAGE_MODS,
+    KEPT_GROUPS,
+    LOW_PROFILE,
+    TRAITS,
+    WITHHELD_GROUPS,
+)
 
 CAREER_EVENT_TYPES = frozenset({FACTION_CHANGED, DETAINING_FACTION_CHANGED, STATUS_CHANGED, COUNCILOR_ORGS_CHANGED})
 SKILLS = ("Persuasion", "Investigation", "Espionage", "Command", "Administration", "Science", "Security")
@@ -40,10 +48,19 @@ POLICY_LABELS = {
     "miningBonus": "space mining",
     "spaceDevBonus": "space program development",
     "spaceflightBonus": "launch capacity",
-    "MCBonus": "mission control",
+    "MCBonus": "spaceflight ground control",
 }
 """The public cause an organization's priority or space bonus stands for, so the article never reads a field name."""
 DAYS_PER_YEAR = 365.25
+
+PUBLIC_MAX = 5
+"""The highest concealment of a ``public`` councilor; one above ``PRIVATE_MAX`` is ``shadow``."""
+PRIVATE_MAX = 17
+LOW_PROFILE_WEIGHT = 3
+EASILY_VISIBLE_WEIGHT = 2
+"""Multipliers of the detection bonus: a trait of public profile moves the public view more than the game's."""
+EASILY_VISIBLE_DEFAULT = -4
+"""The weight of an always-revealed trait without a detection bonus of its own."""
 
 GENERATED_ORG_CATEGORIES = {
     "Aerospace": "aerospace",
@@ -255,6 +272,7 @@ def _entry(
         "tenure_years": round(candidate.tenure_days / DAYS_PER_YEAR, 1),
         "orgs": [_org_entry(lookup, org) for org in orgs],
         "policy_influence": _policy_influence(orgs),
+        "visibility": _visibility(state.get("traitTemplateNames"), skills, _org_skills(orgs, skills)),
         "prominence": {
             "org_tier2": candidate.org_tier2,
             "skill_sum": candidate.skill_sum,
@@ -285,6 +303,33 @@ def _traits(value: Observed) -> dict[str, list[str]]:
         if group not in WITHHELD_GROUPS:
             grouped.setdefault(group, []).append(name)
     return {group: grouped[group] for group in (*KEPT_GROUPS, "other") if group in grouped}
+
+
+def _visibility(value: Observed, skills: Mapping[str, int], org_skills: Mapping[str, int]) -> dict[str, Any]:
+    """How visible the councilor is to the public: ``public``, ``private`` or ``shadow``, with its score.
+
+    The score (``concealment``) is the espionage the game detects against plus the traits' detection bonuses, those
+    of public profile weighted up. An always-revealed trait is never ``shadow``, a low-profile one never ``public``.
+    """
+    templates = [item for item in value if isinstance(item, str)] if isinstance(value, tuple) else []
+    espionage = skills.get("Espionage", 0) + org_skills.get("Espionage", 0)
+    espionage = min(SKILL_CAP, espionage + sum(ESPIONAGE_MODS.get(template, 0) for template in templates))
+    concealment = espionage + sum(_visibility_weight(template) for template in templates)
+    level = "public" if concealment <= PUBLIC_MAX else "private" if concealment <= PRIVATE_MAX else "shadow"
+    if level == "shadow" and EASILY_VISIBLE.intersection(templates):
+        level = "private"
+    elif level == "public" and LOW_PROFILE.intersection(templates):
+        level = "private"
+    return {"level": level, "concealment": concealment}
+
+
+def _visibility_weight(template: str) -> int:
+    bonus = DETECTION_BONUS.get(template, 0)
+    if template in LOW_PROFILE:
+        return bonus * LOW_PROFILE_WEIGHT
+    if template in EASILY_VISIBLE:
+        return bonus * EASILY_VISIBLE_WEIGHT if bonus else EASILY_VISIBLE_DEFAULT
+    return bonus
 
 
 def _gender(value: Observed) -> str | None:
