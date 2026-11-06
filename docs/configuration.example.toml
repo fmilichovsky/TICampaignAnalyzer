@@ -113,7 +113,7 @@ missions_per_councilor = 3
 missions_window_years = 2
 
 # The length each article request asks for (minimum 1).
-article_words = 270
+article_words = 300
 
 [narrator]
 # The budget of tinarrative narrate; it never changes what events builds. 

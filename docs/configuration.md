@@ -84,7 +84,7 @@ The `councilors` keys ([councilors](commands/councilors.md)):
 | `councilors.min_tenure_days` | 365 | 0 | A councilor is selected only after being employed this many game days. |
 | `councilors.missions_per_councilor` | 3 | 0 | A player councilor's dossier keeps this many mission types, the most frequent first. |
 | `councilors.missions_window_years` | 2 | 1 | The dossier counts the missions resolved in this many years before the latest save. |
-| `councilors.article_words` | 270 | 1 | The article length each request asks for; also carried in the dossier header. |
+| `councilors.article_words` | 300 | 1 | The article length each request asks for; also carried in the dossier header. |
 
 The `processing` keys, for `events`, `narrate` from saves and `councilors` with several saves:
 
