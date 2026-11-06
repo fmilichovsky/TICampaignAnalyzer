@@ -240,7 +240,8 @@ def test_the_report_flags_only_changes_both_relative_and_absolute() -> None:
     assert "| peak memory | 500 MB | 500 MB | |" in text
     assert "last third over first third: base ×1.00, head ×1.00" in text
     assert "`faction.takeover` 0.50s (base 0.50s)" in text
-    assert text.rstrip().endswith("(https://example.invalid/run).")
+    assert "[`runtime-metrics` artifact](https://example.invalid/run).\n\n</details>" in text
+    assert text.rstrip().endswith("</details>")
 
 
 def test_a_change_within_the_noise_between_runs_is_not_flagged() -> None:
