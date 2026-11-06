@@ -348,3 +348,21 @@ def test_with_a_narrative_an_interval_lists_only_cited_events_and_only_with_cons
         "(0 state changes; 1 event omitted: not cited by a listed narrative event; "
         "1 event omitted: not narrator evidence)\n"
     )
+
+
+def test_a_wave_member_shows_its_headline_and_wave_without_its_constituents() -> None:
+    member = _arc("1", "2030-01-01T00:00:00", event_type="faction.takeover")
+    wave = _arc(
+        "9",
+        "2030-01-01T00:00:00",
+        id=f"faction.takeover_wave/nation:9@{AFTER.date}",
+        event_type="faction.takeover_wave",
+        constituents=(member.id,),
+        attributes=(("nations", (_nation(),)), ("count", 1)),
+    )
+
+    rendered = _narrative_render([member, wave])
+
+    assert f"  - roles: actor: {_nation().label()}\n  - member of `{wave.id}`\n" in rendered
+    assert f"from `nation.changed/nation:1@{AFTER.date}`" not in rendered
+    assert f"  - from `{member.id}`" in rendered

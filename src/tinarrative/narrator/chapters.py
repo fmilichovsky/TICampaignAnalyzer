@@ -481,12 +481,15 @@ class _Planner:
         ]
 
     def _continuity(self, chapter: Chapter, earlier: Sequence[Chapter]) -> dict[str, Any]:
-        """Still-running earlier developments in full, and a capped digest of the others from ``RECALLED_FROM``."""
+        """Still-running earlier developments in full, and a capped digest of the others from ``RECALLED_FROM``.
+
+        A member listed as a digest is neither: the development it belongs to carries it.
+        """
         keys = {interval["key"] for interval in self.intervals[chapter.first : chapter.last + 1]}
         before = [
             (position, event)
             for position, (event, start) in enumerate(zip(self.package["narrative"], self.starts, strict=True))
-            if start < chapter.first
+            if start < chapter.first and "member_of" not in event
         ]
         continuing = [
             event for _, event in before if event.get("open") is True or keys & set(event.get("intervals") or ())

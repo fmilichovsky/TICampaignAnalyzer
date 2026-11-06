@@ -12,6 +12,13 @@ top_gdp_nations = 10
 # join one takeover; its control-point gains are attached over the same window.
 takeover_consolidation_days = 180
 
+# Takeovers by one faction of nations below top_gdp_nations, starting at most
+# this long after the first of them ended, form one faction.takeover_wave.
+takeover_wave_window_days = 180
+
+# A faction.takeover_wave needs at least this many nations (minimum 2).
+takeover_wave_min_nations = 3
+
 # The faction's unrest attempts and the nation's unrest and opinion shifts this
 # long before a takeover are attached as precursors.
 takeover_precursor_days = 90

@@ -414,6 +414,18 @@ def test_continuity_carries_running_developments_in_full_and_recalls_the_rest() 
     assert (plan.chapters[2].continuing, plan.chapters[2].recalled) == (1, 4)
 
 
+def test_a_wave_member_is_neither_continuing_nor_recalled() -> None:
+    package = _quarterly({position: 20_000 for position in range(4)})
+    member = _development("member", QUARTERS[0], QUARTERS[1], open=True, intervals=(QUARTERS[1], QUARTERS[2]))
+    package["narrative"][:0] = [{**member, "member_of": "wave"}]
+
+    plan = _plan(package, _budget(30_000))
+
+    for index in range(1, len(plan.chapters)):
+        continuity = _embedded(plan, index)["continuity"]
+        assert "member" not in [event["id"] for event in (*continuity["continuing"], *continuity["earlier"])]
+
+
 def test_the_recall_keeps_the_most_significant_then_the_latest() -> None:
     package = _quarterly({position: 20_000 for position in range(4)})
     package["narrative"][:0] = [_development("defining", QUARTERS[0], QUARTERS[1], significance="campaign_defining")]

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
-from tinarrative.rendering.json_report import _drop_shift_events, _slim, _slim_situations
+from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
+from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
+from tinarrative.rendering.json_report import _drop_shift_events, _entry, _slim, _slim_situations
 
 ALLY = {"ref": "nation:4", "state_type": "TINationState", "confidence": "in_save_id", "name": "Fixture Ally"}
 
@@ -91,3 +94,36 @@ def test_shift_entries_lose_their_event_ids_and_nothing_else() -> None:
         },
         {"attributes": {"region_count": 2}},
     ]
+
+
+def test_a_digested_member_keeps_its_headline_and_names_its_wave() -> None:
+    nation = EntityRef(EntityId(EntityDomain.NATION, "1"), IdentityConfidence.IN_SAVE_ID)
+    date = datetime(2030, 2, 1).isoformat()
+    member = Event(
+        id="faction.takeover/nation:1@k",
+        event_type="faction.takeover",
+        status=EventStatus.INFERRED,
+        confidence=Confidence.MEDIUM,
+        date=date,
+        date_basis=DateBasis.INTERVAL,
+        not_before=date,
+        sources=(),
+        entities=(nation,),
+        attributes=(("cause", "Politics"),),
+        significance=Significance.MAJOR,
+        constituents=("faction.nation_control_changed/nation:1@k",),
+        start=date,
+        start_basis=DateBasis.INTERVAL,
+        end=date,
+        end_basis=DateBasis.INTERVAL,
+        intervals=("k",),
+        roles=((Role.TARGET, nation),),
+    )
+
+    digest = _entry(member, {member.id: "faction.takeover_wave/faction:2@k"})
+
+    assert set(digest) == {
+        "id", "event_type", "significance", "start", "start_basis", "end", "roles", "intervals", "member_of"
+    }  # fmt: skip
+    assert digest["member_of"] == "faction.takeover_wave/faction:2@k"
+    assert _entry(member, {}) == member.to_dict()

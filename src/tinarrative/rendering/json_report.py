@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
@@ -26,6 +26,8 @@ ZERO_DROPPED = (
     "sto_fighters",
 )
 """Nation counts the narrator form leaves out when they are zero, as most nations' are."""
+DIGEST_KEYS = ("id", "event_type", "significance", "start", "start_basis", "end", "roles", "intervals")
+"""What a narrative event listed as a digest keeps, besides ``member_of``."""
 
 
 def build_document(
@@ -54,7 +56,7 @@ def build_document(
     document["constituents"] = None if narrative is None else constituents
     document["settings"] = None if narrative is None else {"narrative": settings.to_dict()["narrative"]}
     listed = chosen.narrative
-    document["narrative"] = None if listed is None else [event.to_dict() for event in listed]
+    document["narrative"] = None if listed is None else [_entry(event, chosen.digested) for event in listed]
     document["narrative_omitted"] = None if listed is None or narrative is None else len(narrative) - len(listed)
     rendered: list[dict[str, Any]] = []
     for interval in intervals:
@@ -91,7 +93,7 @@ def _narrator_package(document: dict[str, Any]) -> dict[str, Any]:
         events.extend(interval["events"])
         events.extend(interval["inferred"] or ())
     for event in events:
-        del event["sources"]
+        event.pop("sources", None)
     _drop_shift_events(document["narrative"])
     _prune_nations(document["saves"], _referenced(events))
     _slim_situations(document["saves"])
@@ -99,6 +101,14 @@ def _narrator_package(document: dict[str, Any]) -> dict[str, Any]:
     slimmed: dict[str, Any] = _slim(document)
     slimmed["glossary"] = glossary
     return slimmed
+
+
+def _entry(event: Event, digested: Mapping[str, str]) -> dict[str, Any]:
+    entry = event.to_dict()
+    member_of = digested.get(event.id)
+    if member_of is None:
+        return entry
+    return {**{key: entry[key] for key in DIGEST_KEYS}, "member_of": member_of}
 
 
 def _referenced(node: Any) -> set[str]:
@@ -115,7 +125,7 @@ def _referenced(node: Any) -> set[str]:
 def _drop_shift_events(narrative: list[dict[str, Any]]) -> None:
     """They name shift events the package does not list."""
     for event in narrative:
-        for entry in event["attributes"].get("metric_shifts") or ():
+        for entry in (event.get("attributes") or {}).get("metric_shifts") or ():
             entry.pop("events", None)
 
 

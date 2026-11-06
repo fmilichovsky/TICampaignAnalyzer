@@ -351,6 +351,53 @@ def test_a_top_economy_takeover_is_campaign_defining_by_the_configured_rank() ->
     assert strict.significance is Significance.MAJOR
 
 
+def _seized(key: str, subject: EntityRef, actor: EntityRef = SERVANTS) -> Event:
+    return control(key, "executive", RESISTANCE if actor != RESISTANCE else SERVANTS, actor, subject=subject)
+
+
+def test_takeovers_of_several_small_nations_by_one_faction_form_a_wave() -> None:
+    stream = [_seized(K1, NORTH), _seized(K1, SOUTH), _seized(K2, EAST), _seized(K2, WEST, actor=ACADEMY)]
+
+    events = built(stream, plain(K0, K1, K2))
+
+    wave = only(events, "faction.takeover_wave")
+    members = [item for item in of_type(events, "faction.takeover") if item.roles[0][1] == SERVANTS]
+    assert set(wave.constituents) == {item.id for item in members}
+    assert wave.attribute("nations") == (NORTH, SOUTH, EAST) and wave.attribute("count") == 3
+    assert wave.roles == ((Role.ACTOR, SERVANTS), (Role.TARGET, NORTH), (Role.TARGET, SOUTH), (Role.TARGET, EAST))
+    assert wave.significance is Significance.MAJOR
+    assert describe_event(wave).startswith(f"{SERVANTS.label()} took control of ")
+
+
+def test_fewer_takeovers_than_the_minimum_are_no_wave() -> None:
+    stream = [_seized(K1, NORTH), _seized(K2, SOUTH)]
+
+    assert not of_type(built(stream, plain(K0, K1, K2)), "faction.takeover_wave")
+    loose = built(stream, plain(K0, K1, K2), GeopoliticsSettings(takeover_wave_min_nations=2))
+    assert only(loose, "faction.takeover_wave").attribute("count") == 2
+
+
+def test_a_top_economy_takeover_stays_out_of_the_wave() -> None:
+    stream = [_seized(K1, nation_ref) for nation_ref in (NORTH, SOUTH, EAST, WEST)]
+    after = situation(K1, nations=[nation_row(NORTH, gdp=900.0), nation_row(SOUTH, gdp=1.0)])
+
+    settings = GeopoliticsSettings(top_gdp_nations=1)
+
+    wave = only(built(stream, [situation(K0), after], settings), "faction.takeover_wave")
+
+    assert wave.attribute("nations") == (SOUTH, EAST, WEST)
+
+
+def test_a_takeover_after_the_window_starts_a_new_run() -> None:
+    stream = [_seized(K1, NORTH), _seized(K1, SOUTH), _seized(K2, EAST), _seized(K3, WEST)]
+
+    settings = GeopoliticsSettings(takeover_wave_window_days=60)
+
+    wave = only(built(stream, plain(K0, K1, K2, K3), settings), "faction.takeover_wave")
+
+    assert wave.attribute("nations") == (NORTH, SOUTH, EAST)
+
+
 @pytest.mark.parametrize(
     ("shares", "expected"),
     [([(SERVANTS, 2), (RESISTANCE, 1)], True), ([(SERVANTS, 3)], False)],

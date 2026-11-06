@@ -538,6 +538,13 @@ def _takeover(event: Event) -> str:
     return text
 
 
+def _takeover_wave(event: Event) -> str:
+    return (
+        f"{_role(event, Role.ACTOR)} took control of {_refs(event, 'nations')} in quick succession "
+        f"({_count(event.attribute('count'), 'takeover')})"
+    )
+
+
 def _band_shift(event: Event) -> str:
     return f"{_role(event, Role.ACTOR)} {_bands(event)}"
 
@@ -855,6 +862,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "hab.destroyed": _hab_destroyed,
     "faction.battle_outcome": _battle_outcome,
     "faction.takeover": _takeover,
+    "faction.takeover_wave": _takeover_wave,
     "war.arc": _war_arc,
     "federation.lifecycle": _federation_lifecycle,
     "nation.expansion": _expansion,

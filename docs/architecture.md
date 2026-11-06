@@ -354,6 +354,7 @@ Geopolitics:
 | Type | Says |
 | --- | --- |
 | `faction.takeover` | faction X took control of nation N and consolidated it |
+| `faction.takeover_wave` | faction X took control of nations N1..Nk below the top GDP ranks in a short period; its takeovers are listed as digests |
 | `war.arc` | war between A and B and their allies from start to peace, with regions transferred |
 | `federation.lifecycle` | federation formed, joined, left, renamed, dissolved |
 | `nation.expansion` | N absorbed M1..Mk over a period, peacefully or by war |
@@ -565,11 +566,13 @@ The product handed to an LLM, or to a reader who wants the facts without prose, 
 deterministically from one save sequence:
 
 1.  the narrative events in chronological order, each with its span, roles, attributes, confidence,
-    significance and constituent IDs;
+    significance and constituent IDs; a development that a grouping development (a takeover wave) cites is
+    listed as a *digest* instead (ID, type, span, roles, significance and the group it is a `member_of`),
+    unless another listed development cites it too;
 2.  the situation reports (11.4), one per save;
 3.  an entity glossary: the name and domain of every entity the package references by ID only, and the earlier
     names of a renamed entity, so prose never invents a name and never meets a bare ID;
-4.  the atomic events the listed narrative events are built from, for drill-down and audit.
+4.  the atomic events the narrative events listed in full are built from, for drill-down and audit.
 
 Every line carries event IDs so generated prose can cite them (section 20). The package is not a separate
 command: `tinarrative events --narrative --format json` is its canonical form and the Markdown report's
@@ -905,7 +908,8 @@ Design rules:
 -   The manifest records the package hash, settings, chapter plan, request hashes, token counts and the
     citation audit.
 -   The **citation audit** checks every cited ID against the chapter package it was written from and lists
-    unmatched citations and uncited major developments. It reports and never rejects prose: a wrong citation
+    unmatched citations and uncited major developments; a digest is citable but never counted as uncited, since
+    its group is. It reports and never rejects prose: a wrong citation
     is a finding for the prompt.
 -   A chapter whose stored response came from an identical request is not sent again, so a run resumes where
     it stopped and a changed setting re-sends only the chapters it changes. Assembly reads only the output

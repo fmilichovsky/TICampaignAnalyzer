@@ -97,7 +97,9 @@ attributes and the IDs of the events it is built from:
 With `--narrative`, `--min-significance` filters the narrative events, and the interval sections
 list only the events behind them that `--constituents` keeps; an interval with nothing to list
 shrinks to one line. `events --narrative` thus reads as a digest, with `--constituents evidence`
-or `all` filling in the drill-down. The rules' thresholds come from the settings file
+or `all` filling in the drill-down. The takeovers a listed `faction.takeover_wave` groups are
+listed by headline only, as members of the wave, and their own evidence is left out. The rules'
+thresholds come from the settings file
 ([configuration](../configuration.md)); when they differ from the defaults, the section says so.
 The rules themselves are in the [`narrative`](../../src/tinarrative/narrative/) package.
 
@@ -111,7 +113,9 @@ The rules themselves are in the [`narrative`](../../src/tinarrative/narrative/) 
 - `saves`: the saves in order, each with its [situation report](#situation-report);
 - `intervals`: per interval, its dates, change count, `events`, `inferred`, `state_changes` and
   `omitted` counts;
-- `narrative`, `narrative_omitted`: the narrative events and how many were filtered out;
+- `narrative`, `narrative_omitted`: the narrative events and how many were filtered out; a
+  takeover a listed `faction.takeover_wave` groups keeps only its `id`, `event_type`,
+  `significance`, span, `roles` and `intervals`, plus `member_of` naming the wave;
 - `settings`, `min_significance`, `constituents`: how the report was built;
 - `glossary`: names for the entities the document references by ID only.
 
