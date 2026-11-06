@@ -23,7 +23,7 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: matrix
         name: Read sample campaigns
         run: |
@@ -43,12 +43,12 @@ jobs:
       matrix: ${{ fromJSON(needs.samples.outputs.matrix) }}
     steps:
       # The head checkout supplies the CLI, sample, matrix and settings used to measure both revisions.
-      - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           path: .bench/base-src
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install runtime CLI
@@ -77,7 +77,7 @@ jobs:
         env:
           GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: runtime-${{ matrix.sample }}
           path: .bench/runtime.json
@@ -87,13 +87,13 @@ jobs:
     needs: measure
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install runtime CLI
         run: python -m pip install --quiet .
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: runtime-*
           path: .bench/results
@@ -141,7 +141,7 @@ jobs:
           python -m tinarrative.cli benchmark runtime report .bench/runtime.json --out .bench/runtime.md \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           cat .bench/runtime.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: runtime-metrics
           path: |
