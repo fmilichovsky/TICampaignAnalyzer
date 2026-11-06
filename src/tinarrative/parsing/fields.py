@@ -36,17 +36,10 @@ _ARMY_FIELDS = COMMON_FIELDS + (
     "currentRegion",
     "faction",
     "homeRegion",
-    "priorRegion",
     "strength",
-    "operationTarget",
     "destroyed",
     "armyType",
     "deploymentType",
-    "destinationQueue",
-    "currentOperations",
-    "destinationSeaDate",
-    "embarkDate",
-    "huntingXenofauna",
 )
 
 ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
@@ -54,25 +47,12 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     + (
         "player",
         "councilors",
-        "knownSpies",
         "fleets",
-        "habSectors",
         "controlPoints",
         "armies",
-        "resources",
         "finishedProjectNames",
-        "currentProjectProgress",
-        "researchWeights",
-        "intel",
-        "factionGoals",
-        "knowsWinCondition",
-        "unlockedVictoryObjective",
-        "defeated",
-        "sabotagedProjects",
         "unassignedOrgs",
         "shipDesigns",
-        "shipsBuiltInClass",
-        "techNameContributionHistory",
     ),
     "TINationState": COMMON_FIELDS
     + (
@@ -124,13 +104,8 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     + (
         "nation",
         "faction",
-        "benefitsDisabled",
-        "defended",
-        "crackdownExpiration",
-        "defendExpiration",
         "controlPointType",
         "positionInNation",
-        "controlPointPriorities",
     ),
     "TIRegionState": COMMON_FIELDS
     + (
@@ -138,146 +113,74 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "leadOccupier",
         "occupations",
         "populationInMillions",
-        "alienFacility",
-        "alienActivity",
         "xenoforming",
         "isBeingAnnexed",
         "annexingArmy",
-        "adjacencies",
         "armies",
-        "abductions",
-        "alienCrashdown",
-        "alienLanding",
-        "boostFacility",
-        "missionControlFacility",
-        "spaceDefenseFacility",
-        "spaceFacilities",
-        "originalColony",
-        "annexationBeginDate",
-        "annexationDaysLeft",
         "antiSpaceDefenses",
         "boostPerYear_dekatons",
         "missionControl",
         "numSTOFighters",
-        "isCounterfiring",
         "nuclearDetonations",
         "underBombardment",
-        "colonyRegion",
-        "permanentlyDecolonized",
         "coreEconomicRegion",
         "oilRegion",
         "resourceRegion",
-        "oceanType",
     ),
     "TICouncilorState": COMMON_FIELDS
     + (
         "faction",
-        "agentForFaction",
         "location",
-        "priorLocation",
         "homeRegion",
         "detainingFaction",
         "recruitDate",
-        "detainedReleaseDate",
         "attributes",
-        "activeMission",
-        "completedMission",
         "orgs",
         "status",
         "XP",
         "typeTemplateName",
         "traitTemplateNames",
-        "ancestry",
         "gender",
         "dateBorn",
-        "assassinations",
-        "knowsIveBeenSeenBy",
-        "priorMissionTemplateName",
-        "protectingTarget",
     ),
-    "TIMissionState": COMMON_FIELDS + ("councilor", "target", "missionOutcome", "resources"),
+    "TIMissionState": COMMON_FIELDS + ("councilor", "target"),
     "TIArmyState": _ARMY_FIELDS,
-    "TIMegafaunaArmyState": _ARMY_FIELDS + ("bonusTechLevel",),
+    "TIMegafaunaArmyState": _ARMY_FIELDS,
     "TISpaceFleetState": COMMON_FIELDS
     + (
         "ships",
-        "trajectory",
-        "inAccelerationPhase",
-        "inDecelerationPhase",
-        "homeport",
         "barycenter",
-        "combatState",
         "parentFleet",
         "faction",
         "orbitState",
         "dockedLocation",
         "inCombat",
-        "globalPosition",
-        "displayNameByFaction",
-        "currentOperations",
-        "huntingXenofauna",
-        "unavailableForOperations",
-        "bombardmentTarget",
-        "bombardmentTargetBracketStatus",
-        "endBombardmentReason",
-        "timeOfLastFireMission",
     ),
     "TISpaceShipState": COMMON_FIELDS
     + (
         "fleet",
-        "launchDate",
         "lastRefitDate",
-        "propellant_tons",
         "kills",
-        "officers",
-        "storedFaction",
-        "cruiseAcceleration_mps2",
-        "combatAcceleration_mps2",
-        "currentDeltaV_kps",
-        "currentMaxDeltaV_kps",
-        "currentMass_kg",
-        "armor",
-        "damagedParts",
-        "damagedSystems",
-        "isDamageControlSuspended",
     ),
     "TIWarState": COMMON_FIELDS
     + (
         "attacker",
         "defender",
-        "originalAttacker",
-        "originalDefender",
         "_attackingAlliance",
         "_defendingAlliance",
-        "nukedRegions",
-        "annexedRegions",
-        "defensiveNukes",
-        "peaceOfferHistory",
-        "cohesionGainByNation",
     ),
-    "TIFederationState": COMMON_FIELDS + ("members", "federationName", "adjective"),
+    "TIFederationState": COMMON_FIELDS + ("members", "federationName"),
     "TIOrgState": COMMON_FIELDS
     + (
         "assignedCouncilor",
         "factionOrbit",
         "homeRegion",
         "tier",
-        "applyingBonuses",
-        "takeoverDefense",
-        "XPModifier",
-        "projectCapacityGranted",
-        "costMoney",
-        "costInfluence",
-        "costOps",
-        "costBoost",
         "incomeMoney_month",
         "incomeInfluence_month",
         "incomeOps_month",
-        "incomeBoost_month",
         "incomeResearch_month",
-        "incomeMissionControl",
         "MCBonus",
-        "persuasion",
         "investigation",
         "espionage",
         "command",
@@ -286,10 +189,8 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "security",
         "economyBonus",
         "welfareBonus",
-        "knowledgeBonus",
         "governmentBonus",
         "unityBonus",
-        "militaryBonus",
         "oppressionBonus",
         "spoilsBonus",
         "environmentBonus",
@@ -298,44 +199,30 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "spaceflightBonus",
     ),
     "TIRegionUFOCrashdownState": COMMON_FIELDS + ("region", "crashdownPresent"),
-    "TIRegionUFOLandingState": COMMON_FIELDS
-    + ("region", "landingPresent", "deployingArmy", "supportingArmyBuildup", "currentHP"),
-    "TIRegionAlienFacilityState": COMMON_FIELDS + ("region", "built", "currentHP"),
+    "TIRegionUFOLandingState": COMMON_FIELDS + ("region", "landingPresent"),
+    "TIRegionAlienFacilityState": COMMON_FIELDS + ("region", "built"),
     "TIRegionXenoformingState": COMMON_FIELDS + ("region", "xenoformingLevel"),
-    "TIRegionAlienActivityState": COMMON_FIELDS + ("region", "alienMissionsDetected"),
+    "TIRegionAlienActivityState": COMMON_FIELDS + ("region",),
     "TISpaceBodyState": COMMON_FIELDS + ("barycenter",),
     "TIHabState": COMMON_FIELDS
     + (
         "faction",
         "orbitState",
-        "habSite",
         "barycenter",
-        "sectors",
-        "districts",
         "dockedFleets",
-        "councilorsOnBoard",
-        "officersOnBoard",
-        "advisingCouncilors",
         "habType",
         "tier",
         "inCombat",
         "underAssault",
         "underBombardment",
         "anyCoreCompleted",
-        "coreDefended",
-        "coreDefendExpiration",
-        "staticHab",
-        "inEarthLEO",
-        "globalPosition",
     ),
-    # bestGlobalHumanEducation: newer build only; realWorldCampaignStart: a real-world date, copied raw.
     GLOBAL_VALUES_STATE_TYPE: COMMON_FIELDS
     + (
         "interstateWars",
         "nuclearStrikes",
         "looseNukes",
         "currentNuclearExchanges",
-        "alienInvaderArmies",
         "earthAtmosphericCO2_ppm",
         "earthAtmosphericCH4_ppm",
         "earthAtmosphericN2O_ppm",
@@ -343,12 +230,6 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "globalSeaLevelAnomaly_cm",
         "globalSeaLevelRise1Triggered",
         "globalSeaLevelRise2Triggered",
-        "endOfOil",
-        "bestGlobalHumanMiltech",
-        "bestGlobalHumanEducation",
-        "campaignStartVersion",
-        "latestSaveVersion",
-        "realWorldCampaignStart",
     ),
     # Every member other than templateName/displayName/archived/exists is a record or acknowledged.
     NOTIFICATION_QUEUE_STATE_TYPE: COMMON_FIELDS,
@@ -421,7 +302,6 @@ _MISSION_TARGET = (
 _ARMY_REFERENCES: dict[str, tuple[ExpectedDomains, bool]] = {
     "currentRegion": _REGION,
     "homeRegion": _REGION,
-    "priorRegion": _REGION,
     "faction": _FACTION,
 }
 
@@ -455,32 +335,21 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TIRegionState": {
         "nation": (EntityDomain.NATION, False),
-        "originalColony": (EntityDomain.NATION, False),
         "armies": _ARMY_LIST,
-        "alienFacility": _ALIEN_STATE,
-        "alienActivity": _ALIEN_STATE,
         "xenoforming": _ALIEN_STATE,
-        "alienCrashdown": _ALIEN_STATE,
-        "alienLanding": _ALIEN_STATE,
     },
     "TICouncilorState": {
         "faction": _FACTION,
         "detainingFaction": _FACTION,
         "homeRegion": _REGION,
         "location": _PLACE,
-        "priorLocation": _PLACE,
-        "activeMission": _MISSION,
-        "completedMission": _MISSION,
         "orgs": (EntityDomain.ORGANIZATION, True),
-        "knowsIveBeenSeenBy": (EntityDomain.FACTION, True),
     },
     "TIArmyState": _ARMY_REFERENCES,
     "TIMegafaunaArmyState": _ARMY_REFERENCES,
     "TIWarState": {
         "attacker": _NATION,
         "defender": _NATION,
-        "originalAttacker": _NATION,
-        "originalDefender": _NATION,
         "_attackingAlliance": _NATION_LIST,
         "_defendingAlliance": _NATION_LIST,
     },
@@ -511,10 +380,8 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     "TIHabState": {
         "faction": _FACTION,
         "orbitState": _SPACE_OBJECT,
-        "habSite": _SPACE_OBJECT,
         "barycenter": _SPACE_BODY,
         "dockedFleets": (EntityDomain.FLEET, True),
-        "councilorsOnBoard": (EntityDomain.COUNCILOR, True),
     },
 }
 """Reference fields and their observed target domain(s); ``True`` marks a list of references.
@@ -532,7 +399,7 @@ Keying lets the diff compare elements one by one instead of the whole list as on
 """
 
 DATE_FIELDS: dict[str, tuple[str, ...]] = {
-    "TICouncilorState": ("recruitDate", "detainedReleaseDate", "dateBorn"),
+    "TICouncilorState": ("recruitDate", "dateBorn"),
 }
 """Entity fields holding a componentized date; the snapshot carries ISO-8601 text (see ``parsing/dates.py``)."""
 
@@ -553,10 +420,6 @@ DERIVED_FIELDS: dict[str, tuple[str, ...]] = {"TIHabState": HAB_CORE_FIELDS}
 
 PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
-    "TICouncilorState": {"assassinations": EntityDomain.FACTION},
-    "TISpaceFleetState": {"displayNameByFaction": EntityDomain.FACTION},
-    "TIWarState": {"peaceOfferHistory": EntityDomain.NATION, "cohesionGainByNation": EntityDomain.NATION},
-    "TIRegionAlienActivityState": {"alienMissionsDetected": EntityDomain.FACTION},
 }
 """Entity fields serialized as a field-level pair map, with the keys' target domain(s); ``None`` marks integer
 keys, which are not references.
@@ -609,10 +472,7 @@ class RecordField:
     targets: ExpectedDomains | None = None
 
 
-_FACTION_COUNTER = RecordField(RecordKind.COUNTER)
 _FACTION_KEYED = RecordField(RecordKind.REFERENCE_VALUES, EntityDomain.FACTION)
-_ALIEN_SITE = frozenset((EntityDomain.REGION, EntityDomain.SPACE_OBJECT, EntityDomain.SHIP))
-"""A ``knownAlienSites`` key: a region, a hab or a ship."""
 
 RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     "TIFactionState": {
@@ -620,20 +480,8 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
         "HabDestructionLog": RecordField(RecordKind.DESTRUCTION_LOG),
         "Kills": _FACTION_KEYED,
         "Transactions": RecordField(RecordKind.LEDGER),
-        "abductions": _FACTION_COUNTER,
-        "alienInvestigations": _FACTION_COUNTER,
-        "aliensRemoved": _FACTION_COUNTER,
-        "armiesLost": RecordField(RecordKind.LABEL_VALUES),
-        "atrocities": _FACTION_COUNTER,
-        "boostAccounts": RecordField(RecordKind.DATED_LABELS),
-        "factionAssassinations": _FACTION_KEYED,
-        "factionHate": _FACTION_KEYED,
-        "intelSharingFactions": RecordField(RecordKind.REFERENCE_LIST, EntityDomain.FACTION),
-        "knownAlienSites": RecordField(RecordKind.DATED_REFERENCES, _ALIEN_SITE),
         "lostControlPoints": RecordField(RecordKind.DATED_REFERENCES, EntityDomain.CONTROL_POINT),
         "milestones": RecordField(RecordKind.NAME_LOG),
-        "numAtrocitiesByCause": RecordField(RecordKind.LABEL_VALUES),
-        "objectiveNames": RecordField(RecordKind.LABEL_VALUES),
     },
     "TINationState": {
         "dateOfNewGovernment": RecordField(RecordKind.DATE),
@@ -648,8 +496,6 @@ RECORD_FIELDS: dict[str, dict[str, RecordField]] = {
     },
     GLOBAL_VALUES_STATE_TYPE: {
         "globalMilestones": RecordField(RecordKind.LABELLED_REFERENCES, EntityDomain.FACTION),
-        "narrativeEventsOnCooldown_months": RecordField(RecordKind.LABEL_VALUES),
-        "removedNarrativeEvents": RecordField(RecordKind.NAME_LOG),
         "triggeredOncePerCampaignEvents": RecordField(RecordKind.NAME_LOG),
         "triggeredOncePerTargetEvents": RecordField(RecordKind.LABELLED_REFERENCES, EntityDomain.FACTION),
     },
@@ -774,6 +620,39 @@ _ARMY_ACKNOWLEDGED = _reasons(
 
 ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
     "TIFactionState": _reasons(
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            (
+                "resources",
+                "currentProjectProgress",
+                "researchWeights",
+                "intel",
+                "shipsBuiltInClass",
+                "techNameContributionHistory",
+            ),
+        ),
+        (UnsupportedReason.AI_INTERNAL, ("knownSpies", "factionGoals", "sabotagedProjects")),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            ("habSectors", "knowsWinCondition", "unlockedVictoryObjective", "defeated"),
+        ),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "abductions",
+                "alienInvestigations",
+                "aliensRemoved",
+                "armiesLost",
+                "atrocities",
+                "boostAccounts",
+                "factionAssassinations",
+                "factionHate",
+                "intelSharingFactions",
+                "knownAlienSites",
+                "numAtrocitiesByCause",
+                "objectiveNames",
+            ),
+        ),
         (
             UnsupportedReason.DERIVED_HISTORY,
             (
@@ -985,9 +864,35 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         ),
     ),
     "TIControlPoint": _reasons(
-        (UnsupportedReason.DERIVED_CACHE, ("numPrioritiesWithWeight", "totalWeightsForControlPoint")),
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            ("benefitsDisabled", "controlPointPriorities", "numPrioritiesWithWeight", "totalWeightsForControlPoint"),
+        ),
+        (UnsupportedReason.RUNTIME_INTERNAL, ("defended", "crackdownExpiration", "defendExpiration")),
     ),
     "TIRegionState": _reasons(
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            ("adjacencies", "spaceFacilities", "annexationDaysLeft", "permanentlyDecolonized"),
+        ),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "alienFacility",
+                "alienActivity",
+                "abductions",
+                "alienCrashdown",
+                "alienLanding",
+                "boostFacility",
+                "missionControlFacility",
+                "spaceDefenseFacility",
+                "originalColony",
+                "annexationBeginDate",
+                "isCounterfiring",
+                "colonyRegion",
+                "oceanType",
+            ),
+        ),
         (
             UnsupportedReason.RUNTIME_INTERNAL,
             (
@@ -1002,6 +907,21 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         ),
     ),
     "TICouncilorState": _reasons(
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "agentForFaction",
+                "priorLocation",
+                "detainedReleaseDate",
+                "activeMission",
+                "completedMission",
+                "ancestry",
+                "assassinations",
+                "knowsIveBeenSeenBy",
+                "priorMissionTemplateName",
+                "protectingTarget",
+            ),
+        ),
         (UnsupportedReason.AI_INTERNAL, ("autofailMissionsValue",)),
         (
             UnsupportedReason.UI_CACHE,
@@ -1031,11 +951,61 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         ),
     ),
     "TIMissionState": _reasons(
-        (UnsupportedReason.RUNTIME_INTERNAL, ("startTime", "resolveTime", "resolveTimeAssigned")),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            ("missionOutcome", "resources", "startTime", "resolveTime", "resolveTimeAssigned"),
+        ),
     ),
-    "TIArmyState": _ARMY_ACKNOWLEDGED,
-    "TIMegafaunaArmyState": _ARMY_ACKNOWLEDGED,
+    "TIArmyState": _reasons(
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "priorRegion",
+                "operationTarget",
+                "destinationQueue",
+                "currentOperations",
+                "destinationSeaDate",
+                "embarkDate",
+                "huntingXenofauna",
+            ),
+        ),
+    )
+    | _ARMY_ACKNOWLEDGED,
+    "TIMegafaunaArmyState": _reasons(
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "priorRegion",
+                "operationTarget",
+                "destinationQueue",
+                "currentOperations",
+                "destinationSeaDate",
+                "embarkDate",
+                "huntingXenofauna",
+                "bonusTechLevel",
+            ),
+        ),
+    )
+    | _ARMY_ACKNOWLEDGED,
     "TISpaceFleetState": _reasons(
+        (UnsupportedReason.VECTOR, ("trajectory", "globalPosition")),
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            (
+                "inAccelerationPhase",
+                "inDecelerationPhase",
+                "homeport",
+                "combatState",
+                "displayNameByFaction",
+                "currentOperations",
+                "huntingXenofauna",
+                "unavailableForOperations",
+                "bombardmentTargetBracketStatus",
+                "endBombardmentReason",
+                "timeOfLastFireMission",
+            ),
+        ),
+        (UnsupportedReason.RUNTIME_INTERNAL, ("bombardmentTarget",)),
         (
             UnsupportedReason.VECTOR,
             (
@@ -1069,6 +1039,21 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         ),
     ),
     "TISpaceShipState": _reasons(
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            (
+                "propellant_tons",
+                "cruiseAcceleration_mps2",
+                "combatAcceleration_mps2",
+                "currentDeltaV_kps",
+                "currentMaxDeltaV_kps",
+                "currentMass_kg",
+                "armor",
+                "damagedParts",
+                "damagedSystems",
+            ),
+        ),
+        (UnsupportedReason.RUNTIME_INTERNAL, ("launchDate", "officers", "storedFaction", "isDamageControlSuspended")),
         (UnsupportedReason.VECTOR, ("currentFleetOffset", "currentRotation", "damagePoints", "fleetFormationOffset")),
         (UnsupportedReason.REFERENCE_GRAPH, ("ammo", "batteryCharge", "hullWeapons", "noseWeapons", "utilityModules")),
         (UnsupportedReason.DERIVED_CACHE, ("missionControlConsumption",)),
@@ -1115,6 +1100,20 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
     ),
     "TIHabState": _reasons(
         (
+            UnsupportedReason.DERIVED_CACHE,
+            (
+                "sectors",
+                "districts",
+                "councilorsOnBoard",
+                "officersOnBoard",
+                "advisingCouncilors",
+                "staticHab",
+                "inEarthLEO",
+                "globalPosition",
+            ),
+        ),
+        (UnsupportedReason.RUNTIME_INTERNAL, ("habSite", "coreDefended", "coreDefendExpiration")),
+        (
             UnsupportedReason.VECTOR,
             (
                 "_epoch_JYears",
@@ -1130,11 +1129,49 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         (UnsupportedReason.RUNTIME_INTERNAL, ("_dockedShipAbovePositions", "createdFromTemplate")),
     ),
     "TIFederationState": _reasons(
+        (UnsupportedReason.UI_CACHE, ("adjective",)),
         (UnsupportedReason.UI_CACHE, ("displayNameWithArticle", "displayNameWithArticleCapitalized", "flagResource")),
         (UnsupportedReason.RUNTIME_INTERNAL, ("lastAttemptToLeaveDarkFederation",)),
     ),
     "TIOrgState": _reasons(
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            (
+                "applyingBonuses",
+                "takeoverDefense",
+                "XPModifier",
+                "projectCapacityGranted",
+                "costMoney",
+                "costInfluence",
+                "costOps",
+                "costBoost",
+                "incomeBoost_month",
+                "incomeMissionControl",
+                "persuasion",
+                "knowledgeBonus",
+                "militaryBonus",
+            ),
+        ),
         (UnsupportedReason.UI_CACHE, ("orgIconPath", "orgIconTemplateName", "displayNameWithArticle")),
+    ),
+    "TIRegionUFOLandingState": _reasons(
+        (UnsupportedReason.RUNTIME_INTERNAL, ("deployingArmy", "supportingArmyBuildup", "currentHP"))
+    ),
+    "TIRegionAlienFacilityState": _reasons((UnsupportedReason.RUNTIME_INTERNAL, ("currentHP",))),
+    "TIRegionAlienActivityState": _reasons((UnsupportedReason.RUNTIME_INTERNAL, ("alienMissionsDetected",))),
+    "TIWarState": _reasons(
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "originalAttacker",
+                "originalDefender",
+                "nukedRegions",
+                "annexedRegions",
+                "defensiveNukes",
+                "peaceOfferHistory",
+                "cohesionGainByNation",
+            ),
+        )
     ),
     "TIMetadataState": _reasons(
         (
@@ -1164,6 +1201,20 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         ),
     ),
     GLOBAL_VALUES_STATE_TYPE: _reasons(
+        (
+            UnsupportedReason.DERIVED_CACHE,
+            ("bestGlobalHumanMiltech", "bestGlobalHumanEducation", "alienInvaderArmies", "endOfOil"),
+        ),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "campaignStartVersion",
+                "latestSaveVersion",
+                "realWorldCampaignStart",
+                "narrativeEventsOnCooldown_months",
+                "removedNarrativeEvents",
+            ),
+        ),
         (
             UnsupportedReason.DERIVED_HISTORY,
             ("pastEarthAtmosphericCH4_ppm", "pastEarthAtmosphericCO2_ppm", "pastEarthAtmosphericN2O_ppm"),

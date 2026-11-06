@@ -21,7 +21,7 @@ Grouped by matching human faction, faction name and scenario; no real-world star
 
 ### 2032-01-01T00:00:00 to 2032-04-01T00:00:00
 
-- 34 state changes
+- 33 state changes
 
 #### Objective analyzer results
 

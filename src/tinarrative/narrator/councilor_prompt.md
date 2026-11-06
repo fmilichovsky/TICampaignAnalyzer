@@ -103,9 +103,6 @@ The user message carries a request block.
     Kazakhstan", "known for humanitarian work in East Africa", "a series of
     public campaigns in Brazil"); `count` is frequency, so say "often" or
     "repeatedly", never the number.
-  - `active_mission`: what the person is doing now, as a
-    mission.
-
 ## Facts
 
 The dossier is the only source of facts about the person and the world.

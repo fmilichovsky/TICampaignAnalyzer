@@ -71,8 +71,8 @@ def test_json_report_carries_kind_detail_and_evidence(capsys: pytest.CaptureFixt
         "added": [{"ref": "nation:22", "state_type": "TINationState", "confidence": "in-save-id"}],
         "removed": [{"ref": "nation:21", "state_type": "TINationState", "confidence": "in-save-id"}],
     }
-    assert by_key[("control point:10", "defended")]["after"] == {"unknown": "missing"}
-    assert by_key[("faction:15", "resources")]["detail"] == {"added": [], "removed": [], "changed": ["Money"]}
+    assert ("control point:10", "defended") not in by_key
+    assert ("faction:15", "resources") not in by_key
 
 
 @pytest.mark.fixture
@@ -92,8 +92,8 @@ def test_record_changes_carry_entries_in_json_but_only_counts_in_text(capsys: py
     assert ledger["detail"]["removed"] == []
     executive = by_key[("nation:20", "lastExecutiveChange")]
     assert [pair["after"]["key"] for pair in executive["detail"]["changed"]] == ["cause", "date", "newExecutive"]
-    assert by_key[("faction:15", "abductions")]["kind"] == "value"
-    assert by_key[("faction:15", "intelSharingFactions")]["kind"] == "membership"
+    assert ("faction:15", "abductions") not in by_key
+    assert ("faction:15", "intelSharingFactions") not in by_key
     assert ("faction:16", "Transactions") not in by_key  # unknown on both sides: nothing to compare
 
     assert main(["save", "diff", str(before), str(after)]) == EXIT_SUCCESS
@@ -161,7 +161,7 @@ def test_debug_log_reports_aggregates_without_save_values(capsys: pytest.Capture
     lines = err.splitlines()
     assert lines[0] == "INFO tinarrative.cli: save diff start before=interval_before.json after=interval_after.json"
     assert lines[-1] == (
-        "INFO tinarrative.cli: save diff done before=interval_before.json after=interval_after.json changes=59 exit=0"
+        "INFO tinarrative.cli: save diff done before=interval_before.json after=interval_after.json changes=48 exit=0"
     )
     assert (
         "DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=3 after=3 matched=3 "

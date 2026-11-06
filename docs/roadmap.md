@@ -121,6 +121,6 @@ Tracking #249.
 - [x] Normalization and model hot-path costs (#256).
 - [x] Parallel survey and interval processing (#257).
 - [x] Read only required sections during save survey (#274).
-- [ ] Ignore low-value and unused fields from normalization (#275).
+- [x] Ignore low-value and unused fields from normalization (#275).
 - [ ] Stop decoding unnecessary ledger labels (#276).
 - [ ] Run analyzers selectively (#277).

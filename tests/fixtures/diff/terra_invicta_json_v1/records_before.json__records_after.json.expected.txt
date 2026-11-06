@@ -5,9 +5,9 @@ before: records_before.json
 after: records_after.json
   date: "2031-06-01T00:00:00"
   game_version: not serialized
-changes: 19
+changes: 11
   campaign: 4
-  faction: 13
+  faction: 5
   nation: 2
 changes:
   campaign campaign_day: 425 -> 517
@@ -17,15 +17,7 @@ changes:
   faction:15 HabDestructionLog: +2 entries
   faction:15 Kills: +1 entries
   faction:15 Transactions: +2 entries
-  faction:15 abductions: 0 -> 1
-  faction:15 armiesLost: ~1 entries
-  faction:15 atrocities: 1 -> 2
-  faction:15 boostAccounts: ~1 entries
-  faction:15 factionHate: ~1 entries
-  faction:15 intelSharingFactions: +faction:16
   faction:15 lostControlPoints: +1 entries
   faction:15 milestones: +1 entries
-  faction:15 numAtrocitiesByCause: +1 entries
-  faction:15 objectiveNames: ~1 entries
   nation:20 dateOfNewGovernment: null -> "2031-04-20T00:00:00"
   nation:20 lastExecutiveChange: ~3 entries

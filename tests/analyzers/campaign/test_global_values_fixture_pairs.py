@@ -28,9 +28,6 @@ def test_global_values_pair_yields_the_expected_campaign_events() -> None:
     assert [event.id for event in events] == [
         f"campaign.global_milestone_recorded/{SINGLETON}/FirstBaseOnLuna",
         f"campaign.global_value_changed/{SINGLETON}/earthAtmosphericCO2_ppm",
-        f"campaign.global_value_changed/{SINGLETON}/latestSaveVersion",
-        f"campaign.global_value_changed/{SINGLETON}/narrativeEventsOnCooldown_months",
-        f"campaign.global_value_changed/{SINGLETON}/removedNarrativeEvents",
         f"campaign.narrative_event_triggered/{SINGLETON}/campaign/1",
         f"campaign.narrative_event_triggered/{SINGLETON}/target/event_FixtureTarget",
         f"campaign.nuclear_strikes_changed/{SINGLETON}",
@@ -73,9 +70,6 @@ def test_campaign_events_are_described_literally() -> None:
     assert lines == {
         f"{SINGLETON} records global milestone FirstBaseOnLuna for Fixture Resistance (faction:15)",
         f"{SINGLETON} earthAtmosphericCO2_ppm: 420.0 -> 421.5",
-        f'{SINGLETON} latestSaveVersion: "fixture-build-1" -> "fixture-build-2"',
-        f"{SINGLETON} narrativeEventsOnCooldown_months records changed: 0 added, 0 removed, 1 changed",
-        f"{SINGLETON} removedNarrativeEvents records changed: 1 added, 1 removed, 0 changed",
         f"{SINGLETON} lists narrative event event_FixtureSecond as triggered once per campaign",
         f"{SINGLETON} lists narrative event event_FixtureTarget as triggered for [Fixture Resistance (faction:15)]",
         f"{SINGLETON} nuclear strikes: 0 -> 2",

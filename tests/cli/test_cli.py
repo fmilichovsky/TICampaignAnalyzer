@@ -119,7 +119,7 @@ class ParseCommandTests(unittest.TestCase):
     def test_summary_counts_known_record_sets_and_their_entries(self) -> None:
         code, out, err = self.run_parse(fixture_path("io", "terra_invicta_json_v1", "records_before.json"))
         self.assertEqual((code, err), (EXIT_SUCCESS, ""))
-        self.assertEqual(out.splitlines()[-2:], ["records: 19 fields, 28 entries", "unknown structures: 0"])
+        self.assertEqual(out.splitlines()[-2:], ["records: 7 fields, 8 entries", "unknown structures: 0"])
         code, out, _ = self.run_parse(fixture_path("io", "terra_invicta_json_v1", "campaign_assets.json"))
         self.assertIn("records: 0 fields, 0 entries", out.splitlines())
 
