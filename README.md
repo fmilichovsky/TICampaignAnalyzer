@@ -12,7 +12,7 @@ so the pinned development tools don't mix with other Python installs:
 ```sh
 python3 -m venv .venv            # once per clone
 source .venv/bin/activate        # once per shell session
-python -m pip install -e ".[dev]"
+make install                     # once, and again after changing dependencies
 tinarrative --help
 ```
 
@@ -68,9 +68,7 @@ names no paths or save content. See the [debugging guide](docs/debugging.md).
 make check
 ```
 
-`make check` is the baseline quality gate and runs formatting, linting, strict
-type checking, and tests; CI runs the same target. Development-tool versions
-are pinned in `pyproject.toml` so a clean checkout resolves the same tools.
+`make check` is the baseline quality gate and runs formatting, linting, strict type checking, and tests.
 
 Individual targets are `make format`, `make lint`, `make typecheck`, and
 `make test`. To apply formatting, run `python -m ruff format .`.
