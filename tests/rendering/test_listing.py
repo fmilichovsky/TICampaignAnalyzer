@@ -4,6 +4,7 @@ from datetime import datetime
 
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
+from tinarrative.narrative.geopolitics import TAKEOVER, TAKEOVER_WAVE
 from tinarrative.rendering.listing import listing
 from tinarrative.sequence import IntervalResult, SaveRef
 
@@ -35,10 +36,12 @@ def _atomic(
     )
 
 
-def _narrative(event_id: str, significance: Significance, cites: tuple[str, ...]) -> Event:
+def _narrative(
+    event_id: str, significance: Significance, cites: tuple[str, ...], event_type: str = "nation.changed.arc"
+) -> Event:
     return Event(
         id=event_id,
-        event_type="nation.changed.arc",
+        event_type=event_type,
         status=EventStatus.INFERRED,
         confidence=Confidence.MEDIUM,
         date=AFTER.date,
@@ -115,3 +118,40 @@ def test_without_narrative_atomic_events_are_filtered_by_significance() -> None:
     assert chosen.kept([OBJECTIVE, UNCITED, INFERRED]) == (UNCITED, INFERRED)
     assert chosen.omissions([OBJECTIVE, UNCITED, INFERRED]) == [(1, "below minor significance omitted")]
     assert not listing([INTERVAL], None, minimum=Significance.TRIVIAL).filters
+
+
+FIRST = _narrative("t-1", Significance.MAJOR, ("i-1",), TAKEOVER)
+SECOND = _narrative("t-2", Significance.MAJOR, ("o-2",), TAKEOVER)
+WAVE = _narrative("w-1", Significance.MAJOR, ("t-1", "t-2"), TAKEOVER_WAVE)
+
+
+def test_a_wave_member_is_a_digest_even_at_its_own_level_and_its_evidence_is_not_reached() -> None:
+    chosen = listing([INTERVAL], [FIRST, SECOND, WAVE], minimum=Significance.MAJOR, constituents="all")
+
+    assert chosen.narrative == (FIRST, SECOND, WAVE)
+    assert chosen.digested == {"t-1": "w-1", "t-2": "w-1"}
+    assert chosen.reached == set() and chosen.constituents == set()
+
+
+def test_a_member_another_listed_development_cites_is_listed_in_full() -> None:
+    context = _narrative("r-1", Significance.MAJOR, ("t-1",))
+
+    chosen = listing([INTERVAL], [FIRST, SECOND, WAVE, context], minimum=Significance.MAJOR, constituents="all")
+
+    assert chosen.digested == {"t-2": "w-1"}
+    assert chosen.reached == {"i-1", "o-1"}
+
+
+def test_without_the_wave_listed_its_members_are_listed_in_full() -> None:
+    minor_wave = _narrative("w-1", Significance.MINOR, ("t-1", "t-2"), TAKEOVER_WAVE)
+
+    chosen = listing([INTERVAL], [FIRST, SECOND, minor_wave], minimum=Significance.MAJOR, constituents="all")
+
+    assert chosen.narrative == (FIRST, SECOND) and chosen.digested == {}
+    assert chosen.reached == {"i-1", "o-1", "o-2"}
+
+
+def test_without_constituents_a_wave_member_is_still_a_digest() -> None:
+    chosen = listing([INTERVAL], [FIRST, SECOND, WAVE], minimum=Significance.MAJOR)
+
+    assert chosen.digested == {"t-1": "w-1", "t-2": "w-1"}

@@ -229,6 +229,21 @@ def test_the_audit_checks_each_citation_against_its_own_chapter_package() -> Non
     assert assembly.findings == {"unmatched": 4, "uncited": 1}
 
 
+def test_a_wave_member_is_citable_but_never_reported_uncited() -> None:
+    package = _package(["2030-01-01T00:00:00", "2030-07-01T00:00:00"], [("dev.wave", "major")])
+    package["narrative"].append({"id": "dev.member", "significance": "major", "member_of": "dev.wave"})
+
+    assembly = assemble(
+        [_chapter(1, package, "A wave.[^1]\n\n[^1]: `dev.wave`; `dev.member`\n")],
+        PLAN,
+        generated=GENERATED,
+        version="0.1.0",
+    )
+
+    assert "dev.member" in citable(package)
+    assert assembly.manifest["audit"]["unmatched"] == [] and assembly.manifest["audit"]["uncited"] == []
+
+
 def test_without_footnotes_no_development_is_reported_uncited() -> None:
     plan = {**PLAN, "request": {"period": "half", "citations": "none"}}
 

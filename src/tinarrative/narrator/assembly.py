@@ -212,7 +212,7 @@ def assemble(
         expected.extend(
             {"chapter": chapter.index, "id": event["id"], "significance": event["significance"]}
             for event in chapter.package.get("narrative") or ()
-            if event.get("significance") in SIGNIFICANCE[floor:]
+            if event.get("significance") in SIGNIFICANCE[floor:] and "member_of" not in event
         )
     uncited = [item for item in expected if item["id"] not in cited] if footnotes else None
     header = _header(chapters, plan, generated)

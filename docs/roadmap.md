@@ -56,6 +56,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
 - [ ] Battle-outcome loss fields read as the actor's losses; combat records lack date and body (no issue yet).
 - [x] Package-size measurement on benchmark samples.
 - [x] Minimize the narrator package size (#144: #159, #160, #161, #165).
+- [x] Takeover waves with digest-listed members (#163).
 - [ ] Nation metrics redesign ([nation statistics](game-data-notes/nation-metrics.md)):
   - [x] Evidence pass (#189).
   - [x] Significance defaults (#190).

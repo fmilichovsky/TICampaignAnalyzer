@@ -62,6 +62,10 @@ class GeopoliticsSettings:
     takeover_consolidation_days: int = _int(180, 0)
     """Control changes of one nation to the same faction this soon after the first join one takeover; its
     control-point gains are attached over the same window."""
+    takeover_wave_window_days: int = _int(180, 0)
+    """Takeovers by one faction starting at most this long after the first of them ended form one takeover wave."""
+    takeover_wave_min_nations: int = _int(3, 2)
+    """A takeover wave needs at least this many nations below ``top_gdp_nations``."""
     takeover_precursor_days: int = _int(90, 0)
     """Unrest and opinion evidence of the nation this long before the takeover is attached as its precursors."""
     ledger_window_days: int = _int(28, 0)

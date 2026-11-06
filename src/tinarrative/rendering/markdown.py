@@ -119,7 +119,12 @@ def render_sequence(
             lines.extend([f"Built with non-default settings: {listed}.", ""])
         lines.extend(
             _narrative_lines(
-                narrative, chosen.narrative or (), verbose=verbose, min_significance=min_significance, period=period
+                narrative,
+                chosen.narrative or (),
+                verbose=verbose,
+                min_significance=min_significance,
+                period=period,
+                digested=chosen.digested,
             )
         )
 
@@ -191,8 +196,10 @@ def _narrative_lines(
     verbose: bool,
     min_significance: Significance,
     period: Period = "year",
+    digested: Mapping[str, str] | None = None,
 ) -> list[str]:
-    """The ``kept`` narrative events by start period (undated first); the rest are counted as omitted."""
+    """The ``kept`` narrative events by start period (undated first); the rest are counted as omitted. A ``digested``
+    event shows its headline, roles and the development it is a member of."""
     if not narrative:
         return ["No narrative events were built."]
     listed = sorted(kept, key=lambda event: event.sort_key)
@@ -208,6 +215,10 @@ def _narrative_lines(
         lines.append(f"- {span}{' (open)' if event.open else ''}: {describe_event(event)} ({state})")
         if event.roles:
             lines.append("  - roles: " + "; ".join(f"{role.value}: {ref.label()}" for role, ref in event.roles))
+        member_of = (digested or {}).get(event.id)
+        if member_of is not None:
+            lines.append(f"  - member of `{member_of}`")
+            continue
         summary = _attribute_summary(event)
         if summary and not verbose:
             lines.append(f"  - attributes: {summary}")

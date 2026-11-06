@@ -47,6 +47,10 @@ The user message may carry a request block.  Defaults in brackets.
   councilor); a constituent ID missing from them is bookkeeping its
   development already sums up.  Absence is not evidence that nothing happened.
   A development cited by another may be listed below `min_significance`.
+- A development with `member_of` is one of several that the named
+  development, such as a `faction.takeover_wave`, groups; it is listed by
+  headline only.  Tell it inside that development, not as an entry of its
+  own; it may be cited like any other ID.
 - `saves[].situation`: a literal snapshot at each save: who holds each
   nation's executive, control-point shares, federations, allies (IDs), wars
   and their sides, regions, population, statistics, armies, navies, the

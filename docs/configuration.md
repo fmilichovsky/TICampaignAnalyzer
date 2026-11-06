@@ -55,6 +55,8 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | --- | --- | --- | --- |
 | `narrative.geopolitics.top_gdp_nations` | 10 | 1 | A `faction.takeover` is `campaign_defining` when its nation ranks this high or higher by `GDP` in the report after the takeover's first interval. |
 | `narrative.geopolitics.takeover_consolidation_days` | 180 | 0 | Control changes of one nation to the same faction this soon after the first join one takeover; its control-point gains are attached over the same window. |
+| `narrative.geopolitics.takeover_wave_window_days` | 180 | 0 | Takeovers by one faction of nations below `top_gdp_nations`, starting at most this long after the first of them ended, form one `faction.takeover_wave`. |
+| `narrative.geopolitics.takeover_wave_min_nations` | 3 | 2 | A `faction.takeover_wave` needs at least this many nations. |
 | `narrative.geopolitics.takeover_precursor_days` | 90 | 0 | The faction's unrest attempts and the nation's unrest and opinion shifts this long before a takeover are attached as precursors. |
 | `narrative.geopolitics.ledger_window_days` | 28 | 0 | A `Coup`, `Purge` or `Crackdown` charge is attached to a takeover when dated this long before it at most (the assignment-to-outcome bound of architecture 11.3). |
 | `narrative.geopolitics.expansion_gap_days` | 365 | 0 | Gains of one nation chain into one `nation.expansion` while each follows the previous one this soon. |

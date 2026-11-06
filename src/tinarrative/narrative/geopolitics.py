@@ -30,6 +30,7 @@ from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
 from .rulekit import (
     NATION_ARMIES_CHANGED,
     DatedEvents,
+    anchored,
     army_home,
     by_subject,
     by_type,
@@ -55,6 +56,7 @@ from .situation import NationSituation, SituationReport, WarSituation
 from .stream import EventStream
 
 TAKEOVER = "faction.takeover"
+TAKEOVER_WAVE = "faction.takeover_wave"
 WAR_ARC = "war.arc"
 FEDERATION_LIFECYCLE = "federation.lifecycle"
 EXPANSION = "nation.expansion"
@@ -505,6 +507,53 @@ def _holds_executive_only(situations: Sequence[SituationReport], nation_id: Enti
         return False
     held = dict(nation.shares.items).get(str(faction_id))
     return isinstance(held, int) and held < nation.control_points
+
+
+@dataclass(frozen=True)
+class TakeoverWaveRule:
+    """``faction.takeover_wave``: one faction took several nations below the top GDP ranks in a short period.
+
+    A takeover of a top-ranked nation stays a headline development of its own and never joins a wave.
+    """
+
+    settings: GeopoliticsSettings
+    name: str = TAKEOVER_WAVE
+    order: int = 1
+
+    @property
+    def window_days(self) -> int:
+        return self.settings.takeover_wave_window_days
+
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        days = self.settings.takeover_wave_window_days
+        by_actor: dict[EntityId, list[Event]] = defaultdict(list)
+        for takeover in by_type(stream, TAKEOVER):
+            actor, rank = _role(takeover, Role.ACTOR), takeover.attribute("gdp_rank")
+            top = isinstance(rank, int) and rank <= self.settings.top_gdp_nations
+            if actor is not None and not top:
+                by_actor[actor].append(takeover)
+        last = last_date(situations)
+        built = []
+        for faction_id in sorted_keys(by_actor):
+            for run in anchored(by_actor[faction_id], days):
+                nations = unique_refs(ref for event in run for role, ref in event.roles if role is Role.TARGET)
+                if len(nations) < self.settings.takeover_wave_min_nations:
+                    continue
+                faction = next(ref for role, ref in run[0].roles if role is Role.ACTOR)
+                built.append(
+                    build.event(
+                        TAKEOVER_WAVE,
+                        id_parts=[faction_id],
+                        constituents=run,
+                        roles=[(Role.ACTOR, faction), *((Role.TARGET, nation) for nation in nations)],
+                        join=Join.ENTITY,
+                        attributes=(("nations", nations), ("count", len(run))),
+                        # TODO(#199): scale by the members' stakes.
+                        significance=Significance.MAJOR,
+                        open=within(latest(run[0]), last, days),
+                    )
+                )
+        return built
 
 
 def _membership_windows(
@@ -1155,6 +1204,7 @@ def geopolitical_rules(
     settings: GeopoliticsSettings,
 ) -> tuple[
     TakeoverRule,
+    TakeoverWaveRule,
     FederationLifecycleRule,
     CessionRule,
     MergerRule,
@@ -1165,6 +1215,7 @@ def geopolitical_rules(
 ]:
     return (
         TakeoverRule(settings),
+        TakeoverWaveRule(settings),
         FederationLifecycleRule(settings),
         CessionRule(settings),
         MergerRule(settings),
