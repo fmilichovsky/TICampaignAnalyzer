@@ -48,6 +48,7 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | nation | `TINationState` | numeric ID | `in-save-id` | `templateName` |
 | region | `TIRegionState` | numeric ID | `in-save-id` | `templateName` |
 | control point | `TIControlPoint` | numeric ID | `in-save-id` | `templateName` |
+| mission control facility | `TIMissionControlFacilityState` | numeric ID | `in-save-id` | none |
 | councilor | `TICouncilorState` | numeric ID | `in-save-id` | none |
 | army | `TIArmyState`, `TIMegafaunaArmyState` | numeric ID | `in-save-id` | none |
 | fleet | `TISpaceFleetState` | numeric ID | `in-save-id` | none |

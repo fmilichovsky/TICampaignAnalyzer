@@ -42,6 +42,10 @@ identity:
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: Value.templateName
     TIRegionState: 3 entries, ids 40..42, key==id 3, mismatch 0, missing 0, duplicate 0
+  mission control facility: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TIMissionControlFacilityState: absent
   control point: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: Value.templateName
