@@ -440,7 +440,7 @@ def _survey_inputs(
         nonlocal done
         done += 1
         if progress is not None:
-            progress.update("Parsing saves", done, filename=path.name)
+            progress.update("Scanning saves", done, filename=path.name)
 
     paths = [item.path for item in inputs if not item.empty_directory]
     with closing(survey_all(paths, jobs=jobs, on_save=on_save)) as outcomes:

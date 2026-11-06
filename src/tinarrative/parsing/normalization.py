@@ -247,7 +247,11 @@ def save_timestamp(raw_save: RawSave) -> datetime | None:
     Reads only the time singleton so saves can be ordered without normalizing them
     (docs/game-data-notes/chronology-and-deduplication.md).
     """
-    entries = decode_state_map(raw_save.root["gamestates"], "TITimeState")
+    return save_timestamp_from_states(raw_save.root["gamestates"])
+
+
+def save_timestamp_from_states(gamestates: dict[str, Any]) -> datetime | None:
+    entries = decode_state_map(gamestates, "TITimeState")
     if not entries or "currentDateTime" not in entries[0].value:
         return None
     return game_datetime(entries[0].value["currentDateTime"])

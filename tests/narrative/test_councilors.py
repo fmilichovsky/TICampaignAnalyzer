@@ -11,7 +11,6 @@ from tests.analyzers.support import (
     nation_ref,
     org_ref,
     record_set,
-    ref,
     region_ref,
     snapshot,
     state,

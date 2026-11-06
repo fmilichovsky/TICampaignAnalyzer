@@ -60,6 +60,13 @@ an event's evidence between two intervals; no such case has been observed.
 order saves without evidence that it is monotonic and comparable across the
 relevant sequence.
 
+`survey` reads its chronology and continuity signals from the `TITimeState`,
+`TIMetadataState`, `TIPlayerState`, `TIGlobalValuesState`, and `TIFactionState`
+containers. It decodes those containers from the original bytes and hashes the
+full byte sequence; if the envelope, a required container, or partial decoding
+is unavailable, it uses the full parser so save errors retain the normal
+parsing behavior.
+
 ## Hypotheses and limits
 
 - Matching calendar date in filenames may be a convenience of these save
