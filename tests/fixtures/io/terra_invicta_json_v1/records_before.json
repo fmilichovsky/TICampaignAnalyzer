@@ -140,7 +140,7 @@
           ],
           "Kills": {},
           "Transactions": {
-            "FixtureCause": [
+        "Coup": [
               {
                 "Resource": "Money",
                 "Amount": 10.0,
@@ -155,7 +155,7 @@
                 }
               }
             ],
-            "1234567890": [
+        "Purge": [
               {
                 "Resource": "Influence",
                 "Amount": -2.5,

@@ -26,6 +26,7 @@ from ..model.records import (
     KeyedEntry,
     NotificationEntry,
     RecordEntry,
+    RecordKind,
     RecordSet,
     content_key,
     diff_key,
@@ -363,9 +364,14 @@ def _record_change(before: RecordSet, after: RecordSet) -> StateChange | None:
         detail = _keyed_detail(before.entries, after.entries)
     else:
         detail = _log_detail(before.entries, after.entries)
-    if not (detail.added or detail.removed or detail.changed):
+    if not (detail.added or detail.removed or detail.changed) and not (
+        before.kind is RecordKind.LEDGER and before.skipped_entries != after.skipped_entries
+    ):
         return None
-    counts: tuple[Observed, Observed] = (len(before.entries), len(after.entries))
+    counts: tuple[Observed, Observed] = (
+        len(before.entries) + before.skipped_entries,
+        len(after.entries) + after.skipped_entries,
+    )
     description = _describe(field, ChangeKind.RECORDS, detail)
     return StateChange(
         domain=domain,

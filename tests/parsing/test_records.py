@@ -115,10 +115,11 @@ def test_ledger_and_destruction_log_are_dated_entries_with_resolved_references(b
     assert ledger.kind is RecordKind.LEDGER
     assert ledger.location.path == f"/gamestates/{FACTION_TYPE}/0/Value/Transactions"
     assert ledger.entries == (
-        LedgerEntry(0, "1234567890", "Influence", -2.5, "2031-02-01T00:00:00"),
-        LedgerEntry(0, "FixtureCause", "Money", 10.0, "2031-01-01T00:00:00"),
+        LedgerEntry(0, "Coup", "Money", 10.0, "2031-01-01T00:00:00"),
+        LedgerEntry(0, "Purge", "Influence", -2.5, "2031-02-01T00:00:00"),
     )
-    assert ledger.entry_location(ledger.entries[1]).path == f"{ledger.location.path}/FixtureCause/0"
+    assert ledger.skipped_entries == 0
+    assert ledger.entry_location(ledger.entries[1]).path == f"{ledger.location.path}/Purge/0"
     assert ledger.entry_location(ledger.entries[1]).provenance_key == "TIFactionState:15"
     destruction = record(before, "15", "HabDestructionLog")
     assert destruction.entries == (
@@ -196,6 +197,30 @@ def test_record_fields_are_not_copied_into_the_entity_state() -> None:
     assert report.total == 0
 
 
+def test_ledger_decodes_only_analyzer_labels_and_counts_other_entries() -> None:
+    snapshot, report = collect(
+        faction_fragment(
+            Transactions={
+                "Coup": [{"Resource": "Influence", "Amount": -2.0, "Date": DATE}],
+                "Daily Income": [{"Resource": "Money", "Amount": 1.0, "Date": DATE}] * 3,
+            }
+        )
+    )
+    ledger = record(snapshot, "15", "Transactions")
+    assert ledger.entries == (LedgerEntry(0, "Coup", "Influence", -2.0, ISO),)
+    assert ledger.skipped_entries == 3
+    assert ledger.entry_location(ledger.entries[0]).path == f"{ledger.location.path}/Coup/0"
+    assert report.total == 0
+
+
+def test_an_empty_ledger_has_no_entries_to_decode_or_skip() -> None:
+    snapshot, report = collect(faction_fragment(Transactions={}))
+    ledger = record(snapshot, "15", "Transactions")
+    assert ledger.entries == ()
+    assert ledger.skipped_entries == 0
+    assert report.total == 0
+
+
 def test_a_record_field_of_the_wrong_shape_is_unparseable_and_reported() -> None:
     snapshot, report = collect(
         faction_fragment(
@@ -230,7 +255,7 @@ def test_problems_inside_one_element_stay_inside_that_entry() -> None:
                 "not an object",
                 {"HabType": "Station"},
             ],
-            Transactions={"Good": [{"Resource": "Money", "Amount": 1.0, "Date": DATE}, 7], "Bad": "text"},
+            Transactions={"Coup": [{"Resource": "Money", "Amount": 1.0, "Date": DATE}, 7], "Bad": "text"},
         )
     )
     bad_item = Unknown(UnknownReason.UNPARSEABLE, "not an object")
@@ -243,9 +268,10 @@ def test_problems_inside_one_element_stay_inside_that_entry() -> None:
     )
     bad_ledger_item = Unknown(UnknownReason.UNPARSEABLE, 7)
     assert record(snapshot, "15", "Transactions").entries == (
-        LedgerEntry(0, "Good", "Money", 1.0, ISO),
-        LedgerEntry(1, "Good", bad_ledger_item, bad_ledger_item, bad_ledger_item),
+        LedgerEntry(0, "Coup", "Money", 1.0, ISO),
+        LedgerEntry(1, "Coup", bad_ledger_item, bad_ledger_item, bad_ledger_item),
     )
+    assert record(snapshot, "15", "Transactions").skipped_entries == 0
     assert keys(report) == [
         ("unexpected_field_shape", "TIFactionState", "HabDestructionLog", "array_of_objects"),
         ("unexpected_field_shape", "TIFactionState", "HabDestructionLog", "componentized_date"),
@@ -285,17 +311,17 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
     lines = [record.getMessage() for record in caplog.records if record.name == "tinarrative.parsing.records"]
     assert lines == [
         "records normalized state_type=TIFactionState fields=6 entities=2 sets=12 known_sets=2 missing=10 entries=2 "
-        "unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "skipped_entries=1 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TINationState fields=2 entities=1 sets=2 known_sets=0 missing=2 entries=0 "
-        "unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIWarState fields=2 entities=0 sets=0 known_sets=0 missing=0 entries=0 "
-        "unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIRegionUFOCrashdownState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
-        "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "entries=0 skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TIGlobalValuesState fields=3 entities=0 sets=0 known_sets=0 missing=0 "
-        "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "entries=0 skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
         "records normalized state_type=TINotificationQueueState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
-        "entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
+        "entries=0 skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
     ]
     assert "Secret" not in caplog.text and "Fixture" not in caplog.text
 

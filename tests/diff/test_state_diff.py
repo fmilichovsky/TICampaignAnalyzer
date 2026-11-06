@@ -338,6 +338,22 @@ def test_appended_log_entries_are_a_records_change_with_counts_and_entries() -> 
     assert change.evidence.after_location == after.location
     assert change.evidence.description == "Transactions records changed: 1 added, 0 removed, 0 changed"
     assert render_change(change) == "faction:15 Transactions: +1 entries"
+
+
+def test_a_ledger_change_in_skipped_entry_count_still_produces_a_record_change() -> None:
+    before = record(BEFORE, "Transactions", RecordKind.LEDGER, (), owner=FACTION)
+    after = RecordSet(
+        FACTION,
+        "Transactions",
+        RecordKind.LEDGER,
+        SourceLocation(AFTER, "TIFactionState", 15, "/gamestates/TIFactionState/0/Value/Transactions"),
+        (),
+        skipped_entries=3,
+    )
+    change = record_change(before, after)
+    assert change is not None
+    assert (change.before, change.after) == (0, 3)
+    assert change.detail == RecordsDetail()
     assert "Money" not in render_change(change) and "FixtureCause" not in render_change(change)
 
 
