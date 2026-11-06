@@ -114,6 +114,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "occupations",
         "populationInMillions",
         "xenoforming",
+        "missionControlFacility",
         "isBeingAnnexed",
         "annexingArmy",
         "armies",
@@ -204,6 +205,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     "TIRegionXenoformingState": COMMON_FIELDS + ("region", "xenoformingLevel"),
     "TIRegionAlienActivityState": COMMON_FIELDS + ("region",),
     "TISpaceBodyState": COMMON_FIELDS + ("barycenter",),
+    "TIMissionControlFacilityState": COMMON_FIELDS + ("region", "spaceFacilityType"),
     "TIHabState": COMMON_FIELDS
     + (
         "faction",
@@ -293,6 +295,7 @@ _MISSION_TARGET = (
             EntityDomain.SPACE_OBJECT,
             EntityDomain.SHIP,
             EntityDomain.REGION_ALIEN_STATE,
+            EntityDomain.MISSION_CONTROL_FACILITY,
         )
     ),
     False,
@@ -337,6 +340,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "nation": (EntityDomain.NATION, False),
         "armies": _ARMY_LIST,
         "xenoforming": _ALIEN_STATE,
+        "missionControlFacility": (EntityDomain.MISSION_CONTROL_FACILITY, False),
     },
     "TICouncilorState": {
         "faction": _FACTION,
@@ -365,6 +369,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
         "homeRegion": _REGION,
     },
     **{state_type: {"region": _REGION} for state_type in REGION_ALIEN_STATE_TYPES},
+    "TIMissionControlFacilityState": {"region": _REGION},
     "TISpaceFleetState": {
         "ships": (EntityDomain.SHIP, True),
         "parentFleet": (EntityDomain.FLEET, False),
@@ -432,6 +437,11 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
     (EntityDomain.FACTION, "TIFactionState", "factions"),
     (EntityDomain.NATION, "TINationState", "nations"),
     (EntityDomain.REGION, "TIRegionState", "regions"),
+    (
+        EntityDomain.MISSION_CONTROL_FACILITY,
+        "TIMissionControlFacilityState",
+        "mission_control_facilities",
+    ),
     (EntityDomain.CONTROL_POINT, "TIControlPoint", "control_points"),
     (EntityDomain.COUNCILOR, "TICouncilorState", "councilors"),
     (EntityDomain.MISSION, "TIMissionState", "missions"),
@@ -884,7 +894,6 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
                 "alienCrashdown",
                 "alienLanding",
                 "boostFacility",
-                "missionControlFacility",
                 "spaceDefenseFacility",
                 "originalColony",
                 "annexationBeginDate",

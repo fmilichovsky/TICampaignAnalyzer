@@ -34,6 +34,13 @@ ENTITY_DOMAINS: tuple[IdentityStrategy, ...] = (
     IdentityStrategy(EntityDomain.FACTION, ("TIFactionState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(EntityDomain.NATION, ("TINationState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(EntityDomain.REGION, ("TIRegionState",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
+    IdentityStrategy(
+        EntityDomain.MISSION_CONTROL_FACILITY,
+        ("TIMissionControlFacilityState",),
+        _NUMERIC_ID,
+        _IN_SAVE,
+        None,
+    ),
     IdentityStrategy(EntityDomain.CONTROL_POINT, ("TIControlPoint",), _NUMERIC_ID, _IN_SAVE, "Value.templateName"),
     IdentityStrategy(EntityDomain.COUNCILOR, ("TICouncilorState",), _NUMERIC_ID, _IN_SAVE, None),
     IdentityStrategy(EntityDomain.MISSION, ("TIMissionState",), _NUMERIC_ID, _IN_SAVE, None),

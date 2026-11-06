@@ -315,6 +315,17 @@
       "version_assumption": "Observed JSON envelope and observed field names.",
       "sha256": "2df913d18143fea39a99a9eed30c02d81ad4a8e4750001d05a2e2380d9a1717c",
       "purpose": "Later snapshot of the same synthetic interval: the Coup list is gone; Stabilize (inside the interval), FoundOutpostOperation (two resources, inside), Ship Construction (dated exactly on the later save day, inside) and Crackdown (dated exactly on the earlier save day, outside) are added; space operations, Daily Income and the hashed label are not allow-listed."
+    },
+    {
+      "path": "mission_control_facilities.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "d36043a6f5d493d74d6063926c8fc90bfc0e91adb62bcece07b2c5cdba156737",
+      "purpose": "Normalize mission control facilities, their region back-references, region facility references, and typed mission targets."
     }
   ]
 }

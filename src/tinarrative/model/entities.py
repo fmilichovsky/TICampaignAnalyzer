@@ -10,6 +10,7 @@ class EntityDomain(StrEnum):
     FACTION = "faction"
     NATION = "nation"
     REGION = "region"
+    MISSION_CONTROL_FACILITY = "mission control facility"
     CONTROL_POINT = "control point"
     COUNCILOR = "councilor"
     MISSION = "mission"

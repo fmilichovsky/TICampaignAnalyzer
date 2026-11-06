@@ -1,12 +1,13 @@
 """Fixture-driven coverage of ``normalize``: metadata, entity collections, research, references, provenance."""
 
 import json
+from dataclasses import replace
 from datetime import datetime
 
 import pytest
 
 from tests.fixtures import fixture_path
-from tinarrative.diff.state_diff import compare_values
+from tinarrative.diff.state_diff import compare_values, diff_states
 from tinarrative.identity import STATE_PREFIX
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.changes import ChangeKind, MapDetail
@@ -493,6 +494,63 @@ def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: Save
     assert site_hab.get("faction") == unresolved(999)
     assert site_hab.get("orbitState") is None
     assert site_hab.get("dockedFleets") == ()
+
+
+@pytest.mark.fixture
+def test_mission_control_facilities_are_entities_and_resolve_both_reference_paths() -> None:
+    snapshot = load("mission_control_facilities.json")
+    facility = by_id(snapshot.mission_control_facilities, "20")
+    assert facility.ref.entity_id == EntityId(EntityDomain.MISSION_CONTROL_FACILITY, "20")
+    assert facility.ref.name == "Fixture Mission Control"
+    assert facility.get("displayName") == "Fixture Mission Control"
+    assert facility.get("spaceFacilityType") == "MissionControl"
+    assert facility.get("region") == ref(EntityDomain.REGION, "10", "TIRegionState")
+    assert by_id(snapshot.regions, "10").get("missionControlFacility") == ref(
+        EntityDomain.MISSION_CONTROL_FACILITY, "20", "TIMissionControlFacilityState"
+    )
+    assert by_id(snapshot.missions, "12").get("target") == ref(
+        EntityDomain.MISSION_CONTROL_FACILITY, "20", "TIMissionControlFacilityState"
+    )
+
+    changed_facility = replace(
+        facility,
+        fields=tuple(
+            (name, "Changed Type" if name == "spaceFacilityType" else value) for name, value in facility.fields
+        ),
+    )
+    changed_snapshot = replace(snapshot, mission_control_facilities=(changed_facility,))
+    changes = diff_states(snapshot, changed_snapshot).changes
+    assert [(change.domain, change.field) for change in changes] == [
+        (EntityDomain.MISSION_CONTROL_FACILITY, "spaceFacilityType")
+    ]
+
+
+@pytest.mark.fixture
+def test_mission_control_facility_references_preserve_null_and_unresolved_states() -> None:
+    facility_fields = {
+        "Key": {"value": 20},
+        "Value": {
+            "ID": {"value": 20},
+            "$type": STATE_PREFIX + "TIMissionControlFacilityState",
+            "region": None,
+            "spaceFacilityType": "MissionControl",
+        },
+    }
+    region_null = pair(10, missionControlFacility=None, **{"$type": STATE_PREFIX + "TIRegionState"})
+    region_missing_target = pair(
+        11,
+        missionControlFacility={"value": 999},
+        **{"$type": STATE_PREFIX + "TIRegionState"},
+    )
+    snapshot = fragment(
+        {
+            STATE_PREFIX + "TIMissionControlFacilityState": [facility_fields],
+            STATE_PREFIX + "TIRegionState": [region_null, region_missing_target],
+        }
+    )
+    assert by_id(snapshot.mission_control_facilities, "20").get("region") is None
+    assert by_id(snapshot.regions, "10").get("missionControlFacility") is None
+    assert by_id(snapshot.regions, "11").get("missionControlFacility") == unresolved(999)
 
 
 CORE_FIELDS = DERIVED_FIELDS["TIHabState"]

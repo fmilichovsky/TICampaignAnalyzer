@@ -1,0 +1,67 @@
+{
+  "currentID": {"value": 30},
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIRegionState": [
+      {
+        "Key": {"value": 10},
+        "Value": {
+          "ID": {"value": 10},
+          "templateName": "FixtureRegion",
+          "displayName": "Fixture Region",
+          "archived": false,
+          "exists": true,
+          "missionControlFacility": {"value": 20},
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIMissionControlFacilityState": [
+      {
+        "Key": {"value": 20},
+        "Value": {
+          "ID": {"value": 20},
+          "templateName": "FixtureMissionControl",
+          "displayName": "Fixture Mission Control",
+          "archived": false,
+          "exists": true,
+          "spaceFacilityType": "MissionControl",
+          "region": {"value": 10},
+          "finderSortOverride": 0,
+          "gameStateSubjectCreated": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIMissionControlFacilityState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TICouncilorState": [
+      {
+        "Key": {"value": 11},
+        "Value": {
+          "ID": {"value": 11},
+          "templateName": "FixtureCouncilor",
+          "displayName": "Fixture Councilor",
+          "archived": false,
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TICouncilorState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIMissionState": [
+      {
+        "Key": {"value": 12},
+        "Value": {
+          "ID": {"value": 12},
+          "templateName": "FixtureMission",
+          "displayName": "Fixture Mission",
+          "archived": false,
+          "exists": true,
+          "councilor": {"value": 11},
+          "target": {
+            "value": 20,
+            "$type": "PavonisInteractive.TerraInvicta.TIMissionControlFacilityState"
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIMissionState"
+        }
+      }
+    ]
+  }
+}
