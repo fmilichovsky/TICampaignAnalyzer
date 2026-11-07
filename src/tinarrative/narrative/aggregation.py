@@ -148,8 +148,12 @@ class NarrativeBuilder:
         open: bool | None = None,
         starts_on: str | None = None,
         corroborating: Sequence[Event] = (),
+        id_interval: str | None = None,
     ) -> Event:
-        """The ID is qualified by the first interval.
+        """The ID is qualified by ``id_interval``, else by the first interval.
+
+        A rule passes ``id_interval`` when it may cite events from before its anchor: two events of one rule and one
+        ``id_parts`` could otherwise share the earliest cited interval.
 
         A rule that overrides ``confidence``, ``open`` or ``starts_on`` documents why. ``corroborating`` events date
         only a start: they precede the effect they corroborate.
@@ -168,7 +172,7 @@ class NarrativeBuilder:
         role_list = tuple(roles)
         score = self._score(cited, significance)
         return Event(
-            id=qualified_id(event_id(event_type, *id_parts), intervals[0]),
+            id=qualified_id(event_id(event_type, *id_parts), id_interval or intervals[0]),
             event_type=event_type,
             status=self._status(cited, join),
             confidence=confidence or self._confidence(cited, join),
