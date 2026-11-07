@@ -147,7 +147,8 @@ class SignificanceSettings:
     scale_max: int = _int(15, 0, 100)
     """The stake raises a score by at most this many points."""
     tier_exponent: int = _int(2, 1)
-    """An organization's stake is its tier to this power over the total of all organizations."""
+    """An organization's stake is its tier to this power over the total of all organizations; also ranks the
+    councilors of the dossier."""
     power: PowerSettings = field(default_factory=PowerSettings)
 
 

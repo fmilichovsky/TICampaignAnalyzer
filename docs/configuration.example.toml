@@ -92,6 +92,7 @@ scale_min = -20
 scale_max = 15
 # An organization's stake is its tier to this power over the total of all
 # organizations (minimum 1): with 2, one tier 3 outweighs three tier 1.
+# Also ranks the councilors of the councilor dossier.
 tier_exponent = 2
 
 [narrative.significance.power]

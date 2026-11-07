@@ -20,6 +20,7 @@ from ..model.records import NotificationEntry
 from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, to_jsonable
 from .org_catalog import NAMED_ORG_CATEGORIES
+from .prominence import organization_shares, total
 from .trait_catalog import (
     DETECTION_BONUS,
     EASILY_VISIBLE,
@@ -61,6 +62,8 @@ POLICY_FOCUS = ((1.5, "single-issue"), (2.5, "focused"))
 """The focus by the effective number of causes, the first bound it stays under; anything above is ``broad``."""
 _EPSILON = 1e-9
 DAYS_PER_YEAR = 365.25
+SHARE_DIGITS = 4
+"""Significant digits of the organization share in the dossier."""
 
 PUBLIC_MAX = 5
 """The highest concealment of a ``public`` councilor; one above ``PRIVATE_MAX`` is ``shadow``."""
@@ -151,7 +154,8 @@ class _Candidate:
     state: EntityState
     faction: EntityRef
     tenure_days: int
-    org_tier2: int
+    org_share: float
+    """The summed prominence share of the councilor's organizations."""
     skill_sum: int
     org_skill_sum: int
     xp: int
@@ -165,15 +169,17 @@ def build_dossier(
     source: str,
     *,
     player_only: bool = False,
+    tier_exponent: int,
 ) -> dict[str, Any]:
     """The selected councilors of ``snapshot`` with the facts an article may use, as a JSON-ready document.
 
     ``career`` is the event stream of the sequence the snapshot ends (empty for a single save). The dossier may use
-    everything in the save; it never carries loyalty.
+    everything in the save; it never carries loyalty. ``tier_exponent`` weighs the organizations' tiers
+    (``narrative.significance.tier_exponent``).
     """
     lookup = Lookup(snapshot, snapshot)
     now = _datetime(snapshot.date)
-    candidates = _candidates(snapshot, lookup, now, settings)
+    candidates = _candidates(snapshot, lookup, now, settings, organization_shares(snapshot, tier_exponent))
     by_faction: dict[EntityId, list[_Candidate]] = {}
     for candidate in sorted(candidates, key=_rank_key):
         by_faction.setdefault(candidate.faction.entity_id, []).append(candidate)
@@ -214,7 +220,11 @@ def build_dossier(
 
 
 def _candidates(
-    snapshot: SaveSnapshot, lookup: Lookup, now: datetime | None, settings: CouncilorSettings
+    snapshot: SaveSnapshot,
+    lookup: Lookup,
+    now: datetime | None,
+    settings: CouncilorSettings,
+    org_shares: Mapping[EntityId, float],
 ) -> list[_Candidate]:
     candidates: list[_Candidate] = []
     for state in snapshot.councilors:
@@ -233,8 +243,7 @@ def _candidates(
                 state=state,
                 faction=lookup.resolve(faction) or faction,
                 tenure_days=(now - recruited).days,
-                # TODO(#197): use the organization prominence share once it exists.
-                org_tier2=sum(org.tier * org.tier for org in orgs),
+                org_share=total(org_shares, (org.org_id for org in orgs)),
                 skill_sum=sum(skills.values()),
                 org_skill_sum=sum(_org_skills(orgs, skills).values()),
                 xp=_int(state.get("XP")),
@@ -243,8 +252,19 @@ def _candidates(
     return candidates
 
 
-def _rank_key(candidate: _Candidate) -> tuple[int, int, int, tuple[str, int, int, str]]:
-    return (-candidate.org_tier2, -candidate.skill_sum, -candidate.xp, candidate.state.ref.entity_id.sort_key)
+def _comparable(share: float) -> float:
+    """Equal tier sums reached through different organizations can differ in the last bits of a float sum; the
+    rounding keeps them tied, far below the gap between any two distinct sums."""
+    return round(share, 12)
+
+
+def _rank_key(candidate: _Candidate) -> tuple[float, int, int, tuple[str, int, int, str]]:
+    return (
+        -_comparable(candidate.org_share),
+        -candidate.skill_sum,
+        -candidate.xp,
+        candidate.state.ref.entity_id.sort_key,
+    )
 
 
 def _entry(
@@ -283,7 +303,7 @@ def _entry(
         "policy_influence": _policy_influence(orgs),
         "visibility": _visibility(state.get("traitTemplateNames"), skills, _org_skills(orgs, skills)),
         "prominence": {
-            "org_tier2": candidate.org_tier2,
+            "org_share": float(f"{candidate.org_share:.{SHARE_DIGITS}g}"),
             "skill_sum": candidate.skill_sum,
             "org_skill_sum": candidate.org_skill_sum,
             "rank_in_faction": ranks[councilor_id],

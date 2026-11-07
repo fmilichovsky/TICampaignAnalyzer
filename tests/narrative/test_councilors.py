@@ -75,6 +75,7 @@ def _ids(dossier: dict[str, Any]) -> list[str]:
 
 
 def _build(snap: Any, settings: CouncilorSettings | None = None, **kwargs: Any) -> dict[str, Any]:
+    kwargs.setdefault("tier_exponent", 2)
     return build_dossier(snap, PLAYER, kwargs.pop("career", ()), settings or CouncilorSettings(), "save.json", **kwargs)
 
 
@@ -125,7 +126,7 @@ def test_player_only_drops_rivals() -> None:
     assert dict(_build(snap, player_only=True)["selection"])["player_only"] is True
 
 
-def test_ranking_orders_by_org_tier_squared_then_skills_then_xp_then_id() -> None:
+def test_ranking_orders_by_org_share_then_skills_then_xp_then_id() -> None:
     snap = _world(
         _org("70", 2),
         _councilor("110", "2"),
@@ -137,11 +138,26 @@ def test_ranking_orders_by_org_tier_squared_then_skills_then_xp_then_id() -> Non
     dossier = _build(snap, CouncilorSettings(rivals_per_faction=5))
     assert _ids(dossier) == ["councilor:111", "councilor:112", "councilor:113", "councilor:114", "councilor:110"]
     assert dossier["councilors"][0]["prominence"] == {
-        "org_tier2": 4,
+        "org_share": 1.0,
         "skill_sum": 5,
         "org_skill_sum": 0,
         "rank_in_faction": 1,
     }
+
+
+def test_the_org_share_follows_the_tier_exponent() -> None:
+    snap = _world(
+        _org("70", 3),
+        *(_org(str(71 + index), 1) for index in range(4)),
+        _councilor("110", "2", orgs=("70",)),
+        _councilor("111", "2", orgs=("71", "72", "73", "74")),
+    )
+    squared = _build(snap, CouncilorSettings(rivals_per_faction=5))
+    linear = _build(snap, CouncilorSettings(rivals_per_faction=5), tier_exponent=1)
+
+    assert _ids(squared) == ["councilor:110", "councilor:111"]
+    assert [entry["prominence"]["org_share"] for entry in squared["councilors"]] == [0.6923, 0.3077]
+    assert _ids(linear) == ["councilor:111", "councilor:110"]
 
 
 def test_org_skills_feed_prominence_but_not_the_ranking() -> None:
