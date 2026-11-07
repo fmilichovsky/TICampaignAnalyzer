@@ -181,6 +181,10 @@ def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
 def strength(nation: EntityState, held: NationAssets) -> float | Unknown:
     """The game's published strength estimate; unknown, as its first unknown input, when any input is.
 
+    Unoccupied regions × military tech × 0.7, plus standard armies × military tech × 3 × their mean remaining
+    strength, plus naval armies, minus unrest, plus 100 with any nuclear weapon, plus 5 per weapon
+    (``docs/game-data-notes/nation-metrics.md``, "Armies, navies and a strength estimate").
+
     "Regions not occupied" weighs each region by ``1 − Σ`` its occupiers' fractions, so a region a third occupied
     counts two thirds; a ``leadOccupier`` without any fraction counts the region as fully occupied.
     """

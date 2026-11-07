@@ -111,12 +111,13 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TINationState` | `originalCapital` | reference or `null` (`null` on one nation; 2026-10-14, five private saves) | `TIRegionState` |
 | `TINationState` | `hostileClaims` | list of references (non-empty on 11–12 nations per save; 2026-10-14) | `TIRegionState` |
 | `TINationState` | `factionUnrestAttempts[].Key` | pair-map key reference (`{}` when empty; non-empty on 8–9 nations per save, `Value` a number; 2026-10-14) | `TIFactionState` |
-| `TIRegionState` | `occupations[].Key` | pair-map key reference (`{}` when empty; `Value` a fraction of the region, 0 to 1; non-empty on 2 regions of the first and the latest Protectorate save, each with one occupier, `leadOccupier` `null` on all of them; empty in two Resist saves; 2026-11-07) | `TINationState` |
+| `TIRegionState` | `leadOccupier` | reference or `null`; set on one region in 24 private saves, fully occupied by the same nation (2026-11-07) | `TINationState` |
+| `TIRegionState` | `occupations[].Key` | pair-map key reference (`{}` when empty; `Value` a fraction of the region, 0 to 1; non-empty on one or two regions in eleven of 24 private saves of two campaigns, each with one occupier; 2026-11-07) | `TINationState` |
 | `TINationState` | `controlPoints` | list of references | `TIControlPoint` |
 | `TINationState`, `TIRegionState`, `TIFactionState` | `armies` | list of references; megafauna elements carry `$type` | `TIArmyState`, `TIMegafaunaArmyState` |
 | `TIRegionState` | `nation` | reference | `TINationState` |
 | `TIRegionState` | `alienFacility`, `alienActivity`, `xenoforming` | reference; resolves in every region of eight private saves (2026-10-15) | `TIRegionAlienFacilityState`, `TIRegionAlienActivityState`, `TIRegionXenoformingState` |
-| `TIRegionState` | `leadOccupier`, `annexingArmy` | `null` in every inspected region | not observed |
+| `TIRegionState` | `annexingArmy` | `null` in every inspected region | not observed |
 | `TIRegionState` | `originalColony` | reference or `null` (set on 25 of 363 regions; observed 2026-10-14, five saves) | `TINationState` |
 | `TIRegionState` | `boostFacility`, `missionControlFacility`, `spaceDefenseFacility` | reference, one per region (observed 2026-10-14, five saves) | `TILaunchFacilityState`, `TIMissionControlFacilityState`, `TISpaceDefensesFacilityState` |
 | `TIMissionControlFacilityState` | `region` | reference; resolves to its owning region (observed 2026-11-06, Protectorate and Resist saves) | `TIRegionState` |

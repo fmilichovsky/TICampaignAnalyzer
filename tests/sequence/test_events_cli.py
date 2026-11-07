@@ -161,7 +161,10 @@ def test_json_report_lists_narrative_events_only_when_asked(
         "nation.cession",
         "world.ranking_changed",
     ]
-    assert narrative["settings"] == {"narrative": DEFAULT_SETTINGS.to_dict()["narrative"]}
+    echoed = DEFAULT_SETTINGS.to_dict()["narrative"]
+    # The report keeps four significant digits of every float, the power weights' thirds among them.
+    echoed["significance"]["power"] = {key: round(value, 4) for key, value in echoed["significance"]["power"].items()}
+    assert narrative["settings"] == {"narrative": echoed}
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
 
 

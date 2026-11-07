@@ -338,6 +338,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TIRegionState": {
         "nation": (EntityDomain.NATION, False),
+        "leadOccupier": (EntityDomain.NATION, False),
         "armies": _ARMY_LIST,
         "xenoforming": _ALIEN_STATE,
         "missionControlFacility": (EntityDomain.MISSION_CONTROL_FACILITY, False),

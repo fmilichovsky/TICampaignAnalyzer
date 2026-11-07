@@ -23,8 +23,9 @@ councilors are never selected. Then:
 - of each other human faction, the `councilors.rivals_per_faction` most prominent (2 by default).
   `--player-only` drops them.
 
-Prominence ranks by organization tier squared (summed over the councilor's organizations), then
-the skill sum, then XP, then entity ID. The player's faction is the one of the save's single human
+Prominence ranks by the councilor's organization share (each organization's tier squared over the
+total of all organizations, summed over the councilor's organizations; the exponent is
+`narrative.significance.tier_exponent`), then the skill sum, then XP, then entity ID. The player's faction is the one of the save's single human
 player.
 
 ## Input
@@ -139,7 +140,7 @@ or below half of the strongest one. Each has a `strength`: `leading` from +10%, 
 }
 ```
 
-`prominence` is audit data: the organization tier squared and the skill sum the ranking uses, the
+`prominence` is audit data: the organization share (`org_share`) and the skill sum the ranking uses, the
 capped organization skill sum (`org_skill_sum`, which does not affect the ranking) and the rank in
 the faction.
 
