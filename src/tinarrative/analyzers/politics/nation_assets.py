@@ -166,7 +166,12 @@ def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
 
 
 def strength(nation: EntityState, held: NationAssets) -> float | Unknown:
-    """The game's published strength estimate; unknown, as its first unknown input, when any input is."""
+    """The game's published strength estimate; unknown, as its first unknown input, when any input is.
+
+    Unoccupied regions × military tech × 0.7, plus standard armies × military tech × 3 × their mean remaining
+    strength, plus naval armies, minus unrest, plus 100 with any nuclear weapon, plus 5 per weapon
+    (``docs/game-data-notes/nation-metrics.md``, "Armies, navies and a strength estimate").
+    """
     inputs = {name: nation.get(name) for name in ("militaryTechLevel", "unrest", "numNuclearWeapons")}
     miltech, unrest, weapons = (_number(value) for value in inputs.values())
     regions, armies, navies, mean = held.unoccupied_regions, held.armies, held.navies, held.mean_army_strength

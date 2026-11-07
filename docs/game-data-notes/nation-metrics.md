@@ -30,7 +30,7 @@ nations never change (see the
 | `TIRegionState.populationInMillions` | Yes | the only population figure | observed |
 | `TIRegionState.boostPerYear_dekatons`, `missionControl`, `antiSpaceDefenses`, `numSTOFighters` | Yes, unused | space-support assets per region | observed |
 | `TIArmyState.deploymentType` | Yes, copied raw | `Standard` or `Naval`; navies are armies | observed |
-| `TIRegionState.occupations`, `leadOccupier` | Yes | occupation | empty in every save; shape not observed |
+| `TIRegionState.occupations`, `leadOccupier` | Yes | occupation | observed: non-empty on two regions of the first Protectorate save as Key/Value pairs with a fractional value (2026-11-07, [power share](#power-share-against-gdp)); the 2026-10-23 read found none |
 
 ## Long series carried in one save
 
@@ -280,7 +280,8 @@ only nations clearly inside or outside the top.
 armies in Appease and the first two Protectorate saves (30 in the last three: 18 and 12), and 10 and 9 of 19 in
 Resist. Both kinds appear in the nation's `armies` list (9 of 20 list entries in the latest Resist save are naval).
 `strength` is a fraction (below 1 on 0 to 4 armies per save). Army counts did not change in any Resist interval and
-grew by 3 in one Protectorate interval. No region carried an occupation in any save.
+grew by 3 in one Protectorate interval. The 2026-10-23 read found no region with an occupation; a later read found
+two ([power share](#power-share-against-gdp)).
 
 The author's strength formula (regions not occupied × military tech × 0.7, plus standard armies × military tech × 3 ×
 mean remaining strength, plus naval armies, minus unrest, plus 100 if any nuclear weapon, plus 5 per weapon) ranks
@@ -292,3 +293,28 @@ by the author (2026-10-23). No save field carries its result (`historyWarStatus`
 against one; the rankings above are observed applications of it, and the situation reports' `strength` reproduces
 them (338.0, 298.2, 227.5, 199.2 and 585.9, 335.8, 329.0, with the two one-weapon nations at places 6 and 7; observed
 2026-10-29).
+
+### Power share against GDP
+
+Observed 2026-11-07 on the first, the 2027-07 and the latest (2032-11) Protectorate saves and the first and last
+Resist saves; the Appease saves were no longer available. The power share is the mean of a nation's shares of world
+GDP, population and strength, one third each (`narrative/prominence.py`). The shares built from the snapshot and from
+its situation report were identical, and summed to 1, in all five saves.
+
+| Campaign | Save | Nations with a share | Largest power share | Largest GDP share | Top-10 overlap | Median rank shift |
+| --- | --- | --- | --- | --- | --- | --- |
+| Protectorate | 2026-02 | 173 | 16.0 % | 19.8 % | 7 | 12 |
+| Protectorate | 2027-07 | 172 | 16.0 % | 20.1 % | 8 | 12 |
+| Protectorate | 2032-11 | 164 | 13.6 % | 19.0 % | 7 | 10 |
+| Resist | 2045-08 | 53 | 26.4 % | 37.2 % | 9 | 4 |
+| Resist | 2046-10 | 53 | 25.7 % | 37.5 % | 8 | 4 |
+
+The largest economy holds the first power place in every save, with a smaller share: the power share flattens the
+top. Nations far down the GDP ranking enter the power top ten on strength: GDP places 26, 49 and 133 reach power
+places 5, 9 and 10 in the first Protectorate save, places 46 and 141 reach 7 and 8 in the latest, and places 18 and 21
+reach 7 and 8 in the last Resist save; those from outside the GDP top twenty hold 5 to 7 % of world strength each. Population alone lifts a
+nation at most to place 14 (GDP place 27, no measurable strength).
+
+In the first Protectorate save one of the 174 nations holding regions has no share: two of its regions carry a
+non-empty `occupations` list (Key/Value pairs with a fractional value), a shape the strength estimate cannot parse, so
+its strength is unknown.

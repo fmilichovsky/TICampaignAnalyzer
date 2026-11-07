@@ -13,6 +13,7 @@ from tinarrative.config import (
     ConfigError,
     GeopoliticsSettings,
     NarratorSettings,
+    PowerSettings,
     Settings,
     SignificanceSettings,
     load_settings,
@@ -79,6 +80,9 @@ def test_an_empty_file_is_the_defaults(tmp_path: Path) -> None:
         ("[narrative.significance]\nscale_min = -101\n", "'narrative.significance.scale_min' must be at least -100"),
         ("[narrative.significance]\nscale_max = 101\n", "'narrative.significance.scale_max' must be at most 100"),
         ("[narrative.significance]\nscale_max = -1\n", "'narrative.significance.scale_max' must be at least 0"),
+        ("[narrative.significance]\ntier_exponent = 0\n", "'narrative.significance.tier_exponent' must be at least 1"),
+        ("[narrative.significance.power]\nw_gdp = -0.5\n", "'narrative.significance.power.w_gdp' must be at least 0"),
+        ("[narrative.significance.power]\nw_gdp = 1\n", "'narrative.significance.power' weights must sum to 1"),
         ("[councilors]\nrivals_per_faction = -1\n", "'councilors.rivals_per_faction' must be at least 0"),
         ("[councilors]\narticle_words = 0\n", "'councilors.article_words' must be at least 1"),
         ("[councilors]\nmin_tenure_days = 1.5\n", "'councilors.min_tenure_days' must be an integer"),
@@ -213,3 +217,15 @@ def test_override_validates_like_a_settings_file() -> None:
     assert narrator.max_output_tokens == 500
     with pytest.raises(ConfigError, match="'narrator.max_input_tokens' must be at least 1000"):
         override(narrator, "max_input_tokens", 10)
+
+
+def test_the_power_weights_default_to_thirds_and_override_together(tmp_path: Path) -> None:
+    significance = DEFAULT_SETTINGS.narrative.significance
+    assert (significance.power, significance.tier_exponent) == (PowerSettings(1 / 3, 1 / 3, 1 / 3), 2)
+    text = (
+        "[narrative.significance]\ntier_exponent = 3\n"
+        "[narrative.significance.power]\nw_gdp = 0.5\nw_pop = 0.25\nw_str = 0.25\n"
+    )
+    settings = load_settings(write(tmp_path, text))
+    assert settings.narrative.significance.power == PowerSettings(0.5, 0.25, 0.25)
+    assert settings.narrative.significance.tier_exponent == 3

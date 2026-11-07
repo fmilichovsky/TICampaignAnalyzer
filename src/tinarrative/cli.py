@@ -828,6 +828,7 @@ def _run_councilors(args: argparse.Namespace) -> int:
         settings.councilors,
         latest.name,
         player_only=args.player_only,
+        tier_exponent=settings.narrative.significance.tier_exponent,
     )
     items = [
         _SendItem(index, f"article {index}", request, request_sha256(request), note=f" ({entry['name']})")

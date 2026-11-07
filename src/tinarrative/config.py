@@ -120,15 +120,36 @@ class NationMetricsSettings:
     reports list this many spaceports."""
 
 
+POWER_WEIGHT_TOLERANCE = 1e-3
+
+
+@dataclass(frozen=True)
+class PowerSettings:
+    """The weights of a nation's power share (``narrative.significance.power``): its shares of world GDP, population
+    and strength. They sum to 1 (within ``POWER_WEIGHT_TOLERANCE``), so the power share is still a share."""
+
+    w_gdp: float = _float(1 / 3, 0.0)
+    w_pop: float = _float(1 / 3, 0.0)
+    w_str: float = _float(1 / 3, 0.0)
+
+    def __post_init__(self) -> None:
+        if abs(self.w_gdp + self.w_pop + self.w_str - 1.0) > POWER_WEIGHT_TOLERANCE:
+            raise ConfigError("'narrative.significance.power' weights must sum to 1")
+
+
 @dataclass(frozen=True)
 class SignificanceSettings:
-    """How far an event's stake may move its score from its type's base (architecture 12); not applied yet, as no
-    event type is scaled."""
+    """How far an event's stake may move its score from its type's base, and how stakes are measured (architecture
+    12); not applied yet, as no event type is scaled."""
 
     scale_min: int = _int(-20, -100, 0)
     """The stake lowers a score by at most this many points."""
     scale_max: int = _int(15, 0, 100)
     """The stake raises a score by at most this many points."""
+    tier_exponent: int = _int(2, 1)
+    """An organization's stake is its tier to this power over the total of all organizations; also ranks the
+    councilors of the dossier."""
+    power: PowerSettings = field(default_factory=PowerSettings)
 
 
 @dataclass(frozen=True)

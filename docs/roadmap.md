@@ -68,7 +68,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
 - [ ] Entity-scaled significance ([design](architecture.md#entity-scaled-score-design)):
   - [x] Design.
   - [x] Numeric score with unchanged levels (#196).
-  - [ ] Prominence shares (#197).
+  - [x] Prominence shares (#197).
   - [ ] Atomic events scaled by stake (#198).
   - [ ] Developments scaled by stake (#199).
   - [ ] Space and faction stakes (#200).
