@@ -88,3 +88,21 @@ Read [docs/testing.md](docs/testing.md) first. The non-negotiables:
 - A new pipeline stage comes with `tests/<stage>/` coverage and its roadmap checkbox.
 - A change to a supported format identifier or fixture assumption updates `docs/game-data-notes/` and the manifest
   together.
+- Do not add agent attribution lines to commits or PR descriptions.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on fmilichovsky/TICampaignAnalyzer via `gh`.
+See [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+
+### Triage labels
+
+Default vocabulary: needs-triage, needs-info, ready-for-agent,
+ready-for-human, wontfix. See [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+
+### Domain docs
+
+Single-context: root CONTEXT.md and docs/adr/.
+See [docs/agents/domain.md](docs/agents/domain.md).
