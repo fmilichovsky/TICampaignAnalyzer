@@ -30,7 +30,7 @@ nations never change (see the
 | `TIRegionState.populationInMillions` | Yes | the only population figure | observed |
 | `TIRegionState.boostPerYear_dekatons`, `missionControl`, `antiSpaceDefenses`, `numSTOFighters` | Yes, unused | space-support assets per region | observed |
 | `TIArmyState.deploymentType` | Yes, copied raw | `Standard` or `Naval`; navies are armies | observed |
-| `TIRegionState.occupations`, `leadOccupier` | Yes | occupation | empty in every save; shape not observed |
+| `TIRegionState.occupations`, `leadOccupier` | Yes (`occupations` as a nation -> fraction map) | occupation | observed partial occupations; `leadOccupier` `null` throughout |
 
 ## Long series carried in one save
 
@@ -280,7 +280,10 @@ only nations clearly inside or outside the top.
 armies in Appease and the first two Protectorate saves (30 in the last three: 18 and 12), and 10 and 9 of 19 in
 Resist. Both kinds appear in the nation's `armies` list (9 of 20 list entries in the latest Resist save are naval).
 `strength` is a fraction (below 1 on 0 to 4 armies per save). Army counts did not change in any Resist interval and
-grew by 3 in one Protectorate interval. No region carried an occupation in any save.
+grew by 3 in one Protectorate interval. No region carried an occupation in the thirteen saves above. Two later
+checks (2026-11-07) found partial ones: the first and the latest Protectorate save each have two regions with one
+occupier holding a fraction of the region (0.10 to 0.60), and `leadOccupier` stays `null` on all four; two Resist
+saves had none.
 
 The author's strength formula (regions not occupied × military tech × 0.7, plus standard armies × military tech × 3 ×
 mean remaining strength, plus naval armies, minus unrest, plus 100 if any nuclear weapon, plus 5 per weapon) ranks
@@ -291,4 +294,7 @@ two nations with one weapon each at places 6 and 7, ahead of larger conventional
 by the author (2026-10-23). No save field carries its result (`historyWarStatus` is not it), so it cannot be checked
 against one; the rankings above are observed applications of it, and the situation reports' `strength` reproduces
 them (338.0, 298.2, 227.5, 199.2 and 585.9, 335.8, 329.0, with the two one-weapon nations at places 6 and 7; observed
-2026-10-29).
+2026-10-29). The wiki does not say how a partly occupied region counts; the estimate weighs each region by one minus
+its occupiers' summed fractions (*hypothesis*: not checkable against a save). With that rule the three nations with
+partly occupied regions in those two Protectorate saves get a strength (2026-11-07); before it, an occupation made
+their estimate unknown.

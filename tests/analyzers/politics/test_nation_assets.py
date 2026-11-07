@@ -69,6 +69,33 @@ def test_assets_count_army_kinds_and_sum_the_regions() -> None:
     assert strength(found, result) == pytest.approx(1.4 + 9.0 + 1.0 - 1.0)
 
 
+def test_a_partly_occupied_region_counts_its_unoccupied_share() -> None:
+    save = snapshot(
+        AFTER,
+        nation("20", ("40", "41", "42"), unrest=0.0),
+        region("40", "20", occupations=FrozenMap((("nation:21", 0.25),))),
+        region("41", "20", occupations=FrozenMap((("nation:21", 0.5), ("nation:22", 0.75)))),
+        region("42", "20"),
+    )
+    found, lookup = held(save, "20")
+    result = assets(lookup, found, Side.AFTER)
+    # 0.75 + 0 (over-occupied, clamped) + 1
+    assert result.unoccupied_regions == pytest.approx(1.75)
+    assert strength(found, result) == pytest.approx(1.75 * 2 * 0.7)
+
+
+def test_an_unreadable_occupation_makes_the_estimate_unknown() -> None:
+    save = snapshot(
+        AFTER,
+        nation("20", ("40",)),
+        region("40", "20", occupations=(FrozenMap((("Key", 1),)),)),
+    )
+    found, lookup = held(save, "20")
+    result = assets(lookup, found, Side.AFTER)
+    assert result.unoccupied_regions == Unknown(UnknownReason.UNPARSEABLE)
+    assert strength(found, result) == Unknown(UnknownReason.UNPARSEABLE)
+
+
 def test_any_nuclear_weapon_adds_a_hundred_and_five_per_weapon() -> None:
     save = snapshot(AFTER, nation("20", ("40",), numNuclearWeapons=2, unrest=0.0), region("40", "20"))
     found, lookup = held(save, "20")
