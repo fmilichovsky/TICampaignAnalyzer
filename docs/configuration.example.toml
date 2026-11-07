@@ -102,8 +102,16 @@ w_pop = 0.3333333333333333
 w_str = 0.3333333333333333
 
 [narrative.significance.reference]
-# The share at which a stake leaves a score at its base (each minimum 0.000001):
-# a score moves by 10 points per tenfold of the share over the reference.
+# How big a share of the world counts as "ordinary" for an event's score. An
+# event about something exactly this big keeps its usual score; bigger raises
+# it, smaller lowers it, by 10 points for every tenfold difference (within
+# scale_min and scale_max above). Each is a fraction of the world, minimum
+# 0.000001: power for nations, population for territory that changes hands,
+# organization for organizations.
+#
+# Example with power = 0.01 (1 % of the world): a coup in a nation holding 1 %
+# scores as usual, in one holding 10 % it scores 10 points higher, and in one
+# holding 0.1 % it scores 10 points lower.
 power = 0.01
 population = 0.01
 organization = 0.01

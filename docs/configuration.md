@@ -79,7 +79,7 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.significance.power.w_gdp` | ⅓ | 0 | The weight of a nation's share of world GDP in its power share, the stake of an event about the nation. The three weights must sum to 1. |
 | `narrative.significance.power.w_pop` | ⅓ | 0 | The weight of its share of world population. |
 | `narrative.significance.power.w_str` | ⅓ | 0 | The weight of its share of world strength, the game's published estimate ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)). |
-| `narrative.significance.reference.power` | 0.01 | 0.000001 | The nation power share at which a stake leaves a score at its base; a score moves by 10 points per tenfold of the share over it. |
+| `narrative.significance.reference.power` | 0.01 | 0.000001 | The nation power share counted as ordinary: an event about a nation holding exactly this share keeps its usual score, and every tenfold more (or less) raises (or lowers) it by 10 points. With 0.01, a coup in a nation holding 10 % of the world scores 10 points higher than usual, and in one holding 0.1 % scores 10 lower. |
 | `narrative.significance.reference.population` | 0.01 | 0.000001 | The same for the share of world population a territory change moved. |
 | `narrative.significance.reference.organization` | 0.01 | 0.000001 | The same for an organization's tier² share. |
 | `narrative.significance.reference.nuclear_bonus` | 5 | 0 (at most 100) | Points added to a war between two nations that both hold nuclear weapons. |
