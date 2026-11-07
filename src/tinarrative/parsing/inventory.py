@@ -78,6 +78,7 @@ _PREFIXED_SHORT_TYPES: tuple[str, ...] = (
     "FactionGoal_SecureEarthSpace",
     "FactionGoal_SendFleet",
     "FactionGoal_SpaceifyNation",
+    "FactionGoal_SupportNation",
     "FactionGoal_SurveilEarth",
     "FactionGoal_TransportCouncilorsWithFleet",
     "FactionGoal_TruceWithFaction",
