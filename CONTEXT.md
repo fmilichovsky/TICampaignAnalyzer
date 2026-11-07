@@ -50,3 +50,32 @@ _Avoid_: magnitude, size, weight
 **Stake measure**:
 The world total a stake is a share of, such as nation power, population or organization strength.
 _Avoid_: metric (a nation metric is a statistic, not a stake measure)
+
+### Narration
+
+**Narrator package**:
+The campaign history as handed to a language model or a reader who wants facts without prose: narrative events,
+the evidence they cite and the campaign's context.
+_Avoid_: export, events JSON
+
+**Chapter**:
+A run of whole periods of the narrator package, small enough to be told in one model request.
+_Avoid_: section (a section is one period inside a chapter), part
+
+**Councilor article**:
+A neutral, public-perception piece about one notable councilor, told from the councilor dossier in one model
+request.
+_Avoid_: profile, biography
+
+**Run directory**:
+The folder a narration writes and later reads back: its plan or dossier, one request per chapter or article, one
+response record per completed one, and the assembled document with its manifest.
+_Avoid_: output directory, DIR
+
+**Response record**:
+The stored answer to one request, together with the settings it was sent with.
+_Avoid_: response file, completion
+
+**Kept response**:
+A response record reused by a later run because its request and the settings it was sent with are unchanged.
+_Avoid_: cached response, stored response
