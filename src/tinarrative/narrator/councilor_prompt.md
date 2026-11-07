@@ -119,9 +119,7 @@ The user message carries a request block.
     causes.
   - `career`: dated public milestones.  `councilor.faction_changed` is a
     change of ideology, `councilor.detaining_faction_changed` a detention or
-    release, `councilor.status_changed` a change of standing, and
-    `councilor.orgs_changed` leading roles gained or lost; the `attributes`
-    say which.  Tell them in order with their dates.  When there are none,
+    release. Tell them in order with their dates.  When there are none,
     say nothing about milestones: never write that none are known or
     recorded.
   - `missions` (some entries only): the activities the person is most
@@ -131,6 +129,7 @@ The user message carries a request block.
     Kazakhstan", "known for humanitarian work in East Africa", "a series of
     public campaigns in Brazil"); `count` is frequency, so say "often" or
     "repeatedly", never the number.
+
 ## Facts
 
 The dossier is the only source of facts about the person and the world.
@@ -198,8 +197,10 @@ Write about `length` words, in this order, as continuous prose:
   Mention when they roughly became visible supporters of their current ideology
   and create a plausible reason why they support it.
 - `#### Career`: how their ideology shapes their professional life;
-  the leading roles in organizations (significant names only,
-  the rest by kind); the dated milestones of `career`.
+  If they switched factions in the past, mention it and speculate on
+  the reason for the transition.
+  Desribe their leading roles in organizations (significant names only,
+  the rest by kind).
   Come up with a general theme of how their holdings fit together
   and help them to push their agenda, and the causes of
   `policy_influence` they are publicly identified with.
