@@ -70,8 +70,13 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Numeric score with unchanged levels (#196).
   - [x] Prominence shares (#197).
   - [x] Atomic events scaled by stake (#198).
-  - [ ] Developments scaled by stake (#199).
+  - [ ] Nuclear warheads in the situation report (#354).
+  - [ ] Geopolitical narrative events scaled by stake (#199).
+  - [ ] Nation narrative events scaled by power share (#359).
+  - [ ] Nuclear arsenal share (#360).
+  - [ ] Space program share (#361).
   - [ ] Space and faction stakes (#200).
+  - [ ] Remove the top-N promotion (#362).
   - [ ] Narrator length and recall by score (#201).
 - [x] Councilor profiles (#222):
   - [x] Missions and councilor dates (#228).
@@ -154,3 +159,12 @@ Tracking #249.
   - [ ] Run directory: layout and response record (#339).
   - [ ] Send run into the narrator (#340).
   - [ ] Step functions per product (#341).
+- [ ] Narrative-event significance in one place (#349):
+  - [ ] Rename "development" to "narrative event" (#350).
+  - [ ] Situation report answers its own questions (#351).
+  - [ ] One top-N promotion helper (#352).
+  - [ ] One ranking of nations (#353).
+  - [ ] Scored from kinds: geopolitics rules (#355).
+  - [ ] Scored from kinds: nation-metric and diplomacy rules (#356).
+  - [ ] Scored from kinds: asset and space rules (#357).
+  - [ ] Rules no longer choose a level (#358).
