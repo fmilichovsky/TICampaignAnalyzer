@@ -250,6 +250,11 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
         (("unexpected_reference_domain", "TINationState", "capital", "TIMissionPhaseState"), False),
         (("unexpected_reference_domain", "TISpaceFleetState", "displayNameByFaction", "TINationState"), True),
         (("unexpected_reference_domain", "TISpaceFleetState", "currentOperations", "TIHabState"), True),  # raw
+        (("unexpected_reference_domain", "TIHabState", "barycenter", "TILagrangePointState"), True),
+        (("unexpected_reference_domain", "TISpaceFleetState", "barycenter", "TILagrangePointState"), True),
+        (("unexpected_reference_domain", "TIHabState", "barycenter", "TIFactionState"), False),
+        (("unexpected_reference_domain", "TILagrangePointState", "secondaryObject", "TIHabState"), False),
+        (("unknown_field", "TILagrangePointState", "HohmannDates", ""), True),
         (("unexpected_singleton_count", "TITimeState", "", ""), False),
         (("unexpected_singleton_count", "TINationState", "", ""), True),
         (("unexpected_container_shape", "TIOrgState", "", PAIR_MAP_VIOLATION), False),

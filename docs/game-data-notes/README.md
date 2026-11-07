@@ -1,6 +1,6 @@
 # Terra Invicta game-data notes
 
-This is an evidence log for the save formats handled by `tinarrative`. It is deliberately not a general specification of Terra Invicta saves. A claim is an **observed fact** only when it was checked against the private source saves on the stated capture date. A rule or vocabulary taken from the game's own documentation (the in-game texts or the Terra Invicta wiki) that no save carries, so that it cannot be checked against one, is labelled **published**, with its source and transcription date. Everything else is labelled a **hypothesis**.
+This is an evidence log for the save formats handled by `tinarrative`. It is deliberately not a general specification of Terra Invicta saves. A claim is an **observed fact** only when it was checked against the private source saves on the stated capture date. A rule or vocabulary taken from the game's own documentation (the in-game texts or the Terra Invicta wiki) that no save carries, so that it cannot be checked against one, is labelled **published**, with its source and transcription date. A game rule stated by the project maintainer from play, with no save or document to check it against, is labelled **maintainer knowledge**, with the date it was recorded. Everything else is labelled a **hypothesis**.
 
 ## Supported format identifiers
 

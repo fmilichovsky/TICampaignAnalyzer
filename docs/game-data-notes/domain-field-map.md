@@ -21,6 +21,7 @@ This is a field-level handoff for normalizers and analyzers described in [`docs/
 | Ships | `TISpaceShipState` | `fleet`, `lastRefitDate`, `kills` (list of strings) |
 | Habs | `TIHabState` | `faction`, `orbitState`, `barycenter`, `dockedFleets`, `habType`, `tier`, `inCombat`, `underAssault`, `underBombardment`, `anyCoreCompleted`; joined from the core module (slot 0 of the first sector): `coreConstructionCompleted`, `coreStartBuildDate`, `coreCompletionDate`, `corePriorCompletionDate` (ISO text or `null`) |
 | Space bodies | `TISpaceBodyState` | `barycenter` (the parent body: `null` on Sol only, Sol on about two thirds of the rest, otherwise a planet; 2026-10-19, eight private saves, 240 and 373 bodies) alongside `templateName`/`displayName`. No kind member is serialized, so a moon is told from a planet by its parent. `habSites`, `nations`, `orbits`, `maxHabTier`, `playerTag`, `currentModelResource`, `solarMirrorBonus`, `HohmannDates` and the vectors are acknowledged, not normalized |
+| Lagrange points | `TILagrangePointState` | `barycenter` (the primary body) and `secondaryObject` (the secondary body), both a `TISpaceBodyState` on every point, alongside `templateName`/`displayName` (2026-11-07, 24 private saves of two campaigns, 71 or 91 points per save). Named place for a hab or fleet `barycenter`. `orbits`, `maxHabTier`, `HohmannDates` and the vectors are acknowledged, not normalized |
 | Hab modules | `TIHabModuleState` | `sector`, `slot`, `constructionCompleted`, `decommissioning`, `destroyed`, `powered`, `priorModuleCompleted`, `startBuildDate`, `completionDate`, `decommissionDate` (strings), `destroyedTime`, `buildCost`; not normalized, only the core's construction state and dates are copied onto its hab |
 | Research | `TIGlobalResearchState` | `finishedTechsNames`, `finishedOneTimeOnlyProjectNames`, `techProgress` (elements: `techTemplateName`, `accumulatedResearch`, `factionContributions`, `selector`), `campaignStartYear`, `endGameTechsCompletedByCategory` |
 | Wars | `TIWarState` | `attacker`, `defender`, `originalAttacker`, `originalDefender`, `_attackingAlliance`, `_defendingAlliance`, `nukedRegions`, `annexedRegions` (empty in every observed war; copied raw), `defensiveNukes`, `peaceOfferHistory`, `cohesionGainByNation` (pair maps, see below); `startDate` and `dateOfLastFighting` are save-carried records. The container was an empty `{}` in the first inspected sample |
@@ -154,7 +155,7 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TISpaceFleetState` | `parentFleet` | reference or `null`; 14 of 31 non-null IDs were absent from the save | `TISpaceFleetState` |
 | `TISpaceFleetState` | `faction` | reference | `TIFactionState` |
 | `TISpaceFleetState` | `orbitState` | plain reference, typed reference, or `null` | `TIOrbitState`, `TIAdHocOrbitState` |
-| `TISpaceFleetState` | `barycenter` | typed reference | `TISpaceBodyState` |
+| `TISpaceFleetState` | `barycenter` | typed reference | `TISpaceBodyState`; `TILagrangePointState` is maintainer knowledge (a fleet can sit at a Lagrange-point station; none seen in 24 private saves, 2026-11-07) |
 | `TISpaceFleetState` | `dockedLocation` | typed reference or `null` | `TIHabState` |
 | `TISpaceFleetState` | `homeport`, `combatState` | `null` in every inspected fleet | not observed |
 | `TISpaceFleetState` | `displayNameByFaction[].Key` | pair-map key reference (never empty in the sample, 7–8 pairs per fleet, `Value` a string; 2026-10-14, five private saves) | `TIFactionState` |
@@ -165,8 +166,9 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TISpaceShipState` | `storedFaction` | `null` in every inspected ship | not observed |
 | `TIHabState` | `faction` | reference | `TIFactionState` |
 | `TIHabState` | `orbitState`, `habSite` | reference or `null` | `TIOrbitState`, `TIHabSiteState` |
-| `TIHabState` | `barycenter` | typed reference (269 of 269 in one save) | `TISpaceBodyState` |
+| `TIHabState` | `barycenter` | typed reference (269 of 269 in one save) | `TISpaceBodyState`; `TILagrangePointState` for one station in three Protectorate saves, 2032-06 to 2032-11 (2026-11-07) |
 | `TISpaceBodyState` | `barycenter` | typed reference or `null` (Sol only) | `TISpaceBodyState` |
+| `TILagrangePointState` | `barycenter`, `secondaryObject` | typed reference (every point, 2026-11-07) | `TISpaceBodyState` |
 | `TIOrbitState` | `barycenter` | typed reference, not normalized (451 bodies and 71 Lagrange points in one save) | `TISpaceBodyState`, `TILagrangePointState` |
 | `TIHabState` | `sectors` | list of references | `TISectorState` |
 | `TIHabState` | `dockedFleets` | list of references | `TISpaceFleetState` |
@@ -283,6 +285,7 @@ TISpaceFleetState     -> fleets
 TISpaceShipState      -> ships
 TIHabState            -> habs (domain: space object)
 TISpaceBodyState      -> space_bodies (domain: space body)
+TILagrangePointState  -> lagrange_points (domain: space object)
 TIGlobalResearchState -> research (singleton) + technologies (name-keyed)
 TIGlobalValuesState   -> global_values (singleton as one in-save-ID entity)
 TINotificationQueueState -> notification_queue (singleton; owns the notification log record)

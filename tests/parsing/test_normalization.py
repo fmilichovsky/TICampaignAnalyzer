@@ -464,6 +464,37 @@ def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSn
     assert by_id(assets.factions, "11").get("fleets") == (ref(EntityDomain.FLEET, "121", "TISpaceFleetState"),)
 
 
+def test_lagrange_points_are_named_places_for_habs_and_fleets() -> None:
+    point = {"value": 375}
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TISpaceBodyState": [pair(2, displayName="Fixture Primary"), pair(3)],
+        STATE_PREFIX + "TILagrangePointState": [
+            pair(
+                375,
+                displayName="Fixture L1",
+                templateName="FixtureL1",
+                barycenter={"value": 2},
+                secondaryObject={"value": 3},
+                maxHabTier=3,
+                orbits=[],
+                globalPosition={"x": 0.0, "y": 0.0, "z": 0.0},
+            )
+        ],
+        STATE_PREFIX + "TIHabState": [pair(50, barycenter=point)],
+        STATE_PREFIX + "TISpaceFleetState": [pair(60, barycenter=point)],
+    }
+    snapshot, report = collect(fragment_raw(gamestates))
+    assert keys(report) == []
+    lagrange = by_id(snapshot.lagrange_points, "375")
+    assert (lagrange.ref.entity_id.domain, lagrange.ref.name) == (EntityDomain.SPACE_OBJECT, "Fixture L1")
+    assert lagrange.get("barycenter") == ref(EntityDomain.SPACE_BODY, "2", "TISpaceBodyState")
+    assert lagrange.get("secondaryObject") == ref(EntityDomain.SPACE_BODY, "3", "TISpaceBodyState")
+    assert "maxHabTier" not in dict(lagrange.fields)
+    place = ref(EntityDomain.SPACE_OBJECT, "375", "TILagrangePointState")
+    assert by_id(snapshot.habs, "50").get("barycenter") == place
+    assert by_id(snapshot.fleets, "60").get("barycenter") == place
+
+
 @pytest.mark.fixture
 def test_ships_reference_their_fleet_and_keep_measurements(assets: SaveSnapshot) -> None:
     ship = by_id(assets.ships, "131")
