@@ -6,6 +6,7 @@ from dataclasses import replace
 
 from tests.fixtures import fixture_path
 from tinarrative.analyzers.base import Analyzer
+from tinarrative.analyzers.render import describe_event
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.changes import StateDiff
@@ -170,3 +171,14 @@ def only(events: list[Event] | tuple[Event, ...], event_type: str) -> Event:
     matches = by_type(events, event_type)
     assert len(matches) == 1, [event.id for event in events]
     return matches[0]
+
+
+def analyzer_wording(event: Event) -> str:
+    """The event's type and description, lowercased, with entity display names masked.
+
+    A name is a string read from the save, so a cause word inside it ("Joint ...") is not analyzer wording.
+    """
+    text = describe_event(event)
+    for name in sorted({entity.name for entity in event.entities if entity.name}, key=len, reverse=True):
+        text = text.replace(name, "<name>")
+    return f"{event.event_type} {text}".lower()

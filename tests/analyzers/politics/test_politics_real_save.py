@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.analyzers.support import analyzer_wording
 from tinarrative.analyzers import ALL_ANALYZERS, run_analyzers
 from tinarrative.analyzers.common import Lookup, Side
-from tinarrative.analyzers.render import describe_event
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Event, EventStatus, Significance, SourceRole
@@ -48,13 +48,13 @@ def real_save_pair() -> tuple[Path, Path]:
 
 
 def asserted_wording(event: Event) -> str:
-    """Return analyzer wording, excluding a literal ledger template label."""
-    description = describe_event(event)
+    """Return analyzer wording, excluding entity names and a literal ledger template label."""
+    text = analyzer_wording(event)
     if event.event_type == TRANSACTION_RECORDED:
         label = event.attribute("label")
         if isinstance(label, str):
-            description = description.replace(f"a {label} charge", "a charge")
-    return f"{event.event_type} {description}".lower()
+            text = text.replace(f"a {label.lower()} charge", "a charge")
+    return text
 
 
 def test_real_save_pair_analyzes_deterministically_with_evidence_on_every_event() -> None:
