@@ -212,6 +212,7 @@ def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None
     [
         (("unknown_state_type", "TINationState", "", ""), True),
         (("unknown_state_type", "TIHistoricalData", "", ""), True),
+        (("unknown_state_type", "FactionGoal_SupportNation", "", ""), True),
         (("unknown_state_type", "TIFixtureUnknownState", "", ""), False),
         (("unknown_envelope_key", "", "currentID", ""), True),
         (("unknown_envelope_key", "", "mods", ""), False),
@@ -306,4 +307,4 @@ def test_known_state_types_match_the_documented_inventory() -> None:
         if line.strip()
     }
     assert documented == set(KNOWN_STATE_TYPES)
-    assert len(KNOWN_STATE_TYPES) == 76
+    assert len(KNOWN_STATE_TYPES) == 77
