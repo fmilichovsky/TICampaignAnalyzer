@@ -1,8 +1,9 @@
 # Observed `gamestates` type inventory
 
 This inventory lists the 76 exact `gamestates` keys shared by the three
-representative private saves inspected on 2026-09-08. It is an observation of
-one envelope family, not an allowlist for future saves. Preserve unknown keys
+representative private saves inspected on 2026-09-08, plus the keys later met
+by an unknowns scan and dated below. It is an observation of one envelope
+family, not an allowlist for future saves. Preserve unknown keys
 as raw data and add a documented parser only when their structure is mapped.
 
 `KNOWN_STATE_TYPES` in `src/tinarrative/parsing/inventory.py` is the code form of this list
@@ -95,12 +96,19 @@ PavonisInteractive.TerraInvicta.FactionGoal_ResupplyFleet
 PavonisInteractive.TerraInvicta.FactionGoal_SecureEarthSpace
 PavonisInteractive.TerraInvicta.FactionGoal_SendFleet
 PavonisInteractive.TerraInvicta.FactionGoal_SpaceifyNation
+PavonisInteractive.TerraInvicta.FactionGoal_SupportNation
 PavonisInteractive.TerraInvicta.FactionGoal_SurveilEarth
 PavonisInteractive.TerraInvicta.FactionGoal_TransportCouncilorsWithFleet
 PavonisInteractive.TerraInvicta.FactionGoal_TruceWithFaction
 PavonisInteractive.TerraInvicta.FactionGoal_Victory
 PavonisInteractive.TerraInvicta.FactionGoal_WarOnFaction
 ```
+
+`FactionGoal_SupportNation` is absent from the 2026-09-08 set. It was observed on 2026-11-07
+in two Protectorate saves of build 1.0.53b (2032-09 and 2032-11) as one entry: a Servants goal
+whose `nation` is the Alien Administration, with the members of the other goal types and
+`templateName`, `displayName`, `objectiveTemplateName` and `subsequentGoals` all `null`.
+*Hypothesis:* the type appears only once a nation exists for the Servants to back.
 
 ## Interpretation boundary
 
