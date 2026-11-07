@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 
 import pytest
 
@@ -74,8 +75,8 @@ def built(completion: str, *, upgrade: str | None = None, prior: str | None = No
     }
 
 
-Hab = tuple[str, str, str] | tuple[str, str, str, Core]
-"""Owning faction key, hab type, body key and, optionally, the core (``WORKING`` by default)."""
+Hab = tuple[str, str, str | EntityRef] | tuple[str, str, str | EntityRef, Core]
+"""Owning faction key, hab type, body key (or another place) and, optionally, the core (``WORKING`` by default)."""
 
 
 def body(key: str) -> EntityRef:
@@ -85,16 +86,25 @@ def body(key: str) -> EntityRef:
     )
 
 
+def lagrange(key: str) -> EntityRef:
+    """A Lagrange point (``TILagrangePointState``), named as ``space_pair(lagrange_points=...)`` builds it."""
+    return EntityRef(
+        EntityId(HAB, key), IdentityConfidence.IN_SAVE_ID, state_type="TILagrangePointState", name=f"Fixture L{key}"
+    )
+
+
 def space_pair(
     habs_before: Mapping[str, Hab],
     habs_after: Mapping[str, Hab],
     *,
+    lagrange_points: tuple[str, ...] = (),
     fleets_before: Mapping[str, str] | None = None,
     fleets_after: Mapping[str, str] | None = None,
     records_before: tuple[RecordSet, ...] = (),
     records_after: tuple[RecordSet, ...] = (),
 ) -> Scenario:
-    """Factions 15 and 16, a notification queue and the global values singleton, with the given habs and fleets."""
+    """Factions 15 and 16, a notification queue, the global values singleton and the given Lagrange points, habs and
+    fleets."""
 
     def states(save: str, habs: Mapping[str, Hab], fleets: Mapping[str, str] | None) -> list[EntityState]:
         found = [
@@ -102,11 +112,13 @@ def space_pair(
             state(FACTION, "16", save),
             state(EntityDomain.NOTIFICATION_QUEUE, QUEUE_KEY, save),
             state(EntityDomain.GLOBAL_VALUES, GLOBAL_KEY, save),
+            *(replace(state(HAB, key, save, "TILagrangePointState"), ref=lagrange(key)) for key in lagrange_points),
         ]
         for key, hab in sorted(habs.items()):
             faction, hab_type, place = hab[:3]
             core = hab[3] if len(hab) == 4 else WORKING
-            fields = {"faction": faction_ref(faction), "habType": hab_type, "barycenter": body(place), **core}
+            where = place if isinstance(place, EntityRef) else body(place)
+            fields = {"faction": faction_ref(faction), "habType": hab_type, "barycenter": where, **core}
             found.append(state(HAB, key, save, **fields))
         for key, faction in sorted((fleets or {}).items()):
             found.append(state(EntityDomain.FLEET, key, save, faction=faction_ref(faction)))
@@ -374,6 +386,16 @@ def test_habs_on_a_body_new_to_their_faction_are_one_high_first_presence() -> No
     assert set(event.constituents) == {"hab.appeared/space object:51", "hab.appeared/space object:52"}
     assert event.date_basis is DateBasis.INTERVAL  # template-created cores carry no dates
     assert [str(ref.entity_id) for ref in event.entities[:2]] == ["faction:15", "space body:900"]
+
+
+def test_a_hab_at_a_lagrange_point_is_established_and_a_first_presence_there() -> None:
+    point = lagrange("375")
+    unnamed = replace(point, name=None)  # as normalization resolves a reference; the name comes from the snapshot
+    _, inferred = run(space_pair({}, {"57": ("15", "Station", unnamed)}, lagrange_points=("375",)))
+    assert only(inferred, HAB_ESTABLISHED).attribute("body") == point
+    first = only(inferred, FIRST_HAB_ON_BODY)
+    assert first.id == "faction.first_hab_on_body/faction:15/space object:375"
+    assert "first presence on Fixture L375 (space object:375)" in describe_event(first)
 
 
 def test_a_hab_on_a_body_the_faction_already_held_is_no_first_presence() -> None:

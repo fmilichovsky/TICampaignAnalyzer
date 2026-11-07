@@ -15,6 +15,7 @@ from tinarrative.model.evidence import SourceLocation
 from tinarrative.model.records import RecordEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown
+from tinarrative.parsing.fields import NORMALIZED_DOMAINS
 from tinarrative.parsing.normalization import normalize
 
 BEFORE = "before.json"
@@ -43,6 +44,8 @@ STATE_TYPES = {
     EntityDomain.GLOBAL_VALUES: ("TIGlobalValuesState", "global_values"),
     EntityDomain.NOTIFICATION_QUEUE: ("TINotificationQueueState", "notification_queue"),
 }
+COLLECTIONS_BY_STATE_TYPE = {state_type: collection for _, state_type, collection in NORMALIZED_DOMAINS}
+"""Where a state type other than its domain's default lands (a Lagrange point among the space objects)."""
 MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 RESEARCH_ID = 150
 
@@ -128,7 +131,8 @@ def snapshot(
     """A snapshot holding ``states`` in their collections; the date defaults by save name."""
     collections: dict[str, list[EntityState]] = {}
     for item in states:
-        collections.setdefault(STATE_TYPES[item.ref.entity_id.domain][1], []).append(item)
+        default = STATE_TYPES[item.ref.entity_id.domain][1]
+        collections.setdefault(COLLECTIONS_BY_STATE_TYPE.get(item.ref.state_type or "", default), []).append(item)
     if date is None:
         date = BEFORE_DATE if save == BEFORE else AFTER_DATE
     return SaveSnapshot(

@@ -80,6 +80,7 @@ STATE_COLLECTIONS = (
     "ships",
     "habs",
     "space_bodies",
+    "lagrange_points",
     "organizations",
     "technologies",
     "wars",
@@ -103,6 +104,7 @@ NORMALIZED_COLLECTION_LABELS = (
     ("ships", "ships"),
     ("habs", "habs"),
     ("space_bodies", "space bodies"),
+    ("lagrange_points", "Lagrange points"),
     ("organizations", "organizations"),
     ("technologies", "technologies"),
     ("wars", "wars"),
@@ -146,6 +148,7 @@ class SaveSnapshot:
     ships: tuple[EntityState, ...] = ()
     habs: tuple[EntityState, ...] = ()
     space_bodies: tuple[EntityState, ...] = ()
+    lagrange_points: tuple[EntityState, ...] = ()
     organizations: tuple[EntityState, ...] = ()
     technologies: tuple[EntityState, ...] = ()
     wars: tuple[EntityState, ...] = ()
