@@ -62,7 +62,7 @@
       }
     },
     "protectorate": {
-      "description": "Approximately 5 years of development from early to mid-game. Enough to start splitting into 1-year narrative intervals.",
+      "description": "Approximately 6.5 years of development from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
       "files": {
         "Autosave3.json.xz": {
           "sha256": "e3c7567f846f8d240db75d9c3fee5fbdafc8823102fefd5b8283c3604abdc931",
@@ -153,6 +153,21 @@
           "sha256": "22241ffc662a302a086dbb84a33193e8cfd8a9dcb7dc1d800dbde20a7c06df2b",
           "bytes": 738664,
           "raw_bytes": 63931750
+        },
+        "Protectorate00104_2032-6-11.json.xz": {
+          "sha256": "f7bfd7888f43f4d70b86e85801c603ece3f34add3f8118a950ee6ddf14209004",
+          "bytes": 803592,
+          "raw_bytes": 69019569
+        },
+        "Protectorate00105-AlienAdmin_2032-9-1.json.xz": {
+          "sha256": "40db1809624d8ef96c1db41c6c1c8a41c8974979a4f23a4bfb05e067070647ff",
+          "bytes": 816672,
+          "raw_bytes": 70067091
+        },
+        "Protectorate00106-Councilors_2032-11-1.json.xz": {
+          "sha256": "5caf4aca8f29190781b1f2257f806a8012c6c75b3877162987dee58c1dc7dbc5",
+          "bytes": 834692,
+          "raw_bytes": 71203879
         }
       }
     }
