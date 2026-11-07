@@ -127,6 +127,7 @@ Tracking #249.
 - [x] Ignore low-value and unused fields from normalization (#275).
 - [x] Stop decoding unnecessary ledger labels (#276).
 - [ ] Run analyzers selectively (#277).
+- [ ] Package metrics on per-campaign workers instead of concurrent runs (#331).
 
 ## Code structure
 
@@ -141,6 +142,13 @@ Tracking #249.
   - [ ] Wars and federations family (#324).
   - [ ] Narrative-event kinds (#325).
   - [ ] Cleanup (#326).
+- [ ] Campaign analysis: one module from save inputs to an analysed campaign (#328):
+  - [ ] Narrative settings enter interval analysis as one slice (#329).
+  - [ ] Drop the two-save rule (#330).
+  - [ ] The survey step (#332).
+  - [ ] Benchmark sample reuses the survey step (#333).
+  - [ ] The choice and the analysis step (#334).
+  - [ ] Thin the command-line tests (#335).
 - [ ] Narrator send run: the narrator owns its run directory (#337):
   - [ ] Host: one bundle for clock, sleep and HTTP (#338).
   - [ ] Run directory: layout and response record (#339).

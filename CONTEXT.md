@@ -5,6 +5,35 @@ the analyzer infers.
 
 ## Language
 
+### Campaigns and saves
+
+**Survey**:
+The quick first read of a save that gives its game time and campaign identity, without analysing it.
+_Avoid_: scan, probe
+
+**Skipped save**:
+A file inside a given directory that is not a usable save; it is reported and never fails the run. A save the
+user named directly that is unusable fails the run instead.
+_Avoid_: ignored file, bad save
+
+**Campaign**:
+The saves of one playthrough, inferred from their shared campaign identity because the format carries no
+campaign ID.
+_Avoid_: group (how a campaign is formed, not what it is), game
+
+**Campaign selector**:
+What the user gives to choose one campaign among several: its key, its name, or `latest`.
+_Avoid_: campaign filter
+
+**Interval**:
+The span between two consecutive saves of a campaign, analysed as one unit and keyed by its later save.
+_Avoid_: pair, step
+
+**Campaign analysis**:
+One campaign's saves analysed in game-time order: its intervals, their events and, when asked for, its narrative
+events.
+_Avoid_: session, run (a run is one command invocation), sequence
+
 ### Events
 
 **Atomic event**:
