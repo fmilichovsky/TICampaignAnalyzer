@@ -29,6 +29,10 @@ _Avoid_: campaign filter
 The span between two consecutive saves of a campaign, analysed as one unit and keyed by its later save.
 _Avoid_: pair, step
 
+**Situation report**:
+The state of the world at one save, summarised for narrative rules and the narrator.
+_Avoid_: snapshot (the parsed save beneath it), world state
+
 **Campaign analysis**:
 One campaign's saves analysed in game-time order: its intervals, their events and, when asked for, its narrative
 events.
@@ -42,9 +46,9 @@ entry, or one tightly reconstructed action.
 _Avoid_: change (a change is the literal diff beneath an event), raw event
 
 **Narrative event**:
-A higher-level event that groups related atomic events into one development a reader recognises, such as a
+A higher-level event that groups related atomic events into one episode a reader recognises, such as a
 takeover or a war's arc.
-_Avoid_: aggregate, summary event
+_Avoid_: aggregate, summary event, development
 
 **Constituent**:
 An event a narrative event cites as part of what it tells: an atomic event, or a smaller narrative event. A
