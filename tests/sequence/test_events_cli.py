@@ -260,8 +260,9 @@ def test_inferred_events_are_listed_apart_and_filtered_by_significance(
         f"  - from `region.nation_changed/region:42{key}`: Fixture South (region:42) nation: "
         f"Fixture Southland (nation:21) -> Fixture Northland (nation:20)\n" in inferred
     )
-    assert "gained" not in inferred
-    assert "2 inferred events below major significance omitted.\n" in inferred
+    # The fixture world is tiny, so the stake of the region lifts the territory events to major as well.
+    assert "gained 1 region" in inferred
+    assert "inferred events below major significance omitted" not in inferred
 
 
 @pytest.mark.fixture
@@ -774,9 +775,13 @@ def test_period_groups_the_narrative_section(
 
 @pytest.mark.fixture
 def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
+    # Stakes off: in the tiny fixture world every share is large and would lift events to campaign_defining.
+    unscaled = tmp_path / "unscaled.toml"
+    unscaled.write_text("[narrative.significance]\nscale_max = 0\nscale_min = 0\n", encoding="utf-8")
+    monkeypatch.setenv("TINARRATIVE_CONFIG", str(unscaled))
 
     assert main(["events", "--inferred", "--min-significance", "campaign_defining", *SHUFFLED]) == EXIT_SUCCESS
 
@@ -817,6 +822,8 @@ def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
     assert ".json" not in text
     without = {key: value for key, value in package.items() if key != "glossary"}
     assert not _keys(without) & {"sources", "source", "aliases", "before_location", "after_location", "state_type"}
+    assert "significance_basis" not in _keys(without)
+    assert "significance_basis" in _keys(_json(capsys))
     assert all(set(interval) >= {"not_before", "date"} for interval in package["intervals"])
     assert all("before" not in interval and "after" not in interval for interval in package["intervals"])
     assert not _keys(package["glossary"]) & {"kind", "regions"}

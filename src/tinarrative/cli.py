@@ -759,6 +759,7 @@ def _run_saves(
                 changes=changes,
                 load=_SnapshotLoader(command),
                 spaceports=settings.narrative.nation_metrics.ranking_top_n,
+                significance=settings.narrative.significance,
                 jobs=interval_jobs,
                 on_save=on_save,
             )

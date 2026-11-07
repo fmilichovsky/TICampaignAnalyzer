@@ -138,9 +138,24 @@ class PowerSettings:
 
 
 @dataclass(frozen=True)
+class ReferenceSettings:
+    """The share at which a stake leaves a score at its base (``narrative.significance.reference``), one per measure,
+    and the escalation bonus of a war between nuclear-armed nations."""
+
+    power: float = _float(0.01, 1e-6)
+    """Nation power share; also the unit of every nation-scaled event type."""
+    population: float = _float(0.01, 1e-6)
+    """Share of world population: the territory a region or territory event moved."""
+    organization: float = _float(0.01, 1e-6)
+    """Organization tier² share."""
+    nuclear_bonus: int = _int(5, 0, 100)
+    """Points added to a war between two nations that both hold nuclear weapons."""
+
+
+@dataclass(frozen=True)
 class SignificanceSettings:
     """How far an event's stake may move its score from its type's base, and how stakes are measured (architecture
-    12); not applied yet, as no event type is scaled."""
+    12)."""
 
     scale_min: int = _int(-20, -100, 0)
     """The stake lowers a score by at most this many points."""
@@ -150,6 +165,7 @@ class SignificanceSettings:
     """An organization's stake is its tier to this power over the total of all organizations; also ranks the
     councilors of the dossier."""
     power: PowerSettings = field(default_factory=PowerSettings)
+    reference: ReferenceSettings = field(default_factory=ReferenceSettings)
 
 
 @dataclass(frozen=True)

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .analyzers import ALL_ANALYZERS, FIRST_INTERVAL_ANALYZERS, run_analyzers
+from .config import DEFAULT_SETTINGS, SignificanceSettings
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
 from .log import TIMING_LOGGER, fields, get_logger, safe_path
@@ -158,7 +159,12 @@ class IntervalResult:
 
 
 def analyze_interval(
-    before: SaveSnapshot, after: SaveSnapshot, *, inferred: bool, first: bool = False
+    before: SaveSnapshot,
+    after: SaveSnapshot,
+    *,
+    inferred: bool,
+    first: bool = False,
+    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
 ) -> IntervalAnalysis:
     """Diff two snapshots, run every analyzer and, when asked, reconstruction; every event gets its significance.
 
@@ -178,13 +184,13 @@ def analyze_interval(
     analyzers = ALL_ANALYZERS + FIRST_INTERVAL_ANALYZERS if first else ALL_ANALYZERS
     found = run_analyzers(analyzers, before, after, diff)
     lap("analyzers")
-    objective = assign_significance(found, before, after)
+    objective = assign_significance(found, before, after, significance)
     lap("significance")
     reconstructed = None
     if inferred:
         events = infer_events(objective, before, after, diff)
         lap("reconstruction")
-        reconstructed = assign_significance(events, before, after)
+        reconstructed = assign_significance(events, before, after, significance, evidence=objective)
         lap("significance")
     return IntervalAnalysis(diff, objective, reconstructed, seconds)
 
@@ -303,6 +309,7 @@ class _Options:
     changes: bool
     spaceports: int
     load: Callable[[str], SaveSnapshot]
+    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance
 
 
 @dataclass(frozen=True)
@@ -322,6 +329,7 @@ def run_sequence(
     changes: bool = False,
     load: Callable[[str], SaveSnapshot] = load_snapshot,
     spaceports: int = SPACEPORTS,
+    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
     jobs: int = 1,
     on_save: Callable[[], None] | None = None,
 ) -> Iterator[IntervalResult]:
@@ -333,7 +341,7 @@ def run_sequence(
     """
     if len(plan.saves) < 2:
         return
-    options = _Options(inferred, changes, spaceports, load)
+    options = _Options(inferred, changes, spaceports, load, significance)
     chunks = [
         _Chunk(start, plan.saves[start : end + 1], plan.keys[start : end + 1], options)
         for start, end in _chunks(len(plan.saves) - 1, jobs)
@@ -387,7 +395,9 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
     for offset in range(1, len(chunk.saves)):
         index = chunk.start + offset
         after, after_situation = prepared(offset)
-        analysis = analyze_interval(before, after, inferred=options.inferred, first=index == 1)
+        analysis = analyze_interval(
+            before, after, inferred=options.inferred, first=index == 1, significance=options.significance
+        )
         timing.info(
             "interval %s",
             fields(index=index - 1, **{stage: round(value, 4) for stage, value in analysis.seconds.items()}),

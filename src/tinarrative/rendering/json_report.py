@@ -96,6 +96,7 @@ def _narrator_package(document: dict[str, Any]) -> dict[str, Any]:
         events.extend(interval["inferred"] or ())
     for event in events:
         event.pop("sources", None)
+        event.pop("significance_basis", None)
     _drop_shift_events(document["narrative"])
     _prune_nations(document["saves"], _referenced(events))
     _slim_situations(document["saves"])

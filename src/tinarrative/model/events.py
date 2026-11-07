@@ -91,6 +91,31 @@ UNSCORED: Final = -1
 """The ``Event.score`` default: replaced by the base of the event's level on construction."""
 
 
+@dataclass(frozen=True)
+class SignificanceBasis:
+    """How a stake moved an event's score: ``score = clamp(base + scale + bonus, 0, 100)`` (architecture 12)."""
+
+    base: int
+    measure: str
+    share: float
+    scale: int
+    entities: tuple[EntityRef, ...]
+    bonus: int = 0
+    """Points a type adds beyond the share (a war between nuclear-armed nations)."""
+
+    def to_dict(self) -> dict[str, Any]:
+        document: dict[str, Any] = {
+            "base": self.base,
+            "measure": self.measure,
+            "share": self.share,
+            "scale": self.scale,
+            "entities": [to_jsonable(ref) for ref in self.entities],
+        }
+        if self.bonus:
+            document["bonus"] = self.bonus
+        return document
+
+
 class DateBasis(StrEnum):
     """What ``Event.date`` is derived from."""
 
@@ -191,6 +216,7 @@ class Event:
     attributes: tuple[tuple[str, Observed], ...] = ()
     significance: Significance = Significance.MINOR
     score: int = UNSCORED
+    significance_basis: SignificanceBasis | None = None
     constituents: tuple[str, ...] = ()
     start: Observed = None
     start_basis: DateBasis | None = None
@@ -246,6 +272,8 @@ class Event:
             "sources": [source.to_dict() for source in self.sources],
             "constituents": list(self.constituents),
         }
+        if self.significance_basis is not None:
+            document["significance_basis"] = self.significance_basis.to_dict()
         if self.is_narrative:
             document.update(
                 {

@@ -9,19 +9,33 @@ for them.
 from __future__ import annotations
 
 import logging
+import math
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
+from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..log import fields as log_fields
 from ..log import get_logger
-from ..model.entities import EntityRef
-from ..model.events import SIGNIFICANCE_ORDER, Event, Significance
+from ..model.entities import EntityDomain, EntityId, EntityRef
+from ..model.events import SIGNIFICANCE_ORDER, Event, Significance, SignificanceBasis
 from ..model.snapshot import SaveSnapshot
 from .milestones import milestone_of
+from .prominence import nation_power, organization_shares, region_shares, total
 
-__all__ = ["BASE", "DEFAULT", "RULES", "SIGNIFICANCE_ORDER", "Significance", "assign_significance", "significance_of"]
+__all__ = [
+    "BASE",
+    "DEFAULT",
+    "RULES",
+    "SCALED",
+    "SIGNIFICANCE_ORDER",
+    "Significance",
+    "Stake",
+    "Stakes",
+    "assign_significance",
+    "significance_of",
+]
 
 logger = get_logger(__name__)
 
@@ -30,9 +44,6 @@ DEFAULT = Significance.MINOR
 
 # --- Thresholds -------------------------------------------------------------------------------------------
 # Only what ranks emitted events; thresholds that decide whether an event exists live with its analyzer.
-
-TOP_ORGANIZATION_TIER = 3
-"""``TIOrgState.tier`` runs 1-3; tier 3 is the top tier (notes, ``TIOrgState``)."""
 
 UPHEAVAL_CAUSES = frozenset({"Coup", "RegimeChange", "Independence", "Enthrall"})
 """``lastExecutiveChange.cause`` values that replace a government outside normal politics (field map, nations)."""
@@ -157,6 +168,9 @@ _MAJOR: tuple[str, ...] = (
     "army.destroyed_changed",
     "fleet.faction_changed",
     "hab.faction_changed",
+    # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
+    # below the band.
+    "organization.assigned_councilor_changed",
     # Space battles (``CombatLogs``) and alien activity on Earth (crashdowns, landings, facilities).
     "faction.combat_recorded",
     "region.crashdown_changed",
@@ -240,21 +254,6 @@ def _executive_change(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR if isinstance(cause, str) and cause in UPHEAVAL_CAUSES else Significance.MINOR
 
 
-def _organization_assignment(event: Event, lookup: Lookup) -> Significance | None:
-    """Only a top-tier organization changing hands is major: ``assignedCouncilor`` changes on many orgs per
-    interval."""
-    subject = _subject(event)
-    if subject is None:
-        return None
-    for side in (Side.BEFORE, Side.AFTER):
-        state = lookup.state(subject.entity_id, side)
-        if state is not None:
-            tier = state.get("tier")
-            if isinstance(tier, int) and not isinstance(tier, bool) and tier >= TOP_ORGANIZATION_TIER:
-                return Significance.MAJOR
-    return Significance.MINOR
-
-
 def _statistic_shifted(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.TRIVIAL
 
@@ -299,7 +298,6 @@ RULES: Mapping[str, Rule] = {
     "nation.relation_changed": _relation_changed,
     "nation.claims_changed": _claims_changed,
     "nation.executive_change_recorded": _executive_change,
-    "organization.assigned_councilor_changed": _organization_assignment,
     "nation.statistic_shifted": _statistic_shifted,
     "nation.population_changed": _population_changed,
     "nation.space_assets_changed": _space_assets_changed,
@@ -310,11 +308,184 @@ RULES: Mapping[str, Rule] = {
 }
 """Tried before ``BASE``."""
 
+# --- Stakes -----------------------------------------------------------------------------------------------
+
+
+class Stakes:
+    """The prominence shares of the two snapshots of one interval, each built on first use."""
+
+    def __init__(
+        self,
+        before: SaveSnapshot,
+        after: SaveSnapshot,
+        settings: SignificanceSettings,
+        evidence: Iterable[Event] = (),
+    ) -> None:
+        self.lookup = Lookup(before, after)
+        self.settings = settings
+        self._snapshots = {Side.BEFORE: before, Side.AFTER: after}
+        self._shares: dict[tuple[str, Side], dict[EntityId, float]] = {}
+        self._evidence = {event.id: event for event in evidence}
+
+    def shares(self, measure: str, side: Side) -> dict[EntityId, float]:
+        key = (measure, side)
+        if key not in self._shares:
+            snapshot = self._snapshots[side]
+            if measure == "power":
+                self._shares[key] = nation_power(snapshot, self.settings.power)
+            elif measure == "population":
+                self._shares[key] = region_shares(snapshot)
+            else:
+                self._shares[key] = organization_shares(snapshot, self.settings.tier_exponent)
+        return self._shares[key]
+
+    def share(self, measure: str, entities: Iterable[EntityId]) -> float | None:
+        """The summed share of ``entities`` on the interval's earlier side, an entity without one there read on the
+        later side; ``None`` when no entity has a share on either."""
+        before = self.shares(measure, Side.BEFORE)
+        after = self.shares(measure, Side.AFTER)
+        found = {
+            entity: (before if entity in before else after)[entity]
+            for entity in set(entities)
+            if entity in before or entity in after
+        }
+        return total(found, found) if found else None
+
+    def cited(self, event: Event) -> tuple[Event, ...]:
+        return tuple(self._evidence[item] for item in event.constituents if item in self._evidence)
+
+
+EntitiesOf = Callable[[Event, Stakes], tuple[EntityId, ...]]
+
+
+@dataclass(frozen=True)
+class Stake:
+    """What an event type is scaled by: a measure (a ``config.ReferenceSettings`` key) and the entities whose summed
+    share is the stake; no entities, no scale."""
+
+    measure: str
+    entities: EntitiesOf
+    per_point: bool = False
+    """The share of a single control point: the nation's, divided by the points it holds."""
+    nuclear_bonus: bool = False
+
+
+def _first(event: Event, domain: EntityDomain) -> tuple[EntityId, ...]:
+    return next(((ref.entity_id,) for ref in event.entities if ref.entity_id.domain is domain), ())
+
+
+def _nation(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    return _first(event, EntityDomain.NATION)
+
+
+def _organization(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    return _first(event, EntityDomain.ORGANIZATION)
+
+
+def _belligerents(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    if event.attribute("relation") != WAR_RELATION:
+        return ()
+    return tuple(ref.entity_id for ref in event.entities if ref.entity_id.domain is EntityDomain.NATION)
+
+
+def _moved_regions(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    """The regions of a transfer: the event's own, else those of the region events it cites; a region event is its
+    own territory."""
+    if event.event_type == "region.nation_changed":
+        return _first(event, EntityDomain.REGION)
+    listed = event.attribute("regions")
+    if isinstance(listed, tuple):
+        return tuple(ref.entity_id for ref in listed if isinstance(ref, EntityRef))
+    return tuple(
+        entity
+        for cited in stakes.cited(event)
+        if cited.event_type == "region.nation_changed"
+        for entity in _moved_regions(cited, stakes)
+    )
+
+
+_NATION = Stake("power", _nation)
+_TERRITORY = Stake("population", _moved_regions)
+
+SCALED: Mapping[str, Stake] = {
+    "nation.executive_change_recorded": _NATION,
+    "nation.appeared": _NATION,
+    "nation.disappeared": _NATION,
+    "nation.statistic_shifted": _NATION,
+    "nation.federation_changed": _NATION,
+    "nation.claims_changed": _NATION,
+    "nation.relation_changed": Stake("power", _belligerents, nuclear_bonus=True),
+    "region.nation_changed": _TERRITORY,
+    "nation.independence": _TERRITORY,
+    "nation.unification": _TERRITORY,
+    "nation.annexation": _TERRITORY,
+    "nation.territory_gained": _TERRITORY,
+    "nation.territory_lost": _TERRITORY,
+    "control_point.controller_changed": Stake("power", _nation, per_point=True),
+    "faction.nation_control_changed": _NATION,
+    "organization.assigned_councilor_changed": Stake("organization", _organization),
+}
+"""Event types whose score follows a stake (architecture 12); movement and churn are never listed."""
+
+
+def _scale(share: float, reference: float, settings: SignificanceSettings) -> int:
+    if share <= 0:
+        return settings.scale_min
+    return max(settings.scale_min, min(settings.scale_max, round(10 * math.log10(share / reference))))
+
+
+def _points(stakes: Stakes, nation: EntityId) -> int:
+    for side in (Side.BEFORE, Side.AFTER):
+        state = stakes.lookup.state(nation, side)
+        held = state.get("controlPoints") if state is not None else None
+        if isinstance(held, tuple) and held:
+            return len(held)
+    return 1
+
+
+def _holds_nuclear_weapons(stakes: Stakes, nation: EntityId) -> bool:
+    for side in (Side.BEFORE, Side.AFTER):
+        state = stakes.lookup.state(nation, side)
+        if state is not None:
+            weapons = state.get("numNuclearWeapons")
+            return isinstance(weapons, int | float) and not isinstance(weapons, bool) and weapons > 0
+    return False
+
+
+def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBasis | None:
+    stake = SCALED.get(event.event_type)
+    if stake is None:
+        return None
+    entities = stake.entities(event, stakes)
+    share = stakes.share(stake.measure, entities)
+    if share is None:
+        return None
+    if stake.per_point:
+        share /= _points(stakes, entities[0])
+    reference = getattr(stakes.settings.reference, stake.measure)
+    bonus = 0
+    if (
+        stake.nuclear_bonus
+        and len(set(entities)) > 1
+        and all(_holds_nuclear_weapons(stakes, item) for item in entities)
+    ):
+        bonus = stakes.settings.reference.nuclear_bonus
+    refs = tuple(ref for ref in event.entities if ref.entity_id in set(entities))
+    return SignificanceBasis(
+        base=level.base,
+        measure=stake.measure,
+        share=float(f"{share:.6g}"),
+        scale=_scale(share, reference, stakes.settings),
+        entities=refs,
+        bonus=bonus,
+    )
+
+
 # --- Entry points -----------------------------------------------------------------------------------------
 
 
 def significance_of(event: Event, lookup: Lookup) -> Significance:
-    """The context rule, else ``BASE``, else ``DEFAULT``."""
+    """The context rule, else ``BASE``, else ``DEFAULT``: the level before the stake scales the score."""
     rule = RULES.get(event.event_type)
     if rule is not None:
         decided = rule(event, lookup)
@@ -323,20 +494,34 @@ def significance_of(event: Event, lookup: Lookup) -> Significance:
     return BASE.get(event.event_type, DEFAULT)
 
 
-def assign_significance(events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot) -> tuple[Event, ...]:
-    """Each event gets its level and that level's base score; keeps the given order."""
-    lookup = Lookup(before, after)
-    assigned = tuple(_ranked(event, significance_of(event, lookup)) for event in events)
+def assign_significance(
+    events: Iterable[Event],
+    before: SaveSnapshot,
+    after: SaveSnapshot,
+    settings: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
+    *,
+    evidence: Iterable[Event] = (),
+) -> tuple[Event, ...]:
+    """Each event gets its score (its level's base, moved by its stake when the type is in ``SCALED``) and the level
+    of that score; keeps the given order. ``evidence`` are the events a reconstructed one may cite for its stake."""
+    stakes = Stakes(before, after, settings, evidence)
+    assigned = tuple(_ranked(event, significance_of(event, stakes.lookup), stakes) for event in events)
     if logger.isEnabledFor(logging.DEBUG):
         counts = Counter(event.significance.value for event in assigned)
         logger.debug(
             "significance assigned %s",
             log_fields(
-                events=len(assigned), **{level.value: counts.get(level.value, 0) for level in SIGNIFICANCE_ORDER}
+                events=len(assigned),
+                scaled=sum(event.significance_basis is not None for event in assigned),
+                **{level.value: counts.get(level.value, 0) for level in SIGNIFICANCE_ORDER},
             ),
         )
     return assigned
 
 
-def _ranked(event: Event, level: Significance) -> Event:
-    return replace(event, significance=level, score=level.base)
+def _ranked(event: Event, level: Significance, stakes: Stakes) -> Event:
+    basis = _basis(event, level, stakes)
+    if basis is None:
+        return replace(event, significance=level, score=level.base, significance_basis=None)
+    score = max(0, min(100, basis.base + basis.scale + basis.bonus))
+    return replace(event, significance=Significance.of(score), score=score, significance_basis=basis)

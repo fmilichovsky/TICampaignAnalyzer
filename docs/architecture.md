@@ -452,19 +452,22 @@ Principles:
 -   **Narrative events are ranked by their rule**, never below their most significant constituent.
 
 Every event also carries an integer `score` from 0 to 100, and its level is a fixed band over the score, so the
-two never disagree. Until a stake scales a type, every score is the base of its level, and a narrative event
-takes the highest of its rule's base and its cited events' scores.
+two never disagree. A type outside `SCALED` scores the base of its level; a scaled type scores the base of the
+level its rule or table names, moved by its stake (below). A narrative event takes the highest of its rule's base
+and its cited events' scores.
 
 Defined in `src/tinarrative/narrative/significance.py` (`assign_significance`, `significance_of`),
 `model/events.py` (`Significance`, `SIGNIFICANCE_ORDER`, `SCORE_BANDS`, `Event.score`) and
 `narrative/aggregation.py` (`NarrativeBuilder`). `tinarrative events --min-significance` is the first consumer.
+The scaled atomic types and their stake entities are the `SCALED` table there; the settings are
+`config.SignificanceSettings` and `config.ReferenceSettings`.
 
 ### Entity-scaled score (design)
 
 The levels rank an event by its type, so a coup in a leading power and one on a micro-state, a fleet action
 and a skirmish of two ships, or a war between nuclear blocs and one between minor states share a level. This
 design adds the weight of the entities involved. It is staged on the roadmap (*Entity-scaled significance*);
-until a stage lands, the levels above hold.
+the atomic events are scaled, the developments and the space and faction stakes are not yet.
 
 **Score.** Every event carries an integer `score` from 0 to 100 beside its level, on a logarithmic scale where
 ten points are ten times the stake:

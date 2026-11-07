@@ -321,3 +321,21 @@ places 5, 9 and 10 in the first Protectorate save, places 17, 46 and 143 reach 6
 18 and 21 reach 7 and 8 in the last Resist save; those from outside the GDP top ten hold 5 to 8 % of world strength
 each. Population alone lifts a nation at most to place 12 (GDP place 20, no measurable strength). Every nation holding
 regions has a share in all five saves.
+
+### Scaled atomic events
+
+Observed 2026-11-07 on five Protectorate saves (2029-06 to 2031-06) with every reference share at 0.01. The score
+moves by `10·log10(share / reference)` points, so a stake a tenth of the reference lowers it by 10.
+
+| Event type | Scaled events | Median scale | Range |
+| --- | --- | --- | --- |
+| `control_point.controller_changed` (per point) | 139 | -11 | -20 to 1 |
+| `faction.nation_control_changed` | 168 | -9 | -20 to 4 |
+| `nation.executive_change_recorded` | 52 | -8 | -20 to 6 |
+| `organization.assigned_councilor_changed` | 333 | -13 | -14 to -4 |
+| `region.nation_changed` | 6 | -9 | -16 to -6 |
+
+Most nations and regions hold far less than a hundredth of the world, so the typical scaled event is lowered and
+only the large ones keep or exceed their level: of the organization assignments 132 stay `major` and 201 fall to
+`minor`, the split the former top-tier rule drew by tier alone. The references were left at 0.01 (*hypothesis*: a
+reference near the median share would lift most events instead of lowering them, which the clamp bounds either way).
