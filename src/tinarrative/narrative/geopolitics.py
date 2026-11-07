@@ -421,7 +421,8 @@ class TakeoverRule:
         recorded = {} if record is None else dict(record.attributes)
         constituents = [*anchors, *attached]
         intervals = intervals_of([*constituents, *corroborating])
-        first_after = reports.get(intervals_of(anchors[:1])[0])
+        anchored = intervals_of(anchors[:1])[0]
+        first_after = reports.get(anchored)
         rank = gdp_rank(first_after[1], nation.entity_id) if first_after is not None else None
         cause = next(
             (value for value in (anchor.attribute("cause") for anchor in anchors) if isinstance(value, str)), None
@@ -433,6 +434,7 @@ class TakeoverRule:
         return build.event(
             TAKEOVER,
             id_parts=[nation.entity_id, actor.entity_id],
+            id_interval=anchored,
             constituents=constituents,
             corroborating=corroborating,
             roles=roles,
@@ -544,6 +546,7 @@ class TakeoverWaveRule:
                     build.event(
                         TAKEOVER_WAVE,
                         id_parts=[faction_id],
+                        id_interval=interval_of(run[0].id),
                         constituents=run,
                         roles=[(Role.ACTOR, faction), *((Role.TARGET, nation) for nation in nations)],
                         join=Join.ENTITY,

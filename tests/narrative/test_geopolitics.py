@@ -332,6 +332,24 @@ def test_losing_the_seat_in_between_starts_a_new_takeover() -> None:
     ]
 
 
+def test_a_retaken_nation_is_identified_by_the_retaking_interval_not_its_precursors() -> None:
+    stream = [
+        control(K1, "sole", None, SERVANTS),
+        point(K1, SERVANTS),
+        control(K2, "sole", SERVANTS, None),
+        control(K3, "sole", None, SERVANTS),
+    ]
+    reaching = GeopoliticsSettings(takeover_precursor_days=180)
+
+    first, second = of_type(built(stream, plain(K0, K1, K2, K3), reaching), "faction.takeover")
+
+    assert second.intervals[0] == K1
+    assert [first.id, second.id] == [
+        f"faction.takeover/nation:20/faction:16@{K1}",
+        f"faction.takeover/nation:20/faction:16@{K3}",
+    ]
+
+
 def test_an_independence_control_change_is_left_to_the_release_rule() -> None:
     stream = [control(K1, "executive", None, SERVANTS, cause="Independence")]
 
