@@ -88,6 +88,7 @@ Read [docs/testing.md](docs/testing.md) first. The non-negotiables:
 - A new pipeline stage comes with `tests/<stage>/` coverage and its roadmap checkbox.
 - A change to a supported format identifier or fixture assumption updates `docs/game-data-notes/` and the manifest
   together.
+- Do not add agent attribution lines to commits or PR descriptions.
 
 ## Agent skills
 
