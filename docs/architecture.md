@@ -500,6 +500,9 @@ are listed explicitly; movement and churn are never scaled.
 Because every term is a share, shares add: a war side, a federation or a faction's holdings are sums. The
 takeover's top-GDP promotion becomes one case of the nation stake.
 
+The nation, region and organization shares are defined in `src/tinarrative/narrative/prominence.py`, the power
+weights and the tier exponent in `config.SignificanceSettings`.
+
 **Space and the alien faction.** Early in a campaign the alien faction holds nearly every space asset and the
 human factions very few ([space assets](game-data-notes/space-assets.md)). A total that counts the aliens
 would make them half the world from the start, and a human total alone would make one station half of space.
