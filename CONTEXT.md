@@ -46,9 +46,31 @@ entry, or one tightly reconstructed action.
 _Avoid_: change (a change is the literal diff beneath an event), raw event
 
 **Narrative event**:
-A higher-level event that groups related atomic events into one development a reader recognises, such as a
+A higher-level event that groups related atomic events into one episode a reader recognises, such as a
 takeover or a war's arc.
 _Avoid_: aggregate, summary event, development
+
+**Constituent**:
+An event a narrative event cites as part of what it tells: an atomic event, or a smaller narrative event. A
+narrative event that includes a smaller one cites it whole, never that one's own constituents.
+_Avoid_: member (a member is one particular constituent), child, part
+
+**Exclusive constituent**:
+A constituent no narrative event of another kind may cite, because the citing event's kind declares what it cites
+as its own, as a merger's kind does. Events of the same kind may share it: one territory gain with several
+counterparts belongs to each cession.
+_Avoid_: carried event, claimed event, absorbed event (an absorbed nation is what a merger takes in)
+
+**Member**:
+A narrative event that a larger one groups, as a takeover wave groups takeovers, because the larger event's kind
+declares it. When nothing else cites it, the narrator package tells it only inside the larger event, as a digest.
+_Avoid_: child, sub-event, wave member ("wave" is part of some event type names, not a term of its own)
+
+**Explained event**:
+An event that is not reported as a narrative event of its own because another event already accounts for it,
+without citing it: a nation's unrest crossing a band in the interval of its takeover, or a territory gain that an
+annexation reading covers.
+_Avoid_: carried event, absorbed event
 
 **Event type**:
 The stable identifier of what kind of thing an event records, such as `nation.annexation`; it appears in reports
