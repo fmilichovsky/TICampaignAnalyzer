@@ -921,6 +921,24 @@ def test_nation_flags_trackers_claims_and_unrest_attempts_are_normalized() -> No
     assert compare_values(quarters, later) == (ChangeKind.MAP, MapDetail(added=("2",)))
 
 
+def test_region_occupations_become_a_nation_to_fraction_map() -> None:
+    gamestates: dict[str, object] = {
+        STATE_PREFIX + "TINationState": [pair(20), pair(21)],
+        STATE_PREFIX + "TIRegionState": [
+            pair(40, leadOccupier=None, occupations=[{"Key": {"value": 21}, "Value": 0.25}]),
+            pair(41, leadOccupier=None, occupations={}),
+            pair(42, leadOccupier=None, occupations=[{"Key": {"value": 99}, "Value": 0.5}]),
+            pair(43, leadOccupier={"value": 21}, occupations=[{"Key": {"value": 21}, "Value": 1.0}]),
+        ],
+    }
+    snapshot, _report = collect(fragment_raw(gamestates))
+    assert by_id(snapshot.regions, "40").get("occupations") == FrozenMap((("nation:21", 0.25),))
+    assert by_id(snapshot.regions, "41").get("occupations") == FrozenMap()
+    dangling = by_id(snapshot.regions, "42").get("occupations")
+    assert isinstance(dangling, Unknown) and dangling.reason is UnknownReason.UNRESOLVED_REFERENCE
+    assert by_id(snapshot.regions, "43").get("leadOccupier") == ref(EntityDomain.NATION, "21", "TINationState")
+
+
 def test_integer_keyed_pair_maps_report_non_integer_and_repeated_keys() -> None:
     gamestates: dict[str, object] = {
         STATE_PREFIX + "TINationState": [

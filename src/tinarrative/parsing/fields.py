@@ -338,6 +338,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TIRegionState": {
         "nation": (EntityDomain.NATION, False),
+        "leadOccupier": (EntityDomain.NATION, False),
         "armies": _ARMY_LIST,
         "xenoforming": _ALIEN_STATE,
         "missionControlFacility": (EntityDomain.MISSION_CONTROL_FACILITY, False),
@@ -425,6 +426,7 @@ DERIVED_FIELDS: dict[str, tuple[str, ...]] = {"TIHabState": HAB_CORE_FIELDS}
 
 PAIR_MAP_FIELDS: dict[str, dict[str, ExpectedDomains | None]] = {
     "TINationState": {"factionUnrestAttempts": EntityDomain.FACTION, "tracker_PCGDP_ByQuarter": None},
+    "TIRegionState": {"occupations": EntityDomain.NATION},
 }
 """Entity fields serialized as a field-level pair map, with the keys' target domain(s); ``None`` marks integer
 keys, which are not references.

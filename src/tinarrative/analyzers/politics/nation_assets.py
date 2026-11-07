@@ -55,7 +55,8 @@ class NationAssets:
     """Naval armies."""
     mean_army_strength: float | None | Unknown = field(default_factory=Unknown)
     """The mean remaining ``strength`` of the standard armies; ``None`` without one."""
-    unoccupied_regions: int | Unknown = field(default_factory=Unknown)
+    unoccupied_regions: float | Unknown = field(default_factory=Unknown)
+    """Regions weighed by their unoccupied share (see ``strength``)."""
     boost: float | Unknown = field(default_factory=Unknown)
     mission_control: float | Unknown = field(default_factory=Unknown)
     space_defence_regions: int | Unknown = field(default_factory=Unknown)
@@ -104,15 +105,21 @@ def defended(state: EntityState | None) -> bool | None:
     return flag or fighters > 0
 
 
-def _occupied(state: EntityState | None) -> bool | None:
+def _unoccupied_share(state: EntityState | None) -> float | None:
+    """``1 − Σ`` occupation fractions, clamped to 0..1; 0 under a fractionless ``leadOccupier``; ``None`` if unread."""
     if state is None:
         return None
     occupier, occupations = state.get("leadOccupier"), state.get("occupations")
-    if isinstance(occupier, EntityRef) or (isinstance(occupations, FrozenMap) and occupations.items):
-        return True
-    if occupier is None and isinstance(occupations, FrozenMap):
-        return False
-    return None
+    if not (occupier is None or isinstance(occupier, EntityRef)) or not isinstance(occupations, FrozenMap):
+        return None
+    fractions = [_number(value) for _nation, value in occupations.items]
+    known = [value for value in fractions if value is not None]
+    if len(known) != len(fractions):
+        return None
+    occupied = math.fsum(known)
+    if occupied <= 0 and isinstance(occupier, EntityRef):
+        return 0.0
+    return min(1.0, max(0.0, 1.0 - occupied))
 
 
 def _count(flags: list[bool | None], raws: list[Observed]) -> int | Unknown:
@@ -121,6 +128,14 @@ def _count(flags: list[bool | None], raws: list[Observed]) -> int | Unknown:
         if flag is None:
             return _unknown(raw)
     return sum(flag is True for flag in flags)
+
+
+def _share_sum(shares: list[float | None], raws: list[Observed]) -> float | Unknown:
+    """The summed shares; unknown, as the first unreadable region's value is, when any share is."""
+    for share, raw in zip(shares, raws, strict=True):
+        if share is None:
+            return _unknown(raw)
+    return math.fsum(share for share in shares if share is not None)
 
 
 def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
@@ -154,9 +169,7 @@ def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
         armies=standard,
         navies=naval,
         mean_army_strength=mean,
-        unoccupied_regions=_count(
-            [None if (busy := _occupied(state)) is None else not busy for state in states], raw("occupations")
-        ),
+        unoccupied_regions=_share_sum([_unoccupied_share(state) for state in states], raw("occupations")),
         boost=region_sum(lookup, regions, BOOST, side),
         mission_control=region_sum(lookup, regions, MISSION_CONTROL, side),
         space_defence_regions=_count([flag if isinstance(flag, bool) else None for flag in flags], flags),
@@ -171,6 +184,9 @@ def strength(nation: EntityState, held: NationAssets) -> float | Unknown:
     Unoccupied regions × military tech × 0.7, plus standard armies × military tech × 3 × their mean remaining
     strength, plus naval armies, minus unrest, plus 100 with any nuclear weapon, plus 5 per weapon
     (``docs/game-data-notes/nation-metrics.md``, "Armies, navies and a strength estimate").
+
+    "Regions not occupied" weighs each region by ``1 − Σ`` its occupiers' fractions, so a region a third occupied
+    counts two thirds; a ``leadOccupier`` without any fraction counts the region as fully occupied.
     """
     inputs = {name: nation.get(name) for name in ("militaryTechLevel", "unrest", "numNuclearWeapons")}
     miltech, unrest, weapons = (_number(value) for value in inputs.values())
