@@ -86,8 +86,7 @@ ranking_top_n = 10
 
 [narrative.significance]
 # How far an event's stake may lower (scale_min, -100 to 0) or raise
-# (scale_max, 0 to 100) its significance score; not applied yet, as no event
-# type is scaled.
+# (scale_max, 0 to 100) its significance score.
 scale_min = -20
 scale_max = 15
 # An organization's stake is its tier to this power over the total of all
@@ -101,6 +100,24 @@ tier_exponent = 2
 w_gdp = 0.3333333333333333
 w_pop = 0.3333333333333333
 w_str = 0.3333333333333333
+
+[narrative.significance.reference]
+# How big a share of the world counts as "ordinary" for an event's score. An
+# event about something exactly this big keeps its usual score; bigger raises
+# it, smaller lowers it, by 10 points for every tenfold difference (within
+# scale_min and scale_max above). Each is a fraction of the world, minimum
+# 0.000001: power for nations, population for territory that changes hands,
+# organization for organizations.
+#
+# Example with power = 0.01 (1 % of the world): a coup in a nation holding 1 %
+# scores as usual, in one holding 10 % it scores 10 points higher, and in one
+# holding 0.1 % it scores 10 points lower.
+power = 0.01
+population = 0.01
+organization = 0.01
+# Points added to a war between two nations that both hold nuclear weapons
+# (0 to 100).
+nuclear_bonus = 5
 
 [processing]
 # Worker processes for surveying the saves and analyzing the intervals of

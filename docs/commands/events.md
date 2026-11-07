@@ -123,7 +123,13 @@ Members that an option did not ask for are `null`. Events are serialized by
 [`model/events.py`](../../src/tinarrative/model/events.py) and state changes as in
 `save diff --format json`. Every event and narrative event carries its `significance` level and a
 `score` from 0 to 100 that always lies in that level's band (`trivial` 0–24, `minor` 25–49, `major`
-50–74, `campaign_defining` 75–100); for now each score is the midpoint of its band. Without `--narrative`, every event keeps its source locations in the
+50–74, `campaign_defining` 75–100). An event whose type has no stake scores the midpoint of its level's
+band. For the types the stake scales (nation, territory, control-point and organization events, wars), the score
+moves with the share of the world the event touched, and the level follows the score; such an event also carries
+a `significance_basis` with its `base` score, the `measure` (`power`, `population` or `organization`), the
+`share`, the `scale` it added and the stake `entities` (plus a `bonus` for a war between nuclear-armed nations).
+The [narrator package](#narrator-package) keeps the `score` and drops the basis. The reference shares and the
+clamp are [settings](../configuration.md). Without `--narrative`, every event keeps its source locations in the
 saves.
 
 ### Narrator package

@@ -229,3 +229,21 @@ def test_the_power_weights_default_to_thirds_and_override_together(tmp_path: Pat
     settings = load_settings(write(tmp_path, text))
     assert settings.narrative.significance.power == PowerSettings(0.5, 0.25, 0.25)
     assert settings.narrative.significance.tier_exponent == 3
+
+
+def test_the_reference_shares_default_to_one_percent_and_override(tmp_path: Path) -> None:
+    reference = DEFAULT_SETTINGS.narrative.significance.reference
+    assert (reference.power, reference.population, reference.organization, reference.nuclear_bonus) == (
+        0.01,
+        0.01,
+        0.01,
+        5,
+    )
+    text = "[narrative.significance.reference]\npower = 0.02\nnuclear_bonus = 0\n"
+    settings = load_settings(write(tmp_path, text))
+    assert settings.differences(DEFAULT_SETTINGS) == {
+        "narrative.significance.reference.power": 0.02,
+        "narrative.significance.reference.nuclear_bonus": 0,
+    }
+    with pytest.raises(ConfigError, match="'narrative.significance.reference.power' must be at least"):
+        load_settings(write(tmp_path, "[narrative.significance.reference]\npower = 0\n"))

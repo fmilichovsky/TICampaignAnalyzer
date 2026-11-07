@@ -7,7 +7,7 @@ from typing import Any
 
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
-from tinarrative.rendering.json_report import _drop_shift_events, _entry, _slim, _slim_situations
+from tinarrative.rendering.json_report import _drop_shift_events, _entry, _narrator_package, _slim, _slim_situations
 
 ALLY = {"ref": "nation:4", "state_type": "TINationState", "confidence": "in_save_id", "name": "Fixture Ally"}
 
@@ -139,6 +139,22 @@ def test_shift_entries_lose_their_event_ids_and_nothing_else() -> None:
         },
         {"attributes": {"region_count": 2}},
     ]
+
+
+def test_the_narrator_package_drops_the_significance_basis_and_keeps_the_score() -> None:
+    scaled = {"id": "a", "score": 70, "significance_basis": {"base": 62}, "sources": []}
+    document = {
+        "campaign": {},
+        "skipped": [],
+        "saves": [],
+        "narrative": [dict(scaled)],
+        "intervals": [{"before": {}, "after": {}, "events": [dict(scaled)], "inferred": [dict(scaled)]}],
+    }
+
+    package = _narrator_package(document)
+
+    events = [*package["narrative"], *package["intervals"][0]["events"], *package["intervals"][0]["inferred"]]
+    assert events == [{"id": "a", "score": 70}] * 3
 
 
 def test_a_digested_member_keeps_its_headline_and_names_its_wave() -> None:

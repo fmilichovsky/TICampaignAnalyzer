@@ -73,12 +73,16 @@ another's window ([architecture 11.3](architecture.md#113-first-catalogue)).
 | `narrative.nation_metrics.nuclear_window_days` | 365 | 0 | Changes of one nation's nuclear arsenal chain into one `nation.nuclear_armament`, `nation.nuclear_buildup` or `nation.nuclear_disarmament` while each follows the previous one this soon ([events](commands/events.md#narrative-events)). |
 | `narrative.nation_metrics.nuclear_buildup_min` | 5 | 1 | A `nation.nuclear_buildup` gains at least this many weapons, or half the arsenal it started from. |
 | `narrative.nation_metrics.ranking_top_n` | 10 | 1 | `world.ranking_changed` reports nations entering or leaving the top this many by GDP, strength, boost or mission control; `nation.space_program_growth` is `major` when its nation enters that top by boost or mission control, and each situation report lists this many `spaceports`. Values above 20, the places `nation.rank_changed` reports, count as 20. |
-| `narrative.significance.scale_min` | -20 | -100 (at most 0) | An event's stake lowers its significance score by at most this many points. Not applied yet: no event type is scaled, so every score is the base of its level ([events](commands/events.md#json-output)). |
-| `narrative.significance.scale_max` | 15 | 0 (at most 100) | An event's stake raises its significance score by at most this many points. Not applied yet. |
-| `narrative.significance.tier_exponent` | 2 | 1 | An organization's stake is its tier to this power over the total of all organizations: with 2, one tier 3 outweighs three tier 1. Ranks the councilors of the [councilor dossier](commands/councilors.md); not applied to significance yet. |
-| `narrative.significance.power.w_gdp` | ⅓ | 0 | The weight of a nation's share of world GDP in its power share, the stake of an event about the nation. The three weights must sum to 1. Not applied yet. |
-| `narrative.significance.power.w_pop` | ⅓ | 0 | The weight of its share of world population. Not applied yet. |
-| `narrative.significance.power.w_str` | ⅓ | 0 | The weight of its share of world strength, the game's published estimate ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)). Not applied yet. |
+| `narrative.significance.scale_min` | -20 | -100 (at most 0) | An event's stake lowers its significance score by at most this many points. See [events](commands/events.md#json-output). |
+| `narrative.significance.scale_max` | 15 | 0 (at most 100) | An event's stake raises its significance score by at most this many points. |
+| `narrative.significance.tier_exponent` | 2 | 1 | An organization's stake is its tier to this power over the total of all organizations: with 2, one tier 3 outweighs three tier 1. Also the organization stake of significance, and ranks the councilors of the [councilor dossier](commands/councilors.md). |
+| `narrative.significance.power.w_gdp` | ⅓ | 0 | The weight of a nation's share of world GDP in its power share, the stake of an event about the nation. The three weights must sum to 1. |
+| `narrative.significance.power.w_pop` | ⅓ | 0 | The weight of its share of world population. |
+| `narrative.significance.power.w_str` | ⅓ | 0 | The weight of its share of world strength, the game's published estimate ([nation statistics](game-data-notes/nation-metrics.md#armies-navies-and-a-strength-estimate)). |
+| `narrative.significance.reference.power` | 0.01 | 0.000001 | The nation power share counted as ordinary: an event about a nation holding exactly this share keeps its usual score, and every tenfold more (or less) raises (or lowers) it by 10 points. With 0.01, a coup in a nation holding 10 % of the world scores 10 points higher than usual, and in one holding 0.1 % scores 10 lower. |
+| `narrative.significance.reference.population` | 0.01 | 0.000001 | The same for the share of world population a territory change moved. |
+| `narrative.significance.reference.organization` | 0.01 | 0.000001 | The same for an organization's tier² share. |
+| `narrative.significance.reference.nuclear_bonus` | 5 | 0 (at most 100) | Points added to a war between two nations that both hold nuclear weapons. |
 
 The `councilors` keys ([councilors](commands/councilors.md)):
 

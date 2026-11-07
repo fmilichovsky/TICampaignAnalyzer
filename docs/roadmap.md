@@ -69,7 +69,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Design.
   - [x] Numeric score with unchanged levels (#196).
   - [x] Prominence shares (#197).
-  - [ ] Atomic events scaled by stake (#198).
+  - [x] Atomic events scaled by stake (#198).
   - [ ] Developments scaled by stake (#199).
   - [ ] Space and faction stakes (#200).
   - [ ] Narrator length and recall by score (#201).

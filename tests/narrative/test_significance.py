@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
+
 from tests.analyzers.support import (
     AFTER,
     BEFORE,
@@ -26,12 +28,12 @@ from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
 from tinarrative.analyzers.render import _TEMPLATES
 from tinarrative.diff.state_diff import diff_states
-from tinarrative.model.entities import EntityDomain
+from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
-from tinarrative.model.snapshot import SaveSnapshot
+from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
-from tinarrative.narrative import assign_significance, significance_of
-from tinarrative.narrative.significance import BASE, DEFAULT, RULES
+from tinarrative.narrative import assign_significance, significance, significance_of
+from tinarrative.narrative.significance import BASE, DEFAULT, RULES, SCALED
 
 COUNCILOR = EntityDomain.COUNCILOR
 FACTION = EntityDomain.FACTION
@@ -140,17 +142,39 @@ def test_an_executive_change_is_major_only_for_an_upheaval_cause() -> None:
     assert significance_of(bare_event("nation.executive_change_recorded"), lookup) is Significance.MINOR
 
 
-def test_a_top_tier_organization_changing_hands_is_major_and_a_lower_tier_is_minor() -> None:
-    for tier, expected in ((3, Significance.MAJOR), (1, Significance.MINOR), (Unknown(), Significance.MINOR)):
+def test_an_organization_changing_hands_is_scaled_by_its_tier_share() -> None:
+    def assigned(tier: int) -> Event:
+        orgs = {"70": tier, "71": 3, "72": 3, "73": 3, "74": 3, "75": 3, "76": 3, "77": 3, "78": 3, "79": 3}
         before = snapshot(
-            BEFORE, state(ORG, "70", BEFORE, assignedCouncilor=None, homeRegion=region_ref("40"), tier=tier)
+            BEFORE,
+            *(
+                state(ORG, key, BEFORE, assignedCouncilor=None, homeRegion=region_ref("40"), tier=t)
+                for key, t in orgs.items()
+            ),
         )
         after = snapshot(
             AFTER,
-            state(ORG, "70", AFTER, assignedCouncilor=councilor_ref("100"), homeRegion=region_ref("40"), tier=tier),
+            *(
+                state(
+                    ORG,
+                    key,
+                    AFTER,
+                    assignedCouncilor=councilor_ref("100") if key == "70" else None,
+                    homeRegion=region_ref("40"),
+                    tier=t,
+                )
+                for key, t in orgs.items()
+            ),
         )
-        events = classified(OrganizationAnalyzer(), before, after)
-        assert only(events, "organization.assigned_councilor_changed").significance is expected, tier
+        return only(classified(OrganizationAnalyzer(), before, after), "organization.assigned_councilor_changed")
+
+    top, low = assigned(3), assigned(1)
+    assert top.score > low.score
+    assert top.significance_basis is not None
+    assert top.significance_basis.measure == "organization"
+    assert top.significance_basis.share == 0.1
+    assert top.significance_basis.scale == 10
+    assert low.significance_basis is not None and low.significance_basis.scale < top.significance_basis.scale
 
 
 def test_megafauna_presence_is_major_and_regular_army_presence_is_minor() -> None:
@@ -335,3 +359,183 @@ def test_the_alien_administrations_claims_are_minor_and_a_human_nations_are_majo
         assert significance_of(claims, lookup) is expected, alien
     assert significance_of(claims, empty_lookup()) is Significance.MAJOR
     assert significance_of(bare_event("nation.claims_changed"), empty_lookup()) is Significance.MAJOR
+
+
+# --- Entity-scaled score ----------------------------------------------------------------------------------
+
+BIG, MICRO, OTHER = "20", "21", "22"
+
+
+def scaled_event(
+    event_type: str, *entities: EntityRef, constituents: tuple[str, ...] = (), **attributes: Observed
+) -> Event:
+    return replace(bare_event(event_type, **attributes), entities=entities, constituents=constituents)
+
+
+def scored(
+    monkeypatch: pytest.MonkeyPatch,
+    event: Event,
+    *,
+    power: dict[str, float] | None = None,
+    regions: dict[str, float] | None = None,
+    evidence: tuple[Event, ...] = (),
+    states: tuple[EntityState, ...] = (),
+) -> Event:
+    def keyed(shares: dict[str, float] | None, domain: EntityDomain) -> dict[EntityId, float]:
+        return {EntityId(domain, key): share for key, share in (shares or {}).items()}
+
+    monkeypatch.setattr(significance, "nation_power", lambda *_: keyed(power, NATION))
+    monkeypatch.setattr(significance, "region_shares", lambda *_: keyed(regions, EntityDomain.REGION))
+    before, after = snapshot(BEFORE, *states), snapshot(AFTER, *states)
+    return assign_significance([event], before, after, evidence=evidence)[0]
+
+
+POWER = {BIG: 0.3, MICRO: 0.001, OTHER: 0.1}
+NATION_TYPES = (
+    "nation.executive_change_recorded",
+    "nation.appeared",
+    "nation.disappeared",
+    "nation.statistic_shifted",
+    "nation.federation_changed",
+    "nation.claims_changed",
+    "faction.nation_control_changed",
+)
+
+
+@pytest.mark.parametrize("event_type", NATION_TYPES)
+def test_a_nation_event_scores_higher_for_a_large_nation_than_a_micro_state(
+    monkeypatch: pytest.MonkeyPatch, event_type: str
+) -> None:
+    big = scored(monkeypatch, scaled_event(event_type, nation_ref(BIG)), power=POWER)
+    micro = scored(monkeypatch, scaled_event(event_type, nation_ref(MICRO)), power=POWER)
+    assert big.score > micro.score
+    assert big.significance_basis is not None and micro.significance_basis is not None
+    assert (big.significance_basis.measure, big.significance_basis.share) == ("power", 0.3)
+    assert micro.significance_basis.scale == -10
+    assert big.significance_basis.entities == (nation_ref(BIG),)
+
+
+def test_a_micro_states_disappearance_is_no_longer_campaign_defining(monkeypatch: pytest.MonkeyPatch) -> None:
+    power = {BIG: 0.3, MICRO: 0.0005}
+    micro = scored(monkeypatch, scaled_event("nation.disappeared", nation_ref(MICRO)), power=power)
+    big = scored(monkeypatch, scaled_event("nation.disappeared", nation_ref(BIG)), power=power)
+    assert micro.significance is Significance.MAJOR
+    assert big.significance is Significance.CAMPAIGN_DEFINING
+
+
+def test_a_stake_at_the_reference_share_keeps_the_level_and_the_clamp_bounds_the_scale(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    at_reference = scored(
+        monkeypatch, scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 0.01, OTHER: 0.99}
+    )
+    assert at_reference.score == Significance.CAMPAIGN_DEFINING.base
+    assert at_reference.significance_basis is not None and at_reference.significance_basis.scale == 0
+    tiny = scored(monkeypatch, scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 1e-12, OTHER: 1.0})
+    assert tiny.significance_basis is not None and tiny.significance_basis.scale == -20
+    empty = scored(monkeypatch, scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 0.0})
+    assert empty.significance_basis is not None and empty.significance_basis.scale == -20
+
+
+def test_the_stake_is_read_on_the_later_side_for_an_entity_that_exists_only_there(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[int] = []
+
+    def power(snapshot: SaveSnapshot, *_: object) -> dict[EntityId, float]:
+        calls.append(1)
+        return {EntityId(NATION, BIG): 0.2} if snapshot.source == AFTER else {}
+
+    monkeypatch.setattr(significance, "nation_power", power)
+    monkeypatch.setattr(significance, "region_shares", lambda *_: {})
+    event = scaled_event("nation.appeared", nation_ref(BIG))
+    result = assign_significance([event], snapshot(BEFORE), snapshot(AFTER))[0]
+    assert result.significance_basis is not None and result.significance_basis.share == 0.2
+
+
+def test_a_war_sums_both_nations_and_nuclear_arms_on_both_sides_add_the_bonus(monkeypatch: pytest.MonkeyPatch) -> None:
+    pair = (nation_ref(BIG), nation_ref(OTHER))
+    war = scaled_event("nation.relation_changed", *pair, relation="wars")
+    unarmed = scored(monkeypatch, war, power=POWER)
+    assert unarmed.significance_basis is not None
+    assert unarmed.significance_basis.share == 0.4 and unarmed.significance_basis.bonus == 0
+    armed_states = tuple(state(NATION, key, BEFORE, numNuclearWeapons=3) for key in (BIG, OTHER))
+    armed = scored(monkeypatch, war, power=POWER, states=armed_states)
+    assert armed.significance_basis is not None and armed.significance_basis.bonus == 5
+    assert armed.score == unarmed.score + 5
+    one_sided = scored(monkeypatch, war, power=POWER, states=armed_states[:1])
+    assert one_sided.significance_basis is not None and one_sided.significance_basis.bonus == 0
+
+
+def test_only_wars_are_scaled_among_relations(monkeypatch: pytest.MonkeyPatch) -> None:
+    pair = (nation_ref(BIG), nation_ref(OTHER))
+    allies = scored(monkeypatch, scaled_event("nation.relation_changed", *pair, relation="allies"), power=POWER)
+    assert allies.significance_basis is None and allies.score == Significance.MINOR.base
+
+
+REGIONS = {"40": 0.2, "41": 0.0005}
+
+
+def test_a_transfer_is_scaled_by_the_population_share_of_the_territory(monkeypatch: pytest.MonkeyPatch) -> None:
+    large = scored(monkeypatch, scaled_event("region.nation_changed", region_ref("40")), regions=REGIONS)
+    small = scored(monkeypatch, scaled_event("region.nation_changed", region_ref("41")), regions=REGIONS)
+    assert large.score > small.score
+    assert large.significance_basis is not None and large.significance_basis.measure == "population"
+    both = scored(
+        monkeypatch,
+        scaled_event(
+            "nation.territory_gained",
+            nation_ref(BIG),
+            region_ref("40"),
+            region_ref("41"),
+            regions=(region_ref("40"), region_ref("41")),
+        ),
+        regions=REGIONS,
+    )
+    assert both.significance_basis is not None and both.significance_basis.share == 0.2005
+
+
+def test_an_independence_takes_its_territory_from_the_region_events_it_cites(monkeypatch: pytest.MonkeyPatch) -> None:
+    transfer = replace(scaled_event("region.nation_changed", region_ref("40")), id="region.nation_changed/region:40")
+    independence = scaled_event("nation.independence", nation_ref(BIG), constituents=(transfer.id,))
+    result = scored(monkeypatch, independence, regions=REGIONS, evidence=(transfer,))
+    assert result.significance_basis is not None and result.significance_basis.share == 0.2
+    assert scored(monkeypatch, independence, regions=REGIONS).significance_basis is None
+
+
+def test_a_single_control_point_is_scaled_by_its_share_of_the_nations_power(monkeypatch: pytest.MonkeyPatch) -> None:
+    nation_state = state(
+        NATION, BIG, BEFORE, controlPoints=(ref(EntityDomain.CONTROL_POINT, "1"), ref(EntityDomain.CONTROL_POINT, "2"))
+    )
+    event = scaled_event("control_point.controller_changed", ref(EntityDomain.CONTROL_POINT, "1"), nation_ref(BIG))
+    result = scored(monkeypatch, event, power=POWER, states=(nation_state,))
+    assert result.significance_basis is not None and result.significance_basis.share == 0.15
+
+
+def test_churn_and_movement_are_never_scaled(monkeypatch: pytest.MonkeyPatch) -> None:
+    for event_type in (
+        "fleet.orbit_changed",
+        "councilor.location_changed",
+        "nation.rank_changed",
+        "nation.band_crossed",
+    ):
+        result = scored(monkeypatch, scaled_event(event_type, nation_ref(BIG)), power=POWER)
+        assert result.significance_basis is None
+        assert result.score == BASE.get(event_type, DEFAULT).base
+
+
+def test_every_scaled_type_names_a_known_measure() -> None:
+    assert {stake.measure for stake in SCALED.values()} <= {"power", "population", "organization"}
+    assert not {"fleet.orbit_changed", "nation.rank_changed", "nation.population_changed"} & set(SCALED)
+
+
+def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    result = scored(monkeypatch, scaled_event("nation.appeared", nation_ref(MICRO)), power=POWER)
+    basis = result.to_dict()["significance_basis"]
+    assert {key: basis[key] for key in ("base", "measure", "share", "scale")} == {
+        "base": 87,
+        "measure": "power",
+        "share": 0.001,
+        "scale": -10,
+    }
+    assert "significance_basis" not in bare_event("nation.rank_changed").to_dict()
