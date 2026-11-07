@@ -127,3 +127,17 @@ Tracking #249.
 - [x] Ignore low-value and unused fields from normalization (#275).
 - [x] Stop decoding unnecessary ledger labels (#276).
 - [ ] Run analyzers selectively (#277).
+
+## Code structure
+
+- [ ] Event kinds: declare each event type once (#316):
+  - [ ] Foundation and the aliens family (#317).
+  - [ ] Campaign and faction families (#318).
+  - [ ] Military family (#319).
+  - [ ] Technology family (#320).
+  - [ ] Space family (#321).
+  - [ ] Nations family (#322).
+  - [ ] Control family (#323).
+  - [ ] Wars and federations family (#324).
+  - [ ] Narrative-event kinds (#325).
+  - [ ] Cleanup (#326).
