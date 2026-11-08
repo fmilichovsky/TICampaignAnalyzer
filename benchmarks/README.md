@@ -134,8 +134,9 @@ The second command needs a base environment, set up as in [Running it locally](#
 ## Samples
 
 These are the only real saves the repository holds, and an exception to the fixture rules in
-[CONTRIBUTING.md](../CONTRIBUTING.md#fixtures-and-real-data): they are never fixtures and no test reads their
-content. Only the manifest test does, by hashing them. They are compressed, whole saves, left unedited. Each campaign
+[CONTRIBUTING.md](../CONTRIBUTING.md#fixtures-and-real-data): they are never fixtures. The sample tests
+(`make samples`, [testing](../docs/testing.md#sample-tests)) read them, asserting only invariants that hold for any
+campaign, and the manifest test hashes them. They are compressed, whole saves, left unedited. Each campaign
 directory holds consecutive saves of one campaign, so that grouping finds a single campaign there.
 
 To add or refresh a campaign, run `tinarrative benchmark sample NAME PATH`. Pass a directory to select one of its
@@ -163,7 +164,7 @@ add or refresh a campaign manually:
 3. Run `tinarrative benchmark sample <campaign> <save-directory>` (or list the selected save files). Supply
    `--description` to write the campaign description; otherwise add one to `samples.json` if it is missing.
 4. Review the campaign's runs in `matrix.toml` and add entries where needed. Run
-   `tinarrative benchmark metrics samples` until it reports nothing.
+   `tinarrative benchmark metrics samples` until it reports nothing, then `make samples`.
 
 A pull request that changes the samples or the matrix measures both sides with the new ones, so its report compares
 code only. The next pull requests measure against the new samples from then on.

@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import lzma
 import os
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -16,7 +14,7 @@ from pathlib import Path
 from typing import Any, TextIO, TypeGuard, cast
 
 from ..log import ENV_VAR, TIMING_ENV_VAR
-from .manifest import MANIFEST, sample_files, sha256_file
+from .manifest import MANIFEST, decompress_samples, sample_files, sha256_file
 from .metrics import STDERR_TAIL, load_matrix
 
 TOOL_VERSION = 1
@@ -139,9 +137,7 @@ def _campaigns(samples: Path, scratch: Path) -> dict[str, Path]:
     for campaign, files in sample_files(samples).items():
         directory = scratch / campaign
         directory.mkdir()
-        for file in files:
-            with lzma.open(file) as source, (directory / file.name.removesuffix(".xz")).open("wb") as target:
-                shutil.copyfileobj(source, target, 1 << 20)
+        decompress_samples(files, directory)
         directories[campaign] = directory
     return directories
 

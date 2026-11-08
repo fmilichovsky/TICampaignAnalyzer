@@ -5,14 +5,23 @@ How to run and maintain the test suite. What a good test is, and the fixture rul
 
 ## Running
 
-`make check` runs the suite with formatting, linting and type checking; CI runs the same. Tests marked `real_save`
-read private saves and are excluded by default; run them with `python -m pytest -m real_save` and these environment
-variables:
+`make check` runs the suite with formatting, linting and type checking; CI runs the same. Tests marked `samples`
+read the committed benchmark campaigns and are excluded from it; `make samples` runs them, and so does the `samples`
+job in CI.
 
-- `TINARRATIVE_REAL_SAVE`: one save;
-- `TINARRATIVE_REAL_SAVE_AFTER`: the later save of a consecutive pair;
-- `TINARRATIVE_REAL_SAVE_SEQUENCE`: save paths separated by `os.pathsep`;
-- `TINARRATIVE_REAL_SAVE_DIRECTORY`: a directory of saves, possibly of several campaigns.
+`TINARRATIVE_REAL_SAVE_DIRECTORY` names a directory of private saves, possibly of several campaigns. With it set,
+the suite also scans them for unknown structures
+(`tests/parsing/test_unknowns_samples.py::test_private_save_unknowns_are_fields_only`); without it that test is
+skipped.
+
+### Sample tests
+
+The `sample_campaign` fixture in `tests/samples.py` decompresses each campaign of
+[`benchmarks/samples/`](../benchmarks/README.md#samples) once per session into a temporary directory and removes it
+after the campaign's last test; tests using it run once per campaign. They drive the CLI in-process with
+`tests.samples.run_cli` and assert invariants that hold for any campaign (unique IDs, dates inside their interval,
+provenance, deterministic output), never counts or wording, so refreshing a sample does not touch them. Name a sample
+test module `test_*_samples.py`, next to the area it checks, and mark it `samples`.
 
 ## Fixtures
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import lzma
 import math
 import os
 import re
@@ -18,7 +17,7 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, TextIO
 
-from .manifest import MANIFEST, sample_files, sha256_file
+from .manifest import MANIFEST, decompress_samples, sample_files, sha256_file
 
 TOOL_VERSION = 1
 MAX_DEPTH = 4
@@ -233,9 +232,7 @@ def _measure_campaign(
     started = time.perf_counter()
     saves = scratch / campaign
     saves.mkdir()
-    for file in files:
-        with lzma.open(file) as source, (saves / file.name.removesuffix(".xz")).open("wb") as target:
-            shutil.copyfileobj(source, target, 1 << 20)
+    decompress_samples(files, saves)
     decompressed = time.perf_counter() - started
     packages = out / "packages" / campaign
     packages.mkdir(parents=True)

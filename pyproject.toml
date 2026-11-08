@@ -45,9 +45,9 @@ warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = ["--strict-markers", "-m", "not real_save", "-p", "no:cacheprovider"]
+addopts = ["--strict-markers", "-m", "not samples", "-p", "no:cacheprovider"]
 markers = [
-  "real_save: test reads private Terra Invicta saves named by environment variables; excluded from the default suite",
+  "samples: test reads the committed benchmark campaigns in benchmarks/samples/; excluded from the default run, run with make samples",
 ]
 
 [tool.hatch.build.targets.wheel]
