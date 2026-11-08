@@ -73,7 +73,7 @@ def transport(monkeypatch: pytest.MonkeyPatch) -> FakeTransport:
 def _settings(tmp_path: Path, text: str = "") -> Path:
     path = tmp_path / "settings.toml"
     path.write_text(
-        '[narrator]\nmax_input_tokens = 11000\nprovider = "anthropic"\nmodel = "some-model"\n'
+        '[llm]\nmax_input_tokens = 11000\nprovider = "anthropic"\nmodel = "some-model"\n'
         'api_key_env = "TEST_NARRATOR_KEY"\nchars_per_token = 3\n' + text,
         encoding="utf-8",
     )
@@ -138,7 +138,7 @@ def test_impossible_token_reservation_fails_before_sending_and_cached_responses_
     assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
     sent = len(transport.calls)
     with limited.open("a", encoding="utf-8") as config:
-        config.write("\n[narrator.profiles.limited]\ntokens_per_minute = 1\n")
+        config.write("\n[llm.profiles.limited]\ntokens_per_minute = 1\n")
 
     assert _narrate(tmp_path, "--send", "--profile", "limited", settings=limited) == EXIT_SUCCESS
     assert len(transport.calls) == sent
@@ -150,7 +150,7 @@ def test_the_provider_settings_never_change_the_plan_or_the_requests(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
     plain = tmp_path / "plain.toml"
-    plain.write_text("[narrator]\nmax_input_tokens = 11000\nchars_per_token = 3\n", encoding="utf-8")
+    plain.write_text("[llm]\nmax_input_tokens = 11000\nchars_per_token = 3\n", encoding="utf-8")
 
     assert main(["narrate", *SAVES, "--config", str(plain), "--output", str(tmp_path / "plain")]) == EXIT_SUCCESS
     assert _narrate(tmp_path, "--send", "--model", "other-model") == EXIT_SUCCESS
@@ -197,7 +197,7 @@ def test_a_profile_and_flags_override_the_narrator_keys(
 ) -> None:
     settings = _settings(
         tmp_path,
-        '\n[narrator.profiles.local]\nprovider = "ollama"\nmodel = "local-model"\nbase_url = "http://box:11434"\n'
+        '\n[llm.profiles.local]\nprovider = "ollama"\nmodel = "local-model"\nbase_url = "http://box:11434"\n'
         "max_input_tokens = 200000\nmax_output_tokens = 4000\ntemperature = 0.4\n",
     )
 
@@ -216,18 +216,18 @@ def test_a_profile_and_flags_override_the_narrator_keys(
     ("options", "settings_text", "message"),
     [
         (["--send", "--profile", "absent"], None, "unknown profile 'absent' (the settings define: none)"),
-        (["--max-input-tokens", "10"], None, "--max-input-tokens: 'narrator.max_input_tokens' must be at least 1000"),
-        (["--send", "--model", ""], None, "--model: 'narrator.model' must be a non-empty string"),
-        (["--send"], "[narrator]\nprovider = 'ollama'\n", "no model"),
-        (["--send"], "[narrator]\nprovider = 'anthropic'\nmodel = 'm'\n", "anthropic needs an API key"),
+        (["--max-input-tokens", "10"], None, "--max-input-tokens: 'llm.max_input_tokens' must be at least 1000"),
+        (["--send", "--model", ""], None, "--model: 'llm.model' must be a non-empty string"),
+        (["--send"], "[llm]\nprovider = 'ollama'\n", "no model"),
+        (["--send"], "[llm]\nprovider = 'anthropic'\nmodel = 'm'\n", "anthropic needs an API key"),
         (
             ["--send"],
-            "[narrator]\nprovider = 'openai'\nmodel = 'm'\napi_key_env = 'TEST_UNSET_KEY'\n",
-            "TEST_UNSET_KEY (narrator.api_key_env) is not set",
+            "[llm]\nprovider = 'openai'\nmodel = 'm'\napi_key_env = 'TEST_UNSET_KEY'\n",
+            "TEST_UNSET_KEY (llm.api_key_env) is not set",
         ),
         (
             ["--send"],
-            "[narrator]\nprovider = 'ollama'\nmodel = 'm'\nmax_input_tokens = 30000\ncontext_window = 32768\n",
+            "[llm]\nprovider = 'ollama'\nmodel = 'm'\nmax_input_tokens = 30000\ncontext_window = 32768\n",
             "over context_window 32768",
         ),
     ],

@@ -758,7 +758,6 @@ def _run_saves(
                 inferred=inferred or narrative,
                 changes=changes,
                 load=_SnapshotLoader(command),
-                spaceports=settings.narrative.nation_metrics.ranking_top_n,
                 significance=settings.narrative.significance,
                 jobs=interval_jobs,
                 on_save=on_save,
@@ -997,9 +996,7 @@ def _run_events(args: argparse.Namespace) -> int:
             left_out=left_out,
             narrative=narrative,
             changed_settings={
-                key: value
-                for key, value in settings.differences(DEFAULT_SETTINGS).items()
-                if key.startswith("narrative.")
+                key: value for key, value in settings.differences(DEFAULT_SETTINGS).items() if key.startswith("events.")
             },
             period=cast(Period, args.period),
         )
@@ -1094,7 +1091,7 @@ def _run_narrate(args: argparse.Namespace) -> int:
     if isinstance(plan, OverBudget):
         print(
             f"tinarrative narrate: interval {plan.interval} needs about {plan.needed} input tokens without its atomic "
-            f"stream, over max_input_tokens {plan.budget}; raise narrator.max_input_tokens",
+            f"stream, over max_input_tokens {plan.budget}; raise llm.max_input_tokens",
             file=sys.stderr,
         )
         logger.info("narrate over budget %s", fields(needed=plan.needed, budget=plan.budget, exit=EXIT_USAGE_ERROR))
@@ -1390,7 +1387,7 @@ def _send(
                 )
                 reason = (
                     f"the completion stopped at max_output_tokens {request.max_output_tokens}; raise "
-                    "narrator.max_output_tokens or give --max-output-tokens"
+                    "llm.max_output_tokens or give --max-output-tokens"
                     if completion.finish == "length"
                     else "the model refused the request"
                 )
@@ -1959,13 +1956,13 @@ def _add_councilors_parser(subcommands: argparse._SubParsersAction[argparse.Argu
     parser.add_argument(
         "--profile",
         metavar="NAME",
-        help="Apply the settings profile [narrator.profiles.NAME] over the [narrator] keys.",
+        help="Apply the settings profile [llm.profiles.NAME] over the [llm] keys.",
     )
-    parser.add_argument("--provider", choices=PROVIDERS, help="Override narrator.provider.")
-    parser.add_argument("--model", help="Override narrator.model (there is no default model).")
-    parser.add_argument("--base-url", metavar="URL", help="Override narrator.base_url.")
-    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override narrator.max_output_tokens.")
-    parser.add_argument("--temperature", type=float, help="Override narrator.temperature.")
+    parser.add_argument("--provider", choices=PROVIDERS, help="Override llm.provider.")
+    parser.add_argument("--model", help="Override llm.model (there is no default model).")
+    parser.add_argument("--base-url", metavar="URL", help="Override llm.base_url.")
+    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override llm.max_output_tokens.")
+    parser.add_argument("--temperature", type=float, help="Override llm.temperature.")
     parser.add_argument(
         "--config",
         type=Path,
@@ -2113,7 +2110,7 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         description=(
             f"{summary} The package is built from the saves exactly as 'events --narrative --constituents evidence "
             "--format json' builds it, or read with --package. Each chapter is a run of whole periods whose "
-            "estimated request stays within narrator.max_input_tokens; it carries the developments that start in "
+            "estimated request stays within llm.max_input_tokens; it carries the developments that start in "
             "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
             "With --output the plan and one request per chapter are written. Nothing is sent without --send; with "
             "it, the requests (and so the campaign) go to the configured provider, a third party unless it runs "
@@ -2170,8 +2167,8 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         "--period",
         choices=PERIODS,
         help=(
-            "The sections of the history and the unit chapters are cut by (default: from the campaign span, see "
-            "narrator.quarter_span_days and narrator.half_span_days, made coarser chapter by chapter where the "
+            "The sections of the history and the unit chapters are cut by (default: from the campaign span, using "
+            "the built-in quarter and half-year spans, made coarser chapter by chapter where the "
             "saves are further apart than the period runs). A given period is kept, with a warning where the "
             "saves are too sparse for it."
         ),
@@ -2220,14 +2217,14 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
     parser.add_argument(
         "--profile",
         metavar="NAME",
-        help="Apply the settings profile [narrator.profiles.NAME] over the [narrator] keys.",
+        help="Apply the settings profile [llm.profiles.NAME] over the [llm] keys.",
     )
-    parser.add_argument("--provider", choices=PROVIDERS, help="Override narrator.provider.")
-    parser.add_argument("--model", help="Override narrator.model (there is no default model).")
-    parser.add_argument("--base-url", metavar="URL", help="Override narrator.base_url.")
-    parser.add_argument("--max-input-tokens", type=int, metavar="TOKENS", help="Override narrator.max_input_tokens.")
-    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override narrator.max_output_tokens.")
-    parser.add_argument("--temperature", type=float, help="Override narrator.temperature.")
+    parser.add_argument("--provider", choices=PROVIDERS, help="Override llm.provider.")
+    parser.add_argument("--model", help="Override llm.model (there is no default model).")
+    parser.add_argument("--base-url", metavar="URL", help="Override llm.base_url.")
+    parser.add_argument("--max-input-tokens", type=int, metavar="TOKENS", help="Override llm.max_input_tokens.")
+    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override llm.max_output_tokens.")
+    parser.add_argument("--temperature", type=float, help="Override llm.temperature.")
     parser.add_argument(
         "--config",
         type=Path,

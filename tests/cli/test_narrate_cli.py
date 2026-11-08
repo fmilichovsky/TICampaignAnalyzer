@@ -37,7 +37,7 @@ def _package(tmp_path: Path, capsys: pytest.CaptureFixture[str], constituents: s
 
 def _settings(tmp_path: Path, budget: int) -> Path:
     path = tmp_path / "settings.toml"
-    path.write_text(f"[narrator]\nmax_input_tokens = {budget}\nchars_per_token = 3\n", encoding="utf-8")
+    path.write_text(f"[llm]\nmax_input_tokens = {budget}\nchars_per_token = 3\n", encoding="utf-8")
     return path
 
 
@@ -202,7 +202,7 @@ def test_an_invalid_budget_is_a_config_error(tmp_path: Path, capsys: pytest.Capt
     settings = _settings(tmp_path, 10)
 
     assert main(["narrate", "--package", "-", "--config", str(settings)]) == EXIT_CONFIG_ERROR
-    assert "'narrator.max_input_tokens' must be at least 1000" in capsys.readouterr().err
+    assert "'llm.max_input_tokens' must be at least 1000" in capsys.readouterr().err
 
 
 @pytest.mark.fixture

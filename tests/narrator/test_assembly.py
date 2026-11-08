@@ -289,7 +289,8 @@ def test_the_manifest_records_the_run_and_the_token_calibration() -> None:
     assert manifest["campaign"] == "fixture-campaign"
     assert manifest["covers"] == {"from": "2030-01-01T00:00:00", "to": "2031-01-01T00:00:00"}
     assert manifest["settings"] == {
-        **PLAN["settings"],
+        "max_input_tokens": PLAN["settings"]["max_input_tokens"],
+        "chars_per_token": PLAN["settings"]["chars_per_token"],
         "provider": "anthropic",
         "model": ["some-model", "other-model"],
         "max_output_tokens": 16000,

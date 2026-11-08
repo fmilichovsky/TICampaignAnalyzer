@@ -11,7 +11,7 @@ import tomllib
 from collections.abc import Mapping
 from dataclasses import dataclass, field, fields, is_dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 CONFIG_ENV_VAR = "TINARRATIVE_CONFIG"
 PROVIDERS = ("anthropic", "openai", "openrouter", "ollama")
@@ -282,13 +282,62 @@ def load_settings(path: Path | None) -> Settings:
         raise ConfigError(f"not valid TOML: {error}") from None
     except UnicodeDecodeError:
         raise ConfigError("not valid TOML: the file is not UTF-8 text") from None
-    settings: Settings = _apply(DEFAULT_SETTINGS, document, "")
-    return settings
+    # Keep the runtime rule objects private to the implementation. The TOML
+    # surface groups player controls by their effect rather than pipeline stage.
+    allowed = {"events", "llm", "councilors", "processing"}
+    for key in document:
+        if key not in allowed:
+            raise ConfigError(f"unknown setting {key!r}")
+    events = document.get("events", {})
+    llm = document.get("llm", {})
+    if not isinstance(events, Mapping):
+        raise ConfigError("'events' must be a table")
+    if not isinstance(llm, Mapping):
+        raise ConfigError("'llm' must be a table")
+    event_keys = {"episode_gap_days", "top_nations"}
+    for key in events:
+        if key not in event_keys:
+            raise ConfigError(f"unknown setting 'events.{key}'")
+    llm_keys = set(PROFILE_KEYS) | {"profiles"}
+    for key in llm:
+        if key not in llm_keys:
+            raise ConfigError(f"unknown setting 'llm.{key}'")
+    normalized: dict[str, Any] = {
+        "councilors": document.get("councilors", {}),
+        "processing": document.get("processing", {}),
+    }
+    # One episode gap controls the related event chains.
+    if events:
+        gap = events.get("episode_gap_days", 365)
+        top = events.get("top_nations", 10)
+        if isinstance(gap, bool) or not isinstance(gap, int) or gap < 0:
+            raise ConfigError("'events.episode_gap_days' must be an integer at least 0")
+        if isinstance(top, bool) or not isinstance(top, int) or top < 1:
+            raise ConfigError("'events.top_nations' must be an integer at least 1")
+        top = min(top, 20)
+        normalized["narrative"] = {
+            "geopolitics": {"expansion_gap_days": gap, "realignment_window_days": gap},
+            "space": {"campaign_gap_days": gap},
+            "nation_metrics": {"space_assets_window_days": gap, "nuclear_window_days": gap, "ranking_top_n": top},
+        }
+    if llm:
+        normalized["narrator"] = dict(llm)
+    councilors = normalized.get("councilors", {})
+    if isinstance(councilors, Mapping):
+        for key in councilors:
+            if key not in {"rivals_per_faction", "min_tenure_days", "article_words"}:
+                raise ConfigError(f"unknown setting 'councilors.{key}'")
+    try:
+        return cast(Settings, _apply(DEFAULT_SETTINGS, normalized, ""))
+    except ConfigError as error:
+        # These runtime objects retain their historical attribute names; errors
+        # always speak in the public TOML vocabulary.
+        raise ConfigError(str(error).replace("narrator", "llm")) from None
 
 
 def override(settings: NarratorSettings, key: str, value: Any) -> NarratorSettings:
     """``settings`` with one key replaced, validated as in a settings file; raises ``ConfigError``."""
-    changed: NarratorSettings = _apply(settings, {key: value}, "narrator.")
+    changed: NarratorSettings = _apply(settings, {key: value}, "llm.")
     return changed
 
 
@@ -355,6 +404,27 @@ def _value(metadata: Mapping[str, Any], value: Any, dotted: str) -> Any:
 def _to_dict(settings: Any) -> dict[str, Any]:
     """Unset (``None``) keys are left out, as a TOML file leaves them out."""
     table: dict[str, Any] = {}
+    if isinstance(settings, Settings):
+        narrator = settings.narrator
+        gap = settings.narrative.geopolitics.expansion_gap_days
+        result: dict[str, Any] = {
+            "events": {"episode_gap_days": gap, "top_nations": settings.narrative.nation_metrics.ranking_top_n},
+            "llm": {},
+            "councilors": {
+                "rivals_per_faction": settings.councilors.rivals_per_faction,
+                "min_tenure_days": settings.councilors.min_tenure_days,
+                "article_words": settings.councilors.article_words,
+            },
+            "processing": {},
+        }
+        for name in PROFILE_KEYS:
+            value = getattr(narrator, name)
+            if value is not None:
+                result["llm"][name] = value
+        result["llm"]["profiles"] = {name: dict(profile) for name, profile in narrator.profiles.items()}
+        if settings.processing.jobs is not None:
+            result["processing"]["jobs"] = settings.processing.jobs
+        return result
     for item in fields(settings):
         value = getattr(settings, item.name)
         if is_dataclass(value):

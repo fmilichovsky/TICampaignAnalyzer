@@ -25,7 +25,7 @@ councilors are never selected. Then:
 
 Prominence ranks by the councilor's organization share (each organization's tier squared over the
 total of all organizations, summed over the councilor's organizations; the exponent is
-`narrative.significance.tier_exponent`), then the skill sum, then XP, then entity ID. The player's faction is the one of the save's single human
+`built-in organization tier exponent`), then the skill sum, then XP, then entity ID. The player's faction is the one of the save's single human
 player.
 
 ## Input
@@ -62,11 +62,11 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 | `--campaign SELECTOR` | | The campaign to use when the saves hold several. |
 | `--player-only` | off | Select the player's councilors only. |
 | `--output DIR` | | Write `dossier.json` and the requests here; without it only the summary is printed. |
-| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: the `[councilors]` selection keys and the `[narrator]` provider and profiles ([configuration](../configuration.md)). |
+| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: the `[councilors]` selection keys and the `[llm]` provider and profiles ([configuration](../configuration.md)). |
 | `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | With several saves, worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
 | `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
 | `--force` | off | With `--send`, send every article again, even one with a matching stored response. |
-| `--profile NAME` | | Apply the settings profile `[narrator.profiles.NAME]`. |
+| `--profile NAME` | | Apply the settings profile `[llm.profiles.NAME]`. |
 | `--provider`, `--model`, `--base-url`, `--max-output-tokens`, `--temperature` | | Override the `narrator` setting of the same name, as [`narrate`](narrate.md#provider-and-budget) does. |
 
 ## Requests
@@ -74,7 +74,7 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 Each request holds the dossier header and one councilor's entry, with a request block naming the
 councilor, the faction and the length (`about <councilors.article_words> words`). The system
 prompt asks for an encyclopedia entry about the person's public standing: a lead, then background,
-career and public profile ([narrator](../narrator.md#councilor-articles)). The same dossier always
+career and public profile ([llm](../narrator.md#councilor-articles)). The same dossier always
 gives the same request files, so a request can be reviewed, or run by hand against any model.
 
 ## Sending

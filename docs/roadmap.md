@@ -102,7 +102,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
 - [x] Group saves by campaign (#89).
 - [x] `tinarrative campaigns` and `events --campaign` (#93).
 - [x] Interactive campaign picker.
-- [ ] Settings cleanup: a small, intent-grouped configuration surface (#364).
+- [x] Settings cleanup: a small, intent-grouped configuration surface (#364).
 
 ## Continuous capture
 

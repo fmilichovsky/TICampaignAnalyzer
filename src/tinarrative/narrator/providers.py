@@ -77,9 +77,9 @@ def endpoint(settings: NarratorSettings, environ: Mapping[str, str]) -> Endpoint
     """Raises ``ValueError`` naming the setting when the settings cannot send."""
     provider = settings.provider
     if provider is None:
-        raise ValueError("no provider: set narrator.provider (or a profile's provider) or give --provider")
+        raise ValueError("no provider: set llm.provider (or a profile's provider) or give --provider")
     if settings.model is None:
-        raise ValueError("no model: set narrator.model (or a profile's model) or give --model")
+        raise ValueError("no model: set llm.model (or a profile's model) or give --model")
     needed = settings.max_input_tokens + settings.max_output_tokens
     if settings.context_window is not None and needed > settings.context_window:
         raise ValueError(
@@ -94,14 +94,13 @@ def endpoint(settings: NarratorSettings, environ: Mapping[str, str]) -> Endpoint
         provider in {"anthropic", "openrouter"} or (provider == "openai" and settings.base_url is None)
     ):
         raise ValueError(
-            f"{provider} needs an API key: set narrator.api_key_env to the name of the environment variable that "
-            "holds it"
+            f"{provider} needs an API key: set llm.api_key_env to the name of the environment variable that holds it"
         )
     key = None
     if name is not None:
         key = environ.get(name, "")
         if not key:
-            raise ValueError(f"the environment variable {name} (narrator.api_key_env) is not set")
+            raise ValueError(f"the environment variable {name} (llm.api_key_env) is not set")
     return Endpoint(provider, base_url.rstrip("/"), key, float(settings.timeout_seconds), needed)
 
 

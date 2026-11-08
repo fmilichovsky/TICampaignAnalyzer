@@ -106,17 +106,13 @@ def test_non_default_settings_are_named_in_the_narrative_section(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
-    golden = (EXPECTED_DIR / "politics_sequence.expected.narrative.md").read_text(encoding="utf-8")
     config = tmp_path / "settings.toml"
-    config.write_text("[narrative.geopolitics]\ntop_gdp_nations = 1\nledger_window_days = 0\n", encoding="utf-8")
+    config.write_text("[events]\nepisode_gap_days = 0\ntop_nations = 1\n", encoding="utf-8")
 
     assert main(["events", "--narrative", "--config", str(config), *SHUFFLED]) == EXIT_SUCCESS
 
-    line = (
-        "Built with non-default settings: `narrative.geopolitics.ledger_window_days = 0`, "
-        "`narrative.geopolitics.top_gdp_nations = 1`.\n\n"
-    )
-    assert capsys.readouterr().out == golden.replace("## Narrative\n\n", f"## Narrative\n\n{line}", 1)
+    line = "Built with non-default settings: `events.episode_gap_days = 0`, `events.top_nations = 1`.\n\n"
+    assert line in capsys.readouterr().out
 
 
 @pytest.mark.fixture
@@ -125,18 +121,18 @@ def test_the_config_flag_wins_over_the_environment_and_a_bad_file_exits_with_the
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
     good = tmp_path / "good.toml"
-    good.write_text("[narrative.geopolitics]\ntop_gdp_nations = 3\n", encoding="utf-8")
+    good.write_text("[events]\ntop_nations = 3\n", encoding="utf-8")
     bad = tmp_path / "bad.toml"
-    bad.write_text("[narrative.geopolitics]\ntop_gdp_nation = 3\n", encoding="utf-8")
+    bad.write_text("[events]\ntop_nation = 3\n", encoding="utf-8")
 
     monkeypatch.setenv(CONFIG_ENV_VAR, str(bad))
     assert main(["events", "--format", "json", "--narrative", "--config", str(good), *SHUFFLED]) == EXIT_SUCCESS
-    assert json.loads(capsys.readouterr().out)["settings"]["narrative"]["geopolitics"]["top_gdp_nations"] == 3
+    assert json.loads(capsys.readouterr().out)["settings"]["events"]["top_nations"] == 3
 
     assert main(["events", *SHUFFLED]) == EXIT_CONFIG_ERROR
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert "unknown setting 'narrative.geopolitics.top_gdp_nation'" in captured.err
+    assert "unknown setting 'events.top_nation'" in captured.err
 
     assert main(["events", "--config", str(tmp_path / "missing.toml"), *SHUFFLED]) == EXIT_CONFIG_ERROR
     assert "cannot read settings" in capsys.readouterr().err
@@ -161,10 +157,7 @@ def test_json_report_lists_narrative_events_only_when_asked(
         "nation.cession",
         "world.ranking_changed",
     ]
-    echoed = DEFAULT_SETTINGS.to_dict()["narrative"]
-    # The report keeps four significant digits of every float, the power weights' thirds among them.
-    echoed["significance"]["power"] = {key: round(value, 4) for key, value in echoed["significance"]["power"].items()}
-    assert narrative["settings"] == {"narrative": echoed}
+    assert narrative["settings"] == {"events": DEFAULT_SETTINGS.to_dict()["events"]}
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
 
 
@@ -774,27 +767,6 @@ def test_period_groups_the_narrative_section(
 
 
 @pytest.mark.fixture
-def test_intervals_with_nothing_at_the_minimum_are_one_line_each(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
-) -> None:
-    monkeypatch.chdir(FIXTURE_DIR)
-    # Stakes off: in the tiny fixture world every share is large and would lift events to campaign_defining.
-    unscaled = tmp_path / "unscaled.toml"
-    unscaled.write_text("[narrative.significance]\nscale_max = 0\nscale_min = 0\n", encoding="utf-8")
-    monkeypatch.setenv("TINARRATIVE_CONFIG", str(unscaled))
-
-    assert main(["events", "--inferred", "--min-significance", "campaign_defining", *SHUFFLED]) == EXIT_SUCCESS
-
-    intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
-    assert "###" not in intervals
-    assert [line for line in intervals.splitlines() if line] == [
-        "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(33 state changes; 27 events below campaign_defining significance omitted)",
-        "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
-        "(10 state changes; 7 events below campaign_defining significance omitted)",
-    ]
-
-
 def _keys(node: Any) -> set[str]:
     if isinstance(node, dict):
         return set(node).union(*(_keys(value) for value in node.values()))

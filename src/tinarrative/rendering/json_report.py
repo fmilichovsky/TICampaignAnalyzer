@@ -56,7 +56,7 @@ def build_document(
     chosen = listing(intervals, narrative, minimum=min_significance, constituents=constituents)
     document["min_significance"] = min_significance.value
     document["constituents"] = None if narrative is None else constituents
-    document["settings"] = None if narrative is None else {"narrative": settings.to_dict()["narrative"]}
+    document["settings"] = None if narrative is None else {"events": settings.to_dict()["events"]}
     listed = chosen.narrative
     document["narrative"] = None if listed is None else [_entry(event, chosen.digested) for event in listed]
     document["narrative_omitted"] = None if listed is None or narrative is None else len(narrative) - len(listed)
