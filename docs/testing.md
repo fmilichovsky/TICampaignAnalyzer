@@ -7,7 +7,8 @@ How to run and maintain the test suite. What a good test is, and the fixture rul
 
 `make check` runs the suite with formatting, linting and type checking; CI runs the same. Tests marked `samples`
 read the committed benchmark campaigns and are excluded from it; `make samples` runs them, and so does the `samples`
-job in CI.
+job in CI. By default, `make samples` tests all campaigns. Set `SAMPLE_CAMPAIGNS` to a comma-separated list of
+exact campaign names to run a subset, for example `make samples SAMPLE_CAMPAIGNS=protectorate-short,resist`.
 
 `TINARRATIVE_REAL_SAVE_DIRECTORY` names a directory of private saves, possibly of several campaigns. With it set,
 the suite also scans them for unknown structures

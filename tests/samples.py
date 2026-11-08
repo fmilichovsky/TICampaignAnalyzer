@@ -23,7 +23,23 @@ SAMPLES = Path(__file__).resolve().parents[1] / "benchmarks" / "samples"
 CAMPAIGNS = sample_files(SAMPLES)
 
 
-@pytest.fixture(scope="session", params=sorted(CAMPAIGNS))
+def selected_campaigns(selection: str, campaigns: dict[str, Path]) -> list[str]:
+    """Return selected campaign names, or all names when the selection is empty."""
+    if not selection.strip():
+        return sorted(campaigns)
+
+    requested = [name.strip() for name in selection.split(",")]
+    if any(not name for name in requested):
+        raise pytest.UsageError("sample campaign selection contains an empty name")
+    unknown = sorted(set(requested) - campaigns.keys())
+    if unknown:
+        raise pytest.UsageError(
+            f"unknown sample campaign(s): {', '.join(unknown)}; available: {', '.join(sorted(campaigns))}"
+        )
+    return sorted(set(requested))
+
+
+@pytest.fixture(scope="session")
 def sample_campaign(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
     """The directory of one benchmark campaign's decompressed saves; every campaign in turn."""
     campaign: str = request.param
