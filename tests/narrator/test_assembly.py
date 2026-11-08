@@ -104,14 +104,14 @@ def _chapter(
 
 FIRST = _package(
     ["2030-01-01T00:00:00", "2030-07-01T00:00:00"],
-    [("dev.a", "major"), ("dev.b", "campaign_defining"), ("dev.minor", "minor")],
+    [("ne.a", "major"), ("ne.b", "campaign_defining"), ("ne.minor", "minor")],
     events=["atomic.x"],
 )
 SECOND = _package(
     ["2030-07-01T00:00:00", "2031-01-01T00:00:00"],
-    [("dev.c", "major"), ("dev.uncited", "major")],
-    continuing=["dev.b"],
-    earlier=["dev.a"],
+    [("ne.c", "major"), ("ne.uncited", "major")],
+    continuing=["ne.b"],
+    earlier=["ne.a"],
 )
 
 
@@ -120,12 +120,12 @@ def test_footnotes_are_renumbered_in_sequence_with_definitions_at_the_end() -> N
         1,
         FIRST,
         "## 2030-H1\n\nA rose.[^1] B followed.[^2][^3] A again.[^1]\n\n---\n\n### Footnotes\n\n"
-        "[^1]: `dev.a`\n[^2]: `dev.b`  \n[^3]: atomic.x\n",
+        "[^1]: `ne.a`\n[^2]: `ne.b`  \n[^3]: atomic.x\n",
     )
     second = _chapter(
         2,
         SECOND,
-        "## 2030-H2\n\nC happened.[^1]\n\n[^1]: `dev.c`; `dev.b`\n\n***\n\n"
+        "## 2030-H2\n\nC happened.[^1]\n\n[^1]: `ne.c`; `ne.b`\n\n***\n\n"
         "**Where things stood**\n\nStill open.[^2]\n\n[^2]: `situation 2031-01-01T00:00:00`\n",
     )
 
@@ -136,10 +136,10 @@ def test_footnotes_are_renumbered_in_sequence_with_definitions_at_the_end() -> N
     assert "***\n\n**Where things stood**\n\nStill open.[^5]" in body
     assert "Footnotes" not in history and "---" not in history
     assert ("[^1]: " + notes).splitlines() == [
-        "[^1]: `dev.a`",
-        "[^2]: `dev.b`",
+        "[^1]: `ne.a`",
+        "[^2]: `ne.b`",
         "[^3]: atomic.x",
-        "[^4]: `dev.c`; `dev.b`",
+        "[^4]: `ne.c`; `ne.b`",
         "[^5]: `situation 2031-01-01T00:00:00`",
     ]
 
@@ -148,13 +148,13 @@ def test_unreferenced_definitions_follow_and_undefined_references_take_their_lab
     chapter = _chapter(
         1,
         FIRST,
-        "B.[^situation 2030-07-01T00:00:00] Then [^9].\n\n[^1]: `dev.a`\n[^2]: `dev.b`\n",
+        "B.[^situation 2030-07-01T00:00:00] Then [^9].\n\n[^1]: `ne.a`\n[^2]: `ne.b`\n",
     )
 
     assembly = assemble([chapter], PLAN, generated=GENERATED, version="0.1.0")
 
     assert "B.[^1] Then [^2]." in assembly.history
-    assert assembly.history.endswith("[^1]: situation 2030-07-01T00:00:00\n[^2]: 9\n[^3]: `dev.a`\n[^4]: `dev.b`\n")
+    assert assembly.history.endswith("[^1]: situation 2030-07-01T00:00:00\n[^2]: 9\n[^3]: `ne.a`\n[^4]: `ne.b`\n")
     audit = assembly.manifest["audit"]
     assert audit["undefined"] == [
         {"chapter": 1, "footnote": 1, "label": "situation 2030-07-01T00:00:00"},
@@ -193,10 +193,10 @@ def test_citations_are_the_backticked_spans_else_the_listed_parts(definition: st
 
 def test_citable_ids_are_the_chapter_package_entries_and_its_situations() -> None:
     assert citable(SECOND) == {
-        "dev.c",
-        "dev.uncited",
-        "dev.b",
-        "dev.a",
+        "ne.c",
+        "ne.uncited",
+        "ne.b",
+        "ne.a",
         "situation 2030-07-01T00:00:00",
         "situation 2031-01-01T00:00:00",
     }
@@ -206,12 +206,12 @@ def test_the_audit_checks_each_citation_against_its_own_chapter_package() -> Non
     first = _chapter(
         1,
         FIRST,
-        "A.[^1] B.[^2]\n\n[^1]: `dev.a`; `atomic.x`; `nation:1`\n[^2]: `dev.c`; `situation 2030-07-01T00:00:00`\n",
+        "A.[^1] B.[^2]\n\n[^1]: `ne.a`; `atomic.x`; `nation:1`\n[^2]: `ne.c`; `situation 2030-07-01T00:00:00`\n",
     )
     second = _chapter(
         2,
         SECOND,
-        "C.[^1] B again.[^2]\n\n[^1]: `dev.c`; `dev.a@2030-01-01`\n[^2]: `dev.b`; `situation 2030-01-01T00:00:00`\n",
+        "C.[^1] B again.[^2]\n\n[^1]: `ne.c`; `ne.a@2030-01-01`\n[^2]: `ne.b`; `situation 2030-01-01T00:00:00`\n",
     )
 
     assembly = assemble([first, second], PLAN, generated=GENERATED, version="0.1.0")
@@ -219,28 +219,28 @@ def test_the_audit_checks_each_citation_against_its_own_chapter_package() -> Non
     audit = assembly.manifest["audit"]
     assert audit["unmatched"] == [
         {"chapter": 1, "footnote": 1, "id": "nation:1"},
-        {"chapter": 1, "footnote": 2, "id": "dev.c"},
-        {"chapter": 2, "footnote": 3, "id": "dev.a@2030-01-01"},
+        {"chapter": 1, "footnote": 2, "id": "ne.c"},
+        {"chapter": 2, "footnote": 3, "id": "ne.a@2030-01-01"},
         {"chapter": 2, "footnote": 4, "id": "situation 2030-01-01T00:00:00"},
     ]
-    # dev.b is cited only by the later chapter, through continuity; dev.minor is below major.
-    assert audit["uncited"] == [{"chapter": 2, "id": "dev.uncited", "significance": "major"}]
+    # ne.b is cited only by the later chapter, through continuity; ne.minor is below major.
+    assert audit["uncited"] == [{"chapter": 2, "id": "ne.uncited", "significance": "major"}]
     assert (audit["footnotes"], audit["cited_ids"]) == (4, 9)
     assert assembly.findings == {"unmatched": 4, "uncited": 1}
 
 
 def test_a_wave_member_is_citable_but_never_reported_uncited() -> None:
-    package = _package(["2030-01-01T00:00:00", "2030-07-01T00:00:00"], [("dev.wave", "major")])
-    package["narrative"].append({"id": "dev.member", "significance": "major", "member_of": "dev.wave"})
+    package = _package(["2030-01-01T00:00:00", "2030-07-01T00:00:00"], [("ne.wave", "major")])
+    package["narrative"].append({"id": "ne.member", "significance": "major", "member_of": "ne.wave"})
 
     assembly = assemble(
-        [_chapter(1, package, "A wave.[^1]\n\n[^1]: `dev.wave`; `dev.member`\n")],
+        [_chapter(1, package, "A wave.[^1]\n\n[^1]: `ne.wave`; `ne.member`\n")],
         PLAN,
         generated=GENERATED,
         version="0.1.0",
     )
 
-    assert "dev.member" in citable(package)
+    assert "ne.member" in citable(package)
     assert assembly.manifest["audit"]["unmatched"] == [] and assembly.manifest["audit"]["uncited"] == []
 
 

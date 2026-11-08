@@ -2,75 +2,21 @@ from __future__ import annotations
 
 import pytest
 
-from tinarrative.narrative.evidence import is_evidence
-
-EVIDENCE = [
-    "faction.hab_destruction_recorded",
-    "faction.combat_recorded",
-    "faction.battle_outcome",
-    "hab.destroyed",
-    "faction.first_hab_on_body",
-    "notification.LogSpaceBattleTakesPlace",
-    "notification.LogHabDestroyed",
-    "region.nation_changed",
-    "nation.territory_gained",
-    "nation.territory_lost",
-    "nation.independence",
-    "nation.unification",
-    "nation.annexation",
-    "war.appeared",
-    "war.disappeared",
-    "war.last_fighting_changed",
-    "war.alliance_changed",
-    "federation.appeared",
-    "federation.disappeared",
-    "federation.members_changed",
-    "federation.renamed",
-    "nation.renamed",
-    "nation.disappeared",
-    "campaign.global_milestone_recorded",
-    "technology.completed",
-    "faction.project_completed",
-    "faction.transaction_recorded",
-    "councilor.faction_changed",
-    "councilor.detaining_faction_changed",
-    "councilor.disappeared",
-    "nation.statistic_shifted",
-    "nation.band_crossed",
-    "nation.population_changed",
-    "nation.pcgdp_trend",
-    "nation.space_assets_changed",
-    "nation.nuclear_program_changed",
-    "nation.relation_changed",
-]
-BOOKKEEPING = [
-    "nation.rank_changed",
-    "army.appeared",
-    "army.deployment_type_changed",
-    "control_point.controller_changed",
-    "control_point.loss_recorded",
-    "control_point.appeared",
-    "control_point.disappeared",
-    "faction.nation_control_changed",
-    "nation.executive_change_recorded",
-    "fleet.disappeared",
-    "hab.appeared",
-    "hab.disappeared",
-    "nation.claims_changed",
-    "nation.unrest_attempts_changed",
-    "nation.appeared",
-    "nation.breakaway_parent_changed",
-    "war.attacker_changed",
-    "war.defending_alliance_changed",
-    "ship.appeared",
-]
+# The describe templates are the one registry of every known event type (as in test_significance.py).
+from tinarrative.analyzers.render import _TEMPLATES
+from tinarrative.narrative.evidence import EVIDENCE_PREFIXES, NARRATOR_EVIDENCE, is_evidence
 
 
-@pytest.mark.parametrize("event_type", EVIDENCE)
-def test_a_fact_no_narrative_event_carries_is_evidence(event_type: str) -> None:
-    assert is_evidence(event_type)
+def test_every_evidence_type_is_a_known_type() -> None:
+    assert NARRATOR_EVIDENCE <= set(_TEMPLATES), sorted(NARRATOR_EVIDENCE - set(_TEMPLATES))
+    for prefix in EVIDENCE_PREFIXES:
+        assert any(event_type.startswith(prefix) for event_type in _TEMPLATES), prefix
 
 
-@pytest.mark.parametrize("event_type", BOOKKEEPING)
+@pytest.mark.parametrize(
+    "event_type",
+    ["nation.rank_changed", "control_point.controller_changed", "army.appeared", "ship.appeared", "hab.appeared"],
+)
 def test_what_a_narrative_event_summarizes_is_not_evidence(event_type: str) -> None:
+    assert event_type in _TEMPLATES
     assert not is_evidence(event_type)

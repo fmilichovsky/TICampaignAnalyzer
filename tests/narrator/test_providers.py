@@ -386,7 +386,8 @@ def test_endpoint_resolves_defaults_and_the_key() -> None:
         (
             {"provider": "ollama", "model": "m", "max_input_tokens": 30_000, "context_window": 32_768},
             {},
-            "max_input_tokens 30000 plus max_output_tokens 16000 is 46000, over context_window 32768",
+            f"plus max_output_tokens {NarratorSettings().max_output_tokens} is "
+            f"{30_000 + NarratorSettings().max_output_tokens}, over context_window 32768",
         ),
     ],
 )

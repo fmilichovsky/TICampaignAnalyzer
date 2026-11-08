@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+
+import pytest
 
 from tests.analyzers.support import (
     AFTER,
@@ -188,24 +190,28 @@ def moved_point() -> Scenario:
     return control_pair(["15", "15", "16"], ["16", "15", "16"], moved_point="11")
 
 
-SCENARIOS = (
-    executive_flip,
-    plurality_flip,
-    plurality_tie,
-    sole_handover,
-    sole_gained,
-    recorded_takeover,
-    disagreeing_record,
-    unresolved_point,
-)
+SCENARIOS: dict[str, Callable[[], Scenario]] = {
+    scenario.__name__: scenario
+    for scenario in (
+        executive_flip,
+        plurality_flip,
+        plurality_tie,
+        sole_handover,
+        sole_gained,
+        recorded_takeover,
+        disagreeing_record,
+        unresolved_point,
+        moved_point,
+    )
+}
 
 
 # --- Tests ------------------------------------------------------------------------------------------------
 
 
-def test_every_scenario_is_traceable() -> None:
-    for scenario in SCENARIOS:
-        assert_traceable(scenario())
+@pytest.mark.parametrize("name", sorted(SCENARIOS))
+def test_every_scenario_is_traceable(name: str) -> None:
+    assert_traceable(SCENARIOS[name]())
 
 
 def test_an_executive_seat_changing_hands_is_the_executive_scope_only() -> None:

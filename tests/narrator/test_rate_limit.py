@@ -43,6 +43,9 @@ def test_token_limit_waits_until_reserved_tokens_expire() -> None:
     limiter.acquire(40)
 
     assert time.waits == [60.0]
+
+
+def test_the_estimate_counts_characters_per_token_plus_the_output_reservation() -> None:
     assert estimate_tokens("1234", "123456", 2, 10) == 15
 
 

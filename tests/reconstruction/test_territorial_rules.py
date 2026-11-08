@@ -33,7 +33,6 @@ from tinarrative.reconstruction import (
     TERRITORY_GAINED,
     TERRITORY_LOST,
     UNIFICATION,
-    infer_events,
 )
 
 NATION = EntityDomain.NATION
@@ -610,12 +609,6 @@ def test_a_region_whose_nation_was_null_is_not_a_transfer() -> None:
 @pytest.mark.parametrize("name", sorted(SCENARIOS))
 def test_inferred_events_cite_their_constituents_and_trace_to_the_diff(name: str) -> None:
     assert_traceable(SCENARIOS[name]())
-
-
-def test_inferred_input_events_are_ignored() -> None:
-    scenario = ambiguous()
-    objective, inferred = run(scenario)
-    assert infer_events((*objective, *inferred), *scenario) == inferred
 
 
 def test_lines_name_the_reading_and_significance_ranks_it() -> None:

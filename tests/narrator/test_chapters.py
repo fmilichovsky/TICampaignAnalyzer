@@ -17,7 +17,6 @@ from tinarrative.config import NarratorSettings
 from tinarrative.narrator.chapters import (
     ChapterPlan,
     OverBudget,
-    _Planner,
     base_options,
     derive_period,
     estimate,
@@ -148,7 +147,7 @@ def _quarterly(padding: dict[int, int] | None = None) -> dict[str, Any]:
     padding = padding or {}
     narrative = [
         _narrative_event(
-            f"dev{position}@{QUARTERS[position + 1]}",
+            f"ne{position}@{QUARTERS[position + 1]}",
             QUARTERS[position],
             QUARTERS[position + 1],
             intervals=(QUARTERS[position + 1],),
@@ -238,7 +237,7 @@ def _monthly(padding: int) -> dict[str, Any]:
     """One quarter of three monthly intervals, each holding a narrative event of ``padding`` characters."""
     narrative = [
         _narrative_event(
-            f"dev{position}@{MONTHS[position + 1]}", MONTHS[position], MONTHS[position + 1], padding=padding
+            f"ne{position}@{MONTHS[position + 1]}", MONTHS[position], MONTHS[position + 1], padding=padding
         )
         for position in range(3)
     ]
@@ -268,15 +267,18 @@ def test_an_interval_is_labelled_by_its_closing_save() -> None:
 
 
 def test_a_narrative_event_is_filed_by_a_recorded_start_else_by_its_end() -> None:
-    dates = ["2026-11-01T00:00:00", "2027-01-01T00:00:00", "2027-04-01T00:00:00", "2027-07-01T00:00:00"]
-    narrative = [
-        _narrative_event("interval", dates[1], dates[2], start_basis="interval"),
-        _narrative_event("record", dates[1], dates[2], start_basis="record"),
-        _narrative_event("known", dates[0], dates[3], start_basis="interval"),
+    package = _quarterly({position: 20_000 for position in range(4)})
+    start = "2032-05-15T00:00:00"
+    package["narrative"][:0] = [
+        _narrative_event("recorded", start, QUARTERS[3], start_basis="record"),
+        _narrative_event("interval", start, QUARTERS[3], start_basis="interval"),
     ]
-    planner = _Planner(_package(dates, narrative), {"period": "quarter"}, NarratorSettings(), None, True)
 
-    assert planner.starts == [1, 1, 2]
+    plan = _plan(package, _budget(30_000))
+
+    filed = {event["id"]: index for index in range(len(plan.chapters)) for event in _embedded(plan, index)["narrative"]}
+    assert plan.chapters[filed["recorded"]].covers == (QUARTERS[1], QUARTERS[2])
+    assert plan.chapters[filed["interval"]].covers == (QUARTERS[2], QUARTERS[3])
 
 
 def test_an_interval_that_cannot_fit_stops_the_plan_with_the_budget_it_needs() -> None:
@@ -296,7 +298,7 @@ def test_the_atomic_stream_keeps_the_constituents_followed_transitively() -> Non
     date = QUARTERS[1]
     package = _package(
         QUARTERS[:2],
-        [_narrative_event(f"dev@{date}", QUARTERS[0], date, constituents=(f"inferred@{date}",))],
+        [_narrative_event(f"ne@{date}", QUARTERS[0], date, constituents=(f"inferred@{date}",))],
         {0: [_atomic(f"objective@{date}"), _atomic(f"stray@{date}")]},
     )
     package["intervals"][0]["inferred"] = [_atomic(f"inferred@{date}", constituents=(f"objective@{date}",))]
@@ -310,7 +312,7 @@ def test_the_atomic_stream_keeps_the_constituents_followed_transitively() -> Non
 
 def test_situations_keep_the_referenced_nations_and_the_largest_economies() -> None:
     roles = [{"role": "target", "entity": {"ref": "nation:3", "name": "Eastland"}}]
-    package = _package(QUARTERS[:3], [_narrative_event("dev", QUARTERS[0], QUARTERS[1], roles=roles)])
+    package = _package(QUARTERS[:3], [_narrative_event("ne", QUARTERS[0], QUARTERS[1], roles=roles)])
 
     embedded = _embedded(_plan(package, replace(NarratorSettings(), top_economies=1)), 0)
 
@@ -335,7 +337,7 @@ def _listed(embedded: dict[str, Any]) -> list[list[str]]:
 
 
 def test_a_nation_without_regions_takes_no_economy_slot() -> None:
-    package = _landless(_package(QUARTERS[:3], [_narrative_event("dev", QUARTERS[0], QUARTERS[1])]), "nation:1")
+    package = _landless(_package(QUARTERS[:3], [_narrative_event("ne", QUARTERS[0], QUARTERS[1])]), "nation:1")
 
     embedded = _embedded(_plan(package, replace(NarratorSettings(), top_economies=1)), 0)
 
@@ -345,7 +347,7 @@ def test_a_nation_without_regions_takes_no_economy_slot() -> None:
 def test_a_nation_without_regions_stays_when_a_narrative_event_of_the_chapter_names_it() -> None:
     roles = [{"role": "target", "entity": {"ref": "nation:3", "name": "Eastland"}}]
     package = _landless(
-        _package(QUARTERS[:3], [_narrative_event("dev", QUARTERS[0], QUARTERS[1], roles=roles)]), "nation:3"
+        _package(QUARTERS[:3], [_narrative_event("ne", QUARTERS[0], QUARTERS[1], roles=roles)]), "nation:3"
     )
 
     embedded = _embedded(_plan(package, replace(NarratorSettings(), top_economies=1)), 0)
@@ -359,13 +361,13 @@ def test_a_nation_without_regions_named_only_by_an_earlier_digest_is_left_out() 
 
     embedded = _embedded(_plan(package, _budget(30_000, top_economies=1)), 1)
 
-    assert [digest["id"] for digest in embedded["continuity"]["earlier"]] == [f"dev0@{QUARTERS[1]}"]
+    assert [digest["id"] for digest in embedded["continuity"]["earlier"]] == [f"ne0@{QUARTERS[1]}"]
     assert _listed(embedded) == [["nation:1"], ["nation:1"]]
     assert "nation:3" in {entry["ref"] for entry in embedded["glossary"]}
 
 
 def test_ally_refs_reach_the_chapter_glossary() -> None:
-    package = _package(QUARTERS[:3], [_narrative_event("dev", QUARTERS[0], QUARTERS[1])])
+    package = _package(QUARTERS[:3], [_narrative_event("ne", QUARTERS[0], QUARTERS[1])])
     for save in package["saves"]:
         save["situation"]["nations"][0]["allies"] = ["nation:2"]
 
@@ -396,7 +398,7 @@ def test_continuity_carries_running_narrative_events_in_full_and_recalls_the_res
     second = _embedded(plan, 1)["continuity"]
     assert [event["id"] for event in second["continuing"]] == ["open", "long"]
     assert second["continuing"][0] == package["narrative"][0]
-    assert [event["id"] for event in second["earlier"]] == ["defining", f"dev0@{QUARTERS[1]}"]
+    assert [event["id"] for event in second["earlier"]] == ["defining", f"ne0@{QUARTERS[1]}"]
     assert second["earlier"][0] == {
         "id": "defining",
         "event_type": "faction.takeover",
@@ -410,8 +412,8 @@ def test_continuity_carries_running_narrative_events_in_full_and_recalls_the_res
     assert [event["id"] for event in third["earlier"]] == [
         "long",
         "defining",
-        f"dev0@{QUARTERS[1]}",
-        f"dev1@{QUARTERS[2]}",
+        f"ne0@{QUARTERS[1]}",
+        f"ne1@{QUARTERS[2]}",
     ]
     assert (plan.chapters[2].continuing, plan.chapters[2].recalled) == (1, 4)
 
@@ -437,7 +439,7 @@ def test_the_recall_keeps_the_most_significant_then_the_latest() -> None:
     plan = _plan(package, _budget(30_000, recalled_narrative_events=2))
 
     last = _embedded(plan, 3)["continuity"]
-    assert [event["id"] for event in last["earlier"]] == ["defining", f"dev2@{QUARTERS[3]}"]
+    assert [event["id"] for event in last["earlier"]] == ["defining", f"ne2@{QUARTERS[3]}"]
     assert last["earlier_omitted"] == 2
     off = _embedded(_plan(package, _budget(30_000, recalled_narrative_events=0)), 3)["continuity"]
     assert (off["earlier"], off["earlier_omitted"]) == ([], 4)
@@ -449,7 +451,7 @@ def test_an_undated_narrative_event_belongs_to_its_first_interval() -> None:
 
     plan = _plan(package, _budget(30_000))
 
-    assert [event["id"] for event in _embedded(plan, 2)["narrative"]] == [f"dev2@{QUARTERS[3]}", "undated"]
+    assert [event["id"] for event in _embedded(plan, 2)["narrative"]] == [f"ne2@{QUARTERS[3]}", "undated"]
     assert sum(chapter.narrative_events for chapter in plan.chapters) == len(package["narrative"])
 
 
@@ -493,7 +495,7 @@ def test_the_period_follows_the_campaign_span(last: str, period: str) -> None:
 def _dated(dates: list[str]) -> dict[str, Any]:
     """One narrative event per interval, filed by its recorded start."""
     narrative = [
-        _narrative_event(f"dev{position}@{dates[position + 1]}", dates[position], dates[position + 1])
+        _narrative_event(f"ne{position}@{dates[position + 1]}", dates[position], dates[position + 1])
         for position in range(len(dates) - 1)
     ]
     return _package(dates, narrative)

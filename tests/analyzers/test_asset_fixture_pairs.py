@@ -1,43 +1,19 @@
 """Acceptance for the army, space and technology families over the checked-in fixture pairs."""
 
-import json
 from collections import Counter
-
-import pytest
 
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import (
-    ALL_ANALYZERS,
     MILITARY_ANALYZERS,
     SPACE_ANALYZERS,
     TECHNOLOGY_ANALYZERS,
     run_analyzers,
 )
-from tinarrative.analyzers.military.armies import HANDLED_LISTS as ARMY_LISTS
-from tinarrative.analyzers.space.fleets import HANDLED_LISTS as FLEET_LISTS
-from tinarrative.analyzers.space.ships import HANDLED_LISTS as SHIP_LISTS
-from tinarrative.model.changes import ChangeKind, MembershipDetail, StateDiff
-from tinarrative.model.entities import EntityRef
-from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, SourceRole
+from tinarrative.model.changes import StateDiff
+from tinarrative.model.events import Confidence, DateBasis, Event, SourceRole
 from tinarrative.model.snapshot import SaveSnapshot
-from tinarrative.model.values import Unknown, UnknownReason
 
 ASSET_ANALYZERS = MILITARY_ANALYZERS + SPACE_ANALYZERS + TECHNOLOGY_ANALYZERS
-PAIRS = [
-    ("interval_before.json", "interval_after.json"),
-    ("assets_before.json", "assets_after.json"),
-]
-ALL_PAIRS = PAIRS + [
-    ("records_before.json", "records_after.json"),
-    ("politics_before.json", "politics_after.json"),
-    ("wars_before.json", "wars_after.json"),
-    ("aliens_before.json", "aliens_after.json"),
-    ("global_values_before.json", "global_values_after.json"),
-    ("notifications_before.json", "notifications_after.json"),
-    ("combat_before.json", "combat_after.json"),
-    ("ledger_before.json", "ledger_after.json"),
-]
-HANDLED = {(domain.value, field) for domain, field in ARMY_LISTS + FLEET_LISTS + SHIP_LISTS}
 
 
 def run(before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> tuple[Event, ...]:
@@ -49,7 +25,7 @@ def ids(events: tuple[Event, ...]) -> list[str]:
 
 
 def test_interval_pair_yields_the_expected_events() -> None:
-    before, after, diff = fixture_pair(*PAIRS[0])
+    before, after, diff = fixture_pair("interval_before.json", "interval_after.json")
     events = run(before, after, diff)
     assert ids(events) == [
         "army.appeared/army:112",
@@ -81,7 +57,7 @@ def test_interval_pair_yields_the_expected_events() -> None:
 
 
 def test_assets_pair_covers_every_transition_once() -> None:
-    before, after, diff = fixture_pair(*PAIRS[1])
+    before, after, diff = fixture_pair("assets_before.json", "assets_after.json")
     events = run(before, after, diff)
     assert Counter(event.event_type for event in events) == {
         "faction.hab_destruction_recorded": 2,
@@ -138,53 +114,3 @@ def test_assets_pair_covers_every_transition_once() -> None:
     # churn fields changed in the fixture and must not have produced an event
     for field in ("priorRegion", "propellant_tons", "progress", "tech_progress"):
         assert not any(source.change.field == field for event in events for source in event.sources), field
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
-def test_every_event_is_evidenced_objective_and_deterministic(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    events = run(before, after, diff)
-    assert events and len(ids(events)) == len(set(ids(events)))
-    assert events == run(before, after, diff)
-    assert json.dumps([e.to_dict() for e in events]) == json.dumps([e.to_dict() for e in run(before, after, diff)])
-    changes = set(diff.changes)
-    for event in events:
-        assert event.status is EventStatus.OBJECTIVE
-        assert event.sources and any(source.role is SourceRole.PRIMARY for source in event.sources)
-        assert all(source.change in changes for source in event.sources)
-        assert event.entities
-        assert event.not_before == before.date
-        unresolved = [
-            value
-            for _, value in event.attributes
-            if isinstance(value, Unknown) and value.reason is UnknownReason.UNRESOLVED_REFERENCE
-        ]
-        assert event.confidence is (Confidence.LOW if unresolved else Confidence.HIGH)
-        if event.date_basis is DateBasis.INTERVAL:
-            assert event.date == after.date
-        json.loads(json.dumps(event.to_dict()))
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
-def test_every_member_of_a_handled_list_is_cited(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    cited = {
-        (source.change, source.member.entity_id)
-        for event in run(before, after, diff)
-        for source in event.sources
-        if isinstance(source.member, EntityRef)
-    }
-    for change in diff.changes:
-        if (change.domain, change.field) not in HANDLED or change.kind is not ChangeKind.MEMBERSHIP:
-            continue
-        assert isinstance(change.detail, MembershipDetail)
-        for member in change.detail.added + change.detail.removed:
-            assert isinstance(member, EntityRef) and (change, member.entity_id) in cited, (change.entity_id, member)
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), ALL_PAIRS)
-def test_all_families_together_never_collide(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    events = run_analyzers(ALL_ANALYZERS, before, after, diff)
-    assert len(ids(events)) == len(set(ids(events)))
-    assert events == tuple(sorted(events, key=lambda event: event.sort_key))

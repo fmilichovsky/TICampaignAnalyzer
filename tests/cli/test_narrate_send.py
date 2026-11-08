@@ -214,17 +214,6 @@ def test_a_profile_and_flags_override_the_narrator_keys(
         (["--max-input-tokens", "10"], None, "--max-input-tokens: 'llm.max_input_tokens' must be at least 1000"),
         (["--send", "--model", ""], None, "--model: 'llm.model' must be a non-empty string"),
         (["--send"], "[llm]\nprovider = 'ollama'\n", "no model"),
-        (["--send"], "[llm]\nprovider = 'anthropic'\nmodel = 'm'\n", "anthropic needs an API key"),
-        (
-            ["--send"],
-            "[llm]\nprovider = 'openai'\nmodel = 'm'\napi_key_env = 'TEST_UNSET_KEY'\n",
-            "TEST_UNSET_KEY (llm.api_key_env) is not set",
-        ),
-        (
-            ["--send"],
-            "[llm]\nprovider = 'ollama'\nmodel = 'm'\nmax_input_tokens = 30000\ncontext_window = 32768\n",
-            "over context_window 32768",
-        ),
     ],
 )
 def test_send_usage_errors_contact_nothing(

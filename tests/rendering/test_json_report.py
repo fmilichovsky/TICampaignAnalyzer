@@ -7,6 +7,8 @@ from typing import Any
 
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
+
+# Private seam: the slimming rules are intricate enough to need cases the CLI goldens cannot isolate.
 from tinarrative.rendering.json_report import _drop_shift_events, _entry, _narrator_package, _slim, _slim_situations
 
 ALLY = {"ref": "nation:4", "state_type": "TINationState", "confidence": "in_save_id", "name": "Fixture Ally"}
