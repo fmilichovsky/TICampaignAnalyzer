@@ -1,4 +1,4 @@
-"""The space narrative rules: campaigns, colonisation, milestones, fleet buildups. See architecture 11.3.
+"""The space narrative rules: campaigns, colonisation, milestones, fleet buildups.
 
 No rule names a motive: a campaign is the pair's own recorded losses and combats.
 """
@@ -71,7 +71,7 @@ def _dedupe(events: Sequence[Event]) -> list[Event]:
 
 
 def _ledger(stream: Sequence[Event], label: str, faction: EntityId, low: str | None, high: str | None) -> list[Event]:
-    """Empty unless no other faction carries ``label`` in the window (architecture 11.3, bound 4)."""
+    """Empty unless no other faction carries ``label`` in the window (ADR-0010, bound 4)."""
     labelled = [
         event
         for event in by_type(stream, TRANSACTION)

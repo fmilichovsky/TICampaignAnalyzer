@@ -1,7 +1,7 @@
 """A faction's resource ledger (``TIFactionState.Transactions``) as dated mission and operation charges.
 
 A charge is made at assignment, before the outcome, and proves neither success nor a target: the events are
-corroborating and dating evidence only (architecture 11.3). Entries are read by date from the later snapshot, with
+corroborating and dating evidence only (ADR-0010). Entries are read by date from the later snapshot, with
 the ledger's ``records`` change as the cited source; the evidence that ``(before, after]`` entries are reliably
 present is in ``higher-level-event-sources.md``. Labels are game identifiers and may appear in IDs and lines; amounts
 and labels are never logged.

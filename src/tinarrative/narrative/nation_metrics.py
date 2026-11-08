@@ -1,5 +1,4 @@
-"""The nation metric narrative rules: band shifts, population collapse, per-capita GDP trajectory, nuclear arcs. See
-architecture 11.3.
+"""The nation metric narrative rules: band shifts, population collapse, per-capita GDP trajectory, nuclear arcs.
 
 No rule names why a value changed: the causes stay evidence for the narrator.
 """

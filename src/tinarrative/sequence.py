@@ -1,4 +1,4 @@
-"""Ordered save sequences: the per-interval pipeline run over every pair of consecutive saves (architecture 15).
+"""Ordered save sequences: the per-interval pipeline run over every pair of consecutive saves (ADR-0012).
 
 Saves are ordered by serialized game time only, never by file name or modification time
 (``docs/game-data-notes/chronology-and-deduplication.md``); byte-identical saves are merged. Consecutive intervals

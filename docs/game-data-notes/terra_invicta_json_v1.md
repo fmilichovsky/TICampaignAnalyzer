@@ -43,5 +43,5 @@ A new game build needs no parser change: run the [unknowns scan](unknowns/README
 ## Related decoding notes
 
 - [Containers, identity, and references](containers-and-references.md) documents the typed pair-map encoding, empty-container behavior, and ID invariant.
-- [Domain field map](domain-field-map.md) maps observed state types and fields to the architecture's normalized domains without exposing campaign data.
+- [Domain field map](domain-field-map.md) maps observed state types and fields to the normalized domains without exposing campaign data.
 - [State-type inventory](state-type-inventory.md) lists every exact state key in the observed three-save envelope.

@@ -1,5 +1,5 @@
 """``nation.diplomatic_realignment``: a nation formed or broke alliances and rivalries with several partners in a
-period. See architecture 11.3."""
+period."""
 
 from __future__ import annotations
 

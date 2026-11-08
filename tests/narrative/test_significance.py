@@ -303,7 +303,7 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
 
 
 def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
-    assert "faction.transaction_recorded" in BASE  # corroboration only (architecture 11.3)
+    assert "faction.transaction_recorded" in BASE  # corroboration only (ADR-0010)
     assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
 
 

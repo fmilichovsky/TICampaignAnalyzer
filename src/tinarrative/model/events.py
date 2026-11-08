@@ -30,7 +30,7 @@ class Confidence(StrEnum):
 
 
 class Significance(StrEnum):
-    """How much an event matters to a campaign history; independent of confidence (architecture 12).
+    """How much an event matters to a campaign history; independent of confidence (ADR-0011).
 
     Assigned by ``tinarrative.narrative.significance``; ``SIGNIFICANCE_ORDER`` is the ranking. Each level is a fixed
     band of the 0-100 ``Event.score`` (``SCORE_BANDS``).
@@ -93,7 +93,7 @@ UNSCORED: Final = -1
 
 @dataclass(frozen=True)
 class SignificanceBasis:
-    """How a stake moved an event's score: ``score = clamp(base + scale + bonus, 0, 100)`` (architecture 12)."""
+    """How a stake moved an event's score: ``score = clamp(base + scale + bonus, 0, 100)`` (ADR-0011)."""
 
     base: int
     measure: str
@@ -126,7 +126,7 @@ class DateBasis(StrEnum):
 
 
 class Role(StrEnum):
-    """What part an entity plays in a narrative event (architecture 11.2); ``ROLE_ORDER`` is the ranking."""
+    """What part an entity plays in a narrative event (ADR-0009); ``ROLE_ORDER`` is the ranking."""
 
     ACTOR = "actor"
     TARGET = "target"
@@ -200,7 +200,7 @@ class Event:
     ``not_before`` is the date of the interval's earlier snapshot; it and ``date`` may be ``Unknown``.
     ``significance`` and ``score`` are set by the narrative stage; analyzers leave the defaults. A score left
     ``UNSCORED`` becomes the level's base, and one outside the level's band raises ``ValueError``. Only a narrative
-    event (architecture 11.2) has non-empty ``intervals``; for every other event the span, ``open`` and ``roles``
+    event has non-empty ``intervals``; for every other event the span, ``open`` and ``roles``
     fields keep their defaults.
     """
 

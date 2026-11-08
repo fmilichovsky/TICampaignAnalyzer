@@ -1,7 +1,7 @@
 """Building blocks every reconstruction rule shares: evidence bundles, citation and the inferred event itself.
 
-An inferred event cites every source of its constituents, so it never loses the evidence beneath it (architecture
-sections 6 and 10). A fact read from a snapshot alone only qualifies evidence, it is never the evidence.
+An inferred event cites every source of its constituents, so it never loses the evidence beneath it (ADR-0003,
+ADR-0008). A fact read from a snapshot alone only qualifies evidence, it is never the evidence.
 """
 
 from __future__ import annotations

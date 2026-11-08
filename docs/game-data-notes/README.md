@@ -50,7 +50,7 @@ nuclear, space-support and military assets a nation holds.
 [Space assets](space-assets.md) records how habs and ships divide between the
 alien faction and the human factions from the start of a campaign to its late
 game: the evidence behind the space stakes of the entity-scaled significance
-score ([architecture 12](../architecture.md#12-significance)).
+score ([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-stake.md)).
 
 [Factions](factions/) holds the game's own descriptions of the seven human
 factions (ideology, goal, relations). They are game text, not save

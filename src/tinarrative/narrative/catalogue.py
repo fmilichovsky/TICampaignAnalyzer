@@ -1,4 +1,4 @@
-"""The narrative rules ``aggregate`` runs by default. See architecture 11.3."""
+"""The narrative rules ``aggregate`` runs by default."""
 
 from __future__ import annotations
 
