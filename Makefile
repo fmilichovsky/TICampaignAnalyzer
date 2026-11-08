@@ -2,6 +2,7 @@
 
 # Prefer an activated environment, then a Codex or project environment, then PATH.
 PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.venv-codex/bin/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,python)))
+SAMPLE_CAMPAIGNS ?=
 
 .PHONY: install format lint typecheck test check samples package-metrics runtime-metrics
 
@@ -24,7 +25,7 @@ check: format lint typecheck test
 
 # The tests that read the committed benchmark campaigns; see docs/testing.md.
 samples:
-	$(PYTHON) -m pytest -m samples
+	$(PYTHON) -m pytest -m samples --sample-campaigns "$(SAMPLE_CAMPAIGNS)"
 
 # Measure the LLM-bound packages of the benchmark samples with this tree; see benchmarks/README.md.
 package-metrics:
