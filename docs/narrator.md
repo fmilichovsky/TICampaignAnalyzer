@@ -9,21 +9,21 @@ was presented and received, what it may have meant, what an actor may have
 wanted. The result should read as history, not as a report on the package.
 
 Hand the model the JSON of `tinarrative events --narrative --constituents evidence
---format json` with `--min-significance` at the level of the developments the
+--format json` with `--min-significance` at the level of the narrative events the
 history should cover, and a request block as described in the prompt. That
 package carries IDs but no provenance or file paths. Its atomic events are only
-the constituents of the listed developments, whatever their significance, that
-are narrator evidence: they state a fact the development does not carry, while
-bookkeeping the development already sums up (control-point changes behind a
+the constituents of the listed narrative events, whatever their significance, that
+are narrator evidence: they state a fact the narrative event does not carry, while
+bookkeeping the narrative event already sums up (control-point changes behind a
 takeover, fleet and hab presence behind a battle) is left out. Every
 constituent ID resolves in the audit form below; `--constituents all` lists
 them all in the package, and the default `--constituents none` carries
-developments, situations and glossary only. The audit form is the same command
+narrative events, situations and glossary only. The audit form is the same command
 with `--inferred` instead of `--narrative` and no `--min-significance`: it lists
 every atomic and inferred event with its save locations, and a narrative event
 is audited through its constituents
 ([events, narrator package](commands/events.md#narrator-package)). `major` is
-the practical level for a whole campaign; `minor` adds developments such as
+the practical level for a whole campaign; `minor` adds narrative events such as
 fleet buildups and technology milestones, and their constituents with them.
 Citations are one footnote per
 entry, so a sentence is audited through the entry it belongs to. A package
@@ -47,7 +47,7 @@ descriptions change, update the briefs here to match.
 The prompt was shaped by trial runs on a private campaign; the rules in "How to
 read the fields" and "Facts" each answer a failure a trial produced (count
 direction, invented backstory, game keys read as content, seats of government
-derived from region names, interval-dated developments sorted into invented
+derived from region names, interval-dated narrative events sorted into invented
 quarters or sequences, a research milestone told as a deployment, a strike
 between human networks told as an alien one, closing sections in middle
 chapters). Keep it short: a longer rulebook did not buy accuracy on a

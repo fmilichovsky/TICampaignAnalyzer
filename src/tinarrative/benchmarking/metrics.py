@@ -191,7 +191,7 @@ def measure_narration(directory: Path) -> dict[str, Any]:
         per_chapter.append(
             {
                 key: chapter[key]
-                for key in ("index", "part", "developments", "continuing", "recalled", "estimate", "reduction")
+                for key in ("index", "part", "narrative_events", "continuing", "recalled", "estimate", "reduction")
             }
         )
     estimates = [chapter["estimate"] for chapter in chapters]

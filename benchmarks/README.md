@@ -152,7 +152,7 @@ tinarrative benchmark sample protectorate ~/saves --campaign protectorate
 The utility compresses the selected saves, moves them into the sample directory and refreshes `samples.json`. To
 add or refresh a campaign manually:
 
-1. Pick saves that differ in what they exercise: game phase, number of developments, chapter count. Avoid adding a
+1. Pick saves that differ in what they exercise: game phase, number of narrative events, chapter count. Avoid adding a
    campaign that only repeats an existing one. Every campaign multiplies the run time.
 2. Check that none of them carries a machine path or an account identifier. This must print nothing:
 

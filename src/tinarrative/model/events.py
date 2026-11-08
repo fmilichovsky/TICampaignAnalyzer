@@ -41,9 +41,9 @@ class Significance(StrEnum):
     MINOR = "minor"
     """Worth a forensic log line, not a history entry; the default for an unclassified type."""
     MAJOR = "major"
-    """A development a normal campaign history reports."""
+    """A narrative event a normal campaign history reports."""
     CAMPAIGN_DEFINING = "campaign_defining"
-    """A development even a concise summary keeps."""
+    """A narrative event even a concise summary keeps."""
 
     @property
     def rank(self) -> int:
@@ -195,7 +195,7 @@ def _member_key(member: FieldValue | None) -> str:
 
 @dataclass(frozen=True)
 class Event:
-    """A categorized, evidence-backed development; sorted deterministically on construction.
+    """A categorized, evidence-backed narrative event; sorted deterministically on construction.
 
     ``not_before`` is the date of the interval's earlier snapshot; it and ``date`` may be ``Unknown``.
     ``significance`` and ``score`` are set by the narrative stage; analyzers leave the defaults. A score left

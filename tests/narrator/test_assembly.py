@@ -30,7 +30,7 @@ PLAN: dict[str, Any] = {
         "chars_per_token": 3,
         "quarter_span_days": 730,
         "half_span_days": 1825,
-        "recalled_developments": 40,
+        "recalled_narrative_events": 40,
         "top_economies": 10,
     },
     "request": {"period": "half"},
@@ -244,7 +244,7 @@ def test_a_wave_member_is_citable_but_never_reported_uncited() -> None:
     assert assembly.manifest["audit"]["unmatched"] == [] and assembly.manifest["audit"]["uncited"] == []
 
 
-def test_without_footnotes_no_development_is_reported_uncited() -> None:
+def test_without_footnotes_no_narrative_event_is_reported_uncited() -> None:
     plan = {**PLAN, "request": {"period": "half", "citations": "none"}}
 
     assembly = assemble([_chapter(1, FIRST, "Prose only.\n")], plan, generated=GENERATED, version="0.1.0")

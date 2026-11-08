@@ -30,14 +30,14 @@ PROSE = "The Resistance quietly took the capital."
 
 
 def _cited(text: str, user: str, extra: str = "") -> str:
-    """``text`` with one footnote citing every development of the chapter package in ``user``, and ``extra``."""
+    """``text`` with one footnote citing every narrative event of the chapter package in ``user``, and ``extra``."""
     identifiers = [event["id"] for event in chapter_package({"messages": [{"content": user}]})["narrative"]]
     cited = "; ".join([*(f"`{identifier}`" for identifier in identifiers), *([extra] if extra else [])])
     return f"{text}[^1]\n\n[^1]: {cited}\n" if cited else f"{text}\n"
 
 
 class FakeTransport:
-    """Answers Anthropic or Ollama completions by URL, citing the chapter's developments (and ``extra``);
+    """Answers Anthropic or Ollama completions by URL, citing the chapter's narrative events (and ``extra``);
     ``stops`` gives the Anthropic stop reason per call (``end_turn`` when exhausted)."""
 
     def __init__(self, *stops: str) -> None:

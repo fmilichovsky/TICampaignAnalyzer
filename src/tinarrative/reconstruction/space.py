@@ -1,6 +1,6 @@
 """Reconstruction rules for space: hab established, first hab on a body, hab destroyed, battle outcome.
 
-The space analyzers only report presence and log entries; these rules name the development. The joins and their
+The space analyzers only report presence and log entries; these rules name the narrative event. The joins and their
 evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins, hab lifecycle).
 
 - ``hab.established``: a hab's core completed (a hab appears at launch, long before); high, dated by the core's

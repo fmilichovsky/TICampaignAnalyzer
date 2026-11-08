@@ -27,12 +27,13 @@ def test_grouped_settings_and_profile(tmp_path: Path) -> None:
     settings = load_settings(
         write(
             tmp_path,
-            '[events]\nepisode_gap_days=500\ntop_nations=25\n[llm]\nmodel="cloud"\n[llm.profiles.local]\nmodel="local"\n[councilors]\nmin_tenure_days=200\narticle_words=420\n',
+            '[events]\nepisode_gap_days=500\ntop_nations=25\nrecalled_narrative_events=12\n[llm]\nmodel="cloud"\n[llm.profiles.local]\nmodel="local"\n[councilors]\nmin_tenure_days=200\narticle_words=420\n',
         )
     )
     assert settings.narrative.geopolitics.expansion_gap_days == 500
     assert settings.narrative.space.campaign_gap_days == 500
     assert settings.narrative.nation_metrics.ranking_top_n == 20
+    assert settings.narrator.recalled_narrative_events == 12
     assert settings.narrator.with_profile("local").model == "local"
     assert settings.councilors.article_words == 420
     assert settings.councilors.min_tenure_days == 200
@@ -45,7 +46,10 @@ def test_grouped_settings_and_profile(tmp_path: Path) -> None:
         ("[narrative.geopolitics]\n", "narrative"),
         ("[narrator]\n", "narrator"),
         ("[events]\nnope=1\n", "events.nope"),
+        ("[llm]\nrecalled_narrative_events=40\n", "llm.recalled_narrative_events"),
         ("[llm]\nnope=1\n", "llm.nope"),
+        ("[llm]\nrecalled_developments=40\n", "llm.recalled_developments"),
+        ("[events]\nrecalled_developments=40\n", "events.recalled_developments"),
         ("[llm.profiles.local]\ntop_economies=3\n", "top_economies"),
     ],
 )
@@ -59,6 +63,8 @@ def test_event_value_validation(tmp_path: Path) -> None:
         load_settings(write(tmp_path, "[events]\nepisode_gap_days=-1\n"))
     with pytest.raises(ConfigError, match="events.top_nations"):
         load_settings(write(tmp_path, "[events]\ntop_nations=0\n"))
+    with pytest.raises(ConfigError, match="events.recalled_narrative_events"):
+        load_settings(write(tmp_path, "[events]\nrecalled_narrative_events=-1\n"))
 
 
 def test_llm_profile_validation_and_inheritance(tmp_path: Path) -> None:

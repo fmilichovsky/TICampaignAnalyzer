@@ -358,7 +358,7 @@ def _entry(place: _Place) -> FrozenMap:
 class RankingRule:
     """``world.ranking_changed``: nations entered or left the top ``ranking_top_n`` by one metric in one interval.
 
-    An entry the next report reverses is dropped; with no later report it is kept and the development is open.
+    An entry the next report reverses is dropped; with no later report it is kept and the narrative event is open.
     """
 
     settings: NationMetricsSettings

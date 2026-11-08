@@ -77,7 +77,7 @@ BAND_SHIFTS: Mapping[str, str] = {
 }
 
 SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY})
-"""Their ``metric_shifts`` already state a band shift of their nations, so no separate development is built."""
+"""Their ``metric_shifts`` already state a band shift of their nations, so no separate narrative event is built."""
 WAR_CARRIED = frozenset({"unrest", "cohesion"})
 """Statistics a war moves, so a ``war.arc`` naming the nation carries their shifts too."""
 REST_VALUE_FILTERED = frozenset({"unrest", "cohesion"})

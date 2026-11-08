@@ -541,7 +541,7 @@ def statistics(item: Event) -> list[tuple[str, str]]:
     return [(str(dict(entry.items)["nation"].entity_id), str(dict(entry.items)["statistic"])) for entry in entries]  # type: ignore[union-attr]
 
 
-def test_metric_shifts_are_bounded_per_development_and_the_cut_is_counted() -> None:
+def test_metric_shifts_are_bounded_per_narrative_event_and_the_cut_is_counted() -> None:
     stream = [
         *transfer(K1, SOUTH, NORTH, SOUTH_REGION),
         shift(K1, "democracy", before=1.0, after=2.0),

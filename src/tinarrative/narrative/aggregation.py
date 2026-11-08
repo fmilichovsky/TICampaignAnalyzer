@@ -1,4 +1,4 @@
-"""Narrative aggregation: named rules that join the qualified event stream of a sequence into developments.
+"""Narrative aggregation: named rules that join the qualified event stream of a sequence into narrative events.
 
 See architecture 11.1 and 11.2. A rule sees only lower orders, so rules cannot form cycles.
 """

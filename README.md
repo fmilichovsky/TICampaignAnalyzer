@@ -32,7 +32,7 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
   (files, or directories read one level deep) by campaign, order one campaign's saves
   by game time and report the analyzer results (and, with
   `--inferred`, the inferred events; with `--changes`, the literal state changes)
-  of every pair of consecutive saves; with `--narrative`, the developments that span
+  of every pair of consecutive saves; with `--narrative`, the narrative events that span
   intervals (takeovers, wars, federations, expansions, ...), tuned by an optional
   [settings file](docs/configuration.md). This is the only command that reports analysis;
   `narrate` runs the same analysis to build its package.
@@ -95,7 +95,7 @@ measurements for its base and head as comments. See [benchmarks/README.md](bench
 - `diff`: derive literal state transitions.
 - `analyzers`: emit domain-specific atomic events.
 - `reconstruction`: combine evidence into conservative inferred events.
-- `narrative`: group atomic events into narrative developments; per-save situation
+- `narrative`: group atomic events into narrative events; per-save situation
   reports as their context.
 - `narrator`: build the LLM requests (packaged system prompt, request block) from a narrator
   package, cut into chapters under a token budget (`tinarrative narrate`), and assemble the

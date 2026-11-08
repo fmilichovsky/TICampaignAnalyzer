@@ -85,7 +85,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Enrich package data (#243).
   - [x] Fix councilor mission detection (#281).
   - [x] Public visibility in councilor articles (#284).
-- [x] Diplomatic realignments as developments (#173).
+- [x] Diplomatic realignments as narrative events (#173).
 - [ ] Slim down narrative package (#267):
   - [x] Exclude relations and default values (#268).
   - [ ] Reduce carried statistics (#269).
@@ -165,7 +165,7 @@ Tracking #249.
   - [ ] The merger cites everything it causes (#346).
   - [ ] Exclusive constituents: kinds declare them, rule order enforces them (#347).
 - [ ] Narrative-event significance in one place (#349):
-  - [ ] Rename "development" to "narrative event" (#350).
+  - [x] Rename "development" to "narrative event" (#350).
   - [ ] Situation report answers its own questions (#351).
   - [ ] One top-N promotion helper (#352).
   - [ ] One ranking of nations (#353).

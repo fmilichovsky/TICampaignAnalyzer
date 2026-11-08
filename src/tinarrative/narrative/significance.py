@@ -52,7 +52,7 @@ WAR_RELATION = "wars"
 """The ``nation.relation_changed`` relation that names a war; ``allies`` and ``rivals`` are routine diplomacy."""
 
 DISCRETE_STATISTICS = frozenset({"numNuclearWeapons"})
-"""``nation.statistic_shifted`` statistics whose every change is a development: a nuclear arsenal. Other statistics
+"""``nation.statistic_shifted`` statistics whose every change is a narrative event: a nuclear arsenal. Other statistics
 shift past their threshold for routine reasons too (event effects, priorities), so a shift is evidence for the rules
 that explain it and stays trivial on its own."""
 
@@ -65,12 +65,12 @@ _TRIVIAL: tuple[str, ...] = (
     # Organizations are created and removed in bulk.
     "organization.appeared",
     "organization.disappeared",
-    # A band crossing is the evidence a band-shift development is built from; on its own it may be the game
+    # A band crossing is the evidence a band-shift narrative event is built from; on its own it may be the game
     # converging the statistic towards its rest value.
     "nation.band_crossed",
     # A per-capita GDP trend is the evidence an economic trajectory is built from.
     "nation.pcgdp_trend",
-    # A nation's place by a metric moves whenever one of the nations around it changes; the ranking development
+    # A nation's place by a metric moves whenever one of the nations around it changes; the ranking narrative event
     # states the changes of the top.
     "nation.rank_changed",
     # Log housekeeping: the game prunes and rewrites kept entries.
@@ -135,7 +135,7 @@ _MINOR: tuple[str, ...] = (
     "nation.unrest_attempts_changed",
     "nation.new_government_recorded",
     # A dated mission or operation charge from the resource ledger: corroboration and dating for an effect that
-    # is evidenced elsewhere, never a development on its own (architecture 11.3).
+    # is evidenced elsewhere, never a narrative event on its own (architecture 11.3).
     "faction.transaction_recorded",
     # A nuclear program or policy flag says what a nation may do, not what it did; the nuclear arcs cite the
     # program as the start of an arsenal.
@@ -227,7 +227,7 @@ def _side(event: Event) -> Side | None:
 
 
 def _councilor_presence(event: Event, lookup: Lookup) -> Significance | None:
-    """Recruit-pool churn is trivial; a councilor with a faction that is gone is a development.
+    """Recruit-pool churn is trivial; a councilor with a faction that is gone is a narrative event.
 
     A null faction marks the recruit pool (notes, "Recruit pool").
     """

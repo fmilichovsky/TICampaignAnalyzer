@@ -2,7 +2,7 @@
   "max_file_bytes": 5000000,
   "campaigns": {
     "protectorate-short": {
-      "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political developments that needs several chapters.",
+      "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political narrative events that needs several chapters.",
       "files": {
         "Protectorate00087_2026-2-13.json.xz": {
           "sha256": "450fd8c47b384f06df412d0c5e21069916cc71974a51e18eb95a668a0f78fd5f",
@@ -32,7 +32,7 @@
       }
     },
     "resist": {
-      "description": "Resistance campaign, late game: 5 saves from 2045-08 to 2046-10; large saves, few developments, fits one chapter at the default budget.",
+      "description": "Resistance campaign, late game: 5 saves from 2045-08 to 2046-10; large saves, few narrative events, fits one chapter at the default budget.",
       "files": {
         "Resistsave00079_2045-8-1.json.xz": {
           "sha256": "8a2b05bc7c33390d13c7a43c0e30a1f305e66dbb86022980a52ab3f464db0e74",
@@ -62,7 +62,7 @@
       }
     },
     "protectorate": {
-      "description": "Approximately 6.5 years of development from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
+      "description": "Approximately 6.5 years of campaign time from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
       "files": {
         "Autosave3.json.xz": {
           "sha256": "e3c7567f846f8d240db75d9c3fee5fbdafc8823102fefd5b8283c3604abdc931",

@@ -156,9 +156,9 @@ def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_th
     assert only(stream, GroupRule("d", "nation.changed", significance=Significance.CAMPAIGN_DEFINING)).score == 87
 
     scaled = [changed(K1, significance=Significance.CAMPAIGN_DEFINING, score=80), changed(K2)]
-    development = only(scaled, GroupRule("m", "nation.changed", significance=Significance.MAJOR))
-    assert (development.score, development.significance) == (80, Significance.CAMPAIGN_DEFINING)
-    assert development.to_dict()["score"] == 80
+    narrative_event = only(scaled, GroupRule("m", "nation.changed", significance=Significance.MAJOR))
+    assert (narrative_event.score, narrative_event.significance) == (80, Significance.CAMPAIGN_DEFINING)
+    assert narrative_event.to_dict()["score"] == 80
 
     low = [
         changed(K1, significance=Significance.MAJOR, score=50),

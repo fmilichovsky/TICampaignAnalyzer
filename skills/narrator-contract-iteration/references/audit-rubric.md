@@ -28,12 +28,12 @@ save locations.  It does not license claims absent from the narrative package.
    must retain its confidence and be recognisable as reconstruction.  A
    conjecture must not become an established premise later.
 4. Check contract-specific hazards: interval versus record dates; `open`
-   developments; unknown versus zero; causal language; the meaning of control
+   narrative events; unknown versus zero; causal language; the meaning of control
    changes, vanished assets, battle outcomes, and global counters; public
    treatment of human-faction space assets; and facts introduced by headings
    or closing summaries.
 5. Check coverage only against the visible `major` and
-   `campaign_defining` narrative events.  Report a missing development when it
+   `campaign_defining` narrative events.  Report a missing narrative event when it
    is absent without a credible proportionality reason; do not demand a
    mention of every atomic event or filtered event.
 
@@ -52,7 +52,7 @@ Findings
   Suggested layer: prompt | request builder | package/pipeline | narrator output
 
 Coverage
-- covered major developments: ...
+- covered major narrative events: ...
 - notable omissions: ...
 
 Limits and cautions
@@ -62,7 +62,7 @@ Limits and cautions
 - **critical**: invented campaign fact, a private-audience breach, or a claim
   whose cited evidence resolves to something materially different.
 - **major**: unsupported or over-certain factual claim, wrong date precision,
-  causation presented as fact, or a conspicuous omitted major development.
+  causation presented as fact, or a conspicuous omitted major narrative event.
 - **minor**: malformed/missing citation for an otherwise supported claim,
   imprecise but non-material phrasing, or a local contract/style concern.
 - **caution**: an ambiguity or thin record that the auditor cannot resolve;
