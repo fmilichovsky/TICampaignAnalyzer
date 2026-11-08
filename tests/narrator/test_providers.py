@@ -356,13 +356,20 @@ def test_endpoint_resolves_defaults_and_the_key() -> None:
         settings(provider="anthropic", model="m", api_key_env="MY_KEY", max_input_tokens=10_000), {"MY_KEY": "secret"}
     )
 
-    assert resolved == Endpoint("anthropic", "https://api.anthropic.com", "secret", 600.0, 26_000)
+    defaults = NarratorSettings()
+    assert resolved == Endpoint(
+        "anthropic", "https://api.anthropic.com", "secret", 600.0, 10_000 + defaults.max_output_tokens
+    )
     assert endpoint(settings(provider="ollama", model="m", base_url="http://box:11434/"), {}).base_url == (
         "http://box:11434"
     )
     assert endpoint(settings(provider="openai", model="m", base_url="http://127.0.0.1:1234/v1"), {}).key is None
     assert endpoint(settings(provider="openrouter", model="m", api_key_env="MY_KEY"), {"MY_KEY": "secret"}) == Endpoint(
-        "openrouter", "https://openrouter.ai/api/v1", "secret", 600.0, 216_000
+        "openrouter",
+        "https://openrouter.ai/api/v1",
+        "secret",
+        600.0,
+        defaults.max_input_tokens + defaults.max_output_tokens,
     )
 
 

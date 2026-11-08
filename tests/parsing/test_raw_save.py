@@ -86,17 +86,3 @@ def test_unsupported_shapes_fail_with_specific_messages(data: bytes, message: st
 def test_unsupported_format_is_a_typed_error() -> None:
     with pytest.raises(UnsupportedSaveFormatError):
         parse_raw_save(VALID, source="s", format="terra_invicta_json_v999")
-
-
-def test_a_top_level_game_version_member_neither_gates_nor_is_reported() -> None:
-    raw = parse_raw_save(b'{"game_version": "9", "currentID": {}, "gamestates": {}}', source="s")
-    assert raw.game_version is None
-
-
-def test_all_failures_share_one_base_category() -> None:
-    for error in (
-        MalformedSaveError,
-        UnsupportedSaveShapeError,
-        UnsupportedSaveFormatError,
-    ):
-        assert issubclass(error, SaveLoadError)

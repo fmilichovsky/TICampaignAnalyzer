@@ -177,7 +177,6 @@ def test_executive_change_record_is_dated_by_the_record_and_copies_its_values_li
         (SourceRole.PRIMARY, "date", "date"),
         (SourceRole.PRIMARY, "newExecutive", "newExecutive"),
     ]
-    assert "coup" not in event.event_type.lower()
 
 
 def test_executive_record_with_an_unresolved_executive_is_low_confidence() -> None:

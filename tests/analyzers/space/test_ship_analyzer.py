@@ -1,6 +1,7 @@
 """Ship events: the fleet reference with mirrored lists, the literal refit date, presence, fleet-list leftovers."""
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, faction_ref, fleet_ref, only, ship_ref, snapshot, state
+from tinarrative.analyzers.render import describe_event
 from tinarrative.analyzers.space import ShipAnalyzer
 from tinarrative.analyzers.space.ships import (
     APPEARED,
@@ -123,6 +124,9 @@ def test_presence_carries_the_hull_of_the_ship_design_and_never_the_design_name(
     assert dict(events["ship.appeared/ship:133"].attributes) == {"side": "after", "hull": "Escort"}
     assert dict(events["ship.disappeared/ship:132"].attributes) == {"side": "before", "hull": "Frigate"}
     assert dict(events["ship.appeared/ship:134"].attributes) == {"side": "after"}  # no design of that name
+    for event in events.values():
+        line = describe_event(event)
+        assert "Design" not in line and "Unknown design" not in line and "Player text" not in line
 
 
 def test_presence_names_the_owner_of_the_ships_fleet_as_its_third_entity() -> None:

@@ -152,16 +152,22 @@ def test_saves_too_sparse_for_the_period_coarsen_it_unless_it_was_given(
     assert "the saves are further apart than a quarter in 2032-Q2; --period quarter is kept" in captured.err
 
 
-def test_usage_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize(
+    ("args", "message"),
+    [
+        ([], "give save paths or --package FILE"),
+        (["--min-significance", "minor"], "--package is narrated as it was built"),
+        (["--constituents", "all"], "--package is narrated as it was built"),
+        (["save.json"], "--package is narrated as it was built"),
+        (["--jobs", "2"], "--package is narrated as it was built"),
+    ],
+)
+def test_usage_errors(tmp_path: Path, capsys: pytest.CaptureFixture[str], args: list[str], message: str) -> None:
     package = tmp_path / "package.json"
     package.write_text("{}", encoding="utf-8")
 
-    assert main(["narrate"]) == EXIT_USAGE_ERROR
-    assert main(["narrate", "--package", str(package), "--min-significance", "minor"]) == EXIT_USAGE_ERROR
-    assert main(["narrate", "--package", str(package), "--constituents", "all"]) == EXIT_USAGE_ERROR
-    assert main(["narrate", "--package", str(package), "save.json"]) == EXIT_USAGE_ERROR
-    assert main(["narrate", "--package", str(package), "--jobs", "2"]) == EXIT_USAGE_ERROR
-    assert "give save paths or --package FILE" in capsys.readouterr().err
+    assert main(["narrate", *(["--package", str(package), *args] if args else [])]) == EXIT_USAGE_ERROR
+    assert message in capsys.readouterr().err
 
 
 def test_a_package_without_intervals_is_a_usage_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

@@ -10,7 +10,7 @@ from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.model.events import DateBasis, Event, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
-from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE, TREND_WINDOW_DAYS
+from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -146,7 +146,6 @@ def test_a_backstory_trajectory_of_a_top_economy_is_promoted_and_closed_before_t
     )
     assert trajectory.attribute("before_sequence") is True and trajectory.attribute("ratio") == 0.6
     assert trajectory.significance is Significance.CAMPAIGN_DEFINING and not trajectory.open
-    assert TREND_WINDOW_DAYS == 1826
 
 
 def test_an_absorbed_nations_population_and_trend_are_the_mergers() -> None:

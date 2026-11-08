@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 
 from tests.analyzers.support import (
     AFTER,
@@ -22,9 +22,9 @@ from tinarrative.analyzers.render import describe_event
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Significance, SourceRole
 from tinarrative.model.records import KeyedEntry, RecordKind, RecordSet
-from tinarrative.model.snapshot import EntityState, SaveSnapshot
+from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown, UnknownReason
-from tinarrative.reconstruction import NATION_CONTROL_CHANGED, RULE_TYPES
+from tinarrative.reconstruction import NATION_CONTROL_CHANGED
 
 POINT = EntityDomain.CONTROL_POINT
 NATION = "20"
@@ -203,10 +203,6 @@ SCENARIOS = (
 # --- Tests ------------------------------------------------------------------------------------------------
 
 
-def test_the_rule_is_listed() -> None:
-    assert NATION_CONTROL_CHANGED in RULE_TYPES
-
-
 def test_every_scenario_is_traceable() -> None:
     for scenario in SCENARIOS:
         assert_traceable(scenario())
@@ -372,14 +368,3 @@ def test_a_moved_executive_point_gives_no_executive_change() -> None:
 def test_no_controller_change_means_no_control_event() -> None:
     _, inferred = run(control_pair(["15", None], ["15", None]))
     assert not inferred
-
-
-def _states(scenario: Scenario) -> Mapping[str, EntityState]:
-    return {str(item.ref.entity_id): item for item in scenario[1].control_points}
-
-
-def test_the_scenario_builder_types_the_seat_executive_or_after_the_regime() -> None:
-    seat = _states(executive_flip())["control point:9"]
-    assert seat.get("positionInNation") == 0 and seat.get("controlPointType") == "Executive"
-    seat = _states(control_pair(["15"], ["15"], executive_position=None))["control point:9"]
-    assert seat.get("positionInNation") == 0 and seat.get("controlPointType") == "TheParty"

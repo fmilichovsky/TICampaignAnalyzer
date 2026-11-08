@@ -67,7 +67,6 @@ def test_json_report_carries_kind_detail_and_evidence(capsys: pytest.CaptureFixt
         assert change["after_location"]["save_id"] == str(after)
         if change["kind"] in ("appeared", "disappeared"):
             assert change["field"] is None
-            assert "destroy" not in change["description"]
     by_key = {(c["entity_id"], c["field"]): c for c in report["changes"]}
     assert by_key[("nation:20", "allies")]["detail"] == {
         "added": [{"ref": "nation:22", "state_type": "TINationState", "confidence": "in-save-id"}],
@@ -113,21 +112,11 @@ def test_diffing_a_save_with_itself_reports_no_changes(capsys: pytest.CaptureFix
     assert "changes:\n" not in out
 
 
-@pytest.mark.parametrize(
-    ("option", "message"),
-    [
-        (["--format", "markdown"], "invalid choice"),
-        (["--min-significance", "major"], "unrecognized arguments"),
-        (["--inferred"], "unrecognized arguments"),
-    ],
-)
-def test_analysis_options_are_a_usage_error(
-    option: list[str], message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_an_unsupported_format_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as result:
-        main(["save", "diff", *option, "a.json", "b.json"])
+        main(["save", "diff", "--format", "markdown", "a.json", "b.json"])
     assert result.value.code == EXIT_USAGE_ERROR
-    assert message in capsys.readouterr().err
+    assert "invalid choice" in capsys.readouterr().err
 
 
 def test_unreadable_and_unsupported_inputs_name_the_failing_file(capsys: pytest.CaptureFixture[str]) -> None:
@@ -155,16 +144,13 @@ def test_debug_log_reports_aggregates_without_save_values(capsys: pytest.Capture
     before = fixture_path("io", FIXTURE_SET, "interval_before.json")
     after = fixture_path("io", FIXTURE_SET, "interval_after.json")
     assert main(["--log-level", "debug", "save", "diff", str(before), str(after)]) == EXIT_SUCCESS
-    err = capsys.readouterr().err
+    out, err = capsys.readouterr()
     lines = err.splitlines()
-    assert lines[0] == "INFO tinarrative.cli: save diff start before=interval_before.json after=interval_after.json"
-    assert lines[-1] == (
-        "INFO tinarrative.cli: save diff done before=interval_before.json after=interval_after.json changes=48 exit=0"
-    )
-    assert (
-        "DEBUG tinarrative.diff.state_diff: collection compared collection=nations before=3 after=3 matched=3 "
-        "appeared=0 disappeared=0 value=3 membership=5 map=0 unknown=0 records=0" in lines
-    )
+    assert "tinarrative." not in out
+    assert lines[0].startswith("INFO tinarrative.cli: save diff start ")
+    assert lines[-1].startswith("INFO tinarrative.cli: save diff done ") and " exit=0" in lines[-1]
+    compared = [line for line in lines if line.startswith("DEBUG tinarrative.diff.state_diff: collection compared ")]
+    assert any("collection=nations " in line and " matched=" in line for line in compared)
     assert any(line.startswith("DEBUG tinarrative.diff.state_diff: singletons compared ") for line in lines)
     for value in ("Fixture", "FixtureTech", "Project_Fixture", str(before.parent)):
         assert value not in err

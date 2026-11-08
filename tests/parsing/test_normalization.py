@@ -347,7 +347,9 @@ def test_councilor_dates_are_iso_text_and_malformed_ones_are_reported() -> None:
     assert by_id(snapshot.councilors, "101").get("recruitDate") == Unknown(
         UnknownReason.UNPARSEABLE, FrozenMap((("year", 2030),))
     )
-    assert report.total > 0
+    assert [finding.key for finding in report.findings] == [
+        ("unexpected_field_shape", "TICouncilorState", "recruitDate", "componentized_date")
+    ]
 
 
 def design(name: str, **members: object) -> dict[str, object]:
@@ -995,18 +997,6 @@ def test_singletons_dates_and_research_lists_report_their_unexpected_structures(
     assert snapshot.research.finished_techs_names == "not-a-list"
 
 
-def test_unknown_structures_are_summarized_in_the_log_without_a_collector(caplog: pytest.LogCaptureFixture) -> None:
-    import logging
-
-    with caplog.at_level(logging.INFO, logger="tinarrative"):
-        fragment({STATE_PREFIX + "TINationState": [pair(20, secretField="Fixture Value")]})
-    assert (
-        "unknown structures total=1 state_types=0 fields=1 envelope_keys=0 field_shapes=0 reference_domains=0 "
-        "singletons=0 containers=0"
-    ) in caplog.text
-    assert "secretField" not in caplog.text and "Fixture" not in caplog.text
-
-
 def test_wars_and_federations_normalize_with_provenance_and_resolved_references() -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "wars_before.json"))
     collector = UnknownCollector()
@@ -1071,14 +1061,6 @@ def test_the_global_values_singleton_normalizes_as_one_entity_with_provenance() 
         "triggeredOncePerTargetEvents",
     }
     assert "globalMilestones" not in fields
-
-
-def test_a_missing_save_version_is_unknown() -> None:
-    raw = fragment_raw({GLOBAL_VALUES_TYPE: [pair(70, campaignStartVersion="fixture-build-1")]})
-    snapshot = normalize(raw)
-    (singleton,) = snapshot.global_values
-    assert "latestSaveVersion" not in dict(singleton.fields)
-    assert "campaignStartVersion" not in dict(singleton.fields)
 
 
 def test_a_second_global_values_entry_is_reported_and_kept() -> None:

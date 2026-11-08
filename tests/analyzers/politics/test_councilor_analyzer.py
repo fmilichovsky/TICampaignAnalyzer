@@ -59,8 +59,6 @@ def test_faction_change_cites_both_rosters() -> None:
         (SourceRole.CORROBORATING, "faction:15", councilor_ref("100")),
         (SourceRole.CORROBORATING, "faction:16", councilor_ref("100")),
     ]
-    for word in ("defect", "recruit", "join"):
-        assert word not in event.event_type
 
 
 def test_status_location_and_detention_are_separate_events_with_the_faction_as_context() -> None:

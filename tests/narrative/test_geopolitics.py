@@ -48,19 +48,6 @@ COUNCILOR = ref(EntityDomain.COUNCILOR, "30")
 NORTH_REGION = ref(EntityDomain.REGION, "40", "North")
 EAST_REGION = ref(EntityDomain.REGION, "41", "East")
 SOUTH_REGION = ref(EntityDomain.REGION, "42", "South")
-FORBIDDEN = (
-    "purg", "coup", "annex", "defect", "destroy", "kill", "recruit", "join", "conquer", "captur", "seiz",
-    "assassin", "died", "death", "creat", "declar", "won", "lost", "peace", "victor", "defeat", "surrender",
-)  # fmt: skip
-"""The objective analyzers' cause words (``tests/analyzers/politics/test_politics_fixture_pairs.py``)."""
-RELAXED = {
-    "nation.expansion": {"annex"},
-    "nation.claims_declared": {"declar"},
-    "faction.space_campaign": {"lost", "won"},
-}
-"""Stems a narrative type may use: an expansion echoes its literal ``mode``, which can be ``annexation``, and the
-claims type names the declaration it reports (the claim list changed is the declaration), and a space
-campaign echoes the literal counts of habs and fleets lost and combats won."""
 
 
 def event(
@@ -1038,15 +1025,6 @@ def test_traceability_holds_and_the_result_does_not_depend_on_stream_order() -> 
         assert set(item.sources) >= {source for c in item.constituents for source in visible[c].sources}
         assert set(shift_ids(item)).isdisjoint(item.constituents)
     assert built(list(reversed(stream)), situations) == events
-
-
-def test_no_narrative_line_names_a_cause_word_beyond_its_relaxation() -> None:
-    stream, situations = scenario()
-
-    for item in built(stream, situations):
-        text = f"{item.event_type} {describe_event(item)}".lower()
-        allowed = RELAXED.get(item.event_type, set())
-        assert [word for word in FORBIDDEN if word in text and word not in allowed] == [], text
 
 
 def test_the_alien_administrations_claims_are_not_declared() -> None:

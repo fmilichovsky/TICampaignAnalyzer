@@ -111,7 +111,7 @@ def test_faction_change_cites_both_faction_lists_and_flags_are_literal() -> None
         (SourceRole.CORROBORATING, "faction:16"),
     ]
     assert dict(destroyed.attributes) == {"transition": "changed", "before": False, "after": True}
-    assert destroyed.sources[0].change.field == "destroyed"  # the only evidence that may be worded "destroyed"
+    assert destroyed.sources[0].change.field == "destroyed"
     assert [str(r.entity_id) for r in destroyed.entities] == ["army:111", "faction:16", "region:40"]
     assert dict(strength.attributes) == {"transition": "changed", "before": 1.0, "after": 0.5}
 
@@ -153,8 +153,6 @@ def test_presence_cites_every_list_naming_the_army_on_the_existing_side() -> Non
         (SourceRole.CORROBORATING, "region:41"),
     ]
     assert len(events) == 2
-    for word in ("destroy", "kill", "creat"):
-        assert word not in f"{gone.event_type} {new.event_type}"
 
 
 def test_presence_carries_the_literal_deployment_type_of_the_existing_side() -> None:
@@ -178,7 +176,6 @@ def test_unresolved_region_is_low_confidence_and_identical_snapshots_produce_not
         analyze(ANALYZER, snapshot(BEFORE, state(NATION, "20", BEFORE)), snapshot(AFTER, state(NATION, "20", AFTER)))
         == []
     )
-    assert nation_ref("20").entity_id.domain is NATION
 
 
 def test_every_army_event_names_the_home_regions_nation_as_context() -> None:

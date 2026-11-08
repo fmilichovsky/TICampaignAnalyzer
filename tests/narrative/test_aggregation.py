@@ -153,7 +153,9 @@ def test_significance_is_the_rule_level_but_never_below_the_most_significant_con
 def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_their_sum() -> None:
     stream = [changed(K1), changed(K2, significance=Significance.MAJOR)]
     assert only(stream).score == Significance.MAJOR.base
-    assert only(stream, GroupRule("d", "nation.changed", significance=Significance.CAMPAIGN_DEFINING)).score == 87
+    assert only(stream, GroupRule("d", "nation.changed", significance=Significance.CAMPAIGN_DEFINING)).score == (
+        Significance.CAMPAIGN_DEFINING.base
+    )
 
     scaled = [changed(K1, significance=Significance.CAMPAIGN_DEFINING, score=80), changed(K2)]
     narrative_event = only(scaled, GroupRule("m", "nation.changed", significance=Significance.MAJOR))
@@ -164,7 +166,7 @@ def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_th
         changed(K1, significance=Significance.MAJOR, score=50),
         changed(K2, significance=Significance.MAJOR, score=51),
     ]
-    assert only(low, GroupRule("m", "nation.changed", significance=Significance.MAJOR)).score == 62
+    assert only(low, GroupRule("m", "nation.changed", significance=Significance.MAJOR)).score == Significance.MAJOR.base
     assert only(low).score == 51
 
 

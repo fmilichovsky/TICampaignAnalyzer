@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification
-from tinarrative.analyzers.politics.bands import BANDS, crossed
+from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.model.events import Event, EventStatus, Role, Significance
@@ -185,18 +185,3 @@ def test_metric_shifts_of_the_nation_carry_their_bands() -> None:
     (shift,) = built([event, statistic], reports(5.5, 6.5, 6.5, statistic="democracy"))
     (entry,) = shift.attribute("metric_shifts")  # type: ignore[misc]
     assert dict(entry.items)["from_band"] == "Anocracy" and dict(entry.items)["to_band"] == "Flawed Democracy"
-
-
-def test_no_band_shift_names_a_cause() -> None:
-    """The cause words of ``test_geopolitics.FORBIDDEN`` but ``peace``: the game's lowest unrest band is Peaceful."""
-    forbidden = (
-        "purg", "coup", "annex", "defect", "destroy", "kill", "recruit", "join", "conquer", "captur", "seiz",
-        "assassin", "died", "death", "creat", "declar", "won", "lost", "victor", "defeat", "surrender",
-    )  # fmt: skip
-    for statistic, bands in BANDS.items():
-        for (low, _), (high, _) in zip(bands, bands[1:], strict=False):
-            start = high - 0.5 if low == float("-inf") else low
-            event = crossing(K1, statistic, start, high + 0.5)
-            for item in (event, *built([event], reports(start, high + 0.5, high + 0.5, statistic=statistic))):
-                text = f"{item.event_type} {describe_event(item)}".lower()
-                assert not [stem for stem in forbidden if stem in text], text

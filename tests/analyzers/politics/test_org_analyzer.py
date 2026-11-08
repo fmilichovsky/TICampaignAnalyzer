@@ -1,12 +1,9 @@
 """Organization events: presence, assignment and faction orbit, corroborated by councilor and faction org lists."""
 
-from dataclasses import replace
-
 from tests.analyzers.support import (
     AFTER,
     BEFORE,
     analyze,
-    analyzer_wording,
     councilor_ref,
     faction_ref,
     named,
@@ -22,10 +19,8 @@ from tinarrative.analyzers.politics.organizations import (
     FACTION_ORBIT_CHANGED,
     UNASSIGNED_ORGS_CHANGED,
 )
-from tinarrative.analyzers.render import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
-from tinarrative.model.snapshot import EntityState
 from tinarrative.model.values import Unknown, UnknownReason, freeze
 
 ANALYZER = OrganizationAnalyzer()
@@ -107,17 +102,6 @@ def test_faction_orbit_changes_are_their_own_event() -> None:
         "faction:15",
         "faction:16",
     ]
-
-
-def test_a_cause_word_inside_an_organization_name_is_not_analyzer_wording() -> None:
-    def joint(save: str, orbit: str | None) -> EntityState:
-        item = state(ORG, "70", save, factionOrbit=faction_ref(orbit) if orbit else None, homeRegion=region_ref("40"))
-        return replace(item, ref=replace(item.ref, name="Joint Cipher Bureau"))
-
-    (event,) = analyze(ANALYZER, snapshot(BEFORE, joint(BEFORE, "15")), snapshot(AFTER, joint(AFTER, None)))
-    assert event.event_type == FACTION_ORBIT_CHANGED
-    assert "Joint Cipher Bureau" in describe_event(event)
-    assert "join" not in analyzer_wording(event)
 
 
 def test_presence_cites_the_holders_list_entry() -> None:

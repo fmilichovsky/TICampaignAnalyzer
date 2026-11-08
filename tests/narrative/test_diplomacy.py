@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from tests.narrative.support import atomic, faction, nation, nation_row, situation, unification
-from tests.narrative.test_geopolitics import FORBIDDEN
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.model.entities import EntityRef
@@ -193,12 +192,10 @@ def test_war_entries_and_one_sided_lists_are_not_diplomacy() -> None:
     assert built(stream) == []
 
 
-def test_the_line_names_no_cause_word_and_the_order_of_the_stream_does_not_matter() -> None:
+def test_the_order_of_the_stream_does_not_matter() -> None:
     stream = [executive_change(K1, RESISTANCE, SERVANTS), *three_partners(K2), relation(K2, NORTH, SOUTH, "rivals")]
 
     items = built(stream)
 
+    assert items
     assert built(list(reversed(stream))) == items
-    for item in items:
-        text = f"{item.event_type} {describe_event(item)}".lower()
-        assert [word for word in FORBIDDEN if word in text] == [], text

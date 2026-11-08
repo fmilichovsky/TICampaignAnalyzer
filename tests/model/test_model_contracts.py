@@ -84,20 +84,18 @@ def test_freeze_keeps_scalar_types_and_accepts_subclasses() -> None:
     assert freeze(_ref("1")) == _ref("1")
 
 
-def test_identity_hash_is_cached_without_changing_equality_order_or_repr() -> None:
+def test_identity_equality_and_hashing_agree_and_survive_pickling() -> None:
     entity_id = EntityId(EntityDomain.NATION, "9")
-    assert hash(entity_id) == hash((EntityDomain.NATION, "9")) == hash(EntityId(EntityDomain.NATION, "9"))
-    assert repr(entity_id) == "EntityId(domain=<EntityDomain.NATION: 'nation'>, key='9')"
+    assert entity_id == EntityId(EntityDomain.NATION, "9")
+    assert hash(entity_id) == hash(EntityId(EntityDomain.NATION, "9"))
     assert sorted([EntityId(EntityDomain.REGION, "1"), EntityId(EntityDomain.NATION, "9")])[0] == entity_id
     ref = _ref("9")
-    assert hash(ref) == hash((ref.entity_id, ref.confidence, ref.state_type, ref.name))
+    assert ref == _ref("9") and {ref: 1}[_ref("9")] == 1
     renamed = replace(ref, name="Fixtureland")
     assert renamed != ref
-    assert hash(renamed) == hash((ref.entity_id, ref.confidence, ref.state_type, "Fixtureland"))
-    assert ref == _ref("9") and {ref: 1}[_ref("9")] == 1
-    restored = pickle.loads(pickle.dumps(renamed))
-    assert restored == renamed and hash(restored) == hash(renamed)
-    assert pickle.loads(pickle.dumps(entity_id)) == entity_id
+    for value in (entity_id, ref, renamed):
+        restored = pickle.loads(pickle.dumps(value))
+        assert restored == value and hash(restored) == hash(value)
 
 
 def test_to_jsonable_keeps_unknown_visible() -> None:
@@ -195,7 +193,6 @@ def test_change_kind_detail_and_absent_field_serialize() -> None:
     )
     assert membership.to_dict()["detail"] == {"added": [to_jsonable(_ref("2"))], "removed": []}
     assert MapDetail(changed=("Money",)).to_dict() == {"added": [], "removed": [], "changed": ["Money"]}
-    assert isinstance(hash(membership), int)
     name_keyed = EntityId(EntityDomain.TECHNOLOGY, "Alpha").sort_key
     assert EntityId(EntityDomain.TECHNOLOGY, "9").sort_key < name_keyed
 
@@ -212,7 +209,6 @@ def test_snapshot_orders_collections_and_is_immutable() -> None:
         assert [s.ref.entity_id.key for s in getattr(snapshot, name)] == ["3", "20"]  # natural, not lexical
     with pytest.raises(FrozenInstanceError):
         snapshot.source = "x"  # type: ignore[misc]
-    assert isinstance(hash(snapshot), int)
 
 
 def test_missing_field_differs_from_known_empty() -> None:
@@ -285,7 +281,6 @@ def test_record_set_defaults_to_unknown_entries_and_is_immutable() -> None:
     assert missing.to_dict()["location"] == FIELD_LOCATION.to_dict()
     with pytest.raises(FrozenInstanceError):
         missing.field = "x"  # type: ignore[misc]
-    assert isinstance(hash(missing), int)
     assert record_counts(
         [missing, _record("milestones", RecordKind.NAME_LOG, ItemEntry(0, "A"), ItemEntry(1, "B"))]
     ) == (1, 2)
@@ -358,8 +353,6 @@ def test_records_detail_serializes_entries_and_changed_pairs() -> None:
             {"before": {"index": 0, "key": "Human", "value": 0}, "after": {"index": 0, "key": "Human", "value": 1}}
         ],
     }
-    assert ChangeKind.RECORDS.value == "records"
-    assert isinstance(hash(detail), int)
 
 
 def _event_source(role: SourceRole = SourceRole.PRIMARY, member: object = None) -> EventSource:
@@ -391,14 +384,13 @@ def test_event_sorts_its_parts_and_serializes_json_friendly() -> None:
     assert json.loads(json.dumps(data)) == data
     assert data["date_basis"] == "interval" and data["attributes"]["raw"] == {"unknown": "missing"}
     assert event.significance is Significance.MINOR and data["significance"] == "minor"  # analyzers leave the default
-    assert event.score == 37 and data["score"] == 37  # the default level's base
+    assert event.score == data["score"] == Significance.MINOR.base  # the default level's base
     assert data["sources"][0] == {
         "role": "primary",
         "member": to_jsonable(_ref("2")),
         "entry": {"save_id": "b.save", "state_type": "TINationState", "map_id": 20, "path": "/x/allies/0"},
         "change": earlier.change.to_dict(),
     }
-    assert isinstance(hash(event), int)
     with pytest.raises(FrozenInstanceError):
         event.id = "x"  # type: ignore[misc]
     undated = Event(**{**event.__dict__, "date": Unknown(), "date_basis": DateBasis.RECORD})

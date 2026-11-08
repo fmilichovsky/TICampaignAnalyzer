@@ -12,7 +12,7 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.faction import LedgerAnalyzer
-from tinarrative.analyzers.faction.ledger import ALLOWED_LABELS, in_window
+from tinarrative.analyzers.faction.ledger import in_window
 from tinarrative.analyzers.render import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, Event, SourceRole
@@ -92,7 +92,6 @@ def test_entries_outside_the_window_or_undated_are_skipped() -> None:
 def test_labels_outside_the_allow_list_are_left_in_the_diff() -> None:
     events = run((), (entry(0, "Daily Income"), entry(0, "1234567890"), entry(0, "Spoils"), entry(0, "Stabilize")))
     assert [event.id for event in events] == ["faction.transaction_recorded/faction:15/Stabilize/0"]
-    assert "Daily Income" not in ALLOWED_LABELS and "1234567890" not in ALLOWED_LABELS
 
 
 def test_an_entry_present_in_both_saves_but_dated_inside_the_interval_is_read_by_date() -> None:

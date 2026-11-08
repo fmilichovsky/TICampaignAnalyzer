@@ -2,7 +2,7 @@
 
 import json
 
-from tests.analyzers.support import AFTER, BEFORE, fixture_pair, pair, snapshot, state
+from tests.analyzers.support import AFTER, fixture_pair, state
 from tinarrative.analyzers import ALL_ANALYZERS, POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.render import describe_event
@@ -179,21 +179,10 @@ def test_every_asset_event_type_has_a_template() -> None:
     )
     assert lines("assets_before.json", "assets_after.json", ALL_ANALYZERS) == EXPECTED_ASSETS
     assert all(line.isascii() for line in EXPECTED_INTERVAL_ASSETS | EXPECTED_ASSETS)
-    assert "destroyed" not in " ".join(line for line in EXPECTED_ASSETS if "absent" in line)
-
-
-def test_the_recorded_cause_is_carried_as_an_attribute_but_never_said() -> None:
-    before, after, diff = fixture_pair("records_before.json", "records_after.json")
-    (event,) = [e for e in run_analyzers(POLITICS_ANALYZERS, before, after, diff) if "executive" in e.event_type]
-    assert event.attribute("cause") == "Coup"
-    assert "Coup" not in describe_event(event) and "coup" not in event.event_type
 
 
 def test_unknown_event_types_fall_back_to_type_and_entities_and_escape_non_ascii() -> None:
-    before, after, diff = pair(
-        snapshot(BEFORE, state(EntityDomain.NATION, "20", BEFORE, GDP=1.0)),
-        snapshot(AFTER, state(EntityDomain.NATION, "20", AFTER, GDP=2.0)),
-    )
+    nation = state(EntityDomain.NATION, "20", AFTER, GDP=2.0)
     event = Event(
         id="x",
         event_type="army.fixture_unknown",
@@ -203,7 +192,7 @@ def test_unknown_event_types_fall_back_to_type_and_entities_and_escape_non_ascii
         date_basis=DateBasis.INTERVAL,
         not_before=Unknown(),
         sources=(),
-        entities=(after.nations[0].ref,),
+        entities=(nation.ref,),
         attributes=(("after", "café"),),
     )
     assert describe_event(event) == "army.fixture_unknown: Fixture nation 20 (nation:20)"

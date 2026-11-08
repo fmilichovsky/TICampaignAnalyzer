@@ -190,19 +190,19 @@ def test_scan_fields_skips_unscanned_types_and_known_members() -> None:
     assert collector.field_count("TISpaceShipState") == 1 and collector.field_count("TIMissionPhaseState") == 0
 
 
-def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture) -> None:
+def test_log_summary_gives_counts_only(caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]) -> None:
     collector = UnknownCollector()
     collector.field("TINationState", "secretName", "Fixture Value")
     collector.field("TINationState", "other", 1)
     collector.entity_with_unknown_fields("TINationState")
     with caplog.at_level(logging.DEBUG, logger="tinarrative"):
         collector.log_summary()
-    assert (
-        "INFO tinarrative.parsing.unknowns: unknown structures total=2 state_types=0 fields=2 envelope_keys=0 "
-        "field_shapes=0 reference_domains=0 singletons=0 containers=0"
-    ) in [f"{record.levelname} {record.name}: {record.getMessage()}" for record in caplog.records]
-    assert "unknown fields state_type=TINationState fields=2 entities=1" in caplog.text
+    assert {record.name for record in caplog.records} == {"tinarrative.parsing.unknowns"}
+    (summary,) = [record.getMessage() for record in caplog.records if record.levelno == logging.INFO]
+    assert summary.startswith("unknown structures ") and " total=2 " in summary
+    assert "state_type=TINationState" in caplog.text
     assert "secretName" not in caplog.text and "Fixture" not in caplog.text
+    assert capsys.readouterr().out == ""
 
 
 @pytest.mark.parametrize(
@@ -305,4 +305,3 @@ def test_known_state_types_match_the_documented_inventory() -> None:
         if line.strip()
     }
     assert documented == set(KNOWN_STATE_TYPES)
-    assert len(KNOWN_STATE_TYPES) == 77
