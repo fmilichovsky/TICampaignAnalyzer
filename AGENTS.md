@@ -9,7 +9,7 @@ nothing here restates them.
 
 `tinarrative` is a Python CLI that reconstructs a readable campaign history from Terra Invicta save files. Saves
 are snapshots; each pipeline stage adds interpretation without discarding the evidence below it. Objective changes,
-inferred events and narrative presentation stay separate layers. Read [docs/architecture.md](docs/architecture.md)
+inferred events and narrative presentation stay separate layers. Read the decisions in [docs/adr/](docs/adr/)
 before touching the model or pipeline.
 
 ## Layout

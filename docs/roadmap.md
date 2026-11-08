@@ -37,7 +37,7 @@
 
 ## Narrative layer
 
-Target: the narrator package of [architecture 13.1](architecture.md#131-narrator-input).
+Target: the [narrator package](commands/events.md#narrator-package).
 
 - [x] Entity names in every output (#94).
 - [x] Space bodies as reference targets (#95).
@@ -65,7 +65,7 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
   - [x] Population and economic trajectory (#192).
   - [x] Military and space-support assets and rankings (#193).
   - [ ] Campaign baseline from cumulative trackers (#194).
-- [ ] Entity-scaled significance ([design](architecture.md#entity-scaled-score-design)):
+- [ ] Entity-scaled significance ([ADR-0011](adr/0011-significance-is-judged-once-and-scaled-by-stake.md)):
   - [x] Design.
   - [x] Numeric score with unchanged levels (#196).
   - [x] Prominence shares (#197).
@@ -107,7 +107,8 @@ Target: the narrator package of [architecture 13.1](architecture.md#131-narrator
 ## Continuous capture
 
 Target: record every save the game writes and narrate on demand in installments
-([design](architecture.md#continuous-capture-design); tracking #207).
+(ADR [0016](adr/0016-captured-saves-are-evidence-everything-else-is-rebuilt.md),
+[0017](adr/0017-reloads-split-a-campaign-into-lines.md), [0018](adr/0018-a-growing-campaign-is-narrated-in-sealed-installments.md); tracking #207).
 
 - [x] Design.
 - [x] Evidence pass on the save directory (#208).

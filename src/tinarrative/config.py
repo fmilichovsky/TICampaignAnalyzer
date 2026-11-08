@@ -70,7 +70,7 @@ class GeopoliticsSettings:
     """Unrest and opinion evidence of the nation this long before the takeover is attached as its precursors."""
     ledger_window_days: int = _int(28, 0)
     """A mission charge is attached when dated this long before the effect at most (the assignment-to-outcome bound
-    of architecture 11.3)."""
+    of ADR-0010)."""
     expansion_gap_days: int = _int(365, 0)
     """Gains of one nation chain into one expansion while each follows the previous one this soon."""
     release_window_days: int = _int(180, 0)
@@ -154,8 +154,7 @@ class ReferenceSettings:
 
 @dataclass(frozen=True)
 class SignificanceSettings:
-    """How far an event's stake may move its score from its type's base, and how stakes are measured (architecture
-    12)."""
+    """How far an event's stake may move its score from its type's base, and how stakes are measured (ADR-0011)."""
 
     scale_min: int = _int(-20, -100, 0)
     """The stake lowers a score by at most this many points."""
@@ -178,8 +177,7 @@ class NarrativeSettings:
 
 @dataclass(frozen=True)
 class NarratorSettings:
-    """The chapter planner and the provider of ``tinarrative narrate`` (architecture 20.3 and 20.5); never changes
-    what ``events`` builds."""
+    """The chapter planner and the provider of ``tinarrative narrate`` ; never changes what ``events`` builds."""
 
     max_input_tokens: int = _int(200_000, 1_000)
     """The estimated input of one request (system prompt, request block and chapter package) stays within this."""

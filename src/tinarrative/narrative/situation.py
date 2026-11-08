@@ -1,6 +1,6 @@
 """Situation reports: the deterministic digest of one snapshot that narrative rules and the narrator read as context.
 
-Snapshot-dated evidence, not an event (architecture 11.4): literal values and counts, never a reading. Which faction
+Snapshot-dated evidence, not an event: literal values and counts, never a reading. Which faction
 *controls* a nation is inference (``reconstruction.control``) and is never stated here. A value the snapshot does not
 establish stays ``Unknown``, never zero or empty.
 """

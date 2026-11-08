@@ -1,4 +1,4 @@
-"""Campaign grouping: split surveyed saves into campaigns before a sequence is planned (architecture 15).
+"""Campaign grouping: split surveyed saves into campaigns before a sequence is planned (ADR-0013).
 
 The format has no campaign ID (``docs/game-data-notes/campaign-grouping.md``), so saves group by equal
 ``CampaignProfile.identity`` only, never by file name, file time or ``currentID``. A save whose human player does not

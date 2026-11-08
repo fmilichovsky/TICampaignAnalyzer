@@ -1,8 +1,8 @@
 # Narrator system prompt
 
 Use the following text as the system prompt for an LLM that renders a
-`tinarrative` narrator package ([architecture 13.1](architecture.md#131-narrator-input)
-and [20](architecture.md#20-llm-narration)). The prompt fixes a short
+`tinarrative` narrator package ([events](commands/events.md#narrator-package)
+and [ADR-0014](adr/0014-the-llm-narrates-and-never-reconstructs.md)). The prompt fixes a short
 floor of facts (what happened, to whom, where, when, and every number come from
 the package) and leaves everything above that floor to the model: how a change
 was presented and received, what it may have meant, what an actor may have
@@ -29,7 +29,7 @@ Citations are one footnote per
 entry, so a sentence is audited through the entry it belongs to. A package
 too large for one request is cut into chapters by
 [`tinarrative narrate`](commands/narrate.md)
-([architecture 20.3–20.4](architecture.md#203-token-budget-and-chapters)). The
+([ADR-0015](adr/0015-chapters-are-independent-requests.md)). The
 prompt reads the chapter's `chapter`, `part` and `covers` keys and its
 `continuity` member with a few rules: only a `whole` or `first` part introduces
 the history, and only a `whole` or `last` part ends with where things stood. A

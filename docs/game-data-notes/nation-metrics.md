@@ -202,7 +202,7 @@ Observations behind the table:
 ### Band shifts as built
 
 The table is `analyzers/politics/bands.py`; `nation.band_crossed` applies the margin and the `nation.*_shift` rules
-the rest-value filter, the hold and carrier suppression (architecture 11.3). Over the private saves (2026-10-24,
+the rest-value filter, the hold and carrier suppression. Over the private saves (2026-10-24,
 `events --narrative`, default settings), **observed**:
 
 - `nation.band_crossed` per interval matched the margin column above to within a few nations (Protectorate 245 d:
@@ -219,8 +219,7 @@ the rest-value filter, the hold and carrier suppression (architecture 11.3). Ove
 ### Population and per-capita GDP as built
 
 `nation.population_changed` and `nation.pcgdp_trend` with the analyzers' constants (residual of 5 % or 10 % a year;
-20 quarters, +50 % / -25 %), and the `nation.population_collapse` and `nation.economic_trajectory` rules over them
-(architecture 11.3). Over the private saves (2026-10-29, `events --narrative`), **observed**:
+20 quarters, +50 % / -25 %), and the `nation.population_collapse` and `nation.economic_trajectory` rules over them. Over the private saves (2026-10-29, `events --narrative`), **observed**:
 
 - No `nation.population_changed` in any interval of any campaign, so no `nation.population_collapse`.
 - No trend in Appease or Protectorate: their series hold at most seven quarters, short of a 20-quarter window.

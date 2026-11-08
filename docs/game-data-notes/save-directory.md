@@ -1,6 +1,6 @@
 # The save directory and its save modes
 
-This note supports continuous capture ([architecture, Mode D](../architecture.md#continuous-capture-design)).
+This note supports continuous capture ([ADR-0016](../adr/0016-captured-saves-are-evidence-everything-else-is-rebuilt.md)).
 Capture needs to know which files the game writes, when it writes them and how long each one survives.
 
 ## Evidence

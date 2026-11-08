@@ -3,7 +3,7 @@
 This page records non-sensitive, aggregate comparisons between the private
 `Resistsave00070_2041-5-1.json` and `Resistsave00071_2041-10-7.json` samples
 inspected on 2026-09-08. It informs the objective-diff and inference boundary
-in [`docs/architecture.md`](../architecture.md); it does not label the cause
+([ADR-0007](../adr/0007-the-diff-and-the-analyzers-stay-literal.md)); it does not label the cause
 of any change.
 
 ## Observed identity continuity

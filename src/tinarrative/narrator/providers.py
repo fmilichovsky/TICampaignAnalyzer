@@ -1,4 +1,4 @@
-"""The providers of ``tinarrative narrate --send``. See architecture 20.5.
+"""The providers of ``tinarrative narrate --send``.
 
 The API key, request text and response text are never logged.
 """

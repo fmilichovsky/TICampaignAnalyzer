@@ -1,7 +1,7 @@
 """Save-carried records: dated logs and cumulative counters the game appends to an entity.
 
 Entries keep serialized order and index, so each is addressable as state type + map ID + field + index.
-See ``docs/architecture.md`` section 4.3.
+See ADR-0006.
 """
 
 from __future__ import annotations

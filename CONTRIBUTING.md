@@ -23,17 +23,19 @@ When a standard here can be checked mechanically, a test enforces it and the sta
   field, re-run the unknowns scan on private saves
   (`tests/maintenance/test_committed_registry.py::test_committed_registry_is_valid_canonical_and_fully_unknown`).
 - **Comments explain why, not what.** No comment on self-explanatory code; module docstrings of at most three
-  lines; no docstring repeats the architecture or cites a save sample.
+  lines; no docstring repeats an ADR or cites a save sample; cite it as `ADR-NNNN`.
 
 ## Documentation
 
 Each fact has exactly one home. Point to it; do not restate it.
 
-- **Contracts live in code.** Signatures, types and docstrings define behavior. `docs/architecture.md` holds
-  principles and the designs of work not built yet; once a design is implemented, its section shrinks to the
-  principle plus a pointer to the defining module.
+- **Contracts live in code.** Signatures, types and docstrings define behavior.
+- **Decisions live in `docs/adr/`.** An ADR records a decision and its reason, built or not; it never describes
+  mechanics and never says what is implemented, which only the roadmap says. A reversed decision gets a new ADR,
+  and the old one a first line `Superseded by ADR-NNNN`; no other edit to an old ADR.
 - **Plans live in issues.** A `docs/roadmap.md` entry is one headline line plus its issue number, ticked in the PR
-  that completes it. Issue and PR numbers appear nowhere else except explicit `TODO`s.
+  that completes it. Issue and PR numbers appear nowhere else except explicit `TODO`s and an ADR's closing
+  `Tracked in` line.
 - **Observations live in `docs/game-data-notes/`.** A format fact is documented only after it was checked against
   real data, labeled observed vs. hypothesis. Nowhere else cites save samples, counts or dates. Known state types
   match the inventory there

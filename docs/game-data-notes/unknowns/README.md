@@ -86,7 +86,7 @@ re-run. Never delete entries by hand.
    observed table in [the domain field map](../domain-field-map.md), extend the normalizer or
    tests as needed, re-run the scan: the entry is pruned.
 2. **Record it.** The field is a dated, append-only log or a cumulative counter that the
-   snapshot cannot re-derive (architecture section 4.3). Add it to `RECORD_FIELDS` with a
+   snapshot cannot re-derive ([ADR-0006](../../adr/0006-save-carried-records-are-evidence-of-their-own.md)). Add it to `RECORD_FIELDS` with a
    `RecordKind` (and a decoder in `src/tinarrative/parsing/records.py` if the kind is new), add
    the row to the field map's "Save-carried records" table, re-run the scan: the entry is pruned.
 3. **Acknowledge it.** The field is understood and deliberately not normalized (a UI cache, an

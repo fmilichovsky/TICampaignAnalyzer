@@ -11,7 +11,7 @@ The workflow is provider-neutral: a *narrator* and an *auditor* are independent
 agents or separate fresh contexts.  Do not require a particular model, API,
 system-message mechanism, or agent product.
 
-Read `docs/architecture.md`, `docs/narrator.md`, `src/tinarrative/narrator/prompt.md`,
+Read `docs/adr/0014-the-llm-narrates-and-never-reconstructs.md`, `docs/narrator.md`, `src/tinarrative/narrator/prompt.md`,
 `docs/commands/events.md`, and [the audit rubric](references/audit-rubric.md)
 before starting.  Keep the distinction between objective evidence, inference,
 narrative aggregation, and rendering intact.
@@ -126,8 +126,8 @@ may have more than one plausible layer; name the evidence for the choice.
 
 For a pipeline diagnosis, use the audit package and the narrative package first,
 then inspect the minimum relevant normalized/event code.  Never infer missing
-events from what the narrator "should know."  Preserve the architecture's
-evidence/inference separation.
+events from what the narrator "should know."  Preserve the
+evidence/inference separation (`docs/adr/0003-pipeline-stages-keep-the-evidence-below-them.md`).
 
 ### 6. Resolve proportionately and close the loop
 

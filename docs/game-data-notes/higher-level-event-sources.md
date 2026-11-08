@@ -298,7 +298,7 @@ Observed on 2026-10-19 on the eight private saves of two campaigns (Appease: 7 a
 Implemented as `LedgerAnalyzer` (`analyzers/faction/ledger.py`): normalization decodes only the analyzer's shared
 allow-list and records the count of other ledger entries on each `RecordSet`. Every decoded entry of the later
 save dated inside the interval becomes `faction.transaction_recorded`, dated by the entry, with the ledger's
-`records` change as its source; `minor`, corroboration and dating only under architecture 11.3. Income, spoils,
+`records` change as its source; `minor`, corroboration and dating only under [ADR-0010](../adr/0010-the-faction-ledger-is-bounded-corroboration.md). Income, spoils,
 trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted but not decoded.
 
 ## Observations on already-normalized fields
@@ -495,7 +495,7 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
   a date, never a target. *Hypotheses* (from play experience, not yet checked against effects): an
   entry is charged when a mission is assigned, zero days to about four weeks before the mission
   resolves, and a charge does not mean the mission succeeded. Both were checked on 2026-10-19 (see
-  above); `LedgerAnalyzer` reads the allow-listed labels under the bounds of architecture 11.3.
+  above); `LedgerAnalyzer` reads the allow-listed labels under the bounds of [ADR-0010](../adr/0010-the-faction-ledger-is-bounded-corroboration.md).
 - **Names and bodies** (observed 2026-10-18, the latest older save). `displayName` is a string on
   every nation, region, hab, faction and control point, and resolved references carry it as
   `EntityRef.name`. `TISpaceBodyState` is normalized as the `space body` domain, so a hab's

@@ -1,4 +1,4 @@
-"""The assembled history of a ``tinarrative narrate`` run, its citation audit and its manifest. See architecture 20.6.
+"""The assembled history of a ``tinarrative narrate`` run, its citation audit and its manifest. See ADR-0014.
 
 The audit checks citations against the chapter package read back from each request, not the full package, so a
 citation outside the chapter's evidence is caught. It reports and never changes or rejects prose.

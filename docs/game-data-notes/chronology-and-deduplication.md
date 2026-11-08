@@ -1,7 +1,8 @@
 # Chronology and duplicate snapshots
 
-This note supplies the ordering and deduplication rules for the architecture's
-“ordered save sequence” and “campaign directory” modes. It is based on
+This note supplies the ordering and deduplication rules for ordered save
+sequences ([ADR-0012](../adr/0012-saves-are-ordered-by-game-time-and-analysed-per-interval.md)) and
+campaign grouping ([ADR-0013](../adr/0013-campaigns-are-inferred-and-never-mixed.md)). It is based on
 non-sensitive structural comparisons of the private save directory on
 2026-09-08.
 

@@ -1,4 +1,4 @@
-"""Chapters of a narrator package under a token budget. See architecture 20.3 and 20.4.
+"""Chapters of a narrator package under a token budget. See ADR-0015.
 
 A chapter package selects entries of the package and never rewrites one, so an ID means the same event in both.
 Continuity is built from the package, never from earlier prose, so a plan is deterministic.

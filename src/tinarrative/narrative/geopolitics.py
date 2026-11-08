@@ -1,6 +1,6 @@
-"""The geopolitical narrative rules: takeovers, wars, federations, territorial changes. See architecture 11.3.
+"""The geopolitical narrative rules: takeovers, wars, federations, territorial changes.
 
-No rule names a motive or a public framing; that stays with the narrator (architecture 20).
+No rule names a motive or a public framing; that stays with the narrator (ADR-0014).
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ INDEPENDENCE_CAUSE = "Independence"
 TAKEOVER_COUNCILOR_TYPES = ("councilor.faction_changed", "councilor.disappeared", "councilor.detaining_faction_changed")
 PRECURSOR_STATISTICS = frozenset({"unrest", "publicOpinion"})
 TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
-"""Mission charges that corroborate a takeover under the bounds of architecture 11.3."""
+"""Mission charges that corroborate a takeover under the bounds of ADR-0010."""
 READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 """A gain without one of these readings is a cession candidate."""
 LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
@@ -303,7 +303,7 @@ class TakeoverRule:
     """``faction.takeover``: a faction took a nation's executive or every control point, and what came with it.
 
     Executive, then sole control within the consolidation window is one takeover. Ledger charges corroborate only
-    when no other faction carries the label in the window (architecture 11.3, bound 4). Open while the faction holds
+    when no other faction carries the label in the window (ADR-0010, bound 4). Open while the faction holds
     the executive but not every point.
     """
 

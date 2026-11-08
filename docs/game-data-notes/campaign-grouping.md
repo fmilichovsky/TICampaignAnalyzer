@@ -87,8 +87,8 @@ no documented campaign semantics. The filesystem time is read only to resolve
 - A campaign reloaded from an earlier save and played differently keeps all four signals
   (observed 2026-10-29: `campaigns` put both attempts of one reload into one group). Its branches
   interleave by game time. Continuous capture makes this common, since it keeps the abandoned
-  attempt's autosaves too. The architecture's lines
-  ([Mode D](../architecture.md#lines-design)) split such a group with the
+  attempt's autosaves too. Lines
+  ([ADR-0017](../adr/0017-reloads-split-a-campaign-into-lines.md)) split such a group with the
   [witness records](domain-field-map.md#witnesses-across-a-reload).
 - Multiplayer, modded, migrated, or damaged saves may contain zero or more
   than one non-AI player. They intentionally fall into the unclassified path.

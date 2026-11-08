@@ -80,7 +80,7 @@ def build_document(
 
 
 def _narrator_package(document: dict[str, Any]) -> dict[str, Any]:
-    """The narrator package (architecture 13.1): the report without provenance and paths, for a reader that cites IDs.
+    """The narrator package (ADR-0014): the report without provenance and paths, for a reader that cites IDs.
 
     Every ID here still resolves in the full report. The glossary is built before references are slimmed.
     """

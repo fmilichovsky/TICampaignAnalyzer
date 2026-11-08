@@ -1,4 +1,4 @@
-"""The military, space-support and ranking narrative rules. See architecture 11.3."""
+"""The military, space-support and ranking narrative rules."""
 
 from __future__ import annotations
 

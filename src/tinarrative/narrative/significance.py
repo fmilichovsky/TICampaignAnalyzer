@@ -1,4 +1,4 @@
-"""Significance rules: which events a campaign history keeps and which are routine churn. See architecture section 12.
+"""Significance rules: which events a campaign history keeps and which are routine churn. See ADR-0011.
 
 A post-pass, so no analyzer has to judge impact. Evidence for the entries is in
 ``docs/game-data-notes/higher-level-event-sources.md``. Notification templates are never ranked: the game's own log
@@ -135,7 +135,7 @@ _MINOR: tuple[str, ...] = (
     "nation.unrest_attempts_changed",
     "nation.new_government_recorded",
     # A dated mission or operation charge from the resource ledger: corroboration and dating for an effect that
-    # is evidenced elsewhere, never a narrative event on its own (architecture 11.3).
+    # is evidenced elsewhere, never a narrative event on its own (ADR-0010).
     "faction.transaction_recorded",
     # A nuclear program or policy flag says what a nation may do, not what it did; the nuclear arcs cite the
     # program as the start of an arsenal.
@@ -425,7 +425,7 @@ SCALED: Mapping[str, Stake] = {
     "faction.nation_control_changed": _NATION,
     "organization.assigned_councilor_changed": Stake("organization", _organization),
 }
-"""Event types whose score follows a stake (architecture 12); movement and churn are never listed."""
+"""Event types whose score follows a stake (ADR-0011); movement and churn are never listed."""
 
 
 def _scale(share: float, reference: float, settings: SignificanceSettings) -> int:

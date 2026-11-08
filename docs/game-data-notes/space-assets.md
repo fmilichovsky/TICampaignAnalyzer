@@ -1,7 +1,7 @@
 # Space assets: habs and ships by faction
 
 Evidence base for the space stakes of the entity-scaled significance score
-([architecture 12](../architecture.md#12-significance), roadmap *Entity-scaled significance*). It records how the
+([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-stake.md), roadmap *Entity-scaled significance*). It records how the
 habs and ships in a save divide between the alien faction and the human factions, so that a share of "space" can be
 defined that behaves from the first save of a campaign to its late game. It follows the rules of the
 [notes README](README.md): structure, counts, magnitudes and dates only; faction templates are named, players are not.

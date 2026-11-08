@@ -1,6 +1,6 @@
 """Narrative aggregation: named rules that join the qualified event stream of a sequence into narrative events.
 
-See architecture 11.1 and 11.2. A rule sees only lower orders, so rules cannot form cycles.
+See ADR-0009. A rule sees only lower orders, so rules cannot form cycles.
 """
 
 from __future__ import annotations
