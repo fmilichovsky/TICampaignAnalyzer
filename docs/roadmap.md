@@ -163,7 +163,7 @@ Tracking #249.
   - [ ] Send run into the narrator (#340).
   - [ ] Step functions per product (#341).
 - [ ] Exclusive constituents: rule order keeps narrative events from re-telling each other's events (#344):
-  - [ ] Explained events: rules declare their explainers (#345).
+  - [x] Explained events: rules declare their explainers (#345).
   - [ ] The merger cites everything it causes (#346).
   - [ ] Exclusive constituents: kinds declare them, rule order enforces them (#347).
 - [ ] Narrative-event significance in one place (#349):

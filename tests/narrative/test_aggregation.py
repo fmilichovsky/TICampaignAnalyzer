@@ -247,6 +247,39 @@ def test_duplicate_ids_and_duplicate_rule_names_are_programming_errors() -> None
         aggregate([changed(K1)], (), [RULE, GroupRule("changes", "nation.other")])
 
 
+@pytest.mark.parametrize(("explainer_order", "explained_order"), [(1, 1), (2, 1)])
+def test_an_explainer_must_be_emitted_by_a_lower_order_rule(explainer_order: int, explained_order: int) -> None:
+    @dataclass(frozen=True)
+    class DeclaredExplainer:
+        name: str = "explainer"
+        order: int = explainer_order
+        window_days: int | None = 0
+        emitted_types: frozenset[str] = frozenset({"nation.change.arc"})
+
+        def apply(
+            self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+        ) -> list[Event]:
+            return []
+
+    @dataclass(frozen=True)
+    class ExplainedRule:
+        name: str = "explained"
+        order: int = explained_order
+        window_days: int | None = 0
+        explains: frozenset[str] = frozenset({"nation.change.arc"})
+
+        def apply(
+            self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+        ) -> list[Event]:
+            return []
+
+    with pytest.raises(
+        ValueError,
+        match=f"explained at order {explained_order}.*explainer at order {explainer_order}",
+    ):
+        aggregate([], (), [DeclaredExplainer(), ExplainedRule()])
+
+
 def test_the_result_does_not_depend_on_stream_or_rule_order() -> None:
     stream = [changed(K1), changed(K2, FRANCE), changed(K3), changed(K3, FRANCE)]
     rules = [RULE, GroupRule("nested", "nation.changed.arc", order=1)]

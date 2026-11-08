@@ -75,10 +75,8 @@ BAND_SHIFTS: Mapping[str, str] = {
     "militaryTechLevel": "nation.miltech_shift",
 }
 
-SHIFT_CARRIERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY})
-"""Their ``metric_shifts`` already state a band shift of their nations, so no separate narrative event is built."""
-WAR_CARRIED = frozenset({"unrest", "cohesion"})
-"""Statistics a war moves, so a ``war.arc`` naming the nation carries their shifts too."""
+SHIFT_EXPLAINERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY})
+"""Their metric shifts explain the affected nations' band changes."""
 REST_VALUE_FILTERED = frozenset({"unrest", "cohesion"})
 """The game converges these towards a rest value; a crossing that drift alone explains is not a story."""
 UNREST_SEVERE = 4.5
@@ -114,7 +112,11 @@ class BandShiftRule:
     statistic: str
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
-    order: int = 2
+    order: int = 3
+
+    @property
+    def explains(self) -> frozenset[str]:
+        return SHIFT_EXPLAINERS | (frozenset({WAR_ARC}) if self.statistic in {"unrest", "cohesion"} else frozenset())
 
     @property
     def name(self) -> str:
@@ -126,7 +128,7 @@ class BandShiftRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         crossings = [event for event in by_type(stream, BAND_CROSSED) if event.attribute("statistic") == self.statistic]
-        carriers = by_type(stream, *SHIFT_CARRIERS, *((WAR_ARC,) if self.statistic in WAR_CARRIED else ()))
+        explainers = by_type(stream, *self.explains)
         reports = interval_reports(situations)
         following = {id(report): later for report, later in zip(situations, situations[1:], strict=False)}
         built = []
@@ -146,7 +148,7 @@ class BandShiftRule:
                 and not _holds(later, nation.entity_id, self.statistic, before, boundary)
             ):
                 continue
-            if _carried(crossing, nation.entity_id, carriers):
+            if _explained(crossing, nation.entity_id, explainers):
                 continue
             rank = gdp_rank(pair[1], nation.entity_id)
             level = self._level(before, after)
@@ -223,10 +225,11 @@ def _holds(report: SituationReport, nation_id: EntityId, statistic: str, before:
     return value is not None and _crosses(boundary, before, value)
 
 
-def _carried(crossing: Event, nation_id: EntityId, carriers: Sequence[Event]) -> bool:
+def _explained(crossing: Event, nation_id: EntityId, explainers: Sequence[Event]) -> bool:
     key = interval_of(crossing.id)
     return any(
-        key in carrier.intervals and any(ref.entity_id == nation_id for _, ref in carrier.roles) for carrier in carriers
+        key in explainer.intervals and any(ref.entity_id == nation_id for _, ref in explainer.roles)
+        for explainer in explainers
     )
 
 
@@ -368,6 +371,7 @@ class NuclearArcRule:
     geopolitics: GeopoliticsSettings
     name: str = NUCLEAR_ARC
     order: int = 2
+    emitted_types: frozenset[str] = frozenset({NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT})
 
     @property
     def window_days(self) -> int:
