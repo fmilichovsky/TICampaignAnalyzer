@@ -3,4 +3,4 @@ version = 1
 name = "TICampaignAnalyzer"
 
 [setup]
-script = "python3 -m venv .venv-codex && .venv-codex/bin/python -m pip install -e '.[dev]'"
+script = "python3.11 -m venv .venv-codex && .venv-codex/bin/python -m pip install -e '.[dev]'"
