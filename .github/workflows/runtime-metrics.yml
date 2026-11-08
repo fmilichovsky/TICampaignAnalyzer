@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  issues: write
 
 concurrency:
   group: runtime-metrics-${{ (github.event_name == 'issue_comment' && github.event.comment.body == '/benchmarks' && github.event.issue.pull_request && github.event.issue.number) || (github.event_name == 'workflow_dispatch' && github.ref) || github.run_id }}
@@ -22,10 +23,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      issues: none
     uses: ./.github/workflows/resolve-metrics-refs.yml
 
   samples:
     needs: resolve
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
@@ -46,6 +50,8 @@ jobs:
 
   measure:
     needs: [resolve, samples]
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -98,6 +104,8 @@ jobs:
 
   report:
     needs: [resolve, measure]
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
