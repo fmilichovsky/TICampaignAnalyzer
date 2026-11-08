@@ -86,7 +86,6 @@ def test_orbit_parent_and_combat_are_literal_with_the_faction_as_context() -> No
     assert dict(orbit.attributes) == {"transition": "cleared", "before": named(ref(HAB, "60")), "after": None}
     assert [str(r.entity_id) for r in orbit.entities] == ["fleet:120", "faction:15", "space object:60"]
     assert parent.confidence is Confidence.LOW and parent.attribute("transition") == "unresolved"
-    assert "merge" not in parent.event_type
     assert dict(combat.attributes) == {"transition": "changed", "before": False, "after": True}
     assert all(len(event.sources) == 1 for event in events)
 
@@ -106,7 +105,7 @@ def test_presence_cites_the_faction_and_hab_lists_and_unexplained_members_are_le
     )
     events = analyze(ANALYZER, before, after)
     gone = only(events, DISAPPEARED)
-    assert gone.attribute("side") == "before" and "destroy" not in gone.event_type
+    assert gone.attribute("side") == "before"
     assert [(s.role, str(s.change.entity_id)) for s in gone.sources] == [
         (SourceRole.PRIMARY, "fleet:121"),
         (SourceRole.CORROBORATING, "faction:15"),

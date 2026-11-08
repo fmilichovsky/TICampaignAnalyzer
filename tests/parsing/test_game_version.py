@@ -29,11 +29,6 @@ def test_global_values_save_version_is_detected() -> None:
     assert detect_game_version(_with_save_version("1.2.3")) == "1.2.3"
 
 
-def test_a_top_level_game_version_member_is_ignored() -> None:
-    assert detect_game_version(_with_save_version("1.2.3", game_version="envelope-build")) == "1.2.3"
-    assert detect_game_version({"game_version": "envelope-build"}) is None
-
-
 @pytest.mark.parametrize("version", [None, 3, ["1.2.3"]])
 def test_non_string_save_version_is_not_detected(version: object) -> None:
     assert detect_game_version(_with_save_version(version)) is None

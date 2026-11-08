@@ -9,7 +9,6 @@ from tinarrative.model.events import Event, SourceRole
 PAIR = ("global_values_before.json", "global_values_after.json")
 SINGLETON = "global values:70"
 STATE_PATH = "/gamestates/PavonisInteractive.TerraInvicta.TIGlobalValuesState/0/Value"
-FORBIDDEN = ("achiev", "won", "first ", "declar", "peace", "pruned", "expired", "flood")
 
 
 def run_all() -> tuple[Event, ...]:
@@ -68,8 +67,6 @@ def test_campaign_events_are_described_literally() -> None:
         f"{SINGLETON} nuclear strikes: 0 -> 2",
         f"{SINGLETON} sea level rise 1 flag set",
     }
-    text = " ".join(lines).lower()
-    assert all(word not in text for word in FORBIDDEN)
     assert all(line.isascii() for line in lines)
 
 

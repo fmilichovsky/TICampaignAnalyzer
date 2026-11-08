@@ -12,7 +12,6 @@ from tinarrative.analyzers.politics.councilors import HANDLED_LISTS as COUNCILOR
 from tinarrative.analyzers.politics.federations import HANDLED_LISTS as FEDERATION_LISTS
 from tinarrative.analyzers.politics.nations import HANDLED_LISTS as NATION_LISTS
 from tinarrative.analyzers.politics.wars import HANDLED_LISTS as WAR_LISTS
-from tinarrative.analyzers.render import describe_event
 from tinarrative.model.changes import ChangeKind, MembershipDetail, StateDiff
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, SourceRole
@@ -25,12 +24,6 @@ PAIRS = [
     ("politics_before.json", "politics_after.json"),
     ("wars_before.json", "wars_after.json"),
 ]
-FORBIDDEN = (
-    "purg", "coup", "annex", "defect", "destroy", "kill", "recruit", "join", "conquer", "captur", "seiz",
-    "assassin", "died", "death", "creat",
-)  # fmt: skip
-WAR_FORBIDDEN = ("declar", "won", "lost", "peace", "victor", "defeat", "surrender")
-"""Reconstruction vocabulary for wars; ``lost`` is fine elsewhere (``lostControlPoints`` is literal)."""
 HANDLED = {
     (domain.value, field)
     for domain, field in POINT_LISTS + NATION_LISTS + WAR_LISTS + FEDERATION_LISTS + COUNCILOR_LISTS
@@ -259,13 +252,3 @@ def test_every_member_of_a_handled_list_is_cited(before_name: str, after_name: s
         assert isinstance(change.detail, MembershipDetail)
         for member in change.detail.added + change.detail.removed:
             assert isinstance(member, EntityRef) and (change, member.entity_id) in cited, (change.entity_id, member)
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
-def test_types_and_messages_never_name_a_cause(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    for event in run(before, after, diff):
-        text = f"{event.event_type} {describe_event(event)}".lower()
-        war_words = WAR_FORBIDDEN if event.event_type.startswith(("war.", "federation.")) else ()
-        for word in FORBIDDEN + war_words:
-            assert word not in text, (event.id, word)

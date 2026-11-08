@@ -102,19 +102,20 @@ def test_missing_paths_are_reported_and_change_the_exit_code(
 
 
 def test_json_format_is_machine_readable(capsys: pytest.CaptureFixture[str]) -> None:
-    argv = ["save", "inspect", str(fixture_path(*REPRESENTATIVE)), "--format", "json"]
+    save = fixture_path(*REPRESENTATIVE)
+    argv = ["save", "inspect", str(save), "--format", "json"]
 
     assert main(argv) == EXIT_SUCCESS
 
     report = json.loads(capsys.readouterr().out)
     assert report["status"] == "ok"
     assert report["file_name"] == "representative_campaign.json"
-    assert report["file"]["size_bytes"] == 2366
+    assert report["file"]["size_bytes"] == save.stat().st_size
     assert [entry["key"] for entry in report["top_level"]] == [
         "currentID",
         "gamestates",
     ]
-    assert len(report["second_level"]["gamestates"]) == 6
+    assert len(report["second_level"]["gamestates"]) == len(json.loads(save.read_text(encoding="utf-8"))["gamestates"])
     assert report["diagnostics"] == []
     domains = {entry["domain"]["domain"] for entry in report["identity"]["domains"]}
     assert {"faction", "technology", "organization"} <= domains

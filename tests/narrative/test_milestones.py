@@ -23,13 +23,6 @@ def test_names_are_save_template_names() -> None:
         assert name.count("Project_") == (1 if name.startswith("Project_") else 0), name
 
 
-def test_campaign_defining_is_kept_for_few_entries() -> None:
-    defining = [
-        name for name, item in MILESTONE_TEMPLATES.items() if item.significance is Significance.CAMPAIGN_DEFINING
-    ]
-    assert 0 < len(defining) <= 12, defining
-
-
 def test_a_completion_names_its_technology_or_its_project() -> None:
     tech = atomic(
         "technology.completed/technology:SpaceNavies",

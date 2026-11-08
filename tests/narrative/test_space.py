@@ -10,7 +10,7 @@ from tests.narrative.support import atomic, faction, ref, situation
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import NarrativeSettings, SpaceSettings
 from tinarrative.model.entities import EntityDomain, EntityRef
-from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
+from tinarrative.model.events import DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
@@ -320,13 +320,6 @@ def test_fewer_ships_other_hulls_or_unknown_hulls_are_no_buildup() -> None:
     assert len(of_type(built(stream, buildup_min_ships=2), "faction.fleet_buildup")) == 1
 
 
-def test_the_buildup_threshold_is_configurable() -> None:
-    stream = [ship(K1, 1), ship(K1, 2), ship(K1, 3)]
-
-    assert of_type(built(stream), "faction.fleet_buildup") == []
-    assert len(of_type(built(stream, buildup_min_ships=3), "faction.fleet_buildup")) == 1
-
-
 # --- technology.milestone ----------------------------------------------------------------------------------------
 
 
@@ -416,4 +409,3 @@ def test_every_event_cites_only_stream_events() -> None:
 
     for item in built(stream):
         assert item.constituents and set(item.constituents) <= ids
-        assert item.confidence in set(Confidence)

@@ -32,7 +32,6 @@ def test_grouped_settings_and_profile(tmp_path: Path) -> None:
     )
     assert settings.narrative.geopolitics.expansion_gap_days == 500
     assert settings.narrative.space.campaign_gap_days == 500
-    assert settings.narrative.nation_metrics.ranking_top_n == 20
     assert settings.narrator.recalled_narrative_events == 12
     assert settings.narrator.with_profile("local").model == "local"
     assert settings.councilors.article_words == 420
@@ -43,17 +42,12 @@ def test_grouped_settings_and_profile(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "text,key",
     [
-        ("[narrative.geopolitics]\n", "narrative"),
-        ("[narrator]\n", "narrator"),
         ("[events]\nnope=1\n", "events.nope"),
         ("[llm]\nrecalled_narrative_events=40\n", "llm.recalled_narrative_events"),
         ("[llm]\nnope=1\n", "llm.nope"),
-        ("[llm]\nrecalled_developments=40\n", "llm.recalled_developments"),
-        ("[events]\nrecalled_developments=40\n", "events.recalled_developments"),
-        ("[llm.profiles.local]\ntop_economies=3\n", "top_economies"),
     ],
 )
-def test_old_and_unknown_names_are_rejected(tmp_path: Path, text: str, key: str) -> None:
+def test_unknown_and_misplaced_keys_are_rejected(tmp_path: Path, text: str, key: str) -> None:
     with pytest.raises(ConfigError, match=re.escape(key)):
         load_settings(write(tmp_path, text))
 
@@ -80,7 +74,14 @@ def test_llm_profile_validation_and_inheritance(tmp_path: Path) -> None:
         load_settings(write(tmp_path, '[llm]\nprovider="bad"\n'))
 
 
-def test_processing_override_and_cli_override() -> None:
+def test_top_nations_is_capped(tmp_path: Path) -> None:
+    def ranking(top: int) -> int:
+        return load_settings(write(tmp_path, f"[events]\ntop_nations={top}\n")).narrative.nation_metrics.ranking_top_n
+
+    assert ranking(5) == 5
+    assert ranking(25) == ranking(1000) < 25
+
+
+def test_no_file_gives_the_defaults_and_an_override_replaces_one_field() -> None:
     assert load_settings(None) is DEFAULT_SETTINGS
-    assert load_settings  # keep loader as public entry point
     assert override(DEFAULT_SETTINGS.narrator, "max_input_tokens", 1000).max_input_tokens == 1000

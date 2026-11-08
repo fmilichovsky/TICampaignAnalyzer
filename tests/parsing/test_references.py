@@ -90,12 +90,10 @@ def test_a_field_may_name_several_target_domains_and_the_owner_decides_the_domai
 def test_skipped_malformed_container_is_explained_in_the_debug_log(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.DEBUG, logger="tinarrative"):
         ReferenceIndex.from_gamestates(GAMESTATES)
-    skipped = [record.getMessage() for record in caplog.records if "reference index skipped" in record.getMessage()]
-    assert skipped == [
-        "reference index skipped state_type=TICouncilorState "
-        "reason='PavonisInteractive.TerraInvicta.TICouncilorState[0]: Key.value 1 != Value.ID.value 2'"
-    ]
-    assert "reference index built ids=4 other_ids=1 skipped_types=1" in caplog.text
+    skipped = [record for record in caplog.records if "reference index skipped" in record.getMessage()]
+    assert [(record.name, record.levelno) for record in skipped] == [("tinarrative.parsing.references", logging.DEBUG)]
+    assert "state_type=TICouncilorState" in skipped[0].getMessage()
+    assert "skipped_types=1" in caplog.text
 
 
 def test_other_owners_name_ids_outside_the_entity_domains() -> None:

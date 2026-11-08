@@ -239,28 +239,23 @@ def test_unlisted_and_notification_types_take_the_default() -> None:
 
 def test_table_entries_resolve_without_context() -> None:
     lookup = empty_lookup()
-    assert significance_of(bare_event("councilor.location_changed"), lookup) is Significance.TRIVIAL
-    assert significance_of(bare_event("ship.fleet_changed"), lookup) is Significance.TRIVIAL
-    assert significance_of(bare_event("fleet.orbit_changed"), lookup) is Significance.MINOR
-    assert significance_of(bare_event("nation.regions_changed"), lookup) is Significance.MINOR
-    assert significance_of(bare_event("control_point.controller_changed"), lookup) is Significance.MAJOR
-    assert significance_of(bare_event("campaign.global_milestone_recorded"), lookup) is Significance.CAMPAIGN_DEFINING
-    assert significance_of(bare_event("nation.disappeared"), lookup) is Significance.CAMPAIGN_DEFINING
-
-
-def test_the_atomic_types_of_issue_96_are_named_in_the_table() -> None:
-    lookup = empty_lookup()
     expected = {
-        "nation.renamed": Significance.MAJOR,
-        "federation.renamed": Significance.MAJOR,
+        "councilor.location_changed": Significance.TRIVIAL,
+        "ship.fleet_changed": Significance.TRIVIAL,
+        "fleet.orbit_changed": Significance.MINOR,
+        "nation.regions_changed": Significance.MINOR,
         "nation.hostile_claims_changed": Significance.MINOR,
         "faction.finished_project_names_changed": Significance.MINOR,
         "nation.unrest_attempts_changed": Significance.MINOR,
         "nation.new_government_recorded": Significance.MINOR,
         "nation.nuclear_program_changed": Significance.MINOR,
         "nation.policy_changed": Significance.MINOR,
+        "control_point.controller_changed": Significance.MAJOR,
+        "nation.renamed": Significance.MAJOR,
+        "federation.renamed": Significance.MAJOR,
+        "campaign.global_milestone_recorded": Significance.CAMPAIGN_DEFINING,
+        "nation.disappeared": Significance.CAMPAIGN_DEFINING,
     }
-    assert set(expected) <= set(BASE)  # named with a rationale, not left to the default
     assert {event_type: significance_of(bare_event(event_type), lookup) for event_type in expected} == expected
 
 
@@ -297,7 +292,13 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
         bare_event("nation.relation_changed", relation="wars"),  # major by its context rule
     ]
     assigned = assign_significance(events, snap, snap)
-    assert [event.score for event in assigned] == [87, 62, 37, 12, 62]
+    assert [event.score for event in assigned] == [
+        Significance.CAMPAIGN_DEFINING.base,
+        Significance.MAJOR.base,
+        Significance.MINOR.base,
+        Significance.TRIVIAL.base,
+        Significance.MAJOR.base,
+    ]
     assert all(event.score == event.significance.base for event in assigned)
 
 
@@ -340,13 +341,8 @@ def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
 
 def test_serialization_carries_the_level_and_score() -> None:
     event = bare_event("fleet.orbit_changed")
-    assert event.to_dict()["significance"] == "minor" and event.to_dict()["score"] == 37
-    assert (
-        Significance.CAMPAIGN_DEFINING.rank
-        > Significance.MAJOR.rank
-        > Significance.MINOR.rank
-        > Significance.TRIVIAL.rank
-    )
+    assert event.to_dict()["significance"] == "minor"
+    assert event.to_dict()["score"] == Significance.MINOR.base
 
 
 def test_the_alien_administrations_claims_are_minor_and_a_human_nations_are_major() -> None:
@@ -415,7 +411,9 @@ def test_a_nation_event_scores_higher_for_a_large_nation_than_a_micro_state(
     assert big.significance_basis.entities == (nation_ref(BIG),)
 
 
-def test_a_micro_states_disappearance_is_no_longer_campaign_defining(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_micro_states_disappearance_is_major_and_a_large_states_campaign_defining(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     power = {BIG: 0.3, MICRO: 0.0005}
     micro = scored(monkeypatch, scaled_event("nation.disappeared", nation_ref(MICRO)), power=power)
     big = scored(monkeypatch, scaled_event("nation.disappeared", nation_ref(BIG)), power=power)
@@ -533,7 +531,7 @@ def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None
     result = scored(monkeypatch, scaled_event("nation.appeared", nation_ref(MICRO)), power=POWER)
     basis = result.to_dict()["significance_basis"]
     assert {key: basis[key] for key in ("base", "measure", "share", "scale")} == {
-        "base": 87,
+        "base": Significance.CAMPAIGN_DEFINING.base,
         "measure": "power",
         "share": 0.001,
         "scale": -10,

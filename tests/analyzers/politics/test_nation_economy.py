@@ -3,6 +3,8 @@
 from dataclasses import replace
 from datetime import datetime
 
+import pytest
+
 from tests.analyzers.support import AFTER, BEFORE, analyze, region_ref, snapshot, state
 from tinarrative.analyzers.politics import NationEconomyAnalyzer
 from tinarrative.analyzers.politics.nation_economy import (
@@ -60,7 +62,7 @@ def test_a_boom_is_reported_at_the_quarter_its_trend_first_exceeds_the_threshold
         "window_start": "2026-04-01T00:00:00",
         "before": 100.0,
         "after": 160.0,
-        "change": 0.6000000000000001,
+        "change": pytest.approx(0.6),
         "before_sequence": False,
     }
     assert [source.role for source in event.sources] == [SourceRole.PRIMARY]

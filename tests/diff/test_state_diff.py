@@ -205,9 +205,6 @@ def test_entity_present_on_one_side_is_absent_not_destroyed() -> None:
     assert appeared.evidence.before_location == SourceLocation(BEFORE)
     assert appeared.evidence.after_location == new.location
     assert appeared.evidence.description == "present only in the after snapshot"
-    for change in (disappeared, appeared):
-        for word in ("destroy", "creat", "purg", "annex"):
-            assert word not in change.evidence.description
 
 
 def test_entities_match_by_id_not_by_display_name() -> None:

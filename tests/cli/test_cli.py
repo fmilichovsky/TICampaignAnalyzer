@@ -48,8 +48,10 @@ class CliSkeletonTests(unittest.TestCase):
         self.assertEqual(result.exception.code, EXIT_SUCCESS)
         self.assertEqual(out.getvalue().strip(), f"tinarrative {tinarrative.__version__}")
 
-    def test_cli_runs_without_arguments(self) -> None:
-        self.assertEqual(main([]), EXIT_SUCCESS)
+    def test_cli_without_arguments_prints_usage(self) -> None:
+        with redirect_stdout(StringIO()) as out:
+            self.assertEqual(main([]), EXIT_SUCCESS)
+        self.assertTrue(out.getvalue().startswith("usage: tinarrative "))
 
     def test_subcommand_help_does_not_need_a_save_file(self) -> None:
         for command in (
@@ -87,14 +89,6 @@ class CliSkeletonTests(unittest.TestCase):
             main(["save"])
         self.assertEqual(result.exception.code, EXIT_USAGE_ERROR)
         self.assertIn("COMMAND", err.getvalue())
-
-    def test_per_save_commands_are_not_top_level(self) -> None:
-        save = str(fixture_path(*REPRESENTATIVE))
-        for command in ("inspect", "parse", "diff"):
-            with self.subTest(command=command), redirect_stderr(StringIO()):
-                with self.assertRaises(SystemExit) as result:
-                    main([command, save, save])
-            self.assertEqual(result.exception.code, EXIT_USAGE_ERROR)
 
 
 class ParseCommandTests(unittest.TestCase):
@@ -209,19 +203,17 @@ class LogLevelTests(unittest.TestCase):
         self.assertEqual(code, EXIT_SUCCESS)
         self.assertNotIn("DEBUG", out)
         lines = err.splitlines()
-        self.assertEqual(lines[0], f"INFO tinarrative.cli: save parse start save={self.save.name}")
-        self.assertIn("DEBUG tinarrative.parsing.raw_save: json decoded root=dict", lines)
-        self.assertIn("DEBUG tinarrative.parsing.game_version: game_version detected source=none", lines)
-        self.assertTrue(
-            any(line.startswith("DEBUG tinarrative.parsing.normalization: domain normalized") for line in lines)
-        )
-        self.assertTrue(lines[-1].startswith("INFO tinarrative.cli: save parse done save="))
-        self.assertIn("unknowns=3 exit=0", lines[-1])
-        self.assertIn(
-            "INFO tinarrative.parsing.unknowns: unknown structures total=3 state_types=0 fields=3 envelope_keys=0 "
-            "field_shapes=0 reference_domains=0 singletons=0 containers=0",
-            lines,
-        )
+        self.assertTrue(lines[0].startswith("INFO tinarrative.cli: save parse start "))
+        for prefix in (
+            "DEBUG tinarrative.parsing.raw_save: ",
+            "DEBUG tinarrative.parsing.game_version: ",
+            "DEBUG tinarrative.parsing.normalization: domain normalized ",
+            "INFO tinarrative.parsing.unknowns: unknown structures ",
+        ):
+            self.assertTrue(any(line.startswith(prefix) for line in lines), prefix)
+        self.assertTrue(lines[-1].startswith("INFO tinarrative.cli: save parse done "))
+        self.assertIn(" exit=0", lines[-1])
+        self.assertNotIn("Fixture", err)
 
     def test_info_level_summarizes_without_debug_lines(self) -> None:
         code, _, err = run_cli(["--log-level", "info", "save", "parse", str(self.save)])

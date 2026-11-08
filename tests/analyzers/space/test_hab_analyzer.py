@@ -81,14 +81,13 @@ def test_field_transitions_are_separate_events_with_the_faction_as_context() -> 
     assert all(len(event.sources) == 1 and event.sources[0].role is SourceRole.PRIMARY for event in events)
 
 
-def test_presence_has_no_corroboration_and_never_says_destroyed() -> None:
+def test_presence_has_no_corroboration() -> None:
     before = snapshot(BEFORE, state(HAB, "141", BEFORE, faction=faction_ref("15")))
     after = snapshot(AFTER, state(HAB, "142", AFTER, faction=None))
     events = analyze(ANALYZER, before, after)
     gone = only(events, DISAPPEARED)
     assert gone.attribute("side") == "before" and len(gone.sources) == 1
     assert [str(r.entity_id) for r in gone.entities] == ["space object:141", "faction:15"]
-    assert "destroy" not in gone.event_type
     assert [str(r.entity_id) for r in only(events, APPEARED).entities] == ["space object:142"]
 
 

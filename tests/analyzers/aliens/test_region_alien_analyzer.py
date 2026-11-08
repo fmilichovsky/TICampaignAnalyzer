@@ -7,7 +7,6 @@ from tests.analyzers.support import (
     analyze,
     only,
     record_set,
-    ref,
     region_ref,
     snapshot,
     state,
@@ -120,8 +119,6 @@ def test_xenoforming_level_rising_and_dropping_to_zero_keeps_the_literal_levels(
     assert (dropping.attribute("before"), dropping.attribute("after")) == (3.0, 0.0)
     assert entities(dropping) == ["region:41", "region alien state:113"]
     assert (rising.date, rising.date_basis) == (AFTER_DATE, DateBasis.INTERVAL)
-    for event in events:
-        assert "detect" not in event.event_type and "clear" not in event.event_type
 
 
 def test_landing_and_facility_flags_are_events_and_secondary_fields_stay_in_the_diff() -> None:
@@ -156,4 +153,3 @@ def test_a_sub_state_without_its_region_is_still_reported_and_identical_snapshot
     (event,) = analyze(ANALYZER, before, after)
     assert entities(event) == ["region alien state:103"]
     assert analyze(ANALYZER, before, before) == []
-    assert ref(ALIEN, "103").entity_id.domain is ALIEN

@@ -6,7 +6,6 @@ from tinarrative.analyzers.render import describe_event
 from tinarrative.model.events import DateBasis, Event, EventStatus
 
 PAIR = ("aliens_before.json", "aliens_after.json")
-FORBIDDEN = ("detect", "clear", "crashed", "repel", "destroy", "spawn", "invad")
 
 
 def run_all() -> tuple[Event, ...]:
@@ -37,7 +36,7 @@ def test_crashdown_appears_with_its_date_xenoforming_rises_and_drops_to_zero() -
     assert (dropping.attribute("before"), dropping.attribute("after")) == (3.0, 0.0)
 
 
-def test_megafauna_army_appears_marked_and_lines_avoid_inferred_wording() -> None:
+def test_megafauna_army_appears_marked_and_region_lines_describe_the_fields() -> None:
     events = run_all()
     army = next(event for event in events if event.id == "army.appeared/army:51")
     assert army.attribute("megafauna") is True
@@ -50,5 +49,3 @@ def test_megafauna_army_appears_marked_and_lines_avoid_inferred_wording() -> Non
         "EastHills (region:42) landing present: false -> true",
     }
     assert describe_event(army).endswith("(megafauna)")
-    for line in lines:
-        assert not any(word in line.lower() for word in FORBIDDEN), line

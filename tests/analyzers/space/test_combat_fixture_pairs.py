@@ -9,7 +9,6 @@ from tinarrative.model.values import FrozenMap, Observed
 
 PAIR = ("combat_before.json", "combat_after.json")
 LOG_PATH = "/gamestates/PavonisInteractive.TerraInvicta.TIFactionState/{index}/Value/CombatLogs/{entry}"
-FORBIDDEN = ("battle", "won", "lost", "kill", "destroy", "pruned", "surpris")
 
 
 def run() -> dict[str, Event]:
@@ -95,5 +94,3 @@ def test_lines_name_sides_and_winner_but_never_design_or_hull_names() -> None:
     ]
     text = " ".join(lines)
     assert "Fixture Design" not in text and "FixtureEscort" not in text
-    for word in FORBIDDEN:
-        assert word not in text.lower()

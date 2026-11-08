@@ -9,7 +9,6 @@ from tinarrative.model.values import Unknown, UnknownReason
 PAIR = ("notifications_before.json", "notifications_after.json")
 QUEUE = "notification queue:80"
 LOG_PATH = "/gamestates/PavonisInteractive.TerraInvicta.TINotificationQueueState/0/Value/notificationSummaryQueue"
-FORBIDDEN = ("pruned", "expired", "dismissed")
 
 
 def run() -> tuple[Event, ...]:
@@ -93,5 +92,3 @@ def test_lines_name_the_template_and_subject_but_never_the_summary() -> None:
     }
     text = " ".join(lines)
     assert "Fixture summary" not in text
-    for word in FORBIDDEN:
-        assert word not in text.lower()

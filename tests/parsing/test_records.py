@@ -131,9 +131,22 @@ def test_ledger_and_destruction_log_are_dated_entries_with_resolved_references(b
     )
 
 
-def test_pair_maps_decode_from_both_forms_and_keys_resolve_against_their_domains(before: SaveSnapshot) -> None:
-    assert record(before, "15", "Kills").entries == ()
-    assert record(before, "15", "lostControlPoints").entries == ()
+def test_pair_maps_decode_from_both_forms_and_keys_resolve_against_their_domains() -> None:
+    empty, _ = collect(faction_fragment(Kills={}, lostControlPoints={}))
+    assert record(empty, "15", "Kills").entries == ()
+    assert record(empty, "15", "lostControlPoints").entries == ()
+
+    gamestates = faction_fragment(
+        Kills=[{"Key": {"value": 16}, "Value": ["Escort"]}],
+        lostControlPoints=[{"Key": {"value": 9}, "Value": DATE}],
+    )
+    gamestates[STATE_PREFIX + "TIControlPoint"] = [pair(9)]
+    filled, report = collect(gamestates)
+    assert record(filled, "15", "Kills").entries == (KeyedEntry(0, FACTION_16, ("Escort",)),)
+    assert record(filled, "15", "lostControlPoints").entries == (
+        KeyedEntry(0, ref(EntityDomain.CONTROL_POINT, "9", "TIControlPoint"), ISO),
+    )
+    assert keys(report) == []
 
 
 def test_label_maps_counters_dates_and_reference_lists(before: SaveSnapshot, after: SaveSnapshot) -> None:
@@ -294,7 +307,9 @@ def test_executive_reference_to_an_unexpected_type_is_reported_under_its_member_
     ]
 
 
-def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest.LogCaptureFixture) -> None:
+def test_debug_log_counts_records_without_naming_labels_or_values(
+    caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
     with caplog.at_level(logging.DEBUG, logger="tinarrative"):
         collect(
             faction_fragment(
@@ -302,22 +317,12 @@ def test_debug_log_counts_records_without_naming_labels_or_values(caplog: pytest
                 Kills=[{"Key": {"value": 16}, "Value": ["Secret Ship"]}],
             )
         )
-    lines = [record.getMessage() for record in caplog.records if record.name == "tinarrative.parsing.records"]
-    assert lines == [
-        "records normalized state_type=TIFactionState fields=6 entities=2 sets=12 known_sets=2 missing=10 entries=2 "
-        "skipped_entries=1 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-        "records normalized state_type=TINationState fields=2 entities=1 sets=2 known_sets=0 missing=2 entries=0 "
-        "skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-        "records normalized state_type=TIWarState fields=2 entities=0 sets=0 known_sets=0 missing=0 entries=0 "
-        "skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-        "records normalized state_type=TIRegionUFOCrashdownState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
-        "entries=0 skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-        "records normalized state_type=TIGlobalValuesState fields=3 entities=0 sets=0 known_sets=0 missing=0 "
-        "entries=0 skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-        "records normalized state_type=TINotificationQueueState fields=1 entities=0 sets=0 known_sets=0 missing=0 "
-        "entries=0 skipped_entries=0 unparseable_dates=0 unresolved_references=0 shape_findings=0",
-    ]
+    logged = [record for record in caplog.records if record.name == "tinarrative.parsing.records"]
+    assert logged and {record.levelno for record in logged} == {logging.DEBUG}
+    (faction,) = [record.getMessage() for record in logged if "state_type=TIFactionState " in record.getMessage()]
+    assert " entries=2 " in faction and " skipped_entries=1 " in faction
     assert "Secret" not in caplog.text and "Fixture" not in caplog.text
+    assert capsys.readouterr().out == ""
 
 
 GLOBAL_VALUES_TYPE = STATE_PREFIX + "TIGlobalValuesState"

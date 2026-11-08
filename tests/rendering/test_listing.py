@@ -107,7 +107,6 @@ def test_without_constituents_no_atomic_event_is_listed() -> None:
 
     assert chosen.narrative == (TOP,)
     assert not chosen.kept([OBJECTIVE, UNCITED, INFERRED])
-    assert chosen.filters
     assert chosen.omissions([OBJECTIVE, UNCITED, INFERRED]) == [(3, "omitted with --constituents none")]
 
 

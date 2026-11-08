@@ -277,9 +277,8 @@ def test_a_failed_article_is_skipped_and_the_run_exits_10_at_the_end(
     )
     assert message in row["error"]
     err = capsys.readouterr().err
-    assert f"tinarrative councilors: article 2: anthropic: {message}" in err or (
-        "article 2: anthropic:" in err and message in err
-    )
+    (line,) = [line for line in err.splitlines() if line.startswith("tinarrative councilors: article 2: anthropic: ")]
+    assert message in line
     assert f"1 of {len(names)} articles missing; see {out / 'manifest.json'}" in err
 
 

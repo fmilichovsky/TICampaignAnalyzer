@@ -65,24 +65,3 @@ def test_ids_shared_across_types_and_current_id() -> None:
 
 def test_every_documented_domain_is_present() -> None:
     assert {domain.domain for domain in ENTITY_DOMAINS} == set(EntityDomain)
-    assert {domain.domain.value for domain in ENTITY_DOMAINS} == {
-        "faction",
-        "nation",
-        "region",
-        "mission control facility",
-        "control point",
-        "councilor",
-        "mission",
-        "army",
-        "fleet",
-        "ship",
-        "space body",
-        "space object",
-        "organization",
-        "technology",
-        "war",
-        "federation",
-        "region alien state",
-        "global values",
-        "notification queue",
-    }

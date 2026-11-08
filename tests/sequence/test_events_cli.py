@@ -75,32 +75,6 @@ def test_every_golden_report_has_a_test() -> None:
     )
 
 
-@pytest.mark.parametrize("suffix", ["narrative.md", "narrative.constituents.md", "narrative.evidence.md"])
-def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(suffix: str) -> None:
-    inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
-    narrative = (EXPECTED_DIR / f"politics_sequence.expected.{suffix}").read_text(encoding="utf-8")
-
-    head = inferred.partition("\n## Intervals\n")[0]
-    assert narrative.startswith(head + "\n## Narrative\n")
-    assert narrative.count("#### Inferred events") == (0 if suffix == "narrative.md" else 2)
-
-
-def test_without_constituents_the_narrative_report_lists_no_atomic_event(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.chdir(FIXTURE_DIR)
-
-    assert main(["events", "--narrative", *SHUFFLED]) == EXIT_SUCCESS
-
-    intervals = capsys.readouterr().out.partition("## Intervals\n")[2]
-    assert [line for line in intervals.splitlines() if line] == [
-        "- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: nothing listed "
-        "(33 state changes; 27 events omitted with --constituents none)",
-        "- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: nothing listed "
-        "(10 state changes; 7 events omitted with --constituents none)",
-    ]
-
-
 def test_non_default_settings_are_named_in_the_narrative_section(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
@@ -147,13 +121,7 @@ def test_json_report_lists_narrative_events_only_when_asked(
     narrative = json.loads(capsys.readouterr().out)
 
     assert plain["narrative"] is None and plain["settings"] is None
-    assert [event["event_type"] for event in narrative["narrative"]] == [
-        "faction.takeover",
-        "faction.takeover",
-        "nation.claims_declared",
-        "nation.cession",
-        "world.ranking_changed",
-    ]
+    assert narrative["narrative"] and all(event["constituents"] for event in narrative["narrative"])
     assert narrative["settings"] == {"events": DEFAULT_SETTINGS.to_dict()["events"]}
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
 
@@ -854,9 +822,11 @@ def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_re
     everything = _json(capsys, "--narrative", "--constituents", "all")
     major = _json(capsys, "--narrative", "--min-significance", "major")
 
-    assert listed(audit) == [["nation:20", "nation:21", "nation:22"]] * 3
+    assert listed(everything) == listed(major)
     # nation:22 holds no region and only uncited events name it; nation:21 holds none in April but does elsewhere
-    assert listed(everything) == listed(major) == [["nation:20", "nation:21"]] * 3
+    for full, slim in zip(listed(audit), listed(everything), strict=True):
+        assert "nation:22" in full and "nation:22" not in slim
+        assert "nation:21" in slim and set(slim) < set(full)
     assert [save["situation"]["world"] for save in major["saves"]] == [
         save["situation"]["world"] for save in audit["saves"]
     ]

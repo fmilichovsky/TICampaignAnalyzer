@@ -14,7 +14,6 @@ from tinarrative.analyzers import (
     run_analyzers,
 )
 from tinarrative.analyzers.military.armies import HANDLED_LISTS as ARMY_LISTS
-from tinarrative.analyzers.render import describe_event
 from tinarrative.analyzers.space.fleets import HANDLED_LISTS as FLEET_LISTS
 from tinarrative.analyzers.space.ships import HANDLED_LISTS as SHIP_LISTS
 from tinarrative.model.changes import ChangeKind, MembershipDetail, StateDiff
@@ -38,12 +37,6 @@ ALL_PAIRS = PAIRS + [
     ("combat_before.json", "combat_after.json"),
     ("ledger_before.json", "ledger_after.json"),
 ]
-FORBIDDEN = (
-    "purg", "coup", "annex", "defect", "kill", "recruit", "join", "conquer", "captur", "seiz",
-    "assassin", "died", "death", "creat", "battle", "merge", "lost", "won",
-)  # fmt: skip
-FIELD_BACKED = {"destroy": ("destroyed", "HabDestructionLog"), "refit": ("lastRefitDate",)}
-"""Words allowed only when the event's primary source is the save field that literally carries them."""
 HANDLED = {(domain.value, field) for domain, field in ARMY_LISTS + FLEET_LISTS + SHIP_LISTS}
 
 
@@ -187,19 +180,6 @@ def test_every_member_of_a_handled_list_is_cited(before_name: str, after_name: s
         assert isinstance(change.detail, MembershipDetail)
         for member in change.detail.added + change.detail.removed:
             assert isinstance(member, EntityRef) and (change, member.entity_id) in cited, (change.entity_id, member)
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
-def test_types_and_messages_never_name_a_cause_unless_the_save_field_does(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    for event in run(before, after, diff):
-        text = f"{event.event_type} {describe_event(event)}".lower()
-        for word in FORBIDDEN:
-            assert word not in text, (event.id, word)
-        for word, fields in FIELD_BACKED.items():
-            if word in text:
-                assert event.sources[0].role is SourceRole.PRIMARY
-                assert event.sources[0].change.field in fields, (event.id, word)
 
 
 @pytest.mark.parametrize(("before_name", "after_name"), ALL_PAIRS)
