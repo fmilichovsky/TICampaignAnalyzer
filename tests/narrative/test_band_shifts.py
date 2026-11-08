@@ -145,7 +145,7 @@ def test_a_top_gdp_nation_is_promoted_one_level() -> None:
     assert age.event_type == "nation.miltech_shift" and age.significance is Significance.CAMPAIGN_DEFINING
 
 
-def test_a_development_naming_the_nation_in_the_interval_carries_the_shift() -> None:
+def test_a_narrative_event_naming_the_nation_in_the_interval_carries_the_shift() -> None:
     control = atomic(
         f"faction.nation_control_changed/{NORTH.entity_id}/executive",
         K1,

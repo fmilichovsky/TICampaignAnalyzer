@@ -82,7 +82,7 @@ class GeopoliticsSettings:
     """A diplomatic realignment needs the nation to gain or lose at least this many distinct partner nations as
     allies or rivals within one chain."""
     metric_shifts_max: int = _int(12, 0)
-    """A development keeps at most this many ``metric_shifts`` entries: its role nations' first, then nuclear
+    """A narrative event keeps at most this many ``metric_shifts`` entries: its role nations' first, then nuclear
     weapons, then the largest relative change; the rest are counted as ``metric_shifts_omitted``."""
 
 
@@ -189,8 +189,8 @@ class NarratorSettings:
     """A campaign spanning this many game days or fewer is told by quarter."""
     half_span_days: int = _int(1825, 0)
     """A longer campaign spanning this many game days or fewer is told by half year, a longer one by year."""
-    recalled_developments: int = _int(40, 0)
-    """Each chapter is reminded of at most this many earlier ``major``-or-above developments (most significant, then
+    recalled_narrative_events: int = _int(40, 0)
+    """Each chapter is reminded of at most this many earlier ``major``-or-above narrative events (most significant, then
     most recent); 0 turns the reminder off."""
     top_economies: int = _int(10, 0)
     """A chapter's situation reports keep the nations the chapter references and this many more, the largest by
@@ -294,7 +294,7 @@ def load_settings(path: Path | None) -> Settings:
         raise ConfigError("'events' must be a table")
     if not isinstance(llm, Mapping):
         raise ConfigError("'llm' must be a table")
-    event_keys = {"episode_gap_days", "top_nations"}
+    event_keys = {"episode_gap_days", "top_nations", "recalled_narrative_events"}
     for key in events:
         if key not in event_keys:
             raise ConfigError(f"unknown setting 'events.{key}'")
@@ -310,6 +310,7 @@ def load_settings(path: Path | None) -> Settings:
     if events:
         gap = events.get("episode_gap_days", 365)
         top = events.get("top_nations", 10)
+        recalled = events.get("recalled_narrative_events", 40)
         if isinstance(gap, bool) or not isinstance(gap, int) or gap < 0:
             raise ConfigError("'events.episode_gap_days' must be an integer at least 0")
         if isinstance(top, bool) or not isinstance(top, int) or top < 1:
@@ -320,8 +321,9 @@ def load_settings(path: Path | None) -> Settings:
             "space": {"campaign_gap_days": gap},
             "nation_metrics": {"space_assets_window_days": gap, "nuclear_window_days": gap, "ranking_top_n": top},
         }
+        normalized["narrator"] = {"recalled_narrative_events": recalled}
     if llm:
-        normalized["narrator"] = dict(llm)
+        normalized.setdefault("narrator", {}).update(llm)
     councilors = normalized.get("councilors", {})
     if isinstance(councilors, Mapping):
         for key in councilors:
@@ -332,7 +334,8 @@ def load_settings(path: Path | None) -> Settings:
     except ConfigError as error:
         # These runtime objects retain their historical attribute names; errors
         # always speak in the public TOML vocabulary.
-        raise ConfigError(str(error).replace("narrator", "llm")) from None
+        message = str(error).replace("narrator.recalled_narrative_events", "events.recalled_narrative_events")
+        raise ConfigError(message.replace("narrator", "llm")) from None
 
 
 def override(settings: NarratorSettings, key: str, value: Any) -> NarratorSettings:
@@ -408,7 +411,11 @@ def _to_dict(settings: Any) -> dict[str, Any]:
         narrator = settings.narrator
         gap = settings.narrative.geopolitics.expansion_gap_days
         result: dict[str, Any] = {
-            "events": {"episode_gap_days": gap, "top_nations": settings.narrative.nation_metrics.ranking_top_n},
+            "events": {
+                "episode_gap_days": gap,
+                "top_nations": settings.narrative.nation_metrics.ranking_top_n,
+                "recalled_narrative_events": narrator.recalled_narrative_events,
+            },
             "llm": {},
             "councilors": {
                 "rivals_per_faction": settings.councilors.rivals_per_faction,

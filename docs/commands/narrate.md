@@ -34,13 +34,13 @@ provider and assembles the answers into one footnoted `history.md`, with a citat
 | `PATH...` | | Save files or directories, in any order. |
 | `--package FILE` | | A finished narrator package to narrate as it is; `-` for stdin. |
 | `--campaign SELECTOR` | | The campaign to narrate when the saves hold several (as `events --campaign`). |
-| `--min-significance LEVEL` | `major` | Lowest significance of a development told (saves only). |
-| `--constituents all\|evidence\|none` | `evidence` | Which events behind the developments the model also gets (saves only). |
+| `--min-significance LEVEL` | `major` | Lowest significance of a narrative event told (saves only). |
+| `--constituents all\|evidence\|none` | `evidence` | Which events behind the narrative events the model also gets (saves only). |
 | `--period year\|half\|quarter` | from the campaign span | The sections the history is told in; see [Chapter plan](#chapter-plan). |
 | `--audience public\|insider` | `public` | Who the history is for. `insider` centres on the player faction. |
 | `--citations footnotes\|none` | `footnotes` | Footnotes citing event IDs, or none. |
 | `--style chronicle\|headlines` | `chronicle` | Running prose or headlines. |
-| `--length WORDS` | | Target length of the whole history, shared out across chapters by their developments. |
+| `--length WORDS` | | Target length of the whole history, shared out across chapters by their narrative events. |
 | `--focus NAME` | player faction for `insider` | A faction or nation to centre the account on. |
 | `--output DIR` | | Write the plan and the requests here; without it only the plan summary is printed. |
 | `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: narrative rules and the `[llm]` budget, provider and profiles ([configuration](../configuration.md)). |
@@ -56,9 +56,9 @@ The audience, citation and style defaults are the prompt's; see [llm](../narrato
 ## Chapter plan
 
 Each chapter is a run of whole periods that fits within `llm.max_input_tokens`, and carries
-the developments that start in it, the situation at its opening and closing saves, and a
+the narrative events that start in it, the situation at its opening and closing saves, and a
 reminder of what earlier chapters told. A period too large for one request is told without the
-supporting events, then split; developments are never dropped. If a single interval does not fit,
+supporting events, then split; narrative events are never dropped. If a single interval does not fit,
 the command stops before writing anything (exit 2).
 
 Without `--period`, the period is `quarter`, `half` or `year` by the campaign's span
@@ -100,7 +100,7 @@ failed. The providers are in [`narrator/providers.py`](../../src/tinarrative/nar
 
 ## Output
 
-stdout always gets the plan: per chapter its part, dates, periods, development counts and token
+stdout always gets the plan: per chapter its part, dates, periods, narrative event counts and token
 estimate. With `--send` it adds one line per chapter (`sent` or `kept`, with token counts) and
 names the history. With `--output DIR`, the command writes:
 
@@ -118,7 +118,7 @@ The same package and settings always give the same plan and request files.
 `history.md` opens with a header naming the provider, model, prompt version, campaign and period,
 followed by the chapters in order, their footnotes numbered through the whole history. The
 **citation audit** checks every cited ID against what its chapter was given and reports
-citations that match nothing, major developments that no footnote cites, and footnotes without a
+citations that match nothing, major narrative events that no footnote cites, and footnotes without a
 definition. It never changes the prose. When it finds anything, stderr gets one summary line and
 the run still exits 0; the details are in `manifest.json`. Assembly and the audit are in
 [`narrator/assembly.py`](../../src/tinarrative/narrator/assembly.py).

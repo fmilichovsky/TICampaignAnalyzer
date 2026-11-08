@@ -5,6 +5,8 @@
 episode_gap_days = 365
 # Larger lists show more nations in rankings and economy summaries (1-20).
 top_nations = 10
+# Maximum earlier narrative events recalled by each chapter.
+recalled_narrative_events = 40
 
 [llm] # narrate and --send for narrate and councilors
 # Larger inputs allow larger chapters; smaller values split them sooner.

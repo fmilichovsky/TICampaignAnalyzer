@@ -7,7 +7,7 @@ place that describes each key. Copy it and remove keys you do not change; a test
 
 Settings use UTF-8 TOML. The accepted tables are `[events]`, `[llm]`, `[llm.profiles.NAME]`, `[councilors]` and
 `[processing]`. Unknown tables and keys, wrong types, invalid choices and values below their minimum fail with
-exit code 8 and name the setting. `events.top_nations` is capped at 20.
+exit code 8 and name the setting.
 
 Each `[llm.profiles.NAME]` table accepts the same keys as `[llm]`. Profile values override `[llm]` values,
 and command flags override both. API keys are read from the environment variable named by `llm.api_key_env`; the key itself is

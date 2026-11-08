@@ -8,7 +8,7 @@ id = "major"  # the package `narrate` builds from saves
 args = ["--narrative", "--constituents", "evidence", "--format", "json", "--min-significance", "major"]
 
 [[events]]
-id = "major-all"  # every constituent of the listed developments
+id = "major-all"  # every constituent of the listed narrative events
 args = ["--narrative", "--constituents", "all", "--format", "json", "--min-significance", "major"]
 
 [[events]]

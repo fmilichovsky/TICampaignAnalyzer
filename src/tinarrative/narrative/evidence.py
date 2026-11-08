@@ -1,7 +1,7 @@
-"""Narrator evidence: which constituents of a development the narrator package lists in its atomic stream.
+"""Narrator evidence: which constituents of a narrative event the narrator package lists in its atomic stream.
 
-A type is evidence when it states a fact its development does not carry, mostly a record date, a place or a
-destruction; every other type is bookkeeping the development already states in summary form. A type no entry names
+A type is evidence when it states a fact its narrative event does not carry, mostly a record date, a place or a
+destruction; every other type is bookkeeping the narrative event already states in summary form. A type no entry names
 is not evidence. ``--constituents all`` still lists everything, so every constituent ID resolves there.
 """
 
@@ -46,9 +46,9 @@ _EVIDENCE: tuple[str, ...] = (
     "technology.completed",
     "faction.project_completed",
     "faction.transaction_recorded",
-    # The statistic shifts behind a development's metric_shifts or a takeover's precursors, with their causes.
+    # The statistic shifts behind a narrative event's metric_shifts or a takeover's precursors, with their causes.
     "nation.statistic_shifted",
-    # The band crossing behind a band-shift development, with the game's band labels and its causes.
+    # The band crossing behind a band-shift narrative event, with the game's band labels and its causes.
     "nation.band_crossed",
     # A population move beyond territory, and a five-year per-capita GDP trend at its quarter, behind a collapse or
     # an economic trajectory.
@@ -68,7 +68,7 @@ NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)
 EVIDENCE_PREFIXES: Final[tuple[str, ...]] = (
     # The game's notification log dates and places a battle or a destroyed hab.
     "notification.",
-    # A councilor defecting, detained or gone is who acted, which no development names.
+    # A councilor defecting, detained or gone is who acted, which no narrative event names.
     "councilor.",
 )
 

@@ -6,7 +6,7 @@ tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format m
 
 Reads the saves of one campaign, puts them in game-time order and reports what happened between
 every pair of consecutive saves: the events found in each interval, how significant each one is
-and, on request, the events inferred from them, the developments that span the whole campaign and
+and, on request, the events inferred from them, the narrative events that span the whole campaign and
 the literal state changes. It is the analyzed counterpart of [`save diff`](diff.md), and the
 source of the package that [`narrate`](narrate.md) tells.
 
@@ -81,7 +81,7 @@ be cited and looked up. An inferred event lists the events it rests on:
 
 ## Narrative events
 
-`--narrative` joins the events of the whole campaign into narrative events: developments that span
+`--narrative` joins the events of the whole campaign into narrative events that span
 intervals, such as a takeover and its consolidation, a war from start to peace, or a nation's
 economic boom. Each is listed under its starting period with its span, `(open)` when it is still
 under way in the last save, its description, confidence and significance, its roles, its key
@@ -137,7 +137,7 @@ saves.
 `events --format json --narrative` is the narrator package, the input of [`narrate`](narrate.md)
 and of an LLM narrator ([narrator](../narrator.md)). It holds the narrative events, a situation
 report per save, the glossary and, with `--constituents all` or `evidence`, the events the listed
-developments are built from. It carries IDs but no file paths and no source locations, and leaves
+narrative events are built from. It carries IDs but no file paths and no source locations, and leaves
 out detail a narrator does not need. `--changes` is a usage error with it.
 
 To audit a package, run the same saves with `--inferred` instead of `--narrative` and without

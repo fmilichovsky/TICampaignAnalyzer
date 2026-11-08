@@ -119,8 +119,8 @@ may have more than one plausible layer; name the evidence for the choice.
 | --- | --- | --- |
 | Unsupported fact, wrong certainty, wrong interval date, invalid citation, or audience leak | `src/tinarrative/narrator/prompt.md` and request construction (`narrator/request.py`) | Tighten or clarify the prompt; add a focused regression where practical. |
 | Rigid, repetitive, overly long, or poorly structured prose while claims and coverage are sound | `src/tinarrative/narrator/prompt.md` | Make a small style instruction change; preserve evidence rules. |
-| Important recorded development absent from both package and prose | Analyzer, reconstruction, narrative aggregation, or significance rules | Trace the selected saves through the deterministic pipeline; propose a focused implementation issue or make a small, tested fix. |
-| Important package development omitted by otherwise compliant prose | `src/tinarrative/narrator/prompt.md` | Adjust prioritisation or shape guidance, then rerun the narrator and audit. |
+| Important recorded narrative event absent from both package and prose | Analyzer, reconstruction, narrative aggregation, or significance rules | Trace the selected saves through the deterministic pipeline; propose a focused implementation issue or make a small, tested fix. |
+| Important package narrative event omitted by otherwise compliant prose | `src/tinarrative/narrator/prompt.md` | Adjust prioritisation or shape guidance, then rerun the narrator and audit. |
 | Too much low-value material present in the package | Significance or aggregation configuration/rules | Inspect thresholds and grouping; do not solve it by asking the narrator to conceal major evidence indiscriminately. |
 | Correct package with disputed interpretation or desired editorial emphasis | Prompt and user request block | Treat as an editorial choice, not a detection bug. |
 

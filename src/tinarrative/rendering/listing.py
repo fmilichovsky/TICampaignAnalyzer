@@ -25,7 +25,7 @@ NOT_CITED: Final = "omitted: not cited by a listed narrative event"
 NOT_EVIDENCE: Final = "omitted: not narrator evidence"
 
 MEMBER_DIGESTS: Final[frozenset[str]] = frozenset({TAKEOVER_WAVE})
-"""Developments that tell their narrative members together: a member only they cite is listed as a digest, whatever
+"""narrative events that tell their narrative members together: a member only they cite is listed as a digest, whatever
 its own significance, and its own constituents are not reached through it."""
 
 
@@ -34,7 +34,7 @@ class Listing:
     """``constituents`` is ``None`` when atomic events are filtered by significance.
 
     ``reached`` holds every objective and inferred event the listed narrative events are built from, listed or not.
-    ``digested`` maps each narrative event listed as a digest to the development it is a member of; ``narrative``
+    ``digested`` maps each narrative event listed as a digest to the narrative event it is a member of; ``narrative``
     holds both kinds.
     """
 
@@ -112,7 +112,7 @@ def listing(
 
 
 def _split(narrative: Sequence[Event], roots: set[str], *, follow: bool) -> tuple[set[str], dict[str, str]]:
-    """The narrative events listed in full, and those listed as digests with the development citing them.
+    """The narrative events listed in full, and those listed as digests with the narrative event citing them.
 
     An event is decided after every event citing it (citations only reach lower orders, so this terminates): in full
     when a full non-digesting event cites it and it is a root or ``follow`` holds, else a digest when a full

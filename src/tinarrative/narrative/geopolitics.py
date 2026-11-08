@@ -515,7 +515,7 @@ def _holds_executive_only(situations: Sequence[SituationReport], nation_id: Enti
 class TakeoverWaveRule:
     """``faction.takeover_wave``: one faction took several nations below the top GDP ranks in a short period.
 
-    A takeover of a top-ranked nation stays a headline development of its own and never joins a wave.
+    A takeover of a top-ranked nation stays a headline narrative event of its own and never joins a wave.
     """
 
     settings: GeopoliticsSettings

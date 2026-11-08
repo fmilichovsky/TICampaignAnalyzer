@@ -17,7 +17,7 @@ saves as **snapshots of a changing world** and derives a progressively more sema
 1.  **Raw save state** --- parsed game data.
 2.  **Objective changes/events** --- facts directly evidenced by comparing states.
 3.  **Inferred events** --- plausible actions or causes reconstructed from those changes.
-4.  **Narrative events** --- semantically grouped developments suitable for human presentation.
+4.  **Narrative events** --- semantically grouped events suitable for human presentation.
 5.  **Campaign narrative** --- chronological, readable history generated from the event stream.
 
 The architecture preserves the distinction between what the save proves and what the analyzer infers. It
@@ -173,7 +173,7 @@ smallest meaningful semantic unit produced by analysis, normally one concrete tr
 reconstructed action: a control point changing controller, a nation gaining regions, a technology completing.
 
 A *narrative* event is a higher-level grouping of related atomic events that humans perceive as one
-development: "the Resistance takeover of Germany" (control changes, councilor removals, consolidation), "the
+event: "the Resistance takeover of Germany" (control changes, councilor removals, consolidation), "the
 European Union's absorption of Slovenia", "the Servants' space campaign against the Academy". A narrative
 event can contain objective and inferred atomic events simultaneously.
 
@@ -273,7 +273,7 @@ Principles:
 -   **No invented causality** to produce nicer prose. A cause the save records (an executive-change cause)
     stays an attribute.
 
-The rules cover three kinds of development:
+The rules cover three kinds of narrative event:
 
 -   **territorial**: territory gained and lost, independence, unification and annexation, read from region
     transfers and the game's tracked reasons;
@@ -290,9 +290,9 @@ and no reconstruction; `tinarrative events --inferred` reports inferred events.
 # 11. Narrative Aggregation
 
 Narrative aggregation operates on the atomic event stream of a save sequence. Its job is to state, once each,
-the human-scale developments a campaign history reports: a faction taking over a nation and consolidating its
+the human-scale narrative events a campaign history reports: a faction taking over a nation and consolidating its
 hold, a war from declaration to peace, a federation's life, a nation absorbing its neighbours over several
-years, a space campaign that destroyed a rival's bases. Each development carries its span, its actors by role
+years, a space campaign that destroyed a rival's bases. Each narrative event carries its span, its actors by role
 and every piece of evidence beneath it.
 
 The design is a small set of explicit, named rules; grouping by temporal proximity and shared entities alone
@@ -307,11 +307,11 @@ was rejected.
 -   It is the first stage allowed to see more than one interval. Every rule declares its window: one interval,
     a number of consecutive intervals, or the whole sequence. Windows are measured in game days, never in
     saves, because save spacing is arbitrary. A window is measured from the earliest date an event can have
-    had, so consecutive intervals always touch and a long interval never splits one development.
+    had, so consecutive intervals always touch and a long interval never splits one narrative event.
 -   Grouping is conservative: a rule emits only when its *anchor* evidence exists (an executive change, a war
     present in one save and absent in a later one, a federation member change), never from temporal proximity
     or shared entities alone. Proximity and shared entities decide which further events a rule attaches to an
-    anchor, not whether a development exists.
+    anchor, not whether a narrative event exists.
 
 ## 11.2 The narrative event
 
@@ -320,7 +320,7 @@ and `end`, each with its date basis), whether it is `open` (still running at the
 it spans and its `roles` (actor, target, beneficiary, loser, assisting, location, body).
 
 -   **Constituents** name atomic and inferred events by qualified ID; `sources` is the union of their sources
-    with roles kept. The evidence beneath a development is never dropped.
+    with roles kept. The evidence beneath a narrative event is never dropped.
 -   **Status** is objective when every constituent is objective and the join is by a stable entity ID (a war,
     a federation, a nation across its own events); inferred when the join is heuristic (a shared nation plus a
     time window) or any constituent is inferred.
@@ -343,7 +343,7 @@ Defined in `src/tinarrative/narrative/aggregation.py` (`NarrativeRule`, `Narrati
 
 ## 11.3 First catalogue
 
-The catalogue was chosen against the format the project aims for (period-dated developments naming factions
+The catalogue was chosen against the format the project aims for (period-dated narrative events naming factions
 and nations) and against the evidence the normalized model holds. Rule thresholds and windows are runtime
 settings ([configuration](configuration.md)); their evidence is in [sources for higher-level
 events](game-data-notes/higher-level-event-sources.md) and [nation
@@ -374,9 +374,9 @@ Geopolitics:
 | `nation.space_defences_established` | N defended its first regions against orbit |
 | `world.ranking_changed` | nations entered or left the top N by GDP, strength, boost or mission control |
 
-Every geopolitical development carries `metric_shifts`: the statistic shifts of its nations inside its span,
+Every geopolitical narrative event carries `metric_shifts`: the statistic shifts of its nations inside its span,
 as context rather than constituents, so a takeover or merger states what it did to democracy, GDP and
-inequality without a separate event. A band shift is suppressed when such a development already carries it. A
+inequality without a separate event. A band shift is suppressed when such a narrative event already carries it. A
 merger goes further: in its interval, its nations' rank exits, arsenal, asset, population and control changes are
 part of it, and no other rule reports them.
 The only band labels assigned are the game's own (`analyzers/politics/bands.py`, provenance in [nation
@@ -408,7 +408,7 @@ sources](game-data-notes/higher-level-event-sources.md)). So the bounds are:
 4.  attribution only when exactly one faction's ledger carries the label in the window and that faction is the
     visible beneficiary; otherwise `candidates` and no attribution;
 5.  record-dating only in that single-candidate case;
-6.  confidence never above medium on ledger evidence alone, since one charge may corroborate developments in
+6.  confidence never above medium on ledger evidence alone, since one charge may corroborate narrative events in
     several nations and identifies none (the atomic event records a literal entry and is itself high
     confidence; the cap binds the narrative events that cite it);
 7.  `Unrest` entries are cross-checked against `factionUnrestAttempts` before either is trusted.
@@ -425,7 +425,7 @@ A situation report is the deterministic digest of one snapshot that the narrativ
 as context: who holds each nation's executive and how many of its control points, federations with members,
 wars with sides, each nation's statistics, armies and space assets, habs, fleets and ships per faction,
 milestones and campaign-wide counters. It is read from the snapshot alone, is snapshot-dated evidence rather
-than an event, and lets a development say "formerly held by faction Y" or "then a member of federation F".
+than an event, and lets a narrative event say "formerly held by faction Y" or "then a member of federation F".
 
 Every value is literal: a report counts a nation's points per faction but never says a faction controls it. A
 value the snapshot does not establish is `Unknown`, never zero. The sequence keeps the reports and discards
@@ -467,7 +467,7 @@ The scaled atomic types and their stake entities are the `SCALED` table there; t
 The levels rank an event by its type, so a coup in a leading power and one on a micro-state, a fleet action
 and a skirmish of two ships, or a war between nuclear blocs and one between minor states share a level. This
 design adds the weight of the entities involved. It is staged on the roadmap (*Entity-scaled significance*);
-the atomic events are scaled, the developments and the space and faction stakes are not yet.
+the atomic events are scaled, the narrative events and the space and faction stakes are not yet.
 
 **Score.** Every event carries an integer `score` from 0 to 100 beside its level, on a logarithmic scale where
 ten points are ten times the stake:
@@ -523,13 +523,13 @@ score. Losses are attributes for the narrator, not stake.
 **Combination.** Stakes add in share space; the type sets the base:
 
 ``` text
-development.score = max(base(rule) + scale(Σ shares of the rule's distinct stake entities),
+event.score = max(base(rule) + scale(Σ shares of the rule's distinct stake entities),
                         max(score of every cited event))
 ```
 
 Constituent scores are never summed: one fact is often recorded several times, and a sum would rank by record
 count. The maximum stays the floor, and once atomic events are scaled, a micro-state's disappearance no longer
-lifts every development that cites it. A conflict with nuclear-armed nations on opposite sides adds a
+lifts every narrative event that cites it. A conflict with nuclear-armed nations on opposite sides adds a
 configured bonus, for escalation risk a share does not capture. Perspective (the player's faction) is not
 impact and stays with the narrator.
 
@@ -538,7 +538,7 @@ share, scale, stake entities) in the `events` output; the narrator package keeps
 
 **Consumers.** The level stays the deterministic cut-off (`--min-significance`, continuity recall, the
 citation audit). The score orders within it: chapter length shares and recall follow it, and the narrator
-prompt leads with the highest-scored developments.
+prompt leads with the highest-scored narrative events.
 
 # 13. Narrative Rendering
 
@@ -572,9 +572,9 @@ The product handed to an LLM, or to a reader who wants the facts without prose, 
 deterministically from one save sequence:
 
 1.  the narrative events in chronological order, each with its span, roles, attributes, confidence,
-    significance and constituent IDs; a development that a grouping development (a takeover wave) cites is
+    significance and constituent IDs; a narrative event that a grouping event (a takeover wave) cites is
     listed as a *digest* instead (ID, type, span, roles, significance and the group it is a `member_of`),
-    unless another listed development cites it too;
+    unless another listed narrative event cites it too;
 2.  the situation reports (11.4), one per save;
 3.  an entity glossary: the name and domain of every entity the package references by ID only, and the earlier
     names of a renamed entity, so prose never invents a name and never meets a bare ID;
@@ -842,7 +842,7 @@ it covers). The block lists only the keys that are set, in a fixed order, so the
 bytes.
 
 The significance level applies to the narrative only; of the atomic stream, only the constituents of the
-listed developments are kept, as drill-down for detail and citation, not a second account.
+listed narrative events are kept, as drill-down for detail and citation, not a second account.
 
 Defined in `src/tinarrative/narrator/request.py` (`build_request`, `render_request`, `prompt_version`).
 
@@ -856,13 +856,13 @@ into *chapters*, each its own request.
 -   **Local estimate.** Input size is estimated deterministically from the serialized request. The planner
     never asks a provider to count tokens, so chapter boundaries depend on the package and settings only.
     Reported token counts go into the manifest to check the estimate.
--   **Chapters** are contiguous runs of whole periods that start and end on a save. A development belongs to
+-   **Chapters** are contiguous runs of whole periods that start and end on a save. A narrative event belongs to
     the chapter holding its start.
 -   **Chapter packages** have the narrator package's schema restricted to the chapter, with an opening and a
     closing situation, plus `chapter` and `continuity` members. Slicing selects entries and never rewrites
     one.
 -   **Over budget**, a period is reduced in a fixed, recorded order: drop the atomic stream, then split at
-    save boundaries, then stop before sending and report the budget needed. Developments are never dropped and
+    save boundaries, then stop before sending and report the budget needed. Narrative events are never dropped and
     the significance level is never raised behind the user's back; either would remove facts without the
     reader knowing.
 
@@ -872,8 +872,8 @@ Defined in `src/tinarrative/narrator/chapters.py` (`plan_chapters`, `estimate`, 
 ## 20.4 Continuity
 
 Continuity between chapters is built from the package, never from earlier prose. A chapter's `continuity`
-holds the developments still running from an earlier chapter, marked as already told, and a capped digest of
-the earlier chapters' major developments, so the model can refer back without inventing the past. The opening
+holds the narrative events still running from an earlier chapter, marked as already told, and a capped digest of
+the earlier chapters' major narrative events, so the model can refer back without inventing the past. The opening
 situation is the previous chapter's closing one.
 
 No chapter's prose is input to another: generated text is not a source, and an error in one chapter must not
@@ -914,7 +914,7 @@ Design rules:
 -   The manifest records the package hash, settings, chapter plan, request hashes, token counts and the
     citation audit.
 -   The **citation audit** checks every cited ID against the chapter package it was written from and lists
-    unmatched citations and uncited major developments; a digest is citable but never counted as uncited, since
+    unmatched citations and uncited major narrative events; a digest is citable but never counted as uncited, since
     its group is. It reports and never rejects prose: a wrong citation
     is a finding for the prompt.
 -   A chapter whose stored response came from an identical request is not sent again, so a run resumes where
@@ -948,16 +948,16 @@ No chapter reopens the history, so the prompt's part rules hold unchanged, and a
 the history up to its save.
 
 **Continuity across installments** is built from the package, with sealed installments standing in for earlier
-chapters: `earlier` from their stored requests, not their prose; `continuing` for developments running across
-the seal or whose record changed after it was told; and `late` for developments that start before the seal but
+chapters: `earlier` from their stored requests, not their prose; `continuing` for narrative events running across
+the seal or whose record changed after it was told; and `late` for narrative events that start before the seal but
 appeared in no sealed request (a rule window spanning the seal finds them only once later saves exist). Late
-developments are told at their own dates in the installment's first chapter. This adds one prompt rule, so the
+narrative events are told at their own dates in the installment's first chapter. This adds one prompt rule, so the
 prompt version changes for new requests only.
 
 **History.** `history.md` concatenates the sealed installments and the current one, with one cover per
 installment; footnotes are renumbered across the whole and the audit runs per installment.
 
-**Drift.** A save can land inside a sealed span, or a later save can rewrite what a sealed development said.
+**Drift.** A save can land inside a sealed span, or a later save can rewrite what a sealed narrative event said.
 The manifest lists the drift (sealed IDs that no longer exist, saves inside sealed spans no sealed request
 covered). Nothing is re-narrated silently: the user chooses to unseal from an installment onward.
 
@@ -975,7 +975,7 @@ Serialized game state → normalized semantic state → observed state transitio
 ```
 
 The most important modeling decisions: **state snapshots are the factual foundation**; **diffs represent
-observable changes**; **atomic events represent concrete semantic developments**; **objective vs. inferred
+observable changes**; **atomic events represent concrete semantic events**; **objective vs. inferred
 describes epistemic status**; **atomic vs. narrative describes abstraction level**; **confidence and
 significance are independent dimensions**; **evidence survives every transformation**; **rendering is
 downstream and replaceable**.

@@ -199,7 +199,7 @@ def _narrative_lines(
     digested: Mapping[str, str] | None = None,
 ) -> list[str]:
     """The ``kept`` narrative events by start period (undated first); the rest are counted as omitted. A ``digested``
-    event shows its headline, roles and the development it is a member of."""
+    event shows its headline, roles and the narrative event it is a member of."""
     if not narrative:
         return ["No narrative events were built."]
     listed = sorted(kept, key=lambda event: event.sort_key)

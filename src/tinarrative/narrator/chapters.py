@@ -51,7 +51,7 @@ class PlannedChapter:
     period: str
     period_basis: str
     """``requested``, ``campaign_span`` (``derive_period``) or ``save_spacing`` (coarsened)."""
-    developments: int
+    narrative_events: int
     continuing: int
     recalled: int
     estimate: int
@@ -88,7 +88,7 @@ class ChapterPlan:
                     "period": planned.period,
                     "period_basis": planned.period_basis,
                     "intervals": planned.chapter.last - planned.chapter.first + 1,
-                    "developments": planned.developments,
+                    "narrative_events": planned.narrative_events,
                     "continuing": planned.continuing,
                     "recalled": planned.recalled,
                     "estimate": planned.estimate,
@@ -201,7 +201,7 @@ def plan_chapters(
     length: int | None = None,
     requested: bool = False,
 ) -> ChapterPlan | OverBudget:
-    """Developments are never dropped: a period that does not fit loses its atomic stream, then is split at saves;
+    """narrative events are never dropped: a period that does not fit loses its atomic stream, then is split at saves;
     an interval that still does not fit is ``OverBudget``. A ``requested`` period is never coarsened."""
     planner = _Planner(validate(dict(package)), options, settings, length, requested)
     chapters = planner.plan()
@@ -279,7 +279,7 @@ class _Planner:
 
     def _start_position(self, event: Mapping[str, Any], interval_position: Mapping[str, int]) -> int:
         """Follows the prompt's period rule: a recorded start files by start, otherwise by the interval by which the
-        development was known."""
+        narrative event was known."""
         start, end = event.get("start"), event.get("end")
         if isinstance(start, str) and (event.get("start_basis") == "record" or not isinstance(end, str)):
             position = 0
@@ -381,7 +381,7 @@ class _Planner:
                     periods=tuple(dict.fromkeys(self.periods[chapter.first : chapter.last + 1])),
                     period=self._period(chapter),
                     period_basis=self._period_basis(chapter),
-                    developments=len(self._developments(chapter)),
+                    narrative_events=len(self._narrative_events(chapter)),
                     continuing=len(continuity["continuing"]),
                     recalled=len(continuity["earlier"]),
                     estimate=estimate(request, self.settings.chars_per_token),
@@ -402,7 +402,7 @@ class _Planner:
         if self.length is None:
             return [None] * len(chapters)
         weights = [
-            sum(LENGTH_WEIGHTS.get(str(event.get("significance")), 1) for event in self._developments(chapter))
+            sum(LENGTH_WEIGHTS.get(str(event.get("significance")), 1) for event in self._narrative_events(chapter))
             for chapter in chapters
         ]
         if not any(weights):
@@ -435,9 +435,9 @@ class _Planner:
     def chapter_package(
         self, chapter: Chapter, earlier: Sequence[Chapter], *, index: int, count: int, part: str
     ) -> dict[str, Any]:
-        developments = self._developments(chapter)
+        narrative_events = self._narrative_events(chapter)
         continuity = self._continuity(chapter, earlier)
-        roots = [*developments, *continuity["continuing"]]
+        roots = [*narrative_events, *continuity["continuing"]]
         kept = self._closure(roots) if chapter.atomic else set()
         intervals = [
             {
@@ -450,13 +450,13 @@ class _Planner:
             for interval in self.intervals[chapter.first : chapter.last + 1]
         ]
         atomic = [event for interval in intervals for event in self._atomic(interval)]
-        refs = referenced([developments, continuity, atomic])
-        told = referenced([developments, continuity["continuing"], atomic])
+        refs = referenced([narrative_events, continuity, atomic])
+        told = referenced([narrative_events, continuity["continuing"], atomic])
         saves = [self._pruned(save, refs, told) for save in self._saves(chapter)]
         covers = self._covers(chapter)
         restricted: dict[str, Any] = {}
         for key, value in self.package.items():
-            restricted[key] = {"saves": saves, "intervals": intervals, "narrative": developments}.get(key, value)
+            restricted[key] = {"saves": saves, "intervals": intervals, "narrative": narrative_events}.get(key, value)
         restricted["chapter"] = {
             "index": index,
             "count": count,
@@ -469,7 +469,7 @@ class _Planner:
         )
         return restricted
 
-    def _developments(self, chapter: Chapter) -> list[Mapping[str, Any]]:
+    def _narrative_events(self, chapter: Chapter) -> list[Mapping[str, Any]]:
         return [
             event
             for event, start in zip(self.package["narrative"], self.starts, strict=True)
@@ -477,9 +477,9 @@ class _Planner:
         ]
 
     def _continuity(self, chapter: Chapter, earlier: Sequence[Chapter]) -> dict[str, Any]:
-        """Still-running earlier developments in full, and a capped digest of the others from ``RECALLED_FROM``.
+        """Still-running earlier narrative events in full, and a capped digest of the others from ``RECALLED_FROM``.
 
-        A member listed as a digest is neither: the development it belongs to carries it.
+        A member listed as a digest is neither: the narrative event it belongs to carries it.
         """
         keys = {interval["key"] for interval in self.intervals[chapter.first : chapter.last + 1]}
         before = [
@@ -499,7 +499,7 @@ class _Planner:
         ranked = sorted(
             candidates, key=lambda item: (_rank(item[1]), _sort_text(item[1].get("start")), item[0]), reverse=True
         )
-        recalled = sorted(position for position, _ in ranked[: self.settings.recalled_developments])
+        recalled = sorted(position for position, _ in ranked[: self.settings.recalled_narrative_events])
         narrative = self.package["narrative"]
         return {
             "continuing": continuing,

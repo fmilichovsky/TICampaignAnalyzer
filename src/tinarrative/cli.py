@@ -1131,7 +1131,7 @@ def _run_narrate(args: argparse.Namespace) -> int:
         "narrate done %s",
         fields(
             chapters=len(plan.chapters),
-            developments=sum(planned.developments for planned in plan.chapters),
+            narrative_events=sum(planned.narrative_events for planned in plan.chapters),
             largest_estimate=max(planned.estimate for planned in plan.chapters),
             reduced=sum(planned.chapter.reduction is not None for planned in plan.chapters),
             coarsened=sum(planned.period_basis == "save_spacing" for planned in plan.chapters),
@@ -1479,7 +1479,7 @@ def _render_sent(item: _SendItem, verb: str, finish: str, input_tokens: int | No
 
 _FINDINGS = {
     "unmatched": ("unmatched citation", "unmatched citations"),
-    "uncited": ("uncited development at major and above", "uncited developments at major and above"),
+    "uncited": ("uncited narrative event at major and above", "uncited narrative events at major and above"),
     "undefined": ("footnote without definition", "footnotes without definition"),
     "unreferenced": ("definition without reference", "definitions without reference"),
 }
@@ -1641,7 +1641,7 @@ def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
         lines.append(
             f"- {planned.index} ({planned.part}) {planned.covers[0][:10]} to {planned.covers[1][:10]}, "
             f"{', '.join(planned.periods)}{coarsened.get(planned.period_basis, '')}: "
-            f"{_count(planned.developments, 'development')}, "
+            f"{_count(planned.narrative_events, 'narrative event')}, "
             f"{planned.continuing} continuing, {planned.recalled} recalled; ~{planned.estimate} input tokens"
             f"{reductions.get(planned.chapter.reduction or '', '')}"
         )
@@ -2110,7 +2110,7 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         description=(
             f"{summary} The package is built from the saves exactly as 'events --narrative --constituents evidence "
             "--format json' builds it, or read with --package. Each chapter is a run of whole periods whose "
-            "estimated request stays within llm.max_input_tokens; it carries the developments that start in "
+            "estimated request stays within llm.max_input_tokens; it carries the narrative events that start in "
             "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
             "With --output the plan and one request per chapter are written. Nothing is sent without --send; with "
             "it, the requests (and so the campaign) go to the configured provider, a third party unless it runs "
@@ -2150,8 +2150,8 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
         default=None,
         help=(
-            "Lowest significance of a listed development when building from saves (default major); the atomic "
-            "stream keeps only the constituents of the listed developments."
+            "Lowest significance of a listed narrative event when building from saves (default major); the atomic "
+            "stream keeps only the constituents of the listed narrative events."
         ),
     )
     parser.add_argument(
@@ -2159,7 +2159,7 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         choices=CONSTITUENTS,
         default=None,
         help=(
-            "Which constituents of the listed developments the atomic stream keeps when building from saves, as "
+            "Which constituents of the listed narrative events the atomic stream keeps when building from saves, as "
             "'events --constituents' does (default evidence)."
         ),
     )
@@ -2180,7 +2180,7 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         "--length",
         type=_positive_int,
         metavar="WORDS",
-        help="A target length for the whole history, shared out across chapters by their developments.",
+        help="A target length for the whole history, shared out across chapters by their narrative events.",
     )
     parser.add_argument(
         "--focus",

@@ -67,10 +67,10 @@ BOOKKEEPING = [
 
 
 @pytest.mark.parametrize("event_type", EVIDENCE)
-def test_a_fact_no_development_carries_is_evidence(event_type: str) -> None:
+def test_a_fact_no_narrative_event_carries_is_evidence(event_type: str) -> None:
     assert is_evidence(event_type)
 
 
 @pytest.mark.parametrize("event_type", BOOKKEEPING)
-def test_what_a_development_summarizes_is_not_evidence(event_type: str) -> None:
+def test_what_a_narrative_event_summarizes_is_not_evidence(event_type: str) -> None:
     assert not is_evidence(event_type)

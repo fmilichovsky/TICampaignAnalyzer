@@ -133,7 +133,7 @@ def test_a_wave_member_is_a_digest_even_at_its_own_level_and_its_evidence_is_not
     assert chosen.reached == set() and chosen.constituents == set()
 
 
-def test_a_member_another_listed_development_cites_is_listed_in_full() -> None:
+def test_a_member_another_listed_narrative_event_cites_is_listed_in_full() -> None:
     context = _narrative("r-1", Significance.MAJOR, ("t-1",))
 
     chosen = listing([INTERVAL], [FIRST, SECOND, WAVE, context], minimum=Significance.MAJOR, constituents="all")
