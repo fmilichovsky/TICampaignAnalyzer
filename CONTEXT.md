@@ -43,7 +43,8 @@ _Avoid_: session, run (a run is one command invocation), sequence
 **Atomic event**:
 The smallest meaningful unit of campaign history: one transition between two saves, one save-carried record
 entry, or one tightly reconstructed action.
-_Avoid_: change (a change is the literal diff beneath an event), raw event
+_Avoid_: change (a change is the literal diff beneath an event), raw event, inferred event (inferred is a status
+any event can have, not a tier between atomic and narrative)
 
 **Narrative event**:
 A higher-level event that groups related atomic events into one episode a reader recognises, such as a
@@ -59,7 +60,8 @@ _Avoid_: member (a member is one particular constituent), child, part
 A constituent no narrative event of another kind may cite, because the citing event's kind declares what it cites
 as its own, as a merger's kind does. Events of the same kind may share it: one territory gain with several
 counterparts belongs to each cession.
-_Avoid_: carried event, claimed event, absorbed event (an absorbed nation is what a merger takes in)
+_Avoid_: carried event, claimed event, consumed event, absorbed event (an absorbed nation is what a merger takes
+in)
 
 **Member**:
 A narrative event that a larger one groups, as a takeover wave groups takeovers, because the larger event's kind
@@ -70,7 +72,7 @@ _Avoid_: child, sub-event, wave member ("wave" is part of some event type names,
 An event that is not reported as a narrative event of its own because another event already accounts for it,
 without citing it: a nation's unrest crossing a band in the interval of its takeover, or a territory gain that an
 annexation reading covers.
-_Avoid_: carried event, absorbed event
+_Avoid_: carried event, absorbed event, consumed event (the event that explains it is read, never consumed)
 
 **Event type**:
 The stable identifier of what kind of thing an event records, such as `nation.annexation`; it appears in reports

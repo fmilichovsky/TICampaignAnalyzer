@@ -318,7 +318,9 @@ class TakeoverRule:
 
     settings: GeopoliticsSettings
     name: str = TAKEOVER
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({TAKEOVER})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -529,7 +531,9 @@ class TakeoverWaveRule:
 
     settings: GeopoliticsSettings
     name: str = TAKEOVER_WAVE
-    order: int = 1
+    emitted_types: frozenset[str] = frozenset({TAKEOVER_WAVE})
+    reads: frozenset[str] = frozenset({TAKEOVER})
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -592,7 +596,9 @@ class FederationLifecycleRule:
 
     settings: GeopoliticsSettings
     name: str = FEDERATION_LIFECYCLE
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({FEDERATION_LIFECYCLE})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = None
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -668,7 +674,9 @@ class CessionRule:
 
     settings: GeopoliticsSettings
     name: str = CESSION
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({CESSION})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -737,7 +745,9 @@ class MergerRule:
 
     settings: GeopoliticsSettings
     name: str = MERGER
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({MERGER})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -824,7 +834,9 @@ class IndependenceRule:
 
     settings: GeopoliticsSettings
     name: str = "nation.independence_arc"
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({RELEASE, BREAKAWAY})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -908,7 +920,9 @@ class ClaimsDeclaredRule:
 
     settings: GeopoliticsSettings
     name: str = CLAIMS_DECLARED
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({CLAIMS_DECLARED})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -952,7 +966,9 @@ class ExpansionRule:
 
     settings: GeopoliticsSettings
     name: str = EXPANSION
-    order: int = 1
+    emitted_types: frozenset[str] = frozenset({EXPANSION})
+    reads: frozenset[str] = frozenset({CESSION, MERGER})
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -1080,7 +1096,9 @@ class WarArcRule:
 
     settings: GeopoliticsSettings
     name: str = WAR_ARC
-    order: int = 2
+    emitted_types: frozenset[str] = frozenset({WAR_ARC})
+    reads: frozenset[str] = frozenset({EXPANSION})
+    explains: frozenset[str] = frozenset()
     window_days: int | None = None
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:

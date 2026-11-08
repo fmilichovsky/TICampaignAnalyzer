@@ -112,7 +112,7 @@ class BandShiftRule:
     statistic: str
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
-    order: int = 3
+    reads: frozenset[str] = frozenset()
 
     @property
     def explains(self) -> frozenset[str]:
@@ -121,6 +121,10 @@ class BandShiftRule:
     @property
     def name(self) -> str:
         return BAND_SHIFTS[self.statistic]
+
+    @property
+    def emitted_types(self) -> frozenset[str]:
+        return frozenset({self.name})
 
     @property
     def window_days(self) -> int:
@@ -239,7 +243,9 @@ class PopulationCollapseRule:
 
     settings: GeopoliticsSettings
     name: str = POPULATION_COLLAPSE
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({POPULATION_COLLAPSE})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -292,7 +298,9 @@ class EconomicTrajectoryRule:
 
     settings: GeopoliticsSettings
     name: str = ECONOMIC_TRAJECTORY
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({ECONOMIC_TRAJECTORY})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = TREND_WINDOW_DAYS
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -370,8 +378,9 @@ class NuclearArcRule:
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
     name: str = NUCLEAR_ARC
-    order: int = 2
     emitted_types: frozenset[str] = frozenset({NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:

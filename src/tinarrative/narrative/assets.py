@@ -135,7 +135,9 @@ class MilitaryBuildupRule:
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
     name: str = MILITARY_BUILDUP
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({MILITARY_BUILDUP, DEMOBILIZATION})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = BUILDUP_WINDOW_DAYS
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -190,7 +192,9 @@ class NavyEstablishedRule:
 
     geopolitics: GeopoliticsSettings
     name: str = NAVY_ESTABLISHED
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({NAVY_ESTABLISHED})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -236,7 +240,9 @@ class SpaceProgramGrowthRule:
 
     settings: NationMetricsSettings
     name: str = SPACE_PROGRAM_GROWTH
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({SPACE_PROGRAM_GROWTH})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -315,7 +321,9 @@ class SpaceDefencesEstablishedRule:
     """``nation.space_defences_established``: a nation's first regions with space defences or STO fighters."""
 
     name: str = SPACE_DEFENCES_ESTABLISHED
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({SPACE_DEFENCES_ESTABLISHED})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
@@ -363,7 +371,9 @@ class RankingRule:
 
     settings: NationMetricsSettings
     name: str = RANKING_CHANGED
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({RANKING_CHANGED})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:

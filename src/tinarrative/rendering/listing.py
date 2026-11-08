@@ -114,7 +114,7 @@ def listing(
 def _split(narrative: Sequence[Event], roots: set[str], *, follow: bool) -> tuple[set[str], dict[str, str]]:
     """The narrative events listed in full, and those listed as digests with the narrative event citing them.
 
-    An event is decided after every event citing it (citations only reach lower orders, so this terminates): in full
+    An event is decided after every event citing it (citations only reach earlier layers, so this terminates): in full
     when a full non-digesting event cites it and it is a root or ``follow`` holds, else a digest when a full
     ``MEMBER_DIGESTS`` event cites it, else in full when it is a root.
     """
