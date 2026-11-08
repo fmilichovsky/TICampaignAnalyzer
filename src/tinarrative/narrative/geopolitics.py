@@ -67,6 +67,7 @@ BREAKAWAY = "nation.breakaway"
 CLAIMS_DECLARED = "nation.claims_declared"
 
 NATION_CONTROL = "faction.nation_control_changed"
+BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
 CONTROLLER_CHANGED = "control_point.controller_changed"
 EXECUTIVE_RECORDED = "nation.executive_change_recorded"
 UNREST_ATTEMPTS = "nation.unrest_attempts_changed"
@@ -97,7 +98,15 @@ MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, P
 """Events of the absorbed nation only that the merger carries in its interval."""
 MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED})
 MERGED_ARMIES = frozenset({ARMY_APPEARED, ARMY_DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED})
-MERGER_CARRIED = tuple(sorted(MERGED_EITHER | MERGED_ABSORBED | MERGED_POINTS | MERGED_ARMIES | {RELATION_CHANGED}))
+MERGER_CARRIED = tuple(
+    sorted(
+        MERGED_EITHER
+        | MERGED_ABSORBED
+        | MERGED_POINTS
+        | MERGED_ARMIES
+        | {RELATION_CHANGED, STATISTIC_SHIFTED, BREAKAWAY_PARENT_CHANGED}
+    )
+)
 """Every event type ``_carried_by_merger`` can accept."""
 
 
@@ -722,8 +731,8 @@ class CessionRule:
 class MergerRule:
     """``nation.merger``: a nation absorbed others by unification, with what the merge did to both in that interval.
 
-    The absorbed nation's lost executive, control points, alliances and rank, and either nation's renaming, territory
-    and space assets, are the merger, not stories of their own; ``MergerParties`` keeps the other rules off them.
+    Events other rules skip because of a merger are its constituents, not stories of their own; ``MergerParties`` keeps
+    those rules off them.
     """
 
     settings: GeopoliticsSettings
@@ -789,10 +798,14 @@ def _carried_by_merger(event: Event, gainer: EntityId, absorbed: Collection[Enti
         point_nation = entity_of(event, EntityDomain.NATION)
         return point_nation is not None and point_nation.entity_id in absorbed
     if event.event_type == RELATION_CHANGED:
-        return any(ref.entity_id in absorbed for ref in event.entities)
+        return any(ref.entity_id == gainer or ref.entity_id in absorbed for ref in event.entities)
     if event.event_type in MERGED_ARMIES:
         home = army_home(event)
-        return home is not None and home.entity_id in absorbed
+        return home is not None and (home.entity_id == gainer or home.entity_id in absorbed)
+    if event.event_type == STATISTIC_SHIFTED:
+        return event.attribute("statistic") == "numNuclearWeapons" and (nation == gainer or nation in absorbed)
+    if event.event_type == BREAKAWAY_PARENT_CHANGED:
+        return nation in absorbed
     return False
 
 
@@ -820,13 +833,21 @@ class IndependenceRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         days = self.settings.release_window_days
-        own_types = ("nation.appeared", "nation.breakaway_parent_changed", NATION_CONTROL)
+        parties = MergerParties.of(stream)
+        own_types = ("nation.appeared", BREAKAWAY_PARENT_CHANGED, NATION_CONTROL)
         own = by_subject(by_type(stream, *own_types))
         built = []
         for anchor in sorted(by_type(stream, INDEPENDENCE), key=lambda event: event.id):
             nation = anchor.entities[0]
             high = shifted(latest(anchor), days)
-            attached = [event for event in own.get(nation.entity_id, []) if overlaps(event, earliest(anchor), high)]
+            attached = [
+                event
+                for event in own.get(nation.entity_id, [])
+                if overlaps(event, earliest(anchor), high)
+                and not (
+                    parties.absorbed(nation, event) and event.event_type in (NATION_CONTROL, BREAKAWAY_PARENT_CHANGED)
+                )
+            ]
             constituents = [anchor, *attached]
             released = anchor.attribute("released") is True
             parents = refs_attribute(anchor, "parents")

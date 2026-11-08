@@ -870,6 +870,7 @@ def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes()
         alliance.id,
         fallen.id,
         renamed.id,
+        arsenal.id,
     }
     assert merger.attribute("absorbed") == (SOUTH,) and merger.attribute("regions") == (SOUTH_REGION,)
     assert merger.attribute("unifying_faction") == RESISTANCE
@@ -879,6 +880,109 @@ def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes()
     assert describe_event(merger) == (
         "Northland (nation:20) absorbed Southland (nation:21) by unification under Resistance (faction:15)"
     )
+
+
+def test_a_merger_carries_events_skipped_by_every_rule_that_checks_its_parties() -> None:
+    reading = unification(K1, NORTH, SOUTH, not_before=K0, unifier=RESISTANCE)
+    armies = [
+        event(
+            event_type,
+            K1,
+            NORTH,
+            event_type,
+            attributes=tuple(
+                [("home_nation", home)]
+                + ([("deployment_type", "Standard")] if event_type in {"army.appeared", "army.disappeared"} else [])
+                + ([("before", "Standard"), ("after", "Naval")] if event_type == "army.deployment_type_changed" else [])
+            ),
+        )
+        for event_type, home in (
+            ("nation.armies_changed", NORTH),
+            ("army.appeared", NORTH),
+            ("army.disappeared", SOUTH),
+            ("army.deployment_type_changed", SOUTH),
+        )
+    ]
+    naval = event(
+        "army.appeared",
+        K1,
+        NORTH,
+        "naval",
+        attributes=(("home_nation", SOUTH), ("deployment_type", "Naval")),
+    )
+    nuclear_shifts = [shift(K1, "numNuclearWeapons", nation, 20.0, 25.0) for nation in (NORTH, SOUTH)]
+    relations = [
+        event(
+            "nation.relation_changed",
+            K1,
+            nation,
+            "allies",
+            partner.entity_id.key,
+            entities=[partner],
+            attributes=(("relation", "allies"), ("transition", "added")),
+        )
+        for nation, partner in ((NORTH, EAST), (NORTH, WEST), (SOUTH, EAST), (SOUTH, WEST))
+    ]
+    parent = event("nation.breakaway_parent_changed", K1, SOUTH, entities=[NORTH])
+    population = event(
+        "nation.population_changed",
+        K1,
+        SOUTH,
+        attributes=(("direction", "drop"), ("before", 100.0), ("after", 50.0), ("relative_change", 0.5)),
+    )
+    trend = event("nation.pcgdp_trend", K1, SOUTH)
+    space = event(
+        "nation.space_assets_changed",
+        K1,
+        NORTH,
+        attributes=(("statistic", "boost"), ("direction", "growth"), ("before", 1.0), ("after", 2.0)),
+    )
+    space_defences = event(
+        "nation.space_assets_changed",
+        K1,
+        SOUTH,
+        "spaceDefences",
+        attributes=(("statistic", "spaceDefences"), ("before", 0), ("after", 2)),
+    )
+    rank = event("nation.rank_changed", K1, SOUTH, "GDP", attributes=(("metric", "GDP"),))
+    control_loss = control(K1, "executive", RESISTANCE, None, subject=SOUTH)
+    release_anchor = event(
+        "nation.independence",
+        K2,
+        SOUTH,
+        entities=[NORTH],
+        attributes=(("parents", (NORTH,)), ("released", True), ("releasing_nation", NORTH)),
+        status=EventStatus.INFERRED,
+        significance=Significance.MAJOR,
+    )
+    regained_control = control(K2, "executive", None, SERVANTS, subject=SOUTH, cause="Independence")
+    carried = [
+        *armies,
+        naval,
+        *nuclear_shifts,
+        *relations,
+        parent,
+        population,
+        trend,
+        space,
+        space_defences,
+        rank,
+        control_loss,
+    ]
+
+    events = built(
+        [reading, *carried, release_anchor, regained_control],
+        plain(K0, K1, K2),
+        GeopoliticsSettings(realignment_min_partners=2),
+    )
+    merger = only(events, "nation.merger")
+
+    assert {item.id for item in carried} <= set(merger.constituents)
+    assert not [
+        narrative
+        for narrative in events
+        if narrative.event_type != "nation.merger" and set(narrative.constituents) & {item.id for item in carried}
+    ]
 
 
 def test_an_expansion_of_mergers_is_a_unification_and_a_member_leaving_by_merger_names_its_new_nation() -> None:
@@ -926,6 +1030,31 @@ def test_a_release_attaches_the_new_nations_control_event_within_the_window() ->
     assert later.id in only(built([anchor, later], situations), "nation.release").constituents
     narrow = built([anchor, later], situations, GeopoliticsSettings(release_window_days=30))
     assert only(narrow, "nation.release").constituents == (anchor.id,)
+
+
+def test_a_release_after_a_merger_does_not_repeat_the_mergers_constituents() -> None:
+    merger = unification(K1, NORTH, EAST, not_before=K0, unifier=RESISTANCE)
+    lost_control = control(K1, "executive", SERVANTS, None, subject=EAST)
+    parent = event("nation.breakaway_parent_changed", K1, EAST, entities=[NORTH])
+    anchor = event(
+        "nation.independence",
+        K2,
+        EAST,
+        entities=[NORTH],
+        attributes=(("parents", (NORTH,)), ("released", True), ("releasing_nation", NORTH)),
+        status=EventStatus.INFERRED,
+        significance=Significance.MAJOR,
+    )
+    regained_control = control(K2, "executive", None, SERVANTS, subject=EAST, cause="Independence")
+
+    events = built([merger, lost_control, parent, anchor, regained_control], plain(K0, K1, K2))
+    release = only(events, "nation.release")
+    merger_event = only(events, "nation.merger")
+
+    assert set(release.constituents) == {anchor.id, regained_control.id}
+    assert set(release.constituents).isdisjoint(merger_event.constituents)
+    assert release.id == f"nation.release/nation:22@{K2}"
+    assert release.intervals == (K2,)
 
 
 def test_a_breakaway_names_the_parents_and_is_open_while_the_window_reaches_past_the_last_save() -> None:
