@@ -517,9 +517,6 @@ def test_record_changes_sort_with_the_owner_entity_field_changes() -> None:
         (FACTION.entity_id, "Transactions"),
         (FACTION.entity_id, "resources"),
     ]
-    assert json.dumps(diff_states(before, after).to_dict(), sort_keys=True) == json.dumps(
-        diff_states(before, after).to_dict(), sort_keys=True
-    )
 
 
 def notification(

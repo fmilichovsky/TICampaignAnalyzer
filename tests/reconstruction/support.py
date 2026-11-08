@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.analyzers.support import by_type
+from tests.analyzers.support import only as only
 from tinarrative.analyzers import ALL_ANALYZERS, run_analyzers
 from tinarrative.analyzers.render import describe_event
 from tinarrative.model.changes import StateDiff
@@ -18,12 +18,6 @@ def run(scenario: Scenario) -> tuple[tuple[Event, ...], list[Event]]:
     before, after, diff = scenario
     objective = run_analyzers(ALL_ANALYZERS, before, after, diff)
     return objective, infer_events(objective, before, after, diff)
-
-
-def only(events: list[Event], event_type: str) -> Event:
-    matches = by_type(events, event_type)
-    assert len(matches) == 1, [event.id for event in events]
-    return matches[0]
 
 
 def assert_traceable(scenario: Scenario) -> None:

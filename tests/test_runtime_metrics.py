@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import lzma
 import os
 import stat
 import sys
@@ -12,13 +11,12 @@ from typing import Any
 
 import pytest
 
+from tests.benchmark_support import SAVES, synthetic_samples
 from tests.fixtures import fixture_path
 from tinarrative import cli
 from tinarrative.benchmarking import runtime as benchmark_runtime
-from tinarrative.benchmarking.manifest import MANIFEST, update_samples
 from tinarrative.benchmarking.runtime import MARKER, Side, measure, parse_timings, report
 
-SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
 TIMING_LINES = """\
 INFO tinarrative.timing: survey seconds=0.25
 INFO tinarrative.timing: survey seconds=0.25
@@ -32,20 +30,6 @@ INFO tinarrative.timing: rule name=war.arc seconds=0.25
 INFO tinarrative.timing: aggregate seconds=0.75
 tinarrative events: parsing and processing took 4.0s
 """
-
-
-def _samples(root: Path) -> Path:
-    samples = root / "samples"
-    campaign = samples / "politics"
-    campaign.mkdir(parents=True)
-    for name in SAVES:
-        (campaign / f"{name}.xz").write_bytes(
-            lzma.compress(fixture_path("io", "terra_invicta_json_v1", name).read_bytes())
-        )
-    manifest = update_samples(samples)
-    manifest["campaigns"]["politics"]["description"] = "Synthetic politics sequence."
-    (samples / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
-    return samples
 
 
 def _matrix(root: Path) -> Path:
@@ -148,7 +132,7 @@ def test_sides_alternate_and_each_keeps_its_fastest_run(tmp_path: Path) -> None:
 
     runtime = measure(
         sides=sides,
-        samples=_samples(tmp_path),
+        samples=synthetic_samples(tmp_path),
         matrix_path=_matrix(tmp_path),
         run_id="major",
         config=_config(tmp_path),
@@ -178,7 +162,7 @@ def test_a_failing_run_records_its_exit_and_error(tmp_path: Path) -> None:
 
     runtime = measure(
         sides=[side],
-        samples=_samples(tmp_path),
+        samples=synthetic_samples(tmp_path),
         matrix_path=_matrix(tmp_path),
         run_id="major",
         config=_config(tmp_path),
@@ -194,7 +178,7 @@ def test_a_failing_run_records_its_exit_and_error(tmp_path: Path) -> None:
 def test_a_measurement_of_this_tree_reads_its_own_timing_lines(tmp_path: Path) -> None:
     runtime = measure(
         sides=[Side("head", sys.executable, "test")],
-        samples=_samples(tmp_path),
+        samples=synthetic_samples(tmp_path),
         matrix_path=_matrix(tmp_path),
         run_id="major",
         config=_config(tmp_path),
@@ -280,7 +264,7 @@ def test_runtime_cli_measure_and_report_write_their_outputs(
 
     monkeypatch.setattr(benchmark_runtime, "measure", fake_measure)
     out = tmp_path / "out" / "runtime.json"
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     argv = ["benchmark", "runtime", "measure", "--samples", str(samples), "--out", str(out), "--repeats", "2"]
     code = cli.main([*argv, "--base-python", "/base/python", "--base-label", "main", "--label", "head"])
 

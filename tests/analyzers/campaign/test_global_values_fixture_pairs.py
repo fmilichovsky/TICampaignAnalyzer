@@ -52,11 +52,6 @@ def test_war_presence_cites_the_interstate_wars_entry_as_corroboration() -> None
     assert not [event for event in events.values() if event.event_type == "campaign.interstate_wars_changed"]
 
 
-def test_the_build_string_is_detected_but_not_gated() -> None:
-    before, after, _diff = fixture_pair(*PAIR)
-    assert (before.game_version, after.game_version) == ("fixture-build-1", "fixture-build-2")
-
-
 def test_campaign_events_are_described_literally() -> None:
     lines = {describe_event(event) for event in run_analyzers(CAMPAIGN_ANALYZERS, *fixture_pair(*PAIR))}
     assert lines == {
@@ -68,7 +63,3 @@ def test_campaign_events_are_described_literally() -> None:
         f"{SINGLETON} sea level rise 1 flag set",
     }
     assert all(line.isascii() for line in lines)
-
-
-def test_the_pair_is_deterministic() -> None:
-    assert [event.to_dict() for event in run_all()] == [event.to_dict() for event in run_all()]

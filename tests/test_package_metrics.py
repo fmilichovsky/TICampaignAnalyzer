@@ -7,14 +7,14 @@ import json
 import lzma
 import math
 import shutil
-import subprocess
+import stat
 import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from tests.fixtures import fixture_path
+from tests.benchmark_support import SAVES, synthetic_samples
 from tinarrative import cli
 from tinarrative.benchmarking import metrics as benchmark_metrics
 from tinarrative.benchmarking.manifest import update_samples, verify_samples
@@ -30,7 +30,6 @@ from tinarrative.benchmarking.metrics import (
     member_changes,
 )
 
-SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -39,21 +38,6 @@ def test_package_estimate_accepts_fractional_chars_per_token() -> None:
     result = measure_package(text, 2.4)
 
     assert result["est_tokens"] == math.ceil(result["chars"] / 2.4)
-
-
-def _samples(root: Path) -> Path:
-    """A samples directory of one campaign: the synthetic politics saves, compressed, with its manifest."""
-    samples = root / "samples"
-    campaign = samples / "politics"
-    campaign.mkdir(parents=True)
-    for name in SAVES:
-        (campaign / f"{name}.xz").write_bytes(
-            lzma.compress(fixture_path("io", "terra_invicta_json_v1", name).read_bytes())
-        )
-    manifest = update_samples(samples)
-    manifest["campaigns"]["politics"]["description"] = "Synthetic politics sequence."
-    (samples / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
-    return samples
 
 
 def _metrics(label: str, *, members: dict[str, int], est_tokens: int = 100, narrate: Any = None) -> dict[str, Any]:
@@ -147,7 +131,7 @@ def test_the_report_fits_in_a_comment() -> None:
 
 
 def test_the_samples_manifest_catches_changed_and_unlisted_files(tmp_path: Path) -> None:
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     assert verify_samples(samples) == []
 
     first = samples / "politics" / f"{SAVES[0]}.xz"
@@ -167,7 +151,7 @@ def test_the_committed_samples_match_their_manifest() -> None:
 def test_metrics_cli_samples_update_and_compare_write_their_outputs(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     extra = samples / "politics" / "extra.json.xz"
     extra.write_bytes(lzma.compress(b"{}"))
 
@@ -186,7 +170,7 @@ def test_metrics_cli_samples_update_and_compare_write_their_outputs(
 
 
 def test_metrics_cli_measure_writes_the_metrics_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     matrix = tmp_path / "matrix.toml"
     matrix.write_text('[[events]]\nid = "bare"\nargs = []\n', encoding="utf-8")
     config = tmp_path / "config.toml"
@@ -228,7 +212,7 @@ def test_metrics_cli_measure_writes_the_metrics_file(tmp_path: Path, monkeypatch
 
 
 def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) -> None:
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     matrix = tmp_path / "matrix.toml"
     matrix.write_text(
         '[[events]]\nid = "major"\nargs = ["--narrative", "--constituents", "evidence", "--format", "json"]\n'
@@ -264,18 +248,41 @@ def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) ->
     assert tiny["exit"] == 2
 
 
-def test_events_runs_get_one_job_only_where_the_revision_takes_it(monkeypatch: pytest.MonkeyPatch) -> None:
-    def helped(text: str) -> Any:
-        return lambda command: subprocess.CompletedProcess(command, 0, stdout=text, stderr="")
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake interpreter is a POSIX shell script")
+@pytest.mark.parametrize(("usage", "serial"), [("[--jobs N]", True), ("[--campaign SELECTOR]", False)])
+def test_events_runs_get_one_job_only_where_the_revision_takes_it(tmp_path: Path, usage: str, serial: bool) -> None:
+    samples = synthetic_samples(tmp_path)
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text('[[events]]\nid = "bare"\nargs = []\n', encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    calls = tmp_path / "calls.txt"
+    python = tmp_path / "python"
+    python.write_text(
+        f'#!/bin/sh\ncase "$*" in *--help*) echo "usage: ... {usage} ..."; exit 0;; esac\n'
+        f'echo "$*" >> "{calls}"\nexit 1\n',
+        encoding="utf-8",
+    )
+    python.chmod(python.stat().st_mode | stat.S_IEXEC)
 
-    monkeypatch.setattr(benchmark_metrics, "_run", helped("usage: ... [--jobs N] ..."))
-    assert benchmark_metrics._serial(["python"]) == ["--jobs", "1"]
-    monkeypatch.setattr(benchmark_metrics, "_run", helped("usage: ... [--campaign SELECTOR] ..."))
-    assert benchmark_metrics._serial(["python"]) == []
+    measure(
+        python=str(python),
+        samples=samples,
+        matrix_path=matrix,
+        config=config,
+        out=tmp_path / "out",
+        label="test",
+        chars_per_token=3,
+        log=None,
+    )
+
+    (run,) = calls.read_text(encoding="utf-8").splitlines()
+    assert " events " in f" {run} "
+    assert ("--jobs 1" in run) is serial
 
 
 def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tmp_path: Path) -> None:
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     shutil.copytree(samples / "politics", samples / "politics-copy")
     (samples / MANIFEST).write_text(json.dumps(update_samples(samples)), encoding="utf-8")
     matrix = tmp_path / "matrix.toml"
@@ -324,7 +331,7 @@ def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tm
 
 
 def test_a_malformed_matrix_is_a_usage_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    samples = _samples(tmp_path)
+    samples = synthetic_samples(tmp_path)
     matrix = tmp_path / "matrix.toml"
     matrix.write_text('[[events]]\nid = "a"\n[[narrate]]\nid = "b"\npackage = "missing"\n', encoding="utf-8")
 

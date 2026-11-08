@@ -35,9 +35,10 @@ def test_unknown_memory_caps_the_workers(monkeypatch: pytest.MonkeyPatch) -> Non
     assert default_jobs([SAVE] * 20) == UNKNOWN_MEMORY_JOBS
 
 
+# Private seam: the probe reads the host's memory, which default_jobs is tested around by patching it out.
+@pytest.mark.skipif(os.name != "posix", reason="the probe reads sysconf")
 def test_physical_memory_is_read_and_unknown_without_sysconf(monkeypatch: pytest.MonkeyPatch) -> None:
-    if os.name == "posix":
-        memory = workers._physical_memory()
-        assert memory is not None and memory > 0
-        monkeypatch.delattr(os, "sysconf")  # as on Windows without its own branch
-        assert workers._physical_memory() is None
+    memory = workers._physical_memory()
+    assert memory is not None and memory > 0
+    monkeypatch.delattr(os, "sysconf")  # as on Windows without its own branch
+    assert workers._physical_memory() is None

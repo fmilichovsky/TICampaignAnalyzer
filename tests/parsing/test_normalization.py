@@ -265,8 +265,11 @@ def test_representative_fixture_without_observed_time_fields_has_unknown_chronol
     assert by_id(snapshot.nations, "4").get("templateName") == Unknown()
 
 
-def test_empty_gamestates_give_an_empty_snapshot() -> None:
-    snapshot = fragment({})
+def test_empty_gamestates_give_an_empty_snapshot_with_the_raw_saves_source_and_version() -> None:
+    root: dict[str, object] = {"currentID": {"value": 1}, "gamestates": {}}
+    raw = RawSave(source="fixture.json", format="terra_invicta_json_v1", game_version="x", root=root, size_bytes=2)
+    snapshot = normalize(raw)
+    assert (snapshot.source, snapshot.game_version) == ("fixture.json", "x")
     assert snapshot.date == Unknown()
     assert snapshot.campaign.difficulty == Unknown()
     assert all(getattr(snapshot, attribute) == () for _, _, attribute in NORMALIZED_DOMAINS)

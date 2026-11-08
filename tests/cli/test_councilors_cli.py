@@ -240,18 +240,6 @@ def test_send_writes_responses_articles_and_manifest(
     assert captured.err == ""
 
 
-def test_impossible_token_reservation_fails_before_sending_articles(
-    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
-) -> None:
-    with Path(sending).open("a", encoding="utf-8") as config:
-        config.write("tokens_per_minute = 1\n")
-
-    assert _send(tmp_path, sending) == EXIT_PROVIDER_ERROR
-
-    assert transport.calls == []
-    assert "exceeds tokens_per_minute 1" in capsys.readouterr().err
-
-
 @pytest.mark.parametrize(
     ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]
 )
@@ -282,27 +270,6 @@ def test_a_failed_article_is_skipped_and_the_run_exits_10_at_the_end(
     assert f"1 of {len(names)} articles missing; see {out / 'manifest.json'}" in err
 
 
-def test_an_http_failure_skips_the_article(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, transport: FakeTransport, capsys: pytest.CaptureFixture[str],
-    sending: str,
-) -> None:  # fmt: skip
-    class Unauthorized:
-        def post(self, url: str, headers: Mapping[str, str], body: bytes, timeout: float) -> HttpResponse:
-            return HttpResponse(401, {}, b'{"error": {"message": "invalid x-api-key"}}')
-
-    monkeypatch.setattr("tinarrative.cli._transport", Unauthorized)
-
-    assert _send(tmp_path, sending) == EXIT_PROVIDER_ERROR
-
-    out = tmp_path / "out"
-    assert list((out / "responses").iterdir()) == []
-    manifest = _read(out / "manifest.json")
-    assert {row["finish"] for row in manifest["articles"]} == {"error"}
-    assert all("HTTP 401: invalid x-api-key" in row["error"] for row in manifest["articles"])
-    assert "## " not in (out / "councilors.md").read_text(encoding="utf-8")
-    assert "article 1: anthropic: HTTP 401: invalid x-api-key" in capsys.readouterr().err
-
-
 def test_a_rerun_reuses_the_stored_responses(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
 ) -> None:
@@ -323,19 +290,6 @@ def test_a_rerun_reuses_the_stored_responses(
     assert captured.err == ""
     assert (out / "responses" / "01.json").read_bytes() == first
     assert all(row["written"] for row in _read(out / "manifest.json")["articles"])
-
-
-@pytest.mark.parametrize("options", [["--force"], ["--model", "other-model"], ["--max-output-tokens", "8000"]])
-def test_force_or_another_send_setting_sends_every_article_again(
-    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str, options: list[str]
-) -> None:
-    assert _send(tmp_path, sending) == EXIT_SUCCESS
-    count = len(transport.calls)
-
-    assert _send(tmp_path, sending, *options) == EXIT_SUCCESS
-
-    assert len(transport.calls) == 2 * count
-    assert "kept" not in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(

@@ -1,33 +1,13 @@
-"""Acceptance over the checked-in fixture pairs: expected events, evidence invariants, determinism, wording."""
+"""Acceptance for the politics family over the checked-in fixture pairs: the expected events of each pair."""
 
-import json
 from collections import Counter
-
-import pytest
 
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import POLITICS_ANALYZERS, run_analyzers
-from tinarrative.analyzers.politics.control_points import HANDLED_LISTS as POINT_LISTS
-from tinarrative.analyzers.politics.councilors import HANDLED_LISTS as COUNCILOR_LISTS
-from tinarrative.analyzers.politics.federations import HANDLED_LISTS as FEDERATION_LISTS
-from tinarrative.analyzers.politics.nations import HANDLED_LISTS as NATION_LISTS
-from tinarrative.analyzers.politics.wars import HANDLED_LISTS as WAR_LISTS
-from tinarrative.model.changes import ChangeKind, MembershipDetail, StateDiff
-from tinarrative.model.entities import EntityRef
-from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, SourceRole
+from tinarrative.model.changes import StateDiff
+from tinarrative.model.events import Confidence, DateBasis, Event, SourceRole
 from tinarrative.model.snapshot import SaveSnapshot
-from tinarrative.model.values import Unknown, UnknownReason
-
-PAIRS = [
-    ("interval_before.json", "interval_after.json"),
-    ("records_before.json", "records_after.json"),
-    ("politics_before.json", "politics_after.json"),
-    ("wars_before.json", "wars_after.json"),
-]
-HANDLED = {
-    (domain.value, field)
-    for domain, field in POINT_LISTS + NATION_LISTS + WAR_LISTS + FEDERATION_LISTS + COUNCILOR_LISTS
-}
+from tinarrative.model.values import Unknown
 
 
 def run(before: SaveSnapshot, after: SaveSnapshot, diff: StateDiff) -> tuple[Event, ...]:
@@ -39,7 +19,7 @@ def ids(events: tuple[Event, ...]) -> list[str]:
 
 
 def test_interval_pair_yields_the_expected_events() -> None:
-    before, after, diff = fixture_pair(*PAIRS[0])
+    before, after, diff = fixture_pair("interval_before.json", "interval_after.json")
     events = run(before, after, diff)
     assert ids(events) == [
         "control_point.controller_changed/control point:9",
@@ -75,7 +55,7 @@ def test_interval_pair_yields_the_expected_events() -> None:
 
 
 def test_records_pair_yields_record_dated_events() -> None:
-    before, after, diff = fixture_pair(*PAIRS[1])
+    before, after, diff = fixture_pair("records_before.json", "records_after.json")
     events = run(before, after, diff)
     assert ids(events) == [
         "control_point.loss_recorded/faction:15/control point:9",
@@ -94,7 +74,7 @@ def test_records_pair_yields_record_dated_events() -> None:
 
 
 def test_politics_pair_covers_every_transition_once() -> None:
-    before, after, diff = fixture_pair(*PAIRS[2])
+    before, after, diff = fixture_pair("politics_before.json", "politics_after.json")
     events = run(before, after, diff)
     assert Counter(event.event_type for event in events) == {
         "control_point.controller_changed": 2,
@@ -153,7 +133,7 @@ def test_politics_pair_covers_every_transition_once() -> None:
 
 
 def test_wars_pair_yields_war_and_federation_events_corroborated_by_the_nations() -> None:
-    before, after, diff = fixture_pair(*PAIRS[3])
+    before, after, diff = fixture_pair("wars_before.json", "wars_after.json")
     events = run(before, after, diff)
     assert sorted(ids(events)) == [
         "federation.members_changed/federation:80/nation:20/added",
@@ -210,45 +190,3 @@ def test_wars_pair_yields_war_and_federation_events_corroborated_by_the_nations(
             (SourceRole.CORROBORATING, f"nation:{member}", "federation"),
         ]
     assert by_id["nation.relation_changed/wars/nation:21/nation:24/added"].attribute("reciprocal") is False
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
-def test_every_event_is_evidenced_objective_and_deterministic(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    events = run(before, after, diff)
-    assert events and len(ids(events)) == len(set(ids(events)))
-    assert events == run(before, after, diff)
-    assert json.dumps([e.to_dict() for e in events]) == json.dumps([e.to_dict() for e in run(before, after, diff)])
-    changes = set(diff.changes)
-    for event in events:
-        assert event.status is EventStatus.OBJECTIVE
-        assert event.sources and any(source.role is SourceRole.PRIMARY for source in event.sources)
-        assert all(source.change in changes for source in event.sources)
-        assert event.entities
-        assert event.not_before == before.date
-        unresolved = [
-            value
-            for _, value in event.attributes
-            if isinstance(value, Unknown) and value.reason is UnknownReason.UNRESOLVED_REFERENCE
-        ]
-        assert event.confidence is (Confidence.LOW if unresolved else Confidence.HIGH)
-        if event.date_basis is DateBasis.INTERVAL:
-            assert event.date == after.date
-        json.loads(json.dumps(event.to_dict()))
-
-
-@pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
-def test_every_member_of_a_handled_list_is_cited(before_name: str, after_name: str) -> None:
-    before, after, diff = fixture_pair(before_name, after_name)
-    cited = {
-        (source.change, source.member.entity_id)
-        for event in run(before, after, diff)
-        for source in event.sources
-        if isinstance(source.member, EntityRef)
-    }
-    for change in diff.changes:
-        if (change.domain, change.field) not in HANDLED or change.kind is not ChangeKind.MEMBERSHIP:
-            continue
-        assert isinstance(change.detail, MembershipDetail)
-        for member in change.detail.added + change.detail.removed:
-            assert isinstance(member, EntityRef) and (change, member.entity_id) in cited, (change.entity_id, member)

@@ -251,6 +251,7 @@ def test_workers_give_the_results_and_reports_of_one_process(monkeypatch: pytest
     assert len(loads) == len(SEQUENCE)  # the boundary save of the second chunk is not counted twice
 
 
+# Private seam: a chunk runs in a spawned worker, where the monkeypatched analyzers would not reach.
 def test_a_later_chunk_does_not_run_the_first_interval_analyzers(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[object] = []
 
