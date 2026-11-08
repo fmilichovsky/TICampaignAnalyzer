@@ -1,7 +1,5 @@
 """Acceptance over the notification fixture pair: one event per log entry, record dates, provenance, wording."""
 
-import pytest
-
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import ALL_ANALYZERS, CAMPAIGN_ANALYZERS, run_analyzers
 from tinarrative.analyzers.render import describe_event
@@ -22,7 +20,6 @@ def by_id(events: tuple[Event, ...]) -> dict[str, Event]:
     return {event.id: event for event in events}
 
 
-@pytest.mark.fixture
 def test_notification_pair_yields_one_event_per_added_removed_and_changed_entry() -> None:
     assert [event.id for event in run()] == [
         f"notification.LogSpaceBattleTakesPlace/{QUEUE}/2",
@@ -36,7 +33,6 @@ def test_notification_pair_yields_one_event_per_added_removed_and_changed_entry(
     ]
 
 
-@pytest.mark.fixture
 def test_an_added_entry_is_dated_by_the_entry_and_cites_it() -> None:
     event = by_id(run())[f"notification.LogSpaceBattleTakesPlace/{QUEUE}/2"]
     assert (event.date, event.date_basis, event.not_before) == (
@@ -53,7 +49,6 @@ def test_an_added_entry_is_dated_by_the_entry_and_cites_it() -> None:
     assert event.confidence is Confidence.HIGH
 
 
-@pytest.mark.fixture
 def test_duplicate_entries_are_two_events_and_an_unresolved_subject_is_kept_with_low_confidence() -> None:
     events = by_id(run())
     twins = [events[f"notification.LogXenoformingDetected/{QUEUE}/{index}"] for index in (3, 4)]
@@ -66,7 +61,6 @@ def test_duplicate_entries_are_two_events_and_an_unresolved_subject_is_kept_with
         assert event.confidence is Confidence.LOW
 
 
-@pytest.mark.fixture
 def test_a_removed_entry_is_reported_literally_and_dated_by_the_interval() -> None:
     event = by_id(run())[f"notification.entry_removed/{QUEUE}/1"]
     assert (event.date, event.date_basis) == ("2032-03-01T00:00:00", DateBasis.INTERVAL)
@@ -77,13 +71,11 @@ def test_a_removed_entry_is_reported_literally_and_dated_by_the_interval() -> No
     assert source.entry.save_id.endswith("notifications_before.json")
 
 
-@pytest.mark.fixture
 def test_a_changed_entry_keeps_both_outcomes() -> None:
     event = by_id(run())[f"notification.entry_changed/{QUEUE}/1"]
     assert (event.attribute("before_outcome"), event.attribute("outcome")) == ("None", "Success")
 
 
-@pytest.mark.fixture
 def test_lines_name_the_template_and_subject_but_never_the_summary() -> None:
     events = run_analyzers(ALL_ANALYZERS, *fixture_pair(*PAIR))
     lines = {describe_event(event) for event in events}

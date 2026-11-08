@@ -51,7 +51,6 @@ def surveyed(*paths: Path) -> list[SaveRef]:
     return [survey(path) for path in paths]
 
 
-@pytest.mark.fixture
 def test_saves_are_ordered_by_game_time_whatever_the_argument_order() -> None:
     plan = plan_sequence(surveyed(*(fixture(name) for name in reversed(SEQUENCE))))
 
@@ -60,7 +59,6 @@ def test_saves_are_ordered_by_game_time_whatever_the_argument_order() -> None:
     assert (plan.inputs, plan.duplicates) == (3, 0)
 
 
-@pytest.mark.fixture
 def test_survey_uses_full_byte_hash_and_matches_raw_save_metadata(tmp_path: Path) -> None:
     original = fixture(SEQUENCE[0]).read_bytes()
     path = tmp_path / "save.json"
@@ -96,7 +94,6 @@ def test_survey_fallback_keeps_full_parser_error(tmp_path: Path, data: bytes, er
     assert str(error.value) == str(parsed_error.value)
 
 
-@pytest.mark.fixture
 def test_byte_identical_saves_are_one_snapshot_with_every_path_kept(tmp_path: Path) -> None:
     copy = tmp_path / "Exitsave.json"
     shutil.copyfile(fixture(SEQUENCE[1]), copy)
@@ -109,7 +106,6 @@ def test_byte_identical_saves_are_one_snapshot_with_every_path_kept(tmp_path: Pa
     assert merged.source == min(str(copy), str(fixture(SEQUENCE[1])))
 
 
-@pytest.mark.fixture
 def test_equal_game_times_with_different_bytes_are_both_kept_in_path_order(tmp_path: Path) -> None:
     variant = tmp_path / "a_autosave.json"
     variant.write_bytes(fixture(SEQUENCE[1]).read_bytes() + b"\n")
@@ -125,13 +121,11 @@ def test_equal_game_times_with_different_bytes_are_both_kept_in_path_order(tmp_p
     assert plan.keys == (DATES[0], DATES[1], f"{DATES[1]}#2")
 
 
-@pytest.mark.fixture
 def test_a_save_without_game_time_has_unknown_chronology() -> None:
     with pytest.raises(UnknownChronologyError):
         survey(fixture("representative_campaign.json"))
 
 
-@pytest.mark.fixture
 def test_every_interval_runs_the_diff_pipeline_and_qualifies_its_ids() -> None:
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
 
@@ -154,7 +148,6 @@ def test_every_interval_runs_the_diff_pipeline_and_qualifies_its_ids() -> None:
     assert "situation" not in intervals[0].to_dict()
 
 
-@pytest.mark.fixture
 def test_at_most_two_snapshots_are_held_while_reports_are_kept() -> None:
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
     loaded: list[weakref.ref[SaveSnapshot]] = []
@@ -175,7 +168,6 @@ def test_at_most_two_snapshots_are_held_while_reports_are_kept() -> None:
     assert len(situations(intervals)) == len(SEQUENCE)
 
 
-@pytest.mark.fixture
 def test_only_the_first_interval_runs_the_first_interval_analyzers(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[object] = []
 
@@ -192,7 +184,6 @@ def test_only_the_first_interval_runs_the_first_interval_analyzers(monkeypatch: 
     assert seen == [DATES[0]]
 
 
-@pytest.mark.fixture
 def test_literal_changes_are_kept_only_when_asked() -> None:
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
 
@@ -204,7 +195,6 @@ def test_literal_changes_are_kept_only_when_asked() -> None:
     assert [len(interval.state_changes or ()) for interval in intervals] == [interval.changes for interval in intervals]
 
 
-@pytest.mark.fixture
 def test_a_subject_that_changes_in_two_intervals_is_two_events_in_the_stream() -> None:
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
     intervals = list(run_sequence(plan, inferred=True))
@@ -247,7 +237,6 @@ def test_chunks_cover_every_interval_once_in_contiguous_near_equal_ranges() -> N
             assert max(sizes) - min(sizes) <= 1
 
 
-@pytest.mark.fixture
 def test_workers_give_the_results_and_reports_of_one_process(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)  # two chunks over the three fixture saves
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
@@ -262,7 +251,6 @@ def test_workers_give_the_results_and_reports_of_one_process(monkeypatch: pytest
     assert len(loads) == len(SEQUENCE)  # the boundary save of the second chunk is not counted twice
 
 
-@pytest.mark.fixture
 def test_a_later_chunk_does_not_run_the_first_interval_analyzers(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[object] = []
 
@@ -286,7 +274,6 @@ def test_a_later_chunk_does_not_run_the_first_interval_analyzers(monkeypatch: py
     assert seen == [DATES[0]]
 
 
-@pytest.mark.fixture
 def test_a_worker_failure_is_raised_by_the_coordinator(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)
     copies = []
@@ -300,7 +287,6 @@ def test_a_worker_failure_is_raised_by_the_coordinator(tmp_path: Path, monkeypat
         list(run_sequence(plan, inferred=False, jobs=2))
 
 
-@pytest.mark.fixture
 def test_surveys_in_workers_keep_input_order_and_return_failures(tmp_path: Path) -> None:
     paths = [fixture(name) for name in reversed(SEQUENCE)] + [tmp_path / "missing.json"]
     names: list[str] = []

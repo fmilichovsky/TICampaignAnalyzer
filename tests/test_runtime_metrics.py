@@ -191,7 +191,6 @@ def test_a_failing_run_records_its_exit_and_error(tmp_path: Path) -> None:
     assert "failed with exit 5" in report(runtime)
 
 
-@pytest.mark.fixture
 def test_a_measurement_of_this_tree_reads_its_own_timing_lines(tmp_path: Path) -> None:
     runtime = measure(
         sides=[Side("head", sys.executable, "test")],
@@ -302,7 +301,6 @@ def test_runtime_cli_rejects_a_missing_samples_directory(tmp_path: Path, capsys:
     assert "not a directory" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 def test_timing_lines_change_neither_the_output_nor_the_default_log(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

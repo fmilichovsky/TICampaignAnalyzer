@@ -91,7 +91,6 @@ def after() -> SaveSnapshot:
     return load("records_after.json")
 
 
-@pytest.mark.fixture
 def test_every_record_field_becomes_one_typed_set_per_entity(before: SaveSnapshot) -> None:
     by_owner: dict[str, set[str]] = {}
     for item in before.records:
@@ -109,7 +108,6 @@ def test_every_record_field_becomes_one_typed_set_per_entity(before: SaveSnapsho
     assert [r.field for r in before.records if r.owner.entity_id.key == "15"] == sorted(RECORD_FIELDS["TIFactionState"])
 
 
-@pytest.mark.fixture
 def test_ledger_and_destruction_log_are_dated_entries_with_resolved_references(before: SaveSnapshot) -> None:
     ledger = record(before, "15", "Transactions")
     assert ledger.kind is RecordKind.LEDGER
@@ -133,13 +131,11 @@ def test_ledger_and_destruction_log_are_dated_entries_with_resolved_references(b
     )
 
 
-@pytest.mark.fixture
 def test_pair_maps_decode_from_both_forms_and_keys_resolve_against_their_domains(before: SaveSnapshot) -> None:
     assert record(before, "15", "Kills").entries == ()
     assert record(before, "15", "lostControlPoints").entries == ()
 
 
-@pytest.mark.fixture
 def test_label_maps_counters_dates_and_reference_lists(before: SaveSnapshot, after: SaveSnapshot) -> None:
     assert record(before, "15", "milestones").entries == (ItemEntry(0, "FixtureMilestoneA"),)
     assert record(after, "15", "lostControlPoints").entries == (
@@ -153,7 +149,6 @@ def test_label_maps_counters_dates_and_reference_lists(before: SaveSnapshot, aft
     )
 
 
-@pytest.mark.fixture
 def test_nation_records_hold_the_executive_change_as_a_struct(before: SaveSnapshot, after: SaveSnapshot) -> None:
     assert record(before, "20", "dateOfNewGovernment").entries == (ItemEntry(0, None),)
     assert record(after, "20", "dateOfNewGovernment").entries == (ItemEntry(0, "2031-04-20T00:00:00"),)
@@ -171,7 +166,6 @@ def test_nation_records_hold_the_executive_change_as_a_struct(before: SaveSnapsh
     assert change.entry_location(change.entries[2]).path == f"{change.location.path}/newExecutive"
 
 
-@pytest.mark.fixture
 def test_an_entity_without_record_fields_has_unknown_sets_and_the_fixtures_are_schema_clean(
     before: SaveSnapshot,
 ) -> None:

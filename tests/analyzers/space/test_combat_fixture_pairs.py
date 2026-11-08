@@ -1,7 +1,5 @@
 """Acceptance over the combat-log fixture pair: one event per entry added or removed, interval dates, provenance."""
 
-import pytest
-
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import ALL_ANALYZERS, SPACE_ANALYZERS, run_analyzers
 from tinarrative.analyzers.common import FACTION_KINDS
@@ -18,7 +16,6 @@ def run() -> dict[str, Event]:
     return {event.id: event for event in run_analyzers(SPACE_ANALYZERS, *fixture_pair(*PAIR))}
 
 
-@pytest.mark.fixture
 def test_combat_pair_yields_one_event_per_entry_added_and_removed() -> None:
     assert sorted(run()) == [
         "faction.combat_entry_removed/faction:15/1",
@@ -29,7 +26,6 @@ def test_combat_pair_yields_one_event_per_entry_added_and_removed() -> None:
     ]
 
 
-@pytest.mark.fixture
 def test_an_added_entry_with_a_null_date_is_interval_dated_and_cites_the_entry() -> None:
     event = run()["faction.combat_recorded/faction:15/1"]
     assert (event.date, event.date_basis, event.not_before) == (
@@ -53,7 +49,6 @@ def test_an_added_entry_with_a_null_date_is_interval_dated_and_cites_the_entry()
     assert event.confidence is Confidence.HIGH
 
 
-@pytest.mark.fixture
 def test_one_combat_logged_by_two_factions_and_duplicates_are_separate_events() -> None:
     events = run()
     shared = [events["faction.combat_recorded/faction:15/1"], events["faction.combat_recorded/faction:16/0"]]
@@ -71,7 +66,6 @@ def _without_kinds(event: Event) -> tuple[tuple[str, Observed], ...]:
     return tuple(item for item in event.attributes if item[0] != FACTION_KINDS)
 
 
-@pytest.mark.fixture
 def test_a_removed_entry_is_reported_literally_from_the_earlier_save() -> None:
     event = run()["faction.combat_entry_removed/faction:15/1"]
     assert event.date_basis is DateBasis.INTERVAL
@@ -81,7 +75,6 @@ def test_a_removed_entry_is_reported_literally_from_the_earlier_save() -> None:
     assert source.entry.save_id.endswith("combat_before.json")
 
 
-@pytest.mark.fixture
 def test_lines_name_sides_and_winner_but_never_design_or_hull_names() -> None:
     events = run_analyzers(ALL_ANALYZERS, *fixture_pair(*PAIR))
     lines = sorted(describe_event(event) for event in events)

@@ -55,7 +55,6 @@ def ids(events: tuple[Event, ...]) -> list[str]:
     return [event.id for event in events]
 
 
-@pytest.mark.fixture
 def test_interval_pair_yields_the_expected_events() -> None:
     before, after, diff = fixture_pair(*PAIRS[0])
     events = run(before, after, diff)
@@ -88,7 +87,6 @@ def test_interval_pair_yields_the_expected_events() -> None:
     assert all(event.date_basis is DateBasis.INTERVAL for event in events)
 
 
-@pytest.mark.fixture
 def test_assets_pair_covers_every_transition_once() -> None:
     before, after, diff = fixture_pair(*PAIRS[1])
     events = run(before, after, diff)
@@ -149,7 +147,6 @@ def test_assets_pair_covers_every_transition_once() -> None:
         assert not any(source.change.field == field for event in events for source in event.sources), field
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
 def test_every_event_is_evidenced_objective_and_deterministic(before_name: str, after_name: str) -> None:
     before, after, diff = fixture_pair(before_name, after_name)
@@ -175,7 +172,6 @@ def test_every_event_is_evidenced_objective_and_deterministic(before_name: str, 
         json.loads(json.dumps(event.to_dict()))
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
 def test_every_member_of_a_handled_list_is_cited(before_name: str, after_name: str) -> None:
     before, after, diff = fixture_pair(before_name, after_name)
@@ -193,7 +189,6 @@ def test_every_member_of_a_handled_list_is_cited(before_name: str, after_name: s
             assert isinstance(member, EntityRef) and (change, member.entity_id) in cited, (change.entity_id, member)
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("before_name", "after_name"), PAIRS)
 def test_types_and_messages_never_name_a_cause_unless_the_save_field_does(before_name: str, after_name: str) -> None:
     before, after, diff = fixture_pair(before_name, after_name)
@@ -207,7 +202,6 @@ def test_types_and_messages_never_name_a_cause_unless_the_save_field_does(before
                 assert event.sources[0].change.field in fields, (event.id, word)
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("before_name", "after_name"), ALL_PAIRS)
 def test_all_families_together_never_collide(before_name: str, after_name: str) -> None:
     before, after, diff = fixture_pair(before_name, after_name)

@@ -18,7 +18,6 @@ def golden_path(before: str, after: str, suffix: str) -> Path:
     return EXPECTED_ROOT / FIXTURE_SET / f"{before}__{after}.expected.{suffix}"
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("before", "after"), GOLDEN_PAIRS)
 @pytest.mark.parametrize("fmt", ["txt", "json"])
 def test_diff_matches_the_golden_report(
@@ -38,7 +37,6 @@ def test_diff_matches_the_golden_report(
     assert first.err == ""
 
 
-@pytest.mark.fixture
 def test_every_golden_report_belongs_to_existing_fixtures() -> None:
     goldens = sorted(EXPECTED_ROOT.rglob("*.expected.*"))
     assert len(goldens) == 2 * len(GOLDEN_PAIRS)
@@ -49,7 +47,6 @@ def test_every_golden_report_belongs_to_existing_fixtures() -> None:
         assert (FIXTURES_ROOT / "io" / golden.parent.name / after).is_file(), golden
 
 
-@pytest.mark.fixture
 def test_json_report_carries_kind_detail_and_evidence(capsys: pytest.CaptureFixture[str]) -> None:
     before = fixture_path("io", FIXTURE_SET, "interval_before.json")
     after = fixture_path("io", FIXTURE_SET, "interval_after.json")
@@ -75,7 +72,6 @@ def test_json_report_carries_kind_detail_and_evidence(capsys: pytest.CaptureFixt
     assert ("faction:15", "resources") not in by_key
 
 
-@pytest.mark.fixture
 def test_record_changes_carry_entries_in_json_but_only_counts_in_text(capsys: pytest.CaptureFixture[str]) -> None:
     before = fixture_path("io", FIXTURE_SET, "records_before.json")
     after = fixture_path("io", FIXTURE_SET, "records_after.json")
@@ -104,7 +100,6 @@ def test_record_changes_carry_entries_in_json_but_only_counts_in_text(capsys: py
         assert content not in text
 
 
-@pytest.mark.fixture
 def test_diffing_a_save_with_itself_reports_no_changes(capsys: pytest.CaptureFixture[str]) -> None:
     save = str(fixture_path("io", FIXTURE_SET, "interval_before.json"))
     assert main(["save", "diff", save, save]) == EXIT_SUCCESS
@@ -130,7 +125,6 @@ def test_analysis_options_are_a_usage_error(
     assert message in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 def test_unreadable_and_unsupported_inputs_name_the_failing_file(capsys: pytest.CaptureFixture[str]) -> None:
     good = str(fixture_path("io", FIXTURE_SET, "interval_before.json"))
     assert main(["save", "diff", good, "does-not-exist.json"]) == EXIT_INPUT_ERROR
@@ -152,7 +146,6 @@ def test_missing_arguments_are_a_usage_error(capsys: pytest.CaptureFixture[str])
     capsys.readouterr()
 
 
-@pytest.mark.fixture
 def test_debug_log_reports_aggregates_without_save_values(capsys: pytest.CaptureFixture[str]) -> None:
     before = fixture_path("io", FIXTURE_SET, "interval_before.json")
     after = fixture_path("io", FIXTURE_SET, "interval_after.json")

@@ -24,7 +24,6 @@ def sources(group: CampaignGroup) -> list[str]:
     return [Path(save.source).name for save in group.saves]
 
 
-@pytest.mark.fixture
 def test_one_campaign_forms_one_group_with_its_signals(tmp_path: Path) -> None:
     paths = write_campaign(tmp_path, "a", started=START_A)
 
@@ -37,7 +36,6 @@ def test_one_campaign_forms_one_group_with_its_signals(tmp_path: Path) -> None:
     assert (group.first_date, group.last_date) == ("2032-01-01T00:00:00", "2032-07-01T00:00:00")
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     "signals",
     [
@@ -60,7 +58,6 @@ def test_a_differing_signal_separates_campaigns(signals: dict[str, object], tmp_
     ]
 
 
-@pytest.mark.fixture
 def test_a_missing_real_world_start_is_not_merged_with_a_known_one(tmp_path: Path) -> None:
     known = write_campaign(tmp_path, "a", started=START_A)
     unknown = write_variant(tmp_path, "b.json", POLITICS[1])
@@ -72,7 +69,6 @@ def test_a_missing_real_world_start_is_not_merged_with_a_known_one(tmp_path: Pat
     assert "grouped by faction and scenario only" in render_listing(groups)
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("humans", [0, 2])
 def test_an_unclassified_save_is_kept_apart_even_with_the_same_signals(humans: int, tmp_path: Path) -> None:
     campaign = write_campaign(tmp_path, "a")
@@ -89,7 +85,6 @@ def test_an_unclassified_save_is_kept_apart_even_with_the_same_signals(humans: i
     assert f"unclassified ({humans} human players)" in render_listing(groups)
 
 
-@pytest.mark.fixture
 def test_groups_are_ordered_by_real_world_start_unknown_last(tmp_path: Path) -> None:
     unknown = write_campaign(tmp_path, "u", faction_name="Academy")
     late = write_campaign(tmp_path, "l", faction_name="The Protectorate", started=START_B)
@@ -123,7 +118,6 @@ def never(path: str) -> float:
     raise AssertionError(f"file time read for {path}")
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("selector", "index"),
     [("resistance-20260104-113751", 1), ("protectorate", 2), ("p", 2), ("2", 2), ("1", 1)],
@@ -135,7 +129,6 @@ def test_select_by_key_prefix_or_index(selector: str, index: int, two_campaigns:
     assert selected.index == index
 
 
-@pytest.mark.fixture
 def test_select_latest_by_the_newest_file_time(two_campaigns: tuple[CampaignGroup, ...]) -> None:
     newest = Path(two_campaigns[0].saves[0].source).name
 
@@ -145,7 +138,6 @@ def test_select_latest_by_the_newest_file_time(two_campaigns: tuple[CampaignGrou
     assert selected.index == 1
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("selector", "message"),
     [("academy", "no campaign matches 'academy'"), ("3", "there is no campaign 3"), ("0", "there is no campaign 0")],
@@ -157,7 +149,6 @@ def test_an_unknown_selector_is_reported(selector: str, message: str, two_campai
     assert message in selected
 
 
-@pytest.mark.fixture
 def test_an_ambiguous_prefix_is_reported(tmp_path: Path) -> None:
     groups = grouped(
         *write_campaign(tmp_path, "a", faction_name="The Resistance", started=START_A),

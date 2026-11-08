@@ -23,7 +23,6 @@ def _package(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     return json.loads(capsys.readouterr().out)  # type: ignore[no-any-return]
 
 
-@pytest.mark.fixture
 def test_the_command_writes_the_same_bytes_every_time(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -53,7 +52,6 @@ def test_sample_labels_are_half_open_periods(label: str, bounds: tuple[str, str]
     assert sample_bounds(label) == bounds
 
 
-@pytest.mark.fixture
 def test_a_sample_keeps_what_overlaps_its_period(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

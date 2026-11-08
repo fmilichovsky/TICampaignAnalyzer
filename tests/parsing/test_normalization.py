@@ -86,7 +86,6 @@ def assets() -> SaveSnapshot:
     return load("campaign_assets.json")
 
 
-@pytest.mark.fixture
 def test_campaign_time_and_metadata_are_extracted(political: SaveSnapshot) -> None:
     assert political.timestamp == datetime(2031, 3, 1)
     assert political.date == "2031-03-01T00:00:00"
@@ -104,7 +103,6 @@ def test_campaign_time_and_metadata_are_extracted(political: SaveSnapshot) -> No
     assert isinstance(state_types, tuple) and STATE_PREFIX + "TIFixtureUnknownState" in state_types
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("fixture_name", "expected_counts"),
     [
@@ -152,7 +150,6 @@ def test_collections_are_typed_sorted_and_carry_provenance(fixture_name: str, ex
             }
 
 
-@pytest.mark.fixture
 def test_control_point_ownership_is_copied_not_invented(political: SaveSnapshot) -> None:
     owned = by_id(political.control_points, "30")
     assert owned.get("nation") == ref(EntityDomain.NATION, "20", "TINationState")
@@ -170,7 +167,6 @@ def test_control_point_ownership_is_copied_not_invented(political: SaveSnapshot)
     assert dangling.get("faction") == ref(EntityDomain.FACTION, "10", "TIFactionState")
 
 
-@pytest.mark.fixture
 def test_nation_and_region_references_resolve_through_documented_domains(political: SaveSnapshot) -> None:
     north = by_id(political.nations, "20")
     assert north.get("capital") == ref(EntityDomain.REGION, "40", "TIRegionState")
@@ -249,7 +245,6 @@ def test_region_alien_sub_states_resolve_and_retained_scalars_are_copied() -> No
     assert dangling.get("nuclearDetonations") == Unknown()  # omitted by the save
 
 
-@pytest.mark.fixture
 def test_normalization_is_deterministic_and_json_serializable(political: SaveSnapshot) -> None:
     assert political == load("political_control.json")
     data = political.to_dict()
@@ -259,7 +254,6 @@ def test_normalization_is_deterministic_and_json_serializable(political: SaveSna
     assert dangling["location"]["state_type"] == "TIControlPoint"
 
 
-@pytest.mark.fixture
 def test_representative_fixture_without_observed_time_fields_has_unknown_chronology() -> None:
     snapshot = load("representative_campaign.json")
     assert snapshot.date == Unknown()
@@ -304,7 +298,6 @@ def test_organizations_carry_resolved_references_and_scalars() -> None:
     assert report.total == 0  # the icon path is acknowledged presentation data
 
 
-@pytest.mark.fixture
 def test_councilors_carry_membership_location_and_unknowns(assets: SaveSnapshot) -> None:
     affiliated = by_id(assets.councilors, "100")
     assert affiliated.ref.name == "Fixture Councilor 100"
@@ -334,7 +327,6 @@ def test_councilors_carry_membership_location_and_unknowns(assets: SaveSnapshot)
     )
 
 
-@pytest.mark.fixture
 def test_missions_resolve_their_councilor_and_cross_domain_target(assets: SaveSnapshot) -> None:
     propaganda = by_id(assets.missions, "200")
     assert propaganda.get("councilor") == ref(EntityDomain.COUNCILOR, "100", "TICouncilorState")
@@ -399,7 +391,6 @@ def test_missing_faction_fields_are_unknown_and_malformed_ship_designs_stay_raw(
     assert report.findings[0].occurrences == 2
 
 
-@pytest.mark.fixture
 def test_armies_merge_both_state_types_and_keep_destruction_literal(
     assets: SaveSnapshot, political: SaveSnapshot
 ) -> None:
@@ -428,7 +419,6 @@ def test_armies_merge_both_state_types_and_keep_destruction_literal(
     assert all(bare.get(name) == Unknown() for name in ("currentRegion", "faction", "strength", "destroyed"))
 
 
-@pytest.mark.fixture
 def test_space_bodies_are_named_reference_targets_with_a_parent() -> None:
     assets = load("assets_after.json")
     assert [str(state.ref.entity_id) for state in assets.space_bodies] == ["space body:50", "space body:51"]
@@ -443,7 +433,6 @@ def test_space_bodies_are_named_reference_targets_with_a_parent() -> None:
     assert moon.get("barycenter") == ref(EntityDomain.SPACE_BODY, "50", "TISpaceBodyState")
 
 
-@pytest.mark.fixture
 def test_fleets_keep_ship_composition_and_expose_stale_parent_ids(assets: SaveSnapshot) -> None:
     fleet = by_id(assets.fleets, "120")
     assert fleet.get("ships") == (
@@ -495,7 +484,6 @@ def test_lagrange_points_are_named_places_for_habs_and_fleets() -> None:
     assert by_id(snapshot.fleets, "60").get("barycenter") == place
 
 
-@pytest.mark.fixture
 def test_ships_reference_their_fleet_and_keep_measurements(assets: SaveSnapshot) -> None:
     ship = by_id(assets.ships, "131")
     assert ship.get("fleet") == ref(EntityDomain.FLEET, "120", "TISpaceFleetState")
@@ -508,7 +496,6 @@ def test_ships_reference_their_fleet_and_keep_measurements(assets: SaveSnapshot)
     assert orphan.get("kills") == ("FixtureKill",)
 
 
-@pytest.mark.fixture
 def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: SaveSnapshot) -> None:
     hab = by_id(assets.habs, "140")
     assert hab.ref.entity_id == EntityId(EntityDomain.SPACE_OBJECT, "140")
@@ -527,7 +514,6 @@ def test_habs_are_space_objects_with_resolved_ownership_and_docking(assets: Save
     assert site_hab.get("dockedFleets") == ()
 
 
-@pytest.mark.fixture
 def test_mission_control_facilities_are_entities_and_resolve_both_reference_paths() -> None:
     snapshot = load("mission_control_facilities.json")
     facility = by_id(snapshot.mission_control_facilities, "20")
@@ -556,7 +542,6 @@ def test_mission_control_facilities_are_entities_and_resolve_both_reference_path
     ]
 
 
-@pytest.mark.fixture
 def test_mission_control_facility_references_preserve_null_and_unresolved_states() -> None:
     facility_fields = {
         "Key": {"value": 20},
@@ -676,7 +661,6 @@ def test_a_broken_core_chain_or_an_unparseable_core_date_is_reported_on_the_habs
     ]
 
 
-@pytest.mark.fixture
 def test_technologies_are_name_keyed_and_derived_from_the_research_singleton(assets: SaveSnapshot) -> None:
     research = assets.research
     assert research.finished_techs_names == ("FixtureTechA", "FixtureTechB", "FixtureTechC")
@@ -800,7 +784,6 @@ def test_malformed_normalized_container_is_rejected_as_unsupported_shape() -> No
 # --- unknown structures -------------------------------------------------------------------------------------------
 
 
-@pytest.mark.fixture
 def test_fixture_unknowns_are_reported_and_leave_the_snapshot_unchanged(political: SaveSnapshot) -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "political_control.json"))
     snapshot, report = collect(raw)
@@ -1024,7 +1007,6 @@ def test_unknown_structures_are_summarized_in_the_log_without_a_collector(caplog
     assert "secretField" not in caplog.text and "Fixture" not in caplog.text
 
 
-@pytest.mark.fixture
 def test_wars_and_federations_normalize_with_provenance_and_resolved_references() -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "wars_before.json"))
     collector = UnknownCollector()
@@ -1055,7 +1037,6 @@ def test_wars_and_federations_normalize_with_provenance_and_resolved_references(
 GLOBAL_VALUES_TYPE = STATE_PREFIX + "TIGlobalValuesState"
 
 
-@pytest.mark.fixture
 def test_the_global_values_singleton_normalizes_as_one_entity_with_provenance() -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "global_values_before.json"))
     collector = UnknownCollector()
@@ -1109,7 +1090,6 @@ def test_a_second_global_values_entry_is_reported_and_kept() -> None:
 NOTIFICATION_QUEUE_TYPE = STATE_PREFIX + "TINotificationQueueState"
 
 
-@pytest.mark.fixture
 def test_the_notification_queue_normalizes_as_one_entity_owning_the_notification_log() -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "notifications_after.json"))
     collector = UnknownCollector()
@@ -1133,7 +1113,6 @@ def test_a_second_notification_queue_entry_is_reported_and_kept() -> None:
     assert keys(report) == [("unexpected_singleton_count", "TINotificationQueueState", "", "")]
 
 
-@pytest.mark.fixture
 def test_the_combat_fixture_pair_normalizes_its_combat_logs_without_findings() -> None:
     for name, sizes in (("combat_before.json", [2, 0, 0]), ("combat_after.json", [4, 1, 0])):
         collector = UnknownCollector()

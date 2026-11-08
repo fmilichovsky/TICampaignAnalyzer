@@ -85,7 +85,6 @@ def _narrate(tmp_path: Path, *options: str, settings: Path | None = None) -> int
     return main(["narrate", *SAVES, "--config", str(config), "--output", str(tmp_path / "out"), *options])
 
 
-@pytest.mark.fixture
 def test_send_writes_one_response_per_chapter(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -145,7 +144,6 @@ def test_impossible_token_reservation_fails_before_sending_and_cached_responses_
     assert "kept: complete" in capsys.readouterr().out
 
 
-@pytest.mark.fixture
 def test_the_provider_settings_never_change_the_plan_or_the_requests(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -159,7 +157,6 @@ def test_the_provider_settings_never_change_the_plan_or_the_requests(
         assert (tmp_path / "plain" / name).read_bytes() == (tmp_path / "out" / name).read_bytes()
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]
 )
@@ -175,7 +172,6 @@ def test_a_failed_chapter_stops_the_run_and_keeps_the_completed_ones(
     assert [path.name for path in (tmp_path / "out" / "responses").iterdir()] == ["01.json"]
 
 
-@pytest.mark.fixture
 def test_an_http_failure_is_a_provider_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -191,7 +187,6 @@ def test_an_http_failure_is_a_provider_error(
     assert list((tmp_path / "out" / "responses").iterdir()) == []
 
 
-@pytest.mark.fixture
 def test_a_profile_and_flags_override_the_narrator_keys(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -263,7 +258,6 @@ def test_send_needs_an_output_directory(
     assert transport.calls == []
 
 
-@pytest.mark.fixture
 def test_the_log_carries_no_request_response_or_key(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -286,7 +280,6 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("tinarrative.cli._now", lambda: datetime(2026, 10, 22, 9, 0, tzinfo=UTC))
 
 
-@pytest.mark.fixture
 def test_send_assembles_the_history_and_a_clean_audit_keeps_stderr_empty(
     tmp_path: Path, transport: FakeTransport, clock: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -313,7 +306,6 @@ def test_send_assembles_the_history_and_a_clean_audit_keeps_stderr_empty(
     assert manifest["audit"]["cited_ids"] > 0
 
 
-@pytest.mark.fixture
 def test_audit_findings_are_one_stderr_line_and_never_fail_the_run(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -328,7 +320,6 @@ def test_audit_findings_are_one_stderr_line_and_never_fail_the_run(
     assert audit == f"tinarrative narrate: citation audit: 2 unmatched citations; see {manifest}"
 
 
-@pytest.mark.fixture
 def test_a_stored_response_from_the_same_request_is_not_sent_again(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -348,7 +339,6 @@ def test_a_stored_response_from_the_same_request_is_not_sent_again(
     assert (tmp_path / "out" / "history.md").exists()
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("options", [["--force"], ["--model", "other-model"], ["--max-output-tokens", "8000"]])
 def test_force_or_another_send_setting_sends_every_chapter_again(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], options: list[str]
@@ -361,7 +351,6 @@ def test_force_or_another_send_setting_sends_every_chapter_again(
     assert "kept" not in capsys.readouterr().out
 
 
-@pytest.mark.fixture
 def test_a_failed_run_writes_no_history(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -379,7 +368,6 @@ def test_force_needs_send(tmp_path: Path, transport: FakeTransport, capsys: pyte
     assert "--force re-sends chapters, so it needs --send" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 def test_assemble_rebuilds_the_history_from_the_directory_without_sending(
     tmp_path: Path, transport: FakeTransport, clock: None, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -399,7 +387,6 @@ def test_assemble_rebuilds_the_history_from_the_directory_without_sending(
     assert {name: (out / name).read_bytes() for name in sent} == sent
 
 
-@pytest.mark.fixture
 def test_assemble_names_a_missing_response(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -1,7 +1,5 @@
 """Acceptance over the global-values fixture pair: expected events, provenance, war corroboration, wording."""
 
-import pytest
-
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import ALL_ANALYZERS, CAMPAIGN_ANALYZERS, run_analyzers
 from tinarrative.analyzers.render import describe_event
@@ -22,7 +20,6 @@ def by_id(events: tuple[Event, ...]) -> dict[str, Event]:
     return {event.id: event for event in events}
 
 
-@pytest.mark.fixture
 def test_global_values_pair_yields_the_expected_campaign_events() -> None:
     events = run_analyzers(CAMPAIGN_ANALYZERS, *fixture_pair(*PAIR))
     assert [event.id for event in events] == [
@@ -35,7 +32,6 @@ def test_global_values_pair_yields_the_expected_campaign_events() -> None:
     ]
 
 
-@pytest.mark.fixture
 def test_a_new_milestone_cites_its_record_entry_and_names_the_faction() -> None:
     event = by_id(run_all())[f"campaign.global_milestone_recorded/{SINGLETON}/FirstBaseOnLuna"]
     (source,) = event.sources
@@ -45,7 +41,6 @@ def test_a_new_milestone_cites_its_record_entry_and_names_the_faction() -> None:
     assert event.entities[1].name == "Fixture Resistance"
 
 
-@pytest.mark.fixture
 def test_war_presence_cites_the_interstate_wars_entry_as_corroboration() -> None:
     events = by_id(run_all())
     for event_id, war in (("war.disappeared/war:91", "war:91"), ("war.appeared/war:92", "war:92")):
@@ -58,13 +53,11 @@ def test_war_presence_cites_the_interstate_wars_entry_as_corroboration() -> None
     assert not [event for event in events.values() if event.event_type == "campaign.interstate_wars_changed"]
 
 
-@pytest.mark.fixture
 def test_the_build_string_is_detected_but_not_gated() -> None:
     before, after, _diff = fixture_pair(*PAIR)
     assert (before.game_version, after.game_version) == ("fixture-build-1", "fixture-build-2")
 
 
-@pytest.mark.fixture
 def test_campaign_events_are_described_literally() -> None:
     lines = {describe_event(event) for event in run_analyzers(CAMPAIGN_ANALYZERS, *fixture_pair(*PAIR))}
     assert lines == {
@@ -80,6 +73,5 @@ def test_campaign_events_are_described_literally() -> None:
     assert all(line.isascii() for line in lines)
 
 
-@pytest.mark.fixture
 def test_the_pair_is_deterministic() -> None:
     assert [event.to_dict() for event in run_all()] == [event.to_dict() for event in run_all()]

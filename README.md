@@ -73,7 +73,8 @@ make check
 Individual targets are `make format`, `make lint`, `make typecheck`, and
 `make test`. To apply formatting, run `python -m ruff format .`.
 
-See [the testing guide](docs/testing.md) for test and fixture conventions.
+Standards for code, docs, fixtures and tests are in [CONTRIBUTING.md](CONTRIBUTING.md); running and maintaining
+the suite is in [the testing guide](docs/testing.md).
 
 `make package-metrics` measures what `events` and `narrate` would send to an LLM for the real sample campaigns in
 `benchmarks/`, and `make runtime-metrics` measures how long `events` takes on them. Every pull request gets both

@@ -1,7 +1,5 @@
 """Acceptance for the region alien analyzer and the megafauna marker over the aliens fixture pair."""
 
-import pytest
-
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import ALIEN_ANALYZERS, ALL_ANALYZERS, run_analyzers
 from tinarrative.analyzers.render import describe_event
@@ -15,7 +13,6 @@ def run_all() -> tuple[Event, ...]:
     return run_analyzers(ALL_ANALYZERS, *fixture_pair(*PAIR))
 
 
-@pytest.mark.fixture
 def test_aliens_pair_yields_one_event_per_headline_field() -> None:
     events = run_analyzers(ALIEN_ANALYZERS, *fixture_pair(*PAIR))
     assert [event.id for event in events] == [
@@ -29,7 +26,6 @@ def test_aliens_pair_yields_one_event_per_headline_field() -> None:
     assert all(event.entities[0].entity_id.domain.value == "region" for event in events)
 
 
-@pytest.mark.fixture
 def test_crashdown_appears_with_its_date_xenoforming_rises_and_drops_to_zero() -> None:
     by_id = {event.id: event for event in run_all()}
     crashdown = by_id["region.crashdown_changed/region alien state:100"]
@@ -41,7 +37,6 @@ def test_crashdown_appears_with_its_date_xenoforming_rises_and_drops_to_zero() -
     assert (dropping.attribute("before"), dropping.attribute("after")) == (3.0, 0.0)
 
 
-@pytest.mark.fixture
 def test_megafauna_army_appears_marked_and_lines_avoid_inferred_wording() -> None:
     events = run_all()
     army = next(event for event in events if event.id == "army.appeared/army:51")

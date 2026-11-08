@@ -59,7 +59,6 @@ def test_the_prompt_version_is_the_sha256_of_the_prompt() -> None:
     assert len(version) == 64
 
 
-@pytest.mark.fixture
 def test_the_request_matches_the_golden_and_is_deterministic(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

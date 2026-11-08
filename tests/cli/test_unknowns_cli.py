@@ -35,7 +35,6 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(REGISTRY_ENV_VAR, raising=False)
 
 
-@pytest.mark.fixture
 def test_directory_scan_is_deterministic_and_lists_skipped_files(save_dir: Path, capsys: pytest.CaptureFixture[str]):
     assert main(["unknowns", str(save_dir)]) == EXIT_SUCCESS
     first = capsys.readouterr()
@@ -57,7 +56,6 @@ def test_directory_scan_is_deterministic_and_lists_skipped_files(save_dir: Path,
     assert lines[-1] == "registry: not updated"
 
 
-@pytest.mark.fixture
 def test_json_report(save_dir: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["unknowns", str(save_dir / "political_control.json"), "--format", "json"]) == EXIT_SUCCESS
     data = json.loads(capsys.readouterr().out)
@@ -76,7 +74,6 @@ def test_json_report(save_dir: Path, capsys: pytest.CaptureFixture[str]) -> None
     assert data["findings"][0]["saves"] == 1 and data["findings"][0]["shape"]["types"] == ["number"]
 
 
-@pytest.mark.fixture
 def test_registry_flag_writes_and_env_var_is_the_fallback(
     save_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -98,7 +95,6 @@ def test_registry_flag_writes_and_env_var_is_the_fallback(
     assert str(tmp_path) not in text and "political_control" not in text
 
 
-@pytest.mark.fixture
 def test_exit_codes_follow_explicit_inputs_only(save_dir: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]):
     assert main(["unknowns", str(tmp_path / "missing.json")]) == EXIT_INPUT_ERROR
     assert "skipped (FileNotFoundError:" in capsys.readouterr().out

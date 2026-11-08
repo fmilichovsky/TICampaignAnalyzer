@@ -21,7 +21,6 @@ OUTCOME_ERRORS: dict[str, type[SaveLoadError] | None] = {
 VALID = b'{"currentID": {"value": 1}, "gamestates": {}}'
 
 
-@pytest.mark.fixture
 def test_every_fixture_matches_its_declared_loader_outcome() -> None:
     manifest = json.loads(fixture_path(*FIXTURE_PARTS, "fixture_manifest.json").read_text())
     for entry in manifest["fixtures"]:
@@ -34,7 +33,6 @@ def test_every_fixture_matches_its_declared_loader_outcome() -> None:
                 parse_raw_save(data, source=entry["path"])
 
 
-@pytest.mark.fixture
 def test_supported_fixture_decodes_to_raw_save() -> None:
     data = fixture_path(*FIXTURE_PARTS, "representative_campaign.json").read_bytes()
 
@@ -49,7 +47,6 @@ def test_supported_fixture_decodes_to_raw_save() -> None:
     assert list(raw.root) == ["currentID", "gamestates"]
 
 
-@pytest.mark.fixture
 def test_unknown_state_types_are_not_rejected() -> None:
     data = fixture_path(*FIXTURE_PARTS, "unknown_state_type.json").read_bytes()
     assert "Example.ModOrFutureState" in parse_raw_save(data, source="s").root["gamestates"]

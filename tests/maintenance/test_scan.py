@@ -28,7 +28,6 @@ def save_dir(tmp_path: Path) -> Path:
     return directory
 
 
-@pytest.mark.fixture
 def test_scan_inputs_continues_past_failures(save_dir: Path, tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()
@@ -64,13 +63,11 @@ def test_merge_reports_sums_occurrences_unions_shapes_and_counts_saves() -> None
     assert item.finding.shape == ShapeSummary(("object",), ("x", "y"))
 
 
-@pytest.mark.fixture
 def test_scan_save_matches_parse(save_dir: Path) -> None:
     report, game_version = scan_save(save_dir / "political_control.json")
     assert game_version is None and report.total == 2
 
 
-@pytest.mark.fixture
 def test_record_from_a_scan_is_canonical_and_names_no_files(save_dir: Path, tmp_path: Path) -> None:
     run = scan_inputs(expand_inputs([save_dir]))
     registry_path = tmp_path / "registry.json"

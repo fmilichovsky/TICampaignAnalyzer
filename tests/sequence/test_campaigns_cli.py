@@ -26,7 +26,6 @@ def _saves(root: Path) -> Path:
     return directory
 
 
-@pytest.mark.fixture
 def test_text_listing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     _saves(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -51,7 +50,6 @@ def test_text_listing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: p
     )
 
 
-@pytest.mark.fixture
 def test_json_listing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     _saves(tmp_path)
     monkeypatch.chdir(tmp_path)
@@ -77,13 +75,11 @@ def test_json_listing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: p
     assert report["campaigns"][2]["unclassified"] is True
 
 
-@pytest.mark.fixture
 def test_a_single_save_is_listed(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["campaigns", str(FIXTURE_DIR / "politics_before.json")]) == EXIT_SUCCESS
     assert capsys.readouterr().out.startswith("1 campaign:\n\n1. fixture-resistance\n")
 
 
-@pytest.mark.fixture
 def test_a_missing_path_is_an_input_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["campaigns", str(tmp_path / "missing.json")]) == EXIT_INPUT_ERROR
     captured = capsys.readouterr()
@@ -91,13 +87,11 @@ def test_a_missing_path_is_an_input_error(tmp_path: Path, capsys: pytest.Capture
     assert captured.err.startswith("tinarrative campaigns: cannot read ")
 
 
-@pytest.mark.fixture
 def test_a_named_invalid_file_is_unsupported(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["campaigns", str(FIXTURE_DIR / "malformed_truncated.json")]) == EXIT_UNSUPPORTED_INPUT
     assert capsys.readouterr().out == ""
 
 
-@pytest.mark.fixture
 def test_logs_counts_and_no_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     directory = _saves(tmp_path)
 
