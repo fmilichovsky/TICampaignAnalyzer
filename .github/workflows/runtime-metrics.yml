@@ -1,29 +1,38 @@
 name: Runtime metrics
 
-# Times `events` on the benchmark samples for the pull request's base and head, alternating on each runner, and posts
-# the combined report as one comment that every later push edits. Timings from different runners are not comparable.
-# Informational: a slower stage never fails the check. See benchmarks/README.md.
+# Times `events` on demand, alternating base and head on each runner. Timings from different runners are not
+# comparable. Informational: a slower stage never fails the check. See benchmarks/README.md.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
-  group: runtime-metrics-${{ github.event.pull_request.number }}
+  group: runtime-metrics-${{ (github.event_name == 'issue_comment' && github.event.comment.body == '/benchmarks' && github.event.issue.pull_request && github.event.issue.number) || (github.event_name == 'workflow_dispatch' && github.ref) || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  resolve:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.body == '/benchmarks')
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/resolve-metrics-refs.yml
+
   samples:
-    if: github.actor != 'dependabot[bot]'
+    needs: resolve
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - id: matrix
         name: Read sample campaigns
         run: |
@@ -36,7 +45,7 @@ jobs:
           PY
 
   measure:
-    needs: samples
+    needs: [resolve, samples]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -44,9 +53,11 @@ jobs:
     steps:
       # The head checkout supplies the CLI, sample, matrix and settings used to measure both revisions.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ needs.resolve.outputs.base_sha }}
           path: .bench/base-src
       - uses: actions/setup-python@v7
         with:
@@ -70,13 +81,15 @@ jobs:
       - name: Measure
         run: >-
           python -m tinarrative.cli benchmark runtime measure --repeats 3
-          --base-python .bench/venv-base/bin/python --base-label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
-          --python .bench/venv-head/bin/python --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
+          --base-python .bench/venv-base/bin/python --base-label "$BASE_LABEL ${GITHUB_BASE_SHA::7}"
+          --python .bench/venv-head/bin/python --label "$HEAD_LABEL ${GITHUB_HEAD_SHA::7}"
           --samples ".bench/sample/${{ matrix.sample }}" --matrix benchmarks/matrix.toml --config benchmarks/config.toml
           --out .bench/runtime.json
         env:
-          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_BASE_SHA: ${{ needs.resolve.outputs.base_sha }}
+          GITHUB_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          BASE_LABEL: ${{ needs.resolve.outputs.base_ref }}
+          HEAD_LABEL: ${{ needs.resolve.outputs.head_ref }}
       - uses: actions/upload-artifact@v7
         with:
           name: runtime-${{ matrix.sample }}
@@ -84,10 +97,12 @@ jobs:
           retention-days: 1
 
   report:
-    needs: measure
+    needs: [resolve, measure]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -148,16 +163,15 @@ jobs:
             .bench/runtime.json
             .bench/runtime.md
           retention-days: 14
-      - name: Post comment
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- runtime-metrics -->")))][0].id // empty' \
-            | head -n 1)
-          if [ -n "$id" ]; then
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.bench/runtime.md > /dev/null
-          else
-            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.bench/runtime.md > /dev/null
-          fi
+  post-comment:
+    needs: [resolve, report]
+    if: needs.resolve.outputs.pr_number != ''
+    permissions:
+      actions: read
+      issues: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      artifact_name: runtime-metrics
+      report_path: runtime.md
+      comment_marker: '<!-- runtime-metrics -->'

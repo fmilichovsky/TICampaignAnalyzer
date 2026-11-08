@@ -1,0 +1,48 @@
+name: Post metrics comment
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: Pull request number for the report comment
+        required: true
+        type: string
+      artifact_name:
+        description: Artifact containing the report
+        required: true
+        type: string
+      report_path:
+        description: Report filename within the downloaded artifact
+        required: true
+        type: string
+      comment_marker:
+        description: HTML marker identifying the existing bot comment
+        required: true
+        type: string
+
+jobs:
+  post-comment:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: .bench
+      - name: Post comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ inputs.pr_number }}
+          REPORT_FILE: .bench/${{ inputs.report_path }}
+          COMMENT_MARKER: ${{ inputs.comment_marker }}
+        run: |
+          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
+            | jq -s --arg marker "$COMMENT_MARKER" '[.[][] | select(.user.login == "github-actions[bot]" and (.body | startswith($marker)))][0].id // empty' \
+            | head -n 1)
+          if [ -n "$id" ]; then
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F "body=@$REPORT_FILE" > /dev/null
+          else
+            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$REPORT_FILE" > /dev/null
+          fi

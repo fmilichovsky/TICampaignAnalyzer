@@ -1,8 +1,7 @@
 # Benchmarks
 
-Two things are measured on real campaigns, so that every pull request shows a change's effect instead of someone
-measuring it by hand: the size of what `events --narrative --format json` and `narrate` hand to an LLM (package size,
-below), and how long `events` takes ([runtime](#runtime)).
+Two things are measured on real campaigns: the size of what `events --narrative --format json` and `narrate` hand to
+an LLM (package size, below), and how long `events` takes ([runtime](#runtime)). Run either measurement on demand.
 
 ```text
 benchmarks/
@@ -46,13 +45,16 @@ mapping keyed by ID (more than 30 keys) is not broken down.
 Characters and estimated tokens are exact for what is sent. Real tokens depend on the model's tokenizer, so compare
 the estimates with each other, not with a provider's bill.
 
-## On pull requests
+## On-demand runs
 
-[`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml) installs the pull request's base and
-head into two virtual environments and measures both with the head checkout's CLI, samples, matrix and settings. It posts
-`compare`'s report as one comment, which every later push edits, and writes the report to the job summary. It
-uploads both sides' outputs as the `package-metrics` artifact, kept 14 days, so any package or request can be diffed
-locally. The check never fails because a size changed.
+[`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml) and
+[`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) run from Actions using **Run workflow**,
+or when any user comments exactly `/benchmarks` on a pull request. Manual runs compare the selected branch with the
+default branch; comment-triggered runs compare that pull request's base and head. Measurements are informational and never fail because of a change.
+
+The package workflow installs the base and head into two virtual environments and measures both with the head checkout's
+CLI, samples, matrix and settings. It uploads both sides' outputs as the `package-metrics` artifact so any package or
+request can be diffed locally.
 
 The report:
 
@@ -114,10 +116,9 @@ side's interval growth (the mean seconds of the last third of the intervals over
 is the sign of superlinear cost.
 
 [`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) measures each sample campaign in a
-separate job. Each job measures the pull request's base and head on the same runner, with three repeats, and a final
-job combines the results into one report comment that later pushes edit. Timings from different runners are not
-comparable, which is why each campaign's two revisions stay together. Like package size, this check never fails
-because of a change.
+separate job. Each job measures the base and head on the same runner, with three repeats, and a final job combines the
+results into the report. Timings from different runners are not comparable, which is why each campaign's two revisions
+stay together.
 
 Locally:
 
