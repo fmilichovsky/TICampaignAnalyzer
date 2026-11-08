@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification
+from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
 from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
-from tinarrative.narrative import aggregate, narrative_rules
-from tinarrative.narrative.nation_metrics import BAND_SHIFTS
+from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
+from tinarrative.narrative.nation_metrics import BAND_SHIFTS, BandShiftRule
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -91,6 +91,35 @@ def test_a_held_unrest_crossing_is_a_shift_named_by_the_game_bands() -> None:
     assert describe_event(shift) == "Northland (nation:20) unrest: Subversion -> Insurgency"
 
 
+def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> None:
+    class WarArcRule:
+        name = "war.arc"
+        order = 2
+        window_days = None
+
+        def apply(
+            self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+        ) -> list[Event]:
+            fighting = next(event for event in stream if event.event_type == "war.last_fighting_changed")
+            return [
+                build.event(
+                    self.name,
+                    id_parts=["war:1"],
+                    constituents=[fighting],
+                    roles=[(Role.ACTOR, NORTH)],
+                    join=Join.ENTITY,
+                )
+            ]
+
+    event = crossing(K1, "unrest", 2.5, 4.75, rest=0.5)
+    fighting = atomic("war.last_fighting_changed", K1, entities=(war("1"),))
+    rule = BandShiftRule("unrest", NationMetricsSettings(), GeopoliticsSettings())
+
+    result = aggregate([event, fighting], reports(2.5, 4.75, 5.0), [WarArcRule(), rule])
+
+    assert [item.event_type for item in result] == ["war.arc"]
+
+
 def test_an_unrest_crossing_the_rest_value_explains_is_dropped() -> None:
     event = crossing(K1, "unrest", 2.5, 3.5, rest=0.75)
     assert built([event], reports(2.5, 3.5, 3.5)) == []
@@ -145,7 +174,7 @@ def test_a_top_gdp_nation_is_promoted_one_level() -> None:
     assert age.event_type == "nation.miltech_shift" and age.significance is Significance.CAMPAIGN_DEFINING
 
 
-def test_a_narrative_event_naming_the_nation_in_the_interval_carries_the_shift() -> None:
+def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None:
     control = atomic(
         f"faction.nation_control_changed/{NORTH.entity_id}/executive",
         K1,
@@ -162,7 +191,7 @@ def test_a_narrative_event_naming_the_nation_in_the_interval_carries_the_shift()
     assert [shift.event_type for shift in built([control, elsewhere], plain_reports())] == ["nation.government_shift"]
 
 
-def test_a_merger_carries_the_band_shifts_of_both_nations() -> None:
+def test_a_merger_explains_the_band_shifts_of_both_nations() -> None:
     merger = unification(K1, SOUTH, NORTH, not_before=K0)
     situations = reports(5.5, 6.5, 6.5, statistic="democracy")
     assert built([merger, crossing(K1, "democracy", 5.5, 6.5)], situations) == []
@@ -172,7 +201,7 @@ def plain_reports() -> list[SituationReport]:
     return [situation(key, nations=[SOUTH]) for key in (K0, K1)]
 
 
-def test_metric_shifts_of_the_nation_carry_their_bands() -> None:
+def test_metric_shifts_of_the_nation_explain_their_bands() -> None:
     event = crossing(K1, "democracy", 5.5, 6.5)
     statistic = atomic(
         f"nation.statistic_shifted/{NORTH.entity_id}/democracy",

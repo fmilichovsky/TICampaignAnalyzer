@@ -230,6 +230,7 @@ def aggregate(
     duplicated = sorted({name for name in names if names.count(name) > 1})
     if duplicated:
         raise ValueError(f"narrative rules share a name: {duplicated}")
+    _check_explainer_orders(rules)
     started = time.perf_counter()
     build = NarrativeBuilder(situations)
     built: list[Event] = []
@@ -251,6 +252,21 @@ def aggregate(
     logger.info("narrative aggregated %s", fields(rules=len(rules), stream=len(stream), events=len(narrative)))
     timing.info("aggregate %s", fields(seconds=round(time.perf_counter() - started, 4)))
     return narrative
+
+
+def _check_explainer_orders(rules: Sequence[NarrativeRule]) -> None:
+    emitters: dict[str, list[NarrativeRule]] = {}
+    for rule in rules:
+        for event_type in getattr(rule, "emitted_types", (rule.name,)):
+            emitters.setdefault(event_type, []).append(rule)
+    for rule in rules:
+        for event_type in getattr(rule, "explains", ()):
+            for emitter in emitters.get(event_type, ()):
+                if emitter.order >= rule.order:
+                    raise ValueError(
+                        f"narrative rule {rule.name} explains {event_type}, emitted by narrative rule "
+                        f"{emitter.name} at order {emitter.order}; an explainer must have a lower order"
+                    )
 
 
 def _timed_apply(
