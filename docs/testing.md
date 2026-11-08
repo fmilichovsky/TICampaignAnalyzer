@@ -45,8 +45,7 @@ Some tests compare against files that are generated, not written by hand. When a
 regenerate it, review the diff line by line, and commit it with the change.
 
 - **Goldens** (`*.expected.*` under `tests/fixtures/`) hold a command's exact output on a fixture. Regenerate them
-  by running the command the test runs, from inside the fixture directory with bare file names so the golden holds
-  no machine path. A golden without a test fails the suite.
+  all with `python -m pytest --update-goldens`, then review the diff. A golden without a test fails the suite.
 - **The fixture manifest** records each fixture's hash. After editing a fixture, update its entry and run
   `python scripts/verify_fixture_manifest.py tests/fixtures/io/terra_invicta_json_v1/fixture_manifest.json`.
 - **The unknowns registry** (`docs/game-data-notes/unknowns/registry.json`) is written by `tinarrative unknowns`.

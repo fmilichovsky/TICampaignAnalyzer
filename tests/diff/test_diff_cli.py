@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from tests.fixtures import FIXTURES_ROOT, fixture_path
+from tests.golden import AssertGolden
 from tinarrative.cli import EXIT_INPUT_ERROR, EXIT_SUCCESS, EXIT_UNSUPPORTED_INPUT, EXIT_USAGE_ERROR, main
 
 FIXTURE_SET = "terra_invicta_json_v1"
@@ -21,18 +22,22 @@ def golden_path(before: str, after: str, suffix: str) -> Path:
 @pytest.mark.parametrize(("before", "after"), GOLDEN_PAIRS)
 @pytest.mark.parametrize("fmt", ["txt", "json"])
 def test_diff_matches_the_golden_report(
-    before: str, after: str, fmt: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    before: str,
+    after: str,
+    fmt: str,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    assert_golden: AssertGolden,
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)  # bare file names keep machine paths out of the golden
     argv = ["save", "diff", before, after] + (["--format", "json"] if fmt == "json" else [])
-    expected = golden_path(before, after, fmt).read_text(encoding="utf-8")
 
     assert main(argv) == EXIT_SUCCESS
     first = capsys.readouterr()
     assert main(argv) == EXIT_SUCCESS
     second = capsys.readouterr()
 
-    assert first.out == expected
+    assert_golden(first.out, golden_path(before, after, fmt))
     assert second.out == first.out
     assert first.err == ""
 
