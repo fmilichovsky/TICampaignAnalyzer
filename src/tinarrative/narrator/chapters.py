@@ -27,10 +27,6 @@ REDUCTIONS = ("atomic_dropped", "split")
 PLANNER_KEYS = (
     "max_input_tokens",
     "chars_per_token",
-    "quarter_span_days",
-    "half_span_days",
-    "recalled_developments",
-    "top_economies",
 )
 """Recorded in ``plan.json``; the provider keys never change a plan."""
 

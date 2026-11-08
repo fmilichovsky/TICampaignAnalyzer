@@ -43,19 +43,19 @@ provider and assembles the answers into one footnoted `history.md`, with a citat
 | `--length WORDS` | | Target length of the whole history, shared out across chapters by their developments. |
 | `--focus NAME` | player faction for `insider` | A faction or nation to centre the account on. |
 | `--output DIR` | | Write the plan and the requests here; without it only the plan summary is printed. |
-| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: narrative rules and the `[narrator]` budget, provider and profiles ([configuration](../configuration.md)). |
+| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: narrative rules and the `[llm]` budget, provider and profiles ([configuration](../configuration.md)). |
 | `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | Saves only: worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
 | `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
 | `--force` | off | With `--send`, send every chapter again, even one with a matching stored response. |
 | `--assemble DIR` | | Assemble `history.md` and `manifest.json` from a directory written earlier. Takes no other option. |
-| `--profile NAME` | | Apply the settings profile `[narrator.profiles.NAME]`. |
+| `--profile NAME` | | Apply the settings profile `[llm.profiles.NAME]`. |
 | `--provider`, `--model`, `--base-url`, `--max-input-tokens`, `--max-output-tokens`, `--temperature` | | Override the `narrator` setting of the same name ([Provider and budget](#provider-and-budget)). |
 
-The audience, citation and style defaults are the prompt's; see [narrator](../narrator.md).
+The audience, citation and style defaults are the prompt's; see [llm](../narrator.md).
 
 ## Chapter plan
 
-Each chapter is a run of whole periods that fits within `narrator.max_input_tokens`, and carries
+Each chapter is a run of whole periods that fits within `llm.max_input_tokens`, and carries
 the developments that start in it, the situation at its opening and closing saves, and a
 reminder of what earlier chapters told. A period too large for one request is told without the
 supporting events, then split; developments are never dropped. If a single interval does not fit,
@@ -74,7 +74,7 @@ The provider, model and token budget come from the `narrator` settings
 ([configuration](../configuration.md#narrator-provider-and-profiles)), in this order, each over
 the previous one:
 
-1. the `[narrator]` keys of the settings file, else their defaults;
+1. the `[llm]` keys of the settings file, else their defaults;
 2. the profile given with `--profile NAME` (an unknown profile is a usage error);
 3. the override flags `--provider`, `--model`, `--base-url`, `--max-input-tokens`,
    `--max-output-tokens` and `--temperature`.

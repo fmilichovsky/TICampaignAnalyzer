@@ -156,7 +156,7 @@ def sending(tmp_path: Path) -> str:
     path = tmp_path / "sending.toml"
     path.write_text(
         "[councilors]\nmin_tenure_days = 0\nrivals_per_faction = 1\n"
-        '[narrator]\nprovider = "anthropic"\nmodel = "some-model"\napi_key_env = "TEST_NARRATOR_KEY"\n',
+        '[llm]\nprovider = "anthropic"\nmodel = "some-model"\napi_key_env = "TEST_NARRATOR_KEY"\n',
         encoding="utf-8",
     )
     return str(path)
@@ -358,7 +358,7 @@ def test_force_or_another_send_setting_sends_every_article_again(
         (["--force"], "--force re-sends articles, so it needs --send"),
         (["--send"], "--send needs --output DIR"),
         (["--send", "--output", "out", "--profile", "absent"], "unknown profile 'absent'"),
-        (["--send", "--output", "out", "--model", ""], "--model: 'narrator.model' must be a non-empty string"),
+        (["--send", "--output", "out", "--model", ""], "--model: 'llm.model' must be a non-empty string"),
         (["--send", "--output", "out", "--provider", "ollama"], "no model"),
     ],
 )
