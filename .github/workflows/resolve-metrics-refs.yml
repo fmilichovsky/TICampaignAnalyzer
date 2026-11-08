@@ -1,0 +1,71 @@
+name: Resolve metrics refs
+
+on:
+  workflow_call:
+    outputs:
+      base_sha:
+        description: Commit SHA for the base revision
+        value: ${{ jobs.resolve.outputs.base_sha }}
+      base_ref:
+        description: Ref name for the base revision
+        value: ${{ jobs.resolve.outputs.base_ref }}
+      head_sha:
+        description: Commit SHA for the head revision
+        value: ${{ jobs.resolve.outputs.head_sha }}
+      head_checkout_ref:
+        description: Ref to use when checking out the head source
+        value: ${{ jobs.resolve.outputs.head_checkout_ref }}
+      head_ref:
+        description: Ref name for the head revision
+        value: ${{ jobs.resolve.outputs.head_ref }}
+      pr_number:
+        description: Matching pull request number, if one exists
+        value: ${{ jobs.resolve.outputs.pr_number }}
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      base_sha: ${{ steps.refs.outputs.base_sha }}
+      base_ref: ${{ steps.refs.outputs.base_ref }}
+      head_sha: ${{ steps.refs.outputs.head_sha }}
+      head_checkout_ref: ${{ steps.refs.outputs.head_checkout_ref }}
+      head_ref: ${{ steps.refs.outputs.head_ref }}
+      pr_number: ${{ steps.refs.outputs.pr_number }}
+    steps:
+      - id: refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DISPATCH_REF: ${{ github.ref_name }}
+          DISPATCH_SHA: ${{ github.sha }}
+          COMMENT_PR: ${{ github.event.issue.number }}
+        run: |
+          if [ "$EVENT_NAME" = issue_comment ]; then
+            pr=$(gh api "repos/$REPOSITORY/pulls/$COMMENT_PR")
+            base_sha=$(jq -r .base.sha <<< "$pr")
+            base_ref=$(jq -r .base.ref <<< "$pr")
+            head_sha=$(jq -r .head.sha <<< "$pr")
+            head_ref=$(jq -r .head.ref <<< "$pr")
+            head_checkout_ref="refs/pull/$COMMENT_PR/head"
+            pr_number=$COMMENT_PR
+          else
+            base_sha=$(gh api "repos/$REPOSITORY/commits" -f sha="$DEFAULT_BRANCH" --jq '.[0].sha')
+            base_ref=$DEFAULT_BRANCH
+            head_sha=$DISPATCH_SHA
+            head_ref=$DISPATCH_REF
+            matches=$(gh api --paginate --slurp "repos/$REPOSITORY/pulls" -f state=open -f "head=$REPOSITORY_OWNER:$DISPATCH_REF" --jq 'add | length')
+            if [ "$matches" = 1 ]; then
+              pr_number=$(gh api --paginate --slurp "repos/$REPOSITORY/pulls" -f state=open -f "head=$REPOSITORY_OWNER:$DISPATCH_REF" --jq 'add | .[0].number')
+            else
+              pr_number=
+            fi
+            head_checkout_ref=$head_sha
+          fi
+          {
+            printf 'base_sha=%s\nbase_ref=%s\nhead_sha=%s\nhead_ref=%s\nhead_checkout_ref=%s\n' "$base_sha" "$base_ref" "$head_sha" "$head_ref" "$head_checkout_ref"
+            printf 'pr_number=%s\n' "$pr_number"
+          } >> "$GITHUB_OUTPUT"

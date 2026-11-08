@@ -1,31 +1,40 @@
 name: Package metrics
 
-# Measures the narrator packages and narrate plans of the benchmark samples on the pull request's base and on its
-# head, and posts the difference as one comment that every later push edits. Informational: size changes never fail
-# the check. See benchmarks/README.md.
+# Measures narrator packages and plans on demand. Informational: size changes never fail the check.
+# See benchmarks/README.md.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 
 concurrency:
-  group: package-metrics-${{ github.event.pull_request.number }}
+  group: package-metrics-${{ (github.event_name == 'issue_comment' && github.event.comment.body == '/benchmarks' && github.event.issue.pull_request && github.event.issue.number) || (github.event_name == 'workflow_dispatch' && github.ref) || github.run_id }}
   cancel-in-progress: true
 
 jobs:
+  resolve:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.body == '/benchmarks')
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/resolve-metrics-refs.yml
+
   measure-base:
-    if: github.actor != 'dependabot[bot]'
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       # The head checkout supplies the CLI, samples, matrix and settings that both sides are measured with.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
+          ref: ${{ needs.resolve.outputs.base_sha }}
           path: .bench/base-src
       - uses: actions/setup-python@v7
         with:
@@ -40,9 +49,10 @@ jobs:
         run: >-
           python -m tinarrative.cli benchmark metrics measure --python .bench/venv-base/bin/python
           --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml --out .bench/base
-          --label "${{ github.event.pull_request.base.ref }} ${GITHUB_BASE_SHA::7}"
+          --label "$BASE_LABEL ${GITHUB_BASE_SHA::7}"
         env:
-          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_BASE_SHA: ${{ needs.resolve.outputs.base_sha }}
+          BASE_LABEL: ${{ needs.resolve.outputs.base_ref }}
       - uses: actions/upload-artifact@v7
         with:
           name: metrics-base
@@ -50,10 +60,12 @@ jobs:
           retention-days: 1
 
   measure-head:
-    if: github.actor != 'dependabot[bot]'
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -67,9 +79,10 @@ jobs:
         run: >-
           python -m tinarrative.cli benchmark metrics measure --python .bench/venv-head/bin/python
           --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml --out .bench/head
-          --label "#${{ github.event.pull_request.number }} ${GITHUB_HEAD_SHA::7}"
+          --label "$HEAD_LABEL ${GITHUB_HEAD_SHA::7}"
         env:
-          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          HEAD_LABEL: ${{ needs.resolve.outputs.head_ref }}
       - uses: actions/upload-artifact@v7
         with:
           name: metrics-head
@@ -77,10 +90,12 @@ jobs:
           retention-days: 1
 
   compare:
-    needs: [measure-base, measure-head]
+    needs: [resolve, measure-base, measure-head]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
@@ -107,16 +122,15 @@ jobs:
             .bench/base
             .bench/head
           retention-days: 14
-      - name: Post comment
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          id=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" \
-            --jq '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- package-metrics -->")))][0].id // empty' \
-            | head -n 1)
-          if [ -n "$id" ]; then
-            gh api --method PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.bench/report.md > /dev/null
-          else
-            gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.bench/report.md > /dev/null
-          fi
+  post-comment:
+    needs: [resolve, compare]
+    if: needs.resolve.outputs.pr_number != ''
+    permissions:
+      actions: read
+      issues: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      artifact_name: package-metrics
+      report_path: report.md
+      comment_marker: '<!-- package-metrics -->'
