@@ -27,7 +27,7 @@ GOLDEN_CASES = [
         ("io", "terra_invicta_json_v1", "malformed_truncated.json"),
         EXIT_UNSUPPORTED_INPUT,
     ),
-    (("io", "v0", "minimal_save.save"), EXIT_UNSUPPORTED_INPUT),
+    (("io", "terra_invicta_json_v1", "not_json.save"), EXIT_UNSUPPORTED_INPUT),
 ]
 
 
@@ -36,7 +36,6 @@ def expected_output_path(fixture_parts: tuple[str, ...]) -> Path:
     return EXPECTED_ROOT / fixture_set / f"{name}.expected.txt"
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("fixture_parts", "exit_code"), GOLDEN_CASES)
 def test_inspect_matches_the_golden_report_for_each_fixture(
     fixture_parts: tuple[str, ...],
@@ -56,7 +55,6 @@ def test_inspect_matches_the_golden_report_for_each_fixture(
     assert first.err == ""
 
 
-@pytest.mark.fixture
 def test_every_golden_report_belongs_to_an_existing_fixture() -> None:
     goldens = sorted(EXPECTED_ROOT.rglob("*.expected.txt"))
     assert len(goldens) == len(GOLDEN_CASES)
@@ -67,7 +65,6 @@ def test_every_golden_report_belongs_to_an_existing_fixture() -> None:
         assert (FIXTURES_ROOT / "io" / fixture_set / fixture_name).is_file(), golden
 
 
-@pytest.mark.fixture
 def test_selected_path_is_rendered_with_bounded_output(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -81,7 +78,6 @@ def test_selected_path_is_rendered_with_bounded_output(
     assert out.endswith("diagnostics: none\n")
 
 
-@pytest.mark.fixture
 def test_missing_paths_are_reported_and_change_the_exit_code(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -104,7 +100,6 @@ def test_missing_paths_are_reported_and_change_the_exit_code(
     assert "pointer_not_found: /nope: missing key 'nope' at root" in out
 
 
-@pytest.mark.fixture
 def test_json_format_is_machine_readable(capsys: pytest.CaptureFixture[str]) -> None:
     argv = ["save", "inspect", str(fixture_path(*REPRESENTATIVE)), "--format", "json"]
 
@@ -124,7 +119,6 @@ def test_json_format_is_machine_readable(capsys: pytest.CaptureFixture[str]) -> 
     assert {"faction", "technology", "organization"} <= domains
 
 
-@pytest.mark.fixture
 def test_render_limits_are_applied_to_selected_paths(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

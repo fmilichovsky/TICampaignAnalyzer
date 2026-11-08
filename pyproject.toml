@@ -47,8 +47,7 @@ warn_unused_configs = true
 testpaths = ["tests"]
 addopts = ["--strict-markers", "-m", "not real_save", "-p", "no:cacheprovider"]
 markers = [
-  "fixture: test reads a checked-in fixture",
-  "real_save: test uses a sanitized real Terra Invicta save; excluded from the default suite",
+  "real_save: test reads private Terra Invicta saves named by environment variables; excluded from the default suite",
 ]
 
 [tool.hatch.build.targets.wheel]

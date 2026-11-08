@@ -46,7 +46,6 @@ MARKDOWN_GOLDENS = [
 ]
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("suffix", "flags"), MARKDOWN_GOLDENS)
 def test_events_matches_the_golden_report(
     suffix: str, flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -65,7 +64,6 @@ def test_events_matches_the_golden_report(
     assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", second.err)
 
 
-@pytest.mark.fixture
 def test_every_golden_report_has_a_test() -> None:
     narrator = "politics_sequence.expected.narrator_messages.json"  # tests/narrator/test_request.py
     assert sorted(path.name for path in EXPECTED_DIR.iterdir()) == sorted(
@@ -73,7 +71,6 @@ def test_every_golden_report_has_a_test() -> None:
     )
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("suffix", ["narrative.md", "narrative.constituents.md", "narrative.evidence.md"])
 def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(suffix: str) -> None:
     inferred = (EXPECTED_DIR / "politics_sequence.expected.inferred.md").read_text(encoding="utf-8")
@@ -84,7 +81,6 @@ def test_narrative_implies_inferred_and_adds_its_section_above_the_intervals(suf
     assert narrative.count("#### Inferred events") == (0 if suffix == "narrative.md" else 2)
 
 
-@pytest.mark.fixture
 def test_without_constituents_the_narrative_report_lists_no_atomic_event(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -101,7 +97,6 @@ def test_without_constituents_the_narrative_report_lists_no_atomic_event(
     ]
 
 
-@pytest.mark.fixture
 def test_non_default_settings_are_named_in_the_narrative_section(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
@@ -115,7 +110,6 @@ def test_non_default_settings_are_named_in_the_narrative_section(
     assert line in capsys.readouterr().out
 
 
-@pytest.mark.fixture
 def test_the_config_flag_wins_over_the_environment_and_a_bad_file_exits_with_the_config_code(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
@@ -138,7 +132,6 @@ def test_the_config_flag_wins_over_the_environment_and_a_bad_file_exits_with_the
     assert "cannot read settings" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 def test_json_report_lists_narrative_events_only_when_asked(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -161,7 +154,6 @@ def test_json_report_lists_narrative_events_only_when_asked(
     assert all(interval["inferred"] is not None for interval in narrative["intervals"])
 
 
-@pytest.mark.fixture
 def test_json_report_lists_saves_and_intervals_with_unique_qualified_ids(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -202,7 +194,6 @@ def test_json_report_lists_saves_and_intervals_with_unique_qualified_ids(
     assert all("situation" not in interval for interval in report["intervals"])
 
 
-@pytest.mark.fixture
 def test_json_report_without_inferred_says_so(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -214,7 +205,6 @@ def test_json_report_without_inferred_says_so(
     assert [interval["inferred"] for interval in report["intervals"]] == [None, None]
 
 
-@pytest.mark.fixture
 def test_json_report_carries_the_literal_changes_only_when_asked(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -233,7 +223,6 @@ def test_json_report_carries_the_literal_changes_only_when_asked(
     assert [interval["state_changes"] for interval in plain["intervals"]] == [None, None]
 
 
-@pytest.mark.fixture
 def test_inferred_events_are_listed_apart_and_filtered_by_significance(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -258,7 +247,6 @@ def test_inferred_events_are_listed_apart_and_filtered_by_significance(
     assert "inferred events below major significance omitted" not in inferred
 
 
-@pytest.mark.fixture
 def test_duplicates_are_merged_and_one_distinct_save_compares_nothing(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -278,13 +266,11 @@ def test_duplicates_are_merged_and_one_distinct_save_compares_nothing(
     assert report["intervals"] == []
 
 
-@pytest.mark.fixture
 def test_a_single_save_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["events", str(FIXTURE_DIR / "politics_after.json")]) == EXIT_USAGE_ERROR
     assert "at least two saves" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 def test_an_unreadable_save_stops_the_run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     missing = tmp_path / "missing.json"
 
@@ -294,7 +280,6 @@ def test_an_unreadable_save_stops_the_run(tmp_path: Path, capsys: pytest.Capture
     assert "cannot read" in captured.err
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("name", "message"), [("representative_campaign.json", "cannot be ordered"), ("malformed_truncated.json", "")]
 )
@@ -307,7 +292,6 @@ def test_an_unorderable_or_unsupported_save_stops_the_run(
     assert message in captured.err
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("suffix", "flags"),
     [("md", []), ("narrative.md", ["--narrative"]), ("changes.md", ["--changes"]), ("json", ["--format", "json"])],
@@ -329,7 +313,6 @@ def test_workers_write_the_golden_report_byte_for_byte(
     assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", parallel.err)
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("jobs", ["1", "2"])
 def test_a_save_that_fails_in_a_worker_gives_the_code_and_message_of_one_process(
     jobs: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -352,7 +335,6 @@ def test_a_save_that_fails_in_a_worker_gives_the_code_and_message_of_one_process
     assert captured.err.splitlines()[0] == f"tinarrative events: cannot read {missing}: No such file or directory"
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("name", ["missing.json", "malformed_truncated.json"])
 def test_a_survey_failure_in_a_worker_gives_the_code_and_message_of_one_process(
     name: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -377,7 +359,6 @@ def _directory(root: Path, *names: str) -> Path:
     return directory
 
 
-@pytest.mark.fixture
 def test_a_directory_is_expanded_and_its_invalid_files_are_skipped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -405,7 +386,6 @@ def test_a_directory_is_expanded_and_its_invalid_files_are_skipped(
     ]
 
 
-@pytest.mark.fixture
 def test_files_and_directories_mix_and_identical_copies_merge(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -425,7 +405,6 @@ def test_files_and_directories_mix_and_identical_copies_merge(
     ]
 
 
-@pytest.mark.fixture
 def test_a_named_invalid_file_still_fails_beside_a_directory(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -435,7 +414,6 @@ def test_a_named_invalid_file_still_fails_beside_a_directory(
     assert capsys.readouterr().out == ""
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("names", "message"),
     [((), "the directory holds no files"), (("malformed_truncated.json",), "the directory holds no usable save")],
@@ -451,7 +429,6 @@ def test_a_directory_without_a_usable_save_is_an_input_error(
     assert message in captured.err
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("names", [("politics_after.json",), ("politics_after.json", "malformed_truncated.json")])
 def test_fewer_than_two_usable_saves_after_expansion_is_a_usage_error(
     names: tuple[str, ...], tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -464,7 +441,6 @@ def test_fewer_than_two_usable_saves_after_expansion_is_a_usage_error(
     assert "at least two saves are required" in captured.err
 
 
-@pytest.mark.fixture
 def test_directory_runs_log_counts_and_no_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     directory = _directory(tmp_path, *SHUFFLED, "malformed_truncated.json")
 
@@ -482,7 +458,6 @@ def _two_campaigns(root: Path) -> Path:
     return directory
 
 
-@pytest.mark.fixture
 def test_one_campaign_needs_no_selector_and_is_reported(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -496,7 +471,6 @@ def test_one_campaign_needs_no_selector_and_is_reported(
     assert report["campaign"]["saves"] == 3
 
 
-@pytest.mark.fixture
 def test_several_campaigns_without_a_selector_is_a_usage_error_with_the_listing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -512,7 +486,6 @@ def test_several_campaigns_without_a_selector_is_a_usage_error_with_the_listing(
     assert "2. protectorate-20261014-152624\n" in captured.err
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(("selector", "prefix"), [("protectorate", "p_"), ("1", "r_"), ("latest", "p_")])
 def test_a_selected_campaign_reports_only_its_own_saves(
     selector: str,
@@ -537,7 +510,6 @@ def test_a_selected_campaign_reports_only_its_own_saves(
     assert "3 given saves belong to other campaigns." in capsys.readouterr().out
 
 
-@pytest.mark.fixture
 def test_an_unknown_campaign_is_a_usage_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -552,7 +524,6 @@ def test_an_unknown_campaign_is_a_usage_error(
     assert "2 campaigns:" in captured.err
 
 
-@pytest.mark.fixture
 def test_a_selected_campaign_with_one_save_is_a_usage_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -575,7 +546,6 @@ def interactive(monkeypatch: pytest.MonkeyPatch) -> Callable[[str], None]:
     return answer
 
 
-@pytest.mark.fixture
 def test_several_campaigns_in_a_terminal_open_the_picker_and_continue(
     interactive: Callable[[str], None],
     tmp_path: Path,
@@ -596,7 +566,6 @@ def test_several_campaigns_in_a_terminal_open_the_picker_and_continue(
     assert PROMPT in captured.err
 
 
-@pytest.mark.fixture
 def test_an_unmatched_selector_in_a_terminal_opens_the_picker(
     interactive: Callable[[str], None],
     tmp_path: Path,
@@ -614,7 +583,6 @@ def test_an_unmatched_selector_in_a_terminal_opens_the_picker(
     assert "no campaign matches 'academy'" in captured.err
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("answers", ["\n", ""])
 def test_a_cancelled_picker_is_a_usage_error(
     answers: str,
@@ -660,7 +628,6 @@ def _references(node: Any, *, bare: bool = False) -> set[str]:
     return found
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     "flags",
     [
@@ -689,7 +656,6 @@ def test_the_glossary_holds_only_ids_referenced_without_a_name_and_renamed_entit
     assert all(set(entry) <= {"ref", "domain", "name", "former_names"} for entry in glossary)
 
 
-@pytest.mark.fixture
 def test_the_glossary_names_share_holders_and_leaves_out_entities_named_inline(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -703,7 +669,6 @@ def test_the_glossary_names_share_holders_and_leaves_out_entities_named_inline(
     assert not any(ref.startswith("region:") for ref in entries)
 
 
-@pytest.mark.fixture
 def test_the_json_has_no_glossary_without_narrative(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -716,7 +681,6 @@ def test_the_json_has_no_glossary_without_narrative(
     assert all(interval["omitted"] == {"objective": 0, "inferred": None} for interval in document["intervals"])
 
 
-@pytest.mark.fixture
 def test_the_json_drops_narrative_events_below_the_minimum_and_counts_them(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -731,7 +695,6 @@ def test_the_json_drops_narrative_events_below_the_minimum_and_counts_them(
     assert defining["narrative_omitted"] == len(everything["narrative"]) - 2
 
 
-@pytest.mark.fixture
 def test_without_narrative_the_json_drops_atomic_events_below_the_minimum_and_counts_them(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -750,7 +713,6 @@ def test_without_narrative_the_json_drops_atomic_events_below_the_minimum_and_co
         assert kept["changes"] == full["changes"]
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("period", "headings"),
     [("year", ["### 2032"]), ("half", ["### 2032 H1"]), ("quarter", ["### 2032 Q1", "### 2032 Q2"])],
@@ -766,7 +728,6 @@ def test_period_groups_the_narrative_section(
     assert [line for line in narrative.splitlines() if line.startswith("### ")] == headings
 
 
-@pytest.mark.fixture
 def _keys(node: Any) -> set[str]:
     if isinstance(node, dict):
         return set(node).union(*(_keys(value) for value in node.values()))
@@ -779,7 +740,6 @@ def _ids(document: dict[str, Any]) -> list[str]:
     return [event["id"] for interval in document["intervals"] for event in interval["events"] + interval["inferred"]]
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("flags", [[], ["--min-significance", "major"], ["--constituents", "all"]])
 def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
     flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -802,7 +762,6 @@ def test_the_narrator_package_carries_ids_but_no_provenance_or_paths(
     assert {entry["ref"] for entry in package["glossary"]} <= _references(without)
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("level", ["trivial", "major"])
 def test_every_narrator_package_id_resolves_in_the_audit_report(
     level: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -823,7 +782,6 @@ def test_every_narrator_package_id_resolves_in_the_audit_report(
         assert set(event["constituents"]) <= set(audited) | {narrative["id"] for narrative in package["narrative"]}
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("level", ["trivial", "major", "campaign_defining"])
 def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
     level: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -863,7 +821,6 @@ def test_the_package_lists_exactly_the_constituents_of_its_narrative_events(
         assert kept["changes"] == full["changes"]
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("mode", ["all", "evidence"])
 def test_constituents_change_nothing_without_narrative(
     mode: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -877,7 +834,6 @@ def test_constituents_change_nothing_without_narrative(
     assert with_flag == capsys.readouterr().out
 
 
-@pytest.mark.fixture
 def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_references(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -898,7 +854,6 @@ def test_the_narrator_package_leaves_out_nations_without_regions_that_nothing_re
     ]
 
 
-@pytest.mark.fixture
 def test_the_narrator_package_slims_the_situation_reports_and_the_audit_form_does_not(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -923,7 +878,6 @@ def test_the_narrator_package_slims_the_situation_reports_and_the_audit_form_doe
         assert faction["habs"] >= sum(entry["habs"] for entry in faction["habs_by_body"]) + faction["other_bodies"]
 
 
-@pytest.mark.fixture
 def test_the_narrator_package_refuses_literal_changes(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

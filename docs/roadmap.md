@@ -137,6 +137,7 @@ Tracking #249.
 
 ## Code structure
 
+- [ ] Test suite hygiene: contributor standards, a leaner suite, sample tests in CI (#368).
 - [ ] Event kinds: declare each event type once (#316):
   - [ ] Foundation and the aliens family (#317).
   - [ ] Campaign and faction families (#318).

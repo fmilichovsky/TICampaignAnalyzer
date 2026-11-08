@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 
 import pytest
@@ -7,16 +6,12 @@ from tests.fixtures import fixture_path
 from tinarrative.io.save_loader import load_raw_save, load_save
 
 
-@pytest.mark.fixture
-def test_load_save_reads_the_synthetic_minimal_save_fixture() -> None:
-    save_path = fixture_path("io", "v0", "minimal_save.save")
-    metadata_path = fixture_path("io", "v0", "minimal_save.save.json")
+def test_load_save_returns_the_file_bytes_unchanged() -> None:
+    save_path = fixture_path("io", "terra_invicta_json_v1", "not_json.save")
 
-    assert load_save(save_path) == b"synthetic Terra Invicta save fixture\n"
-    assert json.loads(metadata_path.read_text(encoding="utf-8"))["synthetic"] is True
+    assert load_save(save_path) == save_path.read_bytes()
 
 
-@pytest.mark.fixture
 def test_load_raw_save_keeps_source_path_and_root() -> None:
     save_path = fixture_path("io", "terra_invicta_json_v1", "representative_campaign.json")
 

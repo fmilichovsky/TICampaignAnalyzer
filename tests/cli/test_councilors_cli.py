@@ -49,7 +49,6 @@ def _dossier(tmp_path: Path, *argv: str) -> dict[str, object]:
     return document
 
 
-@pytest.mark.fixture
 def test_one_save_gives_a_portrait_without_a_career(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], settings: str
 ) -> None:
@@ -61,7 +60,6 @@ def test_one_save_gives_a_portrait_without_a_career(
     assert "councilors selected" in capsys.readouterr().out
 
 
-@pytest.mark.fixture
 def test_a_sequence_adds_the_career_of_the_latest_save(tmp_path: Path, settings: str) -> None:
     document = _dossier(tmp_path, *SAVES, "--config", settings)
     assert document["source"] == "politics_reverted.json"
@@ -69,7 +67,6 @@ def test_a_sequence_adds_the_career_of_the_latest_save(tmp_path: Path, settings:
     assert any(careers)
 
 
-@pytest.mark.fixture
 def test_player_only_drops_the_rivals(tmp_path: Path, settings: str) -> None:
     everyone = _dossier(tmp_path, "politics_before.json", "--config", settings)["councilors"]
     only = _dossier(tmp_path, "politics_before.json", "--config", settings, "--player-only")["councilors"]
@@ -77,13 +74,11 @@ def test_player_only_drops_the_rivals(tmp_path: Path, settings: str) -> None:
     assert {entry["player"] for entry in only} == {True}  # type: ignore[attr-defined]
 
 
-@pytest.mark.fixture
 def test_the_dossier_never_names_loyalty(tmp_path: Path, settings: str) -> None:
     _dossier(tmp_path, *SAVES, "--config", settings)
     assert loyalty_keys(json.loads((tmp_path / "out" / "dossier.json").read_text(encoding="utf-8"))) == []
 
 
-@pytest.mark.fixture
 def test_without_output_only_the_summary_is_printed(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], settings: str
 ) -> None:
@@ -92,7 +87,6 @@ def test_without_output_only_the_summary_is_printed(
     assert not (tmp_path / "out").exists()
 
 
-@pytest.mark.fixture
 def test_it_never_uses_the_network(monkeypatch: pytest.MonkeyPatch, settings: str) -> None:
     def refuse(*_: object, **__: object) -> None:
         raise AssertionError("the dry run must not open a connection")
@@ -101,7 +95,6 @@ def test_it_never_uses_the_network(monkeypatch: pytest.MonkeyPatch, settings: st
     assert main(["councilors", *SAVES, "--config", settings]) == EXIT_SUCCESS
 
 
-@pytest.mark.fixture
 def test_exit_codes(tmp_path: Path, settings: str) -> None:
     assert main(["councilors", "missing.json"]) == EXIT_INPUT_ERROR
     bad = tmp_path / "bad.toml"
@@ -174,7 +167,6 @@ def _read(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-@pytest.mark.fixture
 def test_a_dry_run_writes_one_request_per_councilor(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], settings: str
 ) -> None:
@@ -197,7 +189,6 @@ def test_a_dry_run_writes_one_request_per_councilor(
     assert not (tmp_path / "out" / "responses").exists()
 
 
-@pytest.mark.fixture
 def test_send_writes_responses_articles_and_manifest(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
 ) -> None:
@@ -261,7 +252,6 @@ def test_impossible_token_reservation_fails_before_sending_articles(
     assert "exceeds tokens_per_minute 1" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize(
     ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]
 )
@@ -293,7 +283,6 @@ def test_a_failed_article_is_skipped_and_the_run_exits_10_at_the_end(
     assert f"1 of {len(names)} articles missing; see {out / 'manifest.json'}" in err
 
 
-@pytest.mark.fixture
 def test_an_http_failure_skips_the_article(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, transport: FakeTransport, capsys: pytest.CaptureFixture[str],
     sending: str,
@@ -315,7 +304,6 @@ def test_an_http_failure_skips_the_article(
     assert "article 1: anthropic: HTTP 401: invalid x-api-key" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 def test_a_rerun_reuses_the_stored_responses(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
 ) -> None:
@@ -338,7 +326,6 @@ def test_a_rerun_reuses_the_stored_responses(
     assert all(row["written"] for row in _read(out / "manifest.json")["articles"])
 
 
-@pytest.mark.fixture
 @pytest.mark.parametrize("options", [["--force"], ["--model", "other-model"], ["--max-output-tokens", "8000"]])
 def test_force_or_another_send_setting_sends_every_article_again(
     tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str, options: list[str]

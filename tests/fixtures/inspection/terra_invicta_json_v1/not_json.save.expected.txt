@@ -1,5 +1,5 @@
 tinarrative save inspect report
-file: minimal_save.save
+file: not_json.save
   size_bytes: 37
   sha256: 0f4ddf0bbe80c0ba2bde3250ebee62cf4ee51f3ef80294ada8edf5e224903e87
   leading_bytes: 73 79 6e 74 68 65 74 69

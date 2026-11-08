@@ -64,6 +64,17 @@
       "purpose": "Truncated JSON is rejected with MalformedSaveError."
     },
     {
+      "path": "not_json.save",
+      "kind": "synthetic_non_json_file",
+      "json_valid": false,
+      "expected_loader_outcome": "malformed_save_error",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/terra_invicta_json_v1.md",
+      "version_assumption": "Not a JSON document; decoder-boundary case.",
+      "sha256": "0f4ddf0bbe80c0ba2bde3250ebee62cf4ee51f3ef80294ada8edf5e224903e87",
+      "purpose": "A file whose bytes are not JSON at all is read as bytes, then rejected with MalformedSaveError."
+    },
+    {
       "path": "missing_gamestates.json",
       "kind": "synthetic_unsupported_shape_fragment",
       "json_valid": true,

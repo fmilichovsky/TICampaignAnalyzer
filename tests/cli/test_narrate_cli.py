@@ -46,7 +46,6 @@ def in_fixtures(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_saves_a_package_file_and_stdin_give_the_same_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
@@ -78,7 +77,6 @@ def test_saves_a_package_file_and_stdin_give_the_same_bytes(
     assert out.startswith("2 chapters by quarter, max_input_tokens 11000 at 3 characters per token:\n- 1 (first) ")
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_constituents_choose_the_atomic_stream_of_the_package_built_from_saves(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -93,7 +91,6 @@ def test_constituents_choose_the_atomic_stream_of_the_package_built_from_saves(
     assert '\\"constituents\\":\\"none\\"' in _files(tmp_path / "saves")["requests/01.json"].decode()
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_a_rerun_rewrites_the_same_files_and_removes_stale_requests(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -113,7 +110,6 @@ def test_a_rerun_rewrites_the_same_files_and_removes_stale_requests(
     assert "Wrote plan.json and 1 request to" in capsys.readouterr().out
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_without_output_only_the_plan_is_printed(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["narrate", *SAVES]) == EXIT_SUCCESS
@@ -123,7 +119,6 @@ def test_without_output_only_the_plan_is_printed(capsys: pytest.CaptureFixture[s
     assert out.endswith("Nothing written; give --output DIR for the plan and the requests.\n")
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_an_interval_over_the_budget_is_a_usage_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     output = tmp_path / "narration"
@@ -137,7 +132,6 @@ def test_an_interval_over_the_budget_is_a_usage_error(tmp_path: Path, capsys: py
     assert not output.exists()
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_saves_too_sparse_for_the_period_coarsen_it_unless_it_was_given(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -205,7 +199,6 @@ def test_an_invalid_budget_is_a_config_error(tmp_path: Path, capsys: pytest.Capt
     assert "'llm.max_input_tokens' must be at least 1000" in capsys.readouterr().err
 
 
-@pytest.mark.fixture
 @pytest.mark.usefixtures("in_fixtures")
 def test_an_unwritable_output_is_an_output_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     blocker = tmp_path / "file"

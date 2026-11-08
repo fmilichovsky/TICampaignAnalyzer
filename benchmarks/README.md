@@ -134,7 +134,7 @@ The second command needs a base environment, set up as in [Running it locally](#
 ## Samples
 
 These are the only real saves the repository holds, and an exception to the fixture rules in
-[docs/testing.md](../docs/testing.md#synthetic-and-real-save-policy): they are never fixtures and no test reads their
+[CONTRIBUTING.md](../CONTRIBUTING.md#fixtures-and-real-data): they are never fixtures and no test reads their
 content. Only the manifest test does, by hashing them. They are compressed, whole saves, left unedited. Each campaign
 directory holds consecutive saves of one campaign, so that grouping finds a single campaign there.
 

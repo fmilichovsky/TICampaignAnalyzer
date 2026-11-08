@@ -227,7 +227,6 @@ def test_metrics_cli_measure_writes_the_metrics_file(tmp_path: Path, monkeypatch
     }
 
 
-@pytest.mark.fixture
 def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) -> None:
     samples = _samples(tmp_path)
     matrix = tmp_path / "matrix.toml"
@@ -275,7 +274,6 @@ def test_events_runs_get_one_job_only_where_the_revision_takes_it(monkeypatch: p
     assert benchmark_metrics._serial(["python"]) == []
 
 
-@pytest.mark.fixture
 def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tmp_path: Path) -> None:
     samples = _samples(tmp_path)
     shutil.copytree(samples / "politics", samples / "politics-copy")

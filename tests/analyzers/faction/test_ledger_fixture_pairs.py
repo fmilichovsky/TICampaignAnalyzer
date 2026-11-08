@@ -2,8 +2,6 @@
 
 import json
 
-import pytest
-
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import FACTION_ANALYZERS, run_analyzers
 from tinarrative.analyzers.render import describe_event
@@ -12,7 +10,6 @@ from tinarrative.model.events import Confidence, DateBasis, EventStatus, SourceR
 PAIR = ("ledger_before.json", "ledger_after.json")
 
 
-@pytest.mark.fixture
 def test_ledger_pair_yields_the_allow_listed_entries_inside_the_interval() -> None:
     before, after, diff = fixture_pair(*PAIR)
     events = run_analyzers(FACTION_ANALYZERS, before, after, diff)
@@ -36,7 +33,6 @@ def test_ledger_pair_yields_the_allow_listed_entries_inside_the_interval() -> No
     assert any(getattr(entry, "label", None) == "Coup" for entry in change.detail.removed)  # type: ignore[union-attr]
 
 
-@pytest.mark.fixture
 def test_every_ledger_event_is_evidenced_objective_and_deterministic() -> None:
     before, after, diff = fixture_pair(*PAIR)
     events = run_analyzers(FACTION_ANALYZERS, before, after, diff)

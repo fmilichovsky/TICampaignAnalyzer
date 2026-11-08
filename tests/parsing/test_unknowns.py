@@ -154,7 +154,6 @@ def test_scan_envelope_reports_root_keys_and_state_types_outside_the_inventory()
     assert "Fixture Mod" not in json.dumps(report.to_dict())
 
 
-@pytest.mark.fixture
 def test_unknown_state_type_fixture_is_reported_with_its_container_violation() -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "unknown_state_type.json"))
     collector = UnknownCollector()
@@ -167,7 +166,6 @@ def test_unknown_state_type_fixture_is_reported_with_its_container_violation() -
     assert finding.shape.array_item_keys == ("Key", "Value")
 
 
-@pytest.mark.fixture
 def test_political_fixture_unknown_type_exposes_its_member_names() -> None:
     raw = load_raw_save(fixture_path(*FIXTURE_SET, "political_control.json"))
     collector = UnknownCollector()
