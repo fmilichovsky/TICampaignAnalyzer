@@ -50,7 +50,9 @@ class DiplomaticRealignmentRule:
 
     settings: GeopoliticsSettings
     name: str = REALIGNMENT
-    order: int = 1
+    emitted_types: frozenset[str] = frozenset({REALIGNMENT})
+    reads: frozenset[str] = frozenset({TAKEOVER})
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:

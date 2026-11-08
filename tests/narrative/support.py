@@ -221,12 +221,14 @@ def war_row(
 class GroupRule:
     """A trivial rule: one ``<source_type>.arc`` per subject (first entity) over every event of ``source_type``.
 
-    The subject is the actor and the anchor; ``window_days`` is declared, not used.
+    The subject is the actor and the anchor; ``window_days`` is declared, not used. A narrative ``source_type`` is
+    seen only when ``reads`` or ``explains`` names it.
     """
 
     name: str
     source_type: str
-    order: int = 0
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
     window_days: int | None = None
     join: Join = Join.ENTITY
     significance: Significance | None = None
@@ -253,6 +255,10 @@ class GroupRule:
             for subject, events in by_subject.items()
         ]
 
+    @property
+    def emitted_types(self) -> frozenset[str]:
+        return frozenset({f"{self.source_type}.arc"})
+
 
 @dataclass(frozen=True)
 class CitingRule:
@@ -260,8 +266,10 @@ class CitingRule:
 
     name: str
     cites: tuple[Event, ...]
-    order: int = 0
+    reads: frozenset[str] = frozenset()
     window_days: int | None = None
+    emitted_types: frozenset[str] = frozenset({"test.citing"})
+    explains: frozenset[str] = frozenset()
 
     def apply(
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder

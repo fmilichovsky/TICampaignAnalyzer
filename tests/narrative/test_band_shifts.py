@@ -94,7 +94,9 @@ def test_a_held_unrest_crossing_is_a_shift_named_by_the_game_bands() -> None:
 def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> None:
     class WarArcRule:
         name = "war.arc"
-        order = 2
+        emitted_types = frozenset({"war.arc"})
+        reads: frozenset[str] = frozenset()
+        explains: frozenset[str] = frozenset()
         window_days = None
 
         def apply(

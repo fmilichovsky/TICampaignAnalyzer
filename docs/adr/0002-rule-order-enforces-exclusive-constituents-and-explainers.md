@@ -1,3 +1,5 @@
+Superseded by ADR-0019
+
 # Rule order enforces exclusive constituents and explainers
 
 A narrative rule sees only the narrative events of lower orders. That one visibility rule now also carries two

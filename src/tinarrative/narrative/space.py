@@ -92,7 +92,9 @@ class SpaceCampaignRule:
 
     settings: SpaceSettings
     name: str = SPACE_CAMPAIGN
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({SPACE_CAMPAIGN})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -215,7 +217,9 @@ class ColonisationWaveRule:
 
     settings: SpaceSettings
     name: str = COLONISATION_WAVE
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({COLONISATION_WAVE})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> int:
@@ -269,7 +273,9 @@ class FirstMilestoneRule:
 
     settings: SpaceSettings
     name: str = FIRST_MILESTONE
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({FIRST_MILESTONE})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> None:
@@ -309,7 +315,9 @@ class FleetBuildupRule:
 
     settings: SpaceSettings
     name: str = FLEET_BUILDUP
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({FLEET_BUILDUP})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> None:
@@ -360,7 +368,9 @@ class TechnologyMilestoneRule:
 
     settings: SpaceSettings
     name: str = TECHNOLOGY_MILESTONE
-    order: int = 0
+    emitted_types: frozenset[str] = frozenset({TECHNOLOGY_MILESTONE})
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
 
     @property
     def window_days(self) -> None:

@@ -13,6 +13,7 @@ from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, 
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, aggregate, days_between, present_in
 from tinarrative.narrative.situation import SituationReport
+from tinarrative.narrative.stream import EventStream
 
 K1 = "2032-04-01T00:00:00"
 K2 = "2032-07-01T00:00:00"
@@ -193,30 +194,114 @@ def test_sources_are_the_union_of_the_constituents_with_roles_kept() -> None:
     assert event.sources == (source,)
 
 
-def test_a_higher_order_rule_builds_on_lower_order_narrative_events() -> None:
-    nested = GroupRule("nested", "nation.changed.arc", order=1)
+ARC = "nation.changed.arc"
+
+
+@dataclass(frozen=True)
+class LookupRule:
+    """Emits one ``test.lookup`` citing every event of ``looked_up`` that a typed lookup finds."""
+
+    name: str
+    looked_up: str
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
+    emitted_types: frozenset[str] = frozenset({"test.lookup"})
+    window_days: int | None = None
+
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        found = stream.of_type(self.looked_up)
+        return [build.event("test.lookup", id_parts=[self.name], constituents=found, roles=(), join=Join.ENTITY)]
+
+
+@dataclass(frozen=True)
+class SilentRule:
+    """Emits nothing; fails if it runs."""
+
+    name: str
+    emitted_types: frozenset[str]
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
+    window_days: int | None = None
+
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        raise AssertionError(f"{self.name} ran")
+
+
+def test_a_rule_builds_on_the_narrative_events_of_a_type_it_reads() -> None:
+    nested = GroupRule("nested", ARC, reads=frozenset({ARC}))
     stream = [changed(K1), changed(K2)]
 
     first, second = aggregate(stream, (), [nested, RULE])
 
-    assert (first.event_type, second.event_type) == ("nation.changed.arc", "nation.changed.arc.arc")
+    assert (first.event_type, second.event_type) == (ARC, "nation.changed.arc.arc")
     assert second.constituents == (first.id,)
     assert (second.start, second.end, second.intervals) == (first.start, first.end, first.intervals)
 
 
-def test_a_rule_never_sees_narrative_events_of_its_own_order() -> None:
-    same = GroupRule("same", "nation.changed.arc")
+def test_an_explainer_is_seen_like_a_read_type() -> None:
+    explained = GroupRule("explained", ARC, explains=frozenset({ARC}))
 
-    assert [event.event_type for event in aggregate([changed(K1)], (), [same, RULE])] == ["nation.changed.arc"]
+    built = aggregate([changed(K1)], (), [explained, RULE])
+
+    assert [event.event_type for event in built] == [ARC, "nation.changed.arc.arc"]
 
 
-def test_citing_a_narrative_event_of_the_same_order_is_rejected() -> None:
+def test_a_rule_never_sees_a_narrative_type_it_does_not_read() -> None:
+    blind = GroupRule("blind", ARC)
+
+    assert [event.event_type for event in aggregate([changed(K1)], (), [blind, RULE])] == [ARC]
+
+
+def test_a_typed_lookup_of_a_narrative_type_the_rule_does_not_read_is_rejected() -> None:
+    with pytest.raises(ValueError, match=f"narrative rule lookup reads \\['{ARC}'\\], which it does not declare"):
+        aggregate([changed(K1)], (), [RULE, LookupRule("lookup", ARC)])
+    [arc, lookup] = aggregate([changed(K1)], (), [RULE, LookupRule("lookup", ARC, reads=frozenset({ARC}))])
+    assert lookup.constituents == (arc.id,)
+
+
+def test_narrative_events_already_in_the_stream_are_hidden_unless_read() -> None:
+    [arc] = RULE.apply([changed(K1)], (), NarrativeBuilder(()))
+    stream = [changed(K1), arc]
+
+    with pytest.raises(ValueError, match="does not declare"):
+        aggregate(stream, (), [LookupRule("lookup", ARC)])
+    [lookup] = aggregate(stream, (), [LookupRule("lookup", ARC, reads=frozenset({ARC}))])
+    assert lookup.constituents == (arc.id,)
+
+
+def test_rules_reading_each_other_in_a_cycle_are_rejected_before_any_rule_runs() -> None:
+    first = SilentRule("first", frozenset({"test.first"}), reads=frozenset({"test.second"}))
+    second = SilentRule("second", frozenset({"test.second"}), explains=frozenset({"test.first"}))
+
+    with pytest.raises(ValueError, match="cycle"):
+        aggregate([changed(K1)], (), [first, second])
+    with pytest.raises(ValueError, match="cycle"):
+        aggregate([changed(K1)], (), [SilentRule("own", frozenset({"test.own"}), reads=frozenset({"test.own"}))])
+
+
+def test_a_read_type_no_rule_emits_orders_nothing() -> None:
+    reader = GroupRule("reader", "nation.changed", reads=frozenset({"war.arc"}))
+
+    assert [event.event_type for event in aggregate([changed(K1)], (), [reader])] == [ARC]
+
+
+def test_citing_a_narrative_event_of_the_same_layer_is_rejected() -> None:
     [sibling] = RULE.apply([changed(K1)], (), NarrativeBuilder(()))
 
-    with pytest.raises(ValueError, match="same order"):
+    with pytest.raises(ValueError, match="of its own layer"):
         aggregate([changed(K1)], (), [RULE, CitingRule("citing", (sibling,))])
+    later = GroupRule("later", "nation.changed", reads=frozenset({"test.citing"}))
     with pytest.raises(ValueError, match="neither in the stream"):
-        aggregate([changed(K1)], (), [GroupRule("later", "nation.changed", order=1), CitingRule("citing", (sibling,))])
+        aggregate([changed(K1)], (), [later, CitingRule("citing", (sibling,))])
+
+
+def test_citing_a_narrative_event_of_a_type_the_rule_does_not_read_is_rejected() -> None:
+    [arc] = RULE.apply([changed(K1)], (), NarrativeBuilder(()))
+
+    with pytest.raises(ValueError, match="neither in the stream"):
+        aggregate([changed(K1), arc], (), [CitingRule("citing", (arc,))])
+    [citing] = aggregate([changed(K1), arc], (), [CitingRule("citing", (arc,), reads=frozenset({ARC}))])
+    assert citing.constituents == (arc.id,)
 
 
 def test_citing_an_event_outside_the_stream_is_rejected() -> None:
@@ -224,11 +309,13 @@ def test_citing_an_event_outside_the_stream_is_rejected() -> None:
         aggregate([changed(K1)], (), [CitingRule("citing", (changed(K2),))])
 
 
-def test_a_rule_must_emit_narrative_events() -> None:
+def test_a_rule_must_emit_narrative_events_of_a_type_it_declares() -> None:
     @dataclass(frozen=True)
     class Passthrough:
         name: str = "passthrough"
-        order: int = 0
+        emitted_types: frozenset[str] = frozenset()
+        reads: frozenset[str] = frozenset()
+        explains: frozenset[str] = frozenset()
         window_days: int | None = 0
 
         def apply(
@@ -238,6 +325,8 @@ def test_a_rule_must_emit_narrative_events() -> None:
 
     with pytest.raises(ValueError, match="non-narrative"):
         aggregate([changed(K1)], (), [Passthrough()])
+    with pytest.raises(ValueError, match="emitted test.citing, which it does not declare"):
+        aggregate([changed(K1)], (), [CitingRule("citing", (changed(K1),), emitted_types=frozenset({"test.other"}))])
 
 
 def test_duplicate_ids_and_duplicate_rule_names_are_programming_errors() -> None:
@@ -247,42 +336,9 @@ def test_duplicate_ids_and_duplicate_rule_names_are_programming_errors() -> None
         aggregate([changed(K1)], (), [RULE, GroupRule("changes", "nation.other")])
 
 
-@pytest.mark.parametrize(("explainer_order", "explained_order"), [(1, 1), (2, 1)])
-def test_an_explainer_must_be_emitted_by_a_lower_order_rule(explainer_order: int, explained_order: int) -> None:
-    @dataclass(frozen=True)
-    class DeclaredExplainer:
-        name: str = "explainer"
-        order: int = explainer_order
-        window_days: int | None = 0
-        emitted_types: frozenset[str] = frozenset({"nation.change.arc"})
-
-        def apply(
-            self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-        ) -> list[Event]:
-            return []
-
-    @dataclass(frozen=True)
-    class ExplainedRule:
-        name: str = "explained"
-        order: int = explained_order
-        window_days: int | None = 0
-        explains: frozenset[str] = frozenset({"nation.change.arc"})
-
-        def apply(
-            self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
-        ) -> list[Event]:
-            return []
-
-    with pytest.raises(
-        ValueError,
-        match=f"explained at order {explained_order}.*explainer at order {explainer_order}",
-    ):
-        aggregate([], (), [DeclaredExplainer(), ExplainedRule()])
-
-
 def test_the_result_does_not_depend_on_stream_or_rule_order() -> None:
     stream = [changed(K1), changed(K2, FRANCE), changed(K3), changed(K3, FRANCE)]
-    rules = [RULE, GroupRule("nested", "nation.changed.arc", order=1)]
+    rules = [RULE, GroupRule("nested", ARC, reads=frozenset({ARC}))]
     reports = [situation(K1, nations=[GERMANY])]
 
     forward = aggregate(stream, reports, rules)

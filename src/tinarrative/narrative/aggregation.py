@@ -1,15 +1,17 @@
 """Narrative aggregation: named rules that join the qualified event stream of a sequence into narrative events.
 
-See ADR-0009. A rule sees only lower orders, so rules cannot form cycles.
+See ADR-0009. Rules run in layers derived from the narrative event types they declare to read (ADR-0019).
 """
 
 from __future__ import annotations
 
 import time
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from graphlib import CycleError, TopologicalSorter
 from typing import Protocol
 
 from ..analyzers.common import event_id
@@ -27,7 +29,7 @@ from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
 from .situation import SituationReport
-from .stream import EventStream
+from .stream import EventStream, UndeclaredRead
 
 logger = get_logger(__name__)
 timing = get_logger(TIMING_LOGGER)
@@ -45,17 +47,24 @@ class Join(StrEnum):
 
 
 class NarrativeRule(Protocol):
-    """A named rule building one kind of narrative event.
+    """A named rule building narrative events of its ``emitted_types``.
 
-    It sees the narrative events of lower ``order`` only, in chronological order. ``window_days`` is ``None`` for the
-    whole sequence.
+    It sees every atomic event and the narrative events of the types it ``reads`` or that ``explains`` its own away,
+    in chronological order: the rules emitting those run in an earlier layer. ``explains`` names the types whose
+    events keep one of its own from existing. ``window_days`` is ``None`` for the whole sequence.
     """
 
     @property
     def name(self) -> str: ...
 
     @property
-    def order(self) -> int: ...
+    def emitted_types(self) -> frozenset[str]: ...
+
+    @property
+    def reads(self) -> frozenset[str]: ...
+
+    @property
+    def explains(self) -> frozenset[str]: ...
 
     @property
     def window_days(self) -> int | None: ...
@@ -221,31 +230,36 @@ def aggregate(
     situations: Sequence[SituationReport],
     rules: Sequence[NarrativeRule],
 ) -> list[Event]:
-    """Rules run by order, then name.
+    """Rules run in layers derived from what they read, each layer by rule name.
 
-    A duplicate rule name or ID, a non-narrative event, or a citation of an event of the same or a higher order or
-    of an unseen ID raises ``ValueError``: these are programming errors.
+    Narrative events already in ``stream`` are hidden from a rule that does not read their type, like those the rules
+    build. These programming errors raise ``ValueError``: a duplicate rule name or event ID, rules reading each other
+    in a cycle, a typed lookup of a narrative type the rule does not read, a narrative event of a type its rule does
+    not emit, and a citation of an event the rule cannot see.
     """
     names = [rule.name for rule in rules]
     duplicated = sorted({name for name in names if names.count(name) > 1})
     if duplicated:
         raise ValueError(f"narrative rules share a name: {duplicated}")
-    _check_explainer_orders(rules)
+    layers = _layers(rules)
+    narrative_types = frozenset(
+        {event_type for rule in rules for event_type in rule.emitted_types}
+        | {event.event_type for event in stream if event.is_narrative}
+    )
     started = time.perf_counter()
     build = NarrativeBuilder(situations)
     built: list[Event] = []
-    for order in sorted({rule.order for rule in rules}):
+    for layer, layer_rules in enumerate(layers):
         visible = EventStream(chronological([*stream, *built]))
-        visible_ids = {event.id for event in visible}
-        produced = [
-            (rule, _timed_apply(rule, visible, situations, build))
-            for rule in sorted((rule for rule in rules if rule.order == order), key=lambda rule: rule.name)
-        ]
-        same_order = {event.id for _, events in produced for event in events}
-        for rule, events in produced:
+        produced = []
+        for rule in layer_rules:
+            seen = visible.hiding(narrative_types - rule.reads - rule.explains)
+            produced.append((rule, seen, _timed_apply(rule, seen, situations, build)))
+        same_layer = {event.id for _, _, events in produced for event in events}
+        for rule, seen, events in produced:
             for event in events:
-                _check(rule, event, visible_ids, same_order)
-            logger.debug("narrative rule done %s", fields(rule=rule.name, order=order, events=len(events)))
+                _check(rule, event, seen, same_layer)
+            logger.debug("narrative rule done %s", fields(rule=rule.name, layer=layer, events=len(events)))
             built.extend(events)
     chronological([*stream, *built])
     narrative = chronological(built)
@@ -254,41 +268,55 @@ def aggregate(
     return narrative
 
 
-def _check_explainer_orders(rules: Sequence[NarrativeRule]) -> None:
-    emitters: dict[str, list[NarrativeRule]] = {}
+def _layers(rules: Sequence[NarrativeRule]) -> list[list[NarrativeRule]]:
+    """Each rule one layer after the latest rule emitting a type it reads or that explains its events."""
+    emitters: dict[str, set[str]] = defaultdict(set)
     for rule in rules:
-        for event_type in getattr(rule, "emitted_types", (rule.name,)):
-            emitters.setdefault(event_type, []).append(rule)
-    for rule in rules:
-        for event_type in getattr(rule, "explains", ()):
-            for emitter in emitters.get(event_type, ()):
-                if emitter.order >= rule.order:
-                    raise ValueError(
-                        f"narrative rule {rule.name} at order {rule.order} explains {event_type}, emitted by "
-                        f"narrative rule {emitter.name} at order {emitter.order}; an explainer must have a lower order"
-                    )
+        for event_type in rule.emitted_types:
+            emitters[event_type].add(rule.name)
+    graph = {
+        rule.name: {name for event_type in rule.reads | rule.explains for name in emitters.get(event_type, ())}
+        for rule in rules
+    }
+    sorter = TopologicalSorter(graph)
+    try:
+        sorter.prepare()
+    except CycleError as error:
+        raise ValueError(f"narrative rules read each other in a cycle: {error.args[1]}") from error
+    by_name = {rule.name: rule for rule in rules}
+    layers = []
+    while sorter.is_active():
+        ready = sorted(sorter.get_ready())
+        layers.append([by_name[name] for name in ready])
+        sorter.done(*ready)
+    return layers
 
 
 def _timed_apply(
     rule: NarrativeRule, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder
 ) -> list[Event]:
     started = time.perf_counter()
-    events = rule.apply(stream, situations, build)
+    try:
+        events = rule.apply(stream, situations, build)
+    except UndeclaredRead as error:
+        raise ValueError(f"narrative rule {rule.name} {error}") from error
     timing.info("rule %s", fields(name=rule.name, seconds=round(time.perf_counter() - started, 4)))
     return events
 
 
-def _check(rule: NarrativeRule, event: Event, visible: set[str], same_order: set[str]) -> None:
+def _check(rule: NarrativeRule, event: Event, seen: EventStream, same_layer: set[str]) -> None:
     if not event.is_narrative:
         raise ValueError(f"narrative rule {rule.name} emitted a non-narrative event {event.id}")
+    if event.event_type not in rule.emitted_types:
+        raise ValueError(f"narrative rule {rule.name} emitted {event.event_type}, which it does not declare")
     for constituent in event.constituents:
-        if constituent in same_order:
+        if constituent in same_layer:
             raise ValueError(
-                f"narrative rule {rule.name} (order {rule.order}) cites {constituent} of the same order; a rule "
-                "builds only on narrative events of a lower order"
+                f"narrative rule {rule.name} cites {constituent} of its own layer; a rule builds only on narrative "
+                "events of an earlier layer"
             )
-        if constituent not in visible:
+        if seen.get(constituent) is None:
             raise ValueError(
-                f"narrative rule {rule.name} (order {rule.order}) cites {constituent}, which is neither in the "
-                "stream nor a narrative event of a lower order"
+                f"narrative rule {rule.name} cites {constituent}, which is neither in the stream nor a narrative "
+                "event of a type it reads"
             )
