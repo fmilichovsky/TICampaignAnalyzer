@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from tests.fixtures import FIXTURES_ROOT, fixture_path
+from tests.golden import AssertGolden
 from tinarrative.cli import (
     EXIT_INPUT_ERROR,
     EXIT_PATH_NOT_FOUND,
@@ -41,16 +42,16 @@ def test_inspect_matches_the_golden_report_for_each_fixture(
     fixture_parts: tuple[str, ...],
     exit_code: int,
     capsys: pytest.CaptureFixture[str],
+    assert_golden: AssertGolden,
 ) -> None:
     save_path = fixture_path(*fixture_parts)
-    expected = expected_output_path(fixture_parts).read_text(encoding="utf-8")
 
     assert main(["save", "inspect", str(save_path)]) == exit_code
     first = capsys.readouterr()
     assert main(["save", "inspect", str(save_path)]) == exit_code
     second = capsys.readouterr()
 
-    assert first.out == expected
+    assert_golden(first.out, expected_output_path(fixture_parts))
     assert second.out == first.out
     assert first.err == ""
 

@@ -16,6 +16,7 @@ from typing import Any
 import pytest
 
 from tests.fixtures import FIXTURES_ROOT
+from tests.golden import AssertGolden
 from tests.sequence.campaign_variants import write_campaign, write_variant
 from tinarrative import cli
 from tinarrative.cli import (
@@ -48,17 +49,20 @@ MARKDOWN_GOLDENS = [
 
 @pytest.mark.parametrize(("suffix", "flags"), MARKDOWN_GOLDENS)
 def test_events_matches_the_golden_report(
-    suffix: str, flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    suffix: str,
+    flags: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    assert_golden: AssertGolden,
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)  # bare file names keep machine paths out of the golden
-    expected = (EXPECTED_DIR / f"politics_sequence.expected.{suffix}").read_text(encoding="utf-8")
 
     assert main(["events", *flags, *SHUFFLED]) == EXIT_SUCCESS
     first = capsys.readouterr()
     assert main(["events", *flags, *reversed(SHUFFLED)]) == EXIT_SUCCESS
     second = capsys.readouterr()
 
-    assert first.out == expected
+    assert_golden(first.out, EXPECTED_DIR / f"politics_sequence.expected.{suffix}")
     assert second.out == first.out
     assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", first.err)
     assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", second.err)
@@ -297,7 +301,11 @@ def test_an_unorderable_or_unsupported_save_stops_the_run(
     [("md", []), ("narrative.md", ["--narrative"]), ("changes.md", ["--changes"]), ("json", ["--format", "json"])],
 )
 def test_workers_write_the_golden_report_byte_for_byte(
-    suffix: str, flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    suffix: str,
+    flags: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    assert_golden: AssertGolden,
 ) -> None:
     monkeypatch.chdir(FIXTURE_DIR)
     monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)  # two chunks over the three fixture saves
@@ -309,7 +317,7 @@ def test_workers_write_the_golden_report_byte_for_byte(
 
     assert parallel.out == serial.out
     if suffix != "json":
-        assert parallel.out == (EXPECTED_DIR / f"politics_sequence.expected.{suffix}").read_text(encoding="utf-8")
+        assert_golden(parallel.out, EXPECTED_DIR / f"politics_sequence.expected.{suffix}")
     assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", parallel.err)
 
 

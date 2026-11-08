@@ -13,6 +13,7 @@ import pytest
 
 import tinarrative.narrator
 from tests.fixtures import FIXTURES_ROOT
+from tests.golden import AssertGolden
 from tinarrative.cli import EXIT_SUCCESS
 from tinarrative.cli import main as cli_main
 from tinarrative.narrator.request import REQUEST_KEYS, build_request, chapter_package, prompt_version, system_prompt
@@ -60,7 +61,7 @@ def test_the_prompt_version_is_the_sha256_of_the_prompt() -> None:
 
 
 def test_the_request_matches_the_golden_and_is_deterministic(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], assert_golden: AssertGolden
 ) -> None:
     package = _package(monkeypatch, capsys)
 
@@ -68,7 +69,7 @@ def test_the_request_matches_the_golden_and_is_deterministic(
 
     assert request == build_request(json.loads(json.dumps(package)), {"audience": "public", "period": "quarter"})
     assert request["system"] == system_prompt()
-    assert request["messages"] == json.loads(GOLDEN.read_text(encoding="utf-8"))
+    assert_golden(json.dumps(request["messages"], indent=2) + "\n", GOLDEN)
     assert request["messages"][0]["content"].startswith("period: quarter\naudience: public\n\n")
     assert _embedded(request) == package
 
