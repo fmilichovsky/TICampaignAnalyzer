@@ -39,8 +39,9 @@ tinarrative save parse Save.json --record-unknowns
 tinarrative unknowns Save.json
 ```
 
-The command page is [docs/commands/unknowns.md](../../commands/unknowns.md). Saves are private
-and never committed; scanning them is opt-in, like `real_save` tests.
+The command page is [docs/commands/unknowns.md](../../commands/unknowns.md). Private saves are
+never committed; scanning them is opt-in, like the `TINARRATIVE_REAL_SAVE_DIRECTORY` test
+([testing](../../testing.md#running)).
 
 ## Reading an entry
 

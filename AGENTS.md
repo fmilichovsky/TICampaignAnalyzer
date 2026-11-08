@@ -35,6 +35,7 @@ before touching the model or pipeline.
 ```sh
 make install      # install the pinned editable development environment
 make check        # format check + lint + strict mypy + pytest; run after install
+make samples      # the tests that read the committed benchmark campaigns
 python -m ruff format .
 python scripts/verify_fixture_manifest.py tests/fixtures/io/terra_invicta_json_v1/fixture_manifest.json
 make package-metrics PYTHON=.venv/bin/python

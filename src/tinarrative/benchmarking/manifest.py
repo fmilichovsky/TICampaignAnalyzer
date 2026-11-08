@@ -1,10 +1,12 @@
-"""Read, verify, and rebuild the benchmark sample manifest."""
+"""Read, verify, decompress and rebuild the benchmark samples and their manifest."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import lzma
+import shutil
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +20,13 @@ def sample_files(samples: Path) -> dict[str, list[Path]]:
         directory.name: sorted(path for path in directory.iterdir() if path.name.endswith(SAMPLE_SUFFIX))
         for directory in sorted(path for path in samples.iterdir() if path.is_dir())
     }
+
+
+def decompress_samples(files: Iterable[Path], directory: Path) -> None:
+    """Decompress compressed saves into ``directory``, each under its name without ``.xz``."""
+    for file in files:
+        with lzma.open(file) as source, (directory / file.name.removesuffix(".xz")).open("wb") as target:
+            shutil.copyfileobj(source, target, 1 << 20)
 
 
 def verify_samples(samples: Path) -> list[str]:

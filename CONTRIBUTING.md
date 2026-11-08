@@ -56,7 +56,8 @@ Each fact has exactly one home. Point to it; do not restate it.
 - **A change to a supported format identifier or fixture assumption** updates `docs/game-data-notes/` and the
   manifest together.
 - **Real saves are committed only in `benchmarks/samples/`,** listed with their hashes in its manifest
-  (`tests/test_package_metrics.py::test_the_committed_samples_match_their_manifest`).
+  (`tests/test_package_metrics.py::test_the_committed_samples_match_their_manifest`). Tests read them only as
+  sample tests (marked `samples`), which assert invariants that hold for any campaign.
 
 ## Tests
 

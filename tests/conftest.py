@@ -6,6 +6,8 @@ import pytest
 
 from tests.golden import UPDATE_OPTION, AssertGolden, check_golden
 
+pytest_plugins = ["tests.samples"]
+
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(UPDATE_OPTION, action="store_true", help="rewrite golden files from the current output")
