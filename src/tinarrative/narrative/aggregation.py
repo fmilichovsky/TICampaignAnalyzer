@@ -264,8 +264,8 @@ def _check_explainer_orders(rules: Sequence[NarrativeRule]) -> None:
             for emitter in emitters.get(event_type, ()):
                 if emitter.order >= rule.order:
                     raise ValueError(
-                        f"narrative rule {rule.name} explains {event_type}, emitted by narrative rule "
-                        f"{emitter.name} at order {emitter.order}; an explainer must have a lower order"
+                        f"narrative rule {rule.name} at order {rule.order} explains {event_type}, emitted by "
+                        f"narrative rule {emitter.name} at order {emitter.order}; an explainer must have a lower order"
                     )
 
 

@@ -273,7 +273,10 @@ def test_an_explainer_must_be_emitted_by_a_lower_order_rule(explainer_order: int
         ) -> list[Event]:
             return []
 
-    with pytest.raises(ValueError, match="explained.*explainer"):
+    with pytest.raises(
+        ValueError,
+        match=f"explained at order {explained_order}.*explainer at order {explainer_order}",
+    ):
         aggregate([], (), [DeclaredExplainer(), ExplainedRule()])
 
 
