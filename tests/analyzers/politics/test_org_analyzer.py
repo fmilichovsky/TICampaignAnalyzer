@@ -13,7 +13,7 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.politics import OrganizationAnalyzer
-from tinarrative.analyzers.politics.organizations import (
+from tinarrative.kinds.control import (
     ASSIGNED_COUNCILOR_CHANGED,
     COUNCILOR_ORGS_CHANGED,
     FACTION_ORBIT_CHANGED,
@@ -58,7 +58,7 @@ def test_an_assignment_cites_the_councilor_list_and_the_faction_pool() -> None:
     after = snapshot(AFTER, org(AFTER, councilor="100"), councilor(AFTER, "100", "70"), faction(AFTER))
     (event,) = analyze(ANALYZER, before, after)
     assert event.id == "organization.assigned_councilor_changed/organization:70"
-    assert event.event_type == ASSIGNED_COUNCILOR_CHANGED and event.confidence is Confidence.HIGH
+    assert event.event_type == ASSIGNED_COUNCILOR_CHANGED.event_type and event.confidence is Confidence.HIGH
     assert dict(event.attributes) == {"transition": "set", "before": None, "after": named(councilor_ref("100"))}
     assert sources(event) == [
         (SourceRole.PRIMARY, "organization:70", "assignedCouncilor"),
@@ -95,7 +95,7 @@ def test_faction_orbit_changes_are_their_own_event() -> None:
     before = snapshot(BEFORE, org(BEFORE, orbit="15"))
     after = snapshot(AFTER, org(AFTER, orbit="16"))
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == FACTION_ORBIT_CHANGED
+    assert event.event_type == FACTION_ORBIT_CHANGED.event_type
     assert [str(ref.entity_id) for ref in event.entities] == [
         "organization:70",
         "region:40",
@@ -133,5 +133,8 @@ def test_unexplained_list_changes_are_reported_on_their_own() -> None:
         "councilor.orgs_changed/councilor:100/organization:70/added",
         "faction.unassigned_orgs_changed/faction:15/unresolved",
     ]
-    assert {event.event_type for event in events} == {COUNCILOR_ORGS_CHANGED, UNASSIGNED_ORGS_CHANGED}
-    assert next(e for e in events if e.event_type == UNASSIGNED_ORGS_CHANGED).confidence is Confidence.LOW
+    assert {event.event_type for event in events} == {
+        COUNCILOR_ORGS_CHANGED.event_type,
+        UNASSIGNED_ORGS_CHANGED.event_type,
+    }
+    assert next(e for e in events if e.event_type == UNASSIGNED_ORGS_CHANGED.event_type).confidence is Confidence.LOW

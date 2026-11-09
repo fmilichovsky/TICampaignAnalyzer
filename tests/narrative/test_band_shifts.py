@@ -4,10 +4,21 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
+from tests.narrative.support import (
+    UNKNOWN,
+    atomic,
+    control_attributes,
+    faction,
+    nation,
+    nation_row,
+    situation,
+    unification,
+    war,
+)
 from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.wars import WAR_LAST_FIGHTING_CHANGED
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -184,11 +195,11 @@ def test_a_top_gdp_nation_is_promoted_one_level() -> None:
 
 def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None:
     control = atomic(
-        f"faction.nation_control_changed/{NORTH.entity_id}/executive",
+        f"{NATION_CONTROL_CHANGED.event_type}/{NORTH.entity_id}/executive",
         K1,
         not_before=K0,
         entities=(NORTH, RESISTANCE),
-        attributes=(("scope", "executive"), ("before", None), ("after", RESISTANCE), ("cause", "Politics")),
+        attributes=control_attributes("executive", None, RESISTANCE),
         status=EventStatus.INFERRED,
     )
     event = crossing(K1, "democracy", 5.5, 6.5)

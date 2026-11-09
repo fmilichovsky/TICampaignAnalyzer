@@ -5,6 +5,15 @@ Which faction thereby "controls a nation" is left to reconstruction.
 
 from __future__ import annotations
 
+from ...kinds.control import (
+    CONTROLLER_CHANGED,
+    FACTION_POINTS_CHANGED,
+    LOSS_RECORDED,
+    NATION_POINTS_CHANGED,
+    POINT_APPEARED,
+    POINT_DISAPPEARED,
+    POINT_NATION_CHANGED,
+)
 from ...model.changes import ChangeIndex, ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -26,18 +35,10 @@ from ..common import (
     transition_attributes,
 )
 
-CONTROLLER_CHANGED = "control_point.controller_changed"
-NATION_CHANGED = "control_point.nation_changed"
-APPEARED = "control_point.appeared"
-DISAPPEARED = "control_point.disappeared"
-LOSS_RECORDED = "control_point.loss_recorded"
-FACTION_LIST_CHANGED = "faction.control_points_changed"
-NATION_LIST_CHANGED = "nation.control_points_changed"
-
 HANDLED_LISTS = ((EntityDomain.FACTION, "controlPoints"), (EntityDomain.NATION, "controlPoints"))
 LOST_FIELD = "lostControlPoints"
 
-_LIST_EVENT = {EntityDomain.FACTION.value: FACTION_LIST_CHANGED, EntityDomain.NATION.value: NATION_LIST_CHANGED}
+_LIST_KIND = {EntityDomain.FACTION.value: FACTION_POINTS_CHANGED, EntityDomain.NATION.value: NATION_POINTS_CHANGED}
 
 
 class _LossRecord:
@@ -74,7 +75,7 @@ class ControlPointAnalyzer:
         for (faction_id, point_id), record in sorted(losses.items(), key=lambda item: (item[0][0], item[0][1])):
             events.append(_loss_recorded(faction_id, point_id, record, lookup, build))
         for change, member, transition in ledger.leftovers():
-            events.append(list_changed_event(_LIST_EVENT[change.domain], change, member, transition, lookup, build))
+            events.append(list_changed_event(_LIST_KIND[change.domain], change, member, transition, lookup, build))
         return events
 
 
@@ -140,7 +141,7 @@ def _nation_changed(change: StateChange, lookup: Lookup, ledger: MembershipLedge
         return None
     point_id = change.entity_id
     return build.event(
-        NATION_CHANGED,
+        POINT_NATION_CHANGED,
         id_parts=(point_id,),
         sources=mirrored_sources(change, ledger, "controlPoints", point_id),
         entities=(
@@ -169,7 +170,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
             if cited is not None:
                 sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        POINT_APPEARED if appeared else POINT_DISAPPEARED,
         id_parts=(point_id,),
         sources=sources,
         entities=(lookup.ref(point_id), nation, faction),

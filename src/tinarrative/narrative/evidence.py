@@ -52,10 +52,7 @@ _EVIDENCE: tuple[str, ...] = (
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)
 
-EVIDENCE_PREFIXES: Final[tuple[str, ...]] = (
-    # A councilor defecting, detained or gone is who acted, which no narrative event names.
-    "councilor.",
-)
+EVIDENCE_PREFIXES: Final[tuple[str, ...]] = ()
 
 
 def is_evidence(event_type: str) -> bool:

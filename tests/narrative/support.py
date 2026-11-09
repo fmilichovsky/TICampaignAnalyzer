@@ -6,6 +6,8 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
+from tinarrative.kinds import attributes
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import (
@@ -116,6 +118,28 @@ def unification(
             ("bases", (FrozenMap((("nation", absorbed), ("basis", "federation"), ("federation", None))),)),
             ("executive_since", None),
         ),
+    )
+
+
+def control_attributes(
+    scope: str, before: EntityRef | None, after: EntityRef | None, cause: str | None = "Politics"
+) -> tuple[tuple[str, Observed], ...]:
+    """The attributes of ``faction.nation_control_changed``, all required ones present as the rule emits them."""
+    return attributes(
+        NATION_CONTROL_CHANGED,
+        scope=scope,
+        before=before,
+        after=after,
+        shares_before=FrozenMap(()),
+        shares_after=FrozenMap(()),
+        point_count_before=0,
+        point_count_after=0,
+        points_moved=0,
+        cause=cause,
+        recorded_on=None,
+        new_executive=None,
+        seat=None,
+        population=None,
     )
 
 

@@ -64,11 +64,6 @@ that explain it and stays trivial on its own."""
 # The types not yet migrated to a kind; a kind declares its own base level, context rule and stake.
 
 _TRIVIAL: tuple[str, ...] = (
-    # Councilor movement happens constantly between saves and says nothing on their own.
-    "councilor.location_changed",
-    # Organizations are created and removed in bulk.
-    "organization.appeared",
-    "organization.disappeared",
     # A band crossing is the evidence a band-shift narrative event is built from; on its own it may be the game
     # converging the statistic towards its rest value.
     "nation.band_crossed",
@@ -81,8 +76,6 @@ _TRIVIAL: tuple[str, ...] = (
     # Leftover list events that mirror an asset's owner field: the owner field already produced the event
     # (``army.region_changed``, ...), and what is left is a
     # mirror entry nothing claimed, typically a list unresolved on one side.
-    "councilor.orgs_changed",
-    "faction.unassigned_orgs_changed",
 )
 
 _MINOR: tuple[str, ...] = (
@@ -94,13 +87,7 @@ _MINOR: tuple[str, ...] = (
     "nation.breakaways_changed",
     "nation.allies_changed",
     "nation.rivals_changed",
-    "faction.control_points_changed",
-    "nation.control_points_changed",
-    "faction.councilors_changed",
     "campaign.interstate_wars_changed",
-    # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
-    # it is not counted as a second major event.
-    "control_point.loss_recorded",
     # Inferred aggregates of the ``region.nation_changed`` events they cite, which are already major; ranking
     # them major too would count one transfer twice.
     "nation.territory_gained",
@@ -120,24 +107,14 @@ _MINOR: tuple[str, ...] = (
 
 _MAJOR: tuple[str, ...] = (
     # Core political and asset-ownership changes.
-    "control_point.controller_changed",
     "region.nation_changed",
-    "councilor.faction_changed",
     # A rename marks a unification, which a history reports; claims are decided by their context rule.
     "nation.renamed",
-    # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
-    "councilor.detaining_faction_changed",
-    # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
-    # below the band.
-    "organization.assigned_councilor_changed",
     # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
     # and a whole-nation unification or an independence is what a history reports about it.
     "nation.independence",
     "nation.unification",
     "nation.annexation",
-    # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
-    # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major.
-    "faction.nation_control_changed",
     # Inferred readings of space evidence: a working hab, a new foothold, a hab lost to an enemy and a battle won
     # are what a history reports about the ``hab.*`` and log events they cite.
     "hab.established",
@@ -255,8 +232,6 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
 """Every ``Rule``'s implementation."""
 
 RULES: Mapping[str, Rule] = {
-    "councilor.appeared": Rule.COUNCILOR_PRESENCE,
-    "councilor.disappeared": Rule.COUNCILOR_PRESENCE,
     "nation.relation_changed": Rule.RELATION_CHANGED,
     "nation.claims_changed": Rule.CLAIMS_CHANGED,
     "nation.executive_change_recorded": Rule.EXECUTIVE_CHANGE,
@@ -384,9 +359,6 @@ SCALED: Mapping[str, Stake] = {
     "nation.annexation": Stake.TERRITORY,
     "nation.territory_gained": Stake.TERRITORY,
     "nation.territory_lost": Stake.TERRITORY,
-    "control_point.controller_changed": Stake.CONTROL_POINT,
-    "faction.nation_control_changed": Stake.NATION,
-    "organization.assigned_councilor_changed": Stake.ORGANIZATION,
 }
 """The stake of a type not yet migrated to a kind (ADR-0011); movement and churn are never listed."""
 

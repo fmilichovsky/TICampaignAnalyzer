@@ -10,6 +10,8 @@ from ..model.values import Observed, Unknown
 
 TRANSITION = frozenset({"transition", "before", "after"})
 """The attribute keys of a literal transition (``analyzers.common.transition_attributes``)."""
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
 
 
 def subject_label(event: Event) -> str:
