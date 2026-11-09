@@ -16,7 +16,7 @@ from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
 from ..config import DEFAULT_SETTINGS, SignificanceSettings
-from ..kinds import KINDS
+from ..kinds import kind_of
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -79,8 +79,6 @@ _TRIVIAL: tuple[str, ...] = (
     # states the changes of the top.
     "nation.rank_changed",
     # Log housekeeping: the game prunes and rewrites kept entries.
-    "notification.entry_removed",
-    "notification.entry_changed",
     "faction.combat_entry_removed",
     # Progress-only technology states come and go with research priorities; completion is its own event.
     "technology.appeared",
@@ -139,9 +137,6 @@ _MINOR: tuple[str, ...] = (
     # new-government date, which corroborates the executive record and control-point events.
     "nation.unrest_attempts_changed",
     "nation.new_government_recorded",
-    # A dated mission or operation charge from the resource ledger: corroboration and dating for an effect that
-    # is evidenced elsewhere, never a narrative event on its own (ADR-0010).
-    "faction.transaction_recorded",
     # A nuclear program or policy flag says what a nation may do, not what it did; the nuclear arcs cite the
     # program as the start of an arsenal.
     "nation.nuclear_program_changed",
@@ -178,8 +173,6 @@ _MAJOR: tuple[str, ...] = (
     "organization.assigned_councilor_changed",
     # Space battles (``CombatLogs``).
     "faction.combat_recorded",
-    # A once-per-campaign narrative event.
-    "campaign.narrative_event_triggered",
     # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
     # and a whole-nation unification or an independence is what a history reports about it.
     "nation.independence",
@@ -197,10 +190,7 @@ _MAJOR: tuple[str, ...] = (
 )
 
 _CAMPAIGN_DEFINING: tuple[str, ...] = (
-    # Campaign-wide firsts, nuclear use, climate stages and the birth or end of a nation.
-    "campaign.global_milestone_recorded",
-    "campaign.nuclear_strikes_changed",
-    "campaign.sea_level_rise_triggered",
+    # The birth or end of a nation.
     "nation.appeared",
     "nation.disappeared",
 )
@@ -474,7 +464,7 @@ def _holds_nuclear_weapons(stakes: Stakes, nation: EntityId) -> bool:
 
 
 def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBasis | None:
-    kind = KINDS.get(event.event_type)
+    kind = kind_of(event.event_type)
     named = kind.stake if kind is not None else SCALED.get(event.event_type)
     if named is None:
         return None
@@ -512,7 +502,7 @@ def significance_of(event: Event, lookup: Lookup) -> Significance:
 
     A type's kind is read first; a type not yet migrated to a kind is read from ``RULES`` and ``BASE``.
     """
-    kind = KINDS.get(event.event_type)
+    kind = kind_of(event.event_type)
     rule = kind.rule if kind is not None else RULES.get(event.event_type)
     if rule is not None:
         decided = RULE_IMPLEMENTATIONS[rule](event, lookup)

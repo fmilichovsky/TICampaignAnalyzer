@@ -6,7 +6,8 @@ from collections.abc import Sequence
 
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.campaign import NUCLEAR_STRIKES_CHANGED
 from tinarrative.model.events import DateBasis, Event, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
@@ -94,13 +95,16 @@ def test_a_population_drop_is_a_major_collapse_and_growth_is_none() -> None:
     assert describe_event(collapse) == "Northland (nation:20) population collapse: 100.0 -> 70.0"
 
 
+STRIKE = attributes(NUCLEAR_STRIKES_CHANGED, transition="changed", before=0, after=1)
+
+
 def test_a_collapse_with_a_detonation_or_a_nuclear_strike_is_campaign_defining() -> None:
     (nuked,) = built([population(K1, "drop", nuked=[REGION])], reports(), POPULATION_COLLAPSE)
     assert nuked.significance is Significance.CAMPAIGN_DEFINING
-    strike = atomic("campaign.nuclear_strikes_changed/campaign", K1, not_before=K0)
+    strike = atomic("campaign.nuclear_strikes_changed/campaign", K1, not_before=K0, attributes=STRIKE)
     (struck,) = built([population(K1, "drop"), strike], reports(), POPULATION_COLLAPSE)
     assert struck.significance is Significance.CAMPAIGN_DEFINING and strike.id in struck.constituents
-    late = atomic("campaign.nuclear_strikes_changed/campaign", K2, not_before=K1)
+    late = atomic("campaign.nuclear_strikes_changed/campaign", K2, not_before=K1, attributes=STRIKE)
     (other,) = built([population(K1, "drop"), late], reports(), POPULATION_COLLAPSE)
     assert other.significance is Significance.MAJOR
 

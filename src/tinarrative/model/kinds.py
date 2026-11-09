@@ -59,7 +59,8 @@ class EventKind:
 
     ``base`` is ``None`` only for a narrative-event kind, whose level is set by the rule that emits it. An emitter
     always passes every ``required`` attribute, its value possibly ``Unknown``; an attribute whose presence depends
-    on the save is ``optional``.
+    on the save is ``optional``. A ``prefix`` kind is the one kind of every type that starts with its ``event_type`` and
+    that no exact kind declares: the types whose names come from the save (``notification.*``).
     """
 
     event_type: str
@@ -70,6 +71,7 @@ class EventKind:
     optional: frozenset[str] = frozenset()
     rule: Rule | None = None
     stake: Stake | None = None
+    prefix: bool = False
 
     def __post_init__(self) -> None:
         shared = self.required & self.optional

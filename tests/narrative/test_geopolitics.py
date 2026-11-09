@@ -21,7 +21,8 @@ from tests.narrative.support import (
     war_row,
 )
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.faction import TRANSACTION_RECORDED
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -424,7 +425,7 @@ def charge(key: str, holder: EntityRef, label: str, date: str) -> Event:
         holder,
         label,
         date,
-        attributes=(("label", label), ("recorded_on", date)),
+        attributes=attributes(TRANSACTION_RECORDED, label=label, resource="Money", amount=1.0, recorded_on=date),
         date=date,
         date_basis=DateBasis.RECORD,
     )

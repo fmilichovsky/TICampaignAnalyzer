@@ -325,7 +325,7 @@ def transition_attributes(change: StateChange, transition: Transition) -> tuple[
 
 
 def value_transition_event(
-    event_type: str,
+    event_type: EventKind | str,
     change: StateChange,
     lookup: Lookup,
     build: EventBuilder,

@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
+from ...kinds.faction import TRANSACTION_RECORDED
 from ...log import fields as log_fields
 from ...log import get_logger
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
@@ -26,7 +27,6 @@ from ..common import EventBuilder, Lookup, Side
 logger = get_logger(__name__)
 
 LEDGER_FIELD = "Transactions"
-TRANSACTION_RECORDED = "faction.transaction_recorded"
 
 ALLOWED_LABELS = ALLOWED_LEDGER_LABELS
 

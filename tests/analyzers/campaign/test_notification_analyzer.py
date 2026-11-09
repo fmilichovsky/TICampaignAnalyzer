@@ -2,8 +2,8 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, only, record_set, snapshot, state
 from tinarrative.analyzers.campaign import NotificationAnalyzer
-from tinarrative.analyzers.campaign.notifications import entry_event_type
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.campaign import entry_kind
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event
 from tinarrative.model.records import NotificationEntry, RecordKind, RecordSet
@@ -40,10 +40,10 @@ def run(before: tuple[NotificationEntry, ...], after: tuple[NotificationEntry, .
 
 
 def test_a_template_that_is_not_an_identifier_gets_the_unknown_template_type() -> None:
-    assert entry_event_type("LogFleetDetected") == "notification.LogFleetDetected"
-    assert entry_event_type(Unknown(UnknownReason.UNPARSEABLE)) == "notification.unknown_template"
-    assert entry_event_type("Log Fleet") == "notification.unknown_template"
-    assert entry_event_type("entry_removed") == "notification.unknown_template"  # never collides with a fixed type
+    assert entry_kind("LogFleetDetected").event_type == "notification.LogFleetDetected"
+    assert entry_kind(Unknown(UnknownReason.UNPARSEABLE)).event_type == "notification.unknown_template"
+    assert entry_kind("Log Fleet").event_type == "notification.unknown_template"
+    assert entry_kind("entry_removed").event_type == "notification.unknown_template"  # never collides with a fixed type
     (event,) = run((), (notice(0, None),))
     assert event.event_type == "notification.unknown_template"
 

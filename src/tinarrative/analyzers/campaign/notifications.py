@@ -8,9 +8,8 @@ logged.
 
 from __future__ import annotations
 
-import re
-
-from ...kinds.describe import NOTIFICATION_PREFIX
+from ...kinds import campaign
+from ...kinds.campaign import NOTIFICATION_PREFIX, entry_kind
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -32,25 +31,6 @@ DOMAIN = EntityDomain.NOTIFICATION_QUEUE
 LOG = "notificationSummaryQueue"
 
 PREFIX = NOTIFICATION_PREFIX
-QUEUE_APPEARED = "notification.queue_appeared"
-QUEUE_DISAPPEARED = "notification.queue_disappeared"
-QUEUE_VALUE_CHANGED = "notification.queue_value_changed"
-ENTRY_REMOVED = "notification.entry_removed"
-ENTRY_CHANGED = "notification.entry_changed"
-UNKNOWN_TEMPLATE = "notification.unknown_template"
-FIXED_TYPES = frozenset(
-    (QUEUE_APPEARED, QUEUE_DISAPPEARED, QUEUE_VALUE_CHANGED, ENTRY_REMOVED, ENTRY_CHANGED, UNKNOWN_TEMPLATE)
-)
-"""Event types of this analyzer that are not a log template; templates are CamelCase, these are not."""
-
-_TEMPLATE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
-
-
-def entry_event_type(template: Observed) -> str:
-    """``notification.<templateName>`` for an identifier-like template, else ``notification.unknown_template``."""
-    if isinstance(template, str) and _TEMPLATE.match(template) and PREFIX + template not in FIXED_TYPES:
-        return PREFIX + template
-    return UNKNOWN_TEMPLATE
 
 
 class NotificationAnalyzer:
@@ -113,7 +93,7 @@ def _log_events(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
             continue
         events.append(
             build.event(
-                entry_event_type(entry.template),
+                entry_kind(entry.template),
                 id_parts=(owner_id, entry.index),  # the index tells identical entries apart
                 sources=(_source(change, after_set, entry),),
                 entities=(owner, lookup.resolve(entry.subject)),
@@ -127,7 +107,7 @@ def _log_events(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
             continue
         events.append(
             build.event(
-                ENTRY_REMOVED,
+                campaign.ENTRY_REMOVED,
                 id_parts=(owner_id, entry.index),
                 sources=(_source(change, before_set, entry),),
                 entities=(owner, lookup.resolve(entry.subject)),
@@ -140,7 +120,7 @@ def _log_events(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
             continue
         events.append(
             build.event(
-                ENTRY_CHANGED,
+                campaign.ENTRY_CHANGED,
                 id_parts=(owner_id, new.index),
                 sources=(_source(change, after_set, new),),
                 entities=(owner, lookup.resolve(old.subject), lookup.resolve(new.subject)),
@@ -164,7 +144,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     owner_id, owner = _owner(change, lookup)
     side = Side.AFTER if appeared else Side.BEFORE
     return build.event(
-        QUEUE_APPEARED if appeared else QUEUE_DISAPPEARED,
+        campaign.QUEUE_APPEARED if appeared else campaign.QUEUE_DISAPPEARED,
         id_parts=(owner_id,),
         sources=(primary(change),),
         entities=(owner,),
@@ -179,7 +159,7 @@ def _value_changed(change: StateChange, lookup: Lookup, build: EventBuilder) -> 
         return None
     owner_id, owner = _owner(change, lookup)
     return build.event(
-        QUEUE_VALUE_CHANGED,
+        campaign.QUEUE_VALUE_CHANGED,
         id_parts=(owner_id, change.field),
         sources=(primary(change),),
         entities=(owner,),

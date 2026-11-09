@@ -8,7 +8,9 @@ from dataclasses import replace
 
 from tests.narrative.support import atomic, faction, ref, situation
 from tinarrative.config import NarrativeSettings, SpaceSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.campaign import MILESTONE_RECORDED
+from tinarrative.kinds.faction import TRANSACTION_RECORDED
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -93,7 +95,7 @@ def charge(key: str, holder: EntityRef, label: str, date: str) -> Event:
         f"faction.transaction_recorded/{holder.entity_id}/{label}",
         key,
         [holder],
-        [("label", label), ("recorded_on", date)],
+        [*attributes(TRANSACTION_RECORDED, label=label, resource="Money", amount=1.0, recorded_on=date)],
         EventStatus.OBJECTIVE,
         date=date,
         date_basis=DateBasis.RECORD,
@@ -265,7 +267,7 @@ def milestone(key: str, holder: EntityRef = UNION) -> Event:
         "campaign.global_milestone_recorded/gv:1/FirstWarship",
         key,
         [ref(EntityDomain.GLOBAL_VALUES, "1"), holder],
-        [("milestone", "FirstWarship"), ("faction", holder)],
+        [*attributes(MILESTONE_RECORDED, milestone="FirstWarship", faction=holder)],
         EventStatus.OBJECTIVE,
         significance=Significance.CAMPAIGN_DEFINING,
     )

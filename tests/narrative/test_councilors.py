@@ -17,6 +17,8 @@ from tests.analyzers.support import (
 )
 from tests.narrative.support import loyalty_keys
 from tinarrative.config import CouncilorSettings
+from tinarrative.kinds import attributes
+from tinarrative.kinds.campaign import entry_kind
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
 from tinarrative.model.records import NotificationEntry, RecordKind
@@ -423,7 +425,16 @@ def _outcome_event(
             EntityRef(EntityId(EntityDomain.NOTIFICATION_QUEUE, "0"), IdentityConfidence.IN_SAVE_ID, None, "Log"),
             councilor_ref(councilor),
         ),
-        attributes=(("template", template), ("summary", summary), ("outcome", outcome)),
+        attributes=attributes(
+            entry_kind(template),
+            template=template,
+            summary=summary,
+            outcome=outcome,
+            subject=None,
+            alien_related=False,
+            news_feed_factions=(),
+            summary_log_factions=(),
+        ),
     )
 
 
