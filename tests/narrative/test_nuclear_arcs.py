@@ -5,11 +5,11 @@ from __future__ import annotations
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Significance
 from tinarrative.model.values import Observed
 from tinarrative.narrative import aggregate, narrative_rules
-from tinarrative.narrative.nation_metrics import NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -20,7 +20,7 @@ K4 = "2034-04-01T00:00:00"
 PREVIOUS = {K1: K0, K2: K1, K3: K2, K4: K3}
 NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
-ARCS = (NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT)
+ARCS = tuple(kind.event_type for kind in (NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT))
 
 
 def weapons(key: str, before: int, after: int, subject: EntityRef = NORTH) -> Event:
@@ -63,7 +63,7 @@ def built(stream: list[Event], situations: list[SituationReport] | None = None, 
 def test_a_first_weapon_is_an_armament_citing_the_program_start() -> None:
     start = program(K1)
     (arc,) = built([start, weapons(K2, 0, 1)])
-    assert arc.event_type == NUCLEAR_ARMAMENT and arc.significance is Significance.MAJOR
+    assert arc.event_type == NUCLEAR_ARMAMENT.event_type and arc.significance is Significance.MAJOR
     assert set(arc.constituents) == {weapons(K2, 0, 1).id, start.id}
     assert arc.start == K0 and arc.end == K2 and not arc.open
     assert dict(arc.attributes) == {"before": 0.0, "after": 1.0, "gdp_rank": 2, "strength_rank": None}
@@ -78,27 +78,30 @@ def test_an_armament_of_a_top_economy_is_campaign_defining_and_a_program_ending_
 
 def test_a_buildup_needs_the_minimum_or_half_the_arsenal() -> None:
     (absolute,) = built([weapons(K1, 20, 25)])
-    assert absolute.event_type == NUCLEAR_BUILDUP and absolute.significance is Significance.MAJOR
+    assert absolute.event_type == NUCLEAR_BUILDUP.event_type and absolute.significance is Significance.MAJOR
     assert (
         describe_event(absolute) == "Northland (nation:20) built up its nuclear arsenal: 20.0 -> 25.0 nuclear weapons"
     )
     (relative,) = built([weapons(K1, 2, 3)])
-    assert relative.event_type == NUCLEAR_BUILDUP
+    assert relative.event_type == NUCLEAR_BUILDUP.event_type
     assert built([weapons(K1, 20, 24)]) == []
-    assert built([weapons(K1, 20, 24)], nuclear_buildup_min=4)[0].event_type == NUCLEAR_BUILDUP
+    assert built([weapons(K1, 20, 24)], nuclear_buildup_min=4)[0].event_type == NUCLEAR_BUILDUP.event_type
 
 
 def test_shifts_within_the_window_chain_into_one_arc_and_farther_ones_do_not() -> None:
     (chained,) = built([weapons(K1, 0, 1), weapons(K2, 1, 4)])
-    assert chained.event_type == NUCLEAR_ARMAMENT and chained.attribute("after") == 4.0
+    assert chained.event_type == NUCLEAR_ARMAMENT.event_type and chained.attribute("after") == 4.0
     assert chained.intervals == (K1, K2)
     apart = built([weapons(K1, 0, 1), weapons(K4, 1, 3)])
-    assert [(arc.event_type, arc.open) for arc in apart] == [(NUCLEAR_ARMAMENT, False), (NUCLEAR_BUILDUP, True)]
+    assert [(arc.event_type, arc.open) for arc in apart] == [
+        (NUCLEAR_ARMAMENT.event_type, False),
+        (NUCLEAR_BUILDUP.event_type, True),
+    ]
 
 
 def test_a_disarmament_halves_the_arsenal_and_to_zero_from_ten_is_campaign_defining() -> None:
     (halved,) = built([weapons(K1, 8, 4)])
-    assert halved.event_type == NUCLEAR_DISARMAMENT and halved.significance is Significance.MAJOR
+    assert halved.event_type == NUCLEAR_DISARMAMENT.event_type and halved.significance is Significance.MAJOR
     assert describe_event(halved) == (
         "Northland (nation:20) dismantled its nuclear arsenal: 8.0 -> 4.0 nuclear weapons"
     )
@@ -114,4 +117,4 @@ def test_weapons_moving_in_a_merger_are_the_mergers_not_an_arc() -> None:
     merger = unification(K1, NORTH, SOUTH, not_before=K0)
     assert built([merger, absorbed, gained]) == []
     later = [event.event_type for event in built([merger, weapons(K2, 4, 0, SOUTH)])]
-    assert later == [NUCLEAR_DISARMAMENT]  # the merger's interval only
+    assert later == [NUCLEAR_DISARMAMENT.event_type]  # the merger's interval only

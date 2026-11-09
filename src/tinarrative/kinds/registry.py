@@ -7,9 +7,19 @@ from types import MappingProxyType
 
 from ..model.kinds import EventKind
 from ..model.values import Observed
-from . import aliens
+from . import aliens, campaign, control, military, nations, space, technology, wars
 
 FAMILIES: tuple[tuple[EventKind, ...], ...] = (aliens.KINDS,)
+NARRATIVE_FAMILIES: tuple[tuple[EventKind, ...], ...] = (
+    campaign.NARRATIVE_KINDS,
+    control.NARRATIVE_KINDS,
+    military.NARRATIVE_KINDS,
+    nations.NARRATIVE_KINDS,
+    space.NARRATIVE_KINDS,
+    technology.NARRATIVE_KINDS,
+    wars.NARRATIVE_KINDS,
+)
+"""The narrative-event kinds of each family module, whose level a rule sets."""
 
 
 def _registry(families: Iterable[Iterable[EventKind]]) -> Mapping[str, EventKind]:
@@ -22,7 +32,7 @@ def _registry(families: Iterable[Iterable[EventKind]]) -> Mapping[str, EventKind
     return MappingProxyType(kinds)
 
 
-KINDS: Mapping[str, EventKind] = _registry(FAMILIES)
+KINDS: Mapping[str, EventKind] = _registry([*FAMILIES, *NARRATIVE_FAMILIES])
 
 
 def attributes(

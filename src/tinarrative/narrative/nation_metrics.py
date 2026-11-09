@@ -14,19 +14,33 @@ from ..analyzers.politics.nation_metrics import STATISTIC_SHIFTED
 from ..analyzers.politics.nation_population import DROP, POPULATION_CHANGED
 from ..analyzers.politics.nations import NUCLEAR_PROGRAM_CHANGED
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..kinds.control import TAKEOVER
+from ..kinds.nations import (
+    BREAKAWAY,
+    CESSION,
+    COHESION_SHIFT,
+    ECONOMIC_TRAJECTORY,
+    EDUCATION_SHIFT,
+    EXPANSION,
+    GOVERNMENT_SHIFT,
+    INEQUALITY_SHIFT,
+    MERGER,
+    MILTECH_SHIFT,
+    NUCLEAR_ARMAMENT,
+    NUCLEAR_BUILDUP,
+    NUCLEAR_DISARMAMENT,
+    POPULATION_COLLAPSE,
+    RELEASE,
+    UNREST_SHIFT,
+)
+from ..kinds.wars import WAR_ARC
 from ..model.entities import EntityId
 from ..model.events import Event, Role, Significance
+from ..model.kinds import EventKind
 from ..model.values import FrozenMap, Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
 from .geopolitics import (
-    BREAKAWAY,
-    CESSION,
-    EXPANSION,
-    MERGER,
-    RELEASE,
-    TAKEOVER,
-    WAR_ARC,
     MergerParties,
     bounded_shifts,
     gdp_rank,
@@ -52,13 +66,8 @@ from .situation import SituationReport
 from .stream import EventStream
 
 BAND_CROSSED = "nation.band_crossed"
-POPULATION_COLLAPSE = "nation.population_collapse"
-ECONOMIC_TRAJECTORY = "nation.economic_trajectory"
 NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
 NUCLEAR_ARC = "nation.nuclear_arc"
-NUCLEAR_ARMAMENT = "nation.nuclear_armament"
-NUCLEAR_BUILDUP = "nation.nuclear_buildup"
-NUCLEAR_DISARMAMENT = "nation.nuclear_disarmament"
 NUCLEAR_WEAPONS = "numNuclearWeapons"
 NUCLEAR_SHARE = 0.5
 """A buildup gains, and a disarmament loses, at least this share of the arsenal it started from."""
@@ -66,16 +75,16 @@ LARGE_ARSENAL = 10
 """Dismantling an arsenal at least this large to zero is campaign defining."""
 TREND_WINDOW_DAYS = round(TREND_QUARTERS * MONTHS_PER_QUARTER * 365.25 / 12)
 
-BAND_SHIFTS: Mapping[str, str] = {
-    "unrest": "nation.unrest_shift",
-    "democracy": "nation.government_shift",
-    "education": "nation.education_shift",
-    "cohesion": "nation.cohesion_shift",
-    "inequality": "nation.inequality_shift",
-    "militaryTechLevel": "nation.miltech_shift",
+BAND_SHIFTS: Mapping[str, EventKind] = {
+    "unrest": UNREST_SHIFT,
+    "democracy": GOVERNMENT_SHIFT,
+    "education": EDUCATION_SHIFT,
+    "cohesion": COHESION_SHIFT,
+    "inequality": INEQUALITY_SHIFT,
+    "militaryTechLevel": MILTECH_SHIFT,
 }
 
-SHIFT_EXPLAINERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY})
+SHIFT_EXPLAINERS = frozenset(kind.event_type for kind in (TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY))
 """Their metric shifts explain the affected nations' band changes."""
 REST_VALUE_FILTERED = frozenset({"unrest", "cohesion"})
 """The game converges these towards a rest value; a crossing that drift alone explains is not a story."""
@@ -116,11 +125,13 @@ class BandShiftRule:
 
     @property
     def explains(self) -> frozenset[str]:
-        return SHIFT_EXPLAINERS | (frozenset({WAR_ARC}) if self.statistic in {"unrest", "cohesion"} else frozenset())
+        return SHIFT_EXPLAINERS | (
+            frozenset({WAR_ARC.event_type}) if self.statistic in {"unrest", "cohesion"} else frozenset()
+        )
 
     @property
     def name(self) -> str:
-        return BAND_SHIFTS[self.statistic]
+        return BAND_SHIFTS[self.statistic].event_type
 
     @property
     def emitted_types(self) -> frozenset[str]:
@@ -162,7 +173,7 @@ class BandShiftRule:
             shifts = metric_shifts(stream, [nation.entity_id], [interval_of(crossing.id)])
             built.append(
                 build.event(
-                    self.name,
+                    BAND_SHIFTS[self.statistic],
                     id_parts=[nation.entity_id],
                     constituents=[crossing],
                     roles=roles,
@@ -242,8 +253,8 @@ class PopulationCollapseRule:
     """``nation.population_collapse``: a nation's population fell beyond what territory explains, in one interval."""
 
     settings: GeopoliticsSettings
-    name: str = POPULATION_COLLAPSE
-    emitted_types: frozenset[str] = frozenset({POPULATION_COLLAPSE})
+    name: str = POPULATION_COLLAPSE.event_type
+    emitted_types: frozenset[str] = frozenset({POPULATION_COLLAPSE.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0
@@ -297,8 +308,8 @@ class EconomicTrajectoryRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = ECONOMIC_TRAJECTORY
-    emitted_types: frozenset[str] = frozenset({ECONOMIC_TRAJECTORY})
+    name: str = ECONOMIC_TRAJECTORY.event_type
+    emitted_types: frozenset[str] = frozenset({ECONOMIC_TRAJECTORY.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = TREND_WINDOW_DAYS
@@ -378,7 +389,9 @@ class NuclearArcRule:
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
     name: str = NUCLEAR_ARC
-    emitted_types: frozenset[str] = frozenset({NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT})
+    emitted_types: frozenset[str] = frozenset(
+        {NUCLEAR_ARMAMENT.event_type, NUCLEAR_BUILDUP.event_type, NUCLEAR_DISARMAMENT.event_type}
+    )
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -411,7 +424,7 @@ class NuclearArcRule:
                 report = pair[1]
                 corroborating: list[Event] = []
                 if start == 0 < end:
-                    event_type = NUCLEAR_ARMAMENT
+                    event_type = NUCLEAR_ARMAMENT.event_type
                     rank = gdp_rank(report, nation_id)
                     top = rank is not None and rank <= self.geopolitics.top_gdp_nations
                     level = Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR
@@ -422,9 +435,9 @@ class NuclearArcRule:
                 elif 0 < start < end and (
                     end - start >= self.settings.nuclear_buildup_min or end - start >= NUCLEAR_SHARE * start
                 ):
-                    event_type, level = NUCLEAR_BUILDUP, Significance.MAJOR
+                    event_type, level = NUCLEAR_BUILDUP.event_type, Significance.MAJOR
                 elif start > end and start - end >= NUCLEAR_SHARE * start:
-                    event_type = NUCLEAR_DISARMAMENT
+                    event_type = NUCLEAR_DISARMAMENT.event_type
                     dismantled = end == 0 and start >= LARGE_ARSENAL
                     level = Significance.CAMPAIGN_DEFINING if dismantled else Significance.MAJOR
                 else:

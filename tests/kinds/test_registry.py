@@ -11,7 +11,7 @@ from tests.fixtures import FIXTURES_ROOT
 from tinarrative.analyzers.common import EventBuilder
 from tinarrative.kinds import KINDS, attributes, known_event_types
 from tinarrative.kinds.describe import NOTIFICATION_PREFIX
-from tinarrative.kinds.registry import FAMILIES
+from tinarrative.kinds.registry import FAMILIES, NARRATIVE_FAMILIES
 from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
@@ -29,14 +29,20 @@ KIND = EventKind(
 
 
 def test_every_declared_kind_has_exactly_one_entry() -> None:
-    declared = Counter(kind.event_type for family in FAMILIES for kind in family)
+    declared = Counter(kind.event_type for family in (*FAMILIES, *NARRATIVE_FAMILIES) for kind in family)
     assert declared and all(count == 1 for count in declared.values()), declared.most_common(3)
     assert set(KINDS) == set(declared)
-    assert all(KINDS[kind.event_type] is kind for family in FAMILIES for kind in family)
+    assert all(KINDS[kind.event_type] is kind for family in (*FAMILIES, *NARRATIVE_FAMILIES) for kind in family)
 
 
 def test_every_atomic_kind_declares_a_base_level() -> None:
-    assert all(kind.base is not None for kind in KINDS.values())
+    assert all(kind.base is not None for family in FAMILIES for kind in family)
+
+
+def test_every_narrative_kind_leaves_its_level_to_its_rule_and_digests_only_the_takeover_wave() -> None:
+    narrative = [kind for family in NARRATIVE_FAMILIES for kind in family]
+    assert narrative and all(kind.base is None and kind.rule is None and kind.stake is None for kind in narrative)
+    assert [kind.event_type for kind in narrative if kind.digests_members] == ["faction.takeover_wave"]
 
 
 def test_the_constructor_keeps_required_and_optional_attributes_in_order() -> None:

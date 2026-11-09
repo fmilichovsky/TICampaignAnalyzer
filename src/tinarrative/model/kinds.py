@@ -70,8 +70,12 @@ class EventKind:
     optional: frozenset[str] = frozenset()
     rule: Rule | None = None
     stake: Stake | None = None
+    digests_members: bool = False
+    """Whether the narrative events it groups are its members, told only inside it unless another event cites them."""
 
     def __post_init__(self) -> None:
         shared = self.required & self.optional
         if shared:
             raise ValueError(f"kind {self.event_type}: {sorted(shared)} are both required and optional")
+        if self.digests_members and self.base is not None:
+            raise ValueError(f"kind {self.event_type}: only a narrative-event kind digests members")

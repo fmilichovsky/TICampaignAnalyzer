@@ -2,7 +2,8 @@
 
 With a narrative, an atomic event is listed only as a transitive constituent of a listed narrative event (filtered
 by the ``constituents`` mode). A lower-order narrative event that a listed one cites is listed whatever its
-significance, so every cited narrative ID resolves; a member of a listed ``MEMBER_DIGESTS`` event is listed as a digest.
+significance, so every cited narrative ID resolves; a member of a listed event whose kind digests
+its members is listed as a digest.
 """
 
 from __future__ import annotations
@@ -12,9 +13,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Literal
 
+from ..kinds import KINDS
 from ..model.events import Event, Significance
 from ..narrative.evidence import is_evidence
-from ..narrative.geopolitics import TAKEOVER_WAVE
 from ..sequence import IntervalResult, event_stream
 
 Constituents = Literal["all", "evidence", "none"]
@@ -23,10 +24,6 @@ CONSTITUENTS: Final[tuple[Constituents, ...]] = ("all", "evidence", "none")
 WITHHELD: Final = "omitted with --constituents none"
 NOT_CITED: Final = "omitted: not cited by a listed narrative event"
 NOT_EVIDENCE: Final = "omitted: not narrator evidence"
-
-MEMBER_DIGESTS: Final[frozenset[str]] = frozenset({TAKEOVER_WAVE})
-"""narrative events that tell their narrative members together: a member only they cite is listed as a digest, whatever
-its own significance, and its own constituents are not reached through it."""
 
 
 @dataclass(frozen=True)
@@ -111,12 +108,19 @@ def listing(
     )
 
 
+def _digests_members(event: Event) -> bool:
+    """A member only a digesting event cites is listed as a digest, whatever its own significance, and its own
+    constituents are not reached through it."""
+    kind = KINDS.get(event.event_type)
+    return kind is not None and kind.digests_members
+
+
 def _split(narrative: Sequence[Event], roots: set[str], *, follow: bool) -> tuple[set[str], dict[str, str]]:
     """The narrative events listed in full, and those listed as digests with the narrative event citing them.
 
     An event is decided after every event citing it (citations only reach earlier layers, so this terminates): in full
     when a full non-digesting event cites it and it is a root or ``follow`` holds, else a digest when a full
-    ``MEMBER_DIGESTS`` event cites it, else in full when it is a root.
+    digesting event cites it, else in full when it is a root.
     """
     by_id = {event.id: event for event in narrative}
     citers: dict[str, list[Event]] = defaultdict(list)
@@ -135,7 +139,7 @@ def _split(narrative: Sequence[Event], roots: set[str], *, follow: bool) -> tupl
         for citer in citers[identifier]:
             decide(citer.id)
         listing_citers = [citer for citer in citers[identifier] if citer.id in full]
-        waves = [citer for citer in listing_citers if citer.event_type in MEMBER_DIGESTS]
+        waves = [citer for citer in listing_citers if _digests_members(citer)]
         if len(waves) < len(listing_citers) and (follow or identifier in roots):
             full.add(identifier)
         elif waves:

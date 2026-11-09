@@ -5,11 +5,11 @@ from __future__ import annotations
 from tests.narrative.support import atomic, faction, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import DIPLOMATIC_REALIGNMENT
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance
 from tinarrative.model.values import Observed
 from tinarrative.narrative import aggregate, narrative_rules
-from tinarrative.narrative.diplomacy import REALIGNMENT
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -61,7 +61,7 @@ def reports(gdp: Observed = 1.0, *keys: str) -> list[SituationReport]:
 def built(stream: list[Event], situations: list[SituationReport] | None = None, **settings: object) -> list[Event]:
     narrative = NarrativeSettings(geopolitics=GeopoliticsSettings(top_gdp_nations=1, **settings))  # type: ignore[arg-type]
     events = aggregate(stream, reports() if situations is None else situations, narrative_rules(narrative))
-    return [event for event in events if event.event_type == REALIGNMENT]
+    return [event for event in events if event.event_type == DIPLOMATIC_REALIGNMENT.event_type]
 
 
 def three_partners(key: str = K1) -> list[Event]:
@@ -73,7 +73,7 @@ def test_three_partners_in_one_interval_are_one_objective_realignment() -> None:
 
     [item] = built(stream)
 
-    assert item.id == f"{REALIGNMENT}/nation:20@{K1}"
+    assert item.id == f"{DIPLOMATIC_REALIGNMENT.event_type}/nation:20@{K1}"
     assert item.constituents == tuple(sorted(event.id for event in stream))
     assert [(role, ref.entity_id.key) for role, ref in item.roles] == [
         (Role.ACTOR, "20"),

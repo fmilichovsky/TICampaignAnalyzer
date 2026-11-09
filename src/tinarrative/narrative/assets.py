@@ -25,6 +25,8 @@ from ..analyzers.politics.nation_space import (
     SPACE_DEFENCES_STATISTIC,
 )
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..kinds.military import DEMOBILIZATION, MILITARY_BUILDUP, NAVY_ESTABLISHED
+from ..kinds.nations import RANKING_CHANGED, SPACE_DEFENCES_ESTABLISHED, SPACE_PROGRAM_GROWTH
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.values import FrozenMap, Observed
@@ -36,12 +38,6 @@ from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chai
 from .situation import NationSituation, SituationReport
 from .stream import EventStream
 
-MILITARY_BUILDUP = "nation.military_buildup"
-DEMOBILIZATION = "nation.demobilization"
-NAVY_ESTABLISHED = "nation.navy_established"
-SPACE_PROGRAM_GROWTH = "nation.space_program_growth"
-SPACE_DEFENCES_ESTABLISHED = "nation.space_defences_established"
-RANKING_CHANGED = "world.ranking_changed"
 BUILDUP_WINDOW_DAYS = 365
 SPACE_METRICS = ((BOOST_STATISTIC, BOOST_METRIC), (MISSION_CONTROL_STATISTIC, MISSION_CONTROL_METRIC))
 
@@ -134,8 +130,8 @@ class MilitaryBuildupRule:
 
     settings: NationMetricsSettings
     geopolitics: GeopoliticsSettings
-    name: str = MILITARY_BUILDUP
-    emitted_types: frozenset[str] = frozenset({MILITARY_BUILDUP, DEMOBILIZATION})
+    name: str = MILITARY_BUILDUP.event_type
+    emitted_types: frozenset[str] = frozenset({MILITARY_BUILDUP.event_type, DEMOBILIZATION.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = BUILDUP_WINDOW_DAYS
@@ -168,7 +164,7 @@ class MilitaryBuildupRule:
                 level = _promoted(Significance.MAJOR, last[1], nation_id, self.geopolitics.top_gdp_nations)
                 built.append(
                     build.event(
-                        MILITARY_BUILDUP if after > before else DEMOBILIZATION,
+                        MILITARY_BUILDUP.event_type if after > before else DEMOBILIZATION.event_type,
                         id_parts=[nation_id],
                         constituents=run,
                         roles=[(Role.ACTOR, nation)],
@@ -191,8 +187,8 @@ class NavyEstablishedRule:
     """``nation.navy_established``: a nation without a naval army has one in the next report."""
 
     geopolitics: GeopoliticsSettings
-    name: str = NAVY_ESTABLISHED
-    emitted_types: frozenset[str] = frozenset({NAVY_ESTABLISHED})
+    name: str = NAVY_ESTABLISHED.event_type
+    emitted_types: frozenset[str] = frozenset({NAVY_ESTABLISHED.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0
@@ -239,8 +235,8 @@ class SpaceProgramGrowthRule:
     """``nation.space_program_growth``: a nation's boost or mission control grew, once or in a chain."""
 
     settings: NationMetricsSettings
-    name: str = SPACE_PROGRAM_GROWTH
-    emitted_types: frozenset[str] = frozenset({SPACE_PROGRAM_GROWTH})
+    name: str = SPACE_PROGRAM_GROWTH.event_type
+    emitted_types: frozenset[str] = frozenset({SPACE_PROGRAM_GROWTH.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -320,8 +316,8 @@ def _territory_share(moves: Sequence[Event]) -> float | None:
 class SpaceDefencesEstablishedRule:
     """``nation.space_defences_established``: a nation's first regions with space defences or STO fighters."""
 
-    name: str = SPACE_DEFENCES_ESTABLISHED
-    emitted_types: frozenset[str] = frozenset({SPACE_DEFENCES_ESTABLISHED})
+    name: str = SPACE_DEFENCES_ESTABLISHED.event_type
+    emitted_types: frozenset[str] = frozenset({SPACE_DEFENCES_ESTABLISHED.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0
@@ -370,8 +366,8 @@ class RankingRule:
     """
 
     settings: NationMetricsSettings
-    name: str = RANKING_CHANGED
-    emitted_types: frozenset[str] = frozenset({RANKING_CHANGED})
+    name: str = RANKING_CHANGED.event_type
+    emitted_types: frozenset[str] = frozenset({RANKING_CHANGED.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0

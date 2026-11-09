@@ -7,18 +7,13 @@ from collections.abc import Sequence
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.military import DEMOBILIZATION, MILITARY_BUILDUP, NAVY_ESTABLISHED
+from tinarrative.kinds.nations import RANKING_CHANGED, SPACE_DEFENCES_ESTABLISHED, SPACE_PROGRAM_GROWTH
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Role, Significance
+from tinarrative.model.kinds import EventKind
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
-from tinarrative.narrative.assets import (
-    DEMOBILIZATION,
-    MILITARY_BUILDUP,
-    NAVY_ESTABLISHED,
-    RANKING_CHANGED,
-    SPACE_DEFENCES_ESTABLISHED,
-    SPACE_PROGRAM_GROWTH,
-)
 from tinarrative.narrative.situation import NationSituation, SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -88,14 +83,20 @@ def reports(*north: dict[str, Observed], south: Sequence[dict[str, Observed]] = 
     ]
 
 
-def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:
+def built(
+    stream: Sequence[Event], situations: Sequence[SituationReport], kind: EventKind, **settings: object
+) -> list[Event]:
     geopolitics = {key: value for key, value in settings.items() if key == "top_gdp_nations"}
     metrics = {key: value for key, value in settings.items() if key != "top_gdp_nations"}
     narrative = NarrativeSettings(
         geopolitics=GeopoliticsSettings(**geopolitics),  # type: ignore[arg-type]
         nation_metrics=NationMetricsSettings(**metrics),  # type: ignore[arg-type]
     )
-    return [event for event in aggregate(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
+    return [
+        event
+        for event in aggregate(stream, situations, narrative_rules(narrative))
+        if event.event_type == kind.event_type
+    ]
 
 
 def test_standard_armies_growing_by_the_minimum_over_chained_appearances_are_a_buildup() -> None:

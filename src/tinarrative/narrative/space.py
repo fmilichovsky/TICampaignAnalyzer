@@ -9,6 +9,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from ..config import SpaceSettings
+from ..kinds.campaign import FIRST_MILESTONE
+from ..kinds.space import COLONISATION_WAVE, FLEET_BUILDUP, SPACE_CAMPAIGN
+from ..kinds.technology import TECHNOLOGY_MILESTONE
 from ..model.entities import EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FrozenMap
@@ -33,12 +36,6 @@ from .rulekit import (
 )
 from .situation import SituationReport
 from .stream import EventStream
-
-SPACE_CAMPAIGN = "faction.space_campaign"
-COLONISATION_WAVE = "faction.colonisation_wave"
-FIRST_MILESTONE = "campaign.first_milestone"
-FLEET_BUILDUP = "faction.fleet_buildup"
-TECHNOLOGY_MILESTONE = "technology.milestone"
 
 BATTLE_OUTCOME = "faction.battle_outcome"
 HAB_DESTROYED = "hab.destroyed"
@@ -91,8 +88,8 @@ class SpaceCampaignRule:
     """
 
     settings: SpaceSettings
-    name: str = SPACE_CAMPAIGN
-    emitted_types: frozenset[str] = frozenset({SPACE_CAMPAIGN})
+    name: str = SPACE_CAMPAIGN.event_type
+    emitted_types: frozenset[str] = frozenset({SPACE_CAMPAIGN.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -216,8 +213,8 @@ class ColonisationWaveRule:
     """``faction.colonisation_wave``: a faction reached two or more new bodies close together."""
 
     settings: SpaceSettings
-    name: str = COLONISATION_WAVE
-    emitted_types: frozenset[str] = frozenset({COLONISATION_WAVE})
+    name: str = COLONISATION_WAVE.event_type
+    emitted_types: frozenset[str] = frozenset({COLONISATION_WAVE.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -272,8 +269,8 @@ class FirstMilestoneRule:
     """``campaign.first_milestone``: a campaign-wide first, dated by the ledger when that is unambiguous."""
 
     settings: SpaceSettings
-    name: str = FIRST_MILESTONE
-    emitted_types: frozenset[str] = frozenset({FIRST_MILESTONE})
+    name: str = FIRST_MILESTONE.event_type
+    emitted_types: frozenset[str] = frozenset({FIRST_MILESTONE.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -314,8 +311,8 @@ class FleetBuildupRule:
     """``faction.fleet_buildup``: a faction put several ships of one hull into service in one interval."""
 
     settings: SpaceSettings
-    name: str = FLEET_BUILDUP
-    emitted_types: frozenset[str] = frozenset({FLEET_BUILDUP})
+    name: str = FLEET_BUILDUP.event_type
+    emitted_types: frozenset[str] = frozenset({FLEET_BUILDUP.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -367,8 +364,8 @@ class TechnologyMilestoneRule:
     """
 
     settings: SpaceSettings
-    name: str = TECHNOLOGY_MILESTONE
-    emitted_types: frozenset[str] = frozenset({TECHNOLOGY_MILESTONE})
+    name: str = TECHNOLOGY_MILESTONE.event_type
+    emitted_types: frozenset[str] = frozenset({TECHNOLOGY_MILESTONE.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 

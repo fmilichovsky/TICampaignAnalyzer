@@ -15,6 +15,7 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Protocol
 
 from ..analyzers.common import event_id
+from ..kinds import attributes as kind_attributes
 from ..log import TIMING_LOGGER, fields, get_logger
 from ..model.entities import EntityRef
 from ..model.events import (
@@ -25,6 +26,7 @@ from ..model.events import (
     Role,
     Significance,
 )
+from ..model.kinds import EventKind
 from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
@@ -144,7 +146,7 @@ class NarrativeBuilder:
 
     def event(
         self,
-        event_type: str,
+        event_type: EventKind | str,
         *,
         id_parts: Sequence[object],
         constituents: Sequence[Event],
@@ -166,7 +168,12 @@ class NarrativeBuilder:
 
         A rule that overrides ``confidence``, ``open`` or ``starts_on`` documents why. ``corroborating`` events date
         only a start: they precede the effect they corroborate.
+
+        A kind's attributes are checked by its constructor; a bare type string is not yet migrated to a kind.
         """
+        if isinstance(event_type, EventKind):
+            attributes = kind_attributes(event_type, attributes)
+            event_type = event_type.event_type
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
         cited = [*constituents, *(event for event in corroborating if event not in constituents)]

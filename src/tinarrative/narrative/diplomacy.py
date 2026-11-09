@@ -9,11 +9,13 @@ from dataclasses import dataclass
 
 from ..analyzers.politics.nations import RELATION_CHANGED
 from ..config import GeopoliticsSettings
+from ..kinds.control import TAKEOVER
+from ..kinds.nations import DIPLOMATIC_REALIGNMENT
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.values import Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
-from .geopolitics import TAKEOVER, MergerParties, bounded_shifts, gdp_rank, metric_shifts, strength_rank
+from .geopolitics import MergerParties, bounded_shifts, gdp_rank, metric_shifts, strength_rank
 from .rulekit import (
     by_type,
     chained,
@@ -31,7 +33,6 @@ from .rulekit import (
 from .situation import SituationReport
 from .stream import EventStream
 
-REALIGNMENT = "nation.diplomatic_realignment"
 DIPLOMATIC_RELATIONS = ("allies", "rivals")
 """The ``relation`` values the rule reads; ``wars`` is war evidence and belongs to the war arc."""
 ADDED = "added"
@@ -49,9 +50,9 @@ class DiplomaticRealignmentRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = REALIGNMENT
-    emitted_types: frozenset[str] = frozenset({REALIGNMENT})
-    reads: frozenset[str] = frozenset({TAKEOVER})
+    name: str = DIPLOMATIC_REALIGNMENT.event_type
+    emitted_types: frozenset[str] = frozenset({DIPLOMATIC_REALIGNMENT.event_type})
+    reads: frozenset[str] = frozenset({TAKEOVER.event_type})
     explains: frozenset[str] = frozenset()
 
     @property
@@ -71,7 +72,7 @@ class DiplomaticRealignmentRule:
                 continue
             for ref in pair:
                 by_nation[ref.entity_id].append(event)
-        takeovers = by_type(stream, TAKEOVER)
+        takeovers = by_type(stream, TAKEOVER.event_type)
         last = last_date(situations)
         built = []
         for nation_id in sorted_keys(by_nation):
@@ -95,7 +96,7 @@ class DiplomaticRealignmentRule:
                 shifts = metric_shifts(stream, [nation_id], intervals_of(run))
                 built.append(
                     build.event(
-                        REALIGNMENT,
+                        DIPLOMATIC_REALIGNMENT,
                         id_parts=[nation_id],
                         constituents=run,
                         corroborating=context,

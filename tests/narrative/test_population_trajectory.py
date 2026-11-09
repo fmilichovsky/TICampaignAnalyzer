@@ -7,10 +7,11 @@ from collections.abc import Sequence
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.model.events import DateBasis, Event, Significance
+from tinarrative.model.kinds import EventKind
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
-from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -80,9 +81,15 @@ def reports(gdp: Observed = 1.0) -> list[SituationReport]:
     return [situation(key, nations=[nation_row(NORTH, gdp=gdp), nation_row(SOUTH, gdp=100.0)]) for key in (K0, K1, K2)]
 
 
-def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:
+def built(
+    stream: Sequence[Event], situations: Sequence[SituationReport], kind: EventKind, **settings: object
+) -> list[Event]:
     narrative = NarrativeSettings(geopolitics=GeopoliticsSettings(**settings))  # type: ignore[arg-type]
-    return [event for event in aggregate(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
+    return [
+        event
+        for event in aggregate(stream, situations, narrative_rules(narrative))
+        if event.event_type == kind.event_type
+    ]
 
 
 def test_a_population_drop_is_a_major_collapse_and_growth_is_none() -> None:
@@ -108,7 +115,7 @@ def test_a_collapse_with_a_detonation_or_a_nuclear_strike_is_campaign_defining()
 def test_trends_of_one_direction_chain_into_one_trajectory_spanning_the_first_window() -> None:
     first, second = trend(K1, 22, "boom", 100.0, 160.0), trend(K2, 30, "boom", 120.0, 190.0)
     (trajectory,) = built([first, second], reports(), ECONOMIC_TRAJECTORY, top_gdp_nations=1)
-    assert trajectory.id == f"{ECONOMIC_TRAJECTORY}/nation:20/22@{K1}"
+    assert trajectory.id == f"{ECONOMIC_TRAJECTORY.event_type}/nation:20/22@{K1}"
     assert (trajectory.start, trajectory.start_basis) == ("2026-07-01T00:00:00", DateBasis.RECORD)
     assert (trajectory.end, trajectory.end_basis) == ("2033-07-01T00:00:00", DateBasis.RECORD)
     assert dict(trajectory.attributes) == {

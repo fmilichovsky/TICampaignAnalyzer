@@ -73,7 +73,7 @@ def built(stream: Sequence[Event], situations: Sequence[SituationReport], **sett
         nation_metrics=NationMetricsSettings(**{k: v for k, v in settings.items() if k == "band_hold_days"}),  # type: ignore[arg-type]
     )
     events = aggregate(stream, situations, narrative_rules(narrative))
-    return [event for event in events if event.event_type in BAND_SHIFTS.values()]
+    return [event for event in events if event.event_type in {kind.event_type for kind in BAND_SHIFTS.values()}]
 
 
 def test_a_held_unrest_crossing_is_a_shift_named_by_the_game_bands() -> None:

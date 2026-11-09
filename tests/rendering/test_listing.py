@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from tinarrative.kinds.control import TAKEOVER, TAKEOVER_WAVE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
-from tinarrative.narrative.geopolitics import TAKEOVER, TAKEOVER_WAVE
 from tinarrative.rendering.listing import listing
 from tinarrative.sequence import IntervalResult, SaveRef
 
@@ -119,9 +119,9 @@ def test_without_narrative_atomic_events_are_filtered_by_significance() -> None:
     assert not listing([INTERVAL], None, minimum=Significance.TRIVIAL).filters
 
 
-FIRST = _narrative("t-1", Significance.MAJOR, ("i-1",), TAKEOVER)
-SECOND = _narrative("t-2", Significance.MAJOR, ("o-2",), TAKEOVER)
-WAVE = _narrative("w-1", Significance.MAJOR, ("t-1", "t-2"), TAKEOVER_WAVE)
+FIRST = _narrative("t-1", Significance.MAJOR, ("i-1",), TAKEOVER.event_type)
+SECOND = _narrative("t-2", Significance.MAJOR, ("o-2",), TAKEOVER.event_type)
+WAVE = _narrative("w-1", Significance.MAJOR, ("t-1", "t-2"), TAKEOVER_WAVE.event_type)
 
 
 def test_a_wave_member_is_a_digest_even_at_its_own_level_and_its_evidence_is_not_reached() -> None:
@@ -142,7 +142,7 @@ def test_a_member_another_listed_narrative_event_cites_is_listed_in_full() -> No
 
 
 def test_without_the_wave_listed_its_members_are_listed_in_full() -> None:
-    minor_wave = _narrative("w-1", Significance.MINOR, ("t-1", "t-2"), TAKEOVER_WAVE)
+    minor_wave = _narrative("w-1", Significance.MINOR, ("t-1", "t-2"), TAKEOVER_WAVE.event_type)
 
     chosen = listing([INTERVAL], [FIRST, SECOND, minor_wave], minimum=Significance.MAJOR, constituents="all")
 

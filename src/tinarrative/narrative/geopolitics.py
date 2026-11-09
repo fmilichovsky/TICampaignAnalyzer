@@ -22,6 +22,9 @@ from ..analyzers.politics.nation_space import SPACE_ASSETS_CHANGED
 from ..analyzers.politics.nations import DISAPPEARED as NATION_DISAPPEARED
 from ..analyzers.politics.nations import RELATION_CHANGED, RENAMED
 from ..config import GeopoliticsSettings
+from ..kinds.control import TAKEOVER, TAKEOVER_WAVE
+from ..kinds.nations import BREAKAWAY, CESSION, CLAIMS_DECLARED, EXPANSION, MERGER, RELEASE
+from ..kinds.wars import FEDERATION_LIFECYCLE, WAR_ARC
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown
@@ -54,17 +57,6 @@ from .rulekit import (
 )
 from .situation import NationSituation, SituationReport, WarSituation
 from .stream import EventStream
-
-TAKEOVER = "faction.takeover"
-TAKEOVER_WAVE = "faction.takeover_wave"
-WAR_ARC = "war.arc"
-FEDERATION_LIFECYCLE = "federation.lifecycle"
-EXPANSION = "nation.expansion"
-CESSION = "nation.cession"
-MERGER = "nation.merger"
-RELEASE = "nation.release"
-BREAKAWAY = "nation.breakaway"
-CLAIMS_DECLARED = "nation.claims_declared"
 
 NATION_CONTROL = "faction.nation_control_changed"
 BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
@@ -317,8 +309,8 @@ class TakeoverRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = TAKEOVER
-    emitted_types: frozenset[str] = frozenset({TAKEOVER})
+    name: str = TAKEOVER.event_type
+    emitted_types: frozenset[str] = frozenset({TAKEOVER.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -530,9 +522,9 @@ class TakeoverWaveRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = TAKEOVER_WAVE
-    emitted_types: frozenset[str] = frozenset({TAKEOVER_WAVE})
-    reads: frozenset[str] = frozenset({TAKEOVER})
+    name: str = TAKEOVER_WAVE.event_type
+    emitted_types: frozenset[str] = frozenset({TAKEOVER_WAVE.event_type})
+    reads: frozenset[str] = frozenset({TAKEOVER.event_type})
     explains: frozenset[str] = frozenset()
 
     @property
@@ -542,7 +534,7 @@ class TakeoverWaveRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.takeover_wave_window_days
         by_actor: dict[EntityId, list[Event]] = defaultdict(list)
-        for takeover in by_type(stream, TAKEOVER):
+        for takeover in by_type(stream, TAKEOVER.event_type):
             actor, rank = _role(takeover, Role.ACTOR), takeover.attribute("gdp_rank")
             top = isinstance(rank, int) and rank <= self.settings.top_gdp_nations
             if actor is not None and not top:
@@ -595,8 +587,8 @@ class FederationLifecycleRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = FEDERATION_LIFECYCLE
-    emitted_types: frozenset[str] = frozenset({FEDERATION_LIFECYCLE})
+    name: str = FEDERATION_LIFECYCLE.event_type
+    emitted_types: frozenset[str] = frozenset({FEDERATION_LIFECYCLE.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = None
@@ -673,8 +665,8 @@ class CessionRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = CESSION
-    emitted_types: frozenset[str] = frozenset({CESSION})
+    name: str = CESSION.event_type
+    emitted_types: frozenset[str] = frozenset({CESSION.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0
@@ -744,8 +736,8 @@ class MergerRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = MERGER
-    emitted_types: frozenset[str] = frozenset({MERGER})
+    name: str = MERGER.event_type
+    emitted_types: frozenset[str] = frozenset({MERGER.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0
@@ -834,7 +826,7 @@ class IndependenceRule:
 
     settings: GeopoliticsSettings
     name: str = "nation.independence_arc"
-    emitted_types: frozenset[str] = frozenset({RELEASE, BREAKAWAY})
+    emitted_types: frozenset[str] = frozenset({RELEASE.event_type, BREAKAWAY.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
 
@@ -919,8 +911,8 @@ class ClaimsDeclaredRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = CLAIMS_DECLARED
-    emitted_types: frozenset[str] = frozenset({CLAIMS_DECLARED})
+    name: str = CLAIMS_DECLARED.event_type
+    emitted_types: frozenset[str] = frozenset({CLAIMS_DECLARED.event_type})
     reads: frozenset[str] = frozenset()
     explains: frozenset[str] = frozenset()
     window_days: int | None = 0
@@ -965,9 +957,9 @@ class ExpansionRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = EXPANSION
-    emitted_types: frozenset[str] = frozenset({EXPANSION})
-    reads: frozenset[str] = frozenset({CESSION, MERGER})
+    name: str = EXPANSION.event_type
+    emitted_types: frozenset[str] = frozenset({EXPANSION.event_type})
+    reads: frozenset[str] = frozenset({CESSION.event_type, MERGER.event_type})
     explains: frozenset[str] = frozenset()
 
     @property
@@ -976,7 +968,7 @@ class ExpansionRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         explained = _readings(stream)
-        nested = by_type(stream, CESSION, MERGER)
+        nested = by_type(stream, CESSION.event_type, MERGER.event_type)
         covered = {constituent for event in nested for constituent in event.constituents}
         gains: dict[EntityId, list[Event]] = defaultdict(list)
         for event in by_type(stream, ANNEXATION):
@@ -1031,11 +1023,11 @@ class ExpansionRule:
         constituents = [*run, *(event for event in territory if event not in run), *attached]
         regions = unique_refs(region for event in (*run, *territory) for region in refs_attribute(event, "regions"))
         kinds = {gain.event_type for gain in run}
-        readings = kinds & {MERGER, ANNEXATION}
+        readings = kinds & {MERGER.event_type, ANNEXATION}
         mode = None
         if readings:
             mode = (
-                ("unification" if readings == {MERGER} else "annexation")
+                ("unification" if readings == {MERGER.event_type} else "annexation")
                 if kinds == readings and len(readings) == 1
                 else "mixed"
             )
@@ -1060,17 +1052,17 @@ class ExpansionRule:
 
 
 def _gainer(gain: Event) -> EntityRef:
-    if gain.event_type == CESSION:
+    if gain.event_type == CESSION.event_type:
         return next(ref for role, ref in gain.roles if role is Role.BENEFICIARY)
     return gain.entities[0]
 
 
 def _losers(gain: Event) -> tuple[EntityRef, ...]:
-    if gain.event_type == MERGER:
+    if gain.event_type == MERGER.event_type:
         return refs_attribute(gain, "absorbed")
     if gain.event_type == ANNEXATION:
         return tuple(ref for ref in gain.entities[1:2] if ref.entity_id.domain is EntityDomain.NATION)
-    if gain.event_type == CESSION:
+    if gain.event_type == CESSION.event_type:
         return tuple(ref for role, ref in gain.roles if role is Role.ACTOR)
     return refs_attribute(gain, "counterparts")
 
@@ -1095,9 +1087,9 @@ class WarArcRule:
     """
 
     settings: GeopoliticsSettings
-    name: str = WAR_ARC
-    emitted_types: frozenset[str] = frozenset({WAR_ARC})
-    reads: frozenset[str] = frozenset({EXPANSION})
+    name: str = WAR_ARC.event_type
+    emitted_types: frozenset[str] = frozenset({WAR_ARC.event_type})
+    reads: frozenset[str] = frozenset({EXPANSION.event_type})
     explains: frozenset[str] = frozenset()
     window_days: int | None = None
 
@@ -1137,7 +1129,7 @@ class WarArcRule:
 
         expansions = [
             expansion
-            for expansion in by_type(stream, EXPANSION)
+            for expansion in by_type(stream, EXPANSION.event_type)
             if any(
                 belligerents(expansion.entities[0].entity_id, loser.entity_id, key)
                 for key in set(expansion.intervals) & set(keys)
