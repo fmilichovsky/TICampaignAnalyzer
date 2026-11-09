@@ -14,15 +14,15 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.space import FleetAnalyzer
-from tinarrative.analyzers.space.fleets import (
-    APPEARED,
-    DISAPPEARED,
-    DOCKED_LIST_CHANGED,
-    DOCKED_LOCATION_CHANGED,
-    FACTION_CHANGED,
-    IN_COMBAT_CHANGED,
-    ORBIT_CHANGED,
-    PARENT_FLEET_CHANGED,
+from tinarrative.kinds.space import (
+    FLEET_APPEARED,
+    FLEET_DISAPPEARED,
+    FLEET_DOCKED_LOCATION_CHANGED,
+    FLEET_FACTION_CHANGED,
+    FLEET_IN_COMBAT_CHANGED,
+    FLEET_ORBIT_CHANGED,
+    FLEET_PARENT_FLEET_CHANGED,
+    HAB_DOCKED_FLEETS_CHANGED,
 )
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
@@ -50,7 +50,10 @@ def test_faction_and_docking_changes_cite_the_mirroring_lists() -> None:
         state(HAB, "140", AFTER, dockedFleets=(fleet_ref("120"),)),
     )
     events = analyze(ANALYZER, before, after)
-    assert [event.event_type for event in events] == [FACTION_CHANGED, DOCKED_LOCATION_CHANGED]
+    assert [event.event_type for event in events] == [
+        FLEET_FACTION_CHANGED.event_type,
+        FLEET_DOCKED_LOCATION_CHANGED.event_type,
+    ]
     faction, docked = events
     assert [(s.role, str(s.change.entity_id), s.change.field) for s in faction.sources] == [
         (SourceRole.PRIMARY, "fleet:120", "faction"),
@@ -81,7 +84,11 @@ def test_orbit_parent_and_combat_are_literal_with_the_faction_as_context() -> No
         state(HAB, "60", AFTER),
     )
     events = analyze(ANALYZER, before, after)
-    assert [event.event_type for event in events] == [ORBIT_CHANGED, PARENT_FLEET_CHANGED, IN_COMBAT_CHANGED]
+    assert [event.event_type for event in events] == [
+        FLEET_ORBIT_CHANGED.event_type,
+        FLEET_PARENT_FLEET_CHANGED.event_type,
+        FLEET_IN_COMBAT_CHANGED.event_type,
+    ]
     orbit, parent, combat = events
     assert dict(orbit.attributes) == {"transition": "cleared", "before": named(ref(HAB, "60")), "after": None}
     assert [str(r.entity_id) for r in orbit.entities] == ["fleet:120", "faction:15", "space object:60"]
@@ -104,20 +111,20 @@ def test_presence_cites_the_faction_and_hab_lists_and_unexplained_members_are_le
         state(HAB, "140", AFTER, dockedFleets=(fleet_ref("122"), fleet_ref("121"))),
     )
     events = analyze(ANALYZER, before, after)
-    gone = only(events, DISAPPEARED)
+    gone = only(events, FLEET_DISAPPEARED.event_type)
     assert gone.attribute("side") == "before"
     assert [(s.role, str(s.change.entity_id)) for s in gone.sources] == [
         (SourceRole.PRIMARY, "fleet:121"),
         (SourceRole.CORROBORATING, "faction:15"),
     ]
-    new = only(events, APPEARED)
+    new = only(events, FLEET_APPEARED.event_type)
     assert [str(r.entity_id) for r in new.entities] == ["fleet:122", "faction:15", "space object:140"]
     assert [(s.role, s.change.field) for s in new.sources] == [
         (SourceRole.PRIMARY, None),
         (SourceRole.CORROBORATING, "fleets"),
         (SourceRole.CORROBORATING, "dockedFleets"),
     ]
-    leftover = only(events, DOCKED_LIST_CHANGED)
+    leftover = only(events, HAB_DOCKED_FLEETS_CHANGED.event_type)
     assert leftover.id == "hab.docked_fleets_changed/space object:140/fleet:121/added"
     assert len(events) == 3
 

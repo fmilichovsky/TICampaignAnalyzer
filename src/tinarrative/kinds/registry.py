@@ -7,9 +7,9 @@ from types import MappingProxyType
 
 from ..model.kinds import EventKind
 from ..model.values import Observed
-from . import aliens
+from . import aliens, space
 
-FAMILIES: tuple[tuple[EventKind, ...], ...] = (aliens.KINDS,)
+FAMILIES: tuple[tuple[EventKind, ...], ...] = (aliens.KINDS, space.KINDS)
 
 
 def _registry(families: Iterable[Iterable[EventKind]]) -> Mapping[str, EventKind]:

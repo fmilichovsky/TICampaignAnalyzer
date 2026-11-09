@@ -6,6 +6,18 @@ disappearance. ``dockedFleets`` belongs to the fleet analyzer.
 
 from __future__ import annotations
 
+from ...kinds.space import (
+    HAB_APPEARED,
+    HAB_CORE_COMPLETED_CHANGED,
+    HAB_DESTRUCTION_RECORDED,
+    HAB_DISAPPEARED,
+    HAB_FACTION_CHANGED,
+    HAB_IN_COMBAT_CHANGED,
+    HAB_TIER_CHANGED,
+    HAB_TYPE_CHANGED,
+    HAB_UNDER_ASSAULT_CHANGED,
+    HAB_UNDER_BOMBARDMENT_CHANGED,
+)
 from ...model.changes import ChangeIndex, ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -14,25 +26,14 @@ from ...model.snapshot import EntityState, SaveSnapshot
 from ...model.values import Observed
 from ..common import EventBuilder, Lookup, Side, is_unresolved, primary, value_transition_event
 
-FACTION_CHANGED = "hab.faction_changed"
-TYPE_CHANGED = "hab.type_changed"
-TIER_CHANGED = "hab.tier_changed"
-IN_COMBAT_CHANGED = "hab.in_combat_changed"
-UNDER_ASSAULT_CHANGED = "hab.under_assault_changed"
-UNDER_BOMBARDMENT_CHANGED = "hab.under_bombardment_changed"
-CORE_COMPLETED_CHANGED = "hab.core_completed_changed"
-APPEARED = "hab.appeared"
-DISAPPEARED = "hab.disappeared"
-DESTRUCTION_RECORDED = "faction.hab_destruction_recorded"
-
 VALUE_FIELDS = (
-    ("faction", FACTION_CHANGED),
-    ("habType", TYPE_CHANGED),
-    ("tier", TIER_CHANGED),
-    ("inCombat", IN_COMBAT_CHANGED),
-    ("underAssault", UNDER_ASSAULT_CHANGED),
-    ("underBombardment", UNDER_BOMBARDMENT_CHANGED),
-    ("anyCoreCompleted", CORE_COMPLETED_CHANGED),
+    ("faction", HAB_FACTION_CHANGED),
+    ("habType", HAB_TYPE_CHANGED),
+    ("tier", HAB_TIER_CHANGED),
+    ("inCombat", HAB_IN_COMBAT_CHANGED),
+    ("underAssault", HAB_UNDER_ASSAULT_CHANGED),
+    ("underBombardment", HAB_UNDER_BOMBARDMENT_CHANGED),
+    ("anyCoreCompleted", HAB_CORE_COMPLETED_CHANGED),
 )
 LOG_FIELD = "HabDestructionLog"
 
@@ -47,11 +48,11 @@ class HabAnalyzer:
         build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
-        for field_name, event_type in VALUE_FIELDS:
+        for field_name, kind in VALUE_FIELDS:
             for change in index.fields(EntityDomain.SPACE_OBJECT, field_name):
                 assert change.entity_id is not None
                 context = () if field_name == "faction" else (lookup.context_ref(change.entity_id, "faction"),)
-                event = value_transition_event(event_type, change, lookup, build, context=context)
+                event = value_transition_event(kind, change, lookup, build, context=context)
                 if event is not None:
                     events.append(event)
         for change in index.presence(EntityDomain.SPACE_OBJECT):
@@ -71,7 +72,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     if appeared:
         attributes.extend(_launch_attributes(lookup.state(hab_id, Side.AFTER)))
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        HAB_APPEARED if appeared else HAB_DISAPPEARED,
         id_parts=(hab_id,),
         sources=(primary(change),),
         entities=(lookup.ref(hab_id), lookup.ref_field(hab_id, "faction", side)),
@@ -157,7 +158,7 @@ def _destructions_recorded(
             attributes.append(("owner", owner))
         events.append(
             build.event(
-                DESTRUCTION_RECORDED,
+                HAB_DESTRUCTION_RECORDED,
                 id_parts=(faction_id, entry.index),
                 sources=(EventSource(change, SourceRole.PRIMARY, None, location),),
                 entities=(owner, lookup.resolve(entry.space_body), lookup.resolve(entry.destroyer), hab),

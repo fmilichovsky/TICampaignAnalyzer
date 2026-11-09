@@ -8,7 +8,14 @@ from dataclasses import replace
 
 from tests.narrative.support import atomic, faction, ref, situation
 from tinarrative.config import NarrativeSettings, SpaceSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.space import (
+    COMBAT_RECORDED,
+    FLEET_DISAPPEARED,
+    HAB_APPEARED,
+    HAB_DESTRUCTION_RECORDED,
+    SHIP_APPEARED,
+)
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -70,7 +77,15 @@ def combat(key: str, number: int, *sides: EntityRef) -> Event:
         f"faction.combat_recorded/{number}",
         key,
         sides,
-        [("sides", tuple((side, "") for side in sides))],
+        attributes(
+            COMBAT_RECORDED,
+            sides=tuple((side, "") for side in sides),
+            winner=None,
+            hab_faction=None,
+            attack_count=0,
+            surprising=False,
+            recorded_on=None,
+        ),
     )
 
 
@@ -84,8 +99,8 @@ def first_hab(key: str, body: EntityRef, owner: EntityRef = UNION, first: bool =
 
 
 def ship(key: str, number: int, hull: str | None = "Frigate", owner: EntityRef = UNION) -> Event:
-    attributes = [("side", "after")] + ([("hull", hull)] if hull else [])
-    return make(f"ship.appeared/ship:{number}", key, [ref(EntityDomain.SHIP, str(number)), FLEET, owner], attributes)
+    values = attributes(SHIP_APPEARED, side="after", **({"hull": hull} if hull else {}))
+    return make(f"ship.appeared/ship:{number}", key, [ref(EntityDomain.SHIP, str(number)), FLEET, owner], values)
 
 
 def charge(key: str, holder: EntityRef, label: str, date: str) -> Event:
@@ -123,7 +138,7 @@ def test_outcomes_of_one_pair_form_a_campaign_with_summed_counts() -> None:
         [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION],
         [("body", LUNA), ("ambiguous", False)],
     )
-    lost_fleet = make("fleet.disappeared/fleet:50", K1, [FLEET, ALIENS], [("side", "before")])
+    lost_fleet = make("fleet.disappeared/fleet:50", K1, [FLEET, ALIENS], attributes(FLEET_DISAPPEARED, side="before"))
     stream = [outcome(K1, habs_lost=1), outcome(K2, habs_lost=2, fleets_lost=0), habs, lost_fleet]
 
     [campaign] = of_type(built(stream), "faction.space_campaign")
@@ -155,7 +170,13 @@ def test_bodies_include_habs_known_only_through_a_destruction_entry() -> None:
         "faction.hab_destruction_recorded/16/0",
         K1,
         [ALIENS, MARS, UNION],
-        [("space_body", MARS), ("destroyer", UNION)],
+        attributes(
+            HAB_DESTRUCTION_RECORDED,
+            hab_type="Base",
+            space_body=MARS,
+            destroyer=UNION,
+            recorded_on="2032-01-01T00:00:00",
+        ),
     )
 
     [campaign] = of_type(
@@ -234,7 +255,13 @@ def test_a_wave_attaches_the_establishment_of_its_habs_not_their_launch() -> Non
         replace(first_hab(K2, MARS), attributes=(("body", MARS), ("habs", (mars_hab,)), ("hab_count", 1))),
         make("hab.established/space object:60", K1, [luna_hab, UNION, LUNA]),
         make("hab.established/space object:61", K2, [mars_hab, UNION, MARS]),
-        make("hab.appeared/space object:61", K1, [mars_hab, UNION], status=EventStatus.OBJECTIVE),
+        make(
+            "hab.appeared/space object:61",
+            K1,
+            [mars_hab, UNION],
+            attributes(HAB_APPEARED, side="after"),
+            EventStatus.OBJECTIVE,
+        ),
     ]
 
     [wave] = of_type(built(stream), "faction.colonisation_wave")

@@ -14,19 +14,25 @@ from collections.abc import Callable
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role
-from ..model.values import FrozenMap, Observed, Unknown
+from ..model.values import Observed, Unknown
 from .registry import KINDS
+from .text import ABSENT as ABSENT
+from .text import PRESENT as PRESENT
 from .text import attribute_label as _attr
 from .text import attribute_text as _text
+from .text import entity_of as _entity
+from .text import list_changed as _list_changed
+from .text import name_of as _name
 from .text import plain as _plain
+from .text import presence as _presence
+from .text import presence_with as _presence_with
 from .text import render_event_value
 from .text import subject_label as _subject
 from .text import transition_label as _transition
+from .text import with_context as _with_context
 
 NOTIFICATION_PREFIX = "notification."
 """The types whose names come from the game's log templates."""
-ABSENT = "is absent from the after snapshot"
-PRESENT = "is present only in the after snapshot"
 
 
 def describe_event(event: Event) -> str:
@@ -56,19 +62,6 @@ def _ascii(text: str) -> str:
     return "".join(char if char.isascii() else f"\\u{ord(char):04x}" for char in text)
 
 
-def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
-    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
-    return matches[skip] if len(matches) > skip else None
-
-
-def _name(ref: EntityRef | None) -> str:
-    return ref.label() if ref is not None else "null"
-
-
-def _presence(event: Event) -> str:
-    return PRESENT if event.attribute("side") == "after" else ABSENT
-
-
 def _controller_changed(event: Event) -> str:
     text = f"{_subject(event)} ({_name(_entity(event, EntityDomain.NATION))}) {_transition(event, 'controller')}"
     recorded = event.attribute("loss_recorded_on")
@@ -89,15 +82,6 @@ def _loss_recorded(event: Event) -> str:
     if not isinstance(event.attribute("previous_recorded_on"), Unknown):
         text += f" (previously {_text(event, 'previous_recorded_on')})"
     return text
-
-
-def _list_changed(event: Event) -> str:
-    field = event.sources[0].change.field if event.sources else "list"
-    transition = event.attribute("transition")
-    if transition == "unresolved":
-        return f"{_subject(event)} {_transition(event, f'{field} list')}"
-    sign = "+" if transition == "added" else "-"
-    return f"{_subject(event)} {field} list: {sign}{_attr(event, 'member')}"
 
 
 def _relation_changed(event: Event) -> str:
@@ -308,14 +292,6 @@ def _nation_control_changed(event: Event) -> str:
     return f"{_subject(event)} {_transition(event, _text(event, 'scope') + ' control changed')}"
 
 
-def _hab_presence(event: Event) -> str:
-    text = _presence_with(EntityDomain.FACTION, "faction")(event)
-    if not isinstance(event.attribute("projected_completion"), Unknown):
-        text += f"; core projected to arrive {_text(event, 'projected_arrival')}"
-        text += f" and complete {_text(event, 'projected_completion')}"
-    return text
-
-
 def _hab_established(event: Event) -> str:
     faction = _name(_entity(event, EntityDomain.FACTION))
     return f"{_subject(event)} ({faction}) became operational at {_attr(event, 'body')}"
@@ -353,65 +329,11 @@ def _battle_outcome(event: Event) -> str:
     return text
 
 
-def _with_context(label: str, domain: EntityDomain, prefix: str = "") -> Callable[[Event], str]:
-    """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
-
-    def describe(event: Event) -> str:
-        return f"{_subject(event)} ({prefix}{_name(_entity(event, domain))}) {_transition(event, label)}"
-
-    return describe
-
-
-def _presence_with(domain: EntityDomain, prefix: str) -> Callable[[Event], str]:
-    return lambda event: f"{_subject(event)} ({prefix} {_name(_entity(event, domain))}) {_presence(event)}"
-
-
 def _army_presence(event: Event) -> str:
     faction = _name(_entity(event, EntityDomain.FACTION))
     region = _name(_entity(event, EntityDomain.REGION))
     text = f"{_subject(event)} (faction {faction}, region {region}) {_presence(event)}"
     return text + " (megafauna)" if event.attribute("megafauna") is True else text
-
-
-def _destruction_recorded(event: Event) -> str:
-    named = f" (hab {_attr(event, 'hab')})" if any(name == "hab" for name, _ in event.attributes) else ""
-    return (
-        f"{_subject(event)} records a hab destruction dated {_text(event, 'recorded_on')}: "
-        f"type {_attr(event, 'hab_type')}{named} at {_attr(event, 'space_body')} by {_attr(event, 'destroyer')}"
-    )
-
-
-def _combat_sides(event: Event) -> str:
-    """``A (faction:15) (3 ships) vs B (faction:16) (2 ships)``; the unknown value when the sides are.
-
-    Hull class names stay in the ``sides`` attribute: they are game identifiers such as ``Battleship``, which
-    would read as a claim the line does not make.
-    """
-    sides = event.attribute("sides")
-    if not isinstance(sides, tuple):
-        return render_value(sides)
-    parts: list[str] = []
-    for side in sides:
-        if not (isinstance(side, tuple) and len(side) == 2 and isinstance(side[1], FrozenMap)):
-            parts.append(render_value(side))
-            continue
-        ships = sum(count for _, count in side[1].items if isinstance(count, int))
-        parts.append(f"{render_event_value(side[0])} ({ships} {'ship' if ships == 1 else 'ships'})")
-    return " vs ".join(parts) if parts else "no sides"
-
-
-def _combat_line(event: Event, verb: str) -> str:
-    recorded_on = event.attribute("recorded_on")
-    dated = "undated" if recorded_on is None else f"dated {_text(event, 'recorded_on')}"
-    return (
-        f"{_subject(event)} {verb} a combat entry ({dated}): {_combat_sides(event)}; "
-        f"winner {_attr(event, 'winner')}, hab faction {_attr(event, 'hab_faction')}, "
-        f"attacks {_attr(event, 'attack_count')}"
-    )
-
-
-def _combat_recorded(event: Event) -> str:
-    return _combat_line(event, "records")
 
 
 def _transaction_recorded(event: Event) -> str:
@@ -420,10 +342,6 @@ def _transaction_recorded(event: Event) -> str:
         f"{_subject(event)} ledger records a {_text(event, 'label')} charge: "
         f"{_attr(event, 'amount')} {_text(event, 'resource')} (dated {_text(event, 'recorded_on')})"
     )
-
-
-def _combat_entry_removed(event: Event) -> str:
-    return _combat_line(event, "no longer lists")
 
 
 def _technology_completed(event: Event) -> str:
@@ -774,33 +692,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "faction.armies_changed": _list_changed,
     "nation.armies_changed": _list_changed,
     "region.armies_changed": _list_changed,
-    "fleet.faction_changed": _plain("faction"),
-    "fleet.docked_location_changed": _with_context("docked location", EntityDomain.FACTION),
-    "fleet.orbit_changed": _with_context("orbit", EntityDomain.FACTION),
-    "fleet.barycenter_changed": _with_context("barycenter", EntityDomain.FACTION),
-    "fleet.parent_fleet_changed": _with_context("parent fleet", EntityDomain.FACTION),
-    "fleet.in_combat_changed": _with_context("in-combat flag", EntityDomain.FACTION),
-    "fleet.appeared": _presence_with(EntityDomain.FACTION, "faction"),
-    "fleet.disappeared": _presence_with(EntityDomain.FACTION, "faction"),
-    "faction.fleets_changed": _list_changed,
-    "hab.docked_fleets_changed": _list_changed,
-    "ship.fleet_changed": _plain("fleet"),
-    "ship.last_refit_date_changed": _with_context("last refit date", EntityDomain.FLEET, "fleet "),
-    "ship.appeared": _presence_with(EntityDomain.FLEET, "fleet"),
-    "ship.disappeared": _presence_with(EntityDomain.FLEET, "fleet"),
-    "fleet.ships_changed": _list_changed,
-    "hab.faction_changed": _plain("faction"),
-    "hab.type_changed": _with_context("type", EntityDomain.FACTION),
-    "hab.tier_changed": _with_context("tier", EntityDomain.FACTION),
-    "hab.in_combat_changed": _with_context("in-combat flag", EntityDomain.FACTION),
-    "hab.under_assault_changed": _with_context("under-assault flag", EntityDomain.FACTION),
-    "hab.under_bombardment_changed": _with_context("under-bombardment flag", EntityDomain.FACTION),
-    "hab.core_completed_changed": _with_context("core-completed flag", EntityDomain.FACTION),
-    "hab.appeared": _hab_presence,
-    "hab.disappeared": _presence_with(EntityDomain.FACTION, "faction"),
-    "faction.hab_destruction_recorded": _destruction_recorded,
-    "faction.combat_recorded": _combat_recorded,
-    "faction.combat_entry_removed": _combat_entry_removed,
     "faction.transaction_recorded": _transaction_recorded,
     "technology.completed": _technology_completed,
     "technology.finished_changed": _plain("finished"),

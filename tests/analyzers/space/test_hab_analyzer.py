@@ -14,15 +14,15 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.space import HabAnalyzer
-from tinarrative.analyzers.space.habs import (
-    APPEARED,
-    CORE_COMPLETED_CHANGED,
-    DESTRUCTION_RECORDED,
-    DISAPPEARED,
-    FACTION_CHANGED,
-    TIER_CHANGED,
-    TYPE_CHANGED,
-    UNDER_ASSAULT_CHANGED,
+from tinarrative.kinds.space import (
+    HAB_APPEARED,
+    HAB_CORE_COMPLETED_CHANGED,
+    HAB_DESTRUCTION_RECORDED,
+    HAB_DISAPPEARED,
+    HAB_FACTION_CHANGED,
+    HAB_TIER_CHANGED,
+    HAB_TYPE_CHANGED,
+    HAB_UNDER_ASSAULT_CHANGED,
 )
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, SourceRole
@@ -68,11 +68,11 @@ def test_field_transitions_are_separate_events_with_the_faction_as_context() -> 
     )
     events = analyze(ANALYZER, before, after)
     assert [event.event_type for event in events] == [
-        FACTION_CHANGED,
-        TYPE_CHANGED,
-        TIER_CHANGED,
-        UNDER_ASSAULT_CHANGED,
-        CORE_COMPLETED_CHANGED,
+        HAB_FACTION_CHANGED.event_type,
+        HAB_TYPE_CHANGED.event_type,
+        HAB_TIER_CHANGED.event_type,
+        HAB_UNDER_ASSAULT_CHANGED.event_type,
+        HAB_CORE_COMPLETED_CHANGED.event_type,
     ]
     faction, hab_type, tier = events[:3]
     assert [str(r.entity_id) for r in faction.entities] == ["space object:140", "faction:16", "faction:15"]
@@ -85,10 +85,10 @@ def test_presence_has_no_corroboration() -> None:
     before = snapshot(BEFORE, state(HAB, "141", BEFORE, faction=faction_ref("15")))
     after = snapshot(AFTER, state(HAB, "142", AFTER, faction=None))
     events = analyze(ANALYZER, before, after)
-    gone = only(events, DISAPPEARED)
+    gone = only(events, HAB_DISAPPEARED.event_type)
     assert gone.attribute("side") == "before" and len(gone.sources) == 1
     assert [str(r.entity_id) for r in gone.entities] == ["space object:141", "faction:15"]
-    assert [str(r.entity_id) for r in only(events, APPEARED).entities] == ["space object:142"]
+    assert [str(r.entity_id) for r in only(events, HAB_APPEARED.event_type).entities] == ["space object:142"]
 
 
 def test_destruction_log_entries_added_are_record_dated_events() -> None:
@@ -113,7 +113,7 @@ def test_destruction_log_entries_added_are_record_dated_events() -> None:
         records=(record_set(AFTER, owner, field, RecordKind.DESTRUCTION_LOG, (kept, added, vague)),),
     )
     events = analyze(ANALYZER, before, after)
-    assert {event.event_type for event in events} == {DESTRUCTION_RECORDED}
+    assert {event.event_type for event in events} == {HAB_DESTRUCTION_RECORDED.event_type}
     assert [event.id for event in events] == [
         "faction.hab_destruction_recorded/faction:15/1",
         "faction.hab_destruction_recorded/faction:15/2",
@@ -135,7 +135,7 @@ def test_destruction_log_entries_added_are_record_dated_events() -> None:
     assert first.sources[0].change.field == field  # the only evidence that may be worded "destruction"
     assert first.sources[0].entry is not None and first.sources[0].entry.path.endswith(f"/{field}/1")  # type: ignore[union-attr]
     assert second.confidence is Confidence.LOW and second.attribute("destroyer") is None
-    assert not by_type(events, DISAPPEARED)  # a log entry never claims that a hab vanished
+    assert not by_type(events, HAB_DISAPPEARED.event_type)  # a log entry never claims that a hab vanished
 
 
 def _log_pair(vanished: int, entries: int) -> tuple[SaveSnapshot, SaveSnapshot]:
@@ -167,7 +167,7 @@ def _log_pair(vanished: int, entries: int) -> tuple[SaveSnapshot, SaveSnapshot]:
 
 def test_destruction_names_the_hab_on_a_one_to_one_match() -> None:
     events = analyze(ANALYZER, *_log_pair(vanished=1, entries=1))
-    recorded = only(events, DESTRUCTION_RECORDED)
+    recorded = only(events, HAB_DESTRUCTION_RECORDED.event_type)
     hab = recorded.attribute("hab")
     assert hab is not None and str(hab.entity_id) == "space object:200"  # type: ignore[union-attr]
     assert str(recorded.attribute("owner").entity_id) == "faction:15"  # type: ignore[union-attr]
@@ -177,7 +177,7 @@ def test_destruction_names_the_hab_on_a_one_to_one_match() -> None:
 def test_destruction_leaves_the_hab_out_when_unmatched_or_ambiguous() -> None:
     for vanished, entries in ((0, 1), (2, 1), (1, 2)):
         events = analyze(ANALYZER, *_log_pair(vanished=vanished, entries=entries))
-        for recorded in by_type(events, DESTRUCTION_RECORDED):
+        for recorded in by_type(events, HAB_DESTRUCTION_RECORDED.event_type):
             assert "hab" not in dict(recorded.attributes)
             assert str(recorded.attribute("owner").entity_id) == "faction:15"  # type: ignore[union-attr]
 

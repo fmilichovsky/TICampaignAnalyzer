@@ -2,14 +2,14 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, faction_ref, fleet_ref, only, ship_ref, snapshot, state
 from tinarrative.analyzers.space import ShipAnalyzer
-from tinarrative.analyzers.space.ships import (
-    APPEARED,
-    DISAPPEARED,
-    FLEET_CHANGED,
-    FLEET_LIST_CHANGED,
-    LAST_REFIT_DATE_CHANGED,
-)
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.space import (
+    FLEET_SHIPS_CHANGED,
+    SHIP_APPEARED,
+    SHIP_DISAPPEARED,
+    SHIP_FLEET_CHANGED,
+    SHIP_LAST_REFIT_DATE_CHANGED,
+)
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze
@@ -33,7 +33,7 @@ def test_fleet_change_cites_both_ship_lists() -> None:
         state(FLEET, "121", AFTER, ships=()),
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == FLEET_CHANGED and event.confidence is Confidence.HIGH
+    assert event.event_type == SHIP_FLEET_CHANGED.event_type and event.confidence is Confidence.HIGH
     assert [str(r.entity_id) for r in event.entities] == ["ship:131", "fleet:121", "fleet:120"]
     assert [(s.role, str(s.change.entity_id), s.member) for s in event.sources] == [
         (SourceRole.PRIMARY, "ship:131", None),
@@ -56,10 +56,10 @@ def test_unresolved_fleet_is_low_confidence_and_an_unresolved_list_is_a_leftover
         state(FLEET, "120", AFTER, ships=unresolved_list),
     )
     events = analyze(ANALYZER, before, after)
-    moved = only(events, FLEET_CHANGED)
+    moved = only(events, SHIP_FLEET_CHANGED.event_type)
     assert moved.confidence is Confidence.LOW and moved.attribute("transition") == "unresolved"
     assert len(moved.sources) == 1  # the fleet's list cannot corroborate: it is unresolved on one side
-    leftover = only(events, FLEET_LIST_CHANGED)
+    leftover = only(events, FLEET_SHIPS_CHANGED.event_type)
     assert leftover.id == "fleet.ships_changed/fleet:120/unresolved" and leftover.confidence is Confidence.LOW
     assert len(events) == 2  # propellant is not an event
 
@@ -79,16 +79,16 @@ def test_refit_date_is_literal_and_presence_cites_the_fleet_list() -> None:
         state(FLEET, "120", AFTER, ships=(ship_ref("130"),)),
     )
     events = analyze(ANALYZER, before, after)
-    refitted = only(events, LAST_REFIT_DATE_CHANGED)
+    refitted = only(events, SHIP_LAST_REFIT_DATE_CHANGED.event_type)
     assert dict(refitted.attributes) == {"transition": "set", "before": None, "after": refit}
     assert refitted.sources[0].change.field == "lastRefitDate"  # the only evidence that may be worded "refit"
     assert [str(r.entity_id) for r in refitted.entities] == ["ship:130", "fleet:120"]
-    gone = only(events, DISAPPEARED)
+    gone = only(events, SHIP_DISAPPEARED.event_type)
     assert [(s.role, str(s.change.entity_id)) for s in gone.sources] == [
         (SourceRole.PRIMARY, "ship:132"),
         (SourceRole.CORROBORATING, "fleet:120"),
     ]
-    new = only(events, APPEARED)
+    new = only(events, SHIP_APPEARED.event_type)
     assert [str(r.entity_id) for r in new.entities] == ["ship:133"] and len(new.sources) == 1
     assert len(events) == 3
     assert analyze(ANALYZER, before, before) == []

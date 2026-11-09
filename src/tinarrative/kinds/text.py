@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from ..diff.render import render_value
-from ..model.entities import EntityRef
+from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
 from ..model.kinds import Template
 from ..model.values import Observed
 
 TRANSITION = frozenset({"transition", "before", "after"})
 """The attribute keys of a literal transition (``analyzers.common.transition_attributes``)."""
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
 
 
 def subject_label(event: Event) -> str:
@@ -42,3 +44,39 @@ def transition_label(event: Event, label: str) -> str:
 def plain(label: str) -> Template:
     """``<subject> <label>: <before> -> <after>``."""
     return lambda event: f"{subject_label(event)} {transition_label(event, label)}"
+
+
+def entity_of(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
+    """The ``skip``-th entity of ``domain`` after the subject."""
+    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
+    return matches[skip] if len(matches) > skip else None
+
+
+def name_of(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
+
+
+def presence(event: Event) -> str:
+    return PRESENT if event.attribute("side") == "after" else ABSENT
+
+
+def with_context(label: str, domain: EntityDomain, prefix: str = "") -> Template:
+    """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
+
+    def describe(event: Event) -> str:
+        return f"{subject_label(event)} ({prefix}{name_of(entity_of(event, domain))}) {transition_label(event, label)}"
+
+    return describe
+
+
+def presence_with(domain: EntityDomain, prefix: str) -> Template:
+    return lambda event: f"{subject_label(event)} ({prefix} {name_of(entity_of(event, domain))}) {presence(event)}"
+
+
+def list_changed(event: Event) -> str:
+    field = event.sources[0].change.field if event.sources else "list"
+    transition = event.attribute("transition")
+    if transition == "unresolved":
+        return f"{subject_label(event)} {transition_label(event, f'{field} list')}"
+    sign = "+" if transition == "added" else "-"
+    return f"{subject_label(event)} {field} list: {sign}{attribute_label(event, 'member')}"
