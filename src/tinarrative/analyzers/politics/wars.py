@@ -7,15 +7,18 @@ won or lost: that is reconstruction.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import NamedTuple
 
+from ...kinds import campaign as campaign_kinds
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
+from ...model.kinds import EventKind
 from ...model.records import ItemEntry
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
-from ..campaign.global_values import INTERSTATE_WARS, INTERSTATE_WARS_CHANGED
+from ..campaign.global_values import INTERSTATE_WARS
 from ..common import (
     EventBuilder,
     Lookup,
@@ -51,11 +54,11 @@ ATTACKERS = WarSide(ATTACKING, "attacking", "attacker")
 DEFENDERS = WarSide(DEFENDING, "defending", "defender")
 SIDES = ((ATTACKERS, DEFENDERS), (DEFENDERS, ATTACKERS))
 """Each side of a war with its opponents."""
-LEFTOVER_TYPES = {
+LEFTOVER_TYPES: Mapping[str, EventKind | str] = {
     ATTACKING: "war.attacking_alliance_changed",
     DEFENDING: "war.defending_alliance_changed",
     "wars": WARS_LIST_CHANGED,
-    INTERSTATE_WARS: INTERSTATE_WARS_CHANGED,
+    INTERSTATE_WARS: campaign_kinds.INTERSTATE_WARS_CHANGED,
 }
 HANDLED_LISTS = (
     (EntityDomain.WAR, ATTACKING),

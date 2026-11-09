@@ -15,9 +15,10 @@ from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role
 from ..model.values import FrozenMap, Observed, Unknown
-from .registry import KINDS
+from .registry import KINDS, kind_for
 from .text import attribute_label as _attr
 from .text import attribute_text as _text
+from .text import list_changed as _list_changed
 from .text import plain as _plain
 from .text import render_event_value
 from .text import subject_label as _subject
@@ -35,10 +36,8 @@ def describe_event(event: Event) -> str:
     The kind's template, else the type's entry in the table not yet migrated to kinds. ``notification.<template>``
     types share one template, since the log template set is open-ended.
     """
-    kind = KINDS.get(event.event_type)
+    kind = kind_for(event.event_type)
     template = kind.template if kind is not None else _TEMPLATES.get(event.event_type)
-    if template is None and event.event_type.startswith(NOTIFICATION_PREFIX):
-        template = _notification_logged
     if template is None:
         entities = ", ".join(ref.label() for ref in event.entities)
         return _ascii(f"{event.event_type}: {entities}")
@@ -47,7 +46,7 @@ def describe_event(event: Event) -> str:
 
 def known_event_types() -> frozenset[str]:
     """Every type a kind declares or the table not yet migrated to kinds describes; ``notification.*`` excluded."""
-    return frozenset(KINDS) | frozenset(_TEMPLATES)
+    return frozenset(event_type for event_type, kind in KINDS.items() if not kind.is_prefix) | frozenset(_TEMPLATES)
 
 
 def _ascii(text: str) -> str:
@@ -89,15 +88,6 @@ def _loss_recorded(event: Event) -> str:
     if not isinstance(event.attribute("previous_recorded_on"), Unknown):
         text += f" (previously {_text(event, 'previous_recorded_on')})"
     return text
-
-
-def _list_changed(event: Event) -> str:
-    field = event.sources[0].change.field if event.sources else "list"
-    transition = event.attribute("transition")
-    if transition == "unresolved":
-        return f"{_subject(event)} {_transition(event, f'{field} list')}"
-    sign = "+" if transition == "added" else "-"
-    return f"{_subject(event)} {field} list: {sign}{_attr(event, 'member')}"
 
 
 def _relation_changed(event: Event) -> str:
@@ -414,14 +404,6 @@ def _combat_recorded(event: Event) -> str:
     return _combat_line(event, "records")
 
 
-def _transaction_recorded(event: Event) -> str:
-    """The label is a mission or operation template name read from the ledger, never a reading of what it did."""
-    return (
-        f"{_subject(event)} ledger records a {_text(event, 'label')} charge: "
-        f"{_attr(event, 'amount')} {_text(event, 'resource')} (dated {_text(event, 'recorded_on')})"
-    )
-
-
 def _combat_entry_removed(event: Event) -> str:
     return _combat_line(event, "no longer lists")
 
@@ -435,68 +417,6 @@ def _technology_completed(event: Event) -> str:
 
 def _technology_presence(event: Event) -> str:
     return f"{_subject(event)} (finished {_attr(event, 'finished')}) {_presence(event)}"
-
-
-def _global_values_presence(event: Event) -> str:
-    return f"{_subject(event)} {_presence(event)}"
-
-
-def _milestone_recorded(event: Event) -> str:
-    return f"{_subject(event)} records global milestone {_text(event, 'milestone')} for {_attr(event, 'faction')}"
-
-
-def _milestone_changed(event: Event) -> str:
-    label = f"global milestone {_text(event, 'milestone')} faction"
-    return f"{_subject(event)} {_transition(event, label)}"
-
-
-def _sea_level_rise(event: Event) -> str:
-    return f"{_subject(event)} sea level rise {_attr(event, 'stage')} flag set"
-
-
-def _narrative_event_triggered(event: Event) -> str:
-    name = _text(event, "narrative_event")
-    if event.attribute("scope") == "target":
-        return f"{_subject(event)} lists narrative event {name} as triggered for {_attr(event, 'targets')}"
-    return f"{_subject(event)} lists narrative event {name} as triggered once per campaign"
-
-
-def _global_value_changed(event: Event) -> str:
-    field = _text(event, "field")
-    if isinstance(event.attribute("transition"), Unknown):
-        return (
-            f"{_subject(event)} {field} records changed: {_attr(event, 'added')} added, "
-            f"{_attr(event, 'removed')} removed, {_attr(event, 'changed')} changed"
-        )
-    return f"{_subject(event)} {_transition(event, field)}"
-
-
-def _notification_subject(event: Event) -> str:
-    """The resolved subject, ``null`` for none, or the literal unresolved value; never the summary text."""
-    subject = event.attribute("subject")
-    return render_event_value(subject)
-
-
-def _notification_logged(event: Event) -> str:
-    date = event.date if isinstance(event.date, str) else render_value(event.date)
-    return f"{_subject(event)} logs {_text(event, 'template')} dated {date} about {_notification_subject(event)}"
-
-
-def _notification_removed(event: Event) -> str:
-    return (
-        f"{_subject(event)} no longer lists {_text(event, 'template')} dated {_text(event, 'logged_on')}"
-        f" about {_notification_subject(event)}"
-    )
-
-
-def _notification_changed(event: Event) -> str:
-    before_subject = event.attribute("before_subject")
-    before = render_event_value(before_subject)
-    return (
-        f"{_subject(event)} entry {_text(event, 'template')} dated {_text(event, 'logged_on')} changed: "
-        f"subject {before} -> {_notification_subject(event)}, "
-        f"outcome {_attr(event, 'before_outcome')} -> {_attr(event, 'outcome')}"
-    )
 
 
 def _role(event: Event, role: Role) -> str:
@@ -801,7 +721,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "faction.hab_destruction_recorded": _destruction_recorded,
     "faction.combat_recorded": _combat_recorded,
     "faction.combat_entry_removed": _combat_entry_removed,
-    "faction.transaction_recorded": _transaction_recorded,
     "technology.completed": _technology_completed,
     "technology.finished_changed": _plain("finished"),
     "technology.appeared": _technology_presence,
@@ -809,20 +728,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "research.finished_techs_changed": _list_changed,
     "faction.project_completed": _project_completed,
     "faction.finished_project_names_changed": _finished_projects_changed,
-    "campaign.global_values_appeared": _global_values_presence,
-    "campaign.global_values_disappeared": _global_values_presence,
-    "campaign.global_milestone_recorded": _milestone_recorded,
-    "campaign.global_milestone_changed": _milestone_changed,
-    "campaign.nuclear_strikes_changed": _plain("nuclear strikes"),
-    "campaign.sea_level_rise_triggered": _sea_level_rise,
-    "campaign.narrative_event_triggered": _narrative_event_triggered,
-    "campaign.global_value_changed": _global_value_changed,
-    "campaign.interstate_wars_changed": _list_changed,
-    "notification.queue_appeared": _global_values_presence,
-    "notification.queue_disappeared": _global_values_presence,
-    "notification.queue_value_changed": _global_value_changed,
-    "notification.entry_removed": _notification_removed,
-    "notification.entry_changed": _notification_changed,
     "nation.territory_gained": _territory_gained,
     "nation.territory_lost": _territory_lost,
     "nation.independence": _independence,

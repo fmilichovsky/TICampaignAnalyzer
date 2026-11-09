@@ -71,6 +71,15 @@ class EventKind:
     rule: Rule | None = None
     stake: Stake | None = None
 
+    @property
+    def is_prefix(self) -> bool:
+        """Whether the declared type ends in ``*`` and covers every type with that prefix (names the save supplies)."""
+        return self.event_type.endswith("*")
+
+    @property
+    def prefix(self) -> str:
+        return self.event_type.removesuffix("*")
+
     def __post_init__(self) -> None:
         shared = self.required & self.optional
         if shared:
