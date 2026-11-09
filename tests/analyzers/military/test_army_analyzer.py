@@ -16,7 +16,7 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.military import ArmyAnalyzer
-from tinarrative.analyzers.military.armies import (
+from tinarrative.kinds.military import (
     APPEARED,
     DESTROYED_CHANGED,
     DISAPPEARED,
@@ -58,7 +58,7 @@ def test_region_change_cites_both_region_lists_and_leaves_nation_lists_as_leftov
         state(NATION, "21", AFTER, armies=(army_ref("110"),)),
     )
     events = analyze(ANALYZER, before, after)
-    moved = only(events, REGION_CHANGED)
+    moved = only(events, REGION_CHANGED.event_type)
     assert moved.confidence is Confidence.HIGH
     assert [str(r.entity_id) for r in moved.entities] == ["army:110", "faction:15", "region:40", "region:42"]
     assert dict(moved.attributes) == {
@@ -102,7 +102,11 @@ def test_faction_change_cites_both_faction_lists_and_flags_are_literal() -> None
         state(FACTION, "16", AFTER, armies=(army_ref("111"),)),
     )
     events = analyze(ANALYZER, before, after)
-    assert [event.event_type for event in events] == [FACTION_CHANGED, DESTROYED_CHANGED, STRENGTH_CHANGED]
+    assert [event.event_type for event in events] == [
+        FACTION_CHANGED.event_type,
+        DESTROYED_CHANGED.event_type,
+        STRENGTH_CHANGED.event_type,
+    ]
     faction, destroyed, strength = events
     assert [str(r.entity_id) for r in faction.entities] == ["army:111", "region:40", "faction:15", "faction:16"]
     assert [(s.role, str(s.change.entity_id)) for s in faction.sources] == [
@@ -135,7 +139,7 @@ def test_presence_cites_every_list_naming_the_army_on_the_existing_side() -> Non
         state(REGION, "41", AFTER, armies=(army_ref("112"),)),
     )
     events = analyze(ANALYZER, before, after)
-    gone = only(events, DISAPPEARED)
+    gone = only(events, DISAPPEARED.event_type)
     assert gone.attribute("side") == "before"
     assert [str(r.entity_id) for r in gone.entities] == ["army:113", "faction:15", "region:41"]
     assert [(s.role, str(s.change.entity_id)) for s in gone.sources] == [
@@ -145,7 +149,7 @@ def test_presence_cites_every_list_naming_the_army_on_the_existing_side() -> Non
         (SourceRole.CORROBORATING, "region:41"),
     ]
     assert isinstance(gone.attribute("megafauna"), Unknown)  # only megafauna armies are marked
-    new = only(events, APPEARED)
+    new = only(events, APPEARED.event_type)
     assert new.entities[0].state_type == MEGAFAUNA_STATE_TYPE
     assert new.attribute("megafauna") is True
     assert [(s.role, str(s.change.entity_id)) for s in new.sources] == [
@@ -159,8 +163,8 @@ def test_presence_carries_the_literal_deployment_type_of_the_existing_side() -> 
     before = snapshot(BEFORE, state(ARMY, "113", BEFORE, faction=faction_ref("15"), deploymentType="Naval"))
     after = snapshot(AFTER, state(ARMY, "114", AFTER, faction=faction_ref("15"), deploymentType="Standard"))
     events = analyze(ANALYZER, before, after)
-    assert only(events, DISAPPEARED).attribute("deployment_type") == "Naval"
-    assert only(events, APPEARED).attribute("deployment_type") == "Standard"
+    assert only(events, DISAPPEARED.event_type).attribute("deployment_type") == "Naval"
+    assert only(events, APPEARED.event_type).attribute("deployment_type") == "Standard"
 
 
 def test_unresolved_region_is_low_confidence_and_identical_snapshots_produce_nothing() -> None:
@@ -168,9 +172,9 @@ def test_unresolved_region_is_low_confidence_and_identical_snapshots_produce_not
     before = snapshot(BEFORE, state(ARMY, "110", BEFORE, currentRegion=region_ref("40"), armyType="A"))
     after = snapshot(AFTER, state(ARMY, "110", AFTER, currentRegion=unresolved, armyType="B"))
     events = analyze(ANALYZER, before, after)
-    moved = only(events, REGION_CHANGED)
+    moved = only(events, REGION_CHANGED.event_type)
     assert moved.confidence is Confidence.LOW and moved.attribute("transition") == "unresolved"
-    assert only(events, TYPE_CHANGED).attribute("after") == "B"
+    assert only(events, TYPE_CHANGED.event_type).attribute("after") == "B"
     assert analyze(ANALYZER, before, before) == []
     assert (
         analyze(ANALYZER, snapshot(BEFORE, state(NATION, "20", BEFORE)), snapshot(AFTER, state(NATION, "20", AFTER)))
@@ -206,7 +210,7 @@ def test_every_army_event_names_the_home_regions_nation_as_context() -> None:
         assert event.attribute("home_nation") == named(nation_ref("20")), event.id
         assert str(event.entities[-1].entity_id) == "nation:20", event.id
         assert all(source.change.domain != "region" or source.change.field == "armies" for source in event.sources)
-    moved = only(events, REGION_CHANGED)
+    moved = only(events, REGION_CHANGED.event_type)
     assert [str(ref.entity_id) for ref in moved.entities] == [
         "army:110",
         "faction:15",
