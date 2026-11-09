@@ -79,33 +79,3 @@ the suite is in [the testing guide](docs/testing.md).
 `make package-metrics` measures what `events` and `narrate` would send to an LLM for the real sample campaigns in
 `benchmarks/`, and `make runtime-metrics` measures how long `events` takes on them. Every pull request gets both
 measurements for its base and head as comments. See [benchmarks/README.md](benchmarks/README.md).
-
-## Package layout
-
-- `io`: discover and load save files.
-- `inspection`: describe one save's raw serialized structure without
-  normalizing it.
-- `identity`: per-domain entity-identity strategy table and the ID census that
-  `inspection` reports.
-- `log`: opt-in diagnostic logging conventions shared by every stage.
-- `parsing`: decode version-specific save data and normalize it; every run
-  also reports the structures outside its schema as content-free findings.
-- `maintenance`: scan saves for those findings and keep the unknowns registry
-  (`tinarrative unknowns`, `parse --record-unknowns`).
-- `model`: stable snapshots, changes, events, and provenance types.
-- `diff`: derive literal state transitions.
-- `kinds`: declare each event type once, as an event kind: its template, significance, narrator
-  evidence role and attribute keys; `describe_event` renders an event from it.
-- `analyzers`: emit domain-specific atomic events.
-- `reconstruction`: combine evidence into conservative inferred events.
-- `narrative`: group atomic events into narrative events; per-save situation
-  reports as their context.
-- `narrator`: build the LLM requests (packaged system prompt, request block) from a narrator
-  package, cut into chapters under a token budget (`tinarrative narrate`), and assemble the
-  responses into a history with a citation audit; reads the package's JSON form only.
-- `rendering`: turn structured narrative output into user-facing formats.
-- `grouping`: split surveyed saves into campaigns by their continuity signals
-  (`tinarrative campaigns`, `events --campaign`).
-- `sequence`: order and merge the saves of one campaign and run the per-pair
-  pipeline over every consecutive interval (`tinarrative events`).
-- `config`: runtime settings for the narrative rules (`--config`, `TINARRATIVE_CONFIG`).
