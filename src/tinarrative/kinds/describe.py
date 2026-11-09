@@ -154,16 +154,6 @@ def _new_government_recorded(event: Event) -> str:
     return text
 
 
-def _project_completed(event: Event) -> str:
-    return f"{_subject(event)} lists project {_attr(event, 'project')} as finished"
-
-
-def _finished_projects_changed(event: Event) -> str:
-    if isinstance(event.attribute("member"), Unknown):
-        return f"{_subject(event)} {_transition(event, 'finished project list')}"
-    return f"{_subject(event)} finished project list: -{_attr(event, 'member')}"
-
-
 def _councilor_field(label: str) -> Callable[[Event], str]:
     def describe(event: Event) -> str:
         return f"{_subject(event)} ({_name(_entity(event, EntityDomain.FACTION))}) {_transition(event, label)}"
@@ -412,17 +402,6 @@ def _combat_recorded(event: Event) -> str:
 
 def _combat_entry_removed(event: Event) -> str:
     return _combat_line(event, "no longer lists")
-
-
-def _technology_completed(event: Event) -> str:
-    text = f"{_subject(event)} is listed as finished"
-    if event.attribute("side") == "after":
-        text += " (no earlier research state)"
-    return text
-
-
-def _technology_presence(event: Event) -> str:
-    return f"{_subject(event)} (finished {_attr(event, 'finished')}) {_presence(event)}"
 
 
 def _role(event: Event, role: Role) -> str:
@@ -727,13 +706,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "faction.hab_destruction_recorded": _destruction_recorded,
     "faction.combat_recorded": _combat_recorded,
     "faction.combat_entry_removed": _combat_entry_removed,
-    "technology.completed": _technology_completed,
-    "technology.finished_changed": _plain("finished"),
-    "technology.appeared": _technology_presence,
-    "technology.disappeared": _technology_presence,
-    "research.finished_techs_changed": _list_changed,
-    "faction.project_completed": _project_completed,
-    "faction.finished_project_names_changed": _finished_projects_changed,
     "campaign.interstate_wars_changed": _list_changed,
     "nation.territory_gained": _territory_gained,
     "nation.territory_lost": _territory_lost,

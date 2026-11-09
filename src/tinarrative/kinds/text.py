@@ -42,3 +42,21 @@ def transition_label(event: Event, label: str) -> str:
 def plain(label: str) -> Template:
     """``<subject> <label>: <before> -> <after>``."""
     return lambda event: f"{subject_label(event)} {transition_label(event, label)}"
+
+
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
+
+
+def presence(event: Event) -> str:
+    return PRESENT if event.attribute("side") == "after" else ABSENT
+
+
+def list_changed(event: Event) -> str:
+    """``<subject> <field> list: +/-<member>``, or the literal transition when the list is unresolved."""
+    field = event.sources[0].change.field if event.sources else "list"
+    transition = event.attribute("transition")
+    if transition == "unresolved":
+        return f"{subject_label(event)} {transition_label(event, f'{field} list')}"
+    sign = "+" if transition == "added" else "-"
+    return f"{subject_label(event)} {field} list: {sign}{attribute_label(event, 'member')}"

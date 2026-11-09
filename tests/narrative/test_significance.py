@@ -27,7 +27,8 @@ from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
 from tinarrative.diff.state_diff import diff_states
-from tinarrative.kinds import KINDS, known_event_types
+from tinarrative.kinds import KINDS, attributes, known_event_types
+from tinarrative.kinds.technology import PROJECT_COMPLETED
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
 from tinarrative.model.kinds import Rule, Stake
@@ -274,7 +275,7 @@ def test_a_completion_takes_its_curated_tier_and_an_unlisted_one_is_minor() -> N
         return replace(bare_event("technology.completed"), entities=(ref(EntityDomain.TECHNOLOGY, name),))
 
     def project(name: str) -> Event:
-        return bare_event("faction.project_completed", project=name)
+        return replace(bare_event("faction.project_completed"), attributes=attributes(PROJECT_COMPLETED, project=name))
 
     assert significance_of(technology("DeuteriumTritiumFusion"), lookup) is Significance.CAMPAIGN_DEFINING
     assert significance_of(technology("SpaceNavies"), lookup) is Significance.MAJOR
