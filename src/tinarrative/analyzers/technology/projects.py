@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections import Counter
 
+from ...kinds.technology import FINISHED_PROJECTS_CHANGED, PROJECT_COMPLETED
 from ...model.changes import ChangeKind, MembershipDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event
@@ -23,8 +24,6 @@ from ..common import (
     transition_attributes,
 )
 
-PROJECT_COMPLETED = "faction.project_completed"
-FINISHED_LIST_CHANGED = "faction.finished_project_names_changed"
 FINISHED_LIST = "finishedProjectNames"
 
 
@@ -50,7 +49,7 @@ def _finished(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[
             return []
         return [
             build.event(
-                FINISHED_LIST_CHANGED,
+                FINISHED_PROJECTS_CHANGED,
                 id_parts=(faction_id, transition.value),
                 sources=(primary(change),),
                 entities=(faction,),
@@ -72,7 +71,7 @@ def _finished(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[
     for name, count in _names(change.detail.removed):
         events.append(
             build.event(
-                FINISHED_LIST_CHANGED,
+                FINISHED_PROJECTS_CHANGED,
                 id_parts=(faction_id, name, Transition.REMOVED.value),
                 sources=(primary(change, name),),
                 entities=(faction,),

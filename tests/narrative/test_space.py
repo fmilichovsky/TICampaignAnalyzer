@@ -8,7 +8,8 @@ from dataclasses import replace
 
 from tests.narrative.support import atomic, faction, ref, situation
 from tinarrative.config import NarrativeSettings, SpaceSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.technology import PROJECT_COMPLETED, TECHNOLOGY_COMPLETED
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -331,7 +332,7 @@ def completion(name: str) -> Event:
             f"faction.project_completed/faction:15/{name}",
             K1,
             [UNION],
-            [("project", name)],
+            attributes(PROJECT_COMPLETED, project=name),
             EventStatus.OBJECTIVE,
             significance=tier,
         )
@@ -339,7 +340,7 @@ def completion(name: str) -> Event:
         f"technology.completed/technology:{name}",
         K1,
         [ref(EntityDomain.TECHNOLOGY, name)],
-        [("side", "after")],
+        attributes(TECHNOLOGY_COMPLETED, side="after"),
         significance=tier,
     )
 

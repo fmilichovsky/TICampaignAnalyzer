@@ -47,8 +47,6 @@ _EVIDENCE: tuple[str, ...] = (
     "nation.disappeared",
     # Dated records: a campaign-wide first, a completed technology or project, a ledger charge.
     "campaign.global_milestone_recorded",
-    "technology.completed",
-    "faction.project_completed",
     "faction.transaction_recorded",
     # The statistic shifts behind a narrative event's metric_shifts or a takeover's precursors, with their causes.
     "nation.statistic_shifted",
