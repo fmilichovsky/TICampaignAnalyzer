@@ -1,7 +1,6 @@
 """Interstate wars and federations: presence, sides, members, renames and the leftover lists of both.
 
-War presence and sides, last fighting and the federation record dates are narrator evidence; the leading nations,
-the alliance lists and the nation mirrors of both are not.
+Evidence: war presence, sides, last fighting and federation record dates.
 """
 
 from __future__ import annotations

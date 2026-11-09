@@ -25,12 +25,16 @@ from ..analyzers.campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 from ..analyzers.common import EventBuilder, Lookup, Side
 from ..analyzers.space.combat import side_factions
 from ..kinds.space import (
+    BATTLE_OUTCOME,
     COMBAT_RECORDED,
+    FIRST_HAB_ON_BODY,
     FLEET_DISAPPEARED,
     HAB_APPEARED,
     HAB_CORE_COMPLETED_CHANGED,
+    HAB_DESTROYED,
     HAB_DESTRUCTION_RECORDED,
     HAB_DISAPPEARED,
+    HAB_ESTABLISHED,
 )
 from ..model.changes import ChangeKind, RecordsDetail, StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -40,11 +44,7 @@ from ..model.snapshot import SaveSnapshot
 from ..model.values import Observed
 from .common import ObjectiveIndex, Support, inferred
 
-HAB_ESTABLISHED = "hab.established"
-FIRST_HAB_ON_BODY = "faction.first_hab_on_body"
-HAB_DESTROYED = "hab.destroyed"
-BATTLE_OUTCOME = "faction.battle_outcome"
-RULE_TYPES = (HAB_ESTABLISHED, FIRST_HAB_ON_BODY, HAB_DESTROYED, BATTLE_OUTCOME)
+RULE_TYPES = tuple(kind.event_type for kind in (HAB_ESTABLISHED, FIRST_HAB_ON_BODY, HAB_DESTROYED, BATTLE_OUTCOME))
 
 CORE_COMPLETED = "anyCoreCompleted"
 CORE_DATES = ("corePriorCompletionDate", "coreCompletionDate")

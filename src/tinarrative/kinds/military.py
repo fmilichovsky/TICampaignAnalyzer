@@ -48,7 +48,6 @@ FACTION_CHANGED = _value(
 DESTROYED_CHANGED = _value(
     "army.destroyed_changed", with_context("destroyed flag", EntityDomain.FACTION), Significance.MAJOR
 )
-# The four below were silently MINOR (the default) before the kinds; declared as such.
 STRENGTH_CHANGED = _value("army.strength_changed", with_context("strength", EntityDomain.FACTION), Significance.MINOR)
 TYPE_CHANGED = _value("army.type_changed", with_context("type", EntityDomain.FACTION), Significance.MINOR)
 DEPLOYMENT_TYPE_CHANGED = _value(

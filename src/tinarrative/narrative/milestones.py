@@ -12,10 +12,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
+from ..kinds.technology import PROJECT_COMPLETED as PROJECT_COMPLETED_KIND
+from ..kinds.technology import TECHNOLOGY_COMPLETED as TECHNOLOGY_COMPLETED_KIND
 from ..model.events import Event, Significance
 
-TECHNOLOGY_COMPLETED = "technology.completed"
-PROJECT_COMPLETED = "faction.project_completed"
+TECHNOLOGY_COMPLETED = TECHNOLOGY_COMPLETED_KIND.event_type
+PROJECT_COMPLETED = PROJECT_COMPLETED_KIND.event_type
 
 
 @dataclass(frozen=True)

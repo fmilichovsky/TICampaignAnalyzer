@@ -12,10 +12,14 @@ from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.campaign import MILESTONE_RECORDED
 from tinarrative.kinds.faction import TRANSACTION_RECORDED
 from tinarrative.kinds.space import (
+    BATTLE_OUTCOME,
     COMBAT_RECORDED,
+    FIRST_HAB_ON_BODY,
     FLEET_DISAPPEARED,
     HAB_APPEARED,
+    HAB_DESTROYED,
     HAB_DESTRUCTION_RECORDED,
+    HAB_ESTABLISHED,
     SHIP_APPEARED,
 )
 from tinarrative.kinds.technology import PROJECT_COMPLETED, TECHNOLOGY_COMPLETED
@@ -64,12 +68,24 @@ def outcome(
     key: str, killer: EntityRef = UNION, victim: EntityRef = ALIENS, constituents: Sequence[Event] = (), **counts: int
 ) -> Event:
     values = {"habs_lost": 0, "fleets_lost": 1, "combats_won": 1, "combats_lost": 0, **counts}
+    victim_kinds = ("faction_kinds", FrozenMap(((str(victim.entity_id), "alien"),)))
     return replace(
         make(
-            f"faction.battle_outcome/{killer.entity_id}/{victim.entity_id}",
+            f"{BATTLE_OUTCOME.event_type}/{killer.entity_id}/{victim.entity_id}",
             key,
             [killer, victim],
-            [("victim", victim), ("faction_kinds", FrozenMap(((str(victim.entity_id), "alien"),))), *values.items()],
+            [
+                *attributes(
+                    BATTLE_OUTCOME,
+                    victim=victim,
+                    kill_count=1,
+                    destruction_entries=0,
+                    battle_dates=(),
+                    signals=(),
+                    **values,
+                ),
+                victim_kinds,
+            ],
         ),
         constituents=tuple(event.id for event in constituents),
     )
@@ -94,11 +110,31 @@ def combat(key: str, number: int, *sides: EntityRef) -> Event:
 
 def first_hab(key: str, body: EntityRef, owner: EntityRef = UNION, first: bool = False) -> Event:
     return make(
-        f"faction.first_hab_on_body/{owner.entity_id}/{body.entity_id}",
+        f"{FIRST_HAB_ON_BODY.event_type}/{owner.entity_id}/{body.entity_id}",
         key,
         [owner, body],
-        [("body", body), ("habs", ()), ("hab_count", 1), ("first_of_any_faction", first)],
+        attributes(FIRST_HAB_ON_BODY, body=body, habs=(), hab_count=1, first_of_any_faction=first, milestones=()),
     )
+
+
+def destroyed(number: int, key: str, owner: EntityRef = UNION, ambiguous: bool = False) -> Event:
+    hab = ref(EntityDomain.SPACE_OBJECT, str(number))
+    values = attributes(HAB_DESTROYED, hab_type="Base", body=LUNA, signals=(), ambiguous=ambiguous)
+    return make(f"{HAB_DESTROYED.event_type}/hab:{number}", key, [hab, ALIENS, LUNA, owner], values)
+
+
+def with_habs(event: Event, *habs: EntityRef) -> Event:
+    body = event.attribute("body")
+    values = attributes(
+        FIRST_HAB_ON_BODY, body=body, habs=habs, hab_count=len(habs), first_of_any_faction=False, milestones=()
+    )
+    return replace(event, attributes=values)
+
+
+def established(number: int, key: str, body: EntityRef) -> Event:
+    hab = ref(EntityDomain.SPACE_OBJECT, str(number))
+    values = attributes(HAB_ESTABLISHED, faction=UNION, body=body)
+    return make(f"{HAB_ESTABLISHED.event_type}/space object:{number}", key, [hab, UNION, body], values)
 
 
 def ship(key: str, number: int, hull: str | None = "Frigate", owner: EntityRef = UNION) -> Event:
@@ -135,12 +171,7 @@ def of_type(events: Sequence[Event], event_type: str) -> list[Event]:
 
 
 def test_outcomes_of_one_pair_form_a_campaign_with_summed_counts() -> None:
-    habs = make(
-        "hab.destroyed/hab:9",
-        K2,
-        [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION],
-        [("body", LUNA), ("ambiguous", False)],
-    )
+    habs = destroyed(9, K2)
     lost_fleet = make("fleet.disappeared/fleet:50", K1, [FLEET, ALIENS], attributes(FLEET_DISAPPEARED, side="before"))
     stream = [outcome(K1, habs_lost=1), outcome(K2, habs_lost=2, fleets_lost=0), habs, lost_fleet]
 
@@ -163,12 +194,7 @@ def test_outcomes_of_one_pair_form_a_campaign_with_summed_counts() -> None:
 
 
 def test_bodies_include_habs_known_only_through_a_destruction_entry() -> None:
-    direct = make(
-        "hab.destroyed/hab:9",
-        K1,
-        [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION],
-        [("body", LUNA), ("ambiguous", False)],
-    )
+    direct = destroyed(9, K1)
     entry = make(
         "faction.hab_destruction_recorded/16/0",
         K1,
@@ -214,15 +240,8 @@ def test_a_gap_beyond_the_campaign_window_splits_the_campaign() -> None:
 
 
 def test_other_pairs_and_ambiguous_destructions_are_not_attached() -> None:
-    other = make(
-        "hab.destroyed/hab:8",
-        K1,
-        [ref(EntityDomain.SPACE_OBJECT, "8"), ALIENS, LUNA, ACADEMY],
-        [("body", LUNA), ("ambiguous", False)],
-    )
-    unsure = make(
-        "hab.destroyed/hab:7", K1, [ref(EntityDomain.SPACE_OBJECT, "7"), ALIENS, LUNA, UNION], [("ambiguous", True)]
-    )
+    other = destroyed(8, K1, ACADEMY)
+    unsure = destroyed(7, K1, ambiguous=True)
 
     [campaign] = of_type(built([outcome(K1), other, unsure]), "faction.space_campaign")
 
@@ -230,9 +249,7 @@ def test_other_pairs_and_ambiguous_destructions_are_not_attached() -> None:
 
 
 def test_no_campaign_without_an_outcome() -> None:
-    habs = make(
-        "hab.destroyed/hab:9", K1, [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION], [("ambiguous", False)]
-    )
+    habs = destroyed(9, K1)
 
     assert of_type(built([habs]), "faction.space_campaign") == []
 
@@ -254,10 +271,10 @@ def test_two_bodies_within_the_window_are_a_wave() -> None:
 def test_a_wave_attaches_the_establishment_of_its_habs_not_their_launch() -> None:
     luna_hab, mars_hab = ref(EntityDomain.SPACE_OBJECT, "60"), ref(EntityDomain.SPACE_OBJECT, "61")
     stream = [
-        replace(first_hab(K1, LUNA), attributes=(("body", LUNA), ("habs", (luna_hab,)), ("hab_count", 1))),
-        replace(first_hab(K2, MARS), attributes=(("body", MARS), ("habs", (mars_hab,)), ("hab_count", 1))),
-        make("hab.established/space object:60", K1, [luna_hab, UNION, LUNA]),
-        make("hab.established/space object:61", K2, [mars_hab, UNION, MARS]),
+        with_habs(first_hab(K1, LUNA), luna_hab),
+        with_habs(first_hab(K2, MARS), mars_hab),
+        established(60, K1, LUNA),
+        established(61, K2, MARS),
         make(
             "hab.appeared/space object:61",
             K1,
@@ -271,8 +288,8 @@ def test_a_wave_attaches_the_establishment_of_its_habs_not_their_launch() -> Non
 
     attached = [event_id for event_id in wave.constituents if event_id.startswith("hab.")]
     assert sorted(attached) == [
-        f"hab.established/space object:60@{K1}",
-        f"hab.established/space object:61@{K2}",
+        f"{HAB_ESTABLISHED.event_type}/space object:60@{K1}",
+        f"{HAB_ESTABLISHED.event_type}/space object:61@{K2}",
     ]
 
 

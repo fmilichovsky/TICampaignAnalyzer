@@ -22,6 +22,7 @@ from tests.analyzers.support import (
 )
 from tests.reconstruction.support import Scenario, assert_traceable, lines_of, only, run
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.space import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Significance, SourceRole
 from tinarrative.model.records import (
@@ -36,7 +37,6 @@ from tinarrative.model.records import (
 from tinarrative.model.snapshot import EntityState
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import assign_significance
-from tinarrative.reconstruction import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED
 
 FACTION = EntityDomain.FACTION
 HAB = EntityDomain.SPACE_OBJECT
@@ -328,7 +328,7 @@ def test_a_launch_is_a_minor_appearance_with_projected_dates_and_establishes_not
 
 def test_a_completed_core_establishes_the_hab_on_its_completion_date() -> None:
     _, inferred = run(landed())
-    event = only(inferred, HAB_ESTABLISHED)
+    event = only(inferred, HAB_ESTABLISHED.event_type)
     assert event.id == "hab.established/space object:56"
     assert (event.date, event.date_basis, event.confidence) == (IN_INTERVAL, DateBasis.RECORD, Confidence.HIGH)
     assert event.attribute("faction") == named(PLAYER)
@@ -351,14 +351,14 @@ def test_a_completed_core_establishes_the_hab_on_its_completion_date() -> None:
 )
 def test_an_establishment_is_dated_by_the_earliest_core_completion_inside_the_interval(core: Core, date: str) -> None:
     _, inferred = run(landed(core))
-    event = only(inferred, HAB_ESTABLISHED)
+    event = only(inferred, HAB_ESTABLISHED.event_type)
     basis = DateBasis.INTERVAL if date == "2031-06-01T00:00:00" else DateBasis.RECORD
     assert (event.date, event.date_basis) == (date, basis)
 
 
 def test_a_hab_that_appears_with_a_working_core_is_established_by_its_appearance() -> None:
     _, inferred = run(space_pair({}, {"58": ("15", "Station", "904", built(IN_INTERVAL))}))
-    event = only(inferred, HAB_ESTABLISHED)
+    event = only(inferred, HAB_ESTABLISHED.event_type)
     assert (event.date, event.constituents) == (IN_INTERVAL, ("hab.appeared/space object:58",))
 
 
@@ -367,7 +367,7 @@ def test_a_hab_that_appears_with_a_working_core_is_established_by_its_appearance
 
 def test_a_first_presence_waits_for_a_working_core_and_takes_its_date() -> None:
     _, inferred = run(landed(held=True))  # the hab in transit there does not count as presence
-    event = only(inferred, FIRST_HAB_ON_BODY)
+    event = only(inferred, FIRST_HAB_ON_BODY.event_type)
     assert event.id == "faction.first_hab_on_body/faction:15/space body:904"
     assert (event.date, event.date_basis) == (IN_INTERVAL, DateBasis.RECORD)
     assert event.attribute("first_of_any_faction") is True
@@ -376,7 +376,7 @@ def test_a_first_presence_waits_for_a_working_core_and_takes_its_date() -> None:
 
 def test_habs_on_a_body_new_to_their_faction_are_one_high_first_presence() -> None:
     _, inferred = run(new_body())
-    event = only(inferred, FIRST_HAB_ON_BODY)
+    event = only(inferred, FIRST_HAB_ON_BODY.event_type)
     assert event.id == "faction.first_hab_on_body/faction:15/space body:900"
     assert event.confidence is Confidence.HIGH
     assert ids(event.attribute("habs")) == ["space object:51", "space object:52"]
@@ -392,8 +392,8 @@ def test_a_hab_at_a_lagrange_point_is_established_and_a_first_presence_there() -
     point = lagrange("375")
     unnamed = replace(point, name=None)  # as normalization resolves a reference; the name comes from the snapshot
     _, inferred = run(space_pair({}, {"57": ("15", "Station", unnamed)}, lagrange_points=("375",)))
-    assert only(inferred, HAB_ESTABLISHED).attribute("body") == point
-    first = only(inferred, FIRST_HAB_ON_BODY)
+    assert only(inferred, HAB_ESTABLISHED.event_type).attribute("body") == point
+    first = only(inferred, FIRST_HAB_ON_BODY.event_type)
     assert first.id == "faction.first_hab_on_body/faction:15/space object:375"
     assert "first presence on Fixture L375 (space object:375)" in describe_event(first)
 
@@ -401,12 +401,12 @@ def test_a_hab_at_a_lagrange_point_is_established_and_a_first_presence_there() -
 def test_a_hab_on_a_body_the_faction_already_held_is_no_first_presence() -> None:
     scenario = space_pair({"50": ("15", "Base", "901")}, {"50": ("15", "Base", "901"), "55": ("15", "Station", "901")})
     objective, inferred = run(scenario)
-    assert by_type(list(objective), "hab.appeared") and by_type(inferred, FIRST_HAB_ON_BODY) == []
+    assert by_type(list(objective), "hab.appeared") and by_type(inferred, FIRST_HAB_ON_BODY.event_type) == []
 
 
 def test_a_first_base_milestone_is_cited_for_the_factions_only_first_of_any_faction() -> None:
     _, inferred = run(first_of_any_faction())
-    event = only(inferred, FIRST_HAB_ON_BODY)
+    event = only(inferred, FIRST_HAB_ON_BODY.event_type)
     assert event.attribute("first_of_any_faction") is True
     assert event.attribute("milestones") == ("FirstBaseOnMars",)  # ``FirstWarship`` names no base
     assert "campaign.global_milestone_recorded/global values:70/FirstBaseOnMars" in event.constituents
@@ -416,7 +416,7 @@ def test_a_first_base_milestone_is_cited_for_the_factions_only_first_of_any_fact
 
 def test_a_milestone_is_not_attributed_when_the_faction_reached_two_new_bodies() -> None:
     _, inferred = run(first_of_any_faction(second_body=True))
-    events = by_type(inferred, FIRST_HAB_ON_BODY)
+    events = by_type(inferred, FIRST_HAB_ON_BODY.event_type)
     assert len(events) == 2
     assert all(event.attribute("milestones") == () for event in events)
 
@@ -426,7 +426,7 @@ def test_a_milestone_is_not_attributed_when_the_faction_reached_two_new_bodies()
 
 def test_one_vanished_hab_and_one_matching_entry_is_a_high_destruction_dated_by_the_entry() -> None:
     _, inferred = run(unique_destruction())
-    event = only(inferred, HAB_DESTROYED)
+    event = only(inferred, HAB_DESTROYED.event_type)
     assert event.id == "hab.destroyed/space object:70"
     assert event.confidence is Confidence.HIGH
     assert (event.date, event.date_basis) == (IN_INTERVAL, DateBasis.RECORD)
@@ -442,7 +442,7 @@ def test_one_vanished_hab_and_one_matching_entry_is_a_high_destruction_dated_by_
 
 def test_two_entries_for_two_vanished_habs_are_medium_and_ambiguous() -> None:
     _, inferred = run(ambiguous_destruction(2))
-    events = by_type(inferred, HAB_DESTROYED)
+    events = by_type(inferred, HAB_DESTROYED.event_type)
     assert [event.id for event in sorted(events, key=lambda e: e.id)] == [
         "hab.destroyed/space object:72",
         "hab.destroyed/space object:73",
@@ -458,14 +458,14 @@ def test_two_entries_for_two_vanished_habs_are_medium_and_ambiguous() -> None:
 
 def test_fewer_entries_than_vanished_habs_is_low() -> None:
     _, inferred = run(ambiguous_destruction(1))
-    events = by_type(inferred, HAB_DESTROYED)
+    events = by_type(inferred, HAB_DESTROYED.event_type)
     assert len(events) == 2
     assert {event.confidence for event in events} == {Confidence.LOW}
 
 
 def test_a_notification_naming_the_hab_on_an_entrys_date_pins_the_pair() -> None:
     _, inferred = run(ambiguous_destruction(2, pinned=True))
-    by_id = {event.id: event for event in by_type(inferred, HAB_DESTROYED)}
+    by_id = {event.id: event for event in by_type(inferred, HAB_DESTROYED.event_type)}
     pinned = by_id["hab.destroyed/space object:73"]
     assert pinned.confidence is Confidence.HIGH
     assert (pinned.date, pinned.attribute("signals")) == (LATER_IN_INTERVAL, ("destruction_log", "notification"))
@@ -477,7 +477,7 @@ def test_a_notification_naming_the_hab_on_an_entrys_date_pins_the_pair() -> None
 def test_a_vanished_hab_of_another_type_or_body_is_not_joined() -> None:
     objective, inferred = run(mismatched_destruction())
     assert len(by_type(list(objective), "hab.disappeared")) == 2
-    assert by_type(inferred, HAB_DESTROYED) == []
+    assert by_type(inferred, HAB_DESTROYED.event_type) == []
 
 
 # --- faction.battle_outcome -------------------------------------------------------------------------------------
@@ -485,7 +485,7 @@ def test_a_vanished_hab_of_another_type_or_body_is_not_joined() -> None:
 
 def test_kills_with_a_victim_hab_loss_are_a_medium_battle_outcome() -> None:
     _, inferred = run(battle())
-    event = only(inferred, BATTLE_OUTCOME)
+    event = only(inferred, BATTLE_OUTCOME.event_type)
     assert event.id == "faction.battle_outcome/faction:15/faction:16"
     assert event.confidence is Confidence.MEDIUM
     assert (event.attribute("kill_count"), event.attribute("habs_lost"), event.attribute("fleets_lost")) == (4, 1, 0)
@@ -498,7 +498,7 @@ def test_kills_with_a_victim_hab_loss_are_a_medium_battle_outcome() -> None:
 
 def test_a_combat_won_by_the_killer_raises_the_outcome_to_high() -> None:
     _, inferred = run(battle(winners=(PLAYER,), fleet_loss=True))
-    event = only(inferred, BATTLE_OUTCOME)
+    event = only(inferred, BATTLE_OUTCOME.event_type)
     assert event.confidence is Confidence.HIGH
     assert (event.attribute("combats_won"), event.attribute("combats_lost"), event.attribute("fleets_lost")) == (
         1,
@@ -510,26 +510,26 @@ def test_a_combat_won_by_the_killer_raises_the_outcome_to_high() -> None:
 
 def test_a_battle_notification_raises_the_outcome_and_supplies_its_date() -> None:
     _, inferred = run(battle(notified=True))
-    event = only(inferred, BATTLE_OUTCOME)
+    event = only(inferred, BATTLE_OUTCOME.event_type)
     assert event.confidence is Confidence.HIGH
     assert event.attribute("battle_dates") == (IN_INTERVAL,)
 
 
 def test_a_battle_notification_does_not_raise_an_outcome_the_combat_log_says_the_victim_won() -> None:
     _, inferred = run(battle(notified=True, winners=(ENEMY,)))
-    event = only(inferred, BATTLE_OUTCOME)
+    event = only(inferred, BATTLE_OUTCOME.event_type)
     assert event.confidence is Confidence.MEDIUM
     assert (event.attribute("combats_won"), event.attribute("combats_lost")) == (0, 1)
 
 
 def test_kills_without_a_victim_loss_are_no_battle_outcome() -> None:
     _, inferred = run(battle(hab_loss=False))
-    assert by_type(inferred, BATTLE_OUTCOME) == []
+    assert by_type(inferred, BATTLE_OUTCOME.event_type) == []
 
 
 def test_a_battle_outcome_names_the_victim_in_its_entities_and_attribute() -> None:
     _, inferred = run(battle())
-    event = only(inferred, BATTLE_OUTCOME)
+    event = only(inferred, BATTLE_OUTCOME.event_type)
     victim = event.attribute("victim")
     assert isinstance(victim, EntityRef) and victim.entity_id == ENEMY.entity_id and victim.name is not None
     assert all(ref.name is not None for ref in event.entities)
@@ -538,7 +538,7 @@ def test_a_battle_outcome_names_the_victim_in_its_entities_and_attribute() -> No
 
 def test_kills_keyed_by_the_killer_itself_are_no_battle_outcome() -> None:
     _, inferred = run(battle(victim=PLAYER))
-    assert by_type(inferred, BATTLE_OUTCOME) == []
+    assert by_type(inferred, BATTLE_OUTCOME.event_type) == []
 
 
 # --- Invariants and presentation --------------------------------------------------------------------------------

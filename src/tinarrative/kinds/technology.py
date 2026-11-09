@@ -1,7 +1,6 @@
 """Technology and project completion, and the presence of name-keyed technology states.
 
-A completion is narrator evidence: it dates what a milestone narrative event names. The other types are
-bookkeeping the completion already states.
+A completion is narrator evidence: it dates what a milestone narrative event names.
 """
 
 from __future__ import annotations

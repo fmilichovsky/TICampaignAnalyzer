@@ -12,6 +12,7 @@ from ..analyzers.politics.bands import BANDS, crossed, rest_value_delta
 from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, TREND_QUARTERS
 from ..analyzers.politics.nation_population import DROP
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..kinds import campaign as campaign_kinds
 from ..kinds import nations as nation_kinds
 from ..kinds.control import TAKEOVER
 from ..kinds.nations import (
@@ -65,7 +66,7 @@ from .situation import SituationReport
 from .stream import EventStream
 
 BAND_CROSSED = nation_kinds.BAND_CROSSED.event_type
-NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
+NUCLEAR_STRIKES_CHANGED = campaign_kinds.NUCLEAR_STRIKES_CHANGED.event_type
 NUCLEAR_ARC = "nation.nuclear_arc"
 NUCLEAR_WEAPONS = "numNuclearWeapons"
 NUCLEAR_SHARE = 0.5

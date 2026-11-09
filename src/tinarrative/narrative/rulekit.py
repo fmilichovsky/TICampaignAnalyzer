@@ -10,6 +10,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 
+from ..kinds.military import ARMIES_CHANGED
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event
 from ..model.values import Observed
@@ -158,7 +159,7 @@ def entity_of(event: Event, domain: EntityDomain) -> EntityRef | None:
     return next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
 
 
-NATION_ARMIES_CHANGED = "nation.armies_changed"
+NATION_ARMIES_CHANGED = ARMIES_CHANGED[EntityDomain.NATION.value].event_type
 
 
 def army_home(event: Event) -> EntityRef | None:

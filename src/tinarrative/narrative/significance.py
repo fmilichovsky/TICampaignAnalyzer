@@ -73,15 +73,7 @@ _TRIVIAL: tuple[str, ...] = (
 
 _MINOR: tuple[str, ...] = ()
 
-_MAJOR: tuple[str, ...] = (
-    # Core political and asset-ownership changes.
-    # Inferred readings of space evidence: a working hab, a new foothold, a hab lost to an enemy and a battle won
-    # are what a history reports about the ``hab.*`` and log events they cite.
-    "hab.established",
-    "faction.first_hab_on_body",
-    "hab.destroyed",
-    "faction.battle_outcome",
-)
+_MAJOR: tuple[str, ...] = ()
 
 _CAMPAIGN_DEFINING: tuple[str, ...] = ()
 

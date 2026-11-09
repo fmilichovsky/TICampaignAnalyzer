@@ -1,8 +1,6 @@
-"""Nation territory, structure, relations, claims, names, statistics, population, space and rank, and the territorial
-readings inferred from region transfers.
+"""Nation territory, structure, relations, claims, names, statistics, population, space and rank, and readings.
 
-Narrator evidence: territory and its readings, names, a nation's end, statistic and band moves, population, space
-assets, the nuclear program and relations. The rest is bookkeeping a narrative event states in summary form.
+Evidence: territory, names, a nation's end, statistic moves, population, space, nuclear program and relations.
 """
 
 from __future__ import annotations

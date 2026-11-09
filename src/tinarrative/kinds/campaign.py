@@ -1,8 +1,6 @@
-"""The campaign-wide singletons: ``TIGlobalValuesState`` and the game's notification log.
+"""The campaign-wide singletons (``TIGlobalValuesState``) and the game's notification log, one prefix kind.
 
-Notification log types are named by the game's template (``notification.<templateName>``), so one prefix kind covers
-them; the fixed types of the analyzer are exact kinds. Of the campaign types, only the milestone record is narrator
-evidence; every notification line is, since the log dates and places a battle or a destroyed hab.
+Narrator evidence: the milestone record and every notification line.
 """
 
 from __future__ import annotations

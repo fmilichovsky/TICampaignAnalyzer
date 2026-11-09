@@ -1,9 +1,4 @@
-"""Fleets, ships, habs and the space battle log: literal transitions, presence and the faction's records.
-
-Evidence: only the two records that date something their narrative event does not carry, a destroyed hab and a
-battle. The kinds marked "silent" had no significance entry (MINOR by default) and every kind but those two was
-bookkeeping by default; both are declared here as they were.
-"""
+"""Fleets, ships, habs and the space battle log: literal transitions, presence and the faction's records."""
 
 from __future__ import annotations
 
@@ -17,7 +12,9 @@ from .text import (
     attribute_label,
     attribute_text,
     count_label,
+    entity,
     list_changed,
+    name,
     plain,
     presence_with,
     refs,
@@ -90,6 +87,48 @@ def _combat_entry_removed(event: Event) -> str:
     return _combat_line(event, "no longer lists")
 
 
+def _hab_established(event: Event) -> str:
+    faction = name(entity(event, EntityDomain.FACTION))
+    return f"{subject_label(event)} ({faction}) became operational at {attribute_label(event, 'body')}"
+
+
+def _first_hab_on_body(event: Event) -> str:
+    count = event.attribute("hab_count")
+    habs = f"{render_value(count)} hab{'' if count == 1 else 's'}"
+    first = ", the first of any faction there" if event.attribute("first_of_any_faction") is True else ""
+    return f"{subject_label(event)} established its first presence on {attribute_label(event, 'body')} ({habs}{first})"
+
+
+def _hab_destroyed(event: Event) -> str:
+    where = f"(type {attribute_label(event, 'hab_type')} at {attribute_label(event, 'body')})"
+    if event.attribute("ambiguous") is True:
+        return (
+            f"{subject_label(event)} {where} was destroyed by {refs(event, 'destroyers')}: one of "
+            f"{attribute_label(event, 'candidates')} recorded destructions for "
+            f"{attribute_label(event, 'vanished')} vanished habs"
+        )
+    return (
+        f"{subject_label(event)} {where} was destroyed by {attribute_label(event, 'destroyer')} "
+        f"on {attribute_text(event, 'recorded_on')}"
+    )
+
+
+def _battle_outcome(event: Event) -> str:
+    kills = attribute_label(event, "kill_count")
+    text = f"{subject_label(event)} inflicted {kills} kills on {attribute_label(event, 'victim')}"
+    losses = [
+        f"{render_value(count)} {label}{'' if count == 1 else 's'}"
+        for name, label in (("habs_lost", "hab"), ("fleets_lost", "fleet"))
+        if (count := event.attribute(name))
+    ]
+    if losses:
+        text += f", which lost {' and '.join(losses)}"
+    won, lost = event.attribute("combats_won"), event.attribute("combats_lost")
+    if won or lost:
+        text += f"; recorded combats won {render_value(won)}, lost {render_value(lost)}"
+    return text
+
+
 # --- Fleets ----------------------------------------------------------------------------------------------
 
 FLEET_FACTION_CHANGED = EventKind(
@@ -112,24 +151,24 @@ FLEET_BARYCENTER_CHANGED = EventKind(
     BOOKKEEPING,
     required=TRANSITION,
 )
-FLEET_PARENT_FLEET_CHANGED = EventKind(  # silent MINOR
+FLEET_PARENT_FLEET_CHANGED = EventKind(
     "fleet.parent_fleet_changed",
     with_context("parent fleet", FACTION),
     Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
 )
-FLEET_IN_COMBAT_CHANGED = EventKind(  # silent MINOR
+FLEET_IN_COMBAT_CHANGED = EventKind(
     "fleet.in_combat_changed",
     with_context("in-combat flag", FACTION),
     Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
 )
-FLEET_APPEARED = EventKind(  # silent MINOR
+FLEET_APPEARED = EventKind(
     "fleet.appeared", presence_with(FACTION, "faction"), Significance.MINOR, BOOKKEEPING, required=PRESENCE
 )
-FLEET_DISAPPEARED = EventKind(  # silent MINOR
+FLEET_DISAPPEARED = EventKind(
     "fleet.disappeared", presence_with(FACTION, "faction"), Significance.MINOR, BOOKKEEPING, required=PRESENCE
 )
 FACTION_FLEETS_CHANGED = EventKind(
@@ -161,7 +200,7 @@ SHIP_LAST_REFIT_DATE_CHANGED = EventKind(
     BOOKKEEPING,
     required=TRANSITION,
 )
-SHIP_APPEARED = EventKind(  # silent MINOR
+SHIP_APPEARED = EventKind(
     "ship.appeared",
     presence_with(FLEET, "fleet"),
     Significance.MINOR,
@@ -169,7 +208,7 @@ SHIP_APPEARED = EventKind(  # silent MINOR
     required=PRESENCE,
     optional=frozenset({"hull"}),
 )
-SHIP_DISAPPEARED = EventKind(  # silent MINOR
+SHIP_DISAPPEARED = EventKind(
     "ship.disappeared",
     presence_with(FLEET, "fleet"),
     Significance.MINOR,
@@ -191,41 +230,41 @@ FLEET_SHIPS_CHANGED = EventKind(
 HAB_FACTION_CHANGED = EventKind(
     "hab.faction_changed", plain("faction"), Significance.MAJOR, BOOKKEEPING, required=TRANSITION
 )
-HAB_TYPE_CHANGED = EventKind(  # silent MINOR
+HAB_TYPE_CHANGED = EventKind(
     "hab.type_changed", with_context("type", FACTION), Significance.MINOR, BOOKKEEPING, required=TRANSITION
 )
-HAB_TIER_CHANGED = EventKind(  # silent MINOR
+HAB_TIER_CHANGED = EventKind(
     "hab.tier_changed", with_context("tier", FACTION), Significance.MINOR, BOOKKEEPING, required=TRANSITION
 )
-HAB_IN_COMBAT_CHANGED = EventKind(  # silent MINOR
+HAB_IN_COMBAT_CHANGED = EventKind(
     "hab.in_combat_changed",
     with_context("in-combat flag", FACTION),
     Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
 )
-HAB_UNDER_ASSAULT_CHANGED = EventKind(  # silent MINOR
+HAB_UNDER_ASSAULT_CHANGED = EventKind(
     "hab.under_assault_changed",
     with_context("under-assault flag", FACTION),
     Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
 )
-HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(  # silent MINOR
+HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     "hab.under_bombardment_changed",
     with_context("under-bombardment flag", FACTION),
     Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
 )
-HAB_CORE_COMPLETED_CHANGED = EventKind(  # silent MINOR
+HAB_CORE_COMPLETED_CHANGED = EventKind(
     "hab.core_completed_changed",
     with_context("core-completed flag", FACTION),
     Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
 )
-# A hab appears at launch; it is founded when its core completes (``hab.established``), often a year later.
+# A hab appears at launch; it is founded when its core completes (``hab.established``).
 HAB_APPEARED = EventKind(
     "hab.appeared",
     _hab_presence,
@@ -256,6 +295,50 @@ COMBAT_ENTRY_REMOVED = EventKind(
     "faction.combat_entry_removed", _combat_entry_removed, Significance.TRIVIAL, BOOKKEEPING, required=COMBAT_ENTRY
 )
 
+# --- Inferred readings ---------------------------------------------------------------------------------------
+
+HAB_ESTABLISHED = EventKind(
+    "hab.established",
+    _hab_established,
+    Significance.MAJOR,
+    EvidenceRole.EVIDENCE,
+    required=frozenset({"faction", "body"}),
+)
+FIRST_HAB_ON_BODY = EventKind(
+    "faction.first_hab_on_body",
+    _first_hab_on_body,
+    Significance.MAJOR,
+    EvidenceRole.EVIDENCE,
+    required=frozenset({"body", "habs", "hab_count", "first_of_any_faction", "milestones"}),
+)
+HAB_DESTROYED = EventKind(
+    "hab.destroyed",
+    _hab_destroyed,
+    Significance.MAJOR,
+    EvidenceRole.EVIDENCE,
+    required=frozenset({"hab_type", "body", "signals", "ambiguous"}),
+    optional=frozenset({"destroyer", "recorded_on", "destroyers", "recorded_dates", "candidates", "vanished"}),
+)
+BATTLE_OUTCOME = EventKind(
+    "faction.battle_outcome",
+    _battle_outcome,
+    Significance.MAJOR,
+    EvidenceRole.EVIDENCE,
+    required=frozenset(
+        {
+            "victim",
+            "kill_count",
+            "habs_lost",
+            "fleets_lost",
+            "destruction_entries",
+            "combats_won",
+            "combats_lost",
+            "battle_dates",
+            "signals",
+        }
+    ),
+)
+
 KINDS = (
     FLEET_FACTION_CHANGED,
     FLEET_DOCKED_LOCATION_CHANGED,
@@ -284,6 +367,10 @@ KINDS = (
     HAB_DESTRUCTION_RECORDED,
     COMBAT_RECORDED,
     COMBAT_ENTRY_REMOVED,
+    HAB_ESTABLISHED,
+    FIRST_HAB_ON_BODY,
+    HAB_DESTROYED,
+    BATTLE_OUTCOME,
 )
 
 

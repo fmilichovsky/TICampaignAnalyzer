@@ -15,15 +15,7 @@ from ..model.kinds import EvidenceRole
 
 __all__ = ["EVIDENCE_PREFIXES", "NARRATOR_EVIDENCE", "is_evidence"]
 
-_EVIDENCE: tuple[str, ...] = (
-    # Space combat and footholds: the game's own records date each battle and lost hab and name the sides; the
-    # inferred readings name who won, what was destroyed, when a hab began to work and where a faction first
-    # settled.
-    "faction.battle_outcome",
-    "hab.destroyed",
-    "hab.established",
-    "faction.first_hab_on_body",
-)
+_EVIDENCE: tuple[str, ...] = ()
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)
 
