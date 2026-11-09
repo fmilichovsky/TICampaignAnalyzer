@@ -9,11 +9,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from ..analyzers.politics.bands import BANDS, crossed, rest_value_delta
-from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, PCGDP_TREND, TREND_QUARTERS
-from ..analyzers.politics.nation_metrics import STATISTIC_SHIFTED
-from ..analyzers.politics.nation_population import DROP, POPULATION_CHANGED
-from ..analyzers.politics.nations import NUCLEAR_PROGRAM_CHANGED
+from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, TREND_QUARTERS
+from ..analyzers.politics.nation_population import DROP
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..kinds import nations as nation_kinds
 from ..model.entities import EntityId
 from ..model.events import Event, Role, Significance
 from ..model.values import FrozenMap, Observed
@@ -51,7 +50,7 @@ from .rulekit import (
 from .situation import SituationReport
 from .stream import EventStream
 
-BAND_CROSSED = "nation.band_crossed"
+BAND_CROSSED = nation_kinds.BAND_CROSSED.event_type
 POPULATION_COLLAPSE = "nation.population_collapse"
 ECONOMIC_TRAJECTORY = "nation.economic_trajectory"
 NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
@@ -253,7 +252,7 @@ class PopulationCollapseRule:
         strikes = by_type(stream, NUCLEAR_STRIKES_CHANGED)
         parties = MergerParties.of(stream)
         built = []
-        for drop in by_type(stream, POPULATION_CHANGED):
+        for drop in by_type(stream, nation_kinds.POPULATION_CHANGED.event_type):
             nation = subject(drop)
             if nation is None or drop.attribute("direction") != DROP or parties.absorbed(nation, drop):
                 continue
@@ -307,7 +306,11 @@ class EconomicTrajectoryRule:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         parties = MergerParties.of(stream)
-        trends = [event for event in by_type(stream, PCGDP_TREND) if not parties.absorbed(subject(event), event)]
+        trends = [
+            event
+            for event in by_type(stream, nation_kinds.PCGDP_TREND.event_type)
+            if not parties.absorbed(subject(event), event)
+        ]
         grouped = by_subject(trends)
         built = []
         for nation_id in sorted_keys(grouped):
@@ -392,11 +395,13 @@ class NuclearArcRule:
         parties = MergerParties.of(stream)
         shifts = [
             event
-            for event in by_type(stream, STATISTIC_SHIFTED)
+            for event in by_type(stream, nation_kinds.STATISTIC_SHIFTED.event_type)
             if event.attribute("statistic") == NUCLEAR_WEAPONS and not parties.merged(subject(event), event)
         ]
         programs = by_subject(
-            event for event in by_type(stream, NUCLEAR_PROGRAM_CHANGED) if event.attribute("after") is True
+            event
+            for event in by_type(stream, nation_kinds.NUCLEAR_PROGRAM_CHANGED.event_type)
+            if event.attribute("after") is True
         )
         grouped = by_subject(shifts)
         built = []

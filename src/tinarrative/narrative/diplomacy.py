@@ -7,8 +7,8 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from ..analyzers.politics.nations import RELATION_CHANGED
 from ..config import GeopoliticsSettings
+from ..kinds.nations import RELATION_CHANGED
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.values import Observed
@@ -63,7 +63,7 @@ class DiplomaticRealignmentRule:
         reports = interval_reports(situations)
         parties = MergerParties.of(stream)
         by_nation: dict[EntityId, list[Event]] = defaultdict(list)
-        for event in by_type(stream, RELATION_CHANGED):
+        for event in by_type(stream, RELATION_CHANGED.event_type):
             pair = event.entities[:2]
             if event.attribute("relation") not in DIPLOMATIC_RELATIONS or len(pair) < 2:
                 continue

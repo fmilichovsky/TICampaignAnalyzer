@@ -371,7 +371,7 @@ def mirrored_sources(
 
 
 def list_changed_event(
-    event_type: str,
+    event_type: EventKind | str,
     change: StateChange,
     member: Observed,
     transition: Transition,

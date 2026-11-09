@@ -6,7 +6,8 @@ from collections.abc import Sequence
 
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -42,32 +43,39 @@ def army(key: str, number: int, kind: str = "Standard", event_type: str = "army.
 
 def space(key: str, statistic: str, before: float, after: float, territory: float = 0.0) -> Event:
     return atomic(
-        f"nation.space_assets_changed/nation:20/{statistic}",
+        f"{SPACE_ASSETS_CHANGED.event_type}/nation:20/{statistic}",
         key,
         not_before=PREVIOUS[key],
         entities=(NORTH,),
-        attributes=(
-            ("statistic", statistic),
-            ("direction", "growth" if after > before else "decline"),
-            ("before", before),
-            ("after", after),
-            ("territory_delta", territory),
+        attributes=attributes(
+            SPACE_ASSETS_CHANGED,
+            statistic=statistic,
+            direction="growth" if after > before else "decline",
+            before=before,
+            after=after,
+            relative_change=None if before == 0 else (after - before) / abs(before),
+            territory_delta=territory,
+            territory_share=territory / (after - before),
+            regions_gained=(),
+            regions_lost=(),
+            interval_days=None,
         ),
     )
 
 
 def rank(key: str, subject: EntityRef, before: int | None, after: int | None, metric: str = "GDP") -> Event:
     return atomic(
-        f"nation.rank_changed/{subject.entity_id}/{metric}",
+        f"{RANK_CHANGED.event_type}/{subject.entity_id}/{metric}",
         key,
         not_before=PREVIOUS[key],
         entities=(subject,),
-        attributes=(
-            ("metric", metric),
-            ("before_rank", before),
-            ("after_rank", after),
-            ("before", 1.0 if before is not None else None),
-            ("after", 2.0 if after is not None else None),
+        attributes=attributes(
+            RANK_CHANGED,
+            metric=metric,
+            before_rank=before,
+            after_rank=after,
+            before=1.0 if before is not None else None,
+            after=2.0 if after is not None else None,
         ),
         significance=Significance.TRIVIAL,
     )

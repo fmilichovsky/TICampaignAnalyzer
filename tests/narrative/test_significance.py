@@ -541,7 +541,7 @@ def test_churn_and_movement_are_never_scaled(monkeypatch: pytest.MonkeyPatch) ->
     ):
         result = scored(monkeypatch, scaled_event(event_type, nation_ref(BIG)), power=POWER)
         assert result.significance_basis is None
-        assert result.score == BASE.get(event_type, DEFAULT).base
+        assert result.score == significance_of(bare_event(event_type), empty_lookup()).base
 
 
 def test_movement_and_churn_have_no_stake() -> None:

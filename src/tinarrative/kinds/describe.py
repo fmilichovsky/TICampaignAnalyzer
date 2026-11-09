@@ -18,13 +18,18 @@ from ..model.values import FrozenMap, Observed, Unknown
 from .registry import KINDS, kind_of
 from .text import attribute_label as _attr
 from .text import attribute_text as _text
+from .text import bands as _bands
+from .text import entity as _entity
+from .text import list_changed as _list_changed
+from .text import name as _name
 from .text import plain as _plain
+from .text import presence as _presence
+from .text import refs as _refs
+from .text import region_count as _region_count
+from .text import regions as _regions
 from .text import render_event_value
 from .text import subject_label as _subject
 from .text import transition_label as _transition
-
-ABSENT = "is absent from the after snapshot"
-PRESENT = "is present only in the after snapshot"
 
 
 def describe_event(event: Event) -> str:
@@ -52,19 +57,6 @@ def _ascii(text: str) -> str:
     return "".join(char if char.isascii() else f"\\u{ord(char):04x}" for char in text)
 
 
-def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
-    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
-    return matches[skip] if len(matches) > skip else None
-
-
-def _name(ref: EntityRef | None) -> str:
-    return ref.label() if ref is not None else "null"
-
-
-def _presence(event: Event) -> str:
-    return PRESENT if event.attribute("side") == "after" else ABSENT
-
-
 def _controller_changed(event: Event) -> str:
     text = f"{_subject(event)} ({_name(_entity(event, EntityDomain.NATION))}) {_transition(event, 'controller')}"
     recorded = event.attribute("loss_recorded_on")
@@ -87,70 +79,12 @@ def _loss_recorded(event: Event) -> str:
     return text
 
 
-def _list_changed(event: Event) -> str:
-    field = event.sources[0].change.field if event.sources else "list"
-    transition = event.attribute("transition")
-    if transition == "unresolved":
-        return f"{_subject(event)} {_transition(event, f'{field} list')}"
-    sign = "+" if transition == "added" else "-"
-    return f"{_subject(event)} {field} list: {sign}{_attr(event, 'member')}"
-
-
-def _relation_changed(event: Event) -> str:
-    pair = " and ".join(ref.label() for ref in event.entities)
-    listing = (
-        "listed by both" if event.attribute("reciprocal") is True else f"listed by {_attr(event, 'listed_by')} only"
-    )
-    return f"{pair}: {_text(event, 'relation')} entry {_text(event, 'transition')} ({listing})"
-
-
-def _executive_change(event: Event) -> str:
-    text = (
-        f"{_subject(event)} records an executive change dated {_text(event, 'recorded_on')}: "
-        f"new executive {_attr(event, 'new_executive')}"
-    )
-    previous = event.attribute("previous_executive")
-    if not isinstance(previous, Unknown):
-        text += f" (previously {render_event_value(previous)})"
-    return text
-
-
-def _claims_changed(label: str) -> Callable[[Event], str]:
-    """``<nation> <label> list: +[regions] -[regions]``, an empty side left out; an unresolved list as a transition."""
-
-    def describe(event: Event) -> str:
-        if not isinstance(event.attribute("transition"), Unknown):
-            return f"{_subject(event)} {_transition(event, f'{label} list')}"
-        parts = [
-            f"{sign}{_attr(event, name)}" for sign, name in (("+", "added"), ("-", "removed")) if event.attribute(name)
-        ]
-        return f"{_subject(event)} {label} list: {' '.join(parts)}"
-
-    return describe
-
-
 def _renamed(event: Event) -> str:
     text = f"{_subject(event)} renamed: {_attr(event, 'before')} -> {_attr(event, 'after')}"
     if not isinstance(event.attribute("federation_name_before"), Unknown):
         text += (
             f" (federation name {_attr(event, 'federation_name_before')} -> {_attr(event, 'federation_name_after')})"
         )
-    return text
-
-
-def _unrest_attempts_changed(event: Event) -> str:
-    if not isinstance(event.attribute("transition"), Unknown):
-        return f"{_subject(event)} {_transition(event, 'faction unrest attempts')}"
-    label = f"unrest attempts by {_attr(event, 'faction')}"
-    return f"{_subject(event)} {_transition(event, label)}"
-
-
-def _new_government_recorded(event: Event) -> str:
-    if not isinstance(event.attribute("after"), str):
-        return f"{_subject(event)} {_transition(event, 'new government date')}"
-    text = f"{_subject(event)} records a new government dated {_text(event, 'after')}"
-    if isinstance(event.attribute("before"), str):
-        text += f" (previously {_text(event, 'before')})"
     return text
 
 
@@ -201,103 +135,6 @@ def _members_changed(event: Event) -> str:
 
 def _federation_presence(event: Event) -> str:
     return f"{_subject(event)} (members {_side_list(event)}) {_presence(event)}"
-
-
-def _nation_presence(event: Event) -> str:
-    return f"{_subject(event)} {_presence(event)}"
-
-
-def _statistic_shifted(event: Event) -> str:
-    """``<nation> <statistic>[ <key>]: before -> after``; the cause map is evidence for readers, not echoed."""
-    label = _text(event, "statistic")
-    if not isinstance(event.attribute("key"), Unknown):
-        label += f" {_text(event, 'key')}"
-    return f"{_subject(event)} {_transition(event, label)}"
-
-
-def _policy_changed(event: Event) -> str:
-    return f"{_subject(event)} {_transition(event, 'policy ' + _text(event, 'policy'))}"
-
-
-def _band_crossed(event: Event) -> str:
-    """``<nation> <statistic>: <band> -> <band> (before -> after)``; the game's own band labels."""
-    return f"{_subject(event)} {_bands(event)} ({_attr(event, 'before')} -> {_attr(event, 'after')})"
-
-
-def _bands(event: Event) -> str:
-    return f"{_text(event, 'statistic')}: {_text(event, 'from_band')} -> {_text(event, 'to_band')}"
-
-
-def _population_changed(event: Event) -> str:
-    """``<nation> population <direction>: before -> after (residual <residual>)``; the residual excludes territory."""
-    return (
-        f"{_subject(event)} population {_text(event, 'direction')}: {_attr(event, 'before')} -> "
-        f"{_attr(event, 'after')} (residual {_attr(event, 'residual')})"
-    )
-
-
-def _pcgdp_trend(event: Event) -> str:
-    """``<nation> per-capita GDP <boom|slump> at quarter <q>: before -> after``, over the trailing window."""
-    return (
-        f"{_subject(event)} per-capita GDP {_text(event, 'direction')} at quarter {_attr(event, 'quarter')}: "
-        f"{_attr(event, 'before')} -> {_attr(event, 'after')}"
-    )
-
-
-def _space_assets_changed(event: Event) -> str:
-    """``<nation> <statistic> <growth|decline>: before -> after``; the territory share is evidence, not echoed."""
-    return (
-        f"{_subject(event)} {_text(event, 'statistic')} {_text(event, 'direction')}: "
-        f"{_attr(event, 'before')} -> {_attr(event, 'after')}"
-    )
-
-
-def _rank_changed(event: Event) -> str:
-    """``<nation> <metric> rank: before -> after``; a side without a place is ``unranked``."""
-
-    def rank(name: str) -> str:
-        return "unranked" if event.attribute(name) is None else _attr(event, name)
-
-    return f"{_subject(event)} {_text(event, 'metric')} rank: {rank('before_rank')} -> {rank('after_rank')}"
-
-
-def _refs(event: Event, name: str) -> str:
-    """A tuple attribute of references as a comma-separated list of IDs."""
-    value = event.attribute(name)
-    if not isinstance(value, tuple):
-        return render_event_value(value)
-    return ", ".join(render_event_value(item) for item in value)
-
-
-def _regions(event: Event) -> str:
-    return _region_count(event.attribute("region_count"))
-
-
-def _region_count(count: Observed) -> str:
-    return f"{render_value(count)} region{'' if count == 1 else 's'}"
-
-
-def _territory_gained(event: Event) -> str:
-    return f"{_subject(event)} gained {_regions(event)} from {_refs(event, 'counterparts')}"
-
-
-def _territory_lost(event: Event) -> str:
-    return f"{_subject(event)} lost {_regions(event)} to {_refs(event, 'counterparts')}"
-
-
-def _independence(event: Event) -> str:
-    releaser = event.attribute("releasing_nation")
-    if event.attribute("released") is True and isinstance(releaser, EntityRef):
-        return f"{_subject(event)} was released by {releaser.label()}"
-    return f"{_subject(event)} became independent of {_refs(event, 'parents')}"
-
-
-def _unification(event: Event) -> str:
-    return f"{_subject(event)} unified with {_refs(event, 'unified')}"
-
-
-def _annexation(event: Event) -> str:
-    return f"{_subject(event)} annexed {_regions(event)} of {_name(_entity(event, EntityDomain.NATION))}"
 
 
 def _nation_control_changed(event: Event) -> str:
@@ -637,15 +474,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "control_point.loss_recorded": _loss_recorded,
     "faction.control_points_changed": _list_changed,
     "nation.control_points_changed": _list_changed,
-    "region.nation_changed": _plain("nation"),
-    "nation.capital_changed": _plain("capital"),
-    "nation.relation_changed": _relation_changed,
     "nation.federation_changed": _plain("federation"),
-    "nation.breakaway_parent_changed": _plain("breakaway parent"),
-    "nation.regions_changed": _list_changed,
-    "nation.breakaways_changed": _list_changed,
-    "nation.allies_changed": _list_changed,
-    "nation.rivals_changed": _list_changed,
     "nation.wars_changed": _list_changed,
     "war.appeared": _war_presence,
     "war.disappeared": _war_presence,
@@ -658,23 +487,7 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "federation.appeared": _federation_presence,
     "federation.disappeared": _federation_presence,
     "federation.members_changed": _members_changed,
-    "nation.executive_change_recorded": _executive_change,
-    "nation.appeared": _nation_presence,
-    "nation.disappeared": _nation_presence,
-    "nation.statistic_shifted": _statistic_shifted,
-    "nation.band_crossed": _band_crossed,
-    "nation.population_changed": _population_changed,
-    "nation.pcgdp_trend": _pcgdp_trend,
-    "nation.space_assets_changed": _space_assets_changed,
-    "nation.rank_changed": _rank_changed,
-    "nation.claims_changed": _claims_changed("claims"),
-    "nation.hostile_claims_changed": _claims_changed("hostile claims"),
-    "nation.renamed": _renamed,
     "federation.renamed": _renamed,
-    "nation.unrest_attempts_changed": _unrest_attempts_changed,
-    "nation.new_government_recorded": _new_government_recorded,
-    "nation.nuclear_program_changed": _plain("nuclear program"),
-    "nation.policy_changed": _policy_changed,
     "councilor.faction_changed": _plain("faction"),
     "councilor.status_changed": _councilor_field("status"),
     "councilor.location_changed": _councilor_field("location"),
@@ -735,11 +548,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "faction.project_completed": _project_completed,
     "faction.finished_project_names_changed": _finished_projects_changed,
     "campaign.interstate_wars_changed": _list_changed,
-    "nation.territory_gained": _territory_gained,
-    "nation.territory_lost": _territory_lost,
-    "nation.independence": _independence,
-    "nation.unification": _unification,
-    "nation.annexation": _annexation,
     "faction.nation_control_changed": _nation_control_changed,
     "hab.established": _hab_established,
     "faction.first_hab_on_body": _first_hab_on_body,

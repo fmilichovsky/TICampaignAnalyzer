@@ -17,6 +17,7 @@ from dataclasses import dataclass, replace
 from ..analyzers.common import Lookup, Side
 from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..kinds import kind_of
+from ..kinds.nations import REGION_NATION_CHANGED
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -70,14 +71,6 @@ _TRIVIAL: tuple[str, ...] = (
     # Organizations are created and removed in bulk.
     "organization.appeared",
     "organization.disappeared",
-    # A band crossing is the evidence a band-shift narrative event is built from; on its own it may be the game
-    # converging the statistic towards its rest value.
-    "nation.band_crossed",
-    # A per-capita GDP trend is the evidence an economic trajectory is built from.
-    "nation.pcgdp_trend",
-    # A nation's place by a metric moves whenever one of the nations around it changes; the ranking narrative event
-    # states the changes of the top.
-    "nation.rank_changed",
     # Log housekeeping: the game prunes and rewrites kept entries.
     "faction.combat_entry_removed",
     # Progress-only technology states come and go with research priorities; completion is its own event.
@@ -111,10 +104,6 @@ _MINOR: tuple[str, ...] = (
     # are ``region.nation_changed``, ``nation.relation_changed``, ``nation.breakaway_parent_changed``,
     # ``control_point.controller_changed``, councilor events, ``war.alliance_changed`` and war presence). They
     # stay visible so the unexplained residue is never hidden; promoting one is reconstruction work.
-    "nation.regions_changed",
-    "nation.breakaways_changed",
-    "nation.allies_changed",
-    "nation.rivals_changed",
     "nation.wars_changed",
     "faction.control_points_changed",
     "nation.control_points_changed",
@@ -125,28 +114,12 @@ _MINOR: tuple[str, ...] = (
     # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
     # it is not counted as a second major event.
     "control_point.loss_recorded",
-    # Inferred aggregates of the ``region.nation_changed`` events they cite, which are already major; ranking
-    # them major too would count one transfer twice.
-    "nation.territory_gained",
-    "nation.territory_lost",
-    # Hostile claims mark regions a nation may take by force: frequent and only a
-    # precursor; the war or annexation that follows is the major event.
-    "nation.hostile_claims_changed",
     "faction.finished_project_names_changed",
-    # Precursors of a takeover, named by the reconstruction it feeds: unrest attempts per faction and the
-    # new-government date, which corroborates the executive record and control-point events.
-    "nation.unrest_attempts_changed",
-    "nation.new_government_recorded",
-    # A nuclear program or policy flag says what a nation may do, not what it did; the nuclear arcs cite the
-    # program as the start of an arsenal.
-    "nation.nuclear_program_changed",
-    "nation.policy_changed",
 )
 
 _MAJOR: tuple[str, ...] = (
     # Core political and asset-ownership changes.
     "control_point.controller_changed",
-    "region.nation_changed",
     "nation.federation_changed",
     "councilor.faction_changed",
     "hab.disappeared",
@@ -158,9 +131,7 @@ _MAJOR: tuple[str, ...] = (
     "federation.appeared",
     "federation.disappeared",
     "federation.members_changed",
-    # A rename marks a unification or a federation's growth, which a history reports; claims are decided by
-    # their context rule.
-    "nation.renamed",
+    # A federation's rename marks its growth, which a history reports.
     "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
     "councilor.detaining_faction_changed",
@@ -173,11 +144,6 @@ _MAJOR: tuple[str, ...] = (
     "organization.assigned_councilor_changed",
     # Space battles (``CombatLogs``).
     "faction.combat_recorded",
-    # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
-    # and a whole-nation unification or an independence is what a history reports about it.
-    "nation.independence",
-    "nation.unification",
-    "nation.annexation",
     # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
     # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major.
     "faction.nation_control_changed",
@@ -189,11 +155,7 @@ _MAJOR: tuple[str, ...] = (
     "faction.battle_outcome",
 )
 
-_CAMPAIGN_DEFINING: tuple[str, ...] = (
-    # The birth or end of a nation.
-    "nation.appeared",
-    "nation.disappeared",
-)
+_CAMPAIGN_DEFINING: tuple[str, ...] = ()
 
 BASE: Mapping[str, Significance] = {
     **dict.fromkeys(_TRIVIAL, Significance.TRIVIAL),
@@ -300,12 +262,6 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
 RULES: Mapping[str, Rule] = {
     "councilor.appeared": Rule.COUNCILOR_PRESENCE,
     "councilor.disappeared": Rule.COUNCILOR_PRESENCE,
-    "nation.relation_changed": Rule.RELATION_CHANGED,
-    "nation.claims_changed": Rule.CLAIMS_CHANGED,
-    "nation.executive_change_recorded": Rule.EXECUTIVE_CHANGE,
-    "nation.statistic_shifted": Rule.STATISTIC_SHIFTED,
-    "nation.population_changed": Rule.POPULATION_CHANGED,
-    "nation.space_assets_changed": Rule.SPACE_ASSETS_CHANGED,
     "army.appeared": Rule.ARMY_PRESENCE,
     "army.disappeared": Rule.ARMY_PRESENCE,
     "technology.completed": Rule.COMPLETION,
@@ -396,7 +352,7 @@ def _belligerents(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
 def _moved_regions(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
     """The regions of a transfer: the event's own, else those of the region events it cites; a region event is its
     own territory."""
-    if event.event_type == "region.nation_changed":
+    if event.event_type == REGION_NATION_CHANGED.event_type:
         return _first(event, EntityDomain.REGION)
     listed = event.attribute("regions")
     if isinstance(listed, tuple):
@@ -404,7 +360,7 @@ def _moved_regions(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
     return tuple(
         entity
         for cited in stakes.cited(event)
-        if cited.event_type == "region.nation_changed"
+        if cited.event_type == REGION_NATION_CHANGED.event_type
         for entity in _moved_regions(cited, stakes)
     )
 
@@ -419,19 +375,7 @@ STAKE_IMPLEMENTATIONS: Mapping[Stake, Scaling] = {
 """Every ``Stake``'s implementation."""
 
 SCALED: Mapping[str, Stake] = {
-    "nation.executive_change_recorded": Stake.NATION,
-    "nation.appeared": Stake.NATION,
-    "nation.disappeared": Stake.NATION,
-    "nation.statistic_shifted": Stake.NATION,
     "nation.federation_changed": Stake.NATION,
-    "nation.claims_changed": Stake.NATION,
-    "nation.relation_changed": Stake.BELLIGERENTS,
-    "region.nation_changed": Stake.TERRITORY,
-    "nation.independence": Stake.TERRITORY,
-    "nation.unification": Stake.TERRITORY,
-    "nation.annexation": Stake.TERRITORY,
-    "nation.territory_gained": Stake.TERRITORY,
-    "nation.territory_lost": Stake.TERRITORY,
     "control_point.controller_changed": Stake.CONTROL_POINT,
     "faction.nation_control_changed": Stake.NATION,
     "organization.assigned_councilor_changed": Stake.ORGANIZATION,

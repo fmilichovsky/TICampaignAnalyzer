@@ -7,7 +7,9 @@ from collections.abc import Sequence
 from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
 from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import BAND_CROSSED, STATISTIC_SHIFTED
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
@@ -42,16 +44,17 @@ def crossing(
         ("to_band", move.to_band),
         ("bands_crossed", move.bands_crossed),
         ("margin", move.margin),
+        ("interval_days", None),
     ]
     if rest is not None:
         reason = f"{statistic.capitalize()}Reason_MovementToRestValue"
         attributes.append(("causes", FrozenMap(((reason, rest),))))
     return atomic(
-        f"nation.band_crossed/{subject.entity_id}/{statistic}",  # type: ignore[attr-defined]
+        f"{BAND_CROSSED.event_type}/{subject.entity_id}/{statistic}",  # type: ignore[attr-defined]
         key,
         not_before=PREVIOUS[key],
         entities=(subject,),  # type: ignore[arg-type]
-        attributes=attributes,
+        attributes=kind_attributes(BAND_CROSSED, attributes),
         significance=Significance.TRIVIAL,
     )
 
@@ -206,11 +209,18 @@ def plain_reports() -> list[SituationReport]:
 def test_metric_shifts_of_the_nation_explain_their_bands() -> None:
     event = crossing(K1, "democracy", 5.5, 6.5)
     statistic = atomic(
-        f"nation.statistic_shifted/{NORTH.entity_id}/democracy",
+        f"{STATISTIC_SHIFTED.event_type}/{NORTH.entity_id}/democracy",
         K1,
         not_before=K0,
         entities=(NORTH,),
-        attributes=(("statistic", "democracy"), ("before", 5.5), ("after", 6.5), ("relative_change", 1 / 5.5)),
+        attributes=kind_attributes(
+            STATISTIC_SHIFTED,
+            statistic="democracy",
+            before=5.5,
+            after=6.5,
+            relative_change=1 / 5.5,
+            interval_days=None,
+        ),
         significance=Significance.TRIVIAL,
     )
     (shift,) = built([event, statistic], reports(5.5, 6.5, 6.5, statistic="democracy"))
