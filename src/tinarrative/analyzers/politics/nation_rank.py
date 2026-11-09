@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 
+from ...kinds.nations import RANK_CHANGED
 from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityId
 from ...model.events import Event, EventSource, SourceRole
@@ -26,7 +27,6 @@ from .nation_assets import (
     standings,
 )
 
-RANK_CHANGED = "nation.rank_changed"
 RANKED_PLACES = 20
 """Places beyond this on both sides are not reported."""
 

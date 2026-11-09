@@ -7,6 +7,13 @@ event carries the design's ``hull`` (matched ``templateName`` to ``dataName`` in
 
 from __future__ import annotations
 
+from ...kinds.space import (
+    FLEET_SHIPS_CHANGED,
+    SHIP_APPEARED,
+    SHIP_DISAPPEARED,
+    SHIP_FLEET_CHANGED,
+    SHIP_LAST_REFIT_DATE_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId
 from ...model.events import Event, SourceRole
@@ -27,14 +34,8 @@ from ..common import (
     value_transition_event,
 )
 
-FLEET_CHANGED = "ship.fleet_changed"
-LAST_REFIT_DATE_CHANGED = "ship.last_refit_date_changed"
-APPEARED = "ship.appeared"
-DISAPPEARED = "ship.disappeared"
-FLEET_LIST_CHANGED = "fleet.ships_changed"
-
 HANDLED_LISTS = ((EntityDomain.FLEET, "ships"),)
-VALUE_FIELDS = (("lastRefitDate", LAST_REFIT_DATE_CHANGED),)
+VALUE_FIELDS = (("lastRefitDate", SHIP_LAST_REFIT_DATE_CHANGED),)
 
 
 class ShipAnalyzer:
@@ -52,7 +53,7 @@ class ShipAnalyzer:
             ship_id = change.entity_id
             events.append(
                 build.event(
-                    FLEET_CHANGED,
+                    SHIP_FLEET_CHANGED,
                     id_parts=(ship_id,),
                     sources=mirrored_sources(change, ledger, "ships", ship_id),
                     entities=(lookup.ref(ship_id), lookup.resolve(change.before), lookup.resolve(change.after)),
@@ -60,17 +61,17 @@ class ShipAnalyzer:
                     confidence=confidence_for(transition),
                 )
             )
-        for field_name, event_type in VALUE_FIELDS:
+        for field_name, kind in VALUE_FIELDS:
             for change in index.fields(EntityDomain.SHIP, field_name):
                 assert change.entity_id is not None
                 fleet = lookup.context_ref(change.entity_id, "fleet")
-                event = value_transition_event(event_type, change, lookup, build, context=(fleet,))
+                event = value_transition_event(kind, change, lookup, build, context=(fleet,))
                 if event is not None:
                     events.append(event)
         for change in index.presence(EntityDomain.SHIP):
             events.append(_presence(change, lookup, ledger, build))
         for change, member, transition in ledger.leftovers():
-            events.append(list_changed_event(FLEET_LIST_CHANGED, change, member, transition, lookup, build))
+            events.append(list_changed_event(FLEET_SHIPS_CHANGED, change, member, transition, lookup, build))
         return events
 
 
@@ -88,7 +89,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         if cited is not None:
             sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        SHIP_APPEARED if appeared else SHIP_DISAPPEARED,
         id_parts=(ship_id,),
         sources=sources,
         entities=(lookup.ref(ship_id), fleet, owner),

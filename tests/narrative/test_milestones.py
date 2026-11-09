@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from tests.narrative.support import atomic, faction, ref
+from tinarrative.kinds import attributes
+from tinarrative.kinds.technology import PROJECT_COMPLETED, TECHNOLOGY_COMPLETED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Significance
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES, completed_template, milestone_of
@@ -28,13 +30,13 @@ def test_a_completion_names_its_technology_or_its_project() -> None:
         "technology.completed/technology:SpaceNavies",
         K1,
         entities=[ref(EntityDomain.TECHNOLOGY, "SpaceNavies")],
-        attributes=[("side", "after")],
+        attributes=attributes(TECHNOLOGY_COMPLETED, side="after"),
     )
     project = atomic(
         "faction.project_completed/faction:15/Project_Warships",
         K1,
         entities=[faction("15")],
-        attributes=[("project", "Project_Warships")],
+        attributes=attributes(PROJECT_COMPLETED, project="Project_Warships"),
     )
     other = atomic("fleet.disappeared/fleet:1", K1, entities=[ref(EntityDomain.FLEET, "1")])
 

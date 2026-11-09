@@ -16,6 +16,7 @@ from ..model.changes import StateChange
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Confidence, Event, EventSource, EventStatus, SourceRole
 from ..model.evidence import SourceLocation
+from ..model.kinds import EventKind
 from ..model.snapshot import EntityState
 from ..model.values import FieldValue, Observed
 
@@ -110,7 +111,7 @@ class ObjectiveIndex:
 
 def inferred(
     build: EventBuilder,
-    event_type: str,
+    event_type: EventKind | str,
     *,
     id_parts: Sequence[object],
     primary: Sequence[Event],

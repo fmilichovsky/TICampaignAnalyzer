@@ -9,8 +9,7 @@ import pytest
 from tests.analyzers.support import AFTER, BEFORE, snapshot
 from tests.fixtures import FIXTURES_ROOT
 from tinarrative.analyzers.common import EventBuilder
-from tinarrative.kinds import KINDS, attributes, known_event_types
-from tinarrative.kinds.describe import NOTIFICATION_PREFIX
+from tinarrative.kinds import KINDS, attributes, kind_of, known_event_types
 from tinarrative.kinds.registry import FAMILIES, NARRATIVE_FAMILIES
 from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
@@ -85,9 +84,5 @@ def test_every_emitted_type_matches_exactly_one_kind_or_table_entry(pair: str) -
     assert emitted
     legacy = known_event_types() - set(KINDS)
     for event_type in emitted:
-        homes = [
-            event_type in KINDS,
-            event_type in legacy,
-            event_type.startswith(NOTIFICATION_PREFIX) and event_type not in legacy,
-        ]
+        homes = [kind_of(event_type) is not None, event_type in legacy]
         assert homes.count(True) == 1, (event_type, homes)

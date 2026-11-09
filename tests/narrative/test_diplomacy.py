@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from tests.narrative.support import atomic, faction, nation, nation_row, situation, unification
+from tests.narrative.support import atomic, control_attributes, faction, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
-from tinarrative.kinds import describe_event
-from tinarrative.kinds.nations import DIPLOMATIC_REALIGNMENT
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
+from tinarrative.kinds.nations import DIPLOMATIC_REALIGNMENT, RELATION_CHANGED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance
 from tinarrative.model.values import Observed
@@ -30,23 +31,23 @@ SERVANTS = faction("16", "Servants")
 def relation(key: str, one: EntityRef, other: EntityRef, field: str = "allies", transition: str = "added") -> Event:
     pair = sorted((one, other), key=lambda ref: ref.entity_id.sort_key)
     return atomic(
-        f"nation.relation_changed/{field}/{pair[0].entity_id}/{pair[1].entity_id}/{transition}",
+        f"{RELATION_CHANGED.event_type}/{field}/{pair[0].entity_id}/{pair[1].entity_id}/{transition}",
         key,
         not_before=PREVIOUS[key],
         entities=tuple(pair),
-        attributes=(("relation", field), ("transition", transition), ("reciprocal", True)),
+        attributes=attributes(RELATION_CHANGED, relation=field, transition=transition, reciprocal=True),
     )
 
 
 def executive_change(key: str, before: EntityRef, after: EntityRef, subject: EntityRef = NORTH) -> Event:
     return atomic(
-        f"faction.nation_control_changed/{subject.entity_id}/executive",
+        f"{NATION_CONTROL_CHANGED.event_type}/{subject.entity_id}/executive",
         key,
         not_before=PREVIOUS[key],
         status=EventStatus.INFERRED,
         significance=Significance.MAJOR,
         entities=(subject, before, after),
-        attributes=(("scope", "executive"), ("before", before), ("after", after), ("cause", "Politics")),
+        attributes=control_attributes("executive", before, after),
     )
 
 

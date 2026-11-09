@@ -17,7 +17,8 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.politics import NationAnalyzer
-from tinarrative.analyzers.politics.nations import (
+from tinarrative.analyzers.politics.nations import POLICY_FIELDS
+from tinarrative.kinds.nations import (
     APPEARED,
     BREAKAWAY_PARENT_CHANGED,
     CAPITAL_CHANGED,
@@ -25,14 +26,13 @@ from tinarrative.analyzers.politics.nations import (
     DISAPPEARED,
     EXECUTIVE_CHANGE_RECORDED,
     HOSTILE_CLAIMS_CHANGED,
+    LIST_CHANGED,
     NEW_GOVERNMENT_RECORDED,
     NUCLEAR_PROGRAM_CHANGED,
     POLICY_CHANGED,
-    POLICY_FIELDS,
     REGION_NATION_CHANGED,
     RENAMED,
     UNREST_ATTEMPTS_CHANGED,
-    list_event_type,
 )
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, SourceRole
@@ -58,7 +58,7 @@ def test_region_ownership_change_cites_both_nations_region_lists() -> None:
         state(NATION, "21", AFTER, regions=()),
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == REGION_NATION_CHANGED and event.confidence is Confidence.HIGH
+    assert event.event_type == REGION_NATION_CHANGED.event_type and event.confidence is Confidence.HIGH
     assert [str(ref.entity_id) for ref in event.entities] == ["region:42", "nation:21", "nation:20"]
     assert dict(event.attributes) == {
         "transition": "changed",
@@ -79,7 +79,7 @@ def test_capital_is_a_single_field_transition_and_federation_and_wars_are_left_t
         state(NATION, "20", AFTER, capital=region_ref("41"), federation=federation_ref("80"), wars=(nation_ref("21"),)),
     )
     events = analyze(ANALYZER, before, after)
-    capital = only(events, CAPITAL_CHANGED)
+    capital = only(events, CAPITAL_CHANGED.event_type)
     assert [str(ref.entity_id) for ref in capital.entities] == ["nation:20", "region:40", "region:41"]
     assert len(events) == 1
 
@@ -132,13 +132,13 @@ def test_breakaway_parent_cites_the_parents_breakaway_list_and_leftovers_are_rep
         state(NATION, "22", AFTER, breakawayParent=nation_ref("20")),
     )
     events = analyze(ANALYZER, before, after)
-    parent = only(events, BREAKAWAY_PARENT_CHANGED)
+    parent = only(events, BREAKAWAY_PARENT_CHANGED.event_type)
     assert [str(ref.entity_id) for ref in parent.entities] == ["nation:22", "nation:20"]
     assert [(s.role, str(s.change.entity_id)) for s in parent.sources] == [
         (SourceRole.PRIMARY, "nation:22"),
         (SourceRole.CORROBORATING, "nation:20"),
     ]
-    regions = only(events, list_event_type("regions"))
+    regions = only(events, LIST_CHANGED["regions"].event_type)
     assert regions.id == "nation.regions_changed/nation:20/region:40/removed"
     assert dict(regions.attributes) == {"member": region_ref("40"), "transition": "removed"}
     assert len(events) == 2
@@ -161,7 +161,7 @@ def test_executive_change_record_is_dated_by_the_record_and_copies_its_values_li
         records=(executive(AFTER, "20", faction_ref("15"), "2031-04-20T00:00:00", "Coup"),),  # type: ignore[arg-type]
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == EXECUTIVE_CHANGE_RECORDED
+    assert event.event_type == EXECUTIVE_CHANGE_RECORDED.event_type
     assert (event.date, event.date_basis, event.not_before) == ("2031-04-20T00:00:00", DateBasis.RECORD, BEFORE_DATE)
     assert [str(ref.entity_id) for ref in event.entities] == ["nation:20", "faction:15", "faction:16"]
     assert dict(event.attributes) == {
@@ -196,9 +196,9 @@ def test_presence_and_statistics() -> None:
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, GDP=1.0), state(NATION, "21", BEFORE))
     after = snapshot(AFTER, state(NATION, "20", AFTER, GDP=2.0), state(NATION, "23", AFTER))
     events = analyze(ANALYZER, before, after)
-    assert only(events, DISAPPEARED).attribute("side") == "before"
-    assert only(events, APPEARED).attribute("side") == "after"
-    assert not by_type(events, CAPITAL_CHANGED) and len(events) == 2  # GDP stays in the diff
+    assert only(events, DISAPPEARED.event_type).attribute("side") == "before"
+    assert only(events, APPEARED.event_type).attribute("side") == "after"
+    assert not by_type(events, CAPITAL_CHANGED.event_type) and len(events) == 2  # GDP stays in the diff
 
 
 def test_claims_are_one_event_per_nation_and_list_with_the_regions_owners_as_context() -> None:
@@ -221,7 +221,7 @@ def test_claims_are_one_event_per_nation_and_list_with_the_regions_owners_as_con
         "nation.claims_changed/nation:20",
         "nation.hostile_claims_changed/nation:20",
     ]
-    claims = only(events, CLAIMS_CHANGED)
+    claims = only(events, CLAIMS_CHANGED.event_type)
     assert dict(claims.attributes) == {
         "added": (named(region_ref("40")),),
         "removed": (named(region_ref("41")),),
@@ -232,7 +232,7 @@ def test_claims_are_one_event_per_nation_and_list_with_the_regions_owners_as_con
         (SourceRole.PRIMARY, "claims", region_ref("41")),
     ]
     assert [str(ref.entity_id) for ref in claims.entities] == ["nation:20", "region:40", "region:41", "nation:21"]
-    hostile = only(events, HOSTILE_CLAIMS_CHANGED)
+    hostile = only(events, HOSTILE_CLAIMS_CHANGED.event_type)
     assert hostile.attribute("added") == (named(region_ref("40")),) and hostile.attribute("removed") == ()
 
 
@@ -240,7 +240,7 @@ def test_a_claim_list_unresolved_on_one_side_is_one_low_confidence_event() -> No
     unresolved = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze([{"value": 999}]))
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, claims=()))
     after = snapshot(AFTER, state(NATION, "20", AFTER, claims=unresolved))
-    event = only(analyze(ANALYZER, before, after), CLAIMS_CHANGED)
+    event = only(analyze(ANALYZER, before, after), CLAIMS_CHANGED.event_type)
     assert event.id == "nation.claims_changed/nation:20"
     assert event.confidence is Confidence.LOW and event.attribute("transition") == "unresolved"
 
@@ -248,7 +248,7 @@ def test_a_claim_list_unresolved_on_one_side_is_one_low_confidence_event() -> No
 def test_a_display_name_change_is_a_rename_with_the_literal_names() -> None:
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, displayName="Old Name"))
     after = snapshot(AFTER, state(NATION, "20", AFTER, displayName="New Name"))
-    event = only(analyze(ANALYZER, before, after), RENAMED)
+    event = only(analyze(ANALYZER, before, after), RENAMED.event_type)
     assert event.id == "nation.renamed/nation:20"
     assert dict(event.attributes) == {"transition": "changed", "before": "Old Name", "after": "New Name"}
     assert [(s.role, s.change.field) for s in event.sources] == [(SourceRole.PRIMARY, "displayName")]
@@ -258,7 +258,10 @@ def test_a_nuclear_program_flag_change_is_one_event_with_the_literal_flags() -> 
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, nuclearProgram=False, policy_noNukes=False))
     after = snapshot(AFTER, state(NATION, "20", AFTER, nuclearProgram=True, policy_noNukes=False))
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == NUCLEAR_PROGRAM_CHANGED and event.id == "nation.nuclear_program_changed/nation:20"
+    assert (
+        event.event_type == NUCLEAR_PROGRAM_CHANGED.event_type
+        and event.id == "nation.nuclear_program_changed/nation:20"
+    )
     assert dict(event.attributes) == {"transition": "changed", "before": False, "after": True}
     assert [(s.role, s.change.field) for s in event.sources] == [(SourceRole.PRIMARY, "nuclearProgram")]
 
@@ -266,7 +269,7 @@ def test_a_nuclear_program_flag_change_is_one_event_with_the_literal_flags() -> 
 def test_each_policy_flag_change_is_a_policy_event_naming_the_policy() -> None:
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, **dict.fromkeys(POLICY_FIELDS, False)))
     after = snapshot(AFTER, state(NATION, "20", AFTER, **dict.fromkeys(POLICY_FIELDS, True)))
-    events = by_type(analyze(ANALYZER, before, after), POLICY_CHANGED)
+    events = by_type(analyze(ANALYZER, before, after), POLICY_CHANGED.event_type)
     assert [event.attribute("policy") for event in events] == list(POLICY_FIELDS)
     assert events[2].id == "nation.policy_changed/nation:20/policy_noNukes"
     assert dict(events[2].attributes) == {
@@ -310,7 +313,7 @@ def test_an_unresolved_unrest_map_is_one_low_confidence_event() -> None:
     unresolved = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze([{"Key": {"value": 999}, "Value": 1}]))
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, factionUnrestAttempts=FrozenMap()))
     after = snapshot(AFTER, state(NATION, "20", AFTER, factionUnrestAttempts=unresolved))
-    event = only(analyze(ANALYZER, before, after), UNREST_ATTEMPTS_CHANGED)
+    event = only(analyze(ANALYZER, before, after), UNREST_ATTEMPTS_CHANGED.event_type)
     assert event.id == "nation.unrest_attempts_changed/nation:20/unresolved"
     assert event.confidence is Confidence.LOW
 
@@ -322,7 +325,7 @@ def new_government(save: str, date: object) -> object:
 def test_a_new_government_date_is_record_dated() -> None:
     before = snapshot(BEFORE, state(NATION, "20", BEFORE), records=(new_government(BEFORE, "2030-02-01T00:00:00"),))  # type: ignore[arg-type]
     after = snapshot(AFTER, state(NATION, "20", AFTER), records=(new_government(AFTER, "2031-04-20T00:00:00"),))  # type: ignore[arg-type]
-    event = only(analyze(ANALYZER, before, after), NEW_GOVERNMENT_RECORDED)
+    event = only(analyze(ANALYZER, before, after), NEW_GOVERNMENT_RECORDED.event_type)
     assert event.id == "nation.new_government_recorded/nation:20"
     assert (event.date, event.date_basis) == ("2031-04-20T00:00:00", DateBasis.RECORD)
     assert (event.attribute("before"), event.attribute("after")) == ("2030-02-01T00:00:00", "2031-04-20T00:00:00")

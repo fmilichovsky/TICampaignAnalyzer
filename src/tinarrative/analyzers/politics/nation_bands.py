@@ -6,6 +6,7 @@ crossing a story is the narrative stage's call. Placeholder nations are skipped.
 
 from __future__ import annotations
 
+from ...kinds.nations import BAND_CROSSED
 from ...model.changes import ChangeIndex, ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event, EventSource, SourceRole
@@ -14,8 +15,6 @@ from ...model.values import FrozenMap, Observed, Unknown
 from ..common import EventBuilder, Lookup, primary
 from .bands import BANDS, margin_crossing, rest_value_delta
 from .nation_metrics import TRACKERS, cause_deltas, interval_days, number, placeholder
-
-BAND_CROSSED = "nation.band_crossed"
 
 
 class NationBandAnalyzer:

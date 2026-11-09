@@ -2,12 +2,12 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, only, snapshot, technology_state
 from tinarrative.analyzers.technology import TechnologyAnalyzer
-from tinarrative.analyzers.technology.research import (
-    APPEARED,
-    COMPLETED,
-    DISAPPEARED,
-    FINISHED_CHANGED,
-    FINISHED_LIST_CHANGED,
+from tinarrative.kinds.technology import (
+    RESEARCH_FINISHED_TECHS_CHANGED,
+    TECHNOLOGY_APPEARED,
+    TECHNOLOGY_COMPLETED,
+    TECHNOLOGY_DISAPPEARED,
+    TECHNOLOGY_FINISHED_CHANGED,
 )
 from tinarrative.model.entities import IdentityConfidence
 from tinarrative.model.events import Confidence, SourceRole
@@ -60,13 +60,13 @@ def test_completion_by_appearance_and_progress_only_appearance_are_distinct() ->
         ("TechA", "TechC"),
     )
     events = analyze(ANALYZER, before, after)
-    completed = only(events, COMPLETED)
+    completed = only(events, TECHNOLOGY_COMPLETED.event_type)
     assert completed.id == "technology.completed/technology:TechC" and completed.attribute("side") == "after"
     assert [(s.role, s.change.field, s.member) for s in completed.sources] == [
         (SourceRole.PRIMARY, None, None),
         (SourceRole.CORROBORATING, "finished_techs_names", "TechC"),
     ]
-    appeared = only(events, APPEARED)
+    appeared = only(events, TECHNOLOGY_APPEARED.event_type)
     assert appeared.id == "technology.appeared/technology:TechE" and appeared.attribute("finished") is False
     assert len(appeared.sources) == 1
     assert len(events) == 2
@@ -82,12 +82,12 @@ def test_removed_names_and_reverted_flags_are_reported_literally() -> None:
         (),
     )
     events = analyze(ANALYZER, before, after)
-    reverted = only(events, FINISHED_CHANGED)
+    reverted = only(events, TECHNOLOGY_FINISHED_CHANGED.event_type)
     assert dict(reverted.attributes) == {"transition": "changed", "before": True, "after": False}
     assert [s.member for s in reverted.sources] == [None, "TechA"]
-    gone = only(events, DISAPPEARED)
+    gone = only(events, TECHNOLOGY_DISAPPEARED.event_type)
     assert gone.attribute("finished") is True and [s.member for s in gone.sources] == [None, "TechD"]
-    ghost = only(events, FINISHED_LIST_CHANGED)
+    ghost = only(events, RESEARCH_FINISHED_TECHS_CHANGED.event_type)
     assert ghost.id == "research.finished_techs_changed/Ghost/removed"
     assert ghost.sources[0].member == "Ghost" and str(ghost.entities[0].entity_id) == "technology:Ghost"
     assert len(events) == 3

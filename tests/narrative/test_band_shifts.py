@@ -4,10 +4,24 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
+from tests.narrative.support import (
+    UNKNOWN,
+    atomic,
+    control_attributes,
+    faction,
+    nation,
+    nation_row,
+    situation,
+    unification,
+    war,
+)
 from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds import attributes as kind_attributes
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
+from tinarrative.kinds.nations import BAND_CROSSED, STATISTIC_SHIFTED
+from tinarrative.kinds.wars import WAR_LAST_FIGHTING_CHANGED
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
@@ -42,16 +56,17 @@ def crossing(
         ("to_band", move.to_band),
         ("bands_crossed", move.bands_crossed),
         ("margin", move.margin),
+        ("interval_days", None),
     ]
     if rest is not None:
         reason = f"{statistic.capitalize()}Reason_MovementToRestValue"
         attributes.append(("causes", FrozenMap(((reason, rest),))))
     return atomic(
-        f"nation.band_crossed/{subject.entity_id}/{statistic}",  # type: ignore[attr-defined]
+        f"{BAND_CROSSED.event_type}/{subject.entity_id}/{statistic}",  # type: ignore[attr-defined]
         key,
         not_before=PREVIOUS[key],
         entities=(subject,),  # type: ignore[arg-type]
-        attributes=attributes,
+        attributes=kind_attributes(BAND_CROSSED, attributes),
         significance=Significance.TRIVIAL,
     )
 
@@ -102,7 +117,7 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
         def apply(
             self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
         ) -> list[Event]:
-            fighting = next(event for event in stream if event.event_type == "war.last_fighting_changed")
+            fighting = next(event for event in stream if event.event_type == WAR_LAST_FIGHTING_CHANGED.event_type)
             return [
                 build.event(
                     self.name,
@@ -114,7 +129,12 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
             ]
 
     event = crossing(K1, "unrest", 2.5, 4.75, rest=0.5)
-    fighting = atomic("war.last_fighting_changed", K1, entities=(war("1"),))
+    fighting = atomic(
+        WAR_LAST_FIGHTING_CHANGED.event_type,
+        K1,
+        entities=(war("1"),),
+        attributes=attributes(WAR_LAST_FIGHTING_CHANGED, transition="changed", before=None, after=None),
+    )
     rule = BandShiftRule("unrest", NationMetricsSettings(), GeopoliticsSettings())
 
     result = aggregate([event, fighting], reports(2.5, 4.75, 5.0), [WarArcRule(), rule])
@@ -178,11 +198,11 @@ def test_a_top_gdp_nation_is_promoted_one_level() -> None:
 
 def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None:
     control = atomic(
-        f"faction.nation_control_changed/{NORTH.entity_id}/executive",
+        f"{NATION_CONTROL_CHANGED.event_type}/{NORTH.entity_id}/executive",
         K1,
         not_before=K0,
         entities=(NORTH, RESISTANCE),
-        attributes=(("scope", "executive"), ("before", None), ("after", RESISTANCE), ("cause", "Politics")),
+        attributes=control_attributes("executive", None, RESISTANCE),
         status=EventStatus.INFERRED,
     )
     event = crossing(K1, "democracy", 5.5, 6.5)
@@ -206,11 +226,18 @@ def plain_reports() -> list[SituationReport]:
 def test_metric_shifts_of_the_nation_explain_their_bands() -> None:
     event = crossing(K1, "democracy", 5.5, 6.5)
     statistic = atomic(
-        f"nation.statistic_shifted/{NORTH.entity_id}/democracy",
+        f"{STATISTIC_SHIFTED.event_type}/{NORTH.entity_id}/democracy",
         K1,
         not_before=K0,
         entities=(NORTH,),
-        attributes=(("statistic", "democracy"), ("before", 5.5), ("after", 6.5), ("relative_change", 1 / 5.5)),
+        attributes=kind_attributes(
+            STATISTIC_SHIFTED,
+            statistic="democracy",
+            before=5.5,
+            after=6.5,
+            relative_change=1 / 5.5,
+            interval_days=None,
+        ),
         significance=Significance.TRIVIAL,
     )
     (shift,) = built([event, statistic], reports(5.5, 6.5, 6.5, statistic="democracy"))

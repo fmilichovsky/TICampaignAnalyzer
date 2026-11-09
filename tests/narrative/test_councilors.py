@@ -17,6 +17,8 @@ from tests.analyzers.support import (
 )
 from tests.narrative.support import loyalty_keys
 from tinarrative.config import CouncilorSettings
+from tinarrative.kinds import KINDS, attributes
+from tinarrative.kinds.campaign import entry_kind
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
 from tinarrative.model.records import NotificationEntry, RecordKind
@@ -423,7 +425,16 @@ def _outcome_event(
             EntityRef(EntityId(EntityDomain.NOTIFICATION_QUEUE, "0"), IdentityConfidence.IN_SAVE_ID, None, "Log"),
             councilor_ref(councilor),
         ),
-        attributes=(("template", template), ("summary", summary), ("outcome", outcome)),
+        attributes=attributes(
+            entry_kind(template),
+            template=template,
+            summary=summary,
+            outcome=outcome,
+            subject=None,
+            alien_related=False,
+            news_feed_factions=(),
+            summary_log_factions=(),
+        ),
     )
 
 
@@ -545,7 +556,7 @@ def _event(event_type: str, councilor: str, date: str, transition: str = "change
         not_before=None,
         sources=(),
         entities=(councilor_ref(councilor),),
-        attributes=(("transition", transition),),
+        attributes=attributes(KINDS[event_type], transition=transition, before=None, after=None),
     )
 
 
@@ -559,6 +570,6 @@ def test_career_is_attributed_by_the_first_named_entity_and_limited_to_career_ty
     ]
     first, second = _build(snap, career=career)["councilors"]
     assert [item["type"] for item in first["career"]] == ["councilor.faction_changed"]
-    assert first["career"][0]["attributes"] == {"transition": "changed"}
+    assert first["career"][0]["attributes"] == {"transition": "changed", "before": None, "after": None}
     assert [item["type"] for item in second["career"]] == ["councilor.status_changed"]
     assert _build(snap)["councilors"][0]["career"] == []

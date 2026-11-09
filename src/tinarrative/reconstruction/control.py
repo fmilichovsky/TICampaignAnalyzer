@@ -15,14 +15,15 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from ..analyzers.common import EventBuilder, Lookup, Side
-from ..analyzers.politics.control_points import (
-    APPEARED,
+from ..kinds.control import (
     CONTROLLER_CHANGED,
-    DISAPPEARED,
     LOSS_RECORDED,
-    NATION_CHANGED,
+    NATION_CONTROL_CHANGED,
+    POINT_APPEARED,
+    POINT_DISAPPEARED,
+    POINT_NATION_CHANGED,
 )
-from ..analyzers.politics.nations import EXECUTIVE_CHANGE_RECORDED
+from ..kinds.nations import EXECUTIVE_CHANGE_RECORDED
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.changes import StateDiff
@@ -32,8 +33,7 @@ from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, UnknownReason
 from .common import ObjectiveIndex, SeatBasis, Support, control_points, executive_seat, inferred, lower
 
-NATION_CONTROL_CHANGED = "faction.nation_control_changed"
-RULE_TYPES = (NATION_CONTROL_CHANGED,)
+RULE_TYPES = (NATION_CONTROL_CHANGED.event_type,)
 
 EXECUTIVE = "executive"
 PLURALITY = "plurality"
@@ -142,12 +142,12 @@ def control_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSna
     """Every nation-control inference of one interval (unsorted); the diff is not read, the analyzers cite it."""
     context = ControlContext(events, before, after)
     moved: set[EntityId] = set()  # points listed under two nations moved between them: territory, not control
-    for event in context.of_type(NATION_CHANGED):
+    for event in context.of_type(POINT_NATION_CHANGED.event_type):
         point = _point(event)
         if point is not None:
             moved.add(point)
     changed: dict[EntityId, list[Event]] = defaultdict(list)
-    for event in context.of_type(CONTROLLER_CHANGED):
+    for event in context.of_type(CONTROLLER_CHANGED.event_type):
         point = _point(event)
         nations = context.nations_of(point) if point is not None else set()
         if point is not None and len(nations) > 1:
@@ -164,12 +164,12 @@ def control_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSna
     )
 
     corroborating: dict[EntityId, list[Event]] = defaultdict(list)
-    for event_type in (LOSS_RECORDED, APPEARED, DISAPPEARED):
-        for event in context.of_type(event_type):
+    for kind in (LOSS_RECORDED, POINT_APPEARED, POINT_DISAPPEARED):
+        for event in context.of_type(kind.event_type):
             point = _point(event)
             for nation in context.nations_of(point) if point is not None else ():
                 corroborating[nation].append(event)
-    for event in context.of_type(EXECUTIVE_CHANGE_RECORDED):
+    for event in context.of_type(EXECUTIVE_CHANGE_RECORDED.event_type):
         if event.entities:
             corroborating[event.entities[0].entity_id].append(event)
 
@@ -193,7 +193,7 @@ def _nation_control(
     earlier, later = context.holdings(nation, Side.BEFORE, moved), context.holdings(nation, Side.AFTER, moved)
     if earlier is None or later is None:
         return []  # a nation appearing or vanishing is presence, not control
-    records = [event for event in corroborating if event.event_type == EXECUTIVE_CHANGE_RECORDED]
+    records = [event for event in corroborating if event.event_type == EXECUTIVE_CHANGE_RECORDED.event_type]
     record = records[0] if records else None
     new_executive = record.attribute("new_executive") if record is not None else None
     recorded_on = record.attribute("recorded_on") if record is not None else None

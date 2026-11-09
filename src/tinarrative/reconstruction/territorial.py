@@ -13,37 +13,37 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, replace
 
 from ..analyzers.common import EventBuilder, Lookup, Side, event_id
-from ..analyzers.politics.control_points import CONTROLLER_CHANGED
-from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
-from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
-from ..analyzers.politics.federations import MEMBERS_CHANGED
-from ..analyzers.politics.nation_metrics import STATISTIC_SHIFTED, TRACKERS, cause_deltas
-from ..analyzers.politics.nations import (
+from ..analyzers.politics.nation_metrics import TRACKERS, cause_deltas
+from ..analyzers.politics.nations import EXECUTIVE_FIELD
+from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, side_members
+from ..kinds.control import CONTROLLER_CHANGED, LOSS_RECORDED, POINT_DISAPPEARED
+from ..kinds.nations import (
+    ALTERNATIVES,
+    ANNEXATION,
     BREAKAWAY_PARENT_CHANGED,
     DISAPPEARED,
     EXECUTIVE_CHANGE_RECORDED,
-    EXECUTIVE_FIELD,
+    INDEPENDENCE,
     REGION_NATION_CHANGED,
     RELATION_CHANGED,
+    STATISTIC_SHIFTED,
+    TERRITORY_GAINED,
+    TERRITORY_LOST,
+    UNIFICATION,
 )
-from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, side_members
+from ..kinds.wars import FEDERATION_MEMBERS_CHANGED
 from ..model.changes import StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event, EventStatus
+from ..model.kinds import EventKind
 from ..model.records import KeyedEntry
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown
 from .common import Support, control_points, executive_seat, inferred, lower
 
-TERRITORY_GAINED = "nation.territory_gained"
-TERRITORY_LOST = "nation.territory_lost"
-INDEPENDENCE = "nation.independence"
-UNIFICATION = "nation.unification"
-ANNEXATION = "nation.annexation"
 INTERPRETATIONS = (INDEPENDENCE, UNIFICATION, ANNEXATION)
 """Competing readings of one gainer's territory; two of them on one gainer make every candidate ambiguous."""
-RULE_TYPES = (TERRITORY_GAINED, TERRITORY_LOST, *INTERPRETATIONS)
-ALTERNATIVES = "alternatives"
+RULE_TYPES = tuple(kind.event_type for kind in (TERRITORY_GAINED, TERRITORY_LOST, *INTERPRETATIONS))
 ID_ATTRIBUTES = (ALTERNATIVES,)
 """Attributes whose value is a tuple of event IDs (rewritten with the IDs when a sequence qualifies them)."""
 
@@ -63,7 +63,13 @@ FEDERATION_BASIS = "federation"
 BREAKAWAY_BASIS = "breakaway"
 """Why the game let the two nations unify: a shared federation, or the absorbed nation broke away from the gainer."""
 UNIFICATION_SUPPORT_TYPES = frozenset(
-    {MEMBERS_CHANGED, BREAKAWAY_PARENT_CHANGED, CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED}
+    {
+        FEDERATION_MEMBERS_CHANGED.event_type,
+        BREAKAWAY_PARENT_CHANGED.event_type,
+        CONTROLLER_CHANGED.event_type,
+        POINT_DISAPPEARED.event_type,
+        LOSS_RECORDED.event_type,
+    }
 )
 """Objective events about an absorbed nation that corroborate its unification."""
 
@@ -108,8 +114,8 @@ class Context:
                     if isinstance(value, EntityRef):
                         self._refs.setdefault(value.entity_id, value)
 
-    def subject_events(self, event_type: str, nation: EntityId) -> tuple[Event, ...]:
-        return tuple(self.by_subject.get((event_type, nation), ()))
+    def subject_events(self, kind: EventKind, nation: EntityId) -> tuple[Event, ...]:
+        return tuple(self.by_subject.get((kind.event_type, nation), ()))
 
     def ref(self, entity_id: EntityId) -> EntityRef:
         """The nation's own reference, else the reference a region event carried (every nation here came from one)."""
@@ -134,7 +140,7 @@ class Context:
             if not found:
                 continue
             keys |= found
-            shifted = self.by_id.get(event_id(STATISTIC_SHIFTED, nation, statistic))
+            shifted = self.by_id.get(event_id(STATISTIC_SHIFTED.event_type, nation, statistic))
             support += Support(events=(shifted,)) if shifted is not None else Support(changes=(change,))
         return tuple(sorted(keys)), support
 
@@ -165,7 +171,7 @@ class Context:
             if event.event_type.startswith(WAR_PREFIX) and event.entities:
                 if self._opposed(event.entities[0].entity_id, gainer, loser):
                     found.append(event)
-            elif event.event_type == RELATION_CHANGED and event.attribute("relation") == WAR_RELATION:
+            elif event.event_type == RELATION_CHANGED.event_type and event.attribute("relation") == WAR_RELATION:
                 if {ref.entity_id for ref in event.entities} == pair:
                     found.append(event)
         return Support(events=tuple(found))
@@ -182,7 +188,11 @@ class Context:
 
 
 def _transfer(event: Event) -> Transfer | None:
-    if event.event_type != REGION_NATION_CHANGED or event.attribute("transition") != "changed" or not event.entities:
+    if (
+        event.event_type != REGION_NATION_CHANGED.event_type
+        or event.attribute("transition") != "changed"
+        or not event.entities
+    ):
         return None
     before, after = event.attribute("before"), event.attribute("after")
     if not (isinstance(before, EntityRef) and isinstance(after, EntityRef)):
@@ -238,7 +248,7 @@ def territorial_events(
 
 def _territory(
     context: Context,
-    event_type: str,
+    kind: EventKind,
     nation: EntityId,
     transfers: Sequence[Transfer],
     counterpart: Callable[[Transfer], EntityId],
@@ -246,11 +256,11 @@ def _territory(
     regions = _regions(transfers)
     counterparts = _unique_refs(context, (counterpart(transfer) for transfer in transfers))
     causes, support = context.reasons(nation, _territory_reason)
-    side = Side.AFTER if event_type == TERRITORY_GAINED else Side.BEFORE
+    side = Side.AFTER if kind is TERRITORY_GAINED else Side.BEFORE
     population = context.lookup.population((region.entity_id for region in regions), side)
     return _inferred(
         context,
-        event_type,
+        kind,
         id_parts=(nation,),
         transfers=transfers,
         support=support,
@@ -437,7 +447,7 @@ def _unification_support(context: Context, loser: EntityId) -> tuple[Event, ...]
     for event in context.events:
         if event.event_type not in UNIFICATION_SUPPORT_TYPES:
             continue
-        if event.event_type == MEMBERS_CHANGED:
+        if event.event_type == FEDERATION_MEMBERS_CHANGED.event_type:
             member = event.attribute("member")
             if (
                 isinstance(member, EntityRef)
@@ -445,7 +455,7 @@ def _unification_support(context: Context, loser: EntityId) -> tuple[Event, ...]
                 and event.attribute("transition") == "removed"
             ):
                 found.append(event)
-        elif event.event_type == BREAKAWAY_PARENT_CHANGED:
+        elif event.event_type == BREAKAWAY_PARENT_CHANGED.event_type:
             if event.entities and event.entities[0].entity_id == loser:
                 found.append(event)
         elif any(ref.entity_id == loser for ref in event.entities[1:]):
@@ -522,7 +532,7 @@ def _resolve_conflicts(candidates: Sequence[Event]) -> list[Event]:
 
 def _inferred(
     context: Context,
-    event_type: str,
+    kind: EventKind,
     *,
     id_parts: Sequence[object],
     transfers: Sequence[Transfer],
@@ -534,7 +544,7 @@ def _inferred(
     """An inferred event built on its region events, citing every source of them and of its support."""
     return inferred(
         context.build,
-        event_type,
+        kind,
         id_parts=id_parts,
         primary=[transfer.event for transfer in transfers],
         support=support,

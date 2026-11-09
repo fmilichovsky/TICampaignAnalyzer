@@ -7,9 +7,19 @@ from types import MappingProxyType
 
 from ..model.kinds import EventKind
 from ..model.values import Observed
-from . import aliens, campaign, control, military, nations, space, technology, wars
+from . import aliens, campaign, control, faction, military, nations, space, technology, wars
 
-FAMILIES: tuple[tuple[EventKind, ...], ...] = (aliens.KINDS,)
+FAMILIES: tuple[tuple[EventKind, ...], ...] = (
+    aliens.KINDS,
+    campaign.KINDS,
+    control.KINDS,
+    faction.KINDS,
+    military.KINDS,
+    nations.KINDS,
+    space.KINDS,
+    technology.KINDS,
+    wars.KINDS,
+)
 NARRATIVE_FAMILIES: tuple[tuple[EventKind, ...], ...] = (
     campaign.NARRATIVE_KINDS,
     control.NARRATIVE_KINDS,
@@ -33,6 +43,15 @@ def _registry(families: Iterable[Iterable[EventKind]]) -> Mapping[str, EventKind
 
 
 KINDS: Mapping[str, EventKind] = _registry([*FAMILIES, *NARRATIVE_FAMILIES])
+_PREFIX_KINDS = tuple(kind for kind in KINDS.values() if kind.prefix)
+
+
+def kind_of(event_type: str) -> EventKind | None:
+    """The kind declared for ``event_type``: its exact kind, else the prefix kind it starts with, else ``None``."""
+    kind = KINDS.get(event_type)
+    if kind is not None:
+        return kind
+    return next((prefix for prefix in _PREFIX_KINDS if event_type.startswith(prefix.event_type)), None)
 
 
 def attributes(

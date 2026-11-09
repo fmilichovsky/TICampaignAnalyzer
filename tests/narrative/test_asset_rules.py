@@ -6,9 +6,15 @@ from collections.abc import Sequence
 
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
-from tinarrative.kinds import describe_event
-from tinarrative.kinds.military import DEMOBILIZATION, MILITARY_BUILDUP, NAVY_ESTABLISHED
-from tinarrative.kinds.nations import RANKING_CHANGED, SPACE_DEFENCES_ESTABLISHED, SPACE_PROGRAM_GROWTH
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.military import APPEARED, DEMOBILIZATION, DISAPPEARED, MILITARY_BUILDUP, NAVY_ESTABLISHED
+from tinarrative.kinds.nations import (
+    RANK_CHANGED,
+    RANKING_CHANGED,
+    SPACE_ASSETS_CHANGED,
+    SPACE_DEFENCES_ESTABLISHED,
+    SPACE_PROGRAM_GROWTH,
+)
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Role, Significance
 from tinarrative.model.kinds import EventKind
@@ -25,44 +31,53 @@ NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
 
 
-def army(key: str, number: int, kind: str = "Standard", event_type: str = "army.appeared") -> Event:
+def army(key: str, number: int, deployment: str = "Standard", kind: EventKind = APPEARED) -> Event:
     return atomic(
-        f"{event_type}/army:{number}",
+        f"{kind.event_type}/army:{number}",
         key,
         not_before=PREVIOUS[key],
         entities=(nation(str(number)),),
-        attributes=(("home_nation", NORTH), ("deployment_type", kind)),
+        attributes=attributes(
+            kind, side="after" if kind is APPEARED else "before", home_nation=NORTH, deployment_type=deployment
+        ),
     )
 
 
 def space(key: str, statistic: str, before: float, after: float, territory: float = 0.0) -> Event:
     return atomic(
-        f"nation.space_assets_changed/nation:20/{statistic}",
+        f"{SPACE_ASSETS_CHANGED.event_type}/nation:20/{statistic}",
         key,
         not_before=PREVIOUS[key],
         entities=(NORTH,),
-        attributes=(
-            ("statistic", statistic),
-            ("direction", "growth" if after > before else "decline"),
-            ("before", before),
-            ("after", after),
-            ("territory_delta", territory),
+        attributes=attributes(
+            SPACE_ASSETS_CHANGED,
+            statistic=statistic,
+            direction="growth" if after > before else "decline",
+            before=before,
+            after=after,
+            relative_change=None if before == 0 else (after - before) / abs(before),
+            territory_delta=territory,
+            territory_share=territory / (after - before),
+            regions_gained=(),
+            regions_lost=(),
+            interval_days=None,
         ),
     )
 
 
 def rank(key: str, subject: EntityRef, before: int | None, after: int | None, metric: str = "GDP") -> Event:
     return atomic(
-        f"nation.rank_changed/{subject.entity_id}/{metric}",
+        f"{RANK_CHANGED.event_type}/{subject.entity_id}/{metric}",
         key,
         not_before=PREVIOUS[key],
         entities=(subject,),
-        attributes=(
-            ("metric", metric),
-            ("before_rank", before),
-            ("after_rank", after),
-            ("before", 1.0 if before is not None else None),
-            ("after", 2.0 if after is not None else None),
+        attributes=attributes(
+            RANK_CHANGED,
+            metric=metric,
+            before_rank=before,
+            after_rank=after,
+            before=1.0 if before is not None else None,
+            after=2.0 if after is not None else None,
         ),
         significance=Significance.TRIVIAL,
     )
@@ -119,7 +134,7 @@ def test_a_top_nation_by_strength_is_promoted_and_one_army_is_no_buildup() -> No
 
 
 def test_standard_armies_shrinking_are_a_demobilization() -> None:
-    stream = [army(K1, 110, event_type="army.disappeared"), army(K1, 111, event_type="army.disappeared")]
+    stream = [army(K1, 110, kind=DISAPPEARED), army(K1, 111, kind=DISAPPEARED)]
     (demobilization,) = built(stream, reports({"armies": 4}, {"armies": 2}), DEMOBILIZATION, top_gdp_nations=1)
     assert dict(demobilization.attributes)["after"] == 2
     assert describe_event(demobilization) == "Northland (nation:20) demobilized its standard armies: 4 -> 2"

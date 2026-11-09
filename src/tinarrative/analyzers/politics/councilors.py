@@ -5,6 +5,15 @@ Presence is reported as-is; whether a vanished councilor died or was dismissed i
 
 from __future__ import annotations
 
+from ...kinds.control import (
+    COUNCILOR_APPEARED,
+    COUNCILOR_DISAPPEARED,
+    COUNCILOR_FACTION_CHANGED,
+    COUNCILOR_LOCATION_CHANGED,
+    COUNCILOR_STATUS_CHANGED,
+    DETAINING_FACTION_CHANGED,
+    ROSTER_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event, SourceRole
@@ -23,18 +32,10 @@ from ..common import (
     transition_attributes,
 )
 
-FACTION_CHANGED = "councilor.faction_changed"
-STATUS_CHANGED = "councilor.status_changed"
-LOCATION_CHANGED = "councilor.location_changed"
-DETAINING_FACTION_CHANGED = "councilor.detaining_faction_changed"
-APPEARED = "councilor.appeared"
-DISAPPEARED = "councilor.disappeared"
-ROSTER_CHANGED = "faction.councilors_changed"
-
 HANDLED_LISTS = ((EntityDomain.FACTION, "councilors"),)
 VALUE_FIELDS = (
-    ("status", STATUS_CHANGED),
-    ("location", LOCATION_CHANGED),
+    ("status", COUNCILOR_STATUS_CHANGED),
+    ("location", COUNCILOR_LOCATION_CHANGED),
     ("detainingFaction", DETAINING_FACTION_CHANGED),
 )
 """Fields whose change is an event on its own; ``XP``, ``attributes``, ``priorLocation`` stay in the diff."""
@@ -55,7 +56,7 @@ class CouncilorAnalyzer:
             councilor_id = change.entity_id
             events.append(
                 build.event(
-                    FACTION_CHANGED,
+                    COUNCILOR_FACTION_CHANGED,
                     id_parts=(councilor_id,),
                     sources=mirrored_sources(change, ledger, "councilors", councilor_id),
                     entities=(lookup.ref(councilor_id), lookup.resolve(change.before), lookup.resolve(change.after)),
@@ -63,7 +64,7 @@ class CouncilorAnalyzer:
                     confidence=confidence_for(transition),
                 )
             )
-        for field_name, event_type in VALUE_FIELDS:
+        for field_name, kind in VALUE_FIELDS:
             for change in index.fields(EntityDomain.COUNCILOR, field_name):
                 transition = classify(change.before, change.after)
                 if transition is None or change.entity_id is None:
@@ -71,7 +72,7 @@ class CouncilorAnalyzer:
                 councilor_id = change.entity_id
                 events.append(
                     build.event(
-                        event_type,
+                        kind,
                         id_parts=(councilor_id,),
                         sources=(primary(change),),
                         entities=(
@@ -104,7 +105,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         if cited is not None:
             sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        COUNCILOR_APPEARED if appeared else COUNCILOR_DISAPPEARED,
         id_parts=(councilor_id,),
         sources=sources,
         entities=(lookup.ref(councilor_id), faction),

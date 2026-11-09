@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from ...kinds.nations import PCGDP_TREND
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event
@@ -20,7 +21,6 @@ from ...model.values import FrozenMap
 from ..common import EventBuilder, Lookup, primary
 from .nation_metrics import number, placeholder
 
-PCGDP_TREND = "nation.pcgdp_trend"
 SERIES = "tracker_PCGDP_ByQuarter"
 TREND_QUARTERS = 20
 """The trailing window of a trend: five years."""

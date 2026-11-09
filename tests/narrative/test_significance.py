@@ -27,7 +27,8 @@ from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
 from tinarrative.diff.state_diff import diff_states
-from tinarrative.kinds import KINDS, known_event_types
+from tinarrative.kinds import KINDS, attributes, known_event_types
+from tinarrative.kinds.technology import PROJECT_COMPLETED
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
 from tinarrative.model.kinds import Rule, Stake
@@ -274,7 +275,7 @@ def test_a_completion_takes_its_curated_tier_and_an_unlisted_one_is_minor() -> N
         return replace(bare_event("technology.completed"), entities=(ref(EntityDomain.TECHNOLOGY, name),))
 
     def project(name: str) -> Event:
-        return bare_event("faction.project_completed", project=name)
+        return replace(bare_event("faction.project_completed"), attributes=attributes(PROJECT_COMPLETED, project=name))
 
     assert significance_of(technology("DeuteriumTritiumFusion"), lookup) is Significance.CAMPAIGN_DEFINING
     assert significance_of(technology("SpaceNavies"), lookup) is Significance.MAJOR
@@ -310,8 +311,8 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
     assert all(event.score == event.significance.base for event in assigned)
 
 
-def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
-    assert "faction.transaction_recorded" in BASE  # corroboration only (ADR-0010)
+def test_a_ledger_charge_is_declared_minor() -> None:
+    assert KINDS["faction.transaction_recorded"].base is Significance.MINOR  # corroboration only (ADR-0010)
     assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
 
 
@@ -541,7 +542,7 @@ def test_churn_and_movement_are_never_scaled(monkeypatch: pytest.MonkeyPatch) ->
     ):
         result = scored(monkeypatch, scaled_event(event_type, nation_ref(BIG)), power=POWER)
         assert result.significance_basis is None
-        assert result.score == BASE.get(event_type, DEFAULT).base
+        assert result.score == significance_of(bare_event(event_type), empty_lookup()).base
 
 
 def test_movement_and_churn_have_no_stake() -> None:

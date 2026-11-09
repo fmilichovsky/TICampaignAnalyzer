@@ -17,14 +17,14 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.politics import ControlPointAnalyzer
-from tinarrative.analyzers.politics.control_points import (
-    APPEARED,
+from tinarrative.kinds.control import (
     CONTROLLER_CHANGED,
-    DISAPPEARED,
-    FACTION_LIST_CHANGED,
+    FACTION_POINTS_CHANGED,
     LOSS_RECORDED,
-    NATION_CHANGED,
-    NATION_LIST_CHANGED,
+    NATION_POINTS_CHANGED,
+    POINT_APPEARED,
+    POINT_DISAPPEARED,
+    POINT_NATION_CHANGED,
 )
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, EventStatus, SourceRole
@@ -67,7 +67,7 @@ def test_controller_transfer_cites_both_rosters_and_the_loss_record() -> None:
         ),
     )
     events = analyze(ANALYZER, before, after)
-    event = only(events, CONTROLLER_CHANGED)
+    event = only(events, CONTROLLER_CHANGED.event_type)
     assert event.id == "control_point.controller_changed/control point:9"
     assert (event.status, event.confidence) == (EventStatus.OBJECTIVE, Confidence.HIGH)
     assert (event.date, event.date_basis, event.not_before) == (AFTER_DATE, DateBasis.INTERVAL, BEFORE_DATE)
@@ -94,19 +94,19 @@ def test_controller_transfer_cites_both_rosters_and_the_loss_record() -> None:
     record_source = event.sources[3]
     assert record_source.entry is not None and record_source.entry.path.endswith("/lostControlPoints/0")  # type: ignore[union-attr]
     # the record is also an event of its own, dated by the entry
-    loss = only(events, LOSS_RECORDED)
+    loss = only(events, LOSS_RECORDED.event_type)
     assert (loss.date, loss.date_basis, loss.not_before) == (LOST_ON, DateBasis.RECORD, BEFORE_DATE)
     assert [str(ref.entity_id) for ref in loss.entities] == ["control point:9", "faction:16", "nation:20"]
     assert dict(loss.attributes) == {"recorded_on": LOST_ON}
     assert loss.sources[0].role is SourceRole.PRIMARY and loss.sources[0].entry == record_source.entry
-    assert not by_type(events, FACTION_LIST_CHANGED)  # both roster entries were consumed as corroboration
+    assert not by_type(events, FACTION_POINTS_CHANGED.event_type)  # both roster entries were consumed as corroboration
     assert len(events) == 2
 
 
 def test_set_and_cleared_controllers_are_transitions_without_a_loser_or_gainer() -> None:
     before = snapshot(BEFORE, point(BEFORE, "9", None), point(BEFORE, "10", faction_ref("15")))  # type: ignore[arg-type]
     after = snapshot(AFTER, point(AFTER, "9", faction_ref("15")), point(AFTER, "10", None))  # type: ignore[arg-type]
-    taken, released = by_type(analyze(ANALYZER, before, after), CONTROLLER_CHANGED)
+    taken, released = by_type(analyze(ANALYZER, before, after), CONTROLLER_CHANGED.event_type)
     assert taken.attribute("transition") == "set" and taken.attribute("before") is None
     assert released.attribute("transition") == "cleared" and released.attribute("after") is None
     assert [str(ref.entity_id) for ref in taken.entities] == ["control point:9", "nation:20", "faction:15"]
@@ -136,7 +136,7 @@ def test_nation_move_is_distinct_from_control_and_cites_both_nation_lists() -> N
         state(EntityDomain.NATION, "21", AFTER, controlPoints=()),
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == NATION_CHANGED
+    assert event.event_type == POINT_NATION_CHANGED.event_type
     assert [str(ref.entity_id) for ref in event.entities] == ["control point:11", "nation:21", "nation:20"]
     assert [(s.role, str(s.change.entity_id)) for s in event.sources] == [
         (SourceRole.PRIMARY, "control point:11"),
@@ -159,7 +159,7 @@ def test_presence_changes_say_absent_or_present_and_cite_the_owner_lists() -> No
         state(EntityDomain.NATION, "21", AFTER, controlPoints=(point_ref("13"),)),
     )
     events = analyze(ANALYZER, before, after)
-    gone = only(events, DISAPPEARED)
+    gone = only(events, POINT_DISAPPEARED.event_type)
     assert gone.attribute("side") == "before" and gone.confidence is Confidence.HIGH
     assert [str(ref.entity_id) for ref in gone.entities] == ["control point:12", "nation:21", "faction:16"]
     assert [(s.role, str(s.change.entity_id)) for s in gone.sources] == [
@@ -168,7 +168,7 @@ def test_presence_changes_say_absent_or_present_and_cite_the_owner_lists() -> No
         (SourceRole.CORROBORATING, "nation:21"),
     ]
     assert gone.sources[0].change.evidence.description == "absent from the after snapshot"
-    new = only(events, APPEARED)
+    new = only(events, POINT_APPEARED.event_type)
     assert new.attribute("side") == "after"
     assert [str(ref.entity_id) for ref in new.entities] == ["control point:13", "nation:21"]
     assert len(new.sources) == 2
@@ -205,7 +205,7 @@ def test_loss_record_alone_is_an_event_and_a_redated_entry_keeps_the_previous_da
         ),
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == LOSS_RECORDED and event.date == LOST_ON
+    assert event.event_type == LOSS_RECORDED.event_type and event.date == LOST_ON
     assert dict(event.attributes) == {"recorded_on": LOST_ON, "previous_recorded_on": earlier}
     assert [str(ref.entity_id) for ref in event.entities] == ["control point:9", "faction:16", "nation:20"]
 
@@ -223,11 +223,11 @@ def test_unexplained_list_members_and_unresolved_lists_become_their_own_events()
         state(EntityDomain.NATION, "22", AFTER, controlPoints=(point_ref("10"),)),
     )
     events = analyze(ANALYZER, before, after)
-    stale = only(events, FACTION_LIST_CHANGED)
+    stale = only(events, FACTION_POINTS_CHANGED.event_type)
     assert stale.id == "faction.control_points_changed/faction:15/unresolved"
     assert stale.confidence is Confidence.LOW and stale.attribute("after") == unresolved
     assert [str(ref.entity_id) for ref in stale.entities] == ["faction:15"]
-    extra = only(events, NATION_LIST_CHANGED)
+    extra = only(events, NATION_POINTS_CHANGED.event_type)
     assert extra.id == "nation.control_points_changed/nation:22/control point:10/added"
     assert dict(extra.attributes) == {"member": point_ref("10"), "transition": "added"}
     assert extra.sources[0].member == point_ref("10")

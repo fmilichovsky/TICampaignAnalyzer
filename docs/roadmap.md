@@ -141,13 +141,13 @@ Tracking #249.
 - [x] Test suite hygiene: contributor standards, a leaner suite, sample tests in CI (#368).
 - [ ] Event kinds: declare each event type once (#316):
   - [x] Foundation and the aliens family (#317).
-  - [ ] Campaign and faction families (#318).
-  - [ ] Military family (#319).
-  - [ ] Technology family (#320).
-  - [ ] Space family (#321).
-  - [ ] Nations family (#322).
-  - [ ] Control family (#323).
-  - [ ] Wars and federations family (#324).
+  - [x] Campaign and faction families (#318).
+  - [x] Military family (#319).
+  - [x] Technology family (#320).
+  - [x] Space family (#321).
+  - [x] Nations family (#322).
+  - [x] Control family (#323).
+  - [x] Wars and federations family (#324).
   - [x] Narrative-event kinds (#325).
   - [ ] Cleanup (#326).
 - [ ] Campaign analysis: one module from save inputs to an analysed campaign (#328):

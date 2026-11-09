@@ -6,6 +6,7 @@ dropped; a removed entry is never assumed pruned. ``interstateWars`` belongs to 
 
 from __future__ import annotations
 
+from ...kinds import campaign
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -27,17 +28,7 @@ from ..common import (
 
 DOMAIN = EntityDomain.GLOBAL_VALUES
 
-APPEARED = "campaign.global_values_appeared"
-DISAPPEARED = "campaign.global_values_disappeared"
-MILESTONE_RECORDED = "campaign.global_milestone_recorded"
-MILESTONE_CHANGED = "campaign.global_milestone_changed"
-NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
-SEA_LEVEL_RISE_TRIGGERED = "campaign.sea_level_rise_triggered"
-NARRATIVE_EVENT_TRIGGERED = "campaign.narrative_event_triggered"
-VALUE_CHANGED = "campaign.global_value_changed"
-INTERSTATE_WARS_CHANGED = "campaign.interstate_wars_changed"
-"""Emitted by the war analyzer for an ``interstateWars`` member that no war presence explains."""
-
+MILESTONE_RECORDED = campaign.MILESTONE_RECORDED.event_type
 INTERSTATE_WARS = "interstateWars"
 MILESTONES = "globalMilestones"
 NUCLEAR_STRIKES = "nuclearStrikes"
@@ -73,7 +64,7 @@ def _field_events(change: StateChange, lookup: Lookup, build: EventBuilder) -> l
             events.append(_records_changed(change, lookup, build))
         return events
     if field_name == NUCLEAR_STRIKES:
-        event = value_transition_event(NUCLEAR_STRIKES_CHANGED, change, lookup, build)
+        event = value_transition_event(campaign.NUCLEAR_STRIKES_CHANGED, change, lookup, build)
         return [event] if event is not None else []
     if field_name in SEA_LEVEL_RISES and change.before is False and change.after is True:
         return [_sea_level_rise(change, SEA_LEVEL_RISES[field_name], lookup, build)]
@@ -107,7 +98,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     owner_id, owner = _owner(change, lookup)
     side = Side.AFTER if appeared else Side.BEFORE
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        campaign.GLOBAL_VALUES_APPEARED if appeared else campaign.GLOBAL_VALUES_DISAPPEARED,
         id_parts=(owner_id,),
         sources=(primary(change),),
         entities=(owner,),
@@ -125,7 +116,7 @@ def _milestones(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
             continue
         events.append(
             build.event(
-                MILESTONE_RECORDED,
+                campaign.MILESTONE_RECORDED,
                 id_parts=(owner_id, entry.key),
                 sources=(_entry_source(change, record_set, entry, entry.key),),
                 entities=(owner, lookup.resolve(entry.value)),
@@ -139,7 +130,7 @@ def _milestones(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
         transition = classify(old.value, new.value) or Transition.CHANGED
         events.append(
             build.event(
-                MILESTONE_CHANGED,
+                campaign.MILESTONE_CHANGED,
                 id_parts=(owner_id, new.key),
                 sources=(_entry_source(change, record_set, new, new.key),),
                 entities=(owner, lookup.resolve(old.value), lookup.resolve(new.value)),
@@ -161,7 +152,7 @@ def _once_per_campaign(change: StateChange, detail: RecordsDetail, lookup: Looku
     record_set = lookup.record_set(owner_id, ONCE_PER_CAMPAIGN, Side.AFTER)
     return [
         build.event(
-            NARRATIVE_EVENT_TRIGGERED,
+            campaign.NARRATIVE_EVENT_TRIGGERED,
             id_parts=(owner_id, "campaign", entry.index),
             sources=(_entry_source(change, record_set, entry, entry.value),),
             entities=(owner,),
@@ -199,7 +190,7 @@ def _once_per_target(change: StateChange, detail: RecordsDetail, lookup: Lookup,
             gained.append((new, new.value))
     events = [
         build.event(
-            NARRATIVE_EVENT_TRIGGERED,
+            campaign.NARRATIVE_EVENT_TRIGGERED,
             id_parts=(owner_id, "target", entry.key),
             sources=(_entry_source(change, record_set, entry, entry.key),),
             entities=(owner, *_refs(targets, lookup)),
@@ -216,7 +207,7 @@ def _once_per_target(change: StateChange, detail: RecordsDetail, lookup: Lookup,
 def _sea_level_rise(change: StateChange, stage: int, lookup: Lookup, build: EventBuilder) -> Event:
     owner_id, owner = _owner(change, lookup)
     return build.event(
-        SEA_LEVEL_RISE_TRIGGERED,
+        campaign.SEA_LEVEL_RISE_TRIGGERED,
         id_parts=(owner_id, stage),
         sources=(primary(change),),
         entities=(owner,),
@@ -231,7 +222,7 @@ def _value_changed(change: StateChange, lookup: Lookup, build: EventBuilder) -> 
         return None
     owner_id, owner = _owner(change, lookup)
     return build.event(
-        VALUE_CHANGED,
+        campaign.VALUE_CHANGED,
         id_parts=(owner_id, change.field),
         sources=(primary(change),),
         entities=(owner, *_refs(change.before, lookup), *_refs(change.after, lookup)),
@@ -246,7 +237,7 @@ def _records_changed(change: StateChange, lookup: Lookup, build: EventBuilder) -
     detail = change.detail
     assert isinstance(detail, RecordsDetail)
     return build.event(
-        VALUE_CHANGED,
+        campaign.VALUE_CHANGED,
         id_parts=(owner_id, change.field),
         sources=(primary(change),),
         entities=(owner,),

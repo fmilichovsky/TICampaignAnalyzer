@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from ..diff.render import render_value
-from ..model.entities import EntityRef
+from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role
 from ..model.kinds import Template
-from ..model.values import Observed
+from ..model.values import Observed, Unknown
 
 TRANSITION = frozenset({"transition", "before", "after"})
 """The attribute keys of a literal transition (``analyzers.common.transition_attributes``)."""
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
 
 
 def subject_label(event: Event) -> str:
@@ -39,12 +41,93 @@ def transition_label(event: Event, label: str) -> str:
     return f"{label}: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
 
 
+def with_context(label: str, domain: EntityDomain, prefix: str = "") -> Template:
+    """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
+    return lambda event: (
+        f"{subject_label(event)} ({prefix}{name(entity(event, domain))}) {transition_label(event, label)}"
+    )
+
+
 def plain(label: str) -> Template:
     """``<subject> <label>: <before> -> <after>``."""
     return lambda event: f"{subject_label(event)} {transition_label(event, label)}"
 
 
-# --- Narrative events (#325) ---------------------------------------------------------------------------------------
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
+
+
+def entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
+    """The ``skip``-th context entity of ``domain``, after the subject."""
+    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
+    return matches[skip] if len(matches) > skip else None
+
+
+def name(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
+
+
+def presence(event: Event) -> str:
+    return PRESENT if event.attribute("side") == "after" else ABSENT
+
+
+def list_changed(event: Event) -> str:
+    """``<subject> <field> list: +/-<member>``, or the literal transition when the list is unresolved."""
+    field = event.sources[0].change.field if event.sources else "list"
+    transition = event.attribute("transition")
+    if transition == "unresolved":
+        return f"{subject_label(event)} {transition_label(event, f'{field} list')}"
+    sign = "+" if transition == "added" else "-"
+    return f"{subject_label(event)} {field} list: {sign}{attribute_label(event, 'member')}"
+
+
+def entity_of(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
+    """The ``skip``-th entity of ``domain`` after the subject."""
+    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
+    return matches[skip] if len(matches) > skip else None
+
+
+def name_of(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
+
+
+def presence_with(domain: EntityDomain, prefix: str) -> Template:
+    return lambda event: f"{subject_label(event)} ({prefix} {name_of(entity_of(event, domain))}) {presence(event)}"
+
+
+def renamed(event: Event) -> str:
+    text = f"{subject_label(event)} renamed: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
+    if not isinstance(event.attribute("federation_name_before"), Unknown):
+        text += (
+            f" (federation name {attribute_label(event, 'federation_name_before')}"
+            f" -> {attribute_label(event, 'federation_name_after')})"
+        )
+    return text
+
+
+def refs(event: Event, attribute: str) -> str:
+    """A tuple attribute of references as a comma-separated list of IDs."""
+    value = event.attribute(attribute)
+    if not isinstance(value, tuple):
+        return render_event_value(value)
+    return ", ".join(render_event_value(item) for item in value)
+
+
+def region_count(count: Observed) -> str:
+    return f"{render_value(count)} region{'' if count == 1 else 's'}"
+
+
+def regions(event: Event) -> str:
+    return region_count(event.attribute("region_count"))
+
+
+def bands(event: Event) -> str:
+    """``<statistic>: <band> -> <band>``, the game's own band labels."""
+    return (
+        f"{attribute_text(event, 'statistic')}: "
+        f"{attribute_text(event, 'from_band')} -> {attribute_text(event, 'to_band')}"
+    )
+
 
 METRIC_SHIFTS = frozenset({"metric_shifts"})
 """Every narrative event that carries ``bounded_shifts`` has this key, the omitted count only when it cut."""
@@ -52,26 +135,13 @@ METRIC_SHIFTS_OMITTED = frozenset({"metric_shifts_omitted"})
 
 
 def role_label(event: Event, role: Role) -> str:
-    refs = [ref.label() for found, ref in event.roles if found is role]
-    return ", ".join(refs) if refs else "null"
+    refs_found = [ref.label() for found, ref in event.roles if found is role]
+    return ", ".join(refs_found) if refs_found else "null"
 
 
 def has_role(event: Event, role: Role) -> bool:
     return any(found is role for found, _ in event.roles)
 
 
-def refs_label(event: Event, name: str) -> str:
-    """A tuple attribute of references as a comma-separated list of IDs."""
-    value = event.attribute(name)
-    if not isinstance(value, tuple):
-        return render_event_value(value)
-    return ", ".join(render_event_value(item) for item in value)
-
-
 def count_label(value: Observed, noun: str) -> str:
     return f"{render_value(value)} {noun}{'' if value == 1 else 's'}"
-
-
-def band_label(event: Event) -> str:
-    statistic, start, end = (attribute_text(event, name) for name in ("statistic", "from_band", "to_band"))
-    return f"{statistic}: {start} -> {end}"

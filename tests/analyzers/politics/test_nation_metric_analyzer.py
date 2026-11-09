@@ -8,11 +8,11 @@ from tinarrative.analyzers.politics.nation_metrics import (
     COHESION,
     DISCRETE,
     GDP,
-    STATISTIC_SHIFTED,
     StatisticThreshold,
     interval_days,
     is_shift,
 )
+from tinarrative.kinds.nations import STATISTIC_SHIFTED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import SourceRole
 from tinarrative.model.snapshot import SaveSnapshot
@@ -55,7 +55,7 @@ def test_a_gdp_shift_carries_the_per_cause_deltas_and_cites_the_tracker() -> Non
         },
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == STATISTIC_SHIFTED and event.id == "nation.statistic_shifted/nation:20/GDP"
+    assert event.event_type == STATISTIC_SHIFTED.event_type and event.id == "nation.statistic_shifted/nation:20/GDP"
     assert [str(ref.entity_id) for ref in event.entities] == ["nation:20"]
     assert dict(event.attributes) == {
         "statistic": "GDP",
@@ -109,7 +109,7 @@ def test_placeholder_nations_are_skipped_but_a_nation_losing_its_regions_is_not(
     before, after = nation_pair({"regions": (), "GDP": 1.0e9}, {"regions": (), "GDP": 5.0e9})
     assert analyze(ANALYZER, before, after) == []
     before, after = nation_pair({"regions": REGIONS, "GDP": 1.0e9}, {"regions": (), "GDP": 1.0e2})
-    assert only(analyze(ANALYZER, before, after), STATISTIC_SHIFTED).attribute("after") == 1.0e2
+    assert only(analyze(ANALYZER, before, after), STATISTIC_SHIFTED.event_type).attribute("after") == 1.0e2
 
 
 def test_a_statistic_without_a_tracker_has_no_causes_attribute() -> None:
@@ -181,7 +181,7 @@ def test_the_threshold_scales_with_the_interval() -> None:
     before, after = nation_pair(
         {"regions": REGIONS, "numNuclearWeapons": 0}, {"regions": REGIONS, "numNuclearWeapons": 1}, **four_months
     )
-    assert only(analyze(ANALYZER, before, after), STATISTIC_SHIFTED).attribute("interval_days") == 120.0
+    assert only(analyze(ANALYZER, before, after), STATISTIC_SHIFTED.event_type).attribute("interval_days") == 120.0
 
 
 def test_interval_days_reads_the_dates_and_declines_unknown_or_reversed_intervals() -> None:

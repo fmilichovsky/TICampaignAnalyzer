@@ -13,16 +13,19 @@ from ..analyzers.military.armies import APPEARED as ARMY_APPEARED
 from ..analyzers.military.armies import DEPLOYMENT_TYPE_CHANGED
 from ..analyzers.military.armies import DISAPPEARED as ARMY_DISAPPEARED
 from ..analyzers.politics.bands import BANDS, band
-from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
-from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
-from ..analyzers.politics.nation_economy import PCGDP_TREND
-from ..analyzers.politics.nation_population import POPULATION_CHANGED
-from ..analyzers.politics.nation_rank import RANK_CHANGED
-from ..analyzers.politics.nation_space import SPACE_ASSETS_CHANGED
-from ..analyzers.politics.nations import DISAPPEARED as NATION_DISAPPEARED
-from ..analyzers.politics.nations import RELATION_CHANGED, RENAMED
 from ..config import GeopoliticsSettings
-from ..kinds.control import TAKEOVER, TAKEOVER_WAVE
+from ..kinds import nations as nation_kinds
+from ..kinds.control import CONTROLLER_CHANGED as CONTROLLER_CHANGED_KIND
+from ..kinds.control import (
+    COUNCILOR_DISAPPEARED,
+    COUNCILOR_FACTION_CHANGED,
+    DETAINING_FACTION_CHANGED,
+    LOSS_RECORDED,
+    NATION_CONTROL_CHANGED,
+    POINT_DISAPPEARED,
+    TAKEOVER,
+    TAKEOVER_WAVE,
+)
 from ..kinds.nations import BREAKAWAY, CESSION, CLAIMS_DECLARED, EXPANSION, MERGER, RELEASE
 from ..kinds.wars import FEDERATION_LIFECYCLE, WAR_ARC
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -58,24 +61,35 @@ from .rulekit import (
 from .situation import NationSituation, SituationReport, WarSituation
 from .stream import EventStream
 
-NATION_CONTROL = "faction.nation_control_changed"
-BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
-CONTROLLER_CHANGED = "control_point.controller_changed"
-EXECUTIVE_RECORDED = "nation.executive_change_recorded"
-UNREST_ATTEMPTS = "nation.unrest_attempts_changed"
-STATISTIC_SHIFTED = "nation.statistic_shifted"
+NATION_CONTROL = NATION_CONTROL_CHANGED.event_type
+BREAKAWAY_PARENT_CHANGED = nation_kinds.BREAKAWAY_PARENT_CHANGED.event_type
+CONTROLLER_CHANGED = CONTROLLER_CHANGED_KIND.event_type
+EXECUTIVE_RECORDED = nation_kinds.EXECUTIVE_CHANGE_RECORDED.event_type
+UNREST_ATTEMPTS = nation_kinds.UNREST_ATTEMPTS_CHANGED.event_type
+STATISTIC_SHIFTED = nation_kinds.STATISTIC_SHIFTED.event_type
 TRANSACTION = "faction.transaction_recorded"
-TERRITORY_GAINED = "nation.territory_gained"
-TERRITORY_LOST = "nation.territory_lost"
-UNIFICATION = "nation.unification"
-ANNEXATION = "nation.annexation"
-INDEPENDENCE = "nation.independence"
+TERRITORY_GAINED = nation_kinds.TERRITORY_GAINED.event_type
+TERRITORY_LOST = nation_kinds.TERRITORY_LOST.event_type
+UNIFICATION = nation_kinds.UNIFICATION.event_type
+ANNEXATION = nation_kinds.ANNEXATION.event_type
+INDEPENDENCE = nation_kinds.INDEPENDENCE.event_type
+NATION_DISAPPEARED = nation_kinds.DISAPPEARED.event_type
+RELATION_CHANGED = nation_kinds.RELATION_CHANGED.event_type
+RENAMED = nation_kinds.RENAMED.event_type
+PCGDP_TREND = nation_kinds.PCGDP_TREND.event_type
+POPULATION_CHANGED = nation_kinds.POPULATION_CHANGED.event_type
+RANK_CHANGED = nation_kinds.RANK_CHANGED.event_type
+SPACE_ASSETS_CHANGED = nation_kinds.SPACE_ASSETS_CHANGED.event_type
 
 TAKEOVER_SCOPES = ("executive", "sole")
 """The ``faction.nation_control_changed`` scopes that anchor a takeover; a plurality is not control."""
 INDEPENDENCE_CAUSE = "Independence"
 """A control change with this cause belongs to the release and breakaway rule, not to a takeover."""
-TAKEOVER_COUNCILOR_TYPES = ("councilor.faction_changed", "councilor.disappeared", "councilor.detaining_faction_changed")
+TAKEOVER_COUNCILOR_TYPES = (
+    COUNCILOR_FACTION_CHANGED.event_type,
+    COUNCILOR_DISAPPEARED.event_type,
+    DETAINING_FACTION_CHANGED.event_type,
+)
 PRECURSOR_STATISTICS = frozenset({"unrest", "publicOpinion"})
 TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of ADR-0010."""
@@ -88,7 +102,7 @@ MERGED_EITHER = frozenset({TERRITORY_GAINED, TERRITORY_LOST, RENAMED, SPACE_ASSE
 """Events of either merged nation that the merger carries in its interval."""
 MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, POPULATION_CHANGED, PCGDP_TREND})
 """Events of the absorbed nation only that the merger carries in its interval."""
-MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED})
+MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED.event_type, LOSS_RECORDED.event_type})
 MERGED_ARMIES = frozenset({ARMY_APPEARED, ARMY_DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED})
 MERGER_CARRIED = tuple(
     sorted(
@@ -838,7 +852,7 @@ class IndependenceRule:
         reports = interval_reports(situations)
         days = self.settings.release_window_days
         parties = MergerParties.of(stream)
-        own_types = ("nation.appeared", BREAKAWAY_PARENT_CHANGED, NATION_CONTROL)
+        own_types = (nation_kinds.APPEARED.event_type, BREAKAWAY_PARENT_CHANGED, NATION_CONTROL)
         own = by_subject(by_type(stream, *own_types))
         built = []
         for anchor in sorted(by_type(stream, INDEPENDENCE), key=lambda event: event.id):
@@ -920,7 +934,7 @@ class ClaimsDeclaredRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         built = []
         reports = interval_reports(situations)
-        for anchor in sorted(by_type(stream, "nation.claims_changed"), key=lambda event: event.id):
+        for anchor in sorted(by_type(stream, nation_kinds.CLAIMS_CHANGED.event_type), key=lambda event: event.id):
             nation = anchor.entities[0]
             around = reports.get(interval_of(anchor.id))
             claimant = _nation(around[1], nation.entity_id) if around is not None else None
@@ -1008,14 +1022,14 @@ class ExpansionRule:
         end = max((date for date in map(latest, run) if date is not None), default=None)
         loser_ids = {ref.entity_id for ref in losers}
         candidates = stream.union(
-            stream.of_subject(loser_ids, "nation.disappeared"), stream.of_subject(gainer.entity_id, "nation.renamed")
+            stream.of_subject(loser_ids, NATION_DISAPPEARED), stream.of_subject(gainer.entity_id, RENAMED)
         )
         attached = [
             event
             for event in candidates
             if (
-                (event.event_type == "nation.disappeared" and subject_id(event) in loser_ids)
-                or (event.event_type == "nation.renamed" and subject_id(event) == gainer.entity_id)
+                (event.event_type == NATION_DISAPPEARED and subject_id(event) in loser_ids)
+                or (event.event_type == RENAMED and subject_id(event) == gainer.entity_id)
             )
             and overlaps(event, start, end)
             and event.id not in inside
