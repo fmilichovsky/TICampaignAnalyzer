@@ -30,16 +30,6 @@ _EVIDENCE: tuple[str, ...] = (
     "nation.independence",
     "nation.unification",
     "nation.annexation",
-    # Wars: the start and end dates, the last fighting and when each nation joined a side.
-    "war.appeared",
-    "war.disappeared",
-    "war.last_fighting_changed",
-    "war.alliance_changed",
-    # Federations: founding, dissolution, each member joining or leaving, and a new name.
-    "federation.appeared",
-    "federation.disappeared",
-    "federation.members_changed",
-    "federation.renamed",
     # A nation's new name, and a nation absorbed by its neighbour.
     "nation.renamed",
     "nation.disappeared",

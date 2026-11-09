@@ -9,9 +9,21 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+from ...kinds.wars import (
+    NATION_WARS_CHANGED,
+    WAR_ALLIANCE_CHANGED,
+    WAR_APPEARED,
+    WAR_ATTACKER_CHANGED,
+    WAR_ATTACKING_ALLIANCE_CHANGED,
+    WAR_DEFENDER_CHANGED,
+    WAR_DEFENDING_ALLIANCE_CHANGED,
+    WAR_DISAPPEARED,
+    WAR_LAST_FIGHTING_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
+from ...model.kinds import EventKind
 from ...model.records import ItemEntry
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
@@ -29,14 +41,6 @@ from ..common import (
 )
 from .nations import relation_events
 
-APPEARED = "war.appeared"
-DISAPPEARED = "war.disappeared"
-ALLIANCE_CHANGED = "war.alliance_changed"
-ATTACKER_CHANGED = "war.attacker_changed"
-DEFENDER_CHANGED = "war.defender_changed"
-LAST_FIGHTING_CHANGED = "war.last_fighting_changed"
-WARS_LIST_CHANGED = "nation.wars_changed"
-
 ATTACKING = "_attackingAlliance"
 DEFENDING = "_defendingAlliance"
 
@@ -51,10 +55,10 @@ ATTACKERS = WarSide(ATTACKING, "attacking", "attacker")
 DEFENDERS = WarSide(DEFENDING, "defending", "defender")
 SIDES = ((ATTACKERS, DEFENDERS), (DEFENDERS, ATTACKERS))
 """Each side of a war with its opponents."""
-LEFTOVER_TYPES = {
-    ATTACKING: "war.attacking_alliance_changed",
-    DEFENDING: "war.defending_alliance_changed",
-    "wars": WARS_LIST_CHANGED,
+LEFTOVER_TYPES: dict[str, EventKind | str] = {
+    ATTACKING: WAR_ATTACKING_ALLIANCE_CHANGED,
+    DEFENDING: WAR_DEFENDING_ALLIANCE_CHANGED,
+    "wars": NATION_WARS_CHANGED,
     INTERSTATE_WARS: INTERSTATE_WARS_CHANGED,
 }
 HANDLED_LISTS = (
@@ -63,7 +67,7 @@ HANDLED_LISTS = (
     (EntityDomain.NATION, "wars"),
     (EntityDomain.GLOBAL_VALUES, INTERSTATE_WARS),
 )
-VALUE_FIELDS = (("attacker", ATTACKER_CHANGED), ("defender", DEFENDER_CHANGED))
+VALUE_FIELDS = (("attacker", WAR_ATTACKER_CHANGED), ("defender", WAR_DEFENDER_CHANGED))
 START_DATE = "startDate"
 LAST_FIGHTING = "dateOfLastFighting"
 
@@ -82,13 +86,13 @@ class WarAnalyzer:
         for own_side, opponents in SIDES:
             for war_id, member, transition in ledger.pending(own_side.alliance):
                 events.append(_alliance_changed(war_id, own_side, opponents, member, transition, lookup, ledger, build))
-        for field_name, event_type in VALUE_FIELDS:
+        for field_name, kind in VALUE_FIELDS:
             for change in index.fields(EntityDomain.WAR, field_name):
-                event = value_transition_event(event_type, change, lookup, build)
+                event = value_transition_event(kind, change, lookup, build)
                 if event is not None:
                     events.append(event)
         for change in index.fields(EntityDomain.WAR, LAST_FIGHTING):
-            event = value_transition_event(LAST_FIGHTING_CHANGED, change, lookup, build, recorded_on=change.after)
+            event = value_transition_event(WAR_LAST_FIGHTING_CHANGED, change, lookup, build, recorded_on=change.after)
             if event is not None:
                 events.append(event)
         events.extend(relation_events("wars", lookup, ledger, build))
@@ -168,7 +172,7 @@ def _presence(
             sources.append(cited)
     sources.extend(_war_pairs(ledger, attackers, defenders, transition))
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        WAR_APPEARED if appeared else WAR_DISAPPEARED,
         id_parts=(war_id,),
         sources=sources,
         entities=(lookup.ref(war_id), *(lookup.ref(nation) for nation in attackers + defenders)),
@@ -193,7 +197,7 @@ def _alliance_changed(
     side = Side.AFTER if transition is Transition.ADDED else Side.BEFORE
     opposing = side_members(lookup, war_id, opponents, side)
     return build.event(
-        ALLIANCE_CHANGED,
+        WAR_ALLIANCE_CHANGED,
         id_parts=(war_id, own_side.label, member.entity_id, transition.value),
         sources=[own, *_war_pairs(ledger, [member.entity_id], opposing, transition)],
         entities=(lookup.ref(war_id), lookup.resolve(member)),

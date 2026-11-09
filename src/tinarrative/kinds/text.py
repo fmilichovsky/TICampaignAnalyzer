@@ -6,7 +6,7 @@ from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
 from ..model.kinds import Template
-from ..model.values import Observed
+from ..model.values import Observed, Unknown
 
 TRANSITION = frozenset({"transition", "before", "after"})
 """The attribute keys of a literal transition (``analyzers.common.transition_attributes``)."""
@@ -90,3 +90,13 @@ def name_of(ref: EntityRef | None) -> str:
 
 def presence_with(domain: EntityDomain, prefix: str) -> Template:
     return lambda event: f"{subject_label(event)} ({prefix} {name_of(entity_of(event, domain))}) {presence(event)}"
+
+
+def renamed(event: Event) -> str:
+    text = f"{subject_label(event)} renamed: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
+    if not isinstance(event.attribute("federation_name_before"), Unknown):
+        text += (
+            f" (federation name {attribute_label(event, 'federation_name_before')}"
+            f" -> {attribute_label(event, 'federation_name_after')})"
+        )
+    return text

@@ -147,7 +147,7 @@ Tracking #249.
   - [x] Space family (#321).
   - [ ] Nations family (#322).
   - [ ] Control family (#323).
-  - [ ] Wars and federations family (#324).
+  - [x] Wars and federations family (#324).
   - [ ] Narrative-event kinds (#325).
   - [ ] Cleanup (#326).
 - [ ] Campaign analysis: one module from save inputs to an analysed campaign (#328):

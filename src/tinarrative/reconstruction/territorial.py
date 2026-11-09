@@ -16,7 +16,6 @@ from ..analyzers.common import EventBuilder, Lookup, Side, event_id
 from ..analyzers.politics.control_points import CONTROLLER_CHANGED
 from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
 from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
-from ..analyzers.politics.federations import MEMBERS_CHANGED
 from ..analyzers.politics.nation_metrics import STATISTIC_SHIFTED, TRACKERS, cause_deltas
 from ..analyzers.politics.nations import (
     BREAKAWAY_PARENT_CHANGED,
@@ -27,6 +26,7 @@ from ..analyzers.politics.nations import (
     RELATION_CHANGED,
 )
 from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, side_members
+from ..kinds.wars import FEDERATION_MEMBERS_CHANGED
 from ..model.changes import StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event, EventStatus
@@ -63,7 +63,13 @@ FEDERATION_BASIS = "federation"
 BREAKAWAY_BASIS = "breakaway"
 """Why the game let the two nations unify: a shared federation, or the absorbed nation broke away from the gainer."""
 UNIFICATION_SUPPORT_TYPES = frozenset(
-    {MEMBERS_CHANGED, BREAKAWAY_PARENT_CHANGED, CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED}
+    {
+        FEDERATION_MEMBERS_CHANGED.event_type,
+        BREAKAWAY_PARENT_CHANGED,
+        CONTROLLER_CHANGED,
+        POINT_DISAPPEARED,
+        POINT_LOSS_RECORDED,
+    }
 )
 """Objective events about an absorbed nation that corroborate its unification."""
 
@@ -437,7 +443,7 @@ def _unification_support(context: Context, loser: EntityId) -> tuple[Event, ...]
     for event in context.events:
         if event.event_type not in UNIFICATION_SUPPORT_TYPES:
             continue
-        if event.event_type == MEMBERS_CHANGED:
+        if event.event_type == FEDERATION_MEMBERS_CHANGED.event_type:
             member = event.attribute("member")
             if (
                 isinstance(member, EntityRef)

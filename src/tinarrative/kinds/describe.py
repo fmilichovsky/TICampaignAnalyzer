@@ -24,12 +24,10 @@ from .text import name_of as _name
 from .text import plain as _plain
 from .text import presence as _presence
 from .text import presence_with as _presence_with
+from .text import renamed as _renamed
 from .text import render_event_value
 from .text import subject_label as _subject
 from .text import transition_label as _transition
-
-ABSENT = "is absent from the after snapshot"
-PRESENT = "is present only in the after snapshot"
 
 
 def describe_event(event: Event) -> str:
@@ -112,15 +110,6 @@ def _claims_changed(label: str) -> Callable[[Event], str]:
     return describe
 
 
-def _renamed(event: Event) -> str:
-    text = f"{_subject(event)} renamed: {_attr(event, 'before')} -> {_attr(event, 'after')}"
-    if not isinstance(event.attribute("federation_name_before"), Unknown):
-        text += (
-            f" (federation name {_attr(event, 'federation_name_before')} -> {_attr(event, 'federation_name_after')})"
-        )
-    return text
-
-
 def _unrest_attempts_changed(event: Event) -> str:
     if not isinstance(event.attribute("transition"), Unknown):
         return f"{_subject(event)} {_transition(event, 'faction unrest attempts')}"
@@ -146,34 +135,6 @@ def _councilor_field(label: str) -> Callable[[Event], str]:
 
 def _councilor_presence(event: Event) -> str:
     return f"{_subject(event)} (faction {_name(_entity(event, EntityDomain.FACTION))}) {_presence(event)}"
-
-
-def _side_list(event: Event) -> str:
-    nations = ", ".join(ref.label() for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.NATION)
-    return nations or "no nations"
-
-
-def _war_presence(event: Event) -> str:
-    text = f"{_subject(event)} ({_side_list(event)}) {_presence(event)}"
-    if not isinstance(event.attribute("started_on"), Unknown):
-        text += f"; start date {_text(event, 'started_on')}"
-    return text
-
-
-def _alliance_changed(event: Event) -> str:
-    sign = "+" if event.attribute("transition") == "added" else "-"
-    return f"{_subject(event)} {_text(event, 'side')} side: {sign}{_attr(event, 'member')}"
-
-
-def _members_changed(event: Event) -> str:
-    if event.attribute("transition") == "unresolved":
-        return _list_changed(event)
-    sign = "+" if event.attribute("transition") == "added" else "-"
-    return f"{_subject(event)} members: {sign}{_attr(event, 'member')}"
-
-
-def _federation_presence(event: Event) -> str:
-    return f"{_subject(event)} (members {_side_list(event)}) {_presence(event)}"
 
 
 def _nation_presence(event: Event) -> str:
@@ -529,24 +490,11 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "region.nation_changed": _plain("nation"),
     "nation.capital_changed": _plain("capital"),
     "nation.relation_changed": _relation_changed,
-    "nation.federation_changed": _plain("federation"),
     "nation.breakaway_parent_changed": _plain("breakaway parent"),
     "nation.regions_changed": _list_changed,
     "nation.breakaways_changed": _list_changed,
     "nation.allies_changed": _list_changed,
     "nation.rivals_changed": _list_changed,
-    "nation.wars_changed": _list_changed,
-    "war.appeared": _war_presence,
-    "war.disappeared": _war_presence,
-    "war.alliance_changed": _alliance_changed,
-    "war.attacker_changed": _plain("attacker"),
-    "war.defender_changed": _plain("defender"),
-    "war.last_fighting_changed": _plain("date of last fighting"),
-    "war.attacking_alliance_changed": _list_changed,
-    "war.defending_alliance_changed": _list_changed,
-    "federation.appeared": _federation_presence,
-    "federation.disappeared": _federation_presence,
-    "federation.members_changed": _members_changed,
     "nation.executive_change_recorded": _executive_change,
     "nation.appeared": _nation_presence,
     "nation.disappeared": _nation_presence,
@@ -559,7 +507,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.claims_changed": _claims_changed("claims"),
     "nation.hostile_claims_changed": _claims_changed("hostile claims"),
     "nation.renamed": _renamed,
-    "federation.renamed": _renamed,
     "nation.unrest_attempts_changed": _unrest_attempts_changed,
     "nation.new_government_recorded": _new_government_recorded,
     "nation.nuclear_program_changed": _plain("nuclear program"),
