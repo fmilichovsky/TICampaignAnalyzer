@@ -115,12 +115,9 @@ _MINOR: tuple[str, ...] = (
     "nation.breakaways_changed",
     "nation.allies_changed",
     "nation.rivals_changed",
-    "nation.wars_changed",
     "faction.control_points_changed",
     "nation.control_points_changed",
     "faction.councilors_changed",
-    "war.attacking_alliance_changed",
-    "war.defending_alliance_changed",
     "campaign.interstate_wars_changed",
     # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
     # it is not counted as a second major event.
@@ -147,21 +144,11 @@ _MAJOR: tuple[str, ...] = (
     # Core political and asset-ownership changes.
     "control_point.controller_changed",
     "region.nation_changed",
-    "nation.federation_changed",
     "councilor.faction_changed",
     "hab.disappeared",
     "faction.hab_destruction_recorded",
-    # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
-    "war.appeared",
-    "war.disappeared",
-    "war.alliance_changed",
-    "federation.appeared",
-    "federation.disappeared",
-    "federation.members_changed",
-    # A rename marks a unification or a federation's growth, which a history reports; claims are decided by
-    # their context rule.
+    # A rename marks a unification, which a history reports; claims are decided by their context rule.
     "nation.renamed",
-    "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
     "councilor.detaining_faction_changed",
     "army.faction_changed",
@@ -423,7 +410,6 @@ SCALED: Mapping[str, Stake] = {
     "nation.appeared": Stake.NATION,
     "nation.disappeared": Stake.NATION,
     "nation.statistic_shifted": Stake.NATION,
-    "nation.federation_changed": Stake.NATION,
     "nation.claims_changed": Stake.NATION,
     "nation.relation_changed": Stake.BELLIGERENTS,
     "region.nation_changed": Stake.TERRITORY,

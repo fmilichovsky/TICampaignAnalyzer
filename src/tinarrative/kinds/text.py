@@ -6,7 +6,7 @@ from ..diff.render import render_value
 from ..model.entities import EntityRef
 from ..model.events import Event
 from ..model.kinds import Template
-from ..model.values import Observed
+from ..model.values import Observed, Unknown
 
 TRANSITION = frozenset({"transition", "before", "after"})
 """The attribute keys of a literal transition (``analyzers.common.transition_attributes``)."""
@@ -42,3 +42,31 @@ def transition_label(event: Event, label: str) -> str:
 def plain(label: str) -> Template:
     """``<subject> <label>: <before> -> <after>``."""
     return lambda event: f"{subject_label(event)} {transition_label(event, label)}"
+
+
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
+
+
+def presence(event: Event) -> str:
+    return PRESENT if event.attribute("side") == "after" else ABSENT
+
+
+def list_changed(event: Event) -> str:
+    """``<subject> <field> list: +/-<member>``, or the literal transition when the list is unresolved."""
+    field = event.sources[0].change.field if event.sources else "list"
+    transition = event.attribute("transition")
+    if transition == "unresolved":
+        return f"{subject_label(event)} {transition_label(event, f'{field} list')}"
+    sign = "+" if transition == "added" else "-"
+    return f"{subject_label(event)} {field} list: {sign}{attribute_label(event, 'member')}"
+
+
+def renamed(event: Event) -> str:
+    text = f"{subject_label(event)} renamed: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
+    if not isinstance(event.attribute("federation_name_before"), Unknown):
+        text += (
+            f" (federation name {attribute_label(event, 'federation_name_before')}"
+            f" -> {attribute_label(event, 'federation_name_after')})"
+        )
+    return text

@@ -6,6 +6,13 @@ becomes ``nation.federation_changed``. A rename is one event per federation citi
 
 from __future__ import annotations
 
+from ...kinds.wars import (
+    FEDERATION_APPEARED,
+    FEDERATION_DISAPPEARED,
+    FEDERATION_MEMBERS_CHANGED,
+    FEDERATION_RENAMED,
+    NATION_FEDERATION_CHANGED,
+)
 from ...model.changes import ChangeIndex, ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
@@ -25,11 +32,6 @@ from ..common import (
     value_transition_event,
 )
 
-APPEARED = "federation.appeared"
-DISAPPEARED = "federation.disappeared"
-MEMBERS_CHANGED = "federation.members_changed"
-FEDERATION_CHANGED = "nation.federation_changed"
-RENAMED = "federation.renamed"
 NAME_FIELDS = ("displayName", "federationName")
 """The name fields of a federation, in the order their values are preferred for ``before``/``after``."""
 
@@ -56,7 +58,7 @@ class FederationAnalyzer:
                 sources.append(cited)
             events.append(
                 build.event(
-                    MEMBERS_CHANGED,
+                    FEDERATION_MEMBERS_CHANGED,
                     id_parts=(federation_id, member.entity_id, transition.value),
                     sources=sources,
                     entities=(lookup.ref(federation_id), lookup.resolve(member)),
@@ -65,9 +67,9 @@ class FederationAnalyzer:
                 )
             )
         for change, leftover, transition in ledger.leftovers():
-            events.append(list_changed_event(MEMBERS_CHANGED, change, leftover, transition, lookup, build))
+            events.append(list_changed_event(FEDERATION_MEMBERS_CHANGED, change, leftover, transition, lookup, build))
         for change in mirror.unclaimed():
-            event = value_transition_event(FEDERATION_CHANGED, change, lookup, build)
+            event = value_transition_event(NATION_FEDERATION_CHANGED, change, lookup, build)
             if event is not None:
                 events.append(event)
         events.extend(_renames(index, lookup, build))
@@ -95,7 +97,7 @@ def _renames(index: ChangeIndex, lookup: Lookup, build: EventBuilder) -> list[Ev
                 attributes += [("federation_name_before", change.before), ("federation_name_after", change.after)]
         events.append(
             build.event(
-                RENAMED,
+                FEDERATION_RENAMED,
                 id_parts=(federation_id,),
                 sources=[primary(change) for change in changes],
                 entities=(lookup.ref(federation_id),),
@@ -148,7 +150,7 @@ def _presence(change: StateChange, lookup: Lookup, mirror: _NationFederations, b
         if cited is not None:
             sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        FEDERATION_APPEARED if appeared else FEDERATION_DISAPPEARED,
         id_parts=(federation_id,),
         sources=sources,
         entities=(lookup.ref(federation_id), *(lookup.ref(nation_id) for nation_id in nations)),

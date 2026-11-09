@@ -23,8 +23,18 @@ from tests.narrative.support import (
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.faction import TRANSACTION_RECORDED
+from tinarrative.kinds.wars import (
+    FEDERATION_APPEARED,
+    FEDERATION_MEMBERS_CHANGED,
+    FEDERATION_RENAMED,
+    WAR_ALLIANCE_CHANGED,
+    WAR_APPEARED,
+    WAR_DISAPPEARED,
+    WAR_LAST_FIGHTING_CHANGED,
+)
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
+from tinarrative.model.kinds import EventKind
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
 from tinarrative.narrative.geopolitics import bounded_shifts
@@ -573,20 +583,40 @@ def test_bounded_shifts_rank_role_nations_then_nuclear_weapons_then_the_largest_
 # --- war.arc -----------------------------------------------------------------------------------------------------
 
 
-def war_event(raw_type: str, key: str, *, entities: Sequence[EntityRef] = (), **attributes: Observed) -> Event:
+ATTRIBUTE_DEFAULTS: dict[str, Observed] = {
+    "side": "after",
+    "transition": "changed",
+    "member": None,
+    "before": None,
+    "after": None,
+}
+
+
+def kind_attributes(kind: EventKind, **given: Observed) -> tuple[tuple[str, Observed], ...]:
+    """The kind's attributes: what a test gives, and a neutral value for each required key it leaves out."""
+    return attributes(
+        kind, {**{key: ATTRIBUTE_DEFAULTS[key] for key in kind.required if key not in given}, **given}.items()
+    )
+
+
+def war_event(
+    kind: EventKind, key: str, *, entities: Sequence[EntityRef] = (), parts: Sequence[object] = (), **given: Observed
+) -> Event:
+    overrides = {name: given.pop(name) for name in ("date", "date_basis") if name in given}
     return event(
-        raw_type,
+        kind.event_type,
         key,
         WAR,
-        *attributes.get("_parts", ()),
+        *parts,
         entities=entities,
-        attributes=tuple((name, value) for name, value in attributes.items() if name != "_parts"),
+        attributes=kind_attributes(kind, **given),
         significance=Significance.MAJOR,
+        **overrides,
     )
 
 
 def test_a_war_neither_appearing_nor_present_at_the_start_or_without_events_is_no_arc() -> None:
-    fighting = war_event("war.last_fighting_changed", K2)
+    fighting = war_event(WAR_LAST_FIGHTING_CHANGED, K2)
     later = [situation(K0), situation(K1, wars=[WAR]), situation(K2, wars=[WAR])]
 
     assert of_type(built([fighting], later), "war.arc") == []
@@ -602,15 +632,15 @@ def test_a_war_arc_joins_its_events_by_war_id_and_states_sides_duration_and_stri
         situation(K3, nuclear_strikes=6),
     ]
     appeared = war_event(
-        "war.appeared",
+        WAR_APPEARED,
         K1,
         entities=[NORTH, SOUTH],
         started_on="2032-02-01T00:00:00",
         date="2032-02-01T00:00:00",
         date_basis=DateBasis.RECORD,
     )  # type: ignore[arg-type]
-    joined = war_event("war.alliance_changed", K2, entities=[WEST], side="attacking", member=WEST, _parts=("west",))
-    ended = war_event("war.disappeared", K3)
+    joined = war_event(WAR_ALLIANCE_CHANGED, K2, entities=[WEST], side="attacking", member=WEST, parts=("west",))
+    ended = war_event(WAR_DISAPPEARED, K3)
 
     arc = only(built([appeared, joined, ended], situations), "war.arc")
 
@@ -632,8 +662,8 @@ def test_a_war_arc_joins_its_events_by_war_id_and_states_sides_duration_and_stri
 
 def test_a_record_dated_end_gives_the_duration_and_an_open_war_gives_none() -> None:
     row = war_row(WAR, [NORTH], [SOUTH], start_date="2032-02-01T00:00:00")
-    appeared = war_event("war.appeared", K1, entities=[NORTH, SOUTH], started_on="2032-02-01T00:00:00")
-    ended = replace(war_event("war.disappeared", K2), date="2032-05-01T00:00:00", date_basis=DateBasis.RECORD)
+    appeared = war_event(WAR_APPEARED, K1, entities=[NORTH, SOUTH], started_on="2032-02-01T00:00:00")
+    ended = replace(war_event(WAR_DISAPPEARED, K2), date="2032-05-01T00:00:00", date_basis=DateBasis.RECORD)
 
     closed = only(built([appeared, ended], [situation(K0), situation(K1, wars=[row]), situation(K2)]), "war.arc")
     running = only(built([appeared], [situation(K0), situation(K1, wars=[row]), situation(K2, wars=[row])]), "war.arc")
@@ -647,7 +677,7 @@ def test_a_record_dated_end_gives_the_duration_and_an_open_war_gives_none() -> N
 def test_a_war_started_before_the_first_save_starts_at_its_own_start_date() -> None:
     row = war_row(WAR, [NORTH], [SOUTH], start_date="2031-11-15T00:00:00")
     fighting = replace(
-        war_event("war.last_fighting_changed", K2, entities=[NORTH, SOUTH]),
+        war_event(WAR_LAST_FIGHTING_CHANGED, K2, entities=[NORTH, SOUTH]),
         date="2032-05-01T00:00:00",
         date_basis=DateBasis.RECORD,
     )
@@ -662,8 +692,8 @@ def test_a_war_started_before_the_first_save_starts_at_its_own_start_date() -> N
 
 def test_a_war_arc_leaves_out_what_closed_before_its_start_date() -> None:
     row = war_row(WAR, [NORTH], [SOUTH], start_date="2032-08-01T00:00:00")
-    older = [shift(K1, "democracy", NORTH), war_event("war.alliance_changed", K1, entities=[NORTH, SOUTH])]
-    fighting = war_event("war.last_fighting_changed", K3, entities=[NORTH, SOUTH])
+    older = [shift(K1, "democracy", NORTH), war_event(WAR_ALLIANCE_CHANGED, K1, entities=[NORTH, SOUTH])]
+    fighting = war_event(WAR_LAST_FIGHTING_CHANGED, K3, entities=[NORTH, SOUTH])
     situations = [situation(key, wars=[row]) for key in (K0, K1, K2, K3)]
 
     arc = only(built([*older, fighting], situations), "war.arc")
@@ -696,11 +726,13 @@ def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_in
 # --- federation.lifecycle ----------------------------------------------------------------------------------------
 
 
-def federation_event(raw_type: str, key: str, member: EntityRef | None = None, transition: str = "added") -> Event:
-    attributes = (("member", member), ("transition", transition)) if member is not None else ()
+def federation_event(kind: EventKind, key: str, member: EntityRef | None = None, transition: str = "added") -> Event:
+    given: dict[str, Observed] = {"transition": transition} if "transition" in kind.required else {}
+    if member is not None:
+        given["member"] = member
     parts = (str(member.entity_id), transition) if member is not None else ()
-    return event(raw_type, key, UNION, *parts, entities=[member] if member else [], attributes=attributes,
-                 significance=Significance.MAJOR)  # fmt: skip
+    return event(kind.event_type, key, UNION, *parts, entities=[member] if member else [],
+                 attributes=kind_attributes(kind, **given), significance=Significance.MAJOR)  # fmt: skip
 
 
 def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> None:
@@ -709,8 +741,8 @@ def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> 
         situation(K1, federations=[federation_row(UNION, [NORTH, SOUTH])]),
         situation(K2, federations=[federation_row(UNION, [SOUTH])]),
     ]
-    added = federation_event("federation.members_changed", K1, SOUTH)
-    removed = federation_event("federation.members_changed", K2, NORTH, "removed")
+    added = federation_event(FEDERATION_MEMBERS_CHANGED, K1, SOUTH)
+    removed = federation_event(FEDERATION_MEMBERS_CHANGED, K2, NORTH, "removed")
 
     lifecycle = only(built([added, removed, shift(K2, "GDP", SOUTH)], situations), "federation.lifecycle")
 
@@ -738,8 +770,8 @@ def test_a_federation_lifecycle_attaches_a_members_shifts_only_from_its_membersh
         situation(K2, federations=[federation_row(UNION, [NORTH, SOUTH])]),
         situation(K3, federations=[federation_row(UNION, [NORTH])]),
     ]
-    joined = federation_event("federation.members_changed", K2, SOUTH)
-    left = federation_event("federation.members_changed", K3, SOUTH, "removed")
+    joined = federation_event(FEDERATION_MEMBERS_CHANGED, K2, SOUTH)
+    left = federation_event(FEDERATION_MEMBERS_CHANGED, K3, SOUTH, "removed")
     stream = [joined, left, shift(K1, "GDP", SOUTH), shift(K2, "GDP", SOUTH), shift(K3, "GDP", SOUTH)]
 
     lifecycle = only(built(stream, situations), "federation.lifecycle")
@@ -756,8 +788,8 @@ def test_a_federation_lifecycle_leaves_out_shifts_from_before_a_member_joined() 
         situation(K2, federations=[federation_row(UNION, [NORTH, SOUTH])]),
         situation(K3, federations=[federation_row(UNION, [NORTH, SOUTH])]),
     ]
-    joined = federation_event("federation.members_changed", K2, SOUTH)
-    renamed = [federation_event("federation.renamed", K1), federation_event("federation.renamed", K3)]
+    joined = federation_event(FEDERATION_MEMBERS_CHANGED, K2, SOUTH)
+    renamed = [federation_event(FEDERATION_RENAMED, K1), federation_event(FEDERATION_RENAMED, K3)]
     early, late = shift(K1, "GDP", SOUTH), shift(K3, "GDP", SOUTH)
 
     lifecycle = only(built([joined, *renamed, early, late], situations), "federation.lifecycle")
@@ -766,11 +798,11 @@ def test_a_federation_lifecycle_leaves_out_shifts_from_before_a_member_joined() 
 
 
 def test_a_federation_without_its_anchor_is_no_lifecycle() -> None:
-    added = federation_event("federation.members_changed", K2, SOUTH)
+    added = federation_event(FEDERATION_MEMBERS_CHANGED, K2, SOUTH)
     situations = [situation(K0), situation(K1, federations=[UNION]), situation(K2, federations=[UNION])]
 
     assert of_type(built([added], situations), "federation.lifecycle") == []
-    appeared = federation_event("federation.appeared", K1)
+    appeared = federation_event(FEDERATION_APPEARED, K1)
     assert len(of_type(built([appeared, added], situations), "federation.lifecycle")) == 1
 
 
@@ -988,8 +1020,8 @@ def test_a_merger_carries_events_skipped_by_every_rule_that_checks_its_parties()
 
 def test_an_expansion_of_mergers_is_a_unification_and_a_member_leaving_by_merger_names_its_new_nation() -> None:
     situations = [situation(key, federations=[federation_row(UNION, [NORTH, SOUTH, EAST])]) for key in (K0, K1, K2)]
-    left = federation_event("federation.members_changed", K1, SOUTH, "removed")
-    stayed = federation_event("federation.members_changed", K2, WEST, "removed")
+    left = federation_event(FEDERATION_MEMBERS_CHANGED, K1, SOUTH, "removed")
+    stayed = federation_event(FEDERATION_MEMBERS_CHANGED, K2, WEST, "removed")
     stream = [*merged(K1, NORTH, SOUTH, SOUTH_REGION), *merged(K2, NORTH, EAST, EAST_REGION), left, stayed]
 
     events = built(stream, situations)
@@ -1110,8 +1142,8 @@ def scenario() -> tuple[list[Event], list[SituationReport]]:
         *annexation(K2, NORTH, EAST, EAST_REGION),
         shift(K2, "GDP", NORTH),
         shift(K2, "GDP", SOUTH),
-        war_event("war.disappeared", K3),
-        federation_event("federation.members_changed", K1, WEST),
+        war_event(WAR_DISAPPEARED, K3),
+        federation_event(FEDERATION_MEMBERS_CHANGED, K1, WEST),
         *transfer(K3, WEST, SOUTH, ref(EntityDomain.REGION, "44")),
         shift(K3, "unrest", WEST),
         independence(K3, False),

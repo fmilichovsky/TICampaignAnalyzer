@@ -7,7 +7,8 @@ from collections.abc import Sequence
 from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
 from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.wars import WAR_LAST_FIGHTING_CHANGED
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
@@ -102,7 +103,7 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
         def apply(
             self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
         ) -> list[Event]:
-            fighting = next(event for event in stream if event.event_type == "war.last_fighting_changed")
+            fighting = next(event for event in stream if event.event_type == WAR_LAST_FIGHTING_CHANGED.event_type)
             return [
                 build.event(
                     self.name,
@@ -114,7 +115,12 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
             ]
 
     event = crossing(K1, "unrest", 2.5, 4.75, rest=0.5)
-    fighting = atomic("war.last_fighting_changed", K1, entities=(war("1"),))
+    fighting = atomic(
+        WAR_LAST_FIGHTING_CHANGED.event_type,
+        K1,
+        entities=(war("1"),),
+        attributes=attributes(WAR_LAST_FIGHTING_CHANGED, transition="changed", before=None, after=None),
+    )
     rule = BandShiftRule("unrest", NationMetricsSettings(), GeopoliticsSettings())
 
     result = aggregate([event, fighting], reports(2.5, 4.75, 5.0), [WarArcRule(), rule])
