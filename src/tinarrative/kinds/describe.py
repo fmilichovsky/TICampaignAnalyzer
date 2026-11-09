@@ -17,8 +17,8 @@ from ..model.events import Event, Role
 from .registry import KINDS, kind_of
 from .text import attribute_label as _attr
 from .text import attribute_text as _text
-from .text import entity_of as _entity
-from .text import name_of as _name
+from .text import entity as _entity
+from .text import name as _name
 from .text import refs as _refs
 from .text import subject_label as _subject
 
