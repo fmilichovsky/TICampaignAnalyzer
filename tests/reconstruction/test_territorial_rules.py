@@ -22,18 +22,12 @@ from tests.analyzers.support import (
 )
 from tests.reconstruction.support import Scenario, assert_traceable, lines_of, only, run
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import ANNEXATION, INDEPENDENCE, TERRITORY_GAINED, TERRITORY_LOST, UNIFICATION
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, EventStatus, Significance, SourceRole
 from tinarrative.model.records import KeyedEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import EntityState
 from tinarrative.model.values import Observed, Unknown, freeze
-from tinarrative.reconstruction import (
-    ANNEXATION,
-    INDEPENDENCE,
-    TERRITORY_GAINED,
-    TERRITORY_LOST,
-    UNIFICATION,
-)
 
 NATION = EntityDomain.NATION
 REGION = EntityDomain.REGION
@@ -356,7 +350,7 @@ SCENARIOS: dict[str, Callable[[], Scenario]] = {
 
 def test_a_transfer_with_a_territory_cause_is_gained_with_high_confidence_and_cites_the_shift() -> None:
     objective, inferred = run(gdp_territory())
-    gained = only(inferred, TERRITORY_GAINED)
+    gained = only(inferred, TERRITORY_GAINED.event_type)
     assert gained.id == "nation.territory_gained/nation:20"
     assert (gained.status, gained.confidence) == (EventStatus.INFERRED, Confidence.HIGH)
     assert gained.date_basis is DateBasis.INTERVAL
@@ -371,16 +365,18 @@ def test_a_transfer_with_a_territory_cause_is_gained_with_high_confidence_and_ci
     }
     primary_fields = {(s.change.entity_id, s.change.field) for s in gained.sources if s.role is SourceRole.PRIMARY}
     assert {str(entity) for entity, field in primary_fields if field == "nation"} == {"region:40", "region:41"}
-    lost = only(inferred, TERRITORY_LOST)
+    lost = only(inferred, TERRITORY_LOST.event_type)
     assert lost.id == "nation.territory_lost/nation:21" and lost.confidence is Confidence.MEDIUM
     assert ids(lost.attribute("counterparts")) == ["nation:20"] and lost.attribute("territory_causes") == ()
-    assert not [event for event in inferred if event.event_type not in (TERRITORY_GAINED, TERRITORY_LOST)]
+    assert not [
+        event for event in inferred if event.event_type not in (TERRITORY_GAINED.event_type, TERRITORY_LOST.event_type)
+    ]
 
 
 def test_region_events_alone_give_medium_confidence() -> None:
     _, inferred = run(plain_transfer())
-    assert only(inferred, TERRITORY_GAINED).confidence is Confidence.MEDIUM
-    assert only(inferred, TERRITORY_LOST).confidence is Confidence.MEDIUM
+    assert only(inferred, TERRITORY_GAINED.event_type).confidence is Confidence.MEDIUM
+    assert only(inferred, TERRITORY_LOST.event_type).confidence is Confidence.MEDIUM
 
 
 def test_territory_events_carry_the_population_of_the_moved_regions_on_the_holding_side() -> None:
@@ -391,16 +387,18 @@ def test_territory_events_carry_the_population_of_the_moved_regions_on_the_holdi
         region_after={"40": {"populationInMillions": 3.5}, "41": {"populationInMillions": 4.5}},
     )
     _, inferred = run(scenario)
-    assert only(inferred, TERRITORY_GAINED).attribute("population") == 8.0  # after the interval
-    assert only(inferred, TERRITORY_LOST).attribute("population") == 7.5  # before it
+    assert only(inferred, TERRITORY_GAINED.event_type).attribute("population") == 8.0  # after the interval
+    assert only(inferred, TERRITORY_LOST.event_type).attribute("population") == 7.5  # before it
     _, inferred = run(plain_transfer())
-    assert isinstance(only(inferred, TERRITORY_GAINED).attribute("population"), Unknown)  # no population field
+    assert isinstance(
+        only(inferred, TERRITORY_GAINED.event_type).attribute("population"), Unknown
+    )  # no population field
 
 
 def test_a_tracker_change_below_the_statistic_threshold_is_cited_directly() -> None:
     objective, inferred = run(small_inequality_tracker())
     assert not by_type(list(objective), "nation.statistic_shifted")
-    gained = only(inferred, TERRITORY_GAINED)
+    gained = only(inferred, TERRITORY_GAINED.event_type)
     assert gained.confidence is Confidence.HIGH
     assert gained.attribute("territory_causes") == ("InqReason_Annexation",)
     assert gained.constituents == ("region.nation_changed/region:40",)
@@ -412,7 +410,7 @@ def test_a_tracker_change_below_the_statistic_threshold_is_cited_directly() -> N
 
 def test_an_independence_executive_cause_with_a_tracker_cause_is_high() -> None:
     _, inferred = run(executive_independence())
-    event = only(inferred, INDEPENDENCE)
+    event = only(inferred, INDEPENDENCE.event_type)
     assert event.id == "nation.independence/nation:25" and event.confidence is Confidence.HIGH
     assert ids(event.attribute("parents")) == ["nation:21"]
     assert event.attribute("signals") == ("executive_cause", "tracker_cause")
@@ -423,12 +421,12 @@ def test_an_independence_executive_cause_with_a_tracker_cause_is_high() -> None:
         "nation.statistic_shifted/nation:25/cohesion",
     }
     assert [str(ref.entity_id) for ref in event.entities] == ["nation:25", "nation:21"]
-    assert not by_type(inferred, UNIFICATION) and not by_type(inferred, ANNEXATION)
+    assert not by_type(inferred, UNIFICATION.event_type) and not by_type(inferred, ANNEXATION.event_type)
 
 
 def test_a_breakaway_parent_change_alone_is_medium() -> None:
     _, inferred = run(breakaway_independence())
-    event = only(inferred, INDEPENDENCE)
+    event = only(inferred, INDEPENDENCE.event_type)
     assert event.confidence is Confidence.MEDIUM and event.attribute("signals") == ("breakaway_parent",)
     assert "nation.breakaway_parent_changed/nation:25" in event.constituents
     assert event.attribute("released") is False and isinstance(event.attribute("releasing_nation"), Unknown)
@@ -436,7 +434,7 @@ def test_a_breakaway_parent_change_alone_is_medium() -> None:
 
 def test_a_release_names_the_earlier_holder_of_the_capital_and_its_executive_faction() -> None:
     _, inferred = run(capital_release())
-    event = only(inferred, INDEPENDENCE)
+    event = only(inferred, INDEPENDENCE.event_type)
     assert event.confidence is Confidence.HIGH
     assert event.attribute("signals") == ("amicable_release", "nation_released")
     assert event.attribute("released") is True
@@ -460,12 +458,12 @@ def test_a_parents_release_reason_is_not_attributed_when_it_lost_regions_to_seve
         nation_after={"21": RELEASED[1]},
     )
     _, inferred = run(scenario)
-    assert not by_type(inferred, INDEPENDENCE)
+    assert not by_type(inferred, INDEPENDENCE.event_type)
 
 
 def test_a_release_from_one_parent_without_a_moved_capital_names_that_parent() -> None:
     _, inferred = run(single_parent_release())
-    event = only(inferred, INDEPENDENCE)
+    event = only(inferred, INDEPENDENCE.event_type)
     assert event.confidence is Confidence.MEDIUM and event.attribute("signals") == ("amicable_release",)
     assert event.attribute("releasing_basis") == "only_parent"
     assert isinstance(event.attribute("releasing_executive_faction"), Unknown)  # the parent has no executive point
@@ -473,7 +471,7 @@ def test_a_release_from_one_parent_without_a_moved_capital_names_that_parent() -
 
 def test_a_release_from_several_parents_without_a_moved_capital_names_no_releaser() -> None:
     _, inferred = run(unattributed_release())
-    event = only(inferred, INDEPENDENCE)
+    event = only(inferred, INDEPENDENCE.event_type)
     assert event.attribute("released") is True
     assert event.attribute("releasing_nation") is None and event.attribute("releasing_basis") is None
     assert (
@@ -487,7 +485,7 @@ def test_a_release_from_several_parents_without_a_moved_capital_names_no_release
 
 def test_a_federation_member_absorbed_under_one_faction_is_a_high_unification() -> None:
     _, inferred = run(merger())
-    event = only(inferred, UNIFICATION)
+    event = only(inferred, UNIFICATION.event_type)
     assert event.id == "nation.unification/nation:20" and event.confidence is Confidence.HIGH
     assert ids(event.attribute("unified")) == ["nation:22"]
     faction = event.attribute("unifying_faction")
@@ -506,14 +504,14 @@ def test_a_federation_member_absorbed_under_one_faction_is_a_high_unification() 
 
 def test_a_breakaway_absorbed_by_its_parent_is_a_unification() -> None:
     _, inferred = run(merger(basis="breakaway"))
-    event = only(inferred, UNIFICATION)
+    event = only(inferred, UNIFICATION.event_type)
     assert event.confidence is Confidence.HIGH
     assert [dict(basis.items)["basis"] for basis in event.attribute("bases")] == ["breakaway"]  # type: ignore[union-attr]
 
 
 def test_every_nation_absorbed_in_one_interval_is_one_unification() -> None:
     _, inferred = run(merger(("22", "23")))
-    assert ids(only(inferred, UNIFICATION).attribute("unified")) == ["nation:22", "nation:23"]
+    assert ids(only(inferred, UNIFICATION.event_type).attribute("unified")) == ["nation:22", "nation:23"]
 
 
 @pytest.mark.parametrize(
@@ -528,14 +526,14 @@ def test_every_nation_absorbed_in_one_interval_is_one_unification() -> None:
 )
 def test_an_emptied_nation_without_every_game_condition_is_no_unification(scenario: Callable[[], Scenario]) -> None:
     _, inferred = run(scenario())
-    assert not by_type(inferred, UNIFICATION)
-    assert {TERRITORY_GAINED, TERRITORY_LOST} <= {event.event_type for event in inferred}
+    assert not by_type(inferred, UNIFICATION.event_type)
+    assert {TERRITORY_GAINED.event_type, TERRITORY_LOST.event_type} <= {event.event_type for event in inferred}
 
 
 def test_a_release_of_a_parents_last_region_is_an_independence_not_a_unification() -> None:
     _, inferred = run(last_region_release())
-    assert not by_type(inferred, UNIFICATION)
-    event = only(inferred, INDEPENDENCE)
+    assert not by_type(inferred, UNIFICATION.event_type)
+    event = only(inferred, INDEPENDENCE.event_type)
     assert event.attribute("released") is True and event.confidence is Confidence.HIGH
 
 
@@ -544,7 +542,7 @@ def test_a_release_of_a_parents_last_region_is_an_independence_not_a_unification
 
 def test_an_annexation_flag_change_on_a_transferred_region_is_a_medium_annexation() -> None:
     _, inferred = run(flagged_annexation())
-    event = only(inferred, ANNEXATION)
+    event = only(inferred, ANNEXATION.event_type)
     assert event.id == "nation.annexation/nation:20/nation:21" and event.confidence is Confidence.MEDIUM
     assert event.attribute("signals") == ("annexation_flags",)
     assert ids(event.attribute("regions")) == ["region:40"]
@@ -554,7 +552,7 @@ def test_an_annexation_flag_change_on_a_transferred_region_is_a_medium_annexatio
 
 def test_a_war_event_between_the_two_nations_is_a_medium_annexation() -> None:
     _, inferred = run(war_annexation())
-    event = only(inferred, ANNEXATION)
+    event = only(inferred, ANNEXATION.event_type)
     assert event.confidence is Confidence.MEDIUM and event.attribute("signals") == ("war",)
     assert "war.appeared/war:60" in event.constituents
 
@@ -566,7 +564,7 @@ def test_a_war_between_other_nations_is_no_evidence() -> None:
         extra_after=(war(AFTER, ("20",), ("22",)),),
     )
     _, inferred = run(scenario)
-    assert not by_type(inferred, ANNEXATION)
+    assert not by_type(inferred, ANNEXATION.event_type)
 
 
 # --- Ambiguity --------------------------------------------------------------------------------------------
@@ -574,13 +572,13 @@ def test_a_war_between_other_nations_is_no_evidence() -> None:
 
 def test_competing_readings_are_both_kept_one_level_lower_and_cross_referenced() -> None:
     _, inferred = run(ambiguous())
-    unification = only(inferred, UNIFICATION)
-    annexation = only(inferred, ANNEXATION)
+    unification = only(inferred, UNIFICATION.event_type)
+    annexation = only(inferred, ANNEXATION.event_type)
     assert unification.confidence is Confidence.MEDIUM and annexation.confidence is Confidence.LOW
     assert unification.attribute("ambiguous") is True and annexation.attribute("ambiguous") is True
     assert unification.attribute("alternatives") == (annexation.id,)
     assert annexation.attribute("alternatives") == (unification.id,)
-    assert only(inferred, TERRITORY_GAINED).attribute("ambiguous") is not True
+    assert only(inferred, TERRITORY_GAINED.event_type).attribute("ambiguous") is not True
 
 
 # --- No evidence ------------------------------------------------------------------------------------------

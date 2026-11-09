@@ -41,15 +41,6 @@ def transition_label(event: Event, label: str) -> str:
     return f"{label}: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
 
 
-def entity(event: Event, domain: EntityDomain) -> EntityRef | None:
-    """The first context entity (never the subject) of ``domain``."""
-    return next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
-
-
-def name(ref: EntityRef | None) -> str:
-    return ref.label() if ref is not None else "null"
-
-
 def with_context(label: str, domain: EntityDomain, prefix: str = "") -> Template:
     """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
     return lambda event: (
@@ -64,6 +55,16 @@ def plain(label: str) -> Template:
 
 ABSENT = "is absent from the after snapshot"
 PRESENT = "is present only in the after snapshot"
+
+
+def entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
+    """The ``skip``-th context entity of ``domain``, after the subject."""
+    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
+    return matches[skip] if len(matches) > skip else None
+
+
+def name(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
 
 
 def presence(event: Event) -> str:
@@ -102,3 +103,27 @@ def renamed(event: Event) -> str:
             f" -> {attribute_label(event, 'federation_name_after')})"
         )
     return text
+
+
+def refs(event: Event, attribute: str) -> str:
+    """A tuple attribute of references as a comma-separated list of IDs."""
+    value = event.attribute(attribute)
+    if not isinstance(value, tuple):
+        return render_event_value(value)
+    return ", ".join(render_event_value(item) for item in value)
+
+
+def region_count(count: Observed) -> str:
+    return f"{render_value(count)} region{'' if count == 1 else 's'}"
+
+
+def regions(event: Event) -> str:
+    return region_count(event.attribute("region_count"))
+
+
+def bands(event: Event) -> str:
+    """``<statistic>: <band> -> <band>``, the game's own band labels."""
+    return (
+        f"{attribute_text(event, 'statistic')}: "
+        f"{attribute_text(event, 'from_band')} -> {attribute_text(event, 'to_band')}"
+    )

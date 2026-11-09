@@ -7,7 +7,7 @@ from types import MappingProxyType
 
 from ..model.kinds import EventKind
 from ..model.values import Observed
-from . import aliens, campaign, control, faction, military, space, technology, wars
+from . import aliens, campaign, control, faction, military, nations, space, technology, wars
 
 FAMILIES: tuple[tuple[EventKind, ...], ...] = (
     aliens.KINDS,
@@ -15,6 +15,7 @@ FAMILIES: tuple[tuple[EventKind, ...], ...] = (
     control.KINDS,
     faction.KINDS,
     military.KINDS,
+    nations.KINDS,
     space.KINDS,
     technology.KINDS,
     wars.KINDS,

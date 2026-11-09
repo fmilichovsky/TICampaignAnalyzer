@@ -16,15 +16,15 @@ from ..analyzers.politics.nation_assets import (
     STANDARD,
     STRENGTH,
 )
-from ..analyzers.politics.nation_rank import RANK_CHANGED, RANKED_PLACES
+from ..analyzers.politics.nation_rank import RANKED_PLACES
 from ..analyzers.politics.nation_space import (
     BOOST_STATISTIC,
     GROWTH,
     MISSION_CONTROL_STATISTIC,
-    SPACE_ASSETS_CHANGED,
     SPACE_DEFENCES_STATISTIC,
 )
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.values import FrozenMap, Observed
@@ -254,7 +254,7 @@ class SpaceProgramGrowthRule:
         parties = MergerParties.of(stream)
         growth = [
             event
-            for event in by_type(stream, SPACE_ASSETS_CHANGED)
+            for event in by_type(stream, SPACE_ASSETS_CHANGED.event_type)
             if event.attribute("direction") == GROWTH
             and event.attribute("statistic") in (BOOST_STATISTIC, MISSION_CONTROL_STATISTIC)
             and not parties.merged(subject(event), event)
@@ -329,7 +329,7 @@ class SpaceDefencesEstablishedRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         parties = MergerParties.of(stream)
         built = []
-        for event in by_type(stream, SPACE_ASSETS_CHANGED):
+        for event in by_type(stream, SPACE_ASSETS_CHANGED.event_type):
             nation = subject(event)
             if (
                 nation is None
@@ -382,7 +382,7 @@ class RankingRule:
         top = min(self.settings.ranking_top_n, RANKED_PLACES)
         merged = {(nation, key) for nation, key in MergerParties.of(stream).unifications}
         changes: dict[tuple[str, str, EntityId], Event] = {}
-        for event in by_type(stream, RANK_CHANGED):
+        for event in by_type(stream, RANK_CHANGED.event_type):
             metric, nation = event.attribute("metric"), subject(event)
             if isinstance(metric, str) and nation is not None:
                 changes[(interval_of(event.id), metric, nation.entity_id)] = event

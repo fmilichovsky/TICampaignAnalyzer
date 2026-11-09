@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from ...kinds.wars import (
+    INTERSTATE_WARS_CHANGED,
     NATION_WARS_CHANGED,
     WAR_ALLIANCE_CHANGED,
     WAR_APPEARED,
@@ -27,7 +28,7 @@ from ...model.kinds import EventKind
 from ...model.records import ItemEntry
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
-from ..campaign.global_values import INTERSTATE_WARS, INTERSTATE_WARS_CHANGED
+from ..campaign.global_values import INTERSTATE_WARS
 from ..common import (
     EventBuilder,
     Lookup,

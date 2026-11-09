@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.nations import NUCLEAR_PROGRAM_CHANGED, STATISTIC_SHIFTED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Significance
 from tinarrative.model.values import Observed
@@ -25,22 +26,29 @@ ARCS = (NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT)
 
 def weapons(key: str, before: int, after: int, subject: EntityRef = NORTH) -> Event:
     return atomic(
-        f"nation.statistic_shifted/{subject.entity_id}/numNuclearWeapons",
+        f"{STATISTIC_SHIFTED.event_type}/{subject.entity_id}/numNuclearWeapons",
         key,
         not_before=PREVIOUS[key],
         entities=(subject,),
-        attributes=(("statistic", "numNuclearWeapons"), ("before", before), ("after", after)),
+        attributes=attributes(
+            STATISTIC_SHIFTED,
+            statistic="numNuclearWeapons",
+            before=before,
+            after=after,
+            relative_change=None if before == 0 else (after - before) / abs(before),
+            interval_days=None,
+        ),
         significance=Significance.MAJOR,
     )
 
 
 def program(key: str, after: bool = True) -> Event:
     return atomic(
-        f"nation.nuclear_program_changed/{NORTH.entity_id}",
+        f"{NUCLEAR_PROGRAM_CHANGED.event_type}/{NORTH.entity_id}",
         key,
         not_before=PREVIOUS[key],
         entities=(NORTH,),
-        attributes=(("transition", "changed"), ("before", not after), ("after", after)),
+        attributes=attributes(NUCLEAR_PROGRAM_CHANGED, transition="changed", before=not after, after=after),
     )
 
 

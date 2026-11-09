@@ -15,7 +15,6 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from ..analyzers.common import EventBuilder, Lookup, Side
-from ..analyzers.politics.nations import EXECUTIVE_CHANGE_RECORDED
 from ..kinds.control import (
     CONTROLLER_CHANGED,
     LOSS_RECORDED,
@@ -24,6 +23,7 @@ from ..kinds.control import (
     POINT_DISAPPEARED,
     POINT_NATION_CHANGED,
 )
+from ..kinds.nations import EXECUTIVE_CHANGE_RECORDED
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.changes import StateDiff
@@ -169,7 +169,7 @@ def control_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSna
             point = _point(event)
             for nation in context.nations_of(point) if point is not None else ():
                 corroborating[nation].append(event)
-    for event in context.of_type(EXECUTIVE_CHANGE_RECORDED):
+    for event in context.of_type(EXECUTIVE_CHANGE_RECORDED.event_type):
         if event.entities:
             corroborating[event.entities[0].entity_id].append(event)
 
@@ -193,7 +193,7 @@ def _nation_control(
     earlier, later = context.holdings(nation, Side.BEFORE, moved), context.holdings(nation, Side.AFTER, moved)
     if earlier is None or later is None:
         return []  # a nation appearing or vanishing is presence, not control
-    records = [event for event in corroborating if event.event_type == EXECUTIVE_CHANGE_RECORDED]
+    records = [event for event in corroborating if event.event_type == EXECUTIVE_CHANGE_RECORDED.event_type]
     record = records[0] if records else None
     new_executive = record.attribute("new_executive") if record is not None else None
     recorded_on = record.attribute("recorded_on") if record is not None else None

@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable
 
+from ...kinds.nations import POPULATION_CHANGED
 from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
@@ -19,7 +20,6 @@ from ...model.values import FieldValue, FrozenMap, Unknown
 from ..common import EventBuilder, Lookup, Side, primary
 from .nation_metrics import TRACKERS, cause_deltas, interval_days, number, placeholder
 
-POPULATION_CHANGED = "nation.population_changed"
 POPULATION = "populationInMillions"
 DETONATIONS = "nuclearDetonations"
 DAYS_PER_YEAR = 365.25

@@ -8,7 +8,6 @@ import pytest
 from tests.analyzers.support import AFTER, BEFORE, analyze, region_ref, snapshot, state
 from tinarrative.analyzers.politics import NationEconomyAnalyzer
 from tinarrative.analyzers.politics.nation_economy import (
-    PCGDP_TREND,
     SERIES,
     TREND_QUARTERS,
     campaign_start,
@@ -17,6 +16,7 @@ from tinarrative.analyzers.politics.nation_economy import (
     trend,
 )
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import PCGDP_TREND
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import DateBasis, SourceRole
 from tinarrative.model.snapshot import SaveSnapshot
@@ -53,7 +53,7 @@ def test_a_boom_is_reported_at_the_quarter_its_trend_first_exceeds_the_threshold
     series = flat(LAST) | {20: 140.0, LAST: 160.0}
     before, after = series_pair({key: series[key] for key in range(LAST)}, series)
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == PCGDP_TREND and event.id == f"{PCGDP_TREND}/nation:20/{LAST}"
+    assert event.event_type == PCGDP_TREND.event_type and event.id == f"{PCGDP_TREND.event_type}/nation:20/{LAST}"
     assert (event.date, event.date_basis) == ("2031-04-01T00:00:00", DateBasis.RECORD)
     assert dict(event.attributes) == {
         "direction": "boom",

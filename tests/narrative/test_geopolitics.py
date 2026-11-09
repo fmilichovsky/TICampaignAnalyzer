@@ -23,6 +23,8 @@ from tests.narrative.support import (
 )
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds import attributes as construct
+from tinarrative.kinds import nations as nation_kinds
 from tinarrative.kinds.control import (
     CONTROLLER_CHANGED,
     COUNCILOR_FACTION_CHANGED,
@@ -43,7 +45,7 @@ from tinarrative.kinds.wars import (
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.kinds import EventKind
-from tinarrative.model.values import FrozenMap, Observed
+from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
 from tinarrative.narrative.geopolitics import bounded_shifts
 from tinarrative.narrative.situation import SituationReport
@@ -69,6 +71,9 @@ EAST_REGION = ref(EntityDomain.REGION, "41", "East")
 SOUTH_REGION = ref(EntityDomain.REGION, "42", "South")
 
 
+NATION_KINDS = {kind.event_type: kind for kind in nation_kinds.KINDS}
+
+
 def event(
     raw_type: str,
     key: str,
@@ -81,6 +86,10 @@ def event(
 ) -> Event:
     """An event of interval ``key`` about ``subject``, dated by the interval, citing one change of the subject."""
     raw_id = "/".join([raw_type, str(subject.entity_id), *map(str, parts)])
+    if raw_type in NATION_KINDS:  # the kind's constructor checks the keys; a call states only what it exercises
+        kind = NATION_KINDS[raw_type]
+        stated = {key for key, _ in attributes}
+        attributes = construct(kind, attributes, **{key: Unknown() for key in sorted(kind.required - stated)})
     fields: dict[str, object] = {
         "not_before": PREVIOUS[key],
         "entities": (subject, *entities),

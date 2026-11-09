@@ -29,9 +29,6 @@ from ..common import (
 DOMAIN = EntityDomain.GLOBAL_VALUES
 
 MILESTONE_RECORDED = campaign.MILESTONE_RECORDED.event_type
-INTERSTATE_WARS_CHANGED = "campaign.interstate_wars_changed"
-"""Emitted by the war analyzer for an ``interstateWars`` member that no war presence explains."""
-
 INTERSTATE_WARS = "interstateWars"
 MILESTONES = "globalMilestones"
 NUCLEAR_STRIKES = "nuclearStrikes"

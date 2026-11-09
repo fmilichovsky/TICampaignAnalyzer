@@ -114,6 +114,15 @@ NATION_WARS_CHANGED = EventKind(
     optional=LIST_CHANGED_OPTIONAL,
 )
 
+INTERSTATE_WARS_CHANGED = EventKind(
+    "campaign.interstate_wars_changed",
+    list_changed,
+    Significance.MINOR,
+    EvidenceRole.BOOKKEEPING,
+    required=LIST_CHANGED,
+    optional=LIST_CHANGED_OPTIONAL,
+)
+
 FEDERATION_APPEARED = EventKind(
     "federation.appeared",
     _federation_presence,
@@ -163,6 +172,7 @@ KINDS = (
     WAR_ATTACKING_ALLIANCE_CHANGED,
     WAR_DEFENDING_ALLIANCE_CHANGED,
     NATION_WARS_CHANGED,
+    INTERSTATE_WARS_CHANGED,
     FEDERATION_APPEARED,
     FEDERATION_DISAPPEARED,
     FEDERATION_MEMBERS_CHANGED,

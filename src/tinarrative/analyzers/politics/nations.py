@@ -7,9 +7,28 @@ nation; that is reconstruction, and control-point control is reported separately
 
 from __future__ import annotations
 
+from ...kinds.nations import (
+    APPEARED,
+    BREAKAWAY_PARENT_CHANGED,
+    CAPITAL_CHANGED,
+    CLAIMS_CHANGED,
+    DISAPPEARED,
+    EXECUTIVE_CHANGE_RECORDED,
+    HOSTILE_CLAIMS_CHANGED,
+    LIST_CHANGED,
+    LIST_FIELDS,
+    NEW_GOVERNMENT_RECORDED,
+    NUCLEAR_PROGRAM_CHANGED,
+    POLICY_CHANGED,
+    REGION_NATION_CHANGED,
+    RELATION_CHANGED,
+    RENAMED,
+    UNREST_ATTEMPTS_CHANGED,
+)
 from ...model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
+from ...model.kinds import EventKind
 from ...model.records import KeyedEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
 from ...model.values import FrozenMap, Observed, Unknown
@@ -28,26 +47,11 @@ from ..common import (
     value_transition_event,
 )
 
-REGION_NATION_CHANGED = "region.nation_changed"
-CAPITAL_CHANGED = "nation.capital_changed"
-RELATION_CHANGED = "nation.relation_changed"
-BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
-EXECUTIVE_CHANGE_RECORDED = "nation.executive_change_recorded"
-APPEARED = "nation.appeared"
-DISAPPEARED = "nation.disappeared"
-CLAIMS_CHANGED = "nation.claims_changed"
-HOSTILE_CLAIMS_CHANGED = "nation.hostile_claims_changed"
-RENAMED = "nation.renamed"
-UNREST_ATTEMPTS_CHANGED = "nation.unrest_attempts_changed"
-NEW_GOVERNMENT_RECORDED = "nation.new_government_recorded"
-NUCLEAR_PROGRAM_CHANGED = "nation.nuclear_program_changed"
-POLICY_CHANGED = "nation.policy_changed"
-
 RELATION_FIELDS = ("allies", "rivals")
 """Nation-to-nation reference lists; an entry is expected on both nations, which is checked, not assumed.
 
 ``wars`` has the same shape and is reported the same way by ``WarAnalyzer`` for pairs no war explains."""
-HANDLED_LISTS = tuple((EntityDomain.NATION, name) for name in ("regions", "breakaways", *RELATION_FIELDS))
+HANDLED_LISTS = tuple((EntityDomain.NATION, name) for name in LIST_FIELDS)
 EXECUTIVE_FIELD = "lastExecutiveChange"
 CLAIM_FIELDS = (("claims", CLAIMS_CHANGED), ("hostileClaims", HOSTILE_CLAIMS_CHANGED))
 """Region lists of a nation, reported once per nation and list with the regions added and removed."""
@@ -55,10 +59,6 @@ UNREST_FIELD = "factionUnrestAttempts"
 NEW_GOVERNMENT_FIELD = "dateOfNewGovernment"
 NUCLEAR_PROGRAM_FIELD = "nuclearProgram"
 POLICY_FIELDS = ("policy_closedBorders", "policy_noMineralDevelopment", "policy_noNukes", "policy_noOilDevelopment")
-
-
-def list_event_type(field_name: str) -> str:
-    return f"nation.{field_name}_changed"
 
 
 class NationAnalyzer:
@@ -81,9 +81,9 @@ class NationAnalyzer:
             event = _executive_change(change, lookup, build)
             if event is not None:
                 events.append(event)
-        for field_name, event_type in CLAIM_FIELDS:
+        for field_name, kind in CLAIM_FIELDS:
             for change in index.fields(EntityDomain.NATION, field_name):
-                events.extend(_claims(event_type, change, lookup, build))
+                events.extend(_claims(kind, change, lookup, build))
         for change in index.fields(EntityDomain.NATION, "displayName"):
             events.extend(_value_transition(RENAMED, change, lookup, build))
         for change in index.fields(EntityDomain.NATION, UNREST_FIELD):
@@ -101,12 +101,12 @@ class NationAnalyzer:
             events.append(_presence(change, lookup, build))
         for change, member, transition in ledger.leftovers():
             assert change.field is not None
-            events.append(list_changed_event(list_event_type(change.field), change, member, transition, lookup, build))
+            events.append(list_changed_event(LIST_CHANGED[change.field], change, member, transition, lookup, build))
         return events
 
 
 def _owner_transition(
-    event_type: str, change: StateChange, list_field: str, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder
+    kind: EventKind, change: StateChange, list_field: str, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder
 ) -> list[Event]:
     """A reference to an owning nation changed; the owners' lists corroborate when they mirror it."""
     transition = classify(change.before, change.after)
@@ -115,7 +115,7 @@ def _owner_transition(
     subject = change.entity_id
     return [
         build.event(
-            event_type,
+            kind,
             id_parts=(subject,),
             sources=mirrored_sources(change, ledger, list_field, subject),
             entities=(lookup.ref(subject), lookup.resolve(change.before), lookup.resolve(change.after)),
@@ -125,7 +125,7 @@ def _owner_transition(
     ]
 
 
-def _value_transition(event_type: str, change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
+def _value_transition(kind: EventKind, change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
     """A single field of a nation changed; values that are not references are carried literally."""
     transition = classify(change.before, change.after)
     if transition is None or change.entity_id is None:
@@ -133,7 +133,7 @@ def _value_transition(event_type: str, change: StateChange, lookup: Lookup, buil
     subject = change.entity_id
     return [
         build.event(
-            event_type,
+            kind,
             id_parts=(subject,),
             sources=(primary(change),),
             entities=(lookup.ref(subject), lookup.resolve(change.before), lookup.resolve(change.after)),
@@ -187,7 +187,7 @@ def relation_events(field_name: str, lookup: Lookup, ledger: MembershipLedger, b
     return events
 
 
-def _claims(event_type: str, change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
+def _claims(kind: EventKind, change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
     """The regions a nation's claim list gained and lost, each cited; the regions' nations are context, and
     ``added_owners`` names the nations holding the added regions (later snapshot first)."""
     if change.entity_id is None:
@@ -199,7 +199,7 @@ def _claims(event_type: str, change: StateChange, lookup: Lookup, build: EventBu
             return []
         return [
             build.event(
-                event_type,
+                kind,
                 id_parts=(nation_id,),
                 sources=(primary(change),),
                 entities=(lookup.ref(nation_id),),
@@ -219,7 +219,7 @@ def _claims(event_type: str, change: StateChange, lookup: Lookup, build: EventBu
     added_owners = tuple(owned[key] for key in sorted(owned, key=lambda entity_id: entity_id.sort_key))
     return [
         build.event(
-            event_type,
+            kind,
             id_parts=(nation_id,),
             sources=[primary(change, value) for value in (*added, *removed)],
             entities=(lookup.ref(nation_id), *regions, *owners),

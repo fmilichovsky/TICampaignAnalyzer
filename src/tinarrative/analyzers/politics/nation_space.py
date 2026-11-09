@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+from ...kinds.nations import SPACE_ASSETS_CHANGED
 from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
@@ -20,7 +21,6 @@ from .nation_assets import BOOST, MISSION_CONTROL, SPACE_DEFENCES, STO_FIGHTERS,
 from .nation_metrics import interval_days, placeholder
 from .nation_population import moved, region_moves
 
-SPACE_ASSETS_CHANGED = "nation.space_assets_changed"
 BOOST_STATISTIC = "boost"
 MISSION_CONTROL_STATISTIC = "missionControl"
 SPACE_DEFENCES_STATISTIC = "spaceDefences"
