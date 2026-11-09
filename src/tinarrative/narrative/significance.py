@@ -64,9 +64,8 @@ that explain it and stays trivial on its own."""
 # The types not yet migrated to a kind; a kind declares its own base level, context rule and stake.
 
 _TRIVIAL: tuple[str, ...] = (
-    # Councilor movement and ship reassignment happen constantly between saves and say nothing on their own.
+    # Councilor movement happens constantly between saves and says nothing on their own.
     "councilor.location_changed",
-    "ship.fleet_changed",
     # Organizations are created and removed in bulk.
     "organization.appeared",
     "organization.disappeared",
@@ -79,26 +78,14 @@ _TRIVIAL: tuple[str, ...] = (
     # states the changes of the top.
     "nation.rank_changed",
     # Log housekeeping: the game prunes and rewrites kept entries.
-    "faction.combat_entry_removed",
-    # A refit date is maintenance bookkeeping.
-    "ship.last_refit_date_changed",
     # Leftover list events that mirror an asset's owner field: the owner field already produced the event
-    # (``army.region_changed``, ``fleet.faction_changed``, ``ship.fleet_changed``, ...), and what is left is a
+    # (``army.region_changed``, ...), and what is left is a
     # mirror entry nothing claimed, typically a list unresolved on one side.
-    "faction.fleets_changed",
-    "hab.docked_fleets_changed",
-    "fleet.ships_changed",
     "councilor.orgs_changed",
     "faction.unassigned_orgs_changed",
 )
 
 _MINOR: tuple[str, ...] = (
-    # A hab appears at launch; it is founded when its core completes (``hab.established``), often a year later.
-    "hab.appeared",
-    # Routine movement: fleets change orbit and dock constantly, armies redeploy.
-    "fleet.orbit_changed",
-    "fleet.barycenter_changed",
-    "fleet.docked_location_changed",
     # Geopolitical leftover lists: emitted only for an entry no explaining event claimed (the explained cases
     # are ``region.nation_changed``, ``nation.relation_changed``, ``nation.breakaway_parent_changed``,
     # ``control_point.controller_changed``, councilor events, ``war.alliance_changed`` and war presence). They
@@ -140,8 +127,6 @@ _MAJOR: tuple[str, ...] = (
     "region.nation_changed",
     "nation.federation_changed",
     "councilor.faction_changed",
-    "hab.disappeared",
-    "faction.hab_destruction_recorded",
     # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
     "war.appeared",
     "war.disappeared",
@@ -155,13 +140,9 @@ _MAJOR: tuple[str, ...] = (
     "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
     "councilor.detaining_faction_changed",
-    "fleet.faction_changed",
-    "hab.faction_changed",
     # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
     # below the band.
     "organization.assigned_councilor_changed",
-    # Space battles (``CombatLogs``).
-    "faction.combat_recorded",
     # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
     # and a whole-nation unification or an independence is what a history reports about it.
     "nation.independence",

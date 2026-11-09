@@ -23,11 +23,15 @@ from dataclasses import dataclass, field
 from ..analyzers.campaign.global_values import MILESTONE_RECORDED
 from ..analyzers.campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 from ..analyzers.common import EventBuilder, Lookup, Side
-from ..analyzers.space.combat import COMBAT_RECORDED, side_factions
-from ..analyzers.space.fleets import DISAPPEARED as FLEET_DISAPPEARED
-from ..analyzers.space.habs import APPEARED as HAB_APPEARED
-from ..analyzers.space.habs import CORE_COMPLETED_CHANGED, DESTRUCTION_RECORDED
-from ..analyzers.space.habs import DISAPPEARED as HAB_DISAPPEARED
+from ..analyzers.space.combat import side_factions
+from ..kinds.space import (
+    COMBAT_RECORDED,
+    FLEET_DISAPPEARED,
+    HAB_APPEARED,
+    HAB_CORE_COMPLETED_CHANGED,
+    HAB_DESTRUCTION_RECORDED,
+    HAB_DISAPPEARED,
+)
 from ..model.changes import ChangeKind, RecordsDetail, StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, Event, EventSource, SourceRole
@@ -115,10 +119,10 @@ def _foundings(context: SpaceContext) -> list[_Founding]:
     """A core completed on a hab seen before, or a hab appeared with a working core (launched and built in one go)."""
     evidence = [
         event
-        for event in context.of_type(CORE_COMPLETED_CHANGED)
+        for event in context.of_type(HAB_CORE_COMPLETED_CHANGED.event_type)
         if event.attribute("before") is False and event.attribute("after") is True
     ]
-    for event in context.of_type(HAB_APPEARED):
+    for event in context.of_type(HAB_APPEARED.event_type):
         state = context.lookup.state(_subject(event).entity_id, Side.AFTER)
         if state is not None and state.get(CORE_COMPLETED) is True:
             evidence.append(event)
@@ -237,7 +241,7 @@ class _DestructionGroup:
 
 def _destruction_key(context: SpaceContext, event: Event) -> DestructionKey | None:
     """The key of a vanished hab (read from the earlier snapshot) or of a destruction entry; ``None`` if unknown."""
-    if event.event_type == HAB_DISAPPEARED:
+    if event.event_type == HAB_DISAPPEARED.event_type:
         hab_id = _subject(event).entity_id
         faction = context.faction_of(hab_id, Side.BEFORE)
         state = context.lookup.state(hab_id, Side.BEFORE)
@@ -255,11 +259,11 @@ def _destruction_key(context: SpaceContext, event: Event) -> DestructionKey | No
 
 def _destroyed_habs(context: SpaceContext) -> list[Event]:
     groups: dict[DestructionKey, _DestructionGroup] = defaultdict(_DestructionGroup)
-    for event in context.of_type(HAB_DISAPPEARED):
+    for event in context.of_type(HAB_DISAPPEARED.event_type):
         key = _destruction_key(context, event)
         if key is not None:
             groups[key].habs.append(event)
-    for event in context.of_type(DESTRUCTION_RECORDED):
+    for event in context.of_type(HAB_DESTRUCTION_RECORDED.event_type):
         key = _destruction_key(context, event)
         if key is not None and key in groups:
             groups[key].entries.append(event)
@@ -399,10 +403,10 @@ def _kills(context: SpaceContext) -> list[_Kills]:
 
 
 def _battle_outcomes(context: SpaceContext) -> list[Event]:
-    hab_losses = _losses_by_faction(context, HAB_DISAPPEARED)
-    fleet_losses = _losses_by_faction(context, FLEET_DISAPPEARED)
-    destructions = context.of_type(DESTRUCTION_RECORDED)
-    combats = context.of_type(COMBAT_RECORDED)
+    hab_losses = _losses_by_faction(context, HAB_DISAPPEARED.event_type)
+    fleet_losses = _losses_by_faction(context, FLEET_DISAPPEARED.event_type)
+    destructions = context.of_type(HAB_DESTRUCTION_RECORDED.event_type)
+    combats = context.of_type(COMBAT_RECORDED.event_type)
     battles = context.of_type(BATTLE_NOTIFICATION)
 
     inferred_events: list[Event] = []

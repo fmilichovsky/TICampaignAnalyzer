@@ -76,3 +76,17 @@ def list_changed(event: Event) -> str:
         return f"{subject_label(event)} {transition_label(event, f'{field} list')}"
     sign = "+" if transition == "added" else "-"
     return f"{subject_label(event)} {field} list: {sign}{attribute_label(event, 'member')}"
+
+
+def entity_of(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
+    """The ``skip``-th entity of ``domain`` after the subject."""
+    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
+    return matches[skip] if len(matches) > skip else None
+
+
+def name_of(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
+
+
+def presence_with(domain: EntityDomain, prefix: str) -> Template:
+    return lambda event: f"{subject_label(event)} ({prefix} {name_of(entity_of(event, domain))}) {presence(event)}"
