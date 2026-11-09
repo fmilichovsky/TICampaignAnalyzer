@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 
+from ...kinds.describe import NOTIFICATION_PREFIX
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -30,7 +31,7 @@ from ..common import (
 DOMAIN = EntityDomain.NOTIFICATION_QUEUE
 LOG = "notificationSummaryQueue"
 
-PREFIX = "notification."
+PREFIX = NOTIFICATION_PREFIX
 QUEUE_APPEARED = "notification.queue_appeared"
 QUEUE_DISAPPEARED = "notification.queue_disappeared"
 QUEUE_VALUE_CHANGED = "notification.queue_value_changed"

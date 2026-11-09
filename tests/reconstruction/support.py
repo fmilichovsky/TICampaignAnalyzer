@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from tests.analyzers.support import only as only
 from tinarrative.analyzers import ALL_ANALYZERS, run_analyzers
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.changes import StateDiff
 from tinarrative.model.events import Event, EventStatus, Significance, SourceRole
 from tinarrative.model.snapshot import SaveSnapshot

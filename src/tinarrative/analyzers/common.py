@@ -13,11 +13,13 @@ from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from ..kinds import attributes as kind_attributes
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.changes import ChangeIndex, ChangeKind, MembershipDetail, StateChange, StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Confidence, DateBasis, Event, EventSource, EventStatus, SourceRole
+from ..model.kinds import EventKind
 from ..model.records import RecordSet
 from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown, UnknownReason
@@ -236,7 +238,7 @@ class EventBuilder:
 
     def event(
         self,
-        event_type: str,
+        event_type: EventKind | str,
         *,
         id_parts: Sequence[object],
         sources: Iterable[EventSource],
@@ -249,8 +251,12 @@ class EventBuilder:
     ) -> Event:
         """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it.
 
-        Events naming a faction carry ``faction_kinds`` (alien or human): snapshot context, never evidence.
+        Events naming a faction carry ``faction_kinds`` (alien or human): snapshot context, never evidence. A kind's
+        attributes are checked by its constructor; a bare type string is not yet migrated to a kind.
         """
+        if isinstance(event_type, EventKind):
+            attributes = kind_attributes(event_type, attributes)
+            event_type = event_type.event_type
         date: Observed = self.observed
         basis = DateBasis.INTERVAL
         if isinstance(recorded_on, str):

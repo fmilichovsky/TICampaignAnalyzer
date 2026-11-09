@@ -3,7 +3,7 @@
 from tests.analyzers.support import AFTER, BEFORE, analyze, region_ref, snapshot, state
 from tinarrative.analyzers.politics import NationBandAnalyzer
 from tinarrative.analyzers.politics.nation_bands import BAND_CROSSED
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import SourceRole
 from tinarrative.model.snapshot import SaveSnapshot

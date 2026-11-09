@@ -1,9 +1,9 @@
 """The combat-log analyzer on synthetic snapshots: edge cases the fixture pair does not cover."""
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, faction_ref, record_set, snapshot, state
-from tinarrative.analyzers.render import describe_event
 from tinarrative.analyzers.space import CombatAnalyzer
 from tinarrative.analyzers.space.combat import attack_count
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, Event
 from tinarrative.model.records import CombatEntry, RecordKind

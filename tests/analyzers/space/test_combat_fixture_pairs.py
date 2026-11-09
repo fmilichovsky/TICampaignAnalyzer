@@ -3,7 +3,7 @@
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import ALL_ANALYZERS, SPACE_ANALYZERS, run_analyzers
 from tinarrative.analyzers.common import FACTION_KINDS
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.events import Confidence, DateBasis, Event
 from tinarrative.model.values import FrozenMap, Observed
 

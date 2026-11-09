@@ -10,12 +10,15 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from .changes import StateChange
 from .entities import EntityRef
 from .evidence import SourceLocation
 from .values import FieldValue, Observed, Unknown, to_jsonable
+
+if TYPE_CHECKING:
+    from .kinds import StakeMeasure  # the kind contract builds on events
 
 
 class EventStatus(StrEnum):
@@ -96,7 +99,7 @@ class SignificanceBasis:
     """How a stake moved an event's score: ``score = clamp(base + scale + bonus, 0, 100)`` (ADR-0011)."""
 
     base: int
-    measure: str
+    measure: StakeMeasure
     share: float
     scale: int
     entities: tuple[EntityRef, ...]
@@ -106,7 +109,7 @@ class SignificanceBasis:
     def to_dict(self) -> dict[str, Any]:
         document: dict[str, Any] = {
             "base": self.base,
-            "measure": self.measure,
+            "measure": self.measure.value,
             "share": self.share,
             "scale": self.scale,
             "entities": [to_jsonable(ref) for ref in self.entities],

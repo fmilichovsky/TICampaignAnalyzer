@@ -7,9 +7,11 @@ xenoforming cleared) is a reconstruction question.
 
 from __future__ import annotations
 
+from ...kinds.aliens import ALIEN_FACILITY_CHANGED, CRASHDOWN_CHANGED, LANDING_CHANGED, XENOFORMING_CHANGED
 from ...model.changes import ChangeIndex, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId
 from ...model.events import Event
+from ...model.kinds import EventKind
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
@@ -20,11 +22,6 @@ from ..common import (
     primary,
     transition_attributes,
 )
-
-CRASHDOWN_CHANGED = "region.crashdown_changed"
-LANDING_CHANGED = "region.landing_changed"
-ALIEN_FACILITY_CHANGED = "region.alien_facility_changed"
-XENOFORMING_CHANGED = "region.xenoforming_changed"
 
 DOMAIN = EntityDomain.REGION_ALIEN_STATE
 CRASHDOWN_PRESENT = "crashdownPresent"
@@ -45,16 +42,16 @@ class RegionAlienAnalyzer:
         events: list[Event] = []
 
         events.extend(_crashdowns(index, lookup, build))
-        for field_name, event_type in VALUE_FIELDS:
+        for field_name, kind in VALUE_FIELDS:
             for change in index.fields(DOMAIN, field_name):
-                event = _region_event(event_type, change, lookup, build)
+                event = _region_event(kind, change, lookup, build)
                 if event is not None:
                     events.append(event)
         return events
 
 
 def _region_event(
-    event_type: str,
+    kind: EventKind,
     change: StateChange,
     lookup: Lookup,
     build: EventBuilder,
@@ -68,7 +65,7 @@ def _region_event(
         return None
     state_id = change.entity_id
     return build.event(
-        event_type,
+        kind,
         id_parts=(state_id,),
         sources=(primary(change), *(primary(other) for other in extra)),
         entities=(lookup.context_ref(state_id, "region"), lookup.ref(state_id)),

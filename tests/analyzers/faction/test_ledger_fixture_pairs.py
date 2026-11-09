@@ -2,7 +2,7 @@
 
 from tests.analyzers.support import fixture_pair
 from tinarrative.analyzers import FACTION_ANALYZERS, run_analyzers
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 
 PAIR = ("ledger_before.json", "ledger_after.json")
 

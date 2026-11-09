@@ -12,7 +12,7 @@ from tests.analyzers.support import (
     state,
 )
 from tinarrative.analyzers.aliens import RegionAlienAnalyzer
-from tinarrative.analyzers.aliens.regions import (
+from tinarrative.kinds.aliens import (
     ALIEN_FACILITY_CHANGED,
     CRASHDOWN_CHANGED,
     LANDING_CHANGED,
@@ -62,7 +62,7 @@ def test_a_crashdown_is_named_by_region_dated_by_its_time_record_and_cites_both_
         records=(crashdown_time(AFTER, CRASH_DATE),),
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == CRASHDOWN_CHANGED and event.confidence is Confidence.HIGH
+    assert event.event_type == CRASHDOWN_CHANGED.event_type and event.confidence is Confidence.HIGH
     assert (event.date, event.date_basis) == (CRASH_DATE, DateBasis.RECORD)
     assert entities(event) == ["region:40", "region alien state:100"]
     assert event.entities[1].state_type == CRASHDOWN
@@ -114,7 +114,7 @@ def test_xenoforming_level_rising_and_dropping_to_zero_keeps_the_literal_levels(
     )
     events = analyze(ANALYZER, before, after)
     rising, dropping = sorted(events, key=lambda event: event.id)
-    assert {event.event_type for event in events} == {XENOFORMING_CHANGED}
+    assert {event.event_type for event in events} == {XENOFORMING_CHANGED.event_type}
     assert (rising.attribute("before"), rising.attribute("after")) == (0.0, 2.5)
     assert (dropping.attribute("before"), dropping.attribute("after")) == (3.0, 0.0)
     assert entities(dropping) == ["region:41", "region alien state:113"]
@@ -142,8 +142,9 @@ def test_landing_and_facility_flags_are_events_and_secondary_fields_stay_in_the_
         "region.alien_facility_changed/region alien state:112",
         "region.landing_changed/region alien state:121",
     ]
-    assert entities(only(events, LANDING_CHANGED)) == ["region:42", "region alien state:121"]
-    assert sources(only(events, ALIEN_FACILITY_CHANGED)) == [(SourceRole.PRIMARY, "region alien state:112", "built")]
+    assert entities(only(events, LANDING_CHANGED.event_type)) == ["region:42", "region alien state:121"]
+    facility = only(events, ALIEN_FACILITY_CHANGED.event_type)
+    assert sources(facility) == [(SourceRole.PRIMARY, "region alien state:112", "built")]
 
 
 def test_a_sub_state_without_its_region_is_still_reported_and_identical_snapshots_produce_nothing() -> None:

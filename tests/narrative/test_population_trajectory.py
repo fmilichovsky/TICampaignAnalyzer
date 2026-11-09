@@ -5,8 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
-from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tinarrative.kinds import describe_event
 from tinarrative.model.events import DateBasis, Event, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules

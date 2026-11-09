@@ -26,14 +26,22 @@ from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
-from tinarrative.analyzers.render import _TEMPLATES
 from tinarrative.diff.state_diff import diff_states
+from tinarrative.kinds import KINDS, known_event_types
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
+from tinarrative.model.kinds import Rule, Stake
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
-from tinarrative.narrative.significance import BASE, DEFAULT, RULES, SCALED
+from tinarrative.narrative.significance import (
+    BASE,
+    DEFAULT,
+    RULE_IMPLEMENTATIONS,
+    RULES,
+    SCALED,
+    STAKE_IMPLEMENTATIONS,
+)
 
 COUNCILOR = EntityDomain.COUNCILOR
 FACTION = EntityDomain.FACTION
@@ -309,11 +317,25 @@ def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
 
 def test_every_known_event_type_resolves_and_every_rule_names_a_known_type() -> None:
     lookup = empty_lookup()
-    for event_type in _TEMPLATES:
+    known = known_event_types()
+    for event_type in known:
         assert significance_of(bare_event(event_type), lookup) in SIGNIFICANCE_ORDER, event_type
-    assert set(BASE) <= set(_TEMPLATES), sorted(set(BASE) - set(_TEMPLATES))
-    assert set(RULES) <= set(_TEMPLATES), sorted(set(RULES) - set(_TEMPLATES))
+    assert set(BASE) <= known, sorted(set(BASE) - known)
+    assert set(RULES) <= known, sorted(set(RULES) - known)
     assert not set(BASE) & set(RULES)  # a type is decided by its rule or by the table, never both
+
+
+def test_a_kind_is_judged_by_its_own_declaration_and_never_also_by_the_tables() -> None:
+    lookup = empty_lookup()
+    assert not set(KINDS) & (set(BASE) | set(RULES) | set(SCALED))
+    for event_type, kind in KINDS.items():
+        if kind.base is not None and kind.rule is None:
+            assert significance_of(bare_event(event_type), lookup) is kind.base, event_type
+
+
+def test_every_rule_and_stake_has_exactly_one_implementation() -> None:
+    assert set(RULE_IMPLEMENTATIONS) == set(Rule)
+    assert set(STAKE_IMPLEMENTATIONS) == set(Stake)
 
 
 def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
@@ -522,8 +544,7 @@ def test_churn_and_movement_are_never_scaled(monkeypatch: pytest.MonkeyPatch) ->
         assert result.score == BASE.get(event_type, DEFAULT).base
 
 
-def test_every_scaled_type_names_a_known_measure() -> None:
-    assert {stake.measure for stake in SCALED.values()} <= {"power", "population", "organization"}
+def test_movement_and_churn_have_no_stake() -> None:
     assert not {"fleet.orbit_changed", "nation.rank_changed", "nation.population_changed"} & set(SCALED)
 
 

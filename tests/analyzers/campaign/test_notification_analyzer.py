@@ -3,7 +3,7 @@
 from tests.analyzers.support import AFTER, BEFORE, analyze, only, record_set, snapshot, state
 from tinarrative.analyzers.campaign import NotificationAnalyzer
 from tinarrative.analyzers.campaign.notifications import entry_event_type
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event
 from tinarrative.model.records import NotificationEntry, RecordKind, RecordSet

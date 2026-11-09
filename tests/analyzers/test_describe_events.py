@@ -5,7 +5,7 @@ import json
 from tests.analyzers.support import AFTER, fixture_pair, state
 from tinarrative.analyzers import ALL_ANALYZERS, POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.base import Analyzer
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
 from tinarrative.model.values import Unknown

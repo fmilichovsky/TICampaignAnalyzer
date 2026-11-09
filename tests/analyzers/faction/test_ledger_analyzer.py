@@ -13,7 +13,7 @@ from tests.analyzers.support import (
 )
 from tinarrative.analyzers.faction import LedgerAnalyzer
 from tinarrative.analyzers.faction.ledger import in_window
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, Event, SourceRole
 from tinarrative.model.records import LedgerEntry, RecordKind
