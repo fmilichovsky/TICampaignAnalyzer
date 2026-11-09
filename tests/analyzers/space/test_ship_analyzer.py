@@ -1,7 +1,6 @@
 """Ship events: the fleet reference with mirrored lists, the literal refit date, presence, fleet-list leftovers."""
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, faction_ref, fleet_ref, only, ship_ref, snapshot, state
-from tinarrative.analyzers.render import describe_event
 from tinarrative.analyzers.space import ShipAnalyzer
 from tinarrative.analyzers.space.ships import (
     APPEARED,
@@ -10,6 +9,7 @@ from tinarrative.analyzers.space.ships import (
     FLEET_LIST_CHANGED,
     LAST_REFIT_DATE_CHANGED,
 )
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
 from tinarrative.model.values import FrozenMap, Unknown, UnknownReason, freeze

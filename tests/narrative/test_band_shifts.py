@@ -6,8 +6,8 @@ from collections.abc import Sequence
 
 from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
 from tinarrative.analyzers.politics.bands import crossed
-from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from tinarrative.kinds import describe_event
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules

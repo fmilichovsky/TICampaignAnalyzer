@@ -94,6 +94,8 @@ measurements for its base and head as comments. See [benchmarks/README.md](bench
   (`tinarrative unknowns`, `parse --record-unknowns`).
 - `model`: stable snapshots, changes, events, and provenance types.
 - `diff`: derive literal state transitions.
+- `kinds`: declare each event type once, as an event kind: its template, significance, narrator
+  evidence role and attribute keys; `describe_event` renders an event from it.
 - `analyzers`: emit domain-specific atomic events.
 - `reconstruction`: combine evidence into conservative inferred events.
 - `narrative`: group atomic events into narrative events; per-save situation

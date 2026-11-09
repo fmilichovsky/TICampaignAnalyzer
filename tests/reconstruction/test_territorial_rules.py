@@ -21,7 +21,7 @@ from tests.analyzers.support import (
     state,
 )
 from tests.reconstruction.support import Scenario, assert_traceable, lines_of, only, run
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, EventStatus, Significance, SourceRole
 from tinarrative.model.records import KeyedEntry, RecordKind, RecordSet

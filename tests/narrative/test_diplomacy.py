@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from tests.narrative.support import atomic, faction, nation, nation_row, situation, unification
-from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance
 from tinarrative.model.values import Observed

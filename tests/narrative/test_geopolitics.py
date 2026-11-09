@@ -20,8 +20,8 @@ from tests.narrative.support import (
     war,
     war_row,
 )
-from tinarrative.analyzers.render import describe_event
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed

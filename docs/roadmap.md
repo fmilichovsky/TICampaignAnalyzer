@@ -140,7 +140,7 @@ Tracking #249.
 
 - [x] Test suite hygiene: contributor standards, a leaner suite, sample tests in CI (#368).
 - [ ] Event kinds: declare each event type once (#316):
-  - [ ] Foundation and the aliens family (#317).
+  - [x] Foundation and the aliens family (#317).
   - [ ] Campaign and faction families (#318).
   - [ ] Military family (#319).
   - [ ] Technology family (#320).

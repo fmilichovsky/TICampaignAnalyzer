@@ -7,8 +7,8 @@ from collections.abc import Sequence
 from dataclasses import replace
 
 from tests.narrative.support import atomic, faction, ref, situation
-from tinarrative.analyzers.render import describe_event
 from tinarrative.config import NarrativeSettings, SpaceSettings
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed

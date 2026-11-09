@@ -16,10 +16,12 @@ from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
 from ..config import DEFAULT_SETTINGS, SignificanceSettings
+from ..kinds import KINDS
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Significance, SignificanceBasis
+from ..model.kinds import Rule, Stake, StakeMeasure
 from ..model.snapshot import SaveSnapshot
 from .milestones import milestone_of
 from .prominence import nation_power, organization_shares, region_shares, total
@@ -28,10 +30,12 @@ __all__ = [
     "BASE",
     "DEFAULT",
     "RULES",
+    "RULE_IMPLEMENTATIONS",
     "SCALED",
     "SIGNIFICANCE_ORDER",
+    "STAKE_IMPLEMENTATIONS",
+    "Scaling",
     "Significance",
-    "Stake",
     "Stakes",
     "assign_significance",
     "significance_of",
@@ -40,7 +44,7 @@ __all__ = [
 logger = get_logger(__name__)
 
 DEFAULT = Significance.MINOR
-"""An event type no rule or table entry names: worth a forensic line, not a history entry."""
+"""An event type no kind, rule or table entry names: worth a forensic line, not a history entry."""
 
 # --- Thresholds -------------------------------------------------------------------------------------------
 # Only what ranks emitted events; thresholds that decide whether an event exists live with its analyzer.
@@ -57,6 +61,7 @@ shift past their threshold for routine reasons too (event effects, priorities), 
 that explain it and stays trivial on its own."""
 
 # --- Per-type table ---------------------------------------------------------------------------------------
+# The types not yet migrated to a kind; a kind declares its own base level, context rule and stake.
 
 _TRIVIAL: tuple[str, ...] = (
     # Councilor movement and ship reassignment happen constantly between saves and say nothing on their own.
@@ -171,11 +176,8 @@ _MAJOR: tuple[str, ...] = (
     # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
     # below the band.
     "organization.assigned_councilor_changed",
-    # Space battles (``CombatLogs``) and alien activity on Earth (crashdowns, landings, facilities).
+    # Space battles (``CombatLogs``).
     "faction.combat_recorded",
-    "region.crashdown_changed",
-    "region.landing_changed",
-    "region.alien_facility_changed",
     # A once-per-campaign narrative event.
     "campaign.narrative_event_triggered",
     # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
@@ -213,8 +215,8 @@ BASE: Mapping[str, Significance] = {
 
 # --- Context rules ----------------------------------------------------------------------------------------
 
-Rule = Callable[[Event, Lookup], Significance | None]
-"""``None`` defers to ``BASE``."""
+ContextRule = Callable[[Event, Lookup], Significance | None]
+"""``None`` defers to the base level."""
 
 
 def _subject(event: Event) -> EntityRef | None:
@@ -292,21 +294,34 @@ def _claims_changed(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR
 
 
-RULES: Mapping[str, Rule] = {
-    "councilor.appeared": _councilor_presence,
-    "councilor.disappeared": _councilor_presence,
-    "nation.relation_changed": _relation_changed,
-    "nation.claims_changed": _claims_changed,
-    "nation.executive_change_recorded": _executive_change,
-    "nation.statistic_shifted": _statistic_shifted,
-    "nation.population_changed": _population_changed,
-    "nation.space_assets_changed": _space_assets_changed,
-    "army.appeared": _army_presence,
-    "army.disappeared": _army_presence,
-    "technology.completed": _completion,
-    "faction.project_completed": _completion,
+RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
+    Rule.COUNCILOR_PRESENCE: _councilor_presence,
+    Rule.RELATION_CHANGED: _relation_changed,
+    Rule.CLAIMS_CHANGED: _claims_changed,
+    Rule.EXECUTIVE_CHANGE: _executive_change,
+    Rule.STATISTIC_SHIFTED: _statistic_shifted,
+    Rule.POPULATION_CHANGED: _population_changed,
+    Rule.SPACE_ASSETS_CHANGED: _space_assets_changed,
+    Rule.ARMY_PRESENCE: _army_presence,
+    Rule.COMPLETION: _completion,
 }
-"""Tried before ``BASE``."""
+"""Every ``Rule``'s implementation."""
+
+RULES: Mapping[str, Rule] = {
+    "councilor.appeared": Rule.COUNCILOR_PRESENCE,
+    "councilor.disappeared": Rule.COUNCILOR_PRESENCE,
+    "nation.relation_changed": Rule.RELATION_CHANGED,
+    "nation.claims_changed": Rule.CLAIMS_CHANGED,
+    "nation.executive_change_recorded": Rule.EXECUTIVE_CHANGE,
+    "nation.statistic_shifted": Rule.STATISTIC_SHIFTED,
+    "nation.population_changed": Rule.POPULATION_CHANGED,
+    "nation.space_assets_changed": Rule.SPACE_ASSETS_CHANGED,
+    "army.appeared": Rule.ARMY_PRESENCE,
+    "army.disappeared": Rule.ARMY_PRESENCE,
+    "technology.completed": Rule.COMPLETION,
+    "faction.project_completed": Rule.COMPLETION,
+}
+"""The context rule of a type not yet migrated to a kind; tried before ``BASE``."""
 
 # --- Stakes -----------------------------------------------------------------------------------------------
 
@@ -324,22 +339,22 @@ class Stakes:
         self.lookup = Lookup(before, after)
         self.settings = settings
         self._snapshots = {Side.BEFORE: before, Side.AFTER: after}
-        self._shares: dict[tuple[str, Side], dict[EntityId, float]] = {}
+        self._shares: dict[tuple[StakeMeasure, Side], dict[EntityId, float]] = {}
         self._evidence = {event.id: event for event in evidence}
 
-    def shares(self, measure: str, side: Side) -> dict[EntityId, float]:
+    def shares(self, measure: StakeMeasure, side: Side) -> dict[EntityId, float]:
         key = (measure, side)
         if key not in self._shares:
             snapshot = self._snapshots[side]
-            if measure == "power":
+            if measure is StakeMeasure.POWER:
                 self._shares[key] = nation_power(snapshot, self.settings.power)
-            elif measure == "population":
+            elif measure is StakeMeasure.POPULATION:
                 self._shares[key] = region_shares(snapshot)
             else:
                 self._shares[key] = organization_shares(snapshot, self.settings.tier_exponent)
         return self._shares[key]
 
-    def share(self, measure: str, entities: Iterable[EntityId]) -> float | None:
+    def share(self, measure: StakeMeasure, entities: Iterable[EntityId]) -> float | None:
         """The summed share of ``entities`` on the interval's earlier side, an entity without one there read on the
         later side; ``None`` when no entity has a share on either."""
         before = self.shares(measure, Side.BEFORE)
@@ -359,11 +374,11 @@ EntitiesOf = Callable[[Event, Stakes], tuple[EntityId, ...]]
 
 
 @dataclass(frozen=True)
-class Stake:
-    """What an event type is scaled by: a measure (a ``config.ReferenceSettings`` key) and the entities whose summed
-    share is the stake; no entities, no scale."""
+class Scaling:
+    """A ``Stake``'s implementation: its measure and the entities whose summed share is the stake; no entities, no
+    scale."""
 
-    measure: str
+    measure: StakeMeasure
     entities: EntitiesOf
     per_point: bool = False
     """The share of a single control point: the nation's, divided by the points it holds."""
@@ -404,28 +419,34 @@ def _moved_regions(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
     )
 
 
-_NATION = Stake("power", _nation)
-_TERRITORY = Stake("population", _moved_regions)
+STAKE_IMPLEMENTATIONS: Mapping[Stake, Scaling] = {
+    Stake.NATION: Scaling(StakeMeasure.POWER, _nation),
+    Stake.BELLIGERENTS: Scaling(StakeMeasure.POWER, _belligerents, nuclear_bonus=True),
+    Stake.TERRITORY: Scaling(StakeMeasure.POPULATION, _moved_regions),
+    Stake.CONTROL_POINT: Scaling(StakeMeasure.POWER, _nation, per_point=True),
+    Stake.ORGANIZATION: Scaling(StakeMeasure.ORGANIZATION, _organization),
+}
+"""Every ``Stake``'s implementation."""
 
 SCALED: Mapping[str, Stake] = {
-    "nation.executive_change_recorded": _NATION,
-    "nation.appeared": _NATION,
-    "nation.disappeared": _NATION,
-    "nation.statistic_shifted": _NATION,
-    "nation.federation_changed": _NATION,
-    "nation.claims_changed": _NATION,
-    "nation.relation_changed": Stake("power", _belligerents, nuclear_bonus=True),
-    "region.nation_changed": _TERRITORY,
-    "nation.independence": _TERRITORY,
-    "nation.unification": _TERRITORY,
-    "nation.annexation": _TERRITORY,
-    "nation.territory_gained": _TERRITORY,
-    "nation.territory_lost": _TERRITORY,
-    "control_point.controller_changed": Stake("power", _nation, per_point=True),
-    "faction.nation_control_changed": _NATION,
-    "organization.assigned_councilor_changed": Stake("organization", _organization),
+    "nation.executive_change_recorded": Stake.NATION,
+    "nation.appeared": Stake.NATION,
+    "nation.disappeared": Stake.NATION,
+    "nation.statistic_shifted": Stake.NATION,
+    "nation.federation_changed": Stake.NATION,
+    "nation.claims_changed": Stake.NATION,
+    "nation.relation_changed": Stake.BELLIGERENTS,
+    "region.nation_changed": Stake.TERRITORY,
+    "nation.independence": Stake.TERRITORY,
+    "nation.unification": Stake.TERRITORY,
+    "nation.annexation": Stake.TERRITORY,
+    "nation.territory_gained": Stake.TERRITORY,
+    "nation.territory_lost": Stake.TERRITORY,
+    "control_point.controller_changed": Stake.CONTROL_POINT,
+    "faction.nation_control_changed": Stake.NATION,
+    "organization.assigned_councilor_changed": Stake.ORGANIZATION,
 }
-"""Event types whose score follows a stake (ADR-0011); movement and churn are never listed."""
+"""The stake of a type not yet migrated to a kind (ADR-0011); movement and churn are never listed."""
 
 
 def _scale(share: float, reference: float, settings: SignificanceSettings) -> int:
@@ -453,16 +474,18 @@ def _holds_nuclear_weapons(stakes: Stakes, nation: EntityId) -> bool:
 
 
 def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBasis | None:
-    stake = SCALED.get(event.event_type)
-    if stake is None:
+    kind = KINDS.get(event.event_type)
+    named = kind.stake if kind is not None else SCALED.get(event.event_type)
+    if named is None:
         return None
+    stake = STAKE_IMPLEMENTATIONS[named]
     entities = stake.entities(event, stakes)
     share = stakes.share(stake.measure, entities)
     if share is None:
         return None
     if stake.per_point:
         share /= _points(stakes, entities[0])
-    reference = getattr(stakes.settings.reference, stake.measure)
+    reference = getattr(stakes.settings.reference, stake.measure.value)
     bonus = 0
     if (
         stake.nuclear_bonus
@@ -485,13 +508,18 @@ def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBas
 
 
 def significance_of(event: Event, lookup: Lookup) -> Significance:
-    """The context rule, else ``BASE``, else ``DEFAULT``: the level before the stake scales the score."""
-    rule = RULES.get(event.event_type)
+    """The context rule, else the base level, else ``DEFAULT``: the level before the stake scales the score.
+
+    A type's kind is read first; a type not yet migrated to a kind is read from ``RULES`` and ``BASE``.
+    """
+    kind = KINDS.get(event.event_type)
+    rule = kind.rule if kind is not None else RULES.get(event.event_type)
     if rule is not None:
-        decided = rule(event, lookup)
+        decided = RULE_IMPLEMENTATIONS[rule](event, lookup)
         if decided is not None:
             return decided
-    return BASE.get(event.event_type, DEFAULT)
+    base = kind.base if kind is not None else BASE.get(event.event_type)
+    return base if base is not None else DEFAULT
 
 
 def assign_significance(
@@ -502,7 +530,7 @@ def assign_significance(
     *,
     evidence: Iterable[Event] = (),
 ) -> tuple[Event, ...]:
-    """Each event gets its score (its level's base, moved by its stake when the type is in ``SCALED``) and the level
+    """Each event gets its score (its level's base, moved by its stake when the type has one) and the level
     of that score; keeps the given order. ``evidence`` are the events a reconstructed one may cite for its stake."""
     stakes = Stakes(before, after, settings, evidence)
     assigned = tuple(_ranked(event, significance_of(event, stakes.lookup), stakes) for event in events)

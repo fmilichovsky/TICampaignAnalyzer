@@ -7,9 +7,9 @@ from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime
 from typing import Final, Literal
 
-from ..analyzers.render import describe_event, render_event_value
 from ..diff.render import render_change, render_value
 from ..grouping import CampaignGroup
+from ..kinds import describe_event, render_event_value
 from ..model.changes import StateChange
 from ..model.entities import EntityRef
 from ..model.events import Event, EventSource, EventStatus, Significance

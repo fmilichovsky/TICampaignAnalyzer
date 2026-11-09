@@ -9,7 +9,7 @@ from tinarrative.analyzers.politics.nation_population import (
     POPULATION_DROP_FLOOR,
     population_limit,
 )
-from tinarrative.analyzers.render import describe_event
+from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Event, SourceRole
 from tinarrative.model.snapshot import EntityState

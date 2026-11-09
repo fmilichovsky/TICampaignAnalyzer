@@ -15,8 +15,16 @@ from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role
 from ..model.values import FrozenMap, Observed, Unknown
-from .campaign.notifications import PREFIX as NOTIFICATION_PREFIX
+from .registry import KINDS
+from .text import attribute_label as _attr
+from .text import attribute_text as _text
+from .text import plain as _plain
+from .text import render_event_value
+from .text import subject_label as _subject
+from .text import transition_label as _transition
 
+NOTIFICATION_PREFIX = "notification."
+"""The types whose names come from the game's log templates."""
 ABSENT = "is absent from the after snapshot"
 PRESENT = "is present only in the after snapshot"
 
@@ -24,9 +32,11 @@ PRESENT = "is present only in the after snapshot"
 def describe_event(event: Event) -> str:
     """Deterministic ASCII text; an event type without a template falls back to the type and its entities.
 
-    ``notification.<template>`` types share one template, since the log template set is open-ended.
+    The kind's template, else the type's entry in the table not yet migrated to kinds. ``notification.<template>``
+    types share one template, since the log template set is open-ended.
     """
-    template = _TEMPLATES.get(event.event_type)
+    kind = KINDS.get(event.event_type)
+    template = kind.template if kind is not None else _TEMPLATES.get(event.event_type)
     if template is None and event.event_type.startswith(NOTIFICATION_PREFIX):
         template = _notification_logged
     if template is None:
@@ -35,14 +45,15 @@ def describe_event(event: Event) -> str:
     return _ascii(template(event))
 
 
+def known_event_types() -> frozenset[str]:
+    """Every type a kind declares or the table not yet migrated to kinds describes; ``notification.*`` excluded."""
+    return frozenset(KINDS) | frozenset(_TEMPLATES)
+
+
 def _ascii(text: str) -> str:
     if text.isascii():
         return text
     return "".join(char if char.isascii() else f"\\u{ord(char):04x}" for char in text)
-
-
-def _subject(event: Event) -> str:
-    return event.entities[0].label() if event.entities else event.id
 
 
 def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
@@ -52,29 +63,6 @@ def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | No
 
 def _name(ref: EntityRef | None) -> str:
     return ref.label() if ref is not None else "null"
-
-
-def render_event_value(value: Observed) -> str:
-    """Like :func:`render_value`, but a reference reads as ``Name (domain:id)``, also inside a list."""
-    if isinstance(value, EntityRef):
-        return value.label()
-    if isinstance(value, tuple):
-        return "[" + ", ".join(render_event_value(item) for item in value) + "]"
-    return render_value(value)
-
-
-def _attr(event: Event, name: str) -> str:
-    return render_event_value(event.attribute(name))
-
-
-def _text(event: Event, name: str) -> str:
-    """A date, relation name or transition label as plain text; anything else like a value."""
-    value = event.attribute(name)
-    return value if isinstance(value, str) else render_event_value(value)
-
-
-def _transition(event: Event, label: str) -> str:
-    return f"{label}: {_attr(event, 'before')} -> {_attr(event, 'after')}"
 
 
 def _presence(event: Event) -> str:
@@ -189,10 +177,6 @@ def _councilor_field(label: str) -> Callable[[Event], str]:
 
 def _councilor_presence(event: Event) -> str:
     return f"{_subject(event)} (faction {_name(_entity(event, EntityDomain.FACTION))}) {_presence(event)}"
-
-
-def _plain(label: str) -> Callable[[Event], str]:
-    return lambda event: f"{_subject(event)} {_transition(event, label)}"
 
 
 def _side_list(event: Event) -> str:
@@ -387,15 +371,6 @@ def _army_presence(event: Event) -> str:
     region = _name(_entity(event, EntityDomain.REGION))
     text = f"{_subject(event)} (faction {faction}, region {region}) {_presence(event)}"
     return text + " (megafauna)" if event.attribute("megafauna") is True else text
-
-
-def _crashdown_changed(event: Event) -> str:
-    if event.sources and event.sources[0].change.field == "crashdownTime":
-        return f"{_subject(event)} {_transition(event, 'crashdown time')}"
-    text = f"{_subject(event)} {_transition(event, 'crashdown present')}"
-    if not isinstance(event.attribute("crashdown_time"), Unknown):
-        text += f"; crashdown time {_text(event, 'crashdown_time')}"
-    return text
 
 
 def _destruction_recorded(event: Event) -> str:
@@ -728,6 +703,7 @@ def _technology_milestone(event: Event) -> str:
 
 
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
+    # The types not yet migrated to a kind.
     "control_point.controller_changed": _controller_changed,
     "control_point.nation_changed": _plain("nation"),
     "control_point.appeared": _control_point_presence,
@@ -795,10 +771,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "army.home_region_changed": _with_context("home region", EntityDomain.FACTION),
     "army.appeared": _army_presence,
     "army.disappeared": _army_presence,
-    "region.crashdown_changed": _crashdown_changed,
-    "region.landing_changed": _plain("landing present"),
-    "region.alien_facility_changed": _plain("alien facility built"),
-    "region.xenoforming_changed": _plain("xenoforming level"),
     "faction.armies_changed": _list_changed,
     "nation.armies_changed": _list_changed,
     "region.armies_changed": _list_changed,
