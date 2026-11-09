@@ -6,9 +6,11 @@ army's home nation (the ``nation`` of its ``homeRegion``) as context only, never
 
 from __future__ import annotations
 
+from ...kinds import military
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, SourceRole
+from ...model.kinds import EventKind
 from ...model.snapshot import SaveSnapshot
 from ...model.values import Observed
 from ..common import (
@@ -26,34 +28,24 @@ from ..common import (
     value_transition_event,
 )
 
-REGION_CHANGED = "army.region_changed"
-FACTION_CHANGED = "army.faction_changed"
-DESTROYED_CHANGED = "army.destroyed_changed"
-STRENGTH_CHANGED = "army.strength_changed"
-TYPE_CHANGED = "army.type_changed"
-DEPLOYMENT_TYPE_CHANGED = "army.deployment_type_changed"
-HOME_REGION_CHANGED = "army.home_region_changed"
-APPEARED = "army.appeared"
-DISAPPEARED = "army.disappeared"
+APPEARED = military.APPEARED.event_type
+DISAPPEARED = military.DISAPPEARED.event_type
+DEPLOYMENT_TYPE_CHANGED = military.DEPLOYMENT_TYPE_CHANGED.event_type
+"""The type IDs the narrative rules read."""
 MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 
-LIST_FIELD = "armies"
-LIST_OWNERS = (EntityDomain.FACTION, EntityDomain.NATION, EntityDomain.REGION)
-HANDLED_LISTS = tuple((domain, LIST_FIELD) for domain in LIST_OWNERS)
+LIST_FIELD = military.LIST_FIELD
+HANDLED_LISTS = tuple((domain, LIST_FIELD) for domain in military.LIST_OWNERS)
 """Every list that names armies; a nation's list has no mirroring army field and is cited by presence only."""
-MIRRORED_FIELDS = (("currentRegion", REGION_CHANGED), ("faction", FACTION_CHANGED))
+MIRRORED_FIELDS = (("currentRegion", military.REGION_CHANGED), ("faction", military.FACTION_CHANGED))
 """Reference fields whose owner lists armies: the earlier owner's list loses the army, the later one's gains it."""
 VALUE_FIELDS = (
-    ("destroyed", DESTROYED_CHANGED),
-    ("strength", STRENGTH_CHANGED),
-    ("armyType", TYPE_CHANGED),
-    ("deploymentType", DEPLOYMENT_TYPE_CHANGED),
-    ("homeRegion", HOME_REGION_CHANGED),
+    ("destroyed", military.DESTROYED_CHANGED),
+    ("strength", military.STRENGTH_CHANGED),
+    ("armyType", military.TYPE_CHANGED),
+    ("deploymentType", military.DEPLOYMENT_TYPE_CHANGED),
+    ("homeRegion", military.HOME_REGION_CHANGED),
 )
-
-
-def list_event_type(domain: str) -> str:
-    return f"{domain}.{LIST_FIELD}_changed"
 
 
 class ArmyAnalyzer:
@@ -64,17 +56,17 @@ class ArmyAnalyzer:
         build = EventBuilder(before, after, lookup)
         events: list[Event] = []
 
-        for field_name, event_type in MIRRORED_FIELDS:
+        for field_name, kind in MIRRORED_FIELDS:
             for change in index.fields(EntityDomain.ARMY, field_name):
-                event = _mirrored(event_type, change, lookup, ledger, build)
+                event = _mirrored(kind, change, lookup, ledger, build)
                 if event is not None:
                     events.append(event)
-        for field_name, event_type in VALUE_FIELDS:
+        for field_name, kind in VALUE_FIELDS:
             for change in index.fields(EntityDomain.ARMY, field_name):
                 assert change.entity_id is not None
                 home = _home_nation(change.entity_id, lookup)
                 event = value_transition_event(
-                    event_type,
+                    kind,
                     change,
                     lookup,
                     build,
@@ -86,7 +78,11 @@ class ArmyAnalyzer:
         for change in index.presence(EntityDomain.ARMY):
             events.append(_presence(change, lookup, ledger, build))
         for change, member, transition in ledger.leftovers():
-            events.append(list_changed_event(list_event_type(change.domain), change, member, transition, lookup, build))
+            events.append(
+                list_changed_event(
+                    military.ARMIES_CHANGED[str(change.domain)], change, member, transition, lookup, build
+                )
+            )
         return events
 
 
@@ -105,7 +101,7 @@ def _home_attribute(home: EntityRef | None) -> tuple[tuple[str, Observed], ...]:
 
 
 def _mirrored(
-    event_type: str, change: StateChange, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder
+    kind: EventKind, change: StateChange, lookup: Lookup, ledger: MembershipLedger, build: EventBuilder
 ) -> Event | None:
     transition = classify(change.before, change.after)
     if transition is None or change.entity_id is None:
@@ -114,7 +110,7 @@ def _mirrored(
     other = "currentRegion" if change.field == "faction" else "faction"
     home = _home_nation(army_id, lookup)
     return build.event(
-        event_type,
+        kind,
         id_parts=(army_id,),
         sources=mirrored_sources(change, ledger, LIST_FIELD, army_id),
         entities=(
@@ -152,7 +148,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
     if army is not None and army.state_type == MEGAFAUNA_STATE_TYPE:
         attributes.append(("megafauna", True))
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        military.APPEARED if appeared else military.DISAPPEARED,
         id_parts=(army_id,),
         sources=sources,
         entities=(

@@ -6,9 +6,11 @@ from collections.abc import Sequence
 
 from tests.narrative.support import atomic, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
-from tinarrative.kinds import describe_event
+from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.military import APPEARED, DISAPPEARED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Role, Significance
+from tinarrative.model.kinds import EventKind
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.assets import (
@@ -30,13 +32,15 @@ NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
 
 
-def army(key: str, number: int, kind: str = "Standard", event_type: str = "army.appeared") -> Event:
+def army(key: str, number: int, deployment: str = "Standard", kind: EventKind = APPEARED) -> Event:
     return atomic(
-        f"{event_type}/army:{number}",
+        f"{kind.event_type}/army:{number}",
         key,
         not_before=PREVIOUS[key],
         entities=(nation(str(number)),),
-        attributes=(("home_nation", NORTH), ("deployment_type", kind)),
+        attributes=attributes(
+            kind, side="after" if kind is APPEARED else "before", home_nation=NORTH, deployment_type=deployment
+        ),
     )
 
 
@@ -118,7 +122,7 @@ def test_a_top_nation_by_strength_is_promoted_and_one_army_is_no_buildup() -> No
 
 
 def test_standard_armies_shrinking_are_a_demobilization() -> None:
-    stream = [army(K1, 110, event_type="army.disappeared"), army(K1, 111, event_type="army.disappeared")]
+    stream = [army(K1, 110, kind=DISAPPEARED), army(K1, 111, kind=DISAPPEARED)]
     (demobilization,) = built(stream, reports({"armies": 4}, {"armies": 2}), DEMOBILIZATION, top_gdp_nations=1)
     assert dict(demobilization.attributes)["after"] == 2
     assert describe_event(demobilization) == "Northland (nation:20) demobilized its standard armies: 4 -> 2"

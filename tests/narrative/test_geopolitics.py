@@ -22,7 +22,9 @@ from tests.narrative.support import (
 )
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds.faction import TRANSACTION_RECORDED
+from tinarrative.kinds.military import APPEARED, ARMIES_CHANGED, DEPLOYMENT_TYPE_CHANGED, DISAPPEARED
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -887,29 +889,34 @@ def test_a_merger_carries_events_skipped_by_every_rule_that_checks_its_parties()
     reading = unification(K1, NORTH, SOUTH, not_before=K0, unifier=RESISTANCE)
     armies = [
         event(
-            event_type,
+            kind.event_type,
             K1,
             NORTH,
-            event_type,
-            attributes=tuple(
-                [("home_nation", home)]
-                + ([("deployment_type", "Standard")] if event_type in {"army.appeared", "army.disappeared"} else [])
-                + ([("before", "Standard"), ("after", "Naval")] if event_type == "army.deployment_type_changed" else [])
-            ),
+            kind.event_type,
+            attributes=attrs,
         )
-        for event_type, home in (
-            ("nation.armies_changed", NORTH),
-            ("army.appeared", NORTH),
-            ("army.disappeared", SOUTH),
-            ("army.deployment_type_changed", SOUTH),
+        for kind, attrs in (
+            (ARMIES_CHANGED["nation"], kind_attributes(ARMIES_CHANGED["nation"], member=NORTH, transition="added")),
+            (APPEARED, kind_attributes(APPEARED, side="after", home_nation=NORTH, deployment_type="Standard")),
+            (DISAPPEARED, kind_attributes(DISAPPEARED, side="before", home_nation=SOUTH, deployment_type="Standard")),
+            (
+                DEPLOYMENT_TYPE_CHANGED,
+                kind_attributes(
+                    DEPLOYMENT_TYPE_CHANGED,
+                    transition="changed",
+                    before="Standard",
+                    after="Naval",
+                    home_nation=SOUTH,
+                ),
+            ),
         )
     ]
     naval = event(
-        "army.appeared",
+        APPEARED.event_type,
         K1,
         NORTH,
         "naval",
-        attributes=(("home_nation", SOUTH), ("deployment_type", "Naval")),
+        attributes=kind_attributes(APPEARED, side="after", home_nation=SOUTH, deployment_type="Naval"),
     )
     nuclear_shifts = [shift(K1, "numNuclearWeapons", nation, 20.0, 25.0) for nation in (NORTH, SOUTH)]
     relations = [

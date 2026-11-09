@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..diff.render import render_value
-from ..model.entities import EntityRef
+from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
 from ..model.kinds import Template
 from ..model.values import Observed
@@ -37,6 +37,22 @@ def attribute_text(event: Event, name: str) -> str:
 
 def transition_label(event: Event, label: str) -> str:
     return f"{label}: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
+
+
+def entity(event: Event, domain: EntityDomain) -> EntityRef | None:
+    """The first context entity (never the subject) of ``domain``."""
+    return next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
+
+
+def name(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
+
+
+def with_context(label: str, domain: EntityDomain, prefix: str = "") -> Template:
+    """``<subject> (<prefix><context>) <label>: before -> after`` with the first ``domain`` entity as context."""
+    return lambda event: (
+        f"{subject_label(event)} ({prefix}{name(entity(event, domain))}) {transition_label(event, label)}"
+    )
 
 
 def plain(label: str) -> Template:

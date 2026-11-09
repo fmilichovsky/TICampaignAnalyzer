@@ -352,13 +352,6 @@ def _presence_with(domain: EntityDomain, prefix: str) -> Callable[[Event], str]:
     return lambda event: f"{_subject(event)} ({prefix} {_name(_entity(event, domain))}) {_presence(event)}"
 
 
-def _army_presence(event: Event) -> str:
-    faction = _name(_entity(event, EntityDomain.FACTION))
-    region = _name(_entity(event, EntityDomain.REGION))
-    text = f"{_subject(event)} (faction {faction}, region {region}) {_presence(event)}"
-    return text + " (megafauna)" if event.attribute("megafauna") is True else text
-
-
 def _destruction_recorded(event: Event) -> str:
     named = f" (hab {_attr(event, 'hab')})" if any(name == "hab" for name, _ in event.attributes) else ""
     return (
@@ -667,18 +660,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "organization.faction_orbit_changed": _plain("faction orbit"),
     "councilor.orgs_changed": _list_changed,
     "faction.unassigned_orgs_changed": _list_changed,
-    "army.region_changed": _with_context("region", EntityDomain.FACTION),
-    "army.faction_changed": _with_context("faction", EntityDomain.REGION, "in "),
-    "army.destroyed_changed": _with_context("destroyed flag", EntityDomain.FACTION),
-    "army.strength_changed": _with_context("strength", EntityDomain.FACTION),
-    "army.type_changed": _with_context("type", EntityDomain.FACTION),
-    "army.deployment_type_changed": _with_context("deployment type", EntityDomain.FACTION),
-    "army.home_region_changed": _with_context("home region", EntityDomain.FACTION),
-    "army.appeared": _army_presence,
-    "army.disappeared": _army_presence,
-    "faction.armies_changed": _list_changed,
-    "nation.armies_changed": _list_changed,
-    "region.armies_changed": _list_changed,
     "fleet.faction_changed": _plain("faction"),
     "fleet.docked_location_changed": _with_context("docked location", EntityDomain.FACTION),
     "fleet.orbit_changed": _with_context("orbit", EntityDomain.FACTION),
