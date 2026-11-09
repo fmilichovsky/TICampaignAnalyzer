@@ -1,7 +1,4 @@
-"""The event kind contract: what one declaration of an event type holds (ADR-0001).
-
-A kind names its context rule and stake; ``tinarrative.narrative.significance`` maps each name to its implementation.
-"""
+"""The event kind contract: what one declaration of an event type holds (ADR-0001)."""
 
 from __future__ import annotations
 

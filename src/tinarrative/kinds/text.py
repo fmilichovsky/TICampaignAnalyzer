@@ -8,6 +8,9 @@ from ..model.events import Event
 from ..model.kinds import Template
 from ..model.values import Observed
 
+TRANSITION = frozenset({"transition", "before", "after"})
+"""The attribute keys of a literal transition (``analyzers.common.transition_attributes``)."""
+
 
 def subject_label(event: Event) -> str:
     return event.entities[0].label() if event.entities else event.id

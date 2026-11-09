@@ -14,10 +14,9 @@ before touching the model or pipeline.
 
 ## Layout
 
-- `src/tinarrative/` — one subpackage per pipeline stage, `io` → `parsing` → `model` → `diff` → `kinds` → `analyzers` →
-  `reconstruction` → `narrative` → `rendering` ([README](README.md#package-layout)).
-- `src/tinarrative/kinds/` — one event kind per event type, one module per family; the contract is
-  `model/kinds.py`, the rule and stake implementations `narrative/significance.py` (ADR-0001).
+- `src/tinarrative/` — one subpackage per pipeline stage, `io` → `parsing` → `model` → `diff` → `kinds` →
+  `analyzers` → `reconstruction` → `narrative` → `rendering` ([README](README.md#package-layout)).
+- `src/tinarrative/kinds/` — one event kind per event type, one module per family (ADR-0001).
 - `src/tinarrative/cli.py` — argparse entry point; stable exit codes at the top.
 - `src/tinarrative/config.py` — TOML runtime settings ([docs/configuration.md](docs/configuration.md)).
 - `src/tinarrative/inspection/` — `save inspect`; raw structure only.

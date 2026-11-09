@@ -8,9 +8,7 @@ from __future__ import annotations
 from ..model.events import Event, Significance
 from ..model.kinds import EventKind, EvidenceRole
 from ..model.values import Unknown
-from .text import attribute_text, plain, subject_label, transition_label
-
-TRANSITION = frozenset({"transition", "before", "after"})
+from .text import TRANSITION, attribute_text, plain, subject_label, transition_label
 
 
 def _crashdown(event: Event) -> str:
