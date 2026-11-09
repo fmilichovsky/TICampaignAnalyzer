@@ -9,6 +9,7 @@ import pytest
 
 from tests.narrative.support import (
     atomic,
+    control_attributes,
     faction,
     federation_row,
     nation,
@@ -22,6 +23,12 @@ from tests.narrative.support import (
 )
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.control import (
+    CONTROLLER_CHANGED,
+    COUNCILOR_FACTION_CHANGED,
+    NATION_CONTROL_CHANGED,
+    POINT_DISAPPEARED,
+)
 from tinarrative.kinds.faction import TRANSACTION_RECORDED
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
@@ -85,13 +92,13 @@ def control(
     **overrides: object,
 ) -> Event:
     return event(
-        "faction.nation_control_changed",
+        NATION_CONTROL_CHANGED.event_type,
         key,
         subject,
         scope,
         *([tag] if tag else []),
         entities=[holder for holder in (before, after) if holder is not None],
-        attributes=(("scope", scope), ("before", before), ("after", after), ("cause", cause)),
+        attributes=control_attributes(scope, before, after, cause),
         status=EventStatus.INFERRED,
         **overrides,
     )
@@ -99,11 +106,11 @@ def control(
 
 def point(key: str, after: EntityRef, subject: EntityRef = NORTH, point_ref: EntityRef = POINT) -> Event:
     return event(
-        "control_point.controller_changed",
+        CONTROLLER_CHANGED.event_type,
         key,
         point_ref,
         entities=[subject, after],
-        attributes=(("transition", "changed"), ("after", after)),
+        attributes=attributes(CONTROLLER_CHANGED, transition="changed", before=None, after=after),
     )
 
 
@@ -219,8 +226,20 @@ def test_an_executive_change_is_a_takeover_with_its_points_records_and_the_loser
         entities=[SERVANTS],
         attributes=[("recorded_on", "2032-02-15T00:00:00"), ("previous_executive", RESISTANCE)],
     )
-    defector = event("councilor.faction_changed", K1, COUNCILOR, entities=[RESISTANCE, SERVANTS])
-    elsewhere = event("councilor.faction_changed", K2, ref(EntityDomain.COUNCILOR, "31"), entities=[RESISTANCE])
+    defector = event(
+        COUNCILOR_FACTION_CHANGED.event_type,
+        K1,
+        COUNCILOR,
+        entities=[RESISTANCE, SERVANTS],
+        attributes=attributes(COUNCILOR_FACTION_CHANGED, transition="changed", before=RESISTANCE, after=SERVANTS),
+    )
+    elsewhere = event(
+        COUNCILOR_FACTION_CHANGED.event_type,
+        K2,
+        ref(EntityDomain.COUNCILOR, "31"),
+        entities=[RESISTANCE],
+        attributes=attributes(COUNCILOR_FACTION_CHANGED, transition="cleared", before=RESISTANCE, after=None),
+    )
     other_nation = point(K1, SERVANTS, subject=SOUTH, point_ref=ref(EntityDomain.CONTROL_POINT, "8"))
     stream = [anchor, gained, record, defector, elsewhere, other_nation]
 
@@ -849,7 +868,13 @@ def merged(key: str, gainer: EntityRef, absorbed: EntityRef, region: EntityRef) 
 def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes() -> None:
     reading = merged(K1, NORTH, SOUTH, SOUTH_REGION)
     lost_executive = control(K1, "executive", RESISTANCE, None, subject=SOUTH)
-    gone_point = event("control_point.disappeared", K1, POINT, entities=[SOUTH, RESISTANCE])
+    gone_point = event(
+        POINT_DISAPPEARED.event_type,
+        K1,
+        POINT,
+        entities=[SOUTH, RESISTANCE],
+        attributes=attributes(POINT_DISAPPEARED, side="before"),
+    )
     alliance = event("nation.relation_changed", K1, EAST, "allies", entities=[SOUTH])
     fallen = event("nation.rank_changed", K1, SOUTH, "GDP", attributes=(("metric", "GDP"),))
     renamed = event("nation.renamed", K1, NORTH, attributes=(("before", "Northland"), ("after", "Union")))

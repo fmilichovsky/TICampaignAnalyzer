@@ -13,8 +13,6 @@ from ..analyzers.military.armies import APPEARED as ARMY_APPEARED
 from ..analyzers.military.armies import DEPLOYMENT_TYPE_CHANGED
 from ..analyzers.military.armies import DISAPPEARED as ARMY_DISAPPEARED
 from ..analyzers.politics.bands import BANDS, band
-from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
-from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
 from ..analyzers.politics.nation_economy import PCGDP_TREND
 from ..analyzers.politics.nation_population import POPULATION_CHANGED
 from ..analyzers.politics.nation_rank import RANK_CHANGED
@@ -22,6 +20,15 @@ from ..analyzers.politics.nation_space import SPACE_ASSETS_CHANGED
 from ..analyzers.politics.nations import DISAPPEARED as NATION_DISAPPEARED
 from ..analyzers.politics.nations import RELATION_CHANGED, RENAMED
 from ..config import GeopoliticsSettings
+from ..kinds.control import CONTROLLER_CHANGED as CONTROLLER_CHANGED_KIND
+from ..kinds.control import (
+    COUNCILOR_DISAPPEARED,
+    COUNCILOR_FACTION_CHANGED,
+    DETAINING_FACTION_CHANGED,
+    LOSS_RECORDED,
+    NATION_CONTROL_CHANGED,
+    POINT_DISAPPEARED,
+)
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown
@@ -66,9 +73,9 @@ RELEASE = "nation.release"
 BREAKAWAY = "nation.breakaway"
 CLAIMS_DECLARED = "nation.claims_declared"
 
-NATION_CONTROL = "faction.nation_control_changed"
+NATION_CONTROL = NATION_CONTROL_CHANGED.event_type
 BREAKAWAY_PARENT_CHANGED = "nation.breakaway_parent_changed"
-CONTROLLER_CHANGED = "control_point.controller_changed"
+CONTROLLER_CHANGED = CONTROLLER_CHANGED_KIND.event_type
 EXECUTIVE_RECORDED = "nation.executive_change_recorded"
 UNREST_ATTEMPTS = "nation.unrest_attempts_changed"
 STATISTIC_SHIFTED = "nation.statistic_shifted"
@@ -83,7 +90,11 @@ TAKEOVER_SCOPES = ("executive", "sole")
 """The ``faction.nation_control_changed`` scopes that anchor a takeover; a plurality is not control."""
 INDEPENDENCE_CAUSE = "Independence"
 """A control change with this cause belongs to the release and breakaway rule, not to a takeover."""
-TAKEOVER_COUNCILOR_TYPES = ("councilor.faction_changed", "councilor.disappeared", "councilor.detaining_faction_changed")
+TAKEOVER_COUNCILOR_TYPES = (
+    COUNCILOR_FACTION_CHANGED.event_type,
+    COUNCILOR_DISAPPEARED.event_type,
+    DETAINING_FACTION_CHANGED.event_type,
+)
 PRECURSOR_STATISTICS = frozenset({"unrest", "publicOpinion"})
 TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of ADR-0010."""
@@ -96,7 +107,7 @@ MERGED_EITHER = frozenset({TERRITORY_GAINED, TERRITORY_LOST, RENAMED, SPACE_ASSE
 """Events of either merged nation that the merger carries in its interval."""
 MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, POPULATION_CHANGED, PCGDP_TREND})
 """Events of the absorbed nation only that the merger carries in its interval."""
-MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED})
+MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED.event_type, LOSS_RECORDED.event_type})
 MERGED_ARMIES = frozenset({ARMY_APPEARED, ARMY_DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED})
 MERGER_CARRIED = tuple(
     sorted(

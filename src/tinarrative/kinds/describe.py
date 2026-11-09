@@ -18,13 +18,15 @@ from ..model.values import FrozenMap, Observed, Unknown
 from .registry import KINDS, kind_of
 from .text import attribute_label as _attr
 from .text import attribute_text as _text
+from .text import entity as _entity
+from .text import list_changed as _list_changed
+from .text import name as _name
 from .text import plain as _plain
+from .text import presence as _presence
+from .text import presence_with as _presence_with
 from .text import render_event_value
 from .text import subject_label as _subject
 from .text import transition_label as _transition
-
-ABSENT = "is absent from the after snapshot"
-PRESENT = "is present only in the after snapshot"
 
 
 def describe_event(event: Event) -> str:
@@ -50,50 +52,6 @@ def _ascii(text: str) -> str:
     if text.isascii():
         return text
     return "".join(char if char.isascii() else f"\\u{ord(char):04x}" for char in text)
-
-
-def _entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
-    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
-    return matches[skip] if len(matches) > skip else None
-
-
-def _name(ref: EntityRef | None) -> str:
-    return ref.label() if ref is not None else "null"
-
-
-def _presence(event: Event) -> str:
-    return PRESENT if event.attribute("side") == "after" else ABSENT
-
-
-def _controller_changed(event: Event) -> str:
-    text = f"{_subject(event)} ({_name(_entity(event, EntityDomain.NATION))}) {_transition(event, 'controller')}"
-    recorded = event.attribute("loss_recorded_on")
-    if not isinstance(recorded, Unknown):
-        text += f"; loss recorded by {_attr(event, 'before')} on {_text(event, 'loss_recorded_on')}"
-    return text
-
-
-def _control_point_presence(event: Event) -> str:
-    nation = _name(_entity(event, EntityDomain.NATION))
-    faction = _name(_entity(event, EntityDomain.FACTION))
-    return f"{_subject(event)} ({nation}, controller {faction}) {_presence(event)}"
-
-
-def _loss_recorded(event: Event) -> str:
-    faction = _name(_entity(event, EntityDomain.FACTION))
-    text = f"{faction} records {_subject(event)} as lost on {_text(event, 'recorded_on')}"
-    if not isinstance(event.attribute("previous_recorded_on"), Unknown):
-        text += f" (previously {_text(event, 'previous_recorded_on')})"
-    return text
-
-
-def _list_changed(event: Event) -> str:
-    field = event.sources[0].change.field if event.sources else "list"
-    transition = event.attribute("transition")
-    if transition == "unresolved":
-        return f"{_subject(event)} {_transition(event, f'{field} list')}"
-    sign = "+" if transition == "added" else "-"
-    return f"{_subject(event)} {field} list: {sign}{_attr(event, 'member')}"
 
 
 def _relation_changed(event: Event) -> str:
@@ -162,17 +120,6 @@ def _finished_projects_changed(event: Event) -> str:
     if isinstance(event.attribute("member"), Unknown):
         return f"{_subject(event)} {_transition(event, 'finished project list')}"
     return f"{_subject(event)} finished project list: -{_attr(event, 'member')}"
-
-
-def _councilor_field(label: str) -> Callable[[Event], str]:
-    def describe(event: Event) -> str:
-        return f"{_subject(event)} ({_name(_entity(event, EntityDomain.FACTION))}) {_transition(event, label)}"
-
-    return describe
-
-
-def _councilor_presence(event: Event) -> str:
-    return f"{_subject(event)} (faction {_name(_entity(event, EntityDomain.FACTION))}) {_presence(event)}"
 
 
 def _side_list(event: Event) -> str:
@@ -300,10 +247,6 @@ def _annexation(event: Event) -> str:
     return f"{_subject(event)} annexed {_regions(event)} of {_name(_entity(event, EntityDomain.NATION))}"
 
 
-def _nation_control_changed(event: Event) -> str:
-    return f"{_subject(event)} {_transition(event, _text(event, 'scope') + ' control changed')}"
-
-
 def _hab_presence(event: Event) -> str:
     text = _presence_with(EntityDomain.FACTION, "faction")(event)
     if not isinstance(event.attribute("projected_completion"), Unknown):
@@ -356,10 +299,6 @@ def _with_context(label: str, domain: EntityDomain, prefix: str = "") -> Callabl
         return f"{_subject(event)} ({prefix}{_name(_entity(event, domain))}) {_transition(event, label)}"
 
     return describe
-
-
-def _presence_with(domain: EntityDomain, prefix: str) -> Callable[[Event], str]:
-    return lambda event: f"{_subject(event)} ({prefix} {_name(_entity(event, domain))}) {_presence(event)}"
 
 
 def _army_presence(event: Event) -> str:
@@ -630,13 +569,6 @@ def _technology_milestone(event: Event) -> str:
 
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     # The types not yet migrated to a kind.
-    "control_point.controller_changed": _controller_changed,
-    "control_point.nation_changed": _plain("nation"),
-    "control_point.appeared": _control_point_presence,
-    "control_point.disappeared": _control_point_presence,
-    "control_point.loss_recorded": _loss_recorded,
-    "faction.control_points_changed": _list_changed,
-    "nation.control_points_changed": _list_changed,
     "region.nation_changed": _plain("nation"),
     "nation.capital_changed": _plain("capital"),
     "nation.relation_changed": _relation_changed,
@@ -675,19 +607,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.new_government_recorded": _new_government_recorded,
     "nation.nuclear_program_changed": _plain("nuclear program"),
     "nation.policy_changed": _policy_changed,
-    "councilor.faction_changed": _plain("faction"),
-    "councilor.status_changed": _councilor_field("status"),
-    "councilor.location_changed": _councilor_field("location"),
-    "councilor.detaining_faction_changed": _councilor_field("detaining faction"),
-    "councilor.appeared": _councilor_presence,
-    "councilor.disappeared": _councilor_presence,
-    "faction.councilors_changed": _list_changed,
-    "organization.appeared": _presence_with(EntityDomain.REGION, "home region"),
-    "organization.disappeared": _presence_with(EntityDomain.REGION, "home region"),
-    "organization.assigned_councilor_changed": _plain("assigned councilor"),
-    "organization.faction_orbit_changed": _plain("faction orbit"),
-    "councilor.orgs_changed": _list_changed,
-    "faction.unassigned_orgs_changed": _list_changed,
     "army.region_changed": _with_context("region", EntityDomain.FACTION),
     "army.faction_changed": _with_context("faction", EntityDomain.REGION, "in "),
     "army.destroyed_changed": _with_context("destroyed flag", EntityDomain.FACTION),
@@ -740,7 +659,6 @@ _TEMPLATES: dict[str, Callable[[Event], str]] = {
     "nation.independence": _independence,
     "nation.unification": _unification,
     "nation.annexation": _annexation,
-    "faction.nation_control_changed": _nation_control_changed,
     "hab.established": _hab_established,
     "faction.first_hab_on_body": _first_hab_on_body,
     "hab.destroyed": _hab_destroyed,

@@ -6,6 +6,14 @@ corroboration; only unexplained list changes are reported on their own. Which ac
 
 from __future__ import annotations
 
+from ...kinds.control import (
+    ASSIGNED_COUNCILOR_CHANGED,
+    COUNCILOR_ORGS_CHANGED,
+    FACTION_ORBIT_CHANGED,
+    ORGANIZATION_APPEARED,
+    ORGANIZATION_DISAPPEARED,
+    UNASSIGNED_ORGS_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event, SourceRole
@@ -25,18 +33,11 @@ from ..common import (
     value_transition_event,
 )
 
-APPEARED = "organization.appeared"
-DISAPPEARED = "organization.disappeared"
-ASSIGNED_COUNCILOR_CHANGED = "organization.assigned_councilor_changed"
-FACTION_ORBIT_CHANGED = "organization.faction_orbit_changed"
-COUNCILOR_ORGS_CHANGED = "councilor.orgs_changed"
-UNASSIGNED_ORGS_CHANGED = "faction.unassigned_orgs_changed"
-
 HANDLED_LISTS = (
     (EntityDomain.COUNCILOR, "orgs"),
     (EntityDomain.FACTION, "unassignedOrgs"),
 )
-LIST_EVENT_TYPES = {"orgs": COUNCILOR_ORGS_CHANGED, "unassignedOrgs": UNASSIGNED_ORGS_CHANGED}
+LIST_KINDS = {"orgs": COUNCILOR_ORGS_CHANGED, "unassignedOrgs": UNASSIGNED_ORGS_CHANGED}
 
 
 class OrganizationAnalyzer:
@@ -64,8 +65,8 @@ class OrganizationAnalyzer:
             if event is not None:
                 events.append(event)
         for change, member, transition in ledger.leftovers():
-            event_type = LIST_EVENT_TYPES[change.field or ""]
-            events.append(list_changed_event(event_type, change, member, transition, lookup, build))
+            kind = LIST_KINDS[change.field or ""]
+            events.append(list_changed_event(kind, change, member, transition, lookup, build))
         return events
 
 
@@ -116,7 +117,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         if cited is not None:
             sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        ORGANIZATION_APPEARED if appeared else ORGANIZATION_DISAPPEARED,
         id_parts=(org_id,),
         sources=sources,
         entities=(lookup.ref(org_id), lookup.ref_field(org_id, "homeRegion", side), councilor),

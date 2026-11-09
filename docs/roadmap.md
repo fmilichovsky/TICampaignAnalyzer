@@ -146,7 +146,7 @@ Tracking #249.
   - [ ] Technology family (#320).
   - [ ] Space family (#321).
   - [ ] Nations family (#322).
-  - [ ] Control family (#323).
+  - [x] Control family (#323).
   - [ ] Wars and federations family (#324).
   - [ ] Narrative-event kinds (#325).
   - [ ] Cleanup (#326).

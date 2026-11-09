@@ -1,6 +1,5 @@
 """Rule-based, evidence-backed event reconstruction."""
 
-from .control import NATION_CONTROL_CHANGED
 from .control import RULE_TYPES as CONTROL_RULE_TYPES
 from .inference import infer_events
 from .space import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED
@@ -21,7 +20,6 @@ __all__ = [
     "HAB_ESTABLISHED",
     "ID_ATTRIBUTES",
     "INDEPENDENCE",
-    "NATION_CONTROL_CHANGED",
     "RULE_TYPES",
     "TERRITORY_GAINED",
     "TERRITORY_LOST",

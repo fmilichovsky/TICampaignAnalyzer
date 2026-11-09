@@ -21,12 +21,12 @@ from tests.analyzers.support import (
 )
 from tests.reconstruction.support import Scenario, assert_traceable, lines_of, run
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Significance, SourceRole
 from tinarrative.model.records import KeyedEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown, UnknownReason
-from tinarrative.reconstruction import NATION_CONTROL_CHANGED
 
 POINT = EntityDomain.CONTROL_POINT
 NATION = "20"
@@ -110,13 +110,15 @@ def loss_record(save: str, point: str, date: str | None) -> tuple[RecordSet, ...
 
 
 def control(events: list[Event], scope: str) -> Event:
-    matches = [event for event in by_type(events, NATION_CONTROL_CHANGED) if event.attribute("scope") == scope]
+    matches = [
+        event for event in by_type(events, NATION_CONTROL_CHANGED.event_type) if event.attribute("scope") == scope
+    ]
     assert len(matches) == 1, [event.id for event in events]
     return matches[0]
 
 
 def scopes(events: list[Event]) -> list[str]:
-    return sorted(str(event.attribute("scope")) for event in by_type(events, NATION_CONTROL_CHANGED))
+    return sorted(str(event.attribute("scope")) for event in by_type(events, NATION_CONTROL_CHANGED.event_type))
 
 
 def faction_key(value: Observed) -> str | None:
@@ -219,7 +221,7 @@ def test_an_executive_seat_changing_hands_is_the_executive_scope_only() -> None:
     assert scopes(inferred) == ["executive"]
     event = control(inferred, "executive")
     assert event.status is EventStatus.INFERRED and event.confidence is Confidence.MEDIUM
-    assert event.id == f"{NATION_CONTROL_CHANGED}/nation:20/executive"
+    assert event.id == f"{NATION_CONTROL_CHANGED.event_type}/nation:20/executive"
     assert faction_key(event.attribute("before")) == "15" and faction_key(event.attribute("after")) == "16"
     assert event.attribute("shares_before") == FrozenMap((("faction:15", 3),))
     assert event.attribute("shares_after") == FrozenMap((("faction:15", 2), ("faction:16", 1)))
@@ -339,7 +341,7 @@ def test_a_disagreeing_executive_record_is_quoted_but_neither_dates_nor_raises()
 def test_an_unresolved_point_makes_every_scope_low() -> None:
     _, inferred = run(unresolved_point())
     assert scopes(inferred) == ["executive", "plurality", "sole"]
-    assert {event.confidence for event in by_type(inferred, NATION_CONTROL_CHANGED)} == {Confidence.LOW}
+    assert {event.confidence for event in by_type(inferred, NATION_CONTROL_CHANGED.event_type)} == {Confidence.LOW}
     assert faction_key(control(inferred, "executive").attribute("after")) == "16"
     assert isinstance(control(inferred, "plurality").attribute("after"), Unknown)
 
