@@ -151,7 +151,7 @@ Tracking #249.
   - [x] Foundation and the aliens family (#317).
   - [x] Campaign and faction families (#318).
   - [x] Military family (#319).
-  - [ ] Technology family (#320).
+  - [x] Technology family (#320).
   - [ ] Space family (#321).
   - [ ] Nations family (#322).
   - [ ] Control family (#323).

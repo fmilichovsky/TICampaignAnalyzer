@@ -35,8 +35,8 @@ def test_every_declared_kind_has_exactly_one_entry() -> None:
     assert all(KINDS[kind.event_type] is kind for family in FAMILIES for kind in family)
 
 
-def test_every_atomic_kind_declares_a_base_level() -> None:
-    assert all(kind.base is not None for kind in KINDS.values())
+def test_every_kind_declares_a_base_level_or_context_rule() -> None:
+    assert all(kind.base is not None or kind.rule is not None for kind in KINDS.values())
 
 
 def test_the_constructor_keeps_required_and_optional_attributes_in_order() -> None:
