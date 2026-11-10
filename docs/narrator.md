@@ -64,15 +64,16 @@ edit it there, not here. Its SHA-256 is the prompt version
 ## Councilor articles
 
 [`tinarrative councilors`](commands/councilors.md) uses a second, shorter prompt
-for the public-perception articles about notable councilors. It receives the
-councilor dossier's header and one councilor's entry per request, and asks for
+for the public-perception articles about notable councilors. It receives a
+councilor brief per request, the dossier's date and one councilor's entry
+without the dossier's audit fields, and asks for
 a neutral encyclopedia entry: a lead, then background, career and public
 profile, at the length `councilors.article_words` sets. Its rules answer the
-dossier's shape: template names become prose, skills and tiers are described
+brief's shape: keys become prose, skills and tiers are described
 qualitatively and never as numbers, pronouns come from the dossier's gender,
 organizations are leading roles rather than possessions and only the significant
 ones are named, the faction is the camp the public places the person in rather
-than a membership, a list of audit words is banned from the text, and loyalty
+than a membership, a list of giveaway words is banned from the text, and loyalty
 or hidden allegiance is never mentioned (the dossier never carries it either). The
 dossier's visibility level frames the article as a celebrity's, a private person's or a
 near-rumor's. As with the history prompt, stable

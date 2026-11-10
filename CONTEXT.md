@@ -120,9 +120,14 @@ A run of whole periods of the narrator package, small enough to be told in one m
 _Avoid_: section (a section is one period inside a chapter), part
 
 **Councilor article**:
-A neutral, public-perception piece about one notable councilor, told from the councilor dossier in one model
+A neutral, public-perception piece about one notable councilor, told from its councilor brief in one model
 request.
 _Avoid_: profile, biography
+
+**Councilor brief**:
+The model-facing rendering of the councilor dossier's header and one entry, embedded in the article request. The
+only layer that omits, rewords or bands what the dossier holds; it is not a file of its own.
+_Avoid_: summary, prompt data
 
 **Run directory**:
 The folder a narration writes and later reads back: its plan or dossier, one request per chapter or article, one

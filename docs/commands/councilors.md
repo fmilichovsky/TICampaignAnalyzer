@@ -71,8 +71,10 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 
 ## Requests
 
-Each request holds the dossier header and one councilor's entry, with a request block naming the
-councilor, the faction and the length (`about <councilors.article_words> words`). The system
+Each request holds the councilor brief: the dossier date and one councilor's entry, without the
+dossier's audit data (identifiers, templates, the selection, the source file, the player flag,
+experience, prominence and the concealment score). A request block names the councilor, the
+faction and the length (`about <councilors.article_words> words`). The system
 prompt asks for an encyclopedia entry about the person's public standing: a lead, then background,
 career and public profile ([llm](../narrator.md#councilor-articles)). The same dossier always
 gives the same request files, so a request can be reviewed, or run by hand against any model.

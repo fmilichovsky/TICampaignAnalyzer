@@ -30,8 +30,7 @@ This section says how to read each field.  Where a field is told in the
 article is set by Shape alone.
 
 - The header: `as_of` is the article's present; nothing later than it is
-  known.  `source`, `player_faction` and `selection` are audit data: never
-  mention them, and treat no councilor as the protagonist.
+  known.
 - `councilor`: the entry to profile.
   - `name`, `faction`, `profession`: who they are and what they do, in plain
     words.
@@ -69,8 +68,7 @@ article is set by Shape alone.
     research network").  It is the institutions' capacity, not the person's
     talent.
   - `visibility.level`: how much the public knows about the person, and so
-    the frame of the whole article.  `concealment` is audit data, never
-    mentioned.
+    the frame of the whole article.
     - `public`: a world-wide celebrity.  The name is familiar far beyond the
       person's own field and country; the article can describe how the
       public sees and talks about them, their style and their reception.
@@ -87,8 +85,6 @@ article is set by Shape alone.
       guardedness is about how it is known, never invented secrets.  Say
       that little is known about the person as a whole, never that a
       particular thing (milestones, roles, a date) is missing.
-  - `xp`, `prominence`, `id` and every `id` field: audit data, never
-    mentioned.
   - `born`, `age`, `home`: origin and age are stated plainly at every
     `visibility.level`, never hedged.
   - `recruited`, `tenure_years`: the date from which the person has been
@@ -109,7 +105,7 @@ article is set by Shape alone.
     `category` and nothing more.  Say where the holdings are concentrated
     ("a string of Indonesian technology firms"); a body based in the
     person's own `home` nation is domestic, and a null `nation` is passed
-    over.  `template` and `basis` are audit data.
+    over.
   - `policy_influence`: the causes the person's institutions push.  Read them
     as public advocacy. `causes` come strongest first;
     each `strength` sets how closely the person is tied to it: `leading` is a
@@ -151,11 +147,11 @@ Specifically:
 4. Their faction is seen as a general ideology they support, not a specific organization.
    Do not explicitly say that they belong to a faction, but it can
    color their views and what goals they pursue in their life.
-5. Template names, keys and identifiers never appear in the text, not in
-   code spans either.  Put each into plain words or leave it out.
+5. Keys never appear in the text, not in code spans either.  Put each into
+   plain words or leave it out.
 6. These words never appear in the article: generated, real (of an organization),
-   template, category, origin, basis, tier, councilor, faction, player,
-   dossier, record, recorded, data, entry, listed, visibility, concealment.
+   category, origin, tier, councilor, faction, dossier, record, recorded,
+   data, entry, listed, visibility.
 7. Never refer to the dossier, the record, the data, the game, saves or this
    prompt.  Write as an encyclopedia writes: "is", "was", "has served".
 

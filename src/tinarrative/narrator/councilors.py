@@ -1,7 +1,7 @@
 """Councilor articles: one request per dossier entry and their assembly into ``councilors.md`` with a manifest.
 
-Reads the dossier as a plain dict; the requests are a function of the dossier alone, so the assembly recomputes
-each request hash instead of keeping a plan.
+Reads the dossier as a plain dict; each request embeds a councilor brief and is a function of the dossier alone,
+so the assembly recomputes each request hash instead of keeping a plan.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from datetime import datetime
 from typing import Any
 
 from .assembly import KEPT_FINISHES, SENT_WITH, provider_lines, sent_settings, timestamp
+from .brief import councilor_brief
 from .request import digest, render_request
 from .request import prompt_version as _prompt_version
 from .request import system_prompt as _system_prompt
@@ -21,7 +22,6 @@ from .request import system_prompt as _system_prompt
 PROMPT_FILE = "councilor_prompt.md"
 ARTICLE_KEYS = ("councilor", "faction", "length")
 """The request block in order; ``councilor`` and ``faction`` come from the entry, ``length`` from the settings."""
-HEADER_KEYS = ("as_of", "source", "player_faction", "selection")
 TITLE = "# Councilor profiles"
 
 _HEADING = re.compile(r"^ {0,3}#{1,6}\s")
@@ -61,7 +61,7 @@ def article_options(dossier: Mapping[str, Any]) -> dict[str, str]:
 def build_article_request(
     dossier: Mapping[str, Any], index: int, options: Mapping[str, str] | None = None
 ) -> dict[str, Any]:
-    """The request for the councilor at 1-based ``index`` in dossier order: the header and that entry alone.
+    """The request for the councilor at 1-based ``index`` in dossier order: the brief of that entry alone.
 
     ``options`` defaults to ``article_options``; ``councilor`` and ``faction`` are always taken from the entry.
     """
@@ -75,8 +75,7 @@ def build_article_request(
     entry = entries[index - 1]
     values = {"councilor": entry["name"], "faction": entry.get("faction") or "unknown", **given}
     block = "\n".join(f"{key}: {values[key]}" for key in ARTICLE_KEYS if values.get(key))
-    embedded = {**{key: dossier.get(key) for key in HEADER_KEYS}, "councilor": entry}
-    body = json.dumps(embedded, ensure_ascii=False, separators=(",", ":"))
+    body = json.dumps(councilor_brief(dossier, entry), ensure_ascii=False, separators=(",", ":"))
     content = (
         f"{block}\n\nThe councilor dossier follows: its header and the entry to profile.\n\n```json\n{body}\n```\n"
     )
