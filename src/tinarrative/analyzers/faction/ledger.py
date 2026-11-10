@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 
+from ...kinds import faction as faction_kinds
 from ...log import fields as log_fields
 from ...log import get_logger
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
@@ -26,7 +27,7 @@ from ..common import EventBuilder, Lookup, Side
 logger = get_logger(__name__)
 
 LEDGER_FIELD = "Transactions"
-TRANSACTION_RECORDED = "faction.transaction_recorded"
+TRANSACTION_RECORDED = faction_kinds.TRANSACTION_RECORDED.event_type
 
 ALLOWED_LABELS = ALLOWED_LEDGER_LABELS
 
@@ -109,7 +110,7 @@ def _ledger_events(
             continue
         events.append(
             build.event(
-                TRANSACTION_RECORDED,
+                faction_kinds.TRANSACTION_RECORDED,
                 id_parts=(faction_id, entry.label, entry.index),  # the index is per label list
                 sources=(_source(change, after_set, entry),),
                 entities=(owner,),

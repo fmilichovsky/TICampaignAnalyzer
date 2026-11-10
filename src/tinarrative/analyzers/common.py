@@ -240,6 +240,7 @@ class EventBuilder:
         self,
         event_type: EventKind | str,
         *,
+        type_id: str | None = None,
         id_parts: Sequence[object],
         sources: Iterable[EventSource],
         entities: Iterable[EntityRef | None],
@@ -252,11 +253,18 @@ class EventBuilder:
         """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it.
 
         Events naming a faction carry ``faction_kinds`` (alien or human): snapshot context, never evidence. A kind's
-        attributes are checked by its constructor; a bare type string is not yet migrated to a kind.
+        attributes are checked by its constructor; a bare type string is not yet migrated to a kind. A prefix kind
+        (``notification.*``) takes the concrete ``type_id`` the save supplied; an exact kind takes none.
         """
         if isinstance(event_type, EventKind):
-            attributes = kind_attributes(event_type, attributes)
-            event_type = event_type.event_type
+            kind = event_type
+            if kind.is_prefix:
+                if type_id is None or not type_id.startswith(kind.prefix):
+                    raise ValueError(f"event type {type_id} does not match prefix kind {kind.event_type}")
+            elif type_id is not None:
+                raise ValueError(f"kind {kind.event_type} is exact; it takes no type_id ({type_id})")
+            attributes = kind_attributes(kind, attributes)
+            event_type = type_id if type_id is not None else kind.event_type
         date: Observed = self.observed
         basis = DateBasis.INTERVAL
         if isinstance(recorded_on, str):
@@ -325,7 +333,7 @@ def transition_attributes(change: StateChange, transition: Transition) -> tuple[
 
 
 def value_transition_event(
-    event_type: str,
+    event_type: EventKind | str,
     change: StateChange,
     lookup: Lookup,
     build: EventBuilder,
@@ -371,7 +379,7 @@ def mirrored_sources(
 
 
 def list_changed_event(
-    event_type: str,
+    event_type: EventKind | str,
     change: StateChange,
     member: Observed,
     transition: Transition,

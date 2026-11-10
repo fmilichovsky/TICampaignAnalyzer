@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
+from tinarrative.kinds import attributes as kind_attributes
+from tinarrative.kinds import kind_for
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import (
@@ -66,6 +68,18 @@ def state_change(subject: EntityRef, field: str = "population") -> StateChange:
     )
 
 
+def declared_attributes(
+    event_type: str, attributes: Iterable[tuple[str, Observed]]
+) -> tuple[tuple[str, Observed], ...]:
+    """``attributes`` checked by the type's kind, its required keys the test left out filled with ``Unknown``."""
+    values = tuple(attributes)
+    kind = kind_for(event_type)
+    if kind is None:
+        return values
+    missing = ((name, Unknown()) for name in sorted(kind.required - dict(values).keys()))
+    return kind_attributes(kind, (*missing, *values))
+
+
 def atomic(
     raw_id: str,
     key: str,
@@ -83,9 +97,11 @@ def atomic(
 ) -> Event:
     """An event of the interval ``key``, already qualified as ``run_sequence`` yields it; dated by ``key`` unless a
     ``date`` is given."""
+    event_type = raw_id.split("/")[0]
+    event_attributes = declared_attributes(event_type, attributes)
     return Event(
         id=qualified_id(raw_id, key),
-        event_type=raw_id.split("/")[0],
+        event_type=event_type,
         status=status,
         confidence=confidence,
         date=key if date is None else date,
@@ -93,7 +109,7 @@ def atomic(
         not_before=not_before,
         sources=tuple(sources),
         entities=tuple(entities),
-        attributes=tuple(attributes),
+        attributes=event_attributes,
         significance=significance,
         score=score,
     )

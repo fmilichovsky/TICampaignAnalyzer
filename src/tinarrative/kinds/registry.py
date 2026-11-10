@@ -7,9 +7,9 @@ from types import MappingProxyType
 
 from ..model.kinds import EventKind
 from ..model.values import Observed
-from . import aliens
+from . import aliens, campaign, faction
 
-FAMILIES: tuple[tuple[EventKind, ...], ...] = (aliens.KINDS,)
+FAMILIES: tuple[tuple[EventKind, ...], ...] = (aliens.KINDS, campaign.KINDS, faction.KINDS)
 
 
 def _registry(families: Iterable[Iterable[EventKind]]) -> Mapping[str, EventKind]:
@@ -23,6 +23,16 @@ def _registry(families: Iterable[Iterable[EventKind]]) -> Mapping[str, EventKind
 
 
 KINDS: Mapping[str, EventKind] = _registry(FAMILIES)
+"""Every kind by its declared type; a prefix kind is keyed by its pattern (``notification.*``)."""
+PREFIX_KINDS: tuple[EventKind, ...] = tuple(kind for kind in KINDS.values() if kind.is_prefix)
+
+
+def kind_for(event_type: str) -> EventKind | None:
+    """Return the exact declaration, else the prefix kind covering the type (a save-supplied notification type)."""
+    exact = KINDS.get(event_type)
+    if exact is not None:
+        return exact
+    return next((kind for kind in PREFIX_KINDS if event_type.startswith(kind.prefix)), None)
 
 
 def attributes(

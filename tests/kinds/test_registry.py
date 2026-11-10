@@ -9,9 +9,9 @@ import pytest
 from tests.analyzers.support import AFTER, BEFORE, snapshot
 from tests.fixtures import FIXTURES_ROOT
 from tinarrative.analyzers.common import EventBuilder
-from tinarrative.kinds import KINDS, attributes, known_event_types
-from tinarrative.kinds.describe import NOTIFICATION_PREFIX
-from tinarrative.kinds.registry import FAMILIES
+from tinarrative.kinds import KINDS, attributes, describe_event, kind_for, known_event_types
+from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
+from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
 from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
@@ -70,6 +70,70 @@ def test_an_emitter_passing_a_kind_gets_its_attributes_checked() -> None:
         build.event(KIND, id_parts=("1",), sources=(), entities=(), attributes=(("before", 1),))
 
 
+def test_a_type_resolves_to_its_exact_kind_before_a_prefix_kind() -> None:
+    assert kind_for("notification.unknown_template") is NOTIFICATION_UNKNOWN_TEMPLATE
+    assert kind_for("notification.LogHabDestroyed") is NOTIFICATION_ENTRY
+    assert kind_for("campaign.nothing_like_this") is None
+    assert PREFIX_KINDS == (NOTIFICATION_ENTRY,)
+    assert "notification.*" not in known_event_types()
+
+
+def _entry_attributes() -> tuple[tuple[str, Unknown], ...]:
+    return tuple((key, Unknown()) for key in sorted(NOTIFICATION_ENTRY.required))
+
+
+def test_a_prefix_kind_takes_the_concrete_type_the_save_supplied() -> None:
+    build = EventBuilder(snapshot(BEFORE), snapshot(AFTER))
+    event = build.event(
+        NOTIFICATION_ENTRY,
+        type_id="notification.LogHabDestroyed",
+        id_parts=("1",),
+        sources=(),
+        entities=(),
+        attributes=_entry_attributes(),
+    )
+    assert event.event_type == "notification.LogHabDestroyed"
+
+
+@pytest.mark.parametrize("type_id", [None, "campaign.global_value_changed"])
+def test_a_prefix_kind_raises_without_a_type_under_its_prefix(type_id: str | None) -> None:
+    build = EventBuilder(snapshot(BEFORE), snapshot(AFTER))
+    with pytest.raises(ValueError, match="prefix kind"):
+        build.event(
+            NOTIFICATION_ENTRY,
+            type_id=type_id,
+            id_parts=("1",),
+            sources=(),
+            entities=(),
+            attributes=_entry_attributes(),
+        )
+
+
+def test_an_exact_kind_raises_when_given_a_type() -> None:
+    build = EventBuilder(snapshot(BEFORE), snapshot(AFTER))
+    with pytest.raises(ValueError, match="exact"):
+        build.event(
+            NOTIFICATION_UNKNOWN_TEMPLATE,
+            type_id="notification.other",
+            id_parts=("1",),
+            sources=(),
+            entities=(),
+            attributes=_entry_attributes(),
+        )
+
+
+def test_interstate_wars_read_as_a_list_change() -> None:
+    build = EventBuilder(snapshot(BEFORE), snapshot(AFTER))
+    event = build.event(
+        INTERSTATE_WARS_CHANGED,
+        id_parts=("1",),
+        sources=(),
+        entities=(),
+        attributes=(("transition", "added"), ("member", "war:1")),
+    )
+    assert describe_event(event).endswith('list list: +"war:1"')
+
+
 @pytest.mark.parametrize("pair", PAIRS)
 def test_every_emitted_type_matches_exactly_one_kind_or_table_entry(pair: str) -> None:
     plan = plan_sequence([survey(FIXTURE_DIR / f"{pair}_before.json"), survey(FIXTURE_DIR / f"{pair}_after.json")])
@@ -81,7 +145,7 @@ def test_every_emitted_type_matches_exactly_one_kind_or_table_entry(pair: str) -
     for event_type in emitted:
         homes = [
             event_type in KINDS,
+            event_type not in KINDS and kind_for(event_type) is not None,
             event_type in legacy,
-            event_type.startswith(NOTIFICATION_PREFIX) and event_type not in legacy,
         ]
         assert homes.count(True) == 1, (event_type, homes)

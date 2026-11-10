@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import re
 
+from ...kinds import campaign as campaign_kinds
 from ...kinds.describe import NOTIFICATION_PREFIX
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
@@ -111,9 +112,16 @@ def _log_events(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
     for entry in detail.added:
         if not isinstance(entry, NotificationEntry):
             continue
+        event_type = entry_event_type(entry.template)
+        event_kind = (
+            campaign_kinds.NOTIFICATION_UNKNOWN_TEMPLATE
+            if event_type == UNKNOWN_TEMPLATE
+            else campaign_kinds.NOTIFICATION_ENTRY
+        )
         events.append(
             build.event(
-                entry_event_type(entry.template),
+                event_kind,
+                type_id=event_type if event_kind.is_prefix else None,
                 id_parts=(owner_id, entry.index),  # the index tells identical entries apart
                 sources=(_source(change, after_set, entry),),
                 entities=(owner, lookup.resolve(entry.subject)),
@@ -127,7 +135,7 @@ def _log_events(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
             continue
         events.append(
             build.event(
-                ENTRY_REMOVED,
+                campaign_kinds.NOTIFICATION_ENTRY_REMOVED,
                 id_parts=(owner_id, entry.index),
                 sources=(_source(change, before_set, entry),),
                 entities=(owner, lookup.resolve(entry.subject)),
@@ -140,7 +148,7 @@ def _log_events(change: StateChange, detail: RecordsDetail, lookup: Lookup, buil
             continue
         events.append(
             build.event(
-                ENTRY_CHANGED,
+                campaign_kinds.NOTIFICATION_ENTRY_CHANGED,
                 id_parts=(owner_id, new.index),
                 sources=(_source(change, after_set, new),),
                 entities=(owner, lookup.resolve(old.subject), lookup.resolve(new.subject)),
@@ -164,7 +172,7 @@ def _presence(change: StateChange, lookup: Lookup, build: EventBuilder) -> Event
     owner_id, owner = _owner(change, lookup)
     side = Side.AFTER if appeared else Side.BEFORE
     return build.event(
-        QUEUE_APPEARED if appeared else QUEUE_DISAPPEARED,
+        campaign_kinds.NOTIFICATION_QUEUE_APPEARED if appeared else campaign_kinds.NOTIFICATION_QUEUE_DISAPPEARED,
         id_parts=(owner_id,),
         sources=(primary(change),),
         entities=(owner,),
@@ -179,7 +187,7 @@ def _value_changed(change: StateChange, lookup: Lookup, build: EventBuilder) -> 
         return None
     owner_id, owner = _owner(change, lookup)
     return build.event(
-        QUEUE_VALUE_CHANGED,
+        campaign_kinds.NOTIFICATION_QUEUE_VALUE_CHANGED,
         id_parts=(owner_id, change.field),
         sources=(primary(change),),
         entities=(owner,),

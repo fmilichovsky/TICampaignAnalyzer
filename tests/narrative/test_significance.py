@@ -20,7 +20,7 @@ from tests.analyzers.support import (
     snapshot,
     state,
 )
-from tests.narrative.support import ref
+from tests.narrative.support import declared_attributes, ref
 from tinarrative.analyzers import POLITICS_ANALYZERS, run_analyzers
 from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.common import Lookup
@@ -52,6 +52,7 @@ ARMY = EntityDomain.ARMY
 
 def bare_event(event_type: str, **attributes: Observed) -> Event:
     """An event of ``event_type`` with no sources and no entities; the rules must cope with it."""
+    values = declared_attributes(event_type, attributes.items())
     return Event(
         id=f"{event_type}/x",
         event_type=event_type,
@@ -62,7 +63,7 @@ def bare_event(event_type: str, **attributes: Observed) -> Event:
         not_before=Unknown(),
         sources=(),
         entities=(),
-        attributes=tuple(attributes.items()),
+        attributes=values,
     )
 
 
@@ -310,8 +311,8 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
     assert all(event.score == event.significance.base for event in assigned)
 
 
-def test_a_ledger_charge_is_minor_and_named_in_the_table() -> None:
-    assert "faction.transaction_recorded" in BASE  # corroboration only (ADR-0010)
+def test_a_ledger_charge_is_minor_and_named_in_the_kind() -> None:
+    assert KINDS["faction.transaction_recorded"].base is Significance.MINOR  # corroboration only (ADR-0010)
     assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
 
 

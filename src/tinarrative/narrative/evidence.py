@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from ..kinds import KINDS
+from ..kinds import kind_for
 from ..model.kinds import EvidenceRole
 
 __all__ = ["EVIDENCE_PREFIXES", "NARRATOR_EVIDENCE", "is_evidence"]
@@ -45,11 +45,9 @@ _EVIDENCE: tuple[str, ...] = (
     # A nation's new name, and a nation absorbed by its neighbour.
     "nation.renamed",
     "nation.disappeared",
-    # Dated records: a campaign-wide first, a completed technology or project, a ledger charge.
-    "campaign.global_milestone_recorded",
+    # Dated records: a completed technology or project.
     "technology.completed",
     "faction.project_completed",
-    "faction.transaction_recorded",
     # The statistic shifts behind a narrative event's metric_shifts or a takeover's precursors, with their causes.
     "nation.statistic_shifted",
     # The band crossing behind a band-shift narrative event, with the game's band labels and its causes.
@@ -70,15 +68,13 @@ _EVIDENCE: tuple[str, ...] = (
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)
 
 EVIDENCE_PREFIXES: Final[tuple[str, ...]] = (
-    # The game's notification log dates and places a battle or a destroyed hab.
-    "notification.",
     # A councilor defecting, detained or gone is who acted, which no narrative event names.
     "councilor.",
 )
 
 
 def is_evidence(event_type: str) -> bool:
-    kind = KINDS.get(event_type)
+    kind = kind_for(event_type)
     if kind is not None:
         return kind.evidence is EvidenceRole.EVIDENCE
     return event_type in NARRATOR_EVIDENCE or event_type.startswith(EVIDENCE_PREFIXES)
