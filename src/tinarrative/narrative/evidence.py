@@ -46,8 +46,6 @@ _EVIDENCE: tuple[str, ...] = (
     "nation.renamed",
     "nation.disappeared",
     # Dated records: a completed technology or project.
-    "technology.completed",
-    "faction.project_completed",
     # The statistic shifts behind a narrative event's metric_shifts or a takeover's precursors, with their causes.
     "nation.statistic_shifted",
     # The band crossing behind a band-shift narrative event, with the game's band labels and its causes.

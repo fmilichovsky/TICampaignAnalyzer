@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from collections import Counter
 
+from ...kinds import attributes as kind_attributes
+from ...kinds.technology import FACTION_FINISHED_PROJECT_NAMES_CHANGED, FACTION_PROJECT_COMPLETED
 from ...model.changes import ChangeKind, MembershipDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event
@@ -23,8 +25,6 @@ from ..common import (
     transition_attributes,
 )
 
-PROJECT_COMPLETED = "faction.project_completed"
-FINISHED_LIST_CHANGED = "faction.finished_project_names_changed"
 FINISHED_LIST = "finishedProjectNames"
 
 
@@ -50,11 +50,13 @@ def _finished(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[
             return []
         return [
             build.event(
-                FINISHED_LIST_CHANGED,
+                FACTION_FINISHED_PROJECT_NAMES_CHANGED,
                 id_parts=(faction_id, transition.value),
                 sources=(primary(change),),
                 entities=(faction,),
-                attributes=transition_attributes(change, transition),
+                attributes=kind_attributes(
+                    FACTION_FINISHED_PROJECT_NAMES_CHANGED, transition_attributes(change, transition)
+                ),
                 confidence=confidence_for(transition),
             )
         ]
@@ -62,21 +64,26 @@ def _finished(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[
     for name, count in _names(change.detail.added):
         events.append(
             build.event(
-                PROJECT_COMPLETED,
+                FACTION_PROJECT_COMPLETED,
                 id_parts=(faction_id, name),
                 sources=(primary(change, name),),
                 entities=(faction,),
-                attributes=(("project", name), *_count("completions", count)),
+                attributes=kind_attributes(
+                    FACTION_PROJECT_COMPLETED, (("project", name), *_count("completions", count))
+                ),
             )
         )
     for name, count in _names(change.detail.removed):
         events.append(
             build.event(
-                FINISHED_LIST_CHANGED,
+                FACTION_FINISHED_PROJECT_NAMES_CHANGED,
                 id_parts=(faction_id, name, Transition.REMOVED.value),
                 sources=(primary(change, name),),
                 entities=(faction,),
-                attributes=(("member", name), ("transition", Transition.REMOVED.value), *_count("count", count)),
+                attributes=kind_attributes(
+                    FACTION_FINISHED_PROJECT_NAMES_CHANGED,
+                    (("member", name), ("transition", Transition.REMOVED.value), *_count("count", count)),
+                ),
             )
         )
     return events

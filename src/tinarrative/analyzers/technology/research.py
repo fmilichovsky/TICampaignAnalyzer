@@ -6,6 +6,14 @@ the research singleton's ``finishedTechsNames`` membership change only corrobora
 
 from __future__ import annotations
 
+from ...kinds import attributes as kind_attributes
+from ...kinds.technology import (
+    RESEARCH_FINISHED_TECHS_CHANGED,
+    TECHNOLOGY_APPEARED,
+    TECHNOLOGY_COMPLETED,
+    TECHNOLOGY_DISAPPEARED,
+    TECHNOLOGY_FINISHED_CHANGED,
+)
 from ...model.changes import ChangeKind, MembershipDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from ...model.events import Event, EventSource, SourceRole
@@ -21,12 +29,6 @@ from ..common import (
     primary,
     transition_attributes,
 )
-
-COMPLETED = "technology.completed"
-FINISHED_CHANGED = "technology.finished_changed"
-APPEARED = "technology.appeared"
-DISAPPEARED = "technology.disappeared"
-FINISHED_LIST_CHANGED = "research.finished_techs_changed"
 
 RESEARCH_DOMAIN = "research"
 FINISHED_LIST = "finished_techs_names"
@@ -71,11 +73,13 @@ class TechnologyAnalyzer:
                 assert source is not None
                 events.append(
                     build.event(
-                        FINISHED_LIST_CHANGED,
+                        RESEARCH_FINISHED_TECHS_CHANGED,
                         id_parts=(name, transition.value),
                         sources=(source,),
                         entities=(_tech_ref(name, lookup),),
-                        attributes=(("member", name), ("transition", transition.value)),
+                        attributes=kind_attributes(
+                            RESEARCH_FINISHED_TECHS_CHANGED, member=name, transition=transition.value
+                        ),
                     )
                 )
         return events
@@ -99,11 +103,14 @@ def _finished(change: StateChange, lookup: Lookup, names: _Names, build: EventBu
             sources.append(cited)
     completed = change.before is False and change.after is True
     return build.event(
-        COMPLETED if completed else FINISHED_CHANGED,
+        TECHNOLOGY_COMPLETED if completed else TECHNOLOGY_FINISHED_CHANGED,
         id_parts=(tech_id,),
         sources=sources,
         entities=(lookup.ref(tech_id),),
-        attributes=transition_attributes(change, transition),
+        attributes=kind_attributes(
+            TECHNOLOGY_COMPLETED if completed else TECHNOLOGY_FINISHED_CHANGED,
+            transition_attributes(change, transition),
+        ),
         confidence=confidence_for(transition),
     )
 
@@ -126,9 +133,12 @@ def _presence(change: StateChange, lookup: Lookup, names: _Names, build: EventBu
     if not completed:
         attributes += (("finished", finished),)
     return build.event(
-        COMPLETED if completed else APPEARED if appeared else DISAPPEARED,
+        TECHNOLOGY_COMPLETED if completed else TECHNOLOGY_APPEARED if appeared else TECHNOLOGY_DISAPPEARED,
         id_parts=(tech_id,),
         sources=sources,
         entities=(lookup.ref(tech_id),),
-        attributes=attributes,
+        attributes=kind_attributes(
+            TECHNOLOGY_COMPLETED if completed else TECHNOLOGY_APPEARED if appeared else TECHNOLOGY_DISAPPEARED,
+            attributes,
+        ),
     )

@@ -2,7 +2,7 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, snapshot, state
 from tinarrative.analyzers.technology import ProjectAnalyzer
-from tinarrative.analyzers.technology.projects import FINISHED_LIST_CHANGED, PROJECT_COMPLETED
+from tinarrative.kinds.technology import FACTION_FINISHED_PROJECT_NAMES_CHANGED, FACTION_PROJECT_COMPLETED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
 from tinarrative.model.values import Unknown, UnknownReason, freeze
@@ -16,9 +16,12 @@ def test_each_added_name_is_a_completion_and_a_removed_name_a_list_change() -> N
     after = snapshot(AFTER, state(FACTION, "15", AFTER, finishedProjectNames=("Project_A", "Project_C", "Project_D")))
     events = analyze(ANALYZER, before, after)
     assert [(event.event_type, event.id) for event in events] == [
-        (PROJECT_COMPLETED, "faction.project_completed/faction:15/Project_C"),
-        (PROJECT_COMPLETED, "faction.project_completed/faction:15/Project_D"),
-        (FINISHED_LIST_CHANGED, "faction.finished_project_names_changed/faction:15/Project_B/removed"),
+        (FACTION_PROJECT_COMPLETED.event_type, "faction.project_completed/faction:15/Project_C"),
+        (FACTION_PROJECT_COMPLETED.event_type, "faction.project_completed/faction:15/Project_D"),
+        (
+            FACTION_FINISHED_PROJECT_NAMES_CHANGED.event_type,
+            "faction.finished_project_names_changed/faction:15/Project_B/removed",
+        ),
     ]
     completed = events[0]
     assert dict(completed.attributes) == {"project": "Project_C"}

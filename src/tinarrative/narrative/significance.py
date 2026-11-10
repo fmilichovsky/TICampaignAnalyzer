@@ -81,8 +81,6 @@ _TRIVIAL: tuple[str, ...] = (
     # Log housekeeping: the game prunes and rewrites kept combat-log entries.
     "faction.combat_entry_removed",
     # Progress-only technology states come and go with research priorities; completion is its own event.
-    "technology.appeared",
-    "technology.disappeared",
     # A refit date is maintenance bookkeeping.
     "ship.last_refit_date_changed",
     # Leftover list events that mirror an asset's owner field: the owner field already produced the event
@@ -93,7 +91,6 @@ _TRIVIAL: tuple[str, ...] = (
     "fleet.ships_changed",
     "councilor.orgs_changed",
     "faction.unassigned_orgs_changed",
-    "research.finished_techs_changed",
 )
 
 _MINOR: tuple[str, ...] = (
@@ -127,7 +124,6 @@ _MINOR: tuple[str, ...] = (
     # Hostile claims mark regions a nation may take by force: frequent and only a
     # precursor; the war or annexation that follows is the major event.
     "nation.hostile_claims_changed",
-    "faction.finished_project_names_changed",
     # Precursors of a takeover, named by the reconstruction it feeds: unrest attempts per faction and the
     # new-government date, which corroborates the executive record and control-point events.
     "nation.unrest_attempts_changed",
@@ -299,8 +295,6 @@ RULES: Mapping[str, Rule] = {
     "nation.statistic_shifted": Rule.STATISTIC_SHIFTED,
     "nation.population_changed": Rule.POPULATION_CHANGED,
     "nation.space_assets_changed": Rule.SPACE_ASSETS_CHANGED,
-    "technology.completed": Rule.COMPLETION,
-    "faction.project_completed": Rule.COMPLETION,
 }
 """The context rule of a type not yet migrated to a kind; tried before ``BASE``."""
 
