@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..diff.render import render_value
-from ..model.entities import EntityRef
+from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
 from ..model.kinds import Template
 from ..model.values import Observed
@@ -52,3 +52,14 @@ def list_changed(event: Event) -> str:
 def plain(label: str) -> Template:
     """``<subject> <label>: <before> -> <after>``."""
     return lambda event: f"{subject_label(event)} {transition_label(event, label)}"
+
+
+def contextual(label: str, domain: EntityDomain, prefix: str = "") -> Template:
+    """``<subject> (<prefix><context>) <label>: before -> after`` using the first context entity of ``domain``."""
+
+    def describe(event: Event) -> str:
+        context = next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
+        name = context.label() if context is not None else "null"
+        return f"{subject_label(event)} ({prefix}{name}) " + transition_label(event, label)
+
+    return describe

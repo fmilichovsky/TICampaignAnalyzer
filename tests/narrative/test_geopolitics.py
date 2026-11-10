@@ -891,7 +891,7 @@ def test_a_merger_carries_events_skipped_by_every_rule_that_checks_its_parties()
             NORTH,
             event_type,
             attributes=tuple(
-                [("home_nation", home)]
+                ([("home_nation", home)] if event_type.startswith("army.") else [])
                 + ([("deployment_type", "Standard")] if event_type in {"army.appeared", "army.disappeared"} else [])
                 + ([("before", "Standard"), ("after", "Naval")] if event_type == "army.deployment_type_changed" else [])
             ),

@@ -88,9 +88,6 @@ _TRIVIAL: tuple[str, ...] = (
     # Leftover list events that mirror an asset's owner field: the owner field already produced the event
     # (``army.region_changed``, ``fleet.faction_changed``, ``ship.fleet_changed``, ...), and what is left is a
     # mirror entry nothing claimed, typically a list unresolved on one side.
-    "faction.armies_changed",
-    "nation.armies_changed",
-    "region.armies_changed",
     "faction.fleets_changed",
     "hab.docked_fleets_changed",
     "fleet.ships_changed",
@@ -106,7 +103,6 @@ _MINOR: tuple[str, ...] = (
     "fleet.orbit_changed",
     "fleet.barycenter_changed",
     "fleet.docked_location_changed",
-    "army.region_changed",
     # Geopolitical leftover lists: emitted only for an entry no explaining event claimed (the explained cases
     # are ``region.nation_changed``, ``nation.relation_changed``, ``nation.breakaway_parent_changed``,
     # ``control_point.controller_changed``, councilor events, ``war.alliance_changed`` and war presence). They
@@ -163,8 +159,6 @@ _MAJOR: tuple[str, ...] = (
     "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
     "councilor.detaining_faction_changed",
-    "army.faction_changed",
-    "army.destroyed_changed",
     "fleet.faction_changed",
     "hab.faction_changed",
     # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
@@ -305,8 +299,6 @@ RULES: Mapping[str, Rule] = {
     "nation.statistic_shifted": Rule.STATISTIC_SHIFTED,
     "nation.population_changed": Rule.POPULATION_CHANGED,
     "nation.space_assets_changed": Rule.SPACE_ASSETS_CHANGED,
-    "army.appeared": Rule.ARMY_PRESENCE,
-    "army.disappeared": Rule.ARMY_PRESENCE,
     "technology.completed": Rule.COMPLETION,
     "faction.project_completed": Rule.COMPLETION,
 }

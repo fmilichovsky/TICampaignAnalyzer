@@ -150,7 +150,7 @@ Tracking #249.
 - [ ] Event kinds: declare each event type once (#316):
   - [x] Foundation and the aliens family (#317).
   - [x] Campaign and faction families (#318).
-  - [ ] Military family (#319).
+  - [x] Military family (#319).
   - [ ] Technology family (#320).
   - [ ] Space family (#321).
   - [ ] Nations family (#322).
