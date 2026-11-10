@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from tinarrative.narrator import request as narrator_request
+from tinarrative.narrator.brief import councilor_brief
 from tinarrative.narrator.councilors import (
     assemble_articles,
     build_article_request,
@@ -100,7 +101,7 @@ def test_the_doc_points_at_the_packaged_councilor_prompt_instead_of_copying_it()
     assert system_prompt().splitlines()[0] not in doc
 
 
-def test_the_article_request_holds_the_header_and_one_entry() -> None:
+def test_the_article_request_holds_the_brief_of_one_entry() -> None:
     request = build_article_request(DOSSIER, 3)
 
     assert request == build_article_request(json.loads(json.dumps(DOSSIER)), 3)
@@ -108,13 +109,7 @@ def test_the_article_request_holds_the_header_and_one_entry() -> None:
     content = request["messages"][0]["content"]
     assert content.startswith("councilor: Cy Three\nfaction: Fixture Servants\nlength: about 120 words\n\n")
     embedded = json.loads(content.partition("```json\n")[2].rpartition("\n```")[0])
-    assert embedded == {
-        "as_of": DOSSIER["as_of"],
-        "source": "latest.json",
-        "player_faction": "Fixture Resistance",
-        "selection": DOSSIER["selection"],
-        "councilor": DOSSIER["councilors"][2],
-    }
+    assert embedded == councilor_brief(DOSSIER, DOSSIER["councilors"][2])
     assert request_sha256(request) == hashlib.sha256(render_request(request).encode("utf-8")).hexdigest()
 
 

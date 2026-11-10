@@ -87,7 +87,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Public visibility in councilor articles (#284).
 - [ ] Sharpen councilor articles (#395):
   - [x] One home per subject across sections (#396).
-  - [ ] Councilor brief without audit fields (#397).
+  - [x] Councilor brief without audit fields (#397).
   - [ ] Move dossier wording and banding into the brief (#398).
   - [ ] Stances in place of faction names (#399).
   - [ ] Public phrasing for missions (#400).
