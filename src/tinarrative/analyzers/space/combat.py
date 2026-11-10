@@ -7,6 +7,7 @@ assumed pruned. Ship design names are campaign content and are not decoded.
 
 from __future__ import annotations
 
+from ...kinds.space import FACTION_COMBAT_ENTRY_REMOVED, FACTION_COMBAT_RECORDED
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -16,8 +17,8 @@ from ...model.values import Observed
 from ..common import EventBuilder, Lookup, Side, is_unresolved
 
 LOG_FIELD = "CombatLogs"
-COMBAT_RECORDED = "faction.combat_recorded"
-ENTRY_REMOVED = "faction.combat_entry_removed"
+COMBAT_RECORDED = FACTION_COMBAT_RECORDED.event_type
+ENTRY_REMOVED = FACTION_COMBAT_ENTRY_REMOVED.event_type
 
 
 class CombatAnalyzer:
@@ -92,7 +93,7 @@ def _log_events(change: StateChange, lookup: Lookup, build: EventBuilder) -> lis
             continue  # the diff keeps it visible
         events.append(
             build.event(
-                COMBAT_RECORDED,
+                FACTION_COMBAT_RECORDED,
                 id_parts=(faction_id, entry.index),  # the index tells identical entries apart
                 sources=(_source(change, after_set, entry),),
                 entities=_entities(owner, entry, lookup),
@@ -106,7 +107,7 @@ def _log_events(change: StateChange, lookup: Lookup, build: EventBuilder) -> lis
             continue
         events.append(
             build.event(
-                ENTRY_REMOVED,
+                FACTION_COMBAT_ENTRY_REMOVED,
                 id_parts=(faction_id, entry.index),
                 sources=(_source(change, before_set, entry),),
                 entities=_entities(owner, entry, lookup),

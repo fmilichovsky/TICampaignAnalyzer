@@ -152,7 +152,7 @@ Tracking #249.
   - [x] Campaign and faction families (#318).
   - [x] Military family (#319).
   - [x] Technology family (#320).
-  - [ ] Space family (#321).
+  - [x] Space family (#321).
   - [ ] Nations family (#322).
   - [ ] Control family (#323).
   - [ ] Wars and federations family (#324).

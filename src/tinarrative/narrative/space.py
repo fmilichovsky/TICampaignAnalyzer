@@ -9,6 +9,24 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from ..config import SpaceSettings
+from ..kinds.space import (
+    FACTION_BATTLE_OUTCOME,
+    FACTION_COMBAT_RECORDED,
+    FACTION_FIRST_HAB_ON_BODY,
+    FACTION_HAB_DESTRUCTION_RECORDED,
+)
+from ..kinds.space import (
+    FLEET_DISAPPEARED as FLEET_DISAPPEARED_KIND,
+)
+from ..kinds.space import (
+    HAB_DESTROYED as HAB_DESTROYED_KIND,
+)
+from ..kinds.space import (
+    HAB_ESTABLISHED as HAB_ESTABLISHED_KIND,
+)
+from ..kinds.space import (
+    SHIP_APPEARED as SHIP_APPEARED_KIND,
+)
 from ..model.entities import EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FrozenMap
@@ -40,17 +58,17 @@ FIRST_MILESTONE = "campaign.first_milestone"
 FLEET_BUILDUP = "faction.fleet_buildup"
 TECHNOLOGY_MILESTONE = "technology.milestone"
 
-BATTLE_OUTCOME = "faction.battle_outcome"
-HAB_DESTROYED = "hab.destroyed"
-DESTRUCTION_RECORDED = "faction.hab_destruction_recorded"
-COMBAT_RECORDED = "faction.combat_recorded"
+BATTLE_OUTCOME = FACTION_BATTLE_OUTCOME.event_type
+HAB_DESTROYED = HAB_DESTROYED_KIND.event_type
+DESTRUCTION_RECORDED = FACTION_HAB_DESTRUCTION_RECORDED.event_type
+COMBAT_RECORDED = FACTION_COMBAT_RECORDED.event_type
 BATTLE_NOTIFICATION = "notification.LogSpaceBattleTakesPlace"
-FLEET_DISAPPEARED = "fleet.disappeared"
-FIRST_HAB_ON_BODY = "faction.first_hab_on_body"
-HAB_ESTABLISHED = "hab.established"
+FLEET_DISAPPEARED = FLEET_DISAPPEARED_KIND.event_type
+FIRST_HAB_ON_BODY = FACTION_FIRST_HAB_ON_BODY.event_type
+HAB_ESTABLISHED = HAB_ESTABLISHED_KIND.event_type
 GLOBAL_MILESTONE = "campaign.global_milestone_recorded"
 TRANSACTION = "faction.transaction_recorded"
-SHIP_APPEARED = "ship.appeared"
+SHIP_APPEARED = SHIP_APPEARED_KIND.event_type
 MILESTONE_LEDGER_LABEL = "Global Milestone"
 SHIP_LEDGER_LABEL = "Ship Construction"
 

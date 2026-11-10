@@ -77,7 +77,10 @@ def declared_attributes(
     if kind is None:
         return values
     missing = ((name, Unknown()) for name in sorted(kind.required - dict(values).keys()))
-    return kind_attributes(kind, (*missing, *values))
+    # EventBuilder generates this context attribute after validating the kind's declared attributes.
+    generated = tuple((name, value) for name, value in values if name == "faction_kinds")
+    declared = tuple((name, value) for name, value in values if name != "faction_kinds")
+    return (*kind_attributes(kind, (*missing, *declared)), *generated)
 
 
 def atomic(
