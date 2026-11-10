@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from ..analyzers.campaign.notifications import LOG, PREFIX
-from ..analyzers.common import Lookup, Side
+from ..analyzers.common import ALIEN_FACTION_TEMPLATE, Lookup, Side
 from ..analyzers.politics.councilors import DETAINING_FACTION_CHANGED, FACTION_CHANGED, STATUS_CHANGED
 from ..analyzers.politics.organizations import COUNCILOR_ORGS_CHANGED
 from ..config import CouncilorSettings
@@ -204,6 +204,7 @@ def build_dossier(
         "as_of": to_jsonable(snapshot.date),
         "source": source,
         "player_faction": _faction_name(lookup, player),
+        "factions": _faction_templates(snapshot),
         "selection": {
             "player_only": player_only,
             "rivals_per_faction": settings.rivals_per_faction,
@@ -520,6 +521,16 @@ def _named(ref: EntityRef | None) -> dict[str, Any] | None:
 def _faction_name(lookup: Lookup, faction_id: EntityId | None) -> str | None:
     ref = lookup.ref(faction_id) if faction_id is not None else None
     return ref.name if ref is not None else None
+
+
+def _faction_templates(snapshot: SaveSnapshot) -> dict[str, str]:
+    """Each human faction's display name and its ``templateName``, the identity the councilor brief keys stances on."""
+    templates: dict[str, str] = {}
+    for state in snapshot.factions:
+        template = state.get("templateName")
+        if state.ref.name is not None and isinstance(template, str) and template != ALIEN_FACTION_TEMPLATE:
+            templates[state.ref.name] = template
+    return templates
 
 
 def _mission_outcomes(

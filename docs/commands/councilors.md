@@ -73,8 +73,12 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 
 Each request holds the councilor brief: the dossier date and one councilor's entry, without the
 dossier's audit data (identifiers, templates, the selection, the source file, the player flag,
-experience, prominence and the concealment score). A request block names the councilor, the
-faction and the length (`about <councilors.article_words> words`). The system
+experience, prominence and the concealment score). No faction name reaches the request: the
+brief gives the person's faction as a stance (defence-minded, hard-line, pro-contact, opportunist,
+emigrationist, accommodationist or devotional, by the faction's template), earlier factions as
+former stances, and the career as plain dated lines (a change of stance, a detention, a release);
+status and organization changes stay in the dossier only. A request block names the councilor and
+the length (`about <councilors.article_words> words`). The system
 prompt asks for an encyclopedia entry about the person's public standing: a lead, then background,
 career and public profile ([llm](../narrator.md#councilor-articles)). The same dossier always
 gives the same request files, so a request can be reviewed, or run by hand against any model.
@@ -83,7 +87,7 @@ gives the same request files, so a request can be reviewed, or run by hand again
 
 **`--send` hands the dossier to the provider, a third party unless it runs on your machine**
 (Ollama, or an OpenAI-compatible server at a local `base_url`). The requests carry no file paths,
-but they do carry councilor, faction, nation and organization names.
+but they do carry councilor, nation and organization names.
 
 `--send` needs `--output DIR`, a provider and a model (there is no default model), and, for
 `anthropic`, `openrouter`, and for `openai` without a `base_url`, an `api_key_env` setting naming
@@ -112,8 +116,8 @@ DIR/
   manifest.json      # with --send: the run record, written with councilors.md
 ```
 
-`dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`
-and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
+`dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`,
+`factions` mapping each human faction's name to its `templateName`, and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
 carries identity, the profession in plain words (an intelligence officer, not the game's `Spy`),
 gender (`male`, `female` or `null`), traits, the seven skills, the organization skills, age, home
 region and nation, recruitment date and tenure, organizations, policy influence, prominence, career
