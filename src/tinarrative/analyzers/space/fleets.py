@@ -6,9 +6,22 @@ unresolved ``parentFleet`` changes are reported literally, never as evidence of 
 
 from __future__ import annotations
 
+from ...kinds.space import (
+    FACTION_FLEETS_CHANGED,
+    FLEET_APPEARED,
+    FLEET_BARYCENTER_CHANGED,
+    FLEET_DISAPPEARED,
+    FLEET_DOCKED_LOCATION_CHANGED,
+    FLEET_FACTION_CHANGED,
+    FLEET_IN_COMBAT_CHANGED,
+    FLEET_ORBIT_CHANGED,
+    FLEET_PARENT_CHANGED,
+    HAB_DOCKED_FLEETS_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event, SourceRole
+from ...model.kinds import EventKind
 from ...model.snapshot import SaveSnapshot
 from ..common import (
     EventBuilder,
@@ -25,28 +38,34 @@ from ..common import (
     value_transition_event,
 )
 
-FACTION_CHANGED = "fleet.faction_changed"
-DOCKED_LOCATION_CHANGED = "fleet.docked_location_changed"
-ORBIT_CHANGED = "fleet.orbit_changed"
-BARYCENTER_CHANGED = "fleet.barycenter_changed"
-PARENT_FLEET_CHANGED = "fleet.parent_fleet_changed"
-IN_COMBAT_CHANGED = "fleet.in_combat_changed"
-APPEARED = "fleet.appeared"
-DISAPPEARED = "fleet.disappeared"
-FACTION_LIST_CHANGED = "faction.fleets_changed"
-DOCKED_LIST_CHANGED = "hab.docked_fleets_changed"
+FACTION_CHANGED = FLEET_FACTION_CHANGED.event_type
+DOCKED_LOCATION_CHANGED = FLEET_DOCKED_LOCATION_CHANGED.event_type
+ORBIT_CHANGED = FLEET_ORBIT_CHANGED.event_type
+BARYCENTER_CHANGED = FLEET_BARYCENTER_CHANGED.event_type
+PARENT_FLEET_CHANGED = FLEET_PARENT_CHANGED.event_type
+IN_COMBAT_CHANGED = FLEET_IN_COMBAT_CHANGED.event_type
+APPEARED = FLEET_APPEARED.event_type
+DISAPPEARED = FLEET_DISAPPEARED.event_type
+FACTION_LIST_CHANGED = FACTION_FLEETS_CHANGED.event_type
+DOCKED_LIST_CHANGED = HAB_DOCKED_FLEETS_CHANGED.event_type
 
 HANDLED_LISTS = ((EntityDomain.FACTION, "fleets"), (EntityDomain.SPACE_OBJECT, "dockedFleets"))
-MIRRORED_FIELDS = (("faction", FACTION_CHANGED, "fleets"), ("dockedLocation", DOCKED_LOCATION_CHANGED, "dockedFleets"))
+MIRRORED_FIELDS = (
+    ("faction", FLEET_FACTION_CHANGED, "fleets"),
+    ("dockedLocation", FLEET_DOCKED_LOCATION_CHANGED, "dockedFleets"),
+)
 """Reference fields whose owner lists fleets, with the owner's list field."""
 VALUE_FIELDS = (
-    ("orbitState", ORBIT_CHANGED),
-    ("barycenter", BARYCENTER_CHANGED),
-    ("parentFleet", PARENT_FLEET_CHANGED),
-    ("inCombat", IN_COMBAT_CHANGED),
+    ("orbitState", FLEET_ORBIT_CHANGED),
+    ("barycenter", FLEET_BARYCENTER_CHANGED),
+    ("parentFleet", FLEET_PARENT_CHANGED),
+    ("inCombat", FLEET_IN_COMBAT_CHANGED),
 )
 
-_LIST_EVENT = {EntityDomain.FACTION.value: FACTION_LIST_CHANGED, EntityDomain.SPACE_OBJECT.value: DOCKED_LIST_CHANGED}
+_LIST_EVENT = {
+    EntityDomain.FACTION.value: FACTION_FLEETS_CHANGED,
+    EntityDomain.SPACE_OBJECT.value: HAB_DOCKED_FLEETS_CHANGED,
+}
 
 
 class FleetAnalyzer:
@@ -77,7 +96,7 @@ class FleetAnalyzer:
 
 
 def _mirrored(
-    event_type: str,
+    event_type: EventKind,
     list_field: str,
     change: StateChange,
     lookup: Lookup,
@@ -114,7 +133,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
             if cited is not None:
                 sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        FLEET_APPEARED if appeared else FLEET_DISAPPEARED,
         id_parts=(fleet_id,),
         sources=sources,
         entities=(lookup.ref(fleet_id), faction, docked),
