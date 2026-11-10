@@ -573,3 +573,14 @@ def test_career_is_attributed_by_the_first_named_entity_and_limited_to_career_ty
     assert first["career"][0]["attributes"] == {"transition": "changed"}
     assert [item["type"] for item in second["career"]] == ["councilor.status_changed"]
     assert _build(snap)["councilors"][0]["career"] == []
+
+
+def test_the_header_maps_each_human_faction_name_to_its_template() -> None:
+    snap = _world(_faction("4", "AppeaseCouncil"))
+
+    assert _build(snap)["factions"] == {
+        "Fixture faction 1": "Council",
+        "Fixture faction 2": "Council",
+        "Fixture faction 3": "Council",
+        "Fixture faction 4": "AppeaseCouncil",
+    }

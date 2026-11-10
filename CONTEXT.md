@@ -129,6 +129,11 @@ The model-facing rendering of the councilor dossier's header and one entry, embe
 only layer that omits, rewords or bands what the dossier holds; it is not a file of its own.
 _Avoid_: summary, prompt data
 
+**Stance**:
+The public outlook a councilor brief gives in place of a faction, such as accommodationist for the Protectorate.
+The councilor prompt explains each stance; no faction name reaches an article request.
+_Avoid_: faction, ideology label
+
 **Run directory**:
 The folder a narration writes and later reads back: its plan or dossier, one request per chapter or article, one
 response record per completed one, and the assembled document with its manifest.

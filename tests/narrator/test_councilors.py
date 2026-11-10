@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 
 from tinarrative.narrator import request as narrator_request
-from tinarrative.narrator.brief import councilor_brief
+from tinarrative.narrator.brief import STANCES, councilor_brief
 from tinarrative.narrator.councilors import (
     assemble_articles,
     build_article_request,
@@ -25,6 +25,8 @@ from tinarrative.narrator.request import digest, render_request
 
 NARRATOR_DOC = Path(__file__).resolve().parents[2] / "docs" / "narrator.md"
 GENERATED = datetime(2026, 10, 22, 9, 0, tzinfo=UTC)
+FACTION_STEMS = ("resistance", "humanity first", "academy", "initiative", "exodus", "protectorate", "servant")
+"""The game's faction names, as stems no request or stance may contain."""
 
 
 def _entry(name: str, faction: str, *, player: bool, key: str) -> dict[str, Any]:
@@ -47,6 +49,7 @@ DOSSIER: dict[str, Any] = {
     "as_of": "2034-06-01T00:00:00",
     "source": "latest.json",
     "player_faction": "Fixture Resistance",
+    "factions": {"Fixture Resistance": "ResistCouncil", "Fixture Servants": "SubmitCouncil"},
     "selection": {
         "player_only": False,
         "rivals_per_faction": 1,
@@ -107,16 +110,51 @@ def test_the_article_request_holds_the_brief_of_one_entry() -> None:
     assert request == build_article_request(json.loads(json.dumps(DOSSIER)), 3)
     assert request["system"] == system_prompt()
     content = request["messages"][0]["content"]
-    assert content.startswith("councilor: Cy Three\nfaction: Fixture Servants\nlength: about 120 words\n\n")
+    assert content.startswith("councilor: Cy Three\nlength: about 120 words\n\n")
     embedded = json.loads(content.partition("```json\n")[2].rpartition("\n```")[0])
     assert embedded == councilor_brief(DOSSIER, DOSSIER["councilors"][2])
     assert request_sha256(request) == hashlib.sha256(render_request(request).encode("utf-8")).hexdigest()
 
 
+def test_no_faction_name_reaches_the_request() -> None:
+    entry = DOSSIER["councilors"][2]
+    turned = {
+        **entry,
+        "career": [
+            {
+                "event": "event:7",
+                "type": "councilor.faction_changed",
+                "date": "2033-01-01T00:00:00",
+                "attributes": {
+                    "transition": "changed",
+                    "before": {"ref": "faction:1", "name": "Fixture Resistance"},
+                    "after": {"ref": "faction:2", "name": "Fixture Servants"},
+                },
+            }
+        ],
+    }
+    dossier = {**DOSSIER, "councilors": [turned]}
+
+    rendered = render_request(build_article_request(dossier, 1)).lower()
+
+    assert "fixture resistance" not in rendered and "fixture servants" not in rendered
+    assert not any(stem in rendered for stem in FACTION_STEMS)
+    assert "changed stance from defence-minded to devotional" in rendered
+
+
+def test_every_stance_is_explained_by_the_prompt_and_echoes_no_faction_name() -> None:
+    prompt = system_prompt()
+    section = prompt.partition("\n## Stances\n")[2].partition("\n## ")[0]
+
+    for stance in STANCES.values():
+        assert f"\n- {stance[0].upper()}{stance[1:]}: " in section
+    assert not any(stem in text.lower() for text in (*STANCES.values(), prompt) for stem in FACTION_STEMS)
+
+
 def test_options_and_bad_input() -> None:
     content = build_article_request(DOSSIER, 1, {"length": "about 50 words"})["messages"][0]["content"]
 
-    assert content.startswith("councilor: Ada One\nfaction: Fixture Resistance\nlength: about 50 words\n\n")
+    assert content.startswith("councilor: Ada One\nlength: about 50 words\n\n")
     with pytest.raises(ValueError, match="unknown request keys: councilor"):
         build_article_request(DOSSIER, 1, {"councilor": "Someone"})
     with pytest.raises(ValueError, match="article 4: the dossier has 3 councilors"):

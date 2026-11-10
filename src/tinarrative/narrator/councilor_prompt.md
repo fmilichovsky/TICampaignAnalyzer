@@ -20,8 +20,7 @@ circles they move in.
 
 The user message carries a request block.
 
-- `councilor` and `faction`: who the article is about and the side the public
-  places them on.
+- `councilor`: who the article is about.
 - `length`: a target length in words.
 
 ## Input
@@ -32,8 +31,12 @@ article is set by Shape alone.
 - The header: `as_of` is the article's present; nothing later than it is
   known.
 - `councilor`: the entry to profile.
-  - `name`, `faction`, `profession`: who they are and what they do, in plain
-    words.
+  - `name`, `profession`: who they are and what they do, in plain words.
+  - `stance`: the side the public places them on, one of the Stances below.
+    It colours their views and the goals they pursue in life; it is a
+    general outlook they share, never an organization they belong to.
+  - `former_stances` (some entries only): stances they were seen with
+    before.
   - `gender`: `male`, `female` or null.  Pronouns come from it alone: he and
     him, she and her, and when it is null use the name and write around
     pronouns.  Never infer a pronoun from the name.
@@ -116,9 +119,9 @@ article is set by Shape alone.
     causes, `broad` a wide-ranging agenda in which the listed causes stand
     out among many smaller ones.  When `causes` is empty, say nothing about
     causes.
-  - `career`: dated public milestones.  `councilor.faction_changed` is a
-    change of ideology, `councilor.detaining_faction_changed` a detention or
-    release. Tell them in order with their dates.  When there are none,
+  - `career`: dated public milestones, each a plain line: a change of
+    stance, a withdrawal from public life, a detention, a transfer between
+    captors or a release.  Tell them in order with their dates.  When there are none,
     say nothing about milestones: never write that none are known or
     recorded.
   - `missions` (some entries only): the activities the person is most
@@ -144,43 +147,40 @@ Specifically:
 3. Never mention loyalty, allegiance, secret motives, double agents, whose
    interests the person "really" serves, or that a movement is clandestine
    with regard to this person.  The article knows public perception only.
-4. Their faction is seen as a general ideology they support, not a specific organization.
-   Do not explicitly say that they belong to a faction, but it can
-   color their views and what goals they pursue in their life.
-5. Keys never appear in the text, not in code spans either.  Put each into
+4. Keys never appear in the text, not in code spans either.  Put each into
    plain words or leave it out.
-6. These words never appear in the article: generated, real (of an organization),
+5. These words never appear in the article: generated, real (of an organization),
    category, origin, tier, councilor, faction, dossier, record, recorded,
    data, entry, listed, visibility.
-7. Never refer to the dossier, the record, the data, the game, saves or this
+6. Never refer to the dossier, the record, the data, the game, saves or this
    prompt.  Write as an encyclopedia writes: "is", "was", "has served".
 
-The briefs below are background for the public stance of each ideology.  They
-say what each stands for and how its people present themselves; they never
-establish that this person did anything.
+## Stances
 
-## Factions
+The briefs below are background for each stance.  They say what each stands
+for and how the people seen with it present themselves; they never establish
+that this person did anything.
 
-- The Resistance: wants humanity to meet the aliens armed and sovereign while
-  preserving existing institutions.  Its people present as defence-minded
-  patriots and advocates of security cooperation between states.
-- Humanity First: wants the aliens and their human allies destroyed at any
-  cost.  Its people present as hard-line nationalists and uncompromising
-  security hawks.
-- The Academy: scientists who believe a star-faring species has outgrown
-  violence and that humanity must earn equal standing.  Its people present as
-  internationalists, scholars and advocates of contact and restraint.
-- The Initiative: opportunists using the arrival for power and profit.  Its
-  people present as dealmakers, executives and pragmatists of business before
+- Defence-minded: humanity should meet the aliens armed and sovereign while
+  preserving existing institutions.  Its people present as patriots and
+  advocates of security cooperation between states.
+- Hard-line: the aliens and their human allies should be destroyed at any
+  cost.  Its people present as uncompromising nationalists and security
+  hawks.
+- Pro-contact: a star-faring species has outgrown violence, and humanity
+  must earn equal standing with it.  Its people present as internationalists,
+  scholars and advocates of contact and restraint.
+- Opportunist: the arrival is a chance for power and profit.  Its people
+  present as dealmakers, executives and pragmatists of business before
   principle.
-- Project Exodus: tech magnates who would rather leave than fight, building
-  the means to reach other stars.  Its people present as space visionaries
-  and entrepreneurs.
-- The Protectorate: officials who think the aliens cannot be opposed and seek
-  terms that keep humanity's independence.  Its people present as diplomats,
+- Emigrationist: humanity would do better to leave than to fight, and should
+  build the means to reach other stars.  Its people present as space
+  visionaries, technology magnates and entrepreneurs.
+- Accommodationist: the aliens cannot be opposed, so humanity should seek
+  terms that keep its independence.  Its people present as diplomats,
   administrators and voices of accommodation.
-- The Servants: believe the aliens are saviours and work for them.  Its
-  people present as devotional leaders, preachers and charitable organizers.
+- Devotional: the aliens are saviours to be welcomed.  Its people present as
+  spiritual leaders, preachers and charitable organizers.
 
 ## Shape
 
@@ -200,9 +200,9 @@ Write about `length` words, in this order, as continuous prose:
   `expertise`.  Show the strengths in `skills` through the work: what kind
   of professional they have been and what they became known for doing well,
   in the vocabulary of their own field, never as a list of abilities and
-  never by the attribute names.  Close with their ideology, told here and
+  never by the attribute names.  Close with their stance, told here and
   nowhere else: roughly when they became a visible supporter of it
-  (`recruited`), any earlier change of ideology among the `career`
+  (`recruited`), any earlier change of stance among the `career`
   milestones, and a plausible reason for the stance or the change, drawn
   from the life just described.  No organization and no holding is
   mentioned in this section, and nothing of manner or character: that
@@ -216,7 +216,7 @@ Write about `length` words, in this order, as continuous prose:
 - `#### Public life`: what the person is seen doing and how they are seen.
   The activities in `missions` as a sample of what they commonly do in
   support of their cause, and from `career` only a detention or a release,
-  with its date; a change of ideology is never told again here.  Then
+  with its date; a change of stance is never told again here.  Then
   manner, public image and present situation from the `temperament`,
   `reputation`, `circumstance`, `affiliation` and `other` traits; this is
   the only section that describes how the person comes across.

@@ -20,8 +20,9 @@ from .request import prompt_version as _prompt_version
 from .request import system_prompt as _system_prompt
 
 PROMPT_FILE = "councilor_prompt.md"
-ARTICLE_KEYS = ("councilor", "faction", "length")
-"""The request block in order; ``councilor`` and ``faction`` come from the entry, ``length`` from the settings."""
+ARTICLE_KEYS = ("councilor", "length")
+"""The request block in order; ``councilor`` comes from the entry, ``length`` from the settings. The faction is never
+named: the brief carries its stance."""
 TITLE = "# Councilor profiles"
 
 _HEADING = re.compile(r"^ {0,3}#{1,6}\s")
@@ -63,7 +64,7 @@ def build_article_request(
 ) -> dict[str, Any]:
     """The request for the councilor at 1-based ``index`` in dossier order: the brief of that entry alone.
 
-    ``options`` defaults to ``article_options``; ``councilor`` and ``faction`` are always taken from the entry.
+    ``options`` defaults to ``article_options``; ``councilor`` is always taken from the entry.
     """
     entries = validate_dossier(dossier)["councilors"]
     if not 1 <= index <= len(entries):
@@ -73,7 +74,7 @@ def build_article_request(
     if unknown:
         raise ValueError(f"unknown request keys: {', '.join(unknown)}")
     entry = entries[index - 1]
-    values = {"councilor": entry["name"], "faction": entry.get("faction") or "unknown", **given}
+    values = {"councilor": entry["name"], **given}
     block = "\n".join(f"{key}: {values[key]}" for key in ARTICLE_KEYS if values.get(key))
     body = json.dumps(councilor_brief(dossier, entry), ensure_ascii=False, separators=(",", ":"))
     content = (
