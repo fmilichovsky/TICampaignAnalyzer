@@ -40,7 +40,7 @@ input to another: the model learns the earlier story only from `continuity`, so
 an error in one chapter cannot become a premise of the next.
 
 The prompt carries its own short faction briefs, condensed from the game's
-faction descriptions in [game-data-notes/factions](game-data-notes/factions/).
+faction descriptions in [game-data-notes/wiki-sources/factions](game-data-notes/wiki-sources/factions/).
 They leave out leaders, endgames and story spoilers on purpose; when those
 descriptions change, update the briefs here to match.
 

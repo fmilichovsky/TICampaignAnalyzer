@@ -52,7 +52,8 @@ alien faction and the human factions from the start of a campaign to its late
 game: the evidence behind the space stakes of the entity-scaled significance
 score ([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-stake.md)).
 
-[Factions](factions/) holds the game's own descriptions of the seven human
-factions (ideology, goal, relations). They are game text, not save
-observations; the [narrator prompt](../narrator.md) condenses them into its
-faction briefs.
+[Wiki sources](wiki-sources/README.md) holds game text transcribed from the
+Terra Invicta wiki: the descriptions of the seven human factions (ideology,
+goal, relations), which the [narrator prompt](../narrator.md) condenses into
+its faction briefs, and the organization display names. They are published
+text, not save observations.
