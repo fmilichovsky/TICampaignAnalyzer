@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tinarrative.narrative.trait_catalog import _BY_GROUP, KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
+from tinarrative.trait_names import _BY_GROUP, KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
 
 
 def test_every_template_is_in_one_group() -> None:

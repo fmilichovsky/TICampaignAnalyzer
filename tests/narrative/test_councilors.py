@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from tests.analyzers.support import (
     AFTER,
     councilor_ref,
@@ -194,7 +196,7 @@ def test_portrait_facts() -> None:
     assert entry["traits"] == {"reputation": ["Famous"]}
     assert entry["orgs"][0]["category"] == "criminal"
     assert entry["gender"] == "female"
-    assert entry["profession"] == "security contractor"
+    assert entry["profession"] == "Operative"
 
 
 def test_org_nation_is_the_current_nation_of_its_home_region() -> None:
@@ -238,13 +240,13 @@ def test_policy_influence_sums_org_bonuses_and_drops_token_causes() -> None:
     )
     first, second = _build(snap)["councilors"]
     assert first["policy_influence"] == {
-        "focus": "broad",  # the dropped welfare spending still dilutes the focus
+        "effective_causes": pytest.approx(2.9, abs=0.01),
         "causes": [
-            {"cause": "economic growth", "strength": "modest"},
-            {"cause": "launch capacity", "strength": "modest"},
+            {"field": "economyBonus", "bonus": 0.03},
+            {"field": "spaceflightBonus", "bonus": 0.03},
         ],
     }
-    assert second["policy_influence"] == {"focus": None, "causes": []}
+    assert second["policy_influence"] == {"effective_causes": None, "causes": []}
     assert second["org_skills"] == {}
 
 
@@ -257,8 +259,8 @@ def test_policy_influence_drops_overshadowed_causes_and_grades_the_rest() -> Non
     )
     (entry,) = _build(snap)["councilors"]
     assert entry["policy_influence"]["causes"] == [
-        {"cause": "law and order", "strength": "leading"},
-        {"cause": "patronage", "strength": "strong"},
+        {"field": "oppressionBonus", "bonus": 0.10},
+        {"field": "spoilsBonus", "bonus": pytest.approx(0.06)},
     ]
 
 
@@ -271,19 +273,21 @@ def test_policy_influence_focus_is_the_effective_number_of_causes() -> None:
         _councilor("101", "1", orgs=("71",)),
         _councilor("102", "1", orgs=("72",)),
     )
-    focus = {entry["id"]: entry["policy_influence"]["focus"] for entry in _build(snap)["councilors"]}
-    assert focus == {"councilor:100": "single-issue", "councilor:101": "focused", "councilor:102": None}
+    focus = {entry["id"]: entry["policy_influence"]["effective_causes"] for entry in _build(snap)["councilors"]}
+    assert focus["councilor:100"] == pytest.approx(1.1, abs=0.001)
+    assert focus["councilor:101"] == pytest.approx(1.8)
+    assert focus["councilor:102"] == 1.0
 
 
 def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:
     templates = ("Wealthy", "Averse", "Datajack", "PhysicistII", "SecondWave", "FooBar", "Government", "Paranoid")
     entry = _build(_world(_councilor("100", "1", traitTemplateNames=templates)))["councilors"][0]
     assert entry["traits"] == {
-        "temperament": ["Cautious", "Paranoid"],
-        "expertise": ["Senior Physicist"],
+        "temperament": ["Averse", "Paranoid"],
+        "expertise": ["PhysicistII"],
         "reputation": ["Wealthy"],
         "affiliation": ["Government"],
-        "other": ["Foo Bar"],
+        "other": ["FooBar"],
     }
     assert list(entry["traits"]) == ["temperament", "expertise", "reputation", "affiliation", "other"]
 
@@ -301,9 +305,9 @@ def _visibility(espionage: int, traits: tuple[str, ...], *orgs: Any) -> dict[str
 
 
 def test_visibility_concealment_is_espionage_with_trait_mods_and_orgs_up_to_the_cap_plus_detection_bonuses() -> None:
-    assert _visibility(4, ()) == {"level": "public", "concealment": 4}
-    assert _visibility(4, ("Furtive", "Streetwise", "Addict")) == {"level": "private", "concealment": 7}
-    assert _visibility(20, ("Vengeful",), _org("70", 2, espionage=4)) == {"level": "shadow", "concealment": 25}
+    assert _visibility(4, ()) == {"concealment": 4, "easily_visible": False, "low_profile": False}
+    assert _visibility(4, ("Furtive", "Streetwise", "Addict"))["concealment"] == 7
+    assert _visibility(20, ("Vengeful",), _org("70", 2, espionage=4))["concealment"] == 25
     assert _visibility(5, ("FooBar",))["concealment"] == 5
 
 
@@ -316,15 +320,14 @@ def test_visibility_weights_public_profile_traits_up() -> None:
 
 
 def test_visibility_level_thresholds() -> None:
-    assert [_visibility(value, ())["level"] for value in (5, 6, 17, 18)] == ["public", "private", "private", "shadow"]
+    assert [_visibility(value, ())["concealment"] for value in (5, 6, 17, 18)] == [5, 6, 17, 18]
 
 
 def test_visibility_always_revealed_is_never_shadow_and_low_profile_never_public() -> None:
-    assert _visibility(25, ("Eminent",)) == {"level": "private", "concealment": 21}
-    assert _visibility(0, ("LowProfile",)) == {"level": "private", "concealment": 6}
-    assert _visibility(0, ("Undercover",)) == {"level": "private", "concealment": 3}
-    assert _visibility(25, ("Undercover", "Firebrand")) == {"level": "private", "concealment": 22}
-    assert _visibility(0, ("Undercover", "Famous"))["level"] == "private"
+    assert _visibility(25, ("Eminent",)) == {"concealment": 21, "easily_visible": True, "low_profile": False}
+    assert _visibility(0, ("LowProfile",)) == {"concealment": 6, "easily_visible": False, "low_profile": True}
+    assert _visibility(0, ("Undercover",))["concealment"] == 3
+    assert _visibility(25, ("Undercover", "Firebrand"))["concealment"] == 22
 
 
 def test_visibility_low_profile_traits_stay_out_of_the_traits() -> None:
@@ -340,8 +343,8 @@ def test_profession_is_plain_language_and_unknown_types_are_split_into_words() -
         _councilor("102", "1", typeTemplateName=None),
     )
     assert [entry["profession"] for entry in _build(snap)["councilors"]] == [
-        "intelligence officer",
-        "deep sea diver",
+        "Spy",
+        "DeepSeaDiver",
         None,
     ]
 

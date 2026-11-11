@@ -76,8 +76,9 @@ dossier's audit data (identifiers, templates, the selection, the source file, th
 experience, prominence and the concealment score). No faction name reaches the request: the
 brief gives the person's faction as a stance (defence-minded, hard-line, pro-contact, opportunist,
 emigrationist, accommodationist or devotional, by the faction's template), earlier factions as
-former stances, and the career as plain dated lines (a change of stance, a detention, a release);
-status and organization changes stay in the dossier only. A request block names the councilor and
+former stances, and the career as plain dated lines (a change of stance, a detention, a release).
+It turns profession and trait names, policy measurements and visibility into the same public wording
+and bands as before. Status and organization changes stay in the dossier only. A request block names the councilor and
 the length (`about <councilors.article_words> words`). The system
 prompt asks for an encyclopedia entry about the person's public standing: a lead, then background,
 career and public profile ([llm](../narrator.md#councilor-articles)). The same dossier always
@@ -118,8 +119,8 @@ DIR/
 
 `dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`,
 `factions` mapping each human faction's name to its `templateName`, and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
-carries identity, the profession in plain words (an intelligence officer, not the game's `Spy`),
-gender (`male`, `female` or `null`), traits, the seven skills, the organization skills, age, home
+carries identity, the game's profession template name (such as `Spy`), gender (`male`, `female` or
+`null`), traits, the seven skills, the organization skills, age, home
 region and nation, recruitment date and tenure, organizations, policy influence, prominence, career
 and, for the player's councilors, missions and the active mission.
 
@@ -127,21 +128,18 @@ and, for the player's councilors, missions and the active mission.
 add on top: per skill, the sum of the organization bonuses, capped so that `skills` plus `org_skills`
 never exceed the game's limit of 25. Only nonzero skills are listed in either.
 
-`policy_influence` describes the causes the councilor's organizations push, from their priority and
-space bonuses summed per cause: `economic growth`, `welfare spending`, `education and research`,
-`government reform`, `national unity`, `military strength`, `law and order`, `environmental
-protection`, `patronage`, `space mining`, `space program development`, `launch capacity` and
-`spaceflight ground control`. `causes` lists them strongest first, leaving out any cause below +3%
-or below half of the strongest one. Each has a `strength`: `leading` from +10%, `strong` from +5%,
-`modest` below. `focus` is `single-issue`, `focused` or `broad`, from the effective number of causes
-(all nonzero ones, including those left out of the list), and `null` when no cause is listed.
+`policy_influence` keeps the game field names and summed organization bonuses for selected causes,
+strongest first, leaving out any cause below +3% or below half of the strongest one. It also records
+`effective_causes`, the effective number of all nonzero causes, including those left out of the list.
+The request brief turns these measurements into public cause names, strength bands (`leading`,
+`strong` or `modest`) and a focus (`single-issue`, `focused` or `broad`).
 
 ```json
 "policy_influence": {
-  "focus": "focused",
+  "effective_causes": 1.8,
   "causes": [
-    {"cause": "law and order", "strength": "leading"},
-    {"cause": "patronage", "strength": "strong"}
+    {"field": "oppressionBonus", "bonus": 0.1},
+    {"field": "spoilsBonus", "bonus": 0.06}
   ]
 }
 ```
@@ -150,9 +148,13 @@ or below half of the strongest one. Each has a `strength`: `leading` from +10%, 
 capped organization skill sum (`org_skill_sum`, which does not affect the ranking) and the rank in
 the faction.
 
-Traits are listed by their in-game names (`Cautious`, not the game's `Averse`), grouped as
-`temperament`, `expertise`, `reputation`, `circumstance` and `affiliation`. A trait this version does
-not know yet is listed under `other`, its template name split into words.
+Traits retain their game template names (`Averse`, for example), grouped as `temperament`,
+`expertise`, `reputation`, `circumstance` and `affiliation`. A trait this version does not know yet
+is listed under `other` by its template name. The request brief supplies display names such as
+`Cautious` and splits unknown names into words.
+
+`visibility` keeps the measured concealment score and public-profile flags used to interpret it. The
+request brief derives the `public`, `private` or `shadow` level and omits these measurements.
 
 An organization entry names its nature: `origin` (`generated` or `real`), `category` and the
 `basis` of the category. A generated organization takes its category from its template (`template`).

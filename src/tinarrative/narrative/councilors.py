@@ -19,16 +19,14 @@ from ..model.events import Event
 from ..model.records import NotificationEntry
 from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, to_jsonable
+from ..trait_names import KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
 from .org_catalog import NAMED_ORG_CATEGORIES
 from .prominence import organization_shares, total
 from .trait_catalog import (
     DETECTION_BONUS,
     EASILY_VISIBLE,
     ESPIONAGE_MODS,
-    KEPT_GROUPS,
     LOW_PROFILE,
-    TRAITS,
-    WITHHELD_GROUPS,
 )
 
 CAREER_EVENT_TYPES = frozenset({FACTION_CHANGED, DETAINING_FACTION_CHANGED, STATUS_CHANGED, COUNCILOR_ORGS_CHANGED})
@@ -36,38 +34,31 @@ SKILLS = ("Persuasion", "Investigation", "Espionage", "Command", "Administration
 """The councilor attributes a dossier carries; ``Loyalty`` and ``ApparentLoyalty`` are never emitted."""
 SKILL_CAP = 25
 """The game's limit on a councilor attribute: personal value and organization bonuses together."""
-POLICY_LABELS = {
-    "economyBonus": "economic growth",
-    "welfareBonus": "welfare spending",
-    "knowledgeBonus": "education and research",
-    "governmentBonus": "government reform",
-    "unityBonus": "national unity",
-    "militaryBonus": "military strength",
-    "oppressionBonus": "law and order",
-    "environmentBonus": "environmental protection",
-    "spoilsBonus": "patronage",
-    "miningBonus": "space mining",
-    "spaceDevBonus": "space program development",
-    "spaceflightBonus": "launch capacity",
-    "MCBonus": "spaceflight ground control",
-}
-"""The public cause an organization's priority or space bonus stands for, so the article never reads a field name."""
+POLICY_FIELDS = (
+    "economyBonus",
+    "welfareBonus",
+    "knowledgeBonus",
+    "governmentBonus",
+    "unityBonus",
+    "militaryBonus",
+    "oppressionBonus",
+    "environmentBonus",
+    "spoilsBonus",
+    "miningBonus",
+    "spaceDevBonus",
+    "spaceflightBonus",
+    "MCBonus",
+)
+"""The game fields for an organization's priority or space bonus."""
 POLICY_MIN = 0.03
 """A cause's summed bonus below this is a token tie of one small organization, not advocacy."""
 POLICY_RELATIVE = 0.5
 """A cause below this share of the councilor's strongest one is overshadowed and left out."""
-POLICY_STRENGTHS = ((0.10, "leading"), (0.05, "strong"), (0.0, "modest"))
-"""The strength of a kept cause by its summed bonus, the first threshold it reaches."""
-POLICY_FOCUS = ((1.5, "single-issue"), (2.5, "focused"))
-"""The focus by the effective number of causes, the first bound it stays under; anything above is ``broad``."""
 _EPSILON = 1e-9
 DAYS_PER_YEAR = 365.25
 SHARE_DIGITS = 4
 """Significant digits of the organization share in the dossier."""
 
-PUBLIC_MAX = 5
-"""The highest concealment of a ``public`` councilor; one above ``PRIVATE_MAX`` is ``shadow``."""
-PRIVATE_MAX = 17
 LOW_PROFILE_WEIGHT = 3
 EASILY_VISIBLE_WEIGHT = 2
 """Multipliers of the detection bonus: a trait of public profile moves the public view more than the game's."""
@@ -92,36 +83,6 @@ GENERATED_ORG_CATEGORIES = {
 }
 """Organization category of a generated organization by the word after ``Random`` in its ``templateName``."""
 _GENERATED_TEMPLATE = re.compile(r"Random([A-Za-z]+?)\d")
-
-PROFESSIONS = {
-    "Activist": "activist",
-    "Astronaut": "astronaut",
-    "Attorney": "attorney",
-    "Celebrity": "celebrity",
-    "Commando": "special forces officer",
-    "Diplomat": "diplomat",
-    "Engineer": "engineer",
-    "Evangelist": "preacher",
-    "Executive": "corporate executive",
-    "Fixer": "political operator",
-    "Hacker": "computer security specialist",
-    "Inspector": "police inspector",
-    "Investigator": "private investigator",
-    "Journalist": "journalist",
-    "Judge": "judge",
-    "Kingpin": "crime boss",
-    "Officer": "military officer",
-    "Operative": "security contractor",
-    "Politician": "politician",
-    "Professor": "professor",
-    "Rebel": "insurgent leader",
-    "Scientist": "scientist",
-    "Spy": "intelligence officer",
-    "TechMogul": "technology entrepreneur",
-    "Tycoon": "business magnate",
-}
-"""The public profession of a councilor type, so the article never has to interpret a template name."""
-_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
 
 MISSION_OUTCOME_PREFIX = "LogMissionOutcome"
 """Template prefix of the notification log entries that record a resolved mission."""
@@ -289,7 +250,7 @@ def _entry(
         "name": state.ref.name,
         "faction": _faction_name(lookup, candidate.faction.entity_id),
         "player": is_player,
-        "profession": _profession(state.get("typeTemplateName")),
+        "profession": to_jsonable(state.get("typeTemplateName")),
         "gender": _gender(state.get("gender")),
         "traits": _traits(state.get("traitTemplateNames")),
         "skills": skills,
@@ -316,41 +277,33 @@ def _entry(
     return entry
 
 
-def _profession(value: Observed) -> str | None:
-    """The plain-language profession of a councilor type; an unknown type is its name split into words."""
-    if not isinstance(value, str) or not value:
-        return None
-    return PROFESSIONS.get(value, _CAMEL.sub(" ", value).lower())
-
-
 def _traits(value: Observed) -> dict[str, list[str]]:
-    """Display names of the public traits by group; an uncatalogued template is its name split into words."""
+    """Game template names of the public traits by group."""
     grouped: dict[str, list[str]] = {}
     for template in value if isinstance(value, tuple) else ():
         if not isinstance(template, str) or not template:
             continue
-        group, name = TRAITS.get(template, ("other", _CAMEL.sub(" ", template)))
+        group, _ = TRAITS.get(template, ("other", template))
         if group not in WITHHELD_GROUPS:
-            grouped.setdefault(group, []).append(name)
+            grouped.setdefault(group, []).append(template)
     return {group: grouped[group] for group in (*KEPT_GROUPS, "other") if group in grouped}
 
 
 def _visibility(value: Observed, skills: Mapping[str, int], org_skills: Mapping[str, int]) -> dict[str, Any]:
-    """How visible the councilor is to the public: ``public``, ``private`` or ``shadow``, with its score.
+    """The measured concealment and profile flags used to derive the councilor's public visibility.
 
     The score (``concealment``) is the espionage the game detects against plus the traits' detection bonuses, those
-    of public profile weighted up. An always-revealed trait is never ``shadow``, a low-profile one never ``public``.
+    of public profile weighted up. The flags preserve the two traits that adjust its interpretation.
     """
     templates = [item for item in value if isinstance(item, str)] if isinstance(value, tuple) else []
     espionage = skills.get("Espionage", 0) + org_skills.get("Espionage", 0)
     espionage = min(SKILL_CAP, espionage + sum(ESPIONAGE_MODS.get(template, 0) for template in templates))
     concealment = espionage + sum(_visibility_weight(template) for template in templates)
-    level = "public" if concealment <= PUBLIC_MAX else "private" if concealment <= PRIVATE_MAX else "shadow"
-    if level == "shadow" and EASILY_VISIBLE.intersection(templates):
-        level = "private"
-    elif level == "public" and LOW_PROFILE.intersection(templates):
-        level = "private"
-    return {"level": level, "concealment": concealment}
+    return {
+        "concealment": concealment,
+        "easily_visible": bool(EASILY_VISIBLE.intersection(templates)),
+        "low_profile": bool(LOW_PROFILE.intersection(templates)),
+    }
 
 
 def _visibility_weight(template: str) -> int:
@@ -409,34 +362,27 @@ def _org_skills(orgs: list[_Org], skills: Mapping[str, int]) -> dict[str, int]:
 
 
 def _policy_influence(orgs: list[_Org]) -> dict[str, Any]:
-    """The causes the councilor's organizations push, strongest summed bonus first, and how focused they are.
+    """The selected causes and their measured bonuses, strongest first.
 
     A cause is kept from ``POLICY_MIN`` and from ``POLICY_RELATIVE`` of the strongest. The focus is the effective
     number of causes, (sum)^2 / sum of squares, over all nonzero ones, so the dropped ones still dilute it.
     """
     totals = {
-        field: sum(_number(org.state.get(field)) for org in orgs if org.state is not None) for field in POLICY_LABELS
+        field: sum(_number(org.state.get(field)) for org in orgs if org.state is not None) for field in POLICY_FIELDS
     }
-    ranked = sorted((field for field in POLICY_LABELS if totals[field] > 0), key=lambda field: -totals[field])
+    ranked = sorted((field for field in POLICY_FIELDS if totals[field] > 0), key=lambda field: -totals[field])
     top = totals[ranked[0]] if ranked else 0.0
     kept = [
         field
         for field in ranked
         if totals[field] >= POLICY_MIN - _EPSILON and totals[field] >= top * POLICY_RELATIVE - _EPSILON
     ]
-    focus = None
-    if kept:
-        values = [totals[field] for field in ranked]
-        effective = sum(values) ** 2 / sum(value * value for value in values)
-        focus = next((name for bound, name in POLICY_FOCUS if effective < bound), "broad")
+    values = [totals[field] for field in ranked]
+    effective = sum(values) ** 2 / sum(value * value for value in values) if values else None
     return {
-        "focus": focus,
-        "causes": [{"cause": POLICY_LABELS[field], "strength": _policy_strength(totals[field])} for field in kept],
+        "effective_causes": effective,
+        "causes": [{"field": field, "bonus": totals[field]} for field in kept],
     }
-
-
-def _policy_strength(value: float) -> str:
-    return next(name for floor, name in POLICY_STRENGTHS if value >= floor - _EPSILON)
 
 
 def _org_entry(lookup: Lookup, org: _Org) -> dict[str, Any]:

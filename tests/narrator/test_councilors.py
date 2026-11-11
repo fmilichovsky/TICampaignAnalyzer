@@ -35,7 +35,7 @@ def _entry(name: str, faction: str, *, player: bool, key: str) -> dict[str, Any]
         "name": name,
         "faction": faction,
         "player": player,
-        "profession": "diplomat",
+        "profession": "Diplomat",
         "traits": {"reputation": ["Famous"]},
         "skills": {"Persuasion": 9, "Administration": 4},
         "xp": 12,

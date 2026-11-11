@@ -6,16 +6,18 @@ reaches the brief: the person's faction becomes a stance, and career events beco
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import Any
 
 from ..analyzers.politics.councilors import DETAINING_FACTION_CHANGED, FACTION_CHANGED
+from ..trait_names import TRAITS
 
 HEADER_KEYS = ("as_of",)
 """The dossier header the brief keeps; ``source``, ``player_faction``, ``factions`` and ``selection`` are audit data."""
 AUDIT_KEYS = frozenset({"id", "player", "xp", "prominence"})
 """Entry fields the brief drops."""
-VISIBILITY_AUDIT_KEYS = frozenset({"concealment"})
+VISIBILITY_AUDIT_KEYS = frozenset({"concealment", "easily_visible", "low_profile"})
 ORG_AUDIT_KEYS = frozenset({"id", "template", "basis"})
 NAMED_AUDIT_KEYS = frozenset({"id"})
 """Dropped from the named references of ``home``."""
@@ -34,9 +36,57 @@ STANCES = {
 DETENTION_LINES = {"set": "detained", "cleared": "released", "changed": "transferred to other captors"}
 """A detention milestone by its transition; the captor is never named."""
 
+PROFESSIONS = {
+    "Activist": "activist",
+    "Astronaut": "astronaut",
+    "Attorney": "attorney",
+    "Celebrity": "celebrity",
+    "Commando": "special forces officer",
+    "Diplomat": "diplomat",
+    "Engineer": "engineer",
+    "Evangelist": "preacher",
+    "Executive": "corporate executive",
+    "Fixer": "political operator",
+    "Hacker": "computer security specialist",
+    "Inspector": "police inspector",
+    "Investigator": "private investigator",
+    "Journalist": "journalist",
+    "Judge": "judge",
+    "Kingpin": "crime boss",
+    "Officer": "military officer",
+    "Operative": "security contractor",
+    "Politician": "politician",
+    "Professor": "professor",
+    "Rebel": "insurgent leader",
+    "Scientist": "scientist",
+    "Spy": "intelligence officer",
+    "TechMogul": "technology entrepreneur",
+    "Tycoon": "business magnate",
+}
+POLICY_LABELS = {
+    "economyBonus": "economic growth",
+    "welfareBonus": "welfare spending",
+    "knowledgeBonus": "education and research",
+    "governmentBonus": "government reform",
+    "unityBonus": "national unity",
+    "militaryBonus": "military strength",
+    "oppressionBonus": "law and order",
+    "environmentBonus": "environmental protection",
+    "spoilsBonus": "patronage",
+    "miningBonus": "space mining",
+    "spaceDevBonus": "space program development",
+    "spaceflightBonus": "launch capacity",
+    "MCBonus": "spaceflight ground control",
+}
+POLICY_STRENGTHS = ((0.10, "leading"), (0.05, "strong"), (0.0, "modest"))
+POLICY_FOCUS = ((1.5, "single-issue"), (2.5, "focused"))
+PUBLIC_MAX = 5
+PRIVATE_MAX = 17
+_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
+
 
 def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dict[str, Any]:
-    """The header and ``entry`` without audit fields or faction names; every other value is the dossier's own."""
+    """The header and ``entry`` without audit fields or faction names, in public wording."""
     current = stance_of(dossier, entry.get("faction"))
     councilor: dict[str, Any] = {}
     for key, value in entry.items():
@@ -46,8 +96,14 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
             if current is not None:
                 councilor["stance"] = current
             continue
+        if key == "profession":
+            value = _profession(value)
+        elif key == "traits" and isinstance(value, Mapping):
+            value = _traits(value)
+        elif key == "policy_influence" and isinstance(value, Mapping):
+            value = _policy_influence(value)
         if key == "visibility" and isinstance(value, Mapping):
-            value = _without(value, VISIBILITY_AUDIT_KEYS)
+            value = _visibility(value)
         elif key == "orgs" and isinstance(value, list):
             value = [_without(org, ORG_AUDIT_KEYS) if isinstance(org, Mapping) else org for org in value]
         elif key == "career" and isinstance(value, list):
@@ -63,6 +119,63 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
             }
         councilor[key] = value
     return {**{key: dossier.get(key) for key in HEADER_KEYS}, "councilor": councilor}
+
+
+def _profession(value: object) -> str | None:
+    if not isinstance(value, str) or not value:
+        return None
+    return PROFESSIONS.get(value, _CAMEL.sub(" ", value).lower())
+
+
+def _traits(value: Mapping[str, Any]) -> dict[str, list[str]]:
+    result: dict[str, list[str]] = {}
+    for group, templates in value.items():
+        if not isinstance(group, str) or not isinstance(templates, list):
+            continue
+        names = [
+            TRAITS.get(template, (group, _CAMEL.sub(" ", template)))[1]
+            for template in templates
+            if isinstance(template, str)
+        ]
+        if names:
+            result[group] = names
+    return result
+
+
+def _policy_influence(value: Mapping[str, Any]) -> dict[str, Any]:
+    effective = value.get("effective_causes")
+    focus = None
+    causes = value.get("causes")
+    if isinstance(causes, list) and causes and isinstance(effective, (int, float)) and not isinstance(effective, bool):
+        focus = next((name for bound, name in POLICY_FOCUS if effective < bound), "broad")
+    return {
+        "focus": focus,
+        "causes": [
+            {"cause": POLICY_LABELS.get(cause["field"], cause["field"]), "strength": _policy_strength(cause["bonus"])}
+            for cause in causes
+            if isinstance(cause, Mapping)
+            and isinstance(cause.get("field"), str)
+            and isinstance(cause.get("bonus"), (int, float))
+        ]
+        if isinstance(causes, list)
+        else [],
+    }
+
+
+def _policy_strength(value: int | float) -> str:
+    return next(name for floor, name in POLICY_STRENGTHS if value >= floor - 1e-9)
+
+
+def _visibility(value: Mapping[str, Any]) -> dict[str, str]:
+    concealment = value.get("concealment")
+    level = None
+    if isinstance(concealment, int) and not isinstance(concealment, bool):
+        level = "public" if concealment <= PUBLIC_MAX else "private" if concealment <= PRIVATE_MAX else "shadow"
+        if level == "shadow" and value.get("easily_visible") is True:
+            level = "private"
+        elif level == "public" and value.get("low_profile") is True:
+            level = "private"
+    return {"level": level} if level is not None else {}
 
 
 def stance_of(dossier: Mapping[str, Any], faction: object) -> str | None:
