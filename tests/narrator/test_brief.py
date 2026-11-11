@@ -22,7 +22,7 @@ ENTRY: dict[str, Any] = {
     "name": "Ada One",
     "faction": "Fixture Resistance",
     "player": True,
-    "profession": "diplomat",
+    "profession": "Diplomat",
     "gender": "female",
     "traits": {"reputation": ["Famous"]},
     "skills": {"Persuasion": 9},
@@ -45,8 +45,11 @@ ENTRY: dict[str, Any] = {
             "basis": "template",
         }
     ],
-    "policy_influence": {"focus": "focused", "causes": [{"cause": "science", "strength": "leading"}]},
-    "visibility": {"level": "private", "concealment": 14},
+    "policy_influence": {
+        "effective_causes": 2.0,
+        "causes": [{"field": "knowledgeBonus", "bonus": 0.12}],
+    },
+    "visibility": {"concealment": 14, "easily_visible": False, "low_profile": False},
     "prominence": {"org_share": 0.01, "skill_sum": 9, "org_skill_sum": 2, "rank_in_faction": 1},
     "career": [
         {
@@ -93,6 +96,7 @@ def test_the_brief_holds_the_header_date_and_the_entry_without_audit_fields() ->
     councilor = brief["councilor"]
     assert AUDIT_KEYS.isdisjoint(councilor)
     assert VISIBILITY_AUDIT_KEYS.isdisjoint(councilor["visibility"])
+    assert councilor["visibility"] == {"level": "private"}
     assert all(ORG_AUDIT_KEYS.isdisjoint(org) for org in councilor["orgs"])
     assert all(NAMED_AUDIT_KEYS.isdisjoint(ref) for ref in councilor["home"].values())
     assert not any(path[-1] == "id" for path in _keys(brief))
@@ -103,9 +107,15 @@ def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> N
 
     kept = set(ENTRY) - AUDIT_KEYS - {"faction"}
     assert [key for key in councilor if key in kept] == [key for key in ENTRY if key in kept]
-    for key in kept - {"visibility", "orgs", "career", "home"}:
+    for key in kept - {"visibility", "orgs", "career", "home", "policy_influence", "profession", "traits"}:
         assert councilor[key] == ENTRY[key]
-    assert councilor["visibility"]["level"] == ENTRY["visibility"]["level"]
+    assert councilor["visibility"] == {"level": "private"}
+    assert councilor["profession"] == "diplomat"
+    assert councilor["traits"] == {"reputation": ["Famous"]}
+    assert councilor["policy_influence"] == {
+        "focus": "focused",
+        "causes": [{"cause": "education and research", "strength": "leading"}],
+    }
     org = councilor["orgs"][0]
     assert {key: org[key] for key in ("name", "tier", "nation", "origin", "category")} == {
         key: ENTRY["orgs"][0][key] for key in ("name", "tier", "nation", "origin", "category")
@@ -119,6 +129,39 @@ def test_the_brief_leaves_the_dossier_untouched() -> None:
     councilor_brief(DOSSIER, ENTRY)
 
     assert DOSSIER == before
+
+
+def test_unfamiliar_game_names_are_split_into_public_words() -> None:
+    entry = {
+        **ENTRY,
+        "profession": "DeepSeaDiver",
+        "traits": {"other": ["FooBar"]},
+        "policy_influence": {
+            "effective_causes": 3.0,
+            "causes": [{"field": "newBonus", "bonus": 0.01}],
+        },
+    }
+
+    councilor = councilor_brief(DOSSIER, entry)["councilor"]
+
+    assert councilor["profession"] == "deep sea diver"
+    assert councilor["traits"] == {"other": ["Foo Bar"]}
+    assert councilor["policy_influence"] == {
+        "focus": "broad",
+        "causes": [{"cause": "newBonus", "strength": "modest"}],
+    }
+
+
+def test_visibility_bands_are_derived_from_the_measurement_and_profile_flags() -> None:
+    expected = {5: "public", 6: "private", 17: "private", 18: "shadow"}
+    for concealment, level in expected.items():
+        entry = {**ENTRY, "visibility": {"concealment": concealment, "easily_visible": False, "low_profile": False}}
+        assert councilor_brief(DOSSIER, entry)["councilor"]["visibility"] == {"level": level}
+
+    shadow = {**ENTRY, "visibility": {"concealment": 25, "easily_visible": True, "low_profile": False}}
+    public = {**ENTRY, "visibility": {"concealment": 0, "easily_visible": False, "low_profile": True}}
+    assert councilor_brief(DOSSIER, shadow)["councilor"]["visibility"] == {"level": "private"}
+    assert councilor_brief(DOSSIER, public)["councilor"]["visibility"] == {"level": "private"}
 
 
 def test_a_null_home_reference_stays_null() -> None:
