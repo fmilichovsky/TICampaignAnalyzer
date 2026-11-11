@@ -184,15 +184,22 @@ def _markdown(
         f"- Generated: {timestamp(generated)}",
     ]
     sections: list[str] = ["\n".join(header)]
-    current: object = None
+    grouped: dict[str, list[tuple[int, Mapping[str, Any]]]] = {}
     for index, entry in enumerate(entries, start=1):
         if index not in written:
             continue
-        faction = entry.get("faction") or "Unaffiliated"
-        if faction != current:
-            sections.append(f"## {faction}")
-            current = faction
-        sections.append(f"### {entry['name']}\n\n{_body(str(written[index]['text']))}")
+        faction_value = entry.get("faction")
+        faction = faction_value if isinstance(faction_value, str) and faction_value else "Unaffiliated"
+        grouped.setdefault(faction, []).append((index, entry))
+    player_faction = dossier.get("player_faction")
+    faction_order = list(grouped)
+    if isinstance(player_faction, str) and player_faction in grouped:
+        faction_order.remove(player_faction)
+        faction_order.insert(0, player_faction)
+    for faction in faction_order:
+        sections.append(f"## {faction}")
+        for index, entry in grouped[faction]:
+            sections.append(f"### {entry['name']}\n\n{_body(str(written[index]['text']))}")
     return "\n\n".join(sections) + "\n"
 
 

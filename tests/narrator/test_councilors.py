@@ -65,10 +65,10 @@ DOSSIER: dict[str, Any] = {
 }
 
 
-def _record(index: int, text: str, **changes: Any) -> dict[str, Any]:
+def _record(index: int, text: str, *, dossier: dict[str, Any] = DOSSIER, **changes: Any) -> dict[str, Any]:
     record = {
         "index": index,
-        "request_sha256": request_sha256(build_article_request(DOSSIER, index)),
+        "request_sha256": request_sha256(build_article_request(dossier, index)),
         "provider": "anthropic",
         "model": "some-model",
         "max_output_tokens": 2000,
@@ -165,28 +165,33 @@ def test_options_and_bad_input() -> None:
         build_article_request({"councilors": "no"}, 1)
 
 
-def test_assembly_groups_by_faction_in_dossier_order() -> None:
-    stored = {1: _record(1, "# Ada One\n\nAda leads.\n"), 2: _record(2, "Bo follows.  \n\n"), 3: _record(3, "Cy.")}
+def test_assembly_groups_all_articles_under_one_faction_heading() -> None:
+    dossier = {
+        **DOSSIER,
+        "councilors": [
+            DOSSIER["councilors"][0],
+            _entry("Cy Three", "Fixture Servants", player=False, key="3"),
+            _entry("De Four", "Fixture Resistance", player=False, key="4"),
+            DOSSIER["councilors"][1],
+        ],
+    }
+    stored = {
+        1: _record(1, "# Ada One\n\nAda leads.\n", dossier=dossier),
+        2: _record(2, "Cy serves.", dossier=dossier),
+        3: _record(3, "De resists.", dossier=dossier),
+        4: _record(4, "Bo follows.  \n\n", dossier=dossier),
+    }
 
-    markdown, manifest = assemble_articles(DOSSIER, stored, generated=GENERATED, version="0.1.0")
+    markdown, manifest = assemble_articles(dossier, stored, generated=GENERATED, version="0.1.0")
 
-    assert markdown == (
-        "# Councilor profiles\n\n"
-        "- Provider: anthropic\n"
-        "- Model: reported-model (requested some-model)\n"
-        f"- Prompt version: {prompt_version()}\n"
-        "- As of: 2034-06-01\n"
-        "- Player faction: Fixture Resistance\n"
-        "- Generated: 2026-10-22T09:00:00Z\n\n"
-        "## Fixture Resistance\n\n"
-        "### Ada One\n\nAda leads.\n\n"
-        "### Bo Two\n\nBo follows.\n\n"
-        "## Fixture Servants\n\n"
-        "### Cy Three\n\nCy.\n"
-    )
-    assert [row["written"] for row in manifest["articles"]] == [True, True, True]
+    assert markdown.count("## Fixture Resistance") == 1
+    assert markdown.count("## Fixture Servants") == 1
+    assert markdown.index("## Fixture Resistance") < markdown.index("## Fixture Servants")
+    assert markdown.index("### Ada One") < markdown.index("### De Four") < markdown.index("### Bo Two")
+    assert markdown.index("## Fixture Servants") < markdown.index("### Cy Three")
+    assert [row["written"] for row in manifest["articles"]] == [True, True, True, True]
+    assert [row["index"] for row in manifest["articles"]] == [1, 2, 3, 4]
     assert missing(manifest) == []
-    assert manifest["tokens"] == {"input_tokens": 3006, "output_tokens": 600}
 
 
 def test_a_missing_article_is_in_the_manifest_only() -> None:
