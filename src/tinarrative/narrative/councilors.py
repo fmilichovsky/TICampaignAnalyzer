@@ -12,8 +12,8 @@ from typing import Any
 from ..analyzers.campaign.notifications import LOG, PREFIX
 from ..analyzers.common import ALIEN_FACTION_TEMPLATE, Lookup, Side
 from ..analyzers.politics.councilors import DETAINING_FACTION_CHANGED, FACTION_CHANGED, STATUS_CHANGED
-from ..analyzers.politics.organizations import COUNCILOR_ORGS_CHANGED
 from ..config import CouncilorSettings
+from ..kinds.control import COUNCILOR_ORGS_CHANGED
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event
 from ..model.records import NotificationEntry
@@ -29,7 +29,9 @@ from .trait_catalog import (
     LOW_PROFILE,
 )
 
-CAREER_EVENT_TYPES = frozenset({FACTION_CHANGED, DETAINING_FACTION_CHANGED, STATUS_CHANGED, COUNCILOR_ORGS_CHANGED})
+CAREER_EVENT_TYPES = frozenset(
+    {FACTION_CHANGED, DETAINING_FACTION_CHANGED, STATUS_CHANGED, COUNCILOR_ORGS_CHANGED.event_type}
+)
 SKILLS = ("Persuasion", "Investigation", "Espionage", "Command", "Administration", "Science", "Security")
 """The councilor attributes a dossier carries; ``Loyalty`` and ``ApparentLoyalty`` are never emitted."""
 SKILL_CAP = 25

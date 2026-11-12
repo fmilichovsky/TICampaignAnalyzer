@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from ..model.entities import EntityDomain
 from ..model.events import Event, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule, Stake
@@ -32,7 +34,7 @@ def _controller_changed(event: Event) -> str:
 
 
 def _entity_name(event: Event, domain: EntityDomain) -> str:
-    ref = next((entity for entity in event.entities if entity.entity_id.domain is domain), None)
+    ref = next((entity for entity in event.entities[1:] if entity.entity_id.domain is domain), None)
     return ref.label() if ref is not None else "null"
 
 
@@ -51,7 +53,7 @@ def _loss_recorded(event: Event) -> str:
     return text
 
 
-def _councilor_field(label: str):
+def _councilor_field(label: str) -> Callable[[Event], str]:
     def describe(event: Event) -> str:
         return f"{subject_label(event)} ({_entity_name(event, EntityDomain.FACTION)}) {transition_label(event, label)}"
 
@@ -191,7 +193,7 @@ FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
 NATION_CONTROL_CHANGED = EventKind(
     "faction.nation_control_changed",
     _nation_control_changed,
-    None,
+    Significance.MAJOR,
     BOOKKEEPING,
     required=frozenset(
         {
