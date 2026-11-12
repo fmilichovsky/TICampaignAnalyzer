@@ -6,6 +6,7 @@ becomes ``nation.federation_changed``. A rename is one event per federation citi
 
 from __future__ import annotations
 
+from ...kinds.federations import APPEARED, DISAPPEARED, MEMBERS_CHANGED, NATION_FEDERATION_CHANGED, RENAMED
 from ...model.changes import ChangeIndex, ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
@@ -25,11 +26,7 @@ from ..common import (
     value_transition_event,
 )
 
-APPEARED = "federation.appeared"
-DISAPPEARED = "federation.disappeared"
-MEMBERS_CHANGED = "federation.members_changed"
-FEDERATION_CHANGED = "nation.federation_changed"
-RENAMED = "federation.renamed"
+FEDERATION_CHANGED = NATION_FEDERATION_CHANGED
 NAME_FIELDS = ("displayName", "federationName")
 """The name fields of a federation, in the order their values are preferred for ``before``/``after``."""
 

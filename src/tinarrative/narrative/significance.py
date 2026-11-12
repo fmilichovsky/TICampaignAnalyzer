@@ -83,13 +83,8 @@ _TRIVIAL: tuple[str, ...] = (
 _MINOR: tuple[str, ...] = (
     # A hab appears at launch; it is founded when its core completes (``hab.established``), often a year later.
     # Routine movement: fleets change orbit and dock constantly, armies redeploy.
-    # Geopolitical leftover lists: emitted only for an entry no explaining event claimed (the explained cases
-    # are ``region.nation_changed``, ``nation.relation_changed``, ``nation.breakaway_parent_changed``,
-    # ``control_point.controller_changed``, councilor events, ``war.alliance_changed`` and war presence). They
-    # stay visible so the unexplained residue is never hidden; promoting one is reconstruction work.
-    "nation.wars_changed",
-    "war.attacking_alliance_changed",
-    "war.defending_alliance_changed",
+    # Geopolitical leftover lists stay visible so unexplained residue is never hidden; promoting one is
+    # reconstruction work.
     # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
     # it is not counted as a second major event.
     # Inferred aggregates of the ``region.nation_changed`` events they cite, which are already major; ranking
@@ -104,16 +99,6 @@ _MINOR: tuple[str, ...] = (
 
 _MAJOR: tuple[str, ...] = (
     # Core political and asset-ownership changes.
-    "nation.federation_changed",
-    # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
-    "war.appeared",
-    "war.disappeared",
-    "war.alliance_changed",
-    "federation.appeared",
-    "federation.disappeared",
-    "federation.members_changed",
-    # A federation's rename marks its growth, which a history reports.
-    "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
     # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
     # below the band.
@@ -340,10 +325,8 @@ STAKE_IMPLEMENTATIONS: Mapping[Stake, Scaling] = {
 }
 """Every ``Stake``'s implementation."""
 
-SCALED: Mapping[str, Stake] = {
-    "nation.federation_changed": Stake.NATION,
-}
-"""The stake of a type not yet migrated to a kind (ADR-0011); movement and churn are never listed."""
+SCALED: Mapping[str, Stake] = {}
+"""The stake of a type not yet migrated to a kind; movement and churn are never listed."""
 
 
 def _scale(share: float, reference: float, settings: SignificanceSettings) -> int:

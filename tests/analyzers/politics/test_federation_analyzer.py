@@ -2,7 +2,7 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, federation_ref, named, nation_ref, snapshot, state
 from tinarrative.analyzers.politics import FederationAnalyzer
-from tinarrative.analyzers.politics.federations import APPEARED, FEDERATION_CHANGED, MEMBERS_CHANGED, RENAMED
+from tinarrative.kinds.federations import APPEARED, MEMBERS_CHANGED, NATION_FEDERATION_CHANGED, RENAMED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
 from tinarrative.model.values import Unknown, UnknownReason, freeze
@@ -39,7 +39,7 @@ def test_members_added_and_removed_cite_the_mirrored_nation_reference() -> None:
         "federation.members_changed/federation:80/nation:21/removed",
     ]
     added, removed = events
-    assert added.event_type == MEMBERS_CHANGED and added.confidence is Confidence.HIGH
+    assert added.event_type == MEMBERS_CHANGED.event_type and added.confidence is Confidence.HIGH
     assert dict(removed.attributes) == {"member": named(nation_ref("21")), "transition": "removed"}
     assert sources(removed) == [
         (SourceRole.PRIMARY, "federation:80", "members"),
@@ -62,13 +62,13 @@ def test_a_new_federation_cites_its_members_references_and_a_switch_is_cited_on_
         "federation.appeared/federation:81",
         "federation.members_changed/federation:80/nation:20/removed",
     ]
-    appeared = next(event for event in events if event.event_type == APPEARED)
+    appeared = next(event for event in events if event.event_type == APPEARED.event_type)
     assert sources(appeared) == [
         (SourceRole.PRIMARY, "federation:81", None),
         (SourceRole.CORROBORATING, "nation:20", "federation"),
         (SourceRole.CORROBORATING, "nation:21", "federation"),
     ]
-    left = next(event for event in events if event.event_type == MEMBERS_CHANGED)
+    left = next(event for event in events if event.event_type == MEMBERS_CHANGED.event_type)
     assert sources(left)[1] == (SourceRole.CORROBORATING, "nation:20", "federation")
 
 
@@ -81,9 +81,9 @@ def test_unexplained_federation_references_and_unresolved_member_lists_are_repor
         "federation.members_changed/federation:80/unresolved",
         "nation.federation_changed/nation:21",
     ]
-    reference = next(event for event in events if event.event_type == FEDERATION_CHANGED)
+    reference = next(event for event in events if event.event_type == NATION_FEDERATION_CHANGED.event_type)
     assert dict(reference.attributes) == {"transition": "set", "before": None, "after": named(federation_ref("80"))}
-    leftover = next(event for event in events if event.event_type == MEMBERS_CHANGED)
+    leftover = next(event for event in events if event.event_type == MEMBERS_CHANGED.event_type)
     assert leftover.confidence is Confidence.LOW
 
 
@@ -95,7 +95,7 @@ def test_a_rename_is_one_event_citing_every_changed_name_field() -> None:
     before = snapshot(BEFORE, named_federation(BEFORE, "Old", "Old"))
     after = snapshot(AFTER, named_federation(AFTER, "New", "New Formal"))
     (event,) = analyze(ANALYZER, before, after)
-    assert (event.id, event.event_type) == ("federation.renamed/federation:80", RENAMED)
+    assert (event.id, event.event_type) == ("federation.renamed/federation:80", RENAMED.event_type)
     assert sources(event) == [
         (SourceRole.PRIMARY, "federation:80", "displayName"),
         (SourceRole.PRIMARY, "federation:80", "federationName"),

@@ -14,7 +14,7 @@ from tests.analyzers.support import (
     war_ref,
 )
 from tinarrative.analyzers.politics import WarAnalyzer
-from tinarrative.analyzers.politics.wars import (
+from tinarrative.kinds.wars import (
     ALLIANCE_CHANGED,
     APPEARED,
     ATTACKER_CHANGED,
@@ -66,7 +66,7 @@ def test_an_appeared_war_is_dated_by_its_start_record_and_cites_every_cross_side
         records=(date_record(AFTER, "startDate", "2031-04-02T00:00:00"),),
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == APPEARED and event.confidence is Confidence.HIGH
+    assert event.event_type == APPEARED.event_type and event.confidence is Confidence.HIGH
     assert (event.date, event.date_basis) == ("2031-04-02T00:00:00", DateBasis.RECORD)
     assert [str(ref.entity_id) for ref in event.entities] == ["war:90", "nation:20", "nation:22", "nation:21"]
     assert sorted(sources(event)[2:]) == sorted(
@@ -92,7 +92,7 @@ def test_a_disappeared_war_cites_the_removed_wars_entries_from_the_earlier_sides
     before = snapshot(BEFORE, war(BEFORE, ("20",), ("21",)), nation(BEFORE, "20", "21"), nation(BEFORE, "21", "20"))
     after = snapshot(AFTER, nation(AFTER, "20"), nation(AFTER, "21"))
     (event,) = analyze(ANALYZER, before, after)
-    assert event.event_type == DISAPPEARED and event.attribute("side") == "before"
+    assert event.event_type == DISAPPEARED.event_type and event.attribute("side") == "before"
     assert sources(event) == [
         (SourceRole.PRIMARY, "war:90", None),
         (SourceRole.CORROBORATING, "nation:20", "wars"),
@@ -113,7 +113,7 @@ def test_an_alliance_member_leaving_cites_its_wars_entries_against_the_earlier_o
     )
     (event,) = analyze(ANALYZER, before, after)
     assert event.id == "war.alliance_changed/war:90/defending/nation:23/removed"
-    assert event.event_type == ALLIANCE_CHANGED
+    assert event.event_type == ALLIANCE_CHANGED.event_type
     assert dict(event.attributes) == {"side": "defending", "member": named(nation_ref("23")), "transition": "removed"}
     assert sources(event) == [
         (SourceRole.PRIMARY, "war:90", "_defendingAlliance"),
@@ -143,9 +143,9 @@ def test_a_new_leading_nation_and_a_later_last_fighting_date_are_literal_transit
     )
     events = analyze(ANALYZER, before, after)
     assert len(events) == 2
-    attacker = only(events, ATTACKER_CHANGED)
+    attacker = only(events, ATTACKER_CHANGED.event_type)
     assert dict(attacker.attributes) == {"transition": "changed", "before": nation_ref("20"), "after": nation_ref("22")}
-    fighting = only(events, LAST_FIGHTING_CHANGED)
+    fighting = only(events, LAST_FIGHTING_CHANGED.event_type)
     assert (fighting.date, fighting.date_basis) == ("2031-05-20T00:00:00", DateBasis.RECORD)
 
 

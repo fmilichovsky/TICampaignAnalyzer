@@ -21,10 +21,8 @@ from tests.narrative.support import (
     war_row,
 )
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tinarrative.kinds import KINDS, describe_event
 from tinarrative.kinds import attributes as kind_attributes
-from tinarrative.kinds import control as control_kinds
-from tinarrative.kinds import describe_event
-from tinarrative.kinds import nations as nation_kinds
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed, Unknown
@@ -53,8 +51,7 @@ EAST_REGION = ref(EntityDomain.REGION, "41", "East")
 SOUTH_REGION = ref(EntityDomain.REGION, "42", "South")
 
 
-NATION_KINDS = {kind.event_type: kind for kind in nation_kinds.KINDS}
-CONTROL_KINDS = {kind.event_type: kind for kind in control_kinds.KINDS}
+DECLARED_KINDS = KINDS
 
 
 def event(
@@ -69,12 +66,8 @@ def event(
 ) -> Event:
     """An event of interval ``key`` about ``subject``, dated by the interval, citing one change of the subject."""
     raw_id = "/".join([raw_type, str(subject.entity_id), *map(str, parts)])
-    if raw_type in NATION_KINDS:  # the kind's constructor checks the keys; a call states only what it exercises
-        kind = NATION_KINDS[raw_type]
-        stated = {key for key, _ in attributes}
-        attributes = kind_attributes(kind, attributes, **{key: Unknown() for key in sorted(kind.required - stated)})
-    elif raw_type in CONTROL_KINDS:
-        kind = CONTROL_KINDS[raw_type]
+    if raw_type in DECLARED_KINDS:  # the kind's constructor checks the keys; a call states only what it exercises
+        kind = DECLARED_KINDS[raw_type]
         stated = {key for key, _ in attributes}
         attributes = kind_attributes(kind, attributes, **{key: Unknown() for key in sorted(kind.required - stated)})
     fields: dict[str, object] = {
@@ -588,13 +581,22 @@ def test_bounded_shifts_rank_role_nations_then_nuclear_weapons_then_the_largest_
 
 
 def war_event(raw_type: str, key: str, *, entities: Sequence[EntityRef] = (), **attributes: Observed) -> Event:
+    kind = DECLARED_KINDS[raw_type]
+    stated = set(attributes) & (kind.required | kind.optional)
+    values = kind_attributes(
+        kind,
+        **{name: value for name, value in attributes.items() if name in kind.required | kind.optional},
+        **{name: Unknown() for name in sorted(kind.required - stated)},
+    )
     return event(
         raw_type,
         key,
         WAR,
         *attributes.get("_parts", ()),
         entities=entities,
-        attributes=tuple((name, value) for name, value in attributes.items() if name != "_parts"),
+        attributes=values,
+        date=attributes.get("date"),
+        date_basis=attributes.get("date_basis"),
         significance=Significance.MAJOR,
     )
 
@@ -711,9 +713,14 @@ def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_in
 
 
 def federation_event(raw_type: str, key: str, member: EntityRef | None = None, transition: str = "added") -> Event:
-    attributes = (("member", member), ("transition", transition)) if member is not None else ()
+    kind = DECLARED_KINDS[raw_type]
+    values = kind_attributes(
+        kind,
+        **({"member": member, "transition": transition} if member is not None else {}),
+        **{name: Unknown() for name in sorted(kind.required - ({"member", "transition"} if member else set()))},
+    )
     parts = (str(member.entity_id), transition) if member is not None else ()
-    return event(raw_type, key, UNION, *parts, entities=[member] if member else [], attributes=attributes,
+    return event(raw_type, key, UNION, *parts, entities=[member] if member else [], attributes=values,
                  significance=Significance.MAJOR)  # fmt: skip
 
 
