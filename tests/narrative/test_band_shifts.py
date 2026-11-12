@@ -9,6 +9,7 @@ from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import BAND_CROSSED, STATISTIC_SHIFTED
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
@@ -185,7 +186,22 @@ def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None
         K1,
         not_before=K0,
         entities=(NORTH, RESISTANCE),
-        attributes=(("scope", "executive"), ("before", None), ("after", RESISTANCE), ("cause", "Politics")),
+        attributes=kind_attributes(
+            NATION_CONTROL_CHANGED,
+            scope="executive",
+            before=None,
+            after=RESISTANCE,
+            shares_before=FrozenMap(()),
+            shares_after=FrozenMap(()),
+            point_count_before=0,
+            point_count_after=0,
+            points_moved=0,
+            cause="Politics",
+            recorded_on=None,
+            new_executive=None,
+            seat=None,
+            population=None,
+        ),
         status=EventStatus.INFERRED,
     )
     event = crossing(K1, "democracy", 5.5, 6.5)

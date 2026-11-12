@@ -22,6 +22,7 @@ from tests.narrative.support import (
 )
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes as kind_attributes
+from tinarrative.kinds import control as control_kinds
 from tinarrative.kinds import describe_event
 from tinarrative.kinds import nations as nation_kinds
 from tinarrative.model.entities import EntityDomain, EntityRef
@@ -53,6 +54,7 @@ SOUTH_REGION = ref(EntityDomain.REGION, "42", "South")
 
 
 NATION_KINDS = {kind.event_type: kind for kind in nation_kinds.KINDS}
+CONTROL_KINDS = {kind.event_type: kind for kind in control_kinds.KINDS}
 
 
 def event(
@@ -69,6 +71,10 @@ def event(
     raw_id = "/".join([raw_type, str(subject.entity_id), *map(str, parts)])
     if raw_type in NATION_KINDS:  # the kind's constructor checks the keys; a call states only what it exercises
         kind = NATION_KINDS[raw_type]
+        stated = {key for key, _ in attributes}
+        attributes = kind_attributes(kind, attributes, **{key: Unknown() for key in sorted(kind.required - stated)})
+    elif raw_type in CONTROL_KINDS:
+        kind = CONTROL_KINDS[raw_type]
         stated = {key for key, _ in attributes}
         attributes = kind_attributes(kind, attributes, **{key: Unknown() for key in sorted(kind.required - stated)})
     fields: dict[str, object] = {

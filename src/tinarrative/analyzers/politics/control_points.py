@@ -5,6 +5,15 @@ Which faction thereby "controls a nation" is left to reconstruction.
 
 from __future__ import annotations
 
+from ...kinds.control import (
+    CONTROL_POINT_APPEARED,
+    CONTROL_POINT_CONTROLLER_CHANGED,
+    CONTROL_POINT_DISAPPEARED,
+    CONTROL_POINT_LOSS_RECORDED,
+    CONTROL_POINT_NATION_CHANGED,
+    FACTION_CONTROL_POINTS_CHANGED,
+    NATION_CONTROL_POINTS_CHANGED,
+)
 from ...model.changes import ChangeIndex, ChangeKind, RecordsDetail, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
@@ -26,18 +35,21 @@ from ..common import (
     transition_attributes,
 )
 
-CONTROLLER_CHANGED = "control_point.controller_changed"
-NATION_CHANGED = "control_point.nation_changed"
-APPEARED = "control_point.appeared"
-DISAPPEARED = "control_point.disappeared"
-LOSS_RECORDED = "control_point.loss_recorded"
-FACTION_LIST_CHANGED = "faction.control_points_changed"
-NATION_LIST_CHANGED = "nation.control_points_changed"
+CONTROLLER_CHANGED = CONTROL_POINT_CONTROLLER_CHANGED.event_type
+NATION_CHANGED = CONTROL_POINT_NATION_CHANGED.event_type
+APPEARED = CONTROL_POINT_APPEARED.event_type
+DISAPPEARED = CONTROL_POINT_DISAPPEARED.event_type
+LOSS_RECORDED = CONTROL_POINT_LOSS_RECORDED.event_type
+FACTION_LIST_CHANGED = FACTION_CONTROL_POINTS_CHANGED.event_type
+NATION_LIST_CHANGED = NATION_CONTROL_POINTS_CHANGED.event_type
 
 HANDLED_LISTS = ((EntityDomain.FACTION, "controlPoints"), (EntityDomain.NATION, "controlPoints"))
 LOST_FIELD = "lostControlPoints"
 
-_LIST_EVENT = {EntityDomain.FACTION.value: FACTION_LIST_CHANGED, EntityDomain.NATION.value: NATION_LIST_CHANGED}
+_LIST_EVENT = {
+    EntityDomain.FACTION.value: FACTION_CONTROL_POINTS_CHANGED,
+    EntityDomain.NATION.value: NATION_CONTROL_POINTS_CHANGED,
+}
 
 
 class _LossRecord:
@@ -120,7 +132,7 @@ def _controller_changed(
             sources.append(record.source)
             attributes.append(("loss_recorded_on", record.recorded_on))
     return build.event(
-        CONTROLLER_CHANGED,
+        CONTROL_POINT_CONTROLLER_CHANGED,
         id_parts=(point_id,),
         sources=sources,
         entities=(
@@ -140,7 +152,7 @@ def _nation_changed(change: StateChange, lookup: Lookup, ledger: MembershipLedge
         return None
     point_id = change.entity_id
     return build.event(
-        NATION_CHANGED,
+        CONTROL_POINT_NATION_CHANGED,
         id_parts=(point_id,),
         sources=mirrored_sources(change, ledger, "controlPoints", point_id),
         entities=(
@@ -169,7 +181,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
             if cited is not None:
                 sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        CONTROL_POINT_APPEARED if appeared else CONTROL_POINT_DISAPPEARED,
         id_parts=(point_id,),
         sources=sources,
         entities=(lookup.ref(point_id), nation, faction),
@@ -186,7 +198,7 @@ def _loss_recorded(
     source = EventSource(record.source.change, SourceRole.PRIMARY, record.source.member, record.source.entry)
     confidence = Confidence.LOW if is_unresolved(record.recorded_on) else Confidence.HIGH
     return build.event(
-        LOSS_RECORDED,
+        CONTROL_POINT_LOSS_RECORDED,
         id_parts=(faction_id, point_id),
         sources=(source,),
         entities=(lookup.resolve(record.source.member), record.owner, lookup.context_ref(point_id, "nation")),

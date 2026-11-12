@@ -249,7 +249,6 @@ def test_unlisted_and_notification_types_take_the_default() -> None:
 def test_table_entries_resolve_without_context() -> None:
     lookup = empty_lookup()
     expected = {
-        "councilor.location_changed": Significance.TRIVIAL,
         "ship.fleet_changed": Significance.TRIVIAL,
         "fleet.orbit_changed": Significance.MINOR,
         "nation.regions_changed": Significance.MINOR,
