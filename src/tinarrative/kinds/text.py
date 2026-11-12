@@ -54,6 +54,45 @@ def plain(label: str) -> Template:
     return lambda event: f"{subject_label(event)} {transition_label(event, label)}"
 
 
+ABSENT = "is absent from the after snapshot"
+PRESENT = "is present only in the after snapshot"
+
+
+def entity(event: Event, domain: EntityDomain, skip: int = 0) -> EntityRef | None:
+    matches = [ref for ref in event.entities[1:] if ref.entity_id.domain is domain]
+    return matches[skip] if len(matches) > skip else None
+
+
+def name(ref: EntityRef | None) -> str:
+    return ref.label() if ref is not None else "null"
+
+
+def presence(event: Event) -> str:
+    return PRESENT if event.attribute("side") == "after" else ABSENT
+
+
+def refs(event: Event, attribute: str) -> str:
+    value = event.attribute(attribute)
+    if not isinstance(value, tuple):
+        return render_event_value(value)
+    return ", ".join(render_event_value(item) for item in value)
+
+
+def region_count(count: Observed) -> str:
+    return f"{render_value(count)} region{'' if count == 1 else 's'}"
+
+
+def regions(event: Event) -> str:
+    return region_count(event.attribute("region_count"))
+
+
+def bands(event: Event) -> str:
+    return (
+        f"{attribute_text(event, 'statistic')}: "
+        f"{attribute_text(event, 'from_band')} -> {attribute_text(event, 'to_band')}"
+    )
+
+
 def contextual(label: str, domain: EntityDomain, prefix: str = "") -> Template:
     """``<subject> (<prefix><context>) <label>: before -> after`` using the first context entity of ``domain``."""
 

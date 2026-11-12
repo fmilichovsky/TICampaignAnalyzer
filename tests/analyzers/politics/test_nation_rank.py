@@ -2,8 +2,9 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, nation_ref, region_ref, snapshot, state
 from tinarrative.analyzers.politics import NationRankAnalyzer
-from tinarrative.analyzers.politics.nation_rank import RANK_CHANGED, RANKED_PLACES
+from tinarrative.analyzers.politics.nation_rank import RANKED_PLACES
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import RANK_CHANGED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import SourceRole
 from tinarrative.model.snapshot import EntityState
@@ -26,7 +27,7 @@ def gdp_events(before: list[EntityState], after: list[EntityState]) -> dict[str,
     return {
         event.id: dict(event.attributes)
         for event in events
-        if event.event_type == RANK_CHANGED and event.attribute("metric") == "GDP"
+        if event.event_type == RANK_CHANGED.event_type and event.attribute("metric") == "GDP"
     }
 
 
@@ -35,8 +36,8 @@ def test_an_overtaking_nation_and_the_one_it_passed_both_change_rank() -> None:
     after = [nation("20", AFTER, 100.0), nation("21", AFTER, 80.0), nation("22", AFTER, 90.0)]
     events = analyze(ANALYZER, snapshot(BEFORE, *before), snapshot(AFTER, *after))
     ranked = {event.id: event for event in events}
-    assert sorted(ranked) == [f"{RANK_CHANGED}/nation:21/GDP", f"{RANK_CHANGED}/nation:22/GDP"]
-    risen = ranked[f"{RANK_CHANGED}/nation:22/GDP"]
+    assert sorted(ranked) == [f"{RANK_CHANGED.event_type}/nation:21/GDP", f"{RANK_CHANGED.event_type}/nation:22/GDP"]
+    risen = ranked[f"{RANK_CHANGED.event_type}/nation:22/GDP"]
     assert dict(risen.attributes) == {
         "metric": "GDP",
         "before_rank": 3,
@@ -48,7 +49,7 @@ def test_an_overtaking_nation_and_the_one_it_passed_both_change_rank() -> None:
         (SourceRole.PRIMARY, "nation:22")
     ]
     # Passed without a change of its own: the overtaking nation's GDP is the primary source.
-    passed = ranked[f"{RANK_CHANGED}/nation:21/GDP"]
+    passed = ranked[f"{RANK_CHANGED.event_type}/nation:21/GDP"]
     assert [(source.role, str(source.change.entity_id)) for source in passed.sources] == [
         (SourceRole.PRIMARY, "nation:22")
     ]
@@ -59,7 +60,7 @@ def test_a_nation_losing_its_regions_is_unranked() -> None:
     before = [nation("20", BEFORE, 100.0), nation("21", BEFORE, 80.0)]
     after = [nation("20", AFTER, 100.0), nation("21", AFTER, 80.0, regions=())]
     assert gdp_events(before, after) == {
-        f"{RANK_CHANGED}/nation:21/GDP": {
+        f"{RANK_CHANGED.event_type}/nation:21/GDP": {
             "metric": "GDP",
             "before_rank": 2,
             "after_rank": None,

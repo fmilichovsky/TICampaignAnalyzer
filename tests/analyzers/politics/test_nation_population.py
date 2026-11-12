@@ -4,12 +4,9 @@ import pytest
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, nation_ref, region_ref, snapshot, state
 from tinarrative.analyzers.politics import NationPopulationAnalyzer
-from tinarrative.analyzers.politics.nation_population import (
-    POPULATION_CHANGED,
-    POPULATION_DROP_FLOOR,
-    population_limit,
-)
+from tinarrative.analyzers.politics.nation_population import POPULATION_DROP_FLOOR, population_limit
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import POPULATION_CHANGED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Event, SourceRole
 from tinarrative.model.snapshot import EntityState
@@ -56,7 +53,7 @@ def test_the_residual_takes_out_the_regions_gained_and_lost() -> None:
         region("42", AFTER, NORTH, 50.0),
     )
     (event,) = north_events(*analyze(ANALYZER, before, after))
-    assert event.event_type == POPULATION_CHANGED and event.id == "nation.population_changed/nation:20"
+    assert event.event_type == POPULATION_CHANGED.event_type and event.id == "nation.population_changed/nation:20"
     attributes = dict(event.attributes)
     assert attributes["before"] == 100.0 and attributes["after"] == 110.0
     assert attributes["residual"] == 80.0 and attributes["relative_change"] == pytest.approx(-0.2)
