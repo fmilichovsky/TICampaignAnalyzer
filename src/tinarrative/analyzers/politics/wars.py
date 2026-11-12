@@ -11,6 +11,17 @@ from collections.abc import Mapping
 from typing import NamedTuple
 
 from ...kinds import campaign as campaign_kinds
+from ...kinds.wars import (
+    ALLIANCE_CHANGED,
+    APPEARED,
+    ATTACKER_CHANGED,
+    ATTACKING_ALLIANCE_CHANGED,
+    DEFENDER_CHANGED,
+    DEFENDING_ALLIANCE_CHANGED,
+    DISAPPEARED,
+    LAST_FIGHTING_CHANGED,
+    NATION_WARS_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Event, EventSource, SourceRole
@@ -32,13 +43,7 @@ from ..common import (
 )
 from .nations import relation_events
 
-APPEARED = "war.appeared"
-DISAPPEARED = "war.disappeared"
-ALLIANCE_CHANGED = "war.alliance_changed"
-ATTACKER_CHANGED = "war.attacker_changed"
-DEFENDER_CHANGED = "war.defender_changed"
-LAST_FIGHTING_CHANGED = "war.last_fighting_changed"
-WARS_LIST_CHANGED = "nation.wars_changed"
+WARS_LIST_CHANGED = NATION_WARS_CHANGED
 
 ATTACKING = "_attackingAlliance"
 DEFENDING = "_defendingAlliance"
@@ -55,8 +60,8 @@ DEFENDERS = WarSide(DEFENDING, "defending", "defender")
 SIDES = ((ATTACKERS, DEFENDERS), (DEFENDERS, ATTACKERS))
 """Each side of a war with its opponents."""
 LEFTOVER_TYPES: Mapping[str, EventKind | str] = {
-    ATTACKING: "war.attacking_alliance_changed",
-    DEFENDING: "war.defending_alliance_changed",
+    ATTACKING: ATTACKING_ALLIANCE_CHANGED,
+    DEFENDING: DEFENDING_ALLIANCE_CHANGED,
     "wars": WARS_LIST_CHANGED,
     INTERSTATE_WARS: campaign_kinds.INTERSTATE_WARS_CHANGED,
 }

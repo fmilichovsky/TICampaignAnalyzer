@@ -20,16 +20,6 @@ _EVIDENCE: tuple[str, ...] = (
     # inferred readings name who won, what was destroyed, when a hab began to work and where a faction first
     # settled.
     # Territory: which region went to whom, and the inferred reading of the transfer.
-    # Wars: the start and end dates, the last fighting and when each nation joined a side.
-    "war.appeared",
-    "war.disappeared",
-    "war.last_fighting_changed",
-    "war.alliance_changed",
-    # Federations: founding, dissolution, each member joining or leaving, and a new name.
-    "federation.appeared",
-    "federation.disappeared",
-    "federation.members_changed",
-    "federation.renamed",
     # A nation's new name, and a nation absorbed by its neighbour.
     # Dated records: a completed technology or project.
     # The statistic shifts behind a narrative event's metric_shifts or a takeover's precursors, with their causes.

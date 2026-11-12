@@ -20,9 +20,7 @@ from .text import attribute_label as _attr
 from .text import attribute_text as _text
 from .text import bands as _bands
 from .text import entity as _entity
-from .text import list_changed as _list_changed
 from .text import name as _name
-from .text import plain as _plain
 from .text import presence as _presence
 from .text import refs as _refs
 from .text import region_count as _region_count
@@ -149,34 +147,6 @@ def _councilor_field(label: str) -> Callable[[Event], str]:
 
 def _councilor_presence(event: Event) -> str:
     return f"{_subject(event)} (faction {_name(_entity(event, EntityDomain.FACTION))}) {_presence(event)}"
-
-
-def _side_list(event: Event) -> str:
-    nations = ", ".join(ref.label() for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.NATION)
-    return nations or "no nations"
-
-
-def _war_presence(event: Event) -> str:
-    text = f"{_subject(event)} ({_side_list(event)}) {_presence(event)}"
-    if not isinstance(event.attribute("started_on"), Unknown):
-        text += f"; start date {_text(event, 'started_on')}"
-    return text
-
-
-def _alliance_changed(event: Event) -> str:
-    sign = "+" if event.attribute("transition") == "added" else "-"
-    return f"{_subject(event)} {_text(event, 'side')} side: {sign}{_attr(event, 'member')}"
-
-
-def _members_changed(event: Event) -> str:
-    if event.attribute("transition") == "unresolved":
-        return _list_changed(event)
-    sign = "+" if event.attribute("transition") == "added" else "-"
-    return f"{_subject(event)} members: {sign}{_attr(event, 'member')}"
-
-
-def _federation_presence(event: Event) -> str:
-    return f"{_subject(event)} (members {_side_list(event)}) {_presence(event)}"
 
 
 def _nation_control_changed(event: Event) -> str:
@@ -482,20 +452,6 @@ def _technology_milestone(event: Event) -> str:
 
 _TEMPLATES: dict[str, Callable[[Event], str]] = {
     # The types not yet migrated to a kind.
-    "nation.federation_changed": _plain("federation"),
-    "nation.wars_changed": _list_changed,
-    "war.appeared": _war_presence,
-    "war.disappeared": _war_presence,
-    "war.alliance_changed": _alliance_changed,
-    "war.attacker_changed": _plain("attacker"),
-    "war.defender_changed": _plain("defender"),
-    "war.last_fighting_changed": _plain("date of last fighting"),
-    "war.attacking_alliance_changed": _list_changed,
-    "war.defending_alliance_changed": _list_changed,
-    "federation.appeared": _federation_presence,
-    "federation.disappeared": _federation_presence,
-    "federation.members_changed": _members_changed,
-    "federation.renamed": _renamed,
     "faction.takeover": _takeover,
     "faction.takeover_wave": _takeover_wave,
     "war.arc": _war_arc,

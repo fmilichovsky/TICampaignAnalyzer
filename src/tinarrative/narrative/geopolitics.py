@@ -17,6 +17,13 @@ from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
 from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
 from ..config import GeopoliticsSettings
 from ..kinds import nations as nation_kinds
+from ..kinds.federations import APPEARED as FEDERATION_APPEARED
+from ..kinds.federations import DISAPPEARED as FEDERATION_DISAPPEARED
+from ..kinds.federations import MEMBERS_CHANGED as FEDERATION_MEMBERS_CHANGED
+from ..kinds.federations import RENAMED as FEDERATION_RENAMED
+from ..kinds.wars import ALLIANCE_CHANGED, LAST_FIGHTING_CHANGED
+from ..kinds.wars import APPEARED as WAR_APPEARED
+from ..kinds.wars import DISAPPEARED as WAR_DISAPPEARED
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed, Unknown
@@ -604,7 +611,15 @@ class FederationLifecycleRule:
     window_days: int | None = None
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        types = ("federation.appeared", "federation.members_changed", "federation.renamed", "federation.disappeared")
+        types = tuple(
+            kind.event_type
+            for kind in (
+                FEDERATION_APPEARED,
+                FEDERATION_MEMBERS_CHANGED,
+                FEDERATION_RENAMED,
+                FEDERATION_DISAPPEARED,
+            )
+        )
         by_federation = by_subject(by_type(stream, *types))
         first = {item.federation.entity_id for item in situations[0].federations} if situations else set()
         reports = interval_reports(situations)
@@ -612,7 +627,9 @@ class FederationLifecycleRule:
         built = []
         for federation_id in sorted_keys(by_federation):
             events = sorted(by_federation[federation_id], key=event_order)
-            if federation_id not in first and not any(event.event_type == "federation.appeared" for event in events):
+            if federation_id not in first and not any(
+                event.event_type == FEDERATION_APPEARED.event_type for event in events
+            ):
                 continue
             listed = [
                 item
@@ -625,7 +642,8 @@ class FederationLifecycleRule:
             changes = tuple(
                 _member_change(event, parties)
                 for event in events
-                if event.event_type == "federation.members_changed" and ref_attribute(event, "member") is not None
+                if event.event_type == FEDERATION_MEMBERS_CHANGED.event_type
+                and ref_attribute(event, "member") is not None
             )
             members = {ref.entity_id for ref in initial} | {ref.entity_id for ref in final}
             members |= {ref.entity_id for event in events for ref in event.entities[1:]}
@@ -1085,7 +1103,7 @@ def _since(keys: Iterable[str], started: str | None) -> list[str]:
 def _closed_before(event: Event, started: str | None) -> bool:
     """Such an event cannot belong to a war begun later."""
     keys = intervals_of([event])
-    return bool(keys) and not _since(keys, started) and event.event_type != "war.appeared"
+    return bool(keys) and not _since(keys, started) and event.event_type != WAR_APPEARED.event_type
 
 
 @dataclass(frozen=True)
@@ -1105,14 +1123,16 @@ class WarArcRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
-        types = ("war.appeared", "war.alliance_changed", "war.last_fighting_changed", "war.disappeared")
+        types = tuple(
+            kind.event_type for kind in (WAR_APPEARED, ALLIANCE_CHANGED, LAST_FIGHTING_CHANGED, WAR_DISAPPEARED)
+        )
         by_war = by_subject(by_type(stream, *types))
         listed: dict[EntityId, EntityRef] = {war.war.entity_id: war.war for report in situations for war in report.wars}
         first = {war.war.entity_id for war in situations[0].wars} if situations else set()
         built = []
         for war_id in sorted(set(by_war) | first, key=lambda entity_id: entity_id.sort_key):
             events = by_war.get(war_id, [])
-            if war_id not in first and not any(event.event_type == "war.appeared" for event in events):
+            if war_id not in first and not any(event.event_type == WAR_APPEARED.event_type for event in events):
                 continue
             ref = events[0].entities[0] if events else listed[war_id]
             event = self._arc(stream, situations, reports, build, ref, events)
@@ -1165,7 +1185,7 @@ class WarArcRule:
         regions = unique_refs(
             region for event in (*annexations, *nested_annexations) for region in refs_attribute(event, "regions")
         )
-        appeared = next((event for event in events if event.event_type == "war.appeared"), None)
+        appeared = next((event for event in events if event.event_type == WAR_APPEARED.event_type), None)
         started = appeared.attribute("started_on") if appeared is not None else None
         if not isinstance(started, str):
             started = next(
@@ -1180,7 +1200,7 @@ class WarArcRule:
         constituents = [event for event in constituents if not _closed_before(event, started)]
         if not constituents:
             return None
-        disappeared = next((event for event in events if event.event_type == "war.disappeared"), None)
+        disappeared = next((event for event in events if event.event_type == WAR_DISAPPEARED.event_type), None)
         duration = days_between(started, None if disappeared is None else latest(disappeared))
         # An interval-dated end is the save by which the war had ended, so the span is only an upper bound; an open war
         # has no length yet.
@@ -1228,7 +1248,7 @@ class WarArcRule:
                         side.extend(_refs(value))
         for event in events:
             member = ref_attribute(event, "member")
-            if event.event_type == "war.alliance_changed" and member is not None:
+            if event.event_type == ALLIANCE_CHANGED.event_type and member is not None:
                 (attackers if event.attribute("side") == "attacking" else defenders).append(member)
         return unique_refs(attackers), unique_refs(defenders)
 
