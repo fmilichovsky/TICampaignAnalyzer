@@ -20,12 +20,6 @@ _EVIDENCE: tuple[str, ...] = (
     # inferred readings name who won, what was destroyed, when a hab began to work and where a faction first
     # settled.
     # Territory: which region went to whom, and the inferred reading of the transfer.
-    "region.nation_changed",
-    "nation.territory_gained",
-    "nation.territory_lost",
-    "nation.independence",
-    "nation.unification",
-    "nation.annexation",
     # Wars: the start and end dates, the last fighting and when each nation joined a side.
     "war.appeared",
     "war.disappeared",
@@ -37,24 +31,15 @@ _EVIDENCE: tuple[str, ...] = (
     "federation.members_changed",
     "federation.renamed",
     # A nation's new name, and a nation absorbed by its neighbour.
-    "nation.renamed",
-    "nation.disappeared",
     # Dated records: a completed technology or project.
     # The statistic shifts behind a narrative event's metric_shifts or a takeover's precursors, with their causes.
-    "nation.statistic_shifted",
     # The band crossing behind a band-shift narrative event, with the game's band labels and its causes.
-    "nation.band_crossed",
     # A population move beyond territory, and a five-year per-capita GDP trend at its quarter, behind a collapse or
     # an economic trajectory.
-    "nation.population_changed",
-    "nation.pcgdp_trend",
     # A boost, mission control or space defences move with the share territory carried, behind a space program or
     # the first space defences.
-    "nation.space_assets_changed",
     # A nuclear program starting, behind a nation's first nuclear weapons.
-    "nation.nuclear_program_changed",
     # An alliance or rivalry formed or broken, behind a diplomatic realignment.
-    "nation.relation_changed",
 )
 
 NARRATOR_EVIDENCE: Final[frozenset[str]] = frozenset(_EVIDENCE)

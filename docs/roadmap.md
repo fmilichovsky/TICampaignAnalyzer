@@ -153,7 +153,7 @@ Tracking #249.
   - [x] Military family (#319).
   - [x] Technology family (#320).
   - [x] Space family (#321).
-  - [ ] Nations family (#322).
+  - [x] Nations family (#322).
   - [ ] Control family (#323).
   - [ ] Wars and federations family (#324).
   - [ ] Narrative-event kinds (#325).

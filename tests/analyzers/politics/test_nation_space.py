@@ -4,8 +4,9 @@ import pytest
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, nation_ref, region_ref, snapshot, state
 from tinarrative.analyzers.politics import NationSpaceAssetsAnalyzer
-from tinarrative.analyzers.politics.nation_space import SPACE_ASSETS_CHANGED, is_space_change
+from tinarrative.analyzers.politics.nation_space import is_space_change
 from tinarrative.kinds import describe_event
+from tinarrative.kinds.nations import SPACE_ASSETS_CHANGED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import SourceRole
 from tinarrative.model.snapshot import EntityState
@@ -58,7 +59,7 @@ def test_held_regions_growing_boost_is_growth_with_no_territory_share() -> None:
         AFTER, nation("20", AFTER, ("40", "41")), region("40", AFTER, "20", 20.0), region("41", AFTER, "20")
     )
     (event,) = analyze(ANALYZER, before, after)
-    assert event.id == f"{SPACE_ASSETS_CHANGED}/nation:20/boost"
+    assert event.id == f"{SPACE_ASSETS_CHANGED.event_type}/nation:20/boost"
     attributes = dict(event.attributes)
     assert attributes["statistic"] == "boost" and attributes["direction"] == "growth"
     assert (attributes["before"], attributes["after"], attributes["relative_change"]) == (20.0, 30.0, 0.5)
@@ -87,13 +88,13 @@ def test_a_region_lost_carries_the_drop() -> None:
         region("42", AFTER, "21", 1.0, 1),
     )
     events = {event.id: event for event in analyze(ANALYZER, before, after)}
-    drop = dict(events[f"{SPACE_ASSETS_CHANGED}/nation:20/boost"].attributes)
+    drop = dict(events[f"{SPACE_ASSETS_CHANGED.event_type}/nation:20/boost"].attributes)
     assert (drop["direction"], drop["before"], drop["after"]) == ("decline", 40.0, 10.0)
     assert (drop["territory_delta"], drop["territory_share"]) == (-30.0, 1.0)
     assert [str(ref.entity_id) for ref in drop["regions_lost"]] == ["region:41"]  # type: ignore[union-attr]
-    gain = dict(events[f"{SPACE_ASSETS_CHANGED}/nation:21/boost"].attributes)
+    gain = dict(events[f"{SPACE_ASSETS_CHANGED.event_type}/nation:21/boost"].attributes)
     assert (gain["before"], gain["after"], gain["territory_share"]) == (1.0, 31.0, 1.0)
-    cited = events[f"{SPACE_ASSETS_CHANGED}/nation:20/boost"].sources
+    cited = events[f"{SPACE_ASSETS_CHANGED.event_type}/nation:20/boost"].sources
     assert [(source.role, source.change.field) for source in cited] == [(SourceRole.CORROBORATING, "nation")]
 
 

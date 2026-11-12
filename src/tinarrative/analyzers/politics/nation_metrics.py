@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from ...kinds.nations import STATISTIC_SHIFTED
 from ...model.changes import ChangeIndex, ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain, EntityId
 from ...model.events import Event, EventSource, SourceRole
@@ -22,7 +23,6 @@ from ...model.snapshot import SaveSnapshot
 from ...model.values import FrozenMap, Observed, Unknown
 from ..common import EventBuilder, Lookup, Side, primary
 
-STATISTIC_SHIFTED = "nation.statistic_shifted"
 PUBLIC_OPINION = "publicOpinion"
 DAYS_PER_MONTH = 365.25 / 12
 
