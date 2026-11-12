@@ -5,6 +5,15 @@ Presence is reported as-is; whether a vanished councilor died or was dismissed i
 
 from __future__ import annotations
 
+from ...kinds.control import (
+    COUNCILOR_APPEARED,
+    COUNCILOR_DETAINING_FACTION_CHANGED,
+    COUNCILOR_DISAPPEARED,
+    COUNCILOR_FACTION_CHANGED,
+    COUNCILOR_LOCATION_CHANGED,
+    COUNCILOR_STATUS_CHANGED,
+    FACTION_COUNCILORS_CHANGED,
+)
 from ...model.changes import ChangeKind, StateChange, StateDiff
 from ...model.entities import EntityDomain
 from ...model.events import Event, SourceRole
@@ -23,13 +32,13 @@ from ..common import (
     transition_attributes,
 )
 
-FACTION_CHANGED = "councilor.faction_changed"
-STATUS_CHANGED = "councilor.status_changed"
-LOCATION_CHANGED = "councilor.location_changed"
-DETAINING_FACTION_CHANGED = "councilor.detaining_faction_changed"
-APPEARED = "councilor.appeared"
-DISAPPEARED = "councilor.disappeared"
-ROSTER_CHANGED = "faction.councilors_changed"
+FACTION_CHANGED = COUNCILOR_FACTION_CHANGED.event_type
+STATUS_CHANGED = COUNCILOR_STATUS_CHANGED.event_type
+LOCATION_CHANGED = COUNCILOR_LOCATION_CHANGED.event_type
+DETAINING_FACTION_CHANGED = COUNCILOR_DETAINING_FACTION_CHANGED.event_type
+APPEARED = COUNCILOR_APPEARED.event_type
+DISAPPEARED = COUNCILOR_DISAPPEARED.event_type
+ROSTER_CHANGED = FACTION_COUNCILORS_CHANGED.event_type
 
 HANDLED_LISTS = ((EntityDomain.FACTION, "councilors"),)
 VALUE_FIELDS = (
@@ -55,7 +64,7 @@ class CouncilorAnalyzer:
             councilor_id = change.entity_id
             events.append(
                 build.event(
-                    FACTION_CHANGED,
+                    COUNCILOR_FACTION_CHANGED,
                     id_parts=(councilor_id,),
                     sources=mirrored_sources(change, ledger, "councilors", councilor_id),
                     entities=(lookup.ref(councilor_id), lookup.resolve(change.before), lookup.resolve(change.after)),
@@ -71,7 +80,11 @@ class CouncilorAnalyzer:
                 councilor_id = change.entity_id
                 events.append(
                     build.event(
-                        event_type,
+                        {
+                            STATUS_CHANGED: COUNCILOR_STATUS_CHANGED,
+                            LOCATION_CHANGED: COUNCILOR_LOCATION_CHANGED,
+                            DETAINING_FACTION_CHANGED: COUNCILOR_DETAINING_FACTION_CHANGED,
+                        }[event_type],
                         id_parts=(councilor_id,),
                         sources=(primary(change),),
                         entities=(
@@ -87,7 +100,7 @@ class CouncilorAnalyzer:
         for change in index.presence(EntityDomain.COUNCILOR):
             events.append(_presence(change, lookup, ledger, build))
         for change, member, transition in ledger.leftovers():
-            events.append(list_changed_event(ROSTER_CHANGED, change, member, transition, lookup, build))
+            events.append(list_changed_event(FACTION_COUNCILORS_CHANGED, change, member, transition, lookup, build))
         return events
 
 
@@ -104,7 +117,7 @@ def _presence(change: StateChange, lookup: Lookup, ledger: MembershipLedger, bui
         if cited is not None:
             sources.append(cited)
     return build.event(
-        APPEARED if appeared else DISAPPEARED,
+        COUNCILOR_APPEARED if appeared else COUNCILOR_DISAPPEARED,
         id_parts=(councilor_id,),
         sources=sources,
         entities=(lookup.ref(councilor_id), faction),

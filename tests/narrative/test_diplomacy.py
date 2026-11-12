@@ -5,10 +5,11 @@ from __future__ import annotations
 from tests.narrative.support import atomic, faction, nation, nation_row, situation, unification
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
+from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import RELATION_CHANGED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance
-from tinarrative.model.values import Observed
+from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.diplomacy import REALIGNMENT
 from tinarrative.narrative.situation import SituationReport
@@ -47,7 +48,22 @@ def executive_change(key: str, before: EntityRef, after: EntityRef, subject: Ent
         status=EventStatus.INFERRED,
         significance=Significance.MAJOR,
         entities=(subject, before, after),
-        attributes=(("scope", "executive"), ("before", before), ("after", after), ("cause", "Politics")),
+        attributes=attributes(
+            NATION_CONTROL_CHANGED,
+            scope="executive",
+            before=before,
+            after=after,
+            shares_before=FrozenMap(()),
+            shares_after=FrozenMap(()),
+            point_count_before=0,
+            point_count_after=0,
+            points_moved=0,
+            cause="Politics",
+            recorded_on=None,
+            new_executive=None,
+            seat=None,
+            population=None,
+        ),
     )
 
 

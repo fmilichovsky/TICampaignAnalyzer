@@ -15,10 +15,10 @@ from tests.analyzers.support import (
 from tinarrative.analyzers.politics import OrganizationAnalyzer
 from tinarrative.analyzers.politics.organizations import (
     ASSIGNED_COUNCILOR_CHANGED,
-    COUNCILOR_ORGS_CHANGED,
     FACTION_ORBIT_CHANGED,
     UNASSIGNED_ORGS_CHANGED,
 )
+from tinarrative.kinds.control import COUNCILOR_ORGS_CHANGED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
 from tinarrative.model.values import Unknown, UnknownReason, freeze
@@ -133,5 +133,5 @@ def test_unexplained_list_changes_are_reported_on_their_own() -> None:
         "councilor.orgs_changed/councilor:100/organization:70/added",
         "faction.unassigned_orgs_changed/faction:15/unresolved",
     ]
-    assert {event.event_type for event in events} == {COUNCILOR_ORGS_CHANGED, UNASSIGNED_ORGS_CHANGED}
+    assert {event.event_type for event in events} == {COUNCILOR_ORGS_CHANGED.event_type, UNASSIGNED_ORGS_CHANGED}
     assert next(e for e in events if e.event_type == UNASSIGNED_ORGS_CHANGED).confidence is Confidence.LOW

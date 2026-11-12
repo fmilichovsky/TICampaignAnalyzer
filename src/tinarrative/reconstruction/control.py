@@ -22,6 +22,7 @@ from ..analyzers.politics.control_points import (
     LOSS_RECORDED,
     NATION_CHANGED,
 )
+from ..kinds.control import NATION_CONTROL_CHANGED as NATION_CONTROL_CHANGED_KIND
 from ..kinds.nations import EXECUTIVE_CHANGE_RECORDED
 from ..log import fields as log_fields
 from ..log import get_logger
@@ -32,7 +33,7 @@ from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, UnknownReason
 from .common import ObjectiveIndex, SeatBasis, Support, control_points, executive_seat, inferred, lower
 
-NATION_CONTROL_CHANGED = "faction.nation_control_changed"
+NATION_CONTROL_CHANGED = NATION_CONTROL_CHANGED_KIND.event_type
 RULE_TYPES = (NATION_CONTROL_CHANGED,)
 
 EXECUTIVE = "executive"
@@ -247,7 +248,7 @@ def _nation_control(
         events.append(
             inferred(
                 context.build,
-                NATION_CONTROL_CHANGED,
+                NATION_CONTROL_CHANGED_KIND,
                 id_parts=(nation, scope),
                 primary=primary,
                 support=support,

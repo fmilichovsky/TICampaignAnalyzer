@@ -66,10 +66,7 @@ that explain it and stays trivial on its own."""
 
 _TRIVIAL: tuple[str, ...] = (
     # Councilor movement and ship reassignment happen constantly between saves and say nothing on their own.
-    "councilor.location_changed",
     # Organizations are created and removed in bulk.
-    "organization.appeared",
-    "organization.disappeared",
     # A band crossing is the evidence a band-shift narrative event is built from; on its own it may be the game
     # converging the statistic towards its rest value.
     # A per-capita GDP trend is the evidence an economic trajectory is built from.
@@ -81,8 +78,6 @@ _TRIVIAL: tuple[str, ...] = (
     # Leftover list events that mirror an asset's owner field: the owner field already produced the event
     # (``army.region_changed``, ``fleet.faction_changed``, ``ship.fleet_changed``, ...), and what is left is a
     # mirror entry nothing claimed, typically a list unresolved on one side.
-    "councilor.orgs_changed",
-    "faction.unassigned_orgs_changed",
 )
 
 _MINOR: tuple[str, ...] = (
@@ -93,14 +88,10 @@ _MINOR: tuple[str, ...] = (
     # ``control_point.controller_changed``, councilor events, ``war.alliance_changed`` and war presence). They
     # stay visible so the unexplained residue is never hidden; promoting one is reconstruction work.
     "nation.wars_changed",
-    "faction.control_points_changed",
-    "nation.control_points_changed",
-    "faction.councilors_changed",
     "war.attacking_alliance_changed",
     "war.defending_alliance_changed",
     # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
     # it is not counted as a second major event.
-    "control_point.loss_recorded",
     # Inferred aggregates of the ``region.nation_changed`` events they cite, which are already major; ranking
     # them major too would count one transfer twice.
     # Hostile claims mark regions a nation may take by force: frequent and only a
@@ -113,9 +104,7 @@ _MINOR: tuple[str, ...] = (
 
 _MAJOR: tuple[str, ...] = (
     # Core political and asset-ownership changes.
-    "control_point.controller_changed",
     "nation.federation_changed",
-    "councilor.faction_changed",
     # Wars and federations: entities that appear with a ``startDate`` and vanish at peace.
     "war.appeared",
     "war.disappeared",
@@ -126,16 +115,13 @@ _MAJOR: tuple[str, ...] = (
     # A federation's rename marks its growth, which a history reports.
     "federation.renamed",
     # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
-    "councilor.detaining_faction_changed",
     # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
     # below the band.
-    "organization.assigned_councilor_changed",
     # Space battles (``CombatLogs``).
     # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
     # and a whole-nation unification or an independence is what a history reports about it.
     # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
     # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major.
-    "faction.nation_control_changed",
     # Inferred readings of space evidence: a working hab, a new foothold, a hab lost to an enemy and a battle won
     # are what a history reports about the ``hab.*`` and log events they cite.
 )
@@ -246,10 +232,7 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
 }
 """Every ``Rule``'s implementation."""
 
-RULES: Mapping[str, Rule] = {
-    "councilor.appeared": Rule.COUNCILOR_PRESENCE,
-    "councilor.disappeared": Rule.COUNCILOR_PRESENCE,
-}
+RULES: Mapping[str, Rule] = {}
 """The context rule of a type not yet migrated to a kind; tried before ``BASE``."""
 
 # --- Stakes -----------------------------------------------------------------------------------------------
@@ -359,9 +342,6 @@ STAKE_IMPLEMENTATIONS: Mapping[Stake, Scaling] = {
 
 SCALED: Mapping[str, Stake] = {
     "nation.federation_changed": Stake.NATION,
-    "control_point.controller_changed": Stake.CONTROL_POINT,
-    "faction.nation_control_changed": Stake.NATION,
-    "organization.assigned_councilor_changed": Stake.ORGANIZATION,
 }
 """The stake of a type not yet migrated to a kind (ADR-0011); movement and churn are never listed."""
 
