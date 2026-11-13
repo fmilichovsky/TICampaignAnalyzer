@@ -43,6 +43,7 @@ from tinarrative.narrative.significance import (
     PROMOTED,
     RULE_IMPLEMENTATIONS,
     STAKE_IMPLEMENTATIONS,
+    NarrativeContextRule,
     narrative_score,
 )
 
@@ -345,6 +346,14 @@ def test_a_kind_without_a_context_rule_is_judged_by_its_base_level() -> None:
 def test_every_rule_and_stake_has_exactly_one_implementation() -> None:
     assert set(RULE_IMPLEMENTATIONS) == set(Rule)
     assert set(STAKE_IMPLEMENTATIONS) == set(Stake)
+
+
+def test_every_narrative_kind_names_an_implemented_context_rule_and_stake() -> None:
+    narrative = [kind for kind in KINDS.values() if kind.narrative]
+    assert narrative
+    for kind in narrative:
+        assert kind.rule is None or isinstance(RULE_IMPLEMENTATIONS[kind.rule], NarrativeContextRule), kind.event_type
+        assert kind.stake is None or kind.stake in STAKE_IMPLEMENTATIONS, kind.event_type
 
 
 def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:

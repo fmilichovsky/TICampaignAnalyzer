@@ -73,17 +73,17 @@ Template = Callable[[Event], str]
 class EventKind:
     """The single declaration of one event type.
 
-    A ``narrative`` kind is one a narrative rule builds; ``base`` is ``None`` only for such a kind whose level its
-    rule still sets. An emitter
-    always passes every ``required`` attribute, its value possibly ``Unknown``; an attribute whose presence depends
-    on the save is ``optional``. A narrative-event kind that ``digests_members`` groups the narrative events it cites
-    as its members: the listing tells such a member as a digest under it. A narrative-event kind with
-    ``exclusive_constituents`` cites them as its own: no narrative event of another kind may cite them (ADR-0002).
+    A ``narrative`` kind is one a narrative rule builds. Every kind declares its ``base`` level; a narrative rule
+    chooses none. An emitter always passes every ``required`` attribute, its value possibly ``Unknown``; an
+    attribute whose presence depends on the save is ``optional``. A narrative-event kind that ``digests_members``
+    groups the narrative events it cites as its members: the listing tells such a member as a digest under it. A
+    narrative-event kind with ``exclusive_constituents`` cites them as its own: no narrative event of another kind
+    may cite them (ADR-0002).
     """
 
     event_type: str
     template: Template
-    base: Significance | None
+    base: Significance
     evidence: EvidenceRole
     required: frozenset[str]
     optional: frozenset[str] = frozenset()

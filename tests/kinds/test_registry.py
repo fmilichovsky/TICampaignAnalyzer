@@ -42,10 +42,9 @@ def test_every_declared_kind_has_exactly_one_entry() -> None:
     assert all(KINDS[kind.event_type] is kind for family in FAMILIES for kind in family)
 
 
-def test_a_narrative_event_kind_is_exactly_one_a_rule_emits_and_only_it_may_lack_a_base_level() -> None:
+def test_a_narrative_event_kind_is_exactly_one_a_rule_emits() -> None:
     narrative = {event_type for rule in NARRATIVE_RULES for event_type in rule.emitted_types}
     assert {event_type for event_type, kind in KINDS.items() if kind.narrative} == narrative
-    assert {event_type for event_type, kind in KINDS.items() if kind.base is None} <= narrative
     assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
 
 

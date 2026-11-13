@@ -6,9 +6,9 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from tests.analyzers.support import fixture_kind
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import kind_for
+from tinarrative.kinds.narrative import narrative_kind
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import (
@@ -22,6 +22,7 @@ from tinarrative.model.events import (
     Significance,
 )
 from tinarrative.model.evidence import Evidence, SourceLocation
+from tinarrative.model.kinds import EventKind
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder
 from tinarrative.narrative.chronology import qualified_id
@@ -36,7 +37,14 @@ from tinarrative.narrative.situation import (
 )
 
 UNKNOWN = Unknown()
-TEST_CITING = fixture_kind("test.citing")
+
+
+def narrative_fixture_kind(event_type: str, base: Significance = Significance.TRIVIAL) -> EventKind:
+    """A throwaway narrative-event kind without attributes, scored from ``base``."""
+    return narrative_kind(event_type, lambda event: event.id, frozenset(), base=base)
+
+
+TEST_CITING = narrative_fixture_kind("test.citing")
 """A shared unknown value for argument defaults (``Unknown`` is frozen, so one instance serves every caller)."""
 
 
@@ -254,7 +262,8 @@ class GroupRule:
     explains: frozenset[str] = frozenset()
     window_days: int | None = None
     join: Join = Join.ENTITY
-    significance: Significance | None = None
+    base: Significance = Significance.TRIVIAL
+    """The base level of the ``.arc`` kind the rule builds."""
     confidence: Confidence | None = None
 
     def apply(
@@ -266,13 +275,12 @@ class GroupRule:
                 by_subject[event.entities[0]].append(event)
         return [
             build.event(
-                fixture_kind(f"{self.source_type}.arc"),
+                narrative_fixture_kind(f"{self.source_type}.arc", self.base),
                 id_parts=[subject.entity_id],
                 constituents=events,
                 roles=[(Role.ACTOR, subject)],
                 join=self.join,
                 anchor=subject,
-                significance=self.significance,
                 confidence=self.confidence,
             )
             for subject, events in by_subject.items()
