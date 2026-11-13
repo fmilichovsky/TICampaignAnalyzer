@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
+from tests.analyzers.support import fixture_kind
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import kind_for
 from tinarrative.model.changes import StateChange
@@ -35,6 +36,7 @@ from tinarrative.narrative.situation import (
 )
 
 UNKNOWN = Unknown()
+TEST_CITING = fixture_kind("test.citing")
 """A shared unknown value for argument defaults (``Unknown`` is frozen, so one instance serves every caller)."""
 
 
@@ -262,7 +264,7 @@ class GroupRule:
                 by_subject[event.entities[0]].append(event)
         return [
             build.event(
-                f"{self.source_type}.arc",
+                fixture_kind(f"{self.source_type}.arc"),
                 id_parts=[subject.entity_id],
                 constituents=events,
                 roles=[(Role.ACTOR, subject)],
@@ -293,7 +295,7 @@ class CitingRule:
     def apply(
         self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
     ) -> list[Event]:
-        return [build.event("test.citing", id_parts=[self.name], constituents=self.cites, roles=(), join=Join.ENTITY)]
+        return [build.event(TEST_CITING, id_parts=[self.name], constituents=self.cites, roles=(), join=Join.ENTITY)]
 
 
 def loyalty_keys(document: object) -> list[str]:

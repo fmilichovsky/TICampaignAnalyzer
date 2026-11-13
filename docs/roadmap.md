@@ -148,17 +148,17 @@ Tracking #249.
 ## Code structure
 
 - [x] Test suite hygiene: contributor standards, a leaner suite, sample tests in CI (#368).
-- [ ] Event kinds: declare each event type once (#316):
+- [x] Event kinds: declare each event type once (#316):
   - [x] Foundation and the aliens family (#317).
   - [x] Campaign and faction families (#318).
   - [x] Military family (#319).
   - [x] Technology family (#320).
   - [x] Space family (#321).
   - [x] Nations family (#322).
-  - [ ] Control family (#323).
-  - [ ] Wars and federations family (#324).
+  - [x] Control family (#323).
+  - [x] Wars and federations family (#324).
   - [x] Narrative-event kinds (#325).
-  - [ ] Cleanup (#326).
+  - [x] Cleanup (#326).
 - [ ] Campaign analysis: one module from save inputs to an analysed campaign (#328):
   - [ ] Narrative settings enter interval analysis as one slice (#329).
   - [ ] Drop the two-save rule (#330).

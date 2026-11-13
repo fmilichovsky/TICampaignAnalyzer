@@ -27,7 +27,8 @@ from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
 from tinarrative.diff.state_diff import diff_states
-from tinarrative.kinds import KINDS, known_event_types
+from tinarrative.kinds import KINDS
+from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
 from tinarrative.model.kinds import Rule, Stake
@@ -35,11 +36,7 @@ from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
 from tinarrative.narrative.significance import (
-    BASE,
-    DEFAULT,
     RULE_IMPLEMENTATIONS,
-    RULES,
-    SCALED,
     STAKE_IMPLEMENTATIONS,
 )
 
@@ -102,18 +99,19 @@ def test_a_councilor_with_a_faction_is_major_when_gone_and_minor_when_new() -> N
     assert only(events, "councilor.appeared").significance is Significance.MINOR
 
 
-def test_a_councilor_whose_faction_is_unknown_defers_to_the_default() -> None:
+def test_a_councilor_whose_faction_is_unknown_defers_to_the_base_level() -> None:
     unknown = Unknown(UnknownReason.UNRESOLVED_REFERENCE, raw=999)
     before = snapshot(BEFORE, state(COUNCILOR, "100", BEFORE, faction=unknown))
     after = snapshot(AFTER)
     (event,) = classified(CouncilorAnalyzer(), before, after)
-    assert event.event_type == "councilor.disappeared" and event.significance is DEFAULT
+    assert event.event_type == "councilor.disappeared" and event.significance is KINDS["councilor.disappeared"].base
 
 
-def test_a_presence_event_without_a_subject_or_side_falls_back_to_the_table() -> None:
+def test_a_presence_event_without_a_subject_or_side_falls_back_to_the_base_level() -> None:
     lookup = empty_lookup()
-    assert significance_of(bare_event("councilor.disappeared"), lookup) is DEFAULT
-    assert significance_of(bare_event("councilor.disappeared", side="before"), lookup) is DEFAULT
+    base = KINDS["councilor.disappeared"].base
+    assert significance_of(bare_event("councilor.disappeared"), lookup) is base
+    assert significance_of(bare_event("councilor.disappeared", side="before"), lookup) is base
 
 
 # --- Relations, executives, organizations, megafauna -------------------------------------------------------
@@ -239,11 +237,18 @@ def test_first_space_defences_are_major_other_space_assets_minor_and_a_rank_chan
 # --- Table, defaults and the pass itself -------------------------------------------------------------------
 
 
-def test_unlisted_and_notification_types_take_the_default() -> None:
+def test_notification_types_take_their_kind_and_an_undeclared_type_is_a_code_bug() -> None:
     lookup = empty_lookup()
-    assert significance_of(bare_event("fleet.fixture_unknown"), lookup) is DEFAULT
-    assert significance_of(bare_event("notification.FixtureTemplate"), lookup) is DEFAULT
-    assert significance_of(bare_event("notification.unknown_template"), lookup) is DEFAULT
+    assert significance_of(bare_event("notification.FixtureTemplate"), lookup) is NOTIFICATION_ENTRY.base
+    assert significance_of(bare_event("notification.unknown_template"), lookup) is NOTIFICATION_UNKNOWN_TEMPLATE.base
+    with pytest.raises(ValueError, match="declared by no kind"):
+        significance_of(bare_event("fleet.fixture_unknown"), lookup)
+
+
+def test_a_narrative_event_kind_is_never_ranked_here() -> None:
+    narrative = next(event_type for event_type, kind in KINDS.items() if kind.base is None)
+    with pytest.raises(ValueError, match="narrative rule"):
+        significance_of(bare_event(narrative), empty_lookup())
 
 
 def test_table_entries_resolve_without_context() -> None:
@@ -315,19 +320,15 @@ def test_a_ledger_charge_is_minor_and_named_in_the_kind() -> None:
     assert significance_of(bare_event("faction.transaction_recorded"), empty_lookup()) is Significance.MINOR
 
 
-def test_every_known_event_type_resolves_and_every_rule_names_a_known_type() -> None:
+def test_every_atomic_kind_resolves_to_a_level() -> None:
     lookup = empty_lookup()
-    known = known_event_types()
-    for event_type in known:
-        assert significance_of(bare_event(event_type), lookup) in SIGNIFICANCE_ORDER, event_type
-    assert set(BASE) <= known, sorted(set(BASE) - known)
-    assert set(RULES) <= known, sorted(set(RULES) - known)
-    assert not set(BASE) & set(RULES)  # a type is decided by its rule or by the table, never both
+    for event_type, kind in KINDS.items():
+        if kind.base is not None and not kind.is_prefix:
+            assert significance_of(bare_event(event_type), lookup) in SIGNIFICANCE_ORDER, event_type
 
 
-def test_a_kind_is_judged_by_its_own_declaration_and_never_also_by_the_tables() -> None:
+def test_a_kind_without_a_context_rule_is_judged_by_its_base_level() -> None:
     lookup = empty_lookup()
-    assert not set(KINDS) & (set(BASE) | set(RULES) | set(SCALED))
     for event_type, kind in KINDS.items():
         if kind.base is not None and kind.rule is None:
             assert significance_of(bare_event(event_type), lookup) is kind.base, event_type
@@ -352,7 +353,7 @@ def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
         state(FACTION, "15", AFTER, councilors=(councilor_ref("102"),)),
     )
     raw = run_analyzers(POLITICS_ANALYZERS, before, after, diff_states(before, after))
-    assert all(event.significance is DEFAULT for event in raw)
+    assert all(event.significance is Significance.MINOR for event in raw)  # the Event default
     assigned = assign_significance(raw, before, after)
     assert [event.id for event in assigned] == [event.id for event in raw]
     assert assign_significance(assigned, before, after) == assigned
@@ -545,7 +546,9 @@ def test_churn_and_movement_are_never_scaled(monkeypatch: pytest.MonkeyPatch) ->
 
 
 def test_movement_and_churn_have_no_stake() -> None:
-    assert not {"fleet.orbit_changed", "nation.rank_changed", "nation.population_changed"} & set(SCALED)
+    assert all(
+        KINDS[t].stake is None for t in ("fleet.orbit_changed", "nation.rank_changed", "nation.population_changed")
+    )
 
 
 def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None:

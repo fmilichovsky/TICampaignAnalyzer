@@ -146,7 +146,7 @@ class NarrativeBuilder:
 
     def event(
         self,
-        event_type: EventKind | str,
+        kind: EventKind,
         *,
         id_parts: Sequence[object],
         constituents: Sequence[Event],
@@ -167,12 +167,10 @@ class NarrativeBuilder:
         ``id_parts`` could otherwise share the earliest cited interval.
 
         A rule that overrides ``confidence``, ``open`` or ``starts_on`` documents why. ``corroborating`` events date
-        only a start: they precede the effect they corroborate. A kind's attributes are checked by its constructor; a
-        bare type string is not yet migrated to a kind.
+        only a start: they precede the effect they corroborate. A kind's attributes are checked by its constructor.
         """
-        if isinstance(event_type, EventKind):
-            attributes = kind_attributes(event_type, attributes)
-            event_type = event_type.event_type
+        attributes = kind_attributes(kind, attributes)
+        event_type = kind.event_type
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
         cited = [*constituents, *(event for event in corroborating if event not in constituents)]

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from types import MappingProxyType
 
-from ..model.kinds import EventKind
+from ..model.kinds import EventKind, EvidenceRole
 from ..model.values import Observed
 from . import aliens, campaign, control, faction, federations, military, nations, space, technology, wars
 
@@ -44,6 +44,13 @@ def kind_for(event_type: str) -> EventKind | None:
     if exact is not None:
         return exact
     return next((kind for kind in PREFIX_KINDS if event_type.startswith(kind.prefix)), None)
+
+
+def is_evidence(event_type: str) -> bool:
+    """Whether the narrator package lists events of the type as evidence: its kind's declared role; an undeclared
+    type is not evidence."""
+    kind = kind_for(event_type)
+    return kind is not None and kind.evidence is EvidenceRole.EVIDENCE
 
 
 def attributes(

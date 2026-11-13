@@ -22,17 +22,13 @@ from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Significance, SignificanceBasis
-from ..model.kinds import Rule, Stake, StakeMeasure
+from ..model.kinds import EventKind, Rule, Stake, StakeMeasure
 from ..model.snapshot import SaveSnapshot
 from .milestones import milestone_of
 from .prominence import nation_power, organization_shares, region_shares, total
 
 __all__ = [
-    "BASE",
-    "DEFAULT",
-    "RULES",
     "RULE_IMPLEMENTATIONS",
-    "SCALED",
     "SIGNIFICANCE_ORDER",
     "STAKE_IMPLEMENTATIONS",
     "Scaling",
@@ -43,9 +39,6 @@ __all__ = [
 ]
 
 logger = get_logger(__name__)
-
-DEFAULT = Significance.MINOR
-"""An event type no kind, rule or table entry names: worth a forensic line, not a history entry."""
 
 # --- Thresholds -------------------------------------------------------------------------------------------
 # Only what ranks emitted events; thresholds that decide whether an event exists live with its analyzer.
@@ -60,68 +53,6 @@ DISCRETE_STATISTICS = frozenset({"numNuclearWeapons"})
 """``nation.statistic_shifted`` statistics whose every change is a narrative event: a nuclear arsenal. Other statistics
 shift past their threshold for routine reasons too (event effects, priorities), so a shift is evidence for the rules
 that explain it and stays trivial on its own."""
-
-# --- Per-type table ---------------------------------------------------------------------------------------
-# The types not yet migrated to a kind; a kind declares its own base level, context rule and stake.
-
-_TRIVIAL: tuple[str, ...] = (
-    # Councilor movement and ship reassignment happen constantly between saves and say nothing on their own.
-    # Organizations are created and removed in bulk.
-    # A band crossing is the evidence a band-shift narrative event is built from; on its own it may be the game
-    # converging the statistic towards its rest value.
-    # A per-capita GDP trend is the evidence an economic trajectory is built from.
-    # A nation's place by a metric moves whenever one of the nations around it changes; the ranking narrative event
-    # states the changes of the top.
-    # Log housekeeping: the game prunes and rewrites kept combat-log entries.
-    # Progress-only technology states come and go with research priorities; completion is its own event.
-    # A refit date is maintenance bookkeeping.
-    # Leftover list events that mirror an asset's owner field: the owner field already produced the event
-    # (``army.region_changed``, ``fleet.faction_changed``, ``ship.fleet_changed``, ...), and what is left is a
-    # mirror entry nothing claimed, typically a list unresolved on one side.
-)
-
-_MINOR: tuple[str, ...] = (
-    # A hab appears at launch; it is founded when its core completes (``hab.established``), often a year later.
-    # Routine movement: fleets change orbit and dock constantly, armies redeploy.
-    # Geopolitical leftover lists stay visible so unexplained residue is never hidden; promoting one is
-    # reconstruction work.
-    # A recorded control-point loss corroborates ``control_point.controller_changed`` in the same interval, so
-    # it is not counted as a second major event.
-    # Inferred aggregates of the ``region.nation_changed`` events they cite, which are already major; ranking
-    # them major too would count one transfer twice.
-    # Hostile claims mark regions a nation may take by force: frequent and only a
-    # precursor; the war or annexation that follows is the major event.
-    # Precursors of a takeover, named by the reconstruction it feeds: unrest attempts per faction and the
-    # new-government date, which corroborates the executive record and control-point events.
-    # A nuclear program or policy flag says what a nation may do, not what it did; the nuclear arcs cite the
-    # program as the start of an arsenal.
-)
-
-_MAJOR: tuple[str, ...] = (
-    # Core political and asset-ownership changes.
-    # A councilor detained by another faction, an asset changing hands, an army's ``destroyed`` flag.
-    # An organization changing councilors: its tier² share scales it from here (``SCALED``); a minor one falls
-    # below the band.
-    # Space battles (``CombatLogs``).
-    # Inferred readings of a territory change: they redraw the political map as ``region.nation_changed`` does,
-    # and a whole-nation unification or an independence is what a history reports about it.
-    # Inferred nation control: the executive seat, the plurality or every control point changing hands is what a
-    # history reports about the ``control_point.controller_changed`` events it cites; a tie stays major.
-    # Inferred readings of space evidence: a working hab, a new foothold, a hab lost to an enemy and a battle won
-    # are what a history reports about the ``hab.*`` and log events they cite.
-)
-
-_CAMPAIGN_DEFINING: tuple[str, ...] = (
-    # The birth or end of a nation.
-)
-
-BASE: Mapping[str, Significance] = {
-    **dict.fromkeys(_TRIVIAL, Significance.TRIVIAL),
-    **dict.fromkeys(_MINOR, Significance.MINOR),
-    **dict.fromkeys(_MAJOR, Significance.MAJOR),
-    **dict.fromkeys(_CAMPAIGN_DEFINING, Significance.CAMPAIGN_DEFINING),
-}
-"""A type absent here is ``DEFAULT``."""
 
 # --- Context rules ----------------------------------------------------------------------------------------
 
@@ -216,9 +147,6 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
     Rule.COMPLETION: _completion,
 }
 """Every ``Rule``'s implementation."""
-
-RULES: Mapping[str, Rule] = {}
-"""The context rule of a type not yet migrated to a kind; tried before ``BASE``."""
 
 # --- Stakes -----------------------------------------------------------------------------------------------
 
@@ -325,9 +253,6 @@ STAKE_IMPLEMENTATIONS: Mapping[Stake, Scaling] = {
 }
 """Every ``Stake``'s implementation."""
 
-SCALED: Mapping[str, Stake] = {}
-"""The stake of a type not yet migrated to a kind; movement and churn are never listed."""
-
 
 def _scale(share: float, reference: float, settings: SignificanceSettings) -> int:
     if share <= 0:
@@ -354,8 +279,7 @@ def _holds_nuclear_weapons(stakes: Stakes, nation: EntityId) -> bool:
 
 
 def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBasis | None:
-    kind = kind_for(event.event_type)
-    named = kind.stake if kind is not None else SCALED.get(event.event_type)
+    named = _kind(event).stake
     if named is None:
         return None
     stake = STAKE_IMPLEMENTATIONS[named]
@@ -387,19 +311,27 @@ def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBas
 # --- Entry points -----------------------------------------------------------------------------------------
 
 
-def significance_of(event: Event, lookup: Lookup) -> Significance:
-    """The context rule, else the base level, else ``DEFAULT``: the level before the stake scales the score.
-
-    A type's kind is read first; a type not yet migrated to a kind is read from ``RULES`` and ``BASE``.
-    """
+def _kind(event: Event) -> EventKind:
     kind = kind_for(event.event_type)
-    rule = kind.rule if kind is not None else RULES.get(event.event_type)
-    if rule is not None:
-        decided = RULE_IMPLEMENTATIONS[rule](event, lookup)
+    if kind is None:
+        raise ValueError(f"event type {event.event_type} is declared by no kind")
+    return kind
+
+
+def significance_of(event: Event, lookup: Lookup) -> Significance:
+    """The kind's context rule, else its base level: the level before the stake scales the score.
+
+    Raises ``ValueError`` for a type no kind declares, or a narrative-event kind (no base level), whose rule sets its
+    level: each is a code bug, as every emitter passes a kind and narrative events are not ranked here.
+    """
+    kind = _kind(event)
+    if kind.rule is not None:
+        decided = RULE_IMPLEMENTATIONS[kind.rule](event, lookup)
         if decided is not None:
             return decided
-    base = kind.base if kind is not None else BASE.get(event.event_type)
-    return base if base is not None else DEFAULT
+    if kind.base is None:
+        raise ValueError(f"event type {event.event_type} has its level set by its narrative rule")
+    return kind.base
 
 
 def assign_significance(

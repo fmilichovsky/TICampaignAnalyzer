@@ -111,7 +111,7 @@ class ObjectiveIndex:
 
 def inferred(
     build: EventBuilder,
-    event_type: EventKind | str,
+    kind: EventKind,
     *,
     id_parts: Sequence[object],
     primary: Sequence[Event],
@@ -125,7 +125,7 @@ def inferred(
     """An inferred event citing every source of its ``primary`` events (roles kept), the ``primary_changes``
     cited directly, and every source of its support (corroborating)."""
     return build.event(
-        event_type,
+        kind,
         id_parts=id_parts,
         sources=cite(primary, support, primary_changes),
         entities=entities,

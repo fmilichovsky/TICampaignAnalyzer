@@ -36,9 +36,9 @@ def test_every_declared_kind_has_exactly_one_entry() -> None:
     assert all(KINDS[kind.event_type] is kind for family in FAMILIES for kind in family)
 
 
-def test_a_kind_without_a_base_level_or_context_rule_is_exactly_a_narrative_event_kind() -> None:
+def test_a_kind_without_a_base_level_is_exactly_a_narrative_event_kind() -> None:
     narrative = {event_type for rule in NARRATIVE_RULES for event_type in rule.emitted_types}
-    ruled_elsewhere = {event_type for event_type, kind in KINDS.items() if kind.base is None and kind.rule is None}
+    ruled_elsewhere = {event_type for event_type, kind in KINDS.items() if kind.base is None}
     assert ruled_elsewhere == narrative
     assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
 
@@ -139,17 +139,12 @@ def test_interstate_wars_read_as_a_list_change() -> None:
 
 
 @pytest.mark.parametrize("pair", PAIRS)
-def test_every_emitted_type_matches_exactly_one_kind_or_table_entry(pair: str) -> None:
+def test_every_emitted_type_matches_exactly_one_kind(pair: str) -> None:
     plan = plan_sequence([survey(FIXTURE_DIR / f"{pair}_before.json"), survey(FIXTURE_DIR / f"{pair}_after.json")])
     intervals = list(run_sequence(plan, inferred=True))
     emitted = {event.event_type for interval in intervals for event in interval.events()}
     emitted |= {event.event_type for event in narrative_events(intervals)}
     assert emitted
-    legacy = known_event_types() - set(KINDS)
     for event_type in emitted:
-        homes = [
-            event_type in KINDS,
-            event_type not in KINDS and kind_for(event_type) is not None,
-            event_type in legacy,
-        ]
+        homes = [event_type in KINDS, event_type not in KINDS and kind_for(event_type) is not None]
         assert homes.count(True) == 1, (event_type, homes)

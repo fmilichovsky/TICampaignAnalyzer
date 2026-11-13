@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import pytest
 
+from tests.analyzers.support import fixture_kind
 from tests.narrative.support import CitingRule, GroupRule, atomic, faction, nation, situation, state_change
 from tinarrative.kinds.space import FLEET_BUILDUP
 from tinarrative.model.entities import EntityRef
@@ -22,6 +23,7 @@ K3 = "2032-10-01T00:00:00"
 GERMANY = nation("1", "Germany")
 FRANCE = nation("2", "France")
 RULE = GroupRule("changes", "nation.changed")
+CHANGED_ARC = fixture_kind("nation.changed.arc")
 
 
 def changed(key: str, subject: EntityRef = GERMANY, **overrides: object) -> Event:
@@ -58,7 +60,7 @@ def test_a_record_dated_constituent_narrows_the_start() -> None:
 
 def test_a_rule_can_start_the_span_at_a_record_date_before_every_constituent() -> None:
     event = NarrativeBuilder([]).event(
-        "nation.changed.arc",
+        CHANGED_ARC,
         id_parts=[GERMANY.entity_id],
         constituents=[changed(K1)],
         roles=[],
@@ -98,7 +100,7 @@ def test_a_corroborating_event_is_cited_and_may_narrow_the_start_but_never_sets_
     early = atomic("nation.charge", K1, date="2032-03-20T00:00:00", date_basis=DateBasis.RECORD, entities=(GERMANY,))
 
     event = NarrativeBuilder([]).event(
-        "nation.changed.arc",
+        CHANGED_ARC,
         id_parts=[GERMANY.entity_id],
         constituents=[anchor],
         corroborating=[charge, early],
@@ -136,7 +138,9 @@ def test_a_tied_interval_key_sorts_after_its_bare_time_and_by_tie_position() -> 
     keys = [f"{K1}#10", f"{K1}#2", K1]
     constituents = [atomic(f"nation.changed/{position}", key) for position, key in enumerate(keys)]
 
-    event = builder.event("test.arc", id_parts=["x"], constituents=constituents, roles=(), join=Join.ENTITY)
+    event = builder.event(
+        fixture_kind("test.arc"), id_parts=["x"], constituents=constituents, roles=(), join=Join.ENTITY
+    )
 
     assert event.intervals == (K1, f"{K1}#2", f"{K1}#10")
 
@@ -233,7 +237,11 @@ class LookupRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         found = stream.of_type(self.looked_up)
-        return [build.event("test.lookup", id_parts=[self.name], constituents=found, roles=(), join=Join.ENTITY)]
+        return [
+            build.event(
+                fixture_kind("test.lookup"), id_parts=[self.name], constituents=found, roles=(), join=Join.ENTITY
+            )
+        ]
 
 
 @dataclass(frozen=True)

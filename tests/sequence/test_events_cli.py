@@ -28,7 +28,7 @@ from tinarrative.cli import (
     main,
 )
 from tinarrative.config import CONFIG_ENV_VAR, DEFAULT_SETTINGS
-from tinarrative.narrative.evidence import is_evidence
+from tinarrative.kinds import is_evidence
 from tinarrative.picker import PROMPT
 
 FIXTURE_SET = "terra_invicta_json_v1"

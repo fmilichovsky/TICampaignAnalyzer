@@ -12,6 +12,7 @@ from tests.analyzers.support import (
     BEFORE_DATE,
     councilor_ref,
     faction_ref,
+    fixture_kind,
     nation_ref,
     pair,
     point_ref,
@@ -35,6 +36,9 @@ from tinarrative.analyzers.common import (
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, DateBasis, EventStatus, SourceRole
 from tinarrative.model.values import Observed, Unknown, UnknownReason, freeze
+
+XY = fixture_kind("x.y")
+TEST_EVENT = fixture_kind("test.event")
 
 UNRESOLVED = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze({"value": 999}))
 
@@ -168,16 +172,16 @@ def test_event_builder_dates_by_the_interval_unless_a_record_date_is_given() -> 
         snapshot(AFTER, state(EntityDomain.NATION, "20", AFTER, GDP=2.0)),
     )
     (change,) = [c for c in change_diff.changes if c.field == "GDP"]
-    event = build.event("x.y", id_parts=("a", 1), sources=(primary(change),), entities=(nation_ref("20"), None))
+    event = build.event(XY, id_parts=("a", 1), sources=(primary(change),), entities=(nation_ref("20"), None))
     assert (event.id, event.status, event.confidence) == ("x.y/a/1", EventStatus.OBJECTIVE, Confidence.HIGH)
     assert (event.date, event.date_basis, event.not_before) == (AFTER_DATE, DateBasis.INTERVAL, BEFORE_DATE)
     assert event.entities == (nation_ref("20"),)
-    dated = build.event("x.y", id_parts=(), sources=(), entities=(), recorded_on="2031-04-10T00:00:00")
+    dated = build.event(XY, id_parts=(), sources=(), entities=(), recorded_on="2031-04-10T00:00:00")
     assert (dated.date, dated.date_basis, dated.not_before) == ("2031-04-10T00:00:00", DateBasis.RECORD, BEFORE_DATE)
-    undated = build.event("x.y", id_parts=(), sources=(), entities=(), recorded_on=Unknown())
+    undated = build.event(XY, id_parts=(), sources=(), entities=(), recorded_on=Unknown())
     assert undated.date_basis is DateBasis.INTERVAL
     no_dates = EventBuilder(snapshot(BEFORE, date=Unknown()), snapshot(AFTER, date=Unknown()))
-    assert no_dates.event("x.y", id_parts=(), sources=(), entities=()).date == Unknown()
+    assert no_dates.event(XY, id_parts=(), sources=(), entities=()).date == Unknown()
 
 
 def test_run_analyzers_sorts_events_logs_aggregates_only_and_rejects_duplicate_ids(
@@ -226,7 +230,7 @@ def test_every_event_naming_a_faction_carries_its_kind_by_template() -> None:
     )
     build = EventBuilder(before, after)
     refs = (nation_ref("20"), faction_ref("15"), faction_ref("16"), faction_ref("17"))
-    event = build.event("test.event", id_parts=("x",), sources=(), entities=refs)
+    event = build.event(TEST_EVENT, id_parts=("x",), sources=(), entities=refs)
     assert dict(event.attribute(FACTION_KINDS).items) == {"faction:15": "human", "faction:16": "alien"}  # type: ignore[union-attr]
-    plain = build.event("test.event", id_parts=("y",), sources=(), entities=(nation_ref("20"), faction_ref("17")))
+    plain = build.event(TEST_EVENT, id_parts=("y",), sources=(), entities=(nation_ref("20"), faction_ref("17")))
     assert plain.attributes == ()  # no faction of known template: no attribute

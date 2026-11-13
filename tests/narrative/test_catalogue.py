@@ -13,14 +13,11 @@ from tinarrative.kinds import KINDS
 from tinarrative.model.events import Event, Role
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, NarrativeRule, aggregate
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
-from tinarrative.narrative.significance import BASE, RULES, SCALED
 
 K0 = "2032-01-01T00:00:00"
 K1 = "2032-04-01T00:00:00"
 NORTH, SOUTH = nation("1", "Northland"), nation("2", "Southland")
-ATOMIC_TYPES = sorted(
-    set(BASE) | set(RULES) | set(SCALED) | {event_type for event_type, kind in KINDS.items() if kind.base is not None}
-)
+ATOMIC_TYPES = sorted(event_type for event_type, kind in KINDS.items() if kind.base is not None)
 NARRATIVE_TYPES = sorted({event_type for rule in NARRATIVE_RULES for event_type in rule.emitted_types})
 
 
