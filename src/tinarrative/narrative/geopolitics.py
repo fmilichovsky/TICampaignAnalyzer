@@ -62,6 +62,7 @@ from .rulekit import (
     unique_refs,
     within,
 )
+from .significance import in_top_n
 from .situation import SituationReport
 from .stream import EventStream
 
@@ -303,7 +304,7 @@ class TakeoverRule:
         cause = next(
             (value for value in (anchor.attribute("cause") for anchor in anchors) if isinstance(value, str)), None
         )
-        defining = rank is not None and rank <= settings.top_gdp_nations
+        defining = in_top_n(rank, settings.top_gdp_nations)
         roles = [(Role.ACTOR, actor), (Role.TARGET, nation)]
         if loser is not None:
             roles.append((Role.LOSER, loser))
@@ -409,7 +410,7 @@ class TakeoverWaveRule:
         by_actor: dict[EntityId, list[Event]] = defaultdict(list)
         for takeover in by_type(stream, TAKEOVER):
             actor, rank = _role(takeover, Role.ACTOR), takeover.attribute("gdp_rank")
-            top = isinstance(rank, int) and rank <= self.settings.top_gdp_nations
+            top = in_top_n(rank, self.settings.top_gdp_nations)
             if actor is not None and not top:
                 by_actor[actor].append(takeover)
         last = last_date(situations)

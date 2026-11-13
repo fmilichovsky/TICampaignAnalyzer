@@ -179,7 +179,7 @@ Tracking #249.
 - [ ] Narrative-event significance in one place (#349):
   - [x] Rename "development" to "narrative event" (#350).
   - [x] Situation report answers its own questions (#351).
-  - [ ] One top-N promotion helper (#352).
+  - [x] One top-N promotion helper (#352).
   - [ ] One ranking of nations (#353).
   - [ ] Scored from kinds: geopolitics rules (#355).
   - [ ] Scored from kinds: nation-metric and diplomacy rules (#356).

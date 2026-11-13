@@ -32,6 +32,7 @@ from .rulekit import (
     unique_refs,
     within,
 )
+from .significance import in_top_n
 from .situation import SituationReport
 from .stream import EventStream
 
@@ -94,7 +95,7 @@ class DiplomaticRealignmentRule:
                 executive = _actor(context[0]) if context else None
                 roles = [(Role.ACTOR, nation), *((Role.TARGET, partner) for partner in partners)]
                 rank = report.rank_including_landless(nation_id, GDP)
-                top = rank is not None and rank <= self.settings.top_gdp_nations
+                top = in_top_n(rank, self.settings.top_gdp_nations)
                 shifts = metric_shifts(stream, [nation_id], intervals_of(run))
                 built.append(
                     build.event(

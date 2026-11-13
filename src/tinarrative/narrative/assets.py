@@ -32,8 +32,8 @@ from ..model.events import Event, Role, Significance
 from ..model.values import FrozenMap, Observed, number
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
-from .nation_metrics import PROMOTED
 from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chained, intervals_of, sorted_keys, subject
+from .significance import in_top_n, promoted_by_rank
 from .situation import Place, SituationReport
 from .stream import EventStream
 
@@ -45,18 +45,6 @@ SPACE_DEFENCES_ESTABLISHED = nation_kinds.SPACE_DEFENCES_ESTABLISHED.event_type
 RANKING_CHANGED = nation_kinds.RANKING_CHANGED.event_type
 BUILDUP_WINDOW_DAYS = 365
 SPACE_METRICS = ((BOOST_STATISTIC, BOOST_METRIC), (MISSION_CONTROL_STATISTIC, MISSION_CONTROL_METRIC))
-
-
-def _in_top(rank: Observed, top: int) -> bool:
-    return isinstance(rank, int) and not isinstance(rank, bool) and rank <= top
-
-
-def _promoted(level: Significance, report: SituationReport, nation_id: EntityId, top: int) -> Significance:
-    if _in_top(report.rank_including_landless(nation_id, GDP), top) or _in_top(
-        report.rank_including_landless(nation_id, STRENGTH), top
-    ):
-        return PROMOTED[level]
-    return level
 
 
 def _of_kind(event: Event, kind: str) -> bool:
@@ -116,7 +104,9 @@ class MilitaryBuildupRule:
                 if abs(after - before) < self.settings.buildup_min_armies:
                     continue
                 nation = end.nation
-                level = _promoted(Significance.MAJOR, last[1], nation_id, self.geopolitics.top_gdp_nations)
+                level = promoted_by_rank(
+                    Significance.MAJOR, last[1], nation_id, self.geopolitics.top_gdp_nations, by_strength=True
+                )
                 built.append(
                     build.event(
                         military_kinds.MILITARY_BUILDUP if after > before else military_kinds.DEMOBILIZATION,
@@ -177,7 +167,9 @@ class NavyEstablishedRule:
                             ("gdp_rank", later.rank_including_landless(nation_id, GDP)),
                             ("strength_rank", later.rank_including_landless(nation_id, STRENGTH)),
                         ),
-                        significance=_promoted(Significance.MAJOR, later, nation_id, self.geopolitics.top_gdp_nations),
+                        significance=promoted_by_rank(
+                            Significance.MAJOR, later, nation_id, self.geopolitics.top_gdp_nations, by_strength=True
+                        ),
                         open=False,
                     )
                 )
@@ -302,7 +294,7 @@ class SpaceDefencesEstablishedRule:
 
 def _placed(report: SituationReport, nation_id: EntityId, metric: str, top: int) -> bool:
     """Tied places count, unlike ``SituationReport.top``."""
-    return _in_top(report.rank(nation_id, metric), top)
+    return in_top_n(report.rank(nation_id, metric), top)
 
 
 def _entry(place: Place) -> FrozenMap:

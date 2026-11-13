@@ -47,6 +47,7 @@ from .rulekit import (
     subject,
     within,
 )
+from .significance import promoted_at_rank, promoted_by_rank
 from .situation import SituationReport
 from .stream import EventStream
 
@@ -76,13 +77,6 @@ UNREST_SEVERE = 4.5
 COHESION_EXTREMES = (1.0, 9.0)
 """Fragmented below the first, Hegemonic and Monolithic from the second."""
 ALWAYS_MAJOR = frozenset({"democracy", "education", "militaryTechLevel"})
-
-PROMOTED = {
-    Significance.TRIVIAL: Significance.MINOR,
-    Significance.MINOR: Significance.MAJOR,
-    Significance.MAJOR: Significance.CAMPAIGN_DEFINING,
-    Significance.CAMPAIGN_DEFINING: Significance.CAMPAIGN_DEFINING,
-}
 
 
 def _crosses(boundary: float, before: float, after: float) -> bool:
@@ -143,9 +137,7 @@ class BandShiftRule:
             if _explained(crossing, nation.entity_id, explainers):
                 continue
             rank = pair[1].rank_including_landless(nation.entity_id, GDP)
-            level = self._level(before, after)
-            if rank is not None and rank <= self.geopolitics.top_gdp_nations:
-                level = PROMOTED[level]
+            level = promoted_at_rank(self._level(before, after), rank, self.geopolitics.top_gdp_nations)
             roles = [(Role.ACTOR, nation)]
             shifts = metric_shifts(stream, [nation.entity_id], [interval_of(crossing.id)])
             built.append(
@@ -308,9 +300,7 @@ class EconomicTrajectoryRule:
                     continue
                 pair = reports.get(interval_of(last.id))
                 rank = pair[1].rank_including_landless(nation_id, GDP) if pair is not None else None
-                level = Significance.MAJOR
-                if rank is not None and rank <= self.settings.top_gdp_nations:
-                    level = PROMOTED[level]
+                level = promoted_at_rank(Significance.MAJOR, rank, self.settings.top_gdp_nations)
                 window_start = first.attribute("window_start")
                 built.append(
                     build.event(
@@ -402,9 +392,7 @@ class NuclearArcRule:
                 corroborating: list[Event] = []
                 if start == 0 < end:
                     kind = nation_kinds.NUCLEAR_ARMAMENT
-                    rank = report.rank_including_landless(nation_id, GDP)
-                    top = rank is not None and rank <= self.geopolitics.top_gdp_nations
-                    level = Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR
+                    level = promoted_by_rank(Significance.MAJOR, report, nation_id, self.geopolitics.top_gdp_nations)
                     low = shifted(earliest(first), -days)
                     corroborating = [
                         event for event in programs.get(nation_id, []) if overlaps(event, low, latest(last))
