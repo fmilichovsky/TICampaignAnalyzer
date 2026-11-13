@@ -55,6 +55,17 @@ class Stake(StrEnum):
     TERRITORY = "territory"
     CONTROL_POINT = "control_point"
     ORGANIZATION = "organization"
+    TARGETS = "targets"
+    """A narrative-event stake: the power share of the nations in the target role."""
+    WAR_SIDES = "war_sides"
+    """A narrative-event stake: the power share of every attacker and defender, with the nuclear bonus when both sides
+    hold warheads."""
+    MEMBERS = "members"
+    """A narrative-event stake: the power share of every nation that was a member."""
+    REGIONS = "regions"
+    """A narrative-event stake: the population share of the regions the event lists."""
+    INDEPENDENT_NATION = "independent_nation"
+    """A narrative-event stake: the power share of the nation that became independent."""
 
 
 class EvidenceRole(StrEnum):

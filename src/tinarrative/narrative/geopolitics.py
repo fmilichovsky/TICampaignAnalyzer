@@ -29,7 +29,7 @@ from ..kinds.wars import APPEARED as WAR_APPEARED
 from ..kinds.wars import ARC as WAR_ARC_KIND
 from ..kinds.wars import DISAPPEARED as WAR_DISAPPEARED
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import DateBasis, Event, Role
+from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
@@ -62,7 +62,6 @@ from .rulekit import (
     unique_refs,
     within,
 )
-from .significance import in_top_n
 from .situation import SituationReport
 from .stream import EventStream
 
@@ -193,7 +192,6 @@ class TakeoverRule:
         return self.settings.takeover_consolidation_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        build = build.scoring_with(self.settings)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         by_nation = by_subject(by_type(stream, NATION_CONTROL))
         charges = DatedEvents(
@@ -389,9 +387,10 @@ def _holds_executive_only(situations: Sequence[SituationReport], nation_id: Enti
 
 @dataclass(frozen=True)
 class TakeoverWaveRule:
-    """``faction.takeover_wave``: one faction took several nations below the top GDP ranks in a short period.
+    """``faction.takeover_wave``: one faction took several nations in a short period.
 
-    A takeover of a top-ranked nation stays a headline narrative event of its own and never joins a wave.
+    A takeover whose stake makes it campaign defining stays a headline narrative event of its own and never joins a
+    wave.
     """
 
     settings: GeopoliticsSettings
@@ -408,9 +407,8 @@ class TakeoverWaveRule:
         days = self.settings.takeover_wave_window_days
         by_actor: dict[EntityId, list[Event]] = defaultdict(list)
         for takeover in by_type(stream, TAKEOVER):
-            actor, rank = _role(takeover, Role.ACTOR), takeover.attribute("gdp_rank")
-            top = in_top_n(rank, self.settings.top_gdp_nations)
-            if actor is not None and not top:
+            actor = _role(takeover, Role.ACTOR)
+            if actor is not None and takeover.significance is not Significance.CAMPAIGN_DEFINING:
                 by_actor[actor].append(takeover)
         last = last_date(situations)
         built = []

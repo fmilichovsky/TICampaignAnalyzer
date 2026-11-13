@@ -767,7 +767,11 @@ def _run_saves(
         print(failure.message, file=sys.stderr)
         progress.finish()
         return failure.code
-    events = narrative_events(intervals, narrative_rules(settings.narrative)) if narrative else None
+    events = (
+        narrative_events(intervals, narrative_rules(settings.narrative), settings.narrative.significance)
+        if narrative
+        else None
+    )
     memory_line()
     progress.finish()
     return _SequenceRun(plan, intervals, campaign, len(surveyed), events)

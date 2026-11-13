@@ -667,8 +667,9 @@ def test_the_json_drops_narrative_events_below_the_minimum_and_counts_them(
     defining = _json(capsys, "--narrative", "--min-significance", "campaign_defining")
 
     assert major["min_significance"] == "major" and major["narrative_omitted"] == 0
-    assert [event["event_type"] for event in defining["narrative"]] == ["faction.takeover"] * 2
-    assert defining["narrative_omitted"] == len(everything["narrative"]) - 2
+    kept = [event for event in everything["narrative"] if event["significance"] == "campaign_defining"]
+    assert kept and defining["narrative"] == kept
+    assert defining["narrative_omitted"] == len(everything["narrative"]) - len(kept)
 
 
 def test_without_narrative_the_json_drops_atomic_events_below_the_minimum_and_counts_them(

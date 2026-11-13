@@ -82,12 +82,15 @@ def nation_power(snapshot: SaveSnapshot, weights: PowerSettings) -> dict[EntityI
 
 def region_shares(snapshot: SaveSnapshot) -> dict[EntityId, float]:
     """Each region's share of world population, over the regions with a known population."""
-    populations = {
-        state.ref.entity_id: max(value, 0.0)
-        for state in snapshot.regions
-        if (value := number(state.get("populationInMillions"))) is not None
-    }
-    return _normalized(populations)
+    return population_shares((state.ref.entity_id, state.get("populationInMillions")) for state in snapshot.regions)
+
+
+def population_shares(regions: Iterable[tuple[EntityId, Observed]]) -> dict[EntityId, float]:
+    """Each region's share of the summed population of ``regions``, over those with a known population; a situation
+    report gives the same shares as ``region_shares`` for its snapshot."""
+    return _normalized(
+        {region: max(value, 0.0) for region, observed in regions if (value := number(observed)) is not None}
+    )
 
 
 def organization_shares(snapshot: SaveSnapshot, exponent: int) -> dict[EntityId, float]:
