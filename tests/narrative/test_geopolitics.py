@@ -354,7 +354,12 @@ def test_an_independence_control_change_is_left_to_the_release_rule() -> None:
 def test_a_top_economy_takeover_is_campaign_defining_by_the_configured_rank() -> None:
     stream = [control(K1, "executive", RESISTANCE, SERVANTS)]
     after = situation(
-        K1, nations=[nation_row(SOUTH, gdp=900.0), nation_row(NORTH, gdp=500.0), nation_row(EAST, gdp=1.0)]
+        K1,
+        nations=[
+            nation_row(SOUTH, gdp=900.0, regions=1),
+            nation_row(NORTH, gdp=500.0, regions=1),
+            nation_row(EAST, gdp=1.0, regions=1),
+        ],
     )
     situations = [situation(K0), after]
 
@@ -392,7 +397,7 @@ def test_fewer_takeovers_than_the_minimum_are_no_wave() -> None:
 
 def test_a_top_economy_takeover_stays_out_of_the_wave() -> None:
     stream = [_seized(K1, nation_ref) for nation_ref in (NORTH, SOUTH, EAST, WEST)]
-    after = situation(K1, nations=[nation_row(NORTH, gdp=900.0), nation_row(SOUTH, gdp=1.0)])
+    after = situation(K1, nations=[nation_row(NORTH, gdp=900.0, regions=1), nation_row(SOUTH, gdp=1.0, regions=1)])
 
     settings = GeopoliticsSettings(top_gdp_nations=1)
 

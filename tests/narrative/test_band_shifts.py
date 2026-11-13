@@ -34,6 +34,8 @@ K2 = "2032-07-01T00:00:00"
 PREVIOUS = {K1: K0, K2: K1}
 NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
+EXILE = nation("22", "Exileland")
+LANDED = 3
 RESISTANCE = faction("15", "Resistance")
 
 
@@ -71,12 +73,19 @@ def crossing(
     )
 
 
-def reports(*values: Observed, statistic: str = "unrest", gdp: Observed = UNKNOWN) -> list[SituationReport]:
+def reports(
+    *values: Observed, statistic: str = "unrest", gdp: Observed = UNKNOWN, landless_gdp: Observed = UNKNOWN
+) -> list[SituationReport]:
     """One report per key K0, K1, K2 with NORTH's ``statistic`` at each value; NORTH unranked unless ``gdp`` is given
-    (SOUTH has 100)."""
+    (SOUTH has 100, and the landless EXILE has ``landless_gdp``)."""
     return [
         situation(
-            key, nations=[nation_row(NORTH, gdp=gdp, statistics={statistic: value}), nation_row(SOUTH, gdp=100.0)]
+            key,
+            nations=[
+                nation_row(NORTH, gdp=gdp, statistics={statistic: value}, regions=LANDED),
+                nation_row(SOUTH, gdp=100.0, regions=LANDED),
+                nation_row(EXILE, gdp=landless_gdp, regions=0),
+            ],
         )
         for key, value in zip((K0, K1, K2), values, strict=False)
     ]
@@ -190,6 +199,12 @@ def test_a_top_gdp_nation_is_promoted_one_level() -> None:
     miltech = crossing(K1, "militaryTechLevel", 3.5, 4.5)
     (age,) = built([miltech], reports(3.5, 4.5, 4.5, statistic="militaryTechLevel", gdp=1000.0))
     assert age.event_type == "nation.miltech_shift" and age.significance is Significance.CAMPAIGN_DEFINING
+
+
+def test_a_larger_economy_without_land_pushes_no_nation_down() -> None:
+    event = crossing(K1, "unrest", 2.5, 3.5, rest=0.0)
+    (shift,) = built([event], reports(2.5, 3.5, 3.5, gdp=1000.0, landless_gdp=5000.0), top_gdp_nations=1)
+    assert (shift.attribute("gdp_rank"), shift.significance) == (1, Significance.MAJOR)
 
 
 def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None:

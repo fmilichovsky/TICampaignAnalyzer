@@ -136,7 +136,7 @@ class BandShiftRule:
                 continue
             if _explained(crossing, nation.entity_id, explainers):
                 continue
-            rank = pair[1].rank_including_landless(nation.entity_id, GDP)
+            rank = pair[1].rank(nation.entity_id, GDP)
             level = promoted_at_rank(self._level(before, after), rank, self.geopolitics.top_gdp_nations)
             roles = [(Role.ACTOR, nation)]
             shifts = metric_shifts(stream, [nation.entity_id], [interval_of(crossing.id)])
@@ -259,7 +259,7 @@ class PopulationCollapseRule:
                         ("causes", drop.attribute("causes")),
                         (
                             "gdp_rank",
-                            pair[1].rank_including_landless(nation.entity_id, GDP) if pair is not None else None,
+                            pair[1].rank(nation.entity_id, GDP) if pair is not None else None,
                         ),
                         *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
@@ -299,7 +299,7 @@ class EconomicTrajectoryRule:
                 if nation is None or start is None or end is None or start == 0:
                     continue
                 pair = reports.get(interval_of(last.id))
-                rank = pair[1].rank_including_landless(nation_id, GDP) if pair is not None else None
+                rank = pair[1].rank(nation_id, GDP) if pair is not None else None
                 level = promoted_at_rank(Significance.MAJOR, rank, self.settings.top_gdp_nations)
                 window_start = first.attribute("window_start")
                 built.append(
@@ -418,8 +418,8 @@ class NuclearArcRule:
                         attributes=(
                             ("before", start),
                             ("after", end),
-                            ("gdp_rank", report.rank_including_landless(nation_id, GDP)),
-                            ("strength_rank", report.rank_including_landless(nation_id, STRENGTH)),
+                            ("gdp_rank", report.rank(nation_id, GDP)),
+                            ("strength_rank", report.rank(nation_id, STRENGTH)),
                         ),
                         significance=level,
                         open=within(latest(last), last_date(situations), days),
