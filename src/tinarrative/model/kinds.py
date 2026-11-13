@@ -21,6 +21,8 @@ class Rule(StrEnum):
     SPACE_ASSETS_CHANGED = "space_assets_changed"
     ARMY_PRESENCE = "army_presence"
     COMPLETION = "completion"
+    TOP_GDP_TAKEOVER = "top_gdp_takeover"  # TODO(#362): temporary; the takeover's stake replaces it.
+    """A narrative-event kind's rule: it promotes a takeover of a top-ranked economy."""
 
 
 class StakeMeasure(StrEnum):
@@ -57,7 +59,8 @@ Template = Callable[[Event], str]
 class EventKind:
     """The single declaration of one event type.
 
-    ``base`` is ``None`` only for a narrative-event kind, whose level is set by the rule that emits it. An emitter
+    A ``narrative`` kind is one a narrative rule builds; ``base`` is ``None`` only for such a kind whose level its
+    rule still sets. An emitter
     always passes every ``required`` attribute, its value possibly ``Unknown``; an attribute whose presence depends
     on the save is ``optional``. A narrative-event kind that ``digests_members`` groups the narrative events it cites
     as its members: the listing tells such a member as a digest under it. A narrative-event kind with
@@ -72,6 +75,7 @@ class EventKind:
     optional: frozenset[str] = frozenset()
     rule: Rule | None = None
     stake: Stake | None = None
+    narrative: bool = False
     digests_members: bool = False
     exclusive_constituents: bool = False
 

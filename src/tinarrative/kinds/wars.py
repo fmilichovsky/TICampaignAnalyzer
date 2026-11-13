@@ -108,6 +108,7 @@ ARC = narrative_kind(
             "metric_shifts",
         }
     ),
+    base=Significance.MAJOR,
 )
 
 KINDS = (
