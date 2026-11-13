@@ -621,12 +621,20 @@ SPACE_PROGRAM_GROWTH = narrative_kind(
         for measure in ("before", "after", "territory_share", "rank")
     )
     | {"entered_top"},
+    base=Significance.MINOR,
+    rule=Rule.ENTERED_TOP,
 )
 SPACE_DEFENCES_ESTABLISHED = narrative_kind(
-    "nation.space_defences_established", _space_defences_established, required=frozenset({"regions"})
+    "nation.space_defences_established",
+    _space_defences_established,
+    required=frozenset({"regions"}),
+    base=Significance.MAJOR,
 )
 RANKING_CHANGED = narrative_kind(
-    "world.ranking_changed", _ranking_changed, required=frozenset({"metric", "top", "entrants", "leavers"})
+    "world.ranking_changed",
+    _ranking_changed,
+    required=frozenset({"metric", "top", "entrants", "leavers"}),
+    base=Significance.MAJOR,
 )
 
 KINDS = (

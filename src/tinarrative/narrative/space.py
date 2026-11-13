@@ -32,7 +32,7 @@ from ..kinds.space import (
 )
 from ..kinds.technology import MILESTONE as TECHNOLOGY_MILESTONE_KIND
 from ..model.entities import EntityId, EntityRef
-from ..model.events import DateBasis, Event, Role, Significance
+from ..model.events import DateBasis, Event, Role
 from ..model.values import FrozenMap
 from .aggregation import Join, NarrativeBuilder
 from .chronology import interval_of
@@ -202,7 +202,6 @@ class SpaceCampaignRule:
                 ("span_from", start),
                 ("span_to", end),
             ),
-            significance=Significance.MAJOR,
             open=within(end, last_date(situations), self.settings.campaign_gap_days),
         )
 
@@ -282,7 +281,6 @@ class ColonisationWaveRule:
                                 tuple(event.attribute("first_of_any_faction") is True for event in run),
                             ),
                         ),
-                        significance=Significance.MAJOR,
                         open=within(latest(run[0]), last_date(situations), days),
                     )
                 )
@@ -319,7 +317,6 @@ class FirstMilestoneRule:
                 roles=roles,
                 join=Join.ENTITY,
                 attributes=(("milestone", anchor.attribute("milestone")), ("faction", faction)),
-                significance=Significance.CAMPAIGN_DEFINING,
                 open=False,
             )
             dates = [charge.date for charge in charges if charge.date_basis is DateBasis.RECORD]
@@ -373,7 +370,6 @@ class FleetBuildupRule:
                     roles=[(Role.ACTOR, ships[0].entities[2])],
                     join=Join.ENTITY,
                     attributes=(("hull", hull), ("count", len(ships))),
-                    significance=Significance.MINOR,
                     open=False,
                 )
             )
@@ -413,7 +409,6 @@ class TechnologyMilestoneRule:
                     roles=[(Role.ACTOR, ref)] if is_project else [],
                     join=Join.ENTITY,
                     attributes=(("template", name), ("rationale", milestone.rationale)),
-                    significance=milestone.significance,
                     open=False,
                 )
             )

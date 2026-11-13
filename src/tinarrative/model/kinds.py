@@ -23,6 +23,12 @@ class Rule(StrEnum):
     COMPLETION = "completion"
     TOP_GDP_TAKEOVER = "top_gdp_takeover"  # TODO(#362): temporary; the takeover's stake replaces it.
     """A narrative-event kind's rule: it promotes a takeover of a top-ranked economy."""
+    TOP_RANK = "top_rank"  # TODO(#362): temporary; the nation's power share replaces it.
+    """A narrative-event kind's rule: it promotes an event of a nation ranked in the top by GDP or strength."""
+    ENTERED_TOP = "entered_top"
+    """A narrative-event kind's rule: it raises the level when the nation entered the top of a space measure."""
+    MILESTONE_TIER = "milestone_tier"
+    """A narrative-event kind's rule: it sets the level from the curated tier of the completed template."""
 
 
 class StakeMeasure(StrEnum):

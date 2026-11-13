@@ -227,7 +227,10 @@ def _first_milestone(event: Event) -> str:
 
 
 FIRST_MILESTONE = narrative_kind(
-    "campaign.first_milestone", _first_milestone, required=frozenset({"milestone", "faction"})
+    "campaign.first_milestone",
+    _first_milestone,
+    required=frozenset({"milestone", "faction"}),
+    base=Significance.CAMPAIGN_DEFINING,
 )
 
 KINDS = (

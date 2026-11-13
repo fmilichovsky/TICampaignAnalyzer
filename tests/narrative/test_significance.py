@@ -26,6 +26,7 @@ from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
+from tinarrative.config import GeopoliticsSettings
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.kinds import KINDS
 from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
@@ -35,9 +36,11 @@ from tinarrative.model.kinds import Rule, Stake
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
+from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.significance import (
     RULE_IMPLEMENTATIONS,
     STAKE_IMPLEMENTATIONS,
+    narrative_score,
 )
 
 COUNCILOR = EntityDomain.COUNCILOR
@@ -563,3 +566,43 @@ def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None
         "scale": -10,
     }
     assert "significance_basis" not in bare_event("nation.rank_changed").to_dict()
+
+
+def narrative_level(event_type: str, **attributes: Observed) -> Significance:
+    kind = KINDS[event_type]
+    event = bare_event(event_type, **attributes)
+    return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings()))
+
+
+def test_an_army_or_navy_event_of_a_top_ranked_nation_is_one_level_up() -> None:
+    top = GeopoliticsSettings().top_gdp_nations
+    for event_type, extra in (
+        ("nation.military_buildup", {"before": 1, "after": 5}),
+        ("nation.demobilization", {"before": 5, "after": 1}),
+        ("nation.navy_established", {"navies": 1}),
+    ):
+        ranks = {"gdp_rank": top + 1, "strength_rank": top + 1}
+        assert narrative_level(event_type, **extra, **ranks) is Significance.MAJOR
+        assert narrative_level(event_type, **extra, **{**ranks, "gdp_rank": top}) is Significance.CAMPAIGN_DEFINING
+        assert narrative_level(event_type, **extra, **{**ranks, "strength_rank": 1}) is Significance.CAMPAIGN_DEFINING
+        assert narrative_level(event_type, **extra, gdp_rank=None, strength_rank=Unknown()) is Significance.MAJOR
+
+
+def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:
+    measures = {
+        f"{metric}_{measure}": None
+        for metric in ("boost", "mission_control")
+        for measure in ("before", "after", "territory_share", "rank")
+    }
+    assert narrative_level("nation.space_program_growth", **measures, entered_top=True) is Significance.MAJOR
+    assert narrative_level("nation.space_program_growth", **measures, entered_top=False) is Significance.MINOR
+
+
+def test_a_technology_milestone_takes_its_curated_tier() -> None:
+    defining = next(
+        name
+        for name, milestone in MILESTONE_TEMPLATES.items()
+        if milestone.significance is Significance.CAMPAIGN_DEFINING
+    )
+    assert narrative_level("technology.milestone", template=defining, rationale="r") is Significance.CAMPAIGN_DEFINING
+    assert narrative_level("technology.milestone", template="Unlisted", rationale="r") is Significance.MINOR
