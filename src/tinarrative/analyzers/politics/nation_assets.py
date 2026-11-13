@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 from ...model.entities import EntityId, EntityRef
 from ...model.snapshot import EntityState, SaveSnapshot
-from ...model.values import FrozenMap, Observed, Unknown, UnknownReason
+from ...model.values import FrozenMap, Observed, Unknown, UnknownReason, number
 from ..common import Lookup, Side
 
 STANDARD = "Standard"
@@ -66,10 +66,6 @@ class NationAssets:
     """Regions with ``antiSpaceDefenses`` or STO fighters: the ``spaceDefences`` statistic."""
 
 
-def _number(value: Observed) -> float | None:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
-
-
 def refs(value: Observed) -> tuple[EntityId, ...] | None:
     """The entity IDs of a known reference list; ``None`` for an unknown value or one with an unresolved entry."""
     if not isinstance(value, tuple) or not all(isinstance(item, EntityRef) for item in value):
@@ -88,7 +84,7 @@ def region_sum(lookup: Lookup, regions: tuple[EntityId, ...], name: str, side: S
     for region in regions:
         state = lookup.state(region, side)
         raw = state.get(name) if state is not None else Unknown()
-        value = _number(raw)
+        value = number(raw)
         if value is None:
             return _unknown(raw)
         values.append(value)
@@ -99,7 +95,7 @@ def defended(state: EntityState | None) -> bool | None:
     """Whether a region has space defences or STO fighters; ``None`` when either field is unreadable."""
     if state is None:
         return None
-    flag, fighters = state.get(SPACE_DEFENCES), _number(state.get(STO_FIGHTERS))
+    flag, fighters = state.get(SPACE_DEFENCES), number(state.get(STO_FIGHTERS))
     if not isinstance(flag, bool) or fighters is None:
         return None
     return flag or fighters > 0
@@ -112,7 +108,7 @@ def _unoccupied_share(state: EntityState | None) -> float | None:
     occupier, occupations = state.get("leadOccupier"), state.get("occupations")
     if not (occupier is None or isinstance(occupier, EntityRef)) or not isinstance(occupations, FrozenMap):
         return None
-    fractions = [_number(value) for _nation, value in occupations.items]
+    fractions = [number(value) for _nation, value in occupations.items]
     known = [value for value in fractions if value is not None]
     if len(known) != len(fractions):
         return None
@@ -149,7 +145,7 @@ def assets(lookup: Lookup, nation: EntityState, side: Side) -> NationAssets:
         deployments = [state.get("deploymentType") if state is not None else None for state in kinds]
         if all(kind in (STANDARD, NAVAL) for kind in deployments):
             strengths = [
-                _number(state.get("strength")) if state is not None else None
+                number(state.get("strength")) if state is not None else None
                 for state, kind in zip(kinds, deployments, strict=True)
                 if kind == STANDARD
             ]
@@ -189,7 +185,7 @@ def strength(nation: EntityState, held: NationAssets) -> float | Unknown:
     counts two thirds; a ``leadOccupier`` without any fraction counts the region as fully occupied.
     """
     inputs = {name: nation.get(name) for name in ("militaryTechLevel", "unrest", "numNuclearWeapons")}
-    miltech, unrest, weapons = (_number(value) for value in inputs.values())
+    miltech, unrest, weapons = (number(value) for value in inputs.values())
     regions, armies, navies, mean = held.unoccupied_regions, held.armies, held.navies, held.mean_army_strength
     unknown = next(
         (value for value in (*inputs.values(), regions, armies, navies, mean) if isinstance(value, Unknown)), None
@@ -214,14 +210,14 @@ def strength(nation: EntityState, held: NationAssets) -> float | Unknown:
 def metric(nation: EntityState, held: NationAssets, name: str) -> float | None:
     """The nation's value of one ranked metric; ``None`` when unknown."""
     if name == GDP:
-        return _number(nation.get(GDP))
+        return number(nation.get(GDP))
     if name == STRENGTH:
         value: Observed = strength(nation, held)
     elif name == BOOST_METRIC:
         value = held.boost
     else:
         value = held.mission_control
-    return _number(value)
+    return number(value)
 
 
 @dataclass(frozen=True)

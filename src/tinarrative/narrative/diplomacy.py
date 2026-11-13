@@ -7,6 +7,7 @@ from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
+from ..analyzers.politics.nation_assets import GDP, STRENGTH
 from ..config import GeopoliticsSettings
 from ..kinds import nations as nation_kinds
 from ..kinds.nations import RELATION_CHANGED
@@ -14,8 +15,9 @@ from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.values import Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
-from .geopolitics import TAKEOVER, bounded_shifts, gdp_rank, metric_shifts, strength_rank
+from .geopolitics import TAKEOVER
 from .rulekit import (
+    bounded_shifts,
     by_type,
     chained,
     earliest,
@@ -23,6 +25,7 @@ from .rulekit import (
     intervals_of,
     last_date,
     latest,
+    metric_shifts,
     overlaps,
     shifted,
     sorted_keys,
@@ -90,7 +93,7 @@ class DiplomaticRealignmentRule:
                 )
                 executive = _actor(context[0]) if context else None
                 roles = [(Role.ACTOR, nation), *((Role.TARGET, partner) for partner in partners)]
-                rank = gdp_rank(report, nation_id)
+                rank = report.rank_including_landless(nation_id, GDP)
                 top = rank is not None and rank <= self.settings.top_gdp_nations
                 shifts = metric_shifts(stream, [nation_id], intervals_of(run))
                 built.append(
@@ -106,7 +109,7 @@ class DiplomaticRealignmentRule:
                             ("partner_count", len(partners)),
                             ("executive", executive),
                             ("gdp_rank", rank),
-                            ("strength_rank", strength_rank(report, nation_id)),
+                            ("strength_rank", report.rank_including_landless(nation_id, STRENGTH)),
                             *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                         ),
                         significance=Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR,

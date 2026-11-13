@@ -27,7 +27,7 @@ from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
-from tinarrative.narrative.geopolitics import bounded_shifts
+from tinarrative.narrative.rulekit import bounded_shifts
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"

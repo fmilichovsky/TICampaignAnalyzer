@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from ..analyzers.military.armies import APPEARED, DEPLOYMENT_TYPE_CHANGED, DISAPPEARED
@@ -27,15 +27,14 @@ from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettin
 from ..kinds import military as military_kinds
 from ..kinds import nations as nation_kinds
 from ..kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
-from ..model.entities import EntityId, EntityRef
+from ..model.entities import EntityId
 from ..model.events import Event, Role, Significance
-from ..model.values import FrozenMap, Observed
+from ..model.values import FrozenMap, Observed, number
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
-from .geopolitics import gdp_rank, strength_rank
 from .nation_metrics import PROMOTED
 from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chained, intervals_of, sorted_keys, subject
-from .situation import NationSituation, SituationReport
+from .situation import Place, SituationReport
 from .stream import EventStream
 
 MILITARY_BUILDUP = military_kinds.MILITARY_BUILDUP.event_type
@@ -47,64 +46,15 @@ RANKING_CHANGED = nation_kinds.RANKING_CHANGED.event_type
 BUILDUP_WINDOW_DAYS = 365
 SPACE_METRICS = ((BOOST_STATISTIC, BOOST_METRIC), (MISSION_CONTROL_STATISTIC, MISSION_CONTROL_METRIC))
 
-_REPORTED: dict[str, Callable[[NationSituation], Observed]] = {
-    GDP: lambda item: dict(item.statistics).get(GDP),
-    STRENGTH: lambda item: item.strength,
-    BOOST_METRIC: lambda item: item.boost,
-    MISSION_CONTROL_METRIC: lambda item: item.mission_control,
-}
-
-
-def _number(value: Observed) -> float | None:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
-
-
-def _row(report: SituationReport, nation_id: EntityId) -> NationSituation | None:
-    return next((item for item in report.nations if item.nation.entity_id == nation_id), None)
-
-
-def _ordered(report: SituationReport, metric: str) -> list[tuple[float, NationSituation]]:
-    """Must order exactly as ``nation.rank_changed`` places nations: landless nations excluded, ties by ID."""
-    value = _REPORTED[metric]
-    known = [
-        (number, item)
-        for item in report.nations
-        if isinstance(item.regions, int) and item.regions > 0 and (number := _number(value(item))) is not None
-    ]
-    return sorted(known, key=lambda pair: (-pair[0], pair[1].nation.entity_id.sort_key))
-
-
-def report_rank(report: SituationReport, nation_id: EntityId, metric: str) -> int | None:
-    """1 is the largest."""
-    ordered = _ordered(report, metric)
-    return next((place for place, (_, item) in enumerate(ordered, start=1) if item.nation.entity_id == nation_id), None)
-
-
-@dataclass(frozen=True)
-class _Place:
-    nation: EntityRef
-    rank: int
-    value: float
-
-
-def top_members(report: SituationReport, metric: str, top: int) -> dict[EntityId, _Place]:
-    """Only clear members, above zero and above the first value outside, so a tie across the boundary never enters
-    or leaves the top."""
-    ordered = _ordered(report, metric)
-    outside = ordered[top][0] if len(ordered) > top else None
-    return {
-        item.nation.entity_id: _Place(item.nation, place, value)
-        for place, (value, item) in enumerate(ordered[:top], start=1)
-        if value > 0 and (outside is None or value > outside)
-    }
-
 
 def _in_top(rank: Observed, top: int) -> bool:
     return isinstance(rank, int) and not isinstance(rank, bool) and rank <= top
 
 
 def _promoted(level: Significance, report: SituationReport, nation_id: EntityId, top: int) -> Significance:
-    if _in_top(gdp_rank(report, nation_id), top) or _in_top(strength_rank(report, nation_id), top):
+    if _in_top(report.rank_including_landless(nation_id, GDP), top) or _in_top(
+        report.rank_including_landless(nation_id, STRENGTH), top
+    ):
         return PROMOTED[level]
     return level
 
@@ -156,8 +106,8 @@ class MilitaryBuildupRule:
             for run in chained(grouped[nation_id], BUILDUP_WINDOW_DAYS):
                 keys = intervals_of(run)
                 first, last = reports.get(keys[0]), reports.get(keys[-1])
-                start = _row(first[0], nation_id) if first is not None else None
-                end = _row(last[1], nation_id) if last is not None else None
+                start = first[0].nation(nation_id) if first is not None else None
+                end = last[1].nation(nation_id) if last is not None else None
                 if last is None or start is None or end is None:
                     continue
                 before, after = start.armies, end.armies
@@ -177,8 +127,8 @@ class MilitaryBuildupRule:
                         attributes=(
                             ("before", before),
                             ("after", after),
-                            ("gdp_rank", gdp_rank(last[1], nation_id)),
-                            ("strength_rank", strength_rank(last[1], nation_id)),
+                            ("gdp_rank", last[1].rank_including_landless(nation_id, GDP)),
+                            ("strength_rank", last[1].rank_including_landless(nation_id, STRENGTH)),
                         ),
                         significance=level,
                         open=keys[-1] == last_key,
@@ -209,7 +159,7 @@ class NavyEstablishedRule:
         for key, (earlier, later) in interval_reports(situations).items():
             for item in later.nations:
                 nation_id = item.nation.entity_id
-                previous = _row(earlier, nation_id)
+                previous = earlier.nation(nation_id)
                 if previous is None or previous.navies != 0 or not isinstance(item.navies, int) or item.navies == 0:
                     continue
                 cited = [event for event in grouped.get(nation_id, []) if interval_of(event.id) == key]
@@ -224,8 +174,8 @@ class NavyEstablishedRule:
                         join=Join.ENTITY,
                         attributes=(
                             ("navies", item.navies),
-                            ("gdp_rank", gdp_rank(later, nation_id)),
-                            ("strength_rank", strength_rank(later, nation_id)),
+                            ("gdp_rank", later.rank_including_landless(nation_id, GDP)),
+                            ("strength_rank", later.rank_including_landless(nation_id, STRENGTH)),
                         ),
                         significance=_promoted(Significance.MAJOR, later, nation_id, self.geopolitics.top_gdp_nations),
                         open=False,
@@ -272,10 +222,9 @@ class SpaceProgramGrowthRule:
                 entered = False
                 for statistic, metric in SPACE_METRICS:
                     moves = [event for event in run if event.attribute("statistic") == statistic]
-                    after_rank = report_rank(last[1], nation_id, metric)
+                    after_rank = last[1].rank(nation_id, metric)
                     entered = entered or (
-                        nation_id in top_members(last[1], metric, top)
-                        and nation_id not in top_members(first[0], metric, top)
+                        nation_id in last[1].top(metric, top) and nation_id not in first[0].top(metric, top)
                     )
                     attributes.extend(
                         (
@@ -302,12 +251,12 @@ class SpaceProgramGrowthRule:
 
 def _territory_share(moves: Sequence[Event]) -> float | None:
     """The share of the change that regions changing hands carried; ``None`` without a change."""
-    deltas = [_number(event.attribute("territory_delta")) for event in moves]
+    deltas = [number(event.attribute("territory_delta")) for event in moves]
     changes = [
         (after - before)
         for event in moves
-        if (before := _number(event.attribute("before"))) is not None
-        and (after := _number(event.attribute("after"))) is not None
+        if (before := number(event.attribute("before"))) is not None
+        and (after := number(event.attribute("after"))) is not None
     ]
     total = sum(changes)
     if not moves or len(changes) != len(moves) or None in deltas or total == 0:
@@ -352,11 +301,11 @@ class SpaceDefencesEstablishedRule:
 
 
 def _placed(report: SituationReport, nation_id: EntityId, metric: str, top: int) -> bool:
-    """Tied places count, unlike ``top_members``."""
-    return _in_top(report_rank(report, nation_id, metric), top)
+    """Tied places count, unlike ``SituationReport.top``."""
+    return _in_top(report.rank(nation_id, metric), top)
 
 
-def _entry(place: _Place) -> FrozenMap:
+def _entry(place: Place) -> FrozenMap:
     return FrozenMap((("nation", place.nation), ("rank", place.rank), ("value", place.value)))
 
 
@@ -389,13 +338,13 @@ class RankingRule:
             for metric in RANKED_METRICS:
                 entrants = [
                     place
-                    for nation, place in top_members(report, metric, top).items()
+                    for nation, place in report.top(metric, top).items()
                     if not _placed(earlier, nation, metric, top)
                     and (later is None or _placed(later, nation, metric, top))
                 ]
                 leavers = [
                     place
-                    for nation, place in top_members(earlier, metric, top).items()
+                    for nation, place in earlier.top(metric, top).items()
                     if not _placed(report, nation, metric, top)
                     and (later is None or not _placed(later, nation, metric, top))
                 ]

@@ -178,7 +178,7 @@ Tracking #249.
   - [x] Exclusive constituents: kinds declare them, rule order enforces them (#347).
 - [ ] Narrative-event significance in one place (#349):
   - [x] Rename "development" to "narrative event" (#350).
-  - [ ] Situation report answers its own questions (#351).
+  - [x] Situation report answers its own questions (#351).
   - [ ] One top-N promotion helper (#352).
   - [ ] One ranking of nations (#353).
   - [ ] Scored from kinds: geopolitics rules (#355).

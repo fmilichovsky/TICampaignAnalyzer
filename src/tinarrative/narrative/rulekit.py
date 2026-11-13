@@ -1,4 +1,5 @@
-"""Helpers shared by the narrative rule modules: dates and windows, entity and attribute access, grouping.
+"""Helpers shared by the narrative rule modules: dates and windows, entity and attribute access, grouping, metric
+shifts.
 
 Windows are in game days.
 """
@@ -7,13 +8,15 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from collections import defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from datetime import datetime, timedelta
 
+from ..analyzers.politics.bands import BANDS, band
+from ..kinds import nations as nation_kinds
 from ..kinds.military import NATION_ARMIES_CHANGED as NATION_ARMIES_CHANGED_KIND
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import DateBasis, Event
-from ..model.values import Observed
+from ..model.events import DateBasis, Event, Role
+from ..model.values import FieldValue, FrozenMap, Observed, Unknown, number
 from .aggregation import days_between
 from .chronology import interval_of, interval_sort_key
 from .situation import SituationReport
@@ -194,3 +197,108 @@ def by_subject(events: Iterable[Event]) -> dict[EntityId, list[Event]]:
 
 def sorted_keys(grouped: Mapping[EntityId, object]) -> list[EntityId]:
     return sorted(grouped, key=lambda entity_id: entity_id.sort_key)
+
+
+# --- Metric shifts -----------------------------------------------------------------------------------------------
+
+STATISTIC_SHIFTED = nation_kinds.STATISTIC_SHIFTED.event_type
+LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
+"""Rank ahead of any relative change when shifts are bounded: a shift from zero has no relative change but is the
+story."""
+
+
+def literal(value: Observed) -> FieldValue:
+    """A known value as it is; ``None`` for an unknown one."""
+    return None if isinstance(value, Unknown) else value
+
+
+def metric_shifts(
+    stream: Iterable[Event],
+    nations: Iterable[EntityId],
+    intervals: Iterable[str],
+    windows: Mapping[EntityId, Collection[str]] | None = None,
+) -> tuple[FrozenMap, ...]:
+    """One net entry per nation, statistic and key over the ``nation.statistic_shifted`` events in ``intervals``.
+
+    The net covers the reported shifts only: an interval whose change stayed below the analyzer's threshold is missing
+    from it. ``relative_change`` is unsigned. ``windows`` limits a nation to its own intervals; a nation without a
+    window keeps all of ``intervals``. Shifts are context, never constituents.
+    """
+    wanted, keys = set(nations), set(intervals)
+    groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
+    for event in EventStream.of(stream).of_subject(wanted, STATISTIC_SHIFTED):
+        nation = subject_id(event)
+        if nation is None or interval_of(event.id) not in keys:
+            continue
+        if windows is not None and nation in windows and interval_of(event.id) not in windows[nation]:
+            continue
+        key = event.attribute("key")
+        groups[(nation, str(event.attribute("statistic")), key if isinstance(key, str) else "")].append(event)
+    entries = []
+    for (_, statistic, key), shifts in sorted(groups.items(), key=lambda item: (item[0][0].sort_key, item[0][1:])):
+        shifts.sort(key=lambda event: interval_sort_key(interval_of(event.id)))
+        before, after = literal(shifts[0].attribute("before")), literal(shifts[-1].attribute("after"))
+        low, high = number(before), number(after)
+        relative = abs(high - low) / abs(low) if low is not None and high is not None and low != 0 else None
+        items: list[tuple[str, FieldValue]] = [
+            ("nation", shifts[0].entities[0]),
+            ("statistic", statistic),
+            ("before", before),
+            ("after", after),
+            ("relative_change", relative),
+            ("not_before", literal(shifts[0].not_before)),
+            ("date", literal(shifts[-1].date)),
+            ("date_basis", shifts[-1].date_basis.value),
+            ("events", tuple(event.id for event in shifts)),
+        ]
+        if key:
+            items.append(("key", key))
+        if statistic in BANDS and low is not None and high is not None:
+            items.extend((("from_band", band(statistic, low)), ("to_band", band(statistic, high))))
+        causes = _summed_causes(shifts)
+        if causes is not None:
+            items.append(("causes", causes))
+        entries.append(FrozenMap(tuple(items)))
+    return tuple(entries)
+
+
+def _summed_causes(shifts: Sequence[Event]) -> FrozenMap | None:
+    maps = [value for value in (event.attribute("causes") for event in shifts) if isinstance(value, FrozenMap)]
+    if not maps:
+        return None
+    totals: dict[str, float] = defaultdict(float)
+    for causes in maps:
+        for reason, delta in causes.items:
+            amount = number(delta)
+            if amount is not None:
+                totals[reason] += amount
+    return FrozenMap(tuple((reason, total) for reason, total in totals.items() if total != 0))
+
+
+def bounded_shifts(
+    entries: Sequence[FrozenMap], roles: Iterable[tuple[Role, EntityRef]], limit: int
+) -> tuple[tuple[str, FieldValue], ...]:
+    """At most ``limit`` entries, with ``metric_shifts_omitted`` counting the cut.
+
+    Selection prefers role nations, then ``LEADING_STATISTICS``, then the largest ``relative_change``; the kept entries
+    keep their original order.
+    """
+    first = {ref.entity_id for _, ref in roles if ref.entity_id.domain is EntityDomain.NATION}
+
+    def rank(position: int) -> tuple[bool, bool, bool, float, int]:
+        entry = dict(entries[position].items)
+        relative = number(entry.get("relative_change"))
+        nation = entry.get("nation")
+        return (
+            not (isinstance(nation, EntityRef) and nation.entity_id in first),
+            entry.get("statistic") not in LEADING_STATISTICS,
+            relative is None,
+            -(relative or 0.0),
+            position,
+        )
+
+    kept = sorted(sorted(range(len(entries)), key=rank)[:limit])
+    attributes: tuple[tuple[str, FieldValue], ...] = (("metric_shifts", tuple(entries[index] for index in kept)),)
+    if len(kept) < len(entries):
+        attributes += (("metric_shifts_omitted", len(entries) - len(kept)),)
+    return attributes
