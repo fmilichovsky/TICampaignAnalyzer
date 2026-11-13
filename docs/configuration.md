@@ -1,7 +1,8 @@
 # Configuration
 
 Settings come from `--config`, then `TINARRATIVE_CONFIG`, then built-in defaults. The example file is the only
-place that describes each key. Copy it and remove keys you do not change; a test keeps it equal to the defaults.
+place that describes each key. Copy it and remove keys you do not change; `make docs` keeps its values equal to the
+defaults.
 
 ## File format and validation
 
@@ -22,5 +23,7 @@ run directories remain assemblable.
 ## Adding a setting
 
 A setting earns a place only when a player would change it for a different story, budget or connection. Other
-values are named constants next to the rule that uses them. Document a setting only in
-`configuration.example.toml`, with a short comment that says how raising or lowering it changes the result.
+values are named constants next to the rule that uses them. Declare its key in `SETTING_KEYS` in `config.py`, then
+add it to `configuration.example.toml` by hand, with a short comment that says how raising or lowering it changes the
+result: set to its default when it has one, commented out with an example value when it has none. `make docs`
+updates the values and fails on a key that is missing, unknown or without a comment.

@@ -19,7 +19,7 @@ def write(tmp_path: Path, text: str) -> Path:
 
 def test_example_is_the_defaults() -> None:
     example = Path(__file__).resolve().parents[1] / "docs" / "configuration.example.toml"
-    assert load_settings(example) == DEFAULT_SETTINGS
+    assert load_settings(example) == DEFAULT_SETTINGS, "the settings example is stale; run make docs"
     assert tomllib.loads(example.read_text(encoding="utf-8")) == DEFAULT_SETTINGS.to_dict()
 
 

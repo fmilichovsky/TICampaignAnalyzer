@@ -30,6 +30,13 @@ PROFILE_KEYS = (
     "tokens_per_minute",
 )
 """The ``narrator`` keys a profile may set; every other key is shared by all profiles."""
+SETTING_KEYS: Mapping[str, tuple[str, ...]] = {
+    "events": ("episode_gap_days", "top_nations", "recalled_narrative_events", "w_space"),
+    "llm": PROFILE_KEYS,
+    "councilors": ("rivals_per_faction", "min_tenure_days", "article_words"),
+    "processing": ("jobs",),
+}
+"""The keys each TOML table accepts besides ``llm.profiles``; ``make docs`` checks the example file against them."""
 _KIND = "kind"
 _MINIMUM = "minimum"
 _MAXIMUM = "maximum"
@@ -301,13 +308,11 @@ def load_settings(path: Path | None) -> Settings:
         raise ConfigError("'events' must be a table")
     if not isinstance(llm, Mapping):
         raise ConfigError("'llm' must be a table")
-    event_keys = {"episode_gap_days", "top_nations", "recalled_narrative_events", "w_space"}
     for key in events:
-        if key not in event_keys:
+        if key not in SETTING_KEYS["events"]:
             raise ConfigError(f"unknown setting 'events.{key}'")
-    llm_keys = set(PROFILE_KEYS) | {"profiles"}
     for key in llm:
-        if key not in llm_keys:
+        if key not in (*SETTING_KEYS["llm"], "profiles"):
             raise ConfigError(f"unknown setting 'llm.{key}'")
     normalized: dict[str, Any] = {
         "councilors": document.get("councilors", {}),
@@ -315,15 +320,16 @@ def load_settings(path: Path | None) -> Settings:
     }
     # One episode gap controls the related event chains.
     if events:
-        gap = events.get("episode_gap_days", 365)
-        top = events.get("top_nations", 10)
-        recalled = events.get("recalled_narrative_events", 40)
+        defaults = DEFAULT_SETTINGS.to_dict()["events"]
+        gap = events.get("episode_gap_days", defaults["episode_gap_days"])
+        top = events.get("top_nations", defaults["top_nations"])
+        recalled = events.get("recalled_narrative_events", defaults["recalled_narrative_events"])
         if isinstance(gap, bool) or not isinstance(gap, int) or gap < 0:
             raise ConfigError("'events.episode_gap_days' must be an integer at least 0")
         if isinstance(top, bool) or not isinstance(top, int) or top < 1:
             raise ConfigError("'events.top_nations' must be an integer at least 1")
         top = min(top, 20)
-        weight = events.get("w_space", DEFAULT_SETTINGS.narrative.significance.w_space)
+        weight = events.get("w_space", defaults["w_space"])
         if isinstance(weight, bool) or not isinstance(weight, int | float) or not 0 <= weight <= 1:
             raise ConfigError("'events.w_space' must be a number from 0 to 1")
         normalized["narrative"] = {
@@ -338,7 +344,7 @@ def load_settings(path: Path | None) -> Settings:
     councilors = normalized.get("councilors", {})
     if isinstance(councilors, Mapping):
         for key in councilors:
-            if key not in {"rivals_per_faction", "min_tenure_days", "article_words"}:
+            if key not in SETTING_KEYS["councilors"]:
                 raise ConfigError(f"unknown setting 'councilors.{key}'")
     try:
         return cast(Settings, _apply(DEFAULT_SETTINGS, normalized, ""))

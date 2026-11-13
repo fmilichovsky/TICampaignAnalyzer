@@ -1,6 +1,6 @@
-"""The generated regions of the command pages: synopsis, options and exit codes, rendered from the CLI parser.
+"""Generated docs: the command pages' synopsis, options and exit codes, and the settings example's values.
 
-``make docs`` rewrites them; ``--check`` fails when a page is stale. Everything outside the markers is hand-written.
+``make docs`` rewrites them; ``--check`` fails when one is stale. Everything else stays hand-written.
 """
 
 from __future__ import annotations
@@ -8,13 +8,16 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from .cli import EXIT_CODES, build_parser
+from .config import DEFAULT_SETTINGS, SETTING_KEYS
 
 COMMANDS_DIR = Path("docs/commands")
+CONFIG_EXAMPLE = Path("docs/configuration.example.toml")
 KINDS = ("synopsis", "options", "exit-codes")
 USAGE_WIDTH = 100
 ROOT = "tinarrative"
@@ -26,7 +29,7 @@ _MARKER = re.compile(r"<!-- (?:generated:|end generated)")
 
 
 class DocsError(ValueError):
-    """A page or the parser breaks a rule of the generated regions; the message names what to fix."""
+    """A page, the example, the parser or the settings break a rule of the generated docs; the message says the fix."""
 
 
 @dataclass(frozen=True)
@@ -169,24 +172,82 @@ def generate(directory: Path) -> dict[Path, str]:
     return pages
 
 
+_TABLE = re.compile(r"^\[(?P<table>[a-z_.]+)\]")
+_SETTING = re.compile(r"^(?P<commented># )?(?P<key>[a-z_]+) = (?P<value>.*)$")
+
+
+def _toml(value: object) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return repr(value)
+    if isinstance(value, str):
+        return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    raise DocsError(f"no TOML form for the default {value!r}")
+
+
+def config_example(text: str) -> str:
+    """``text`` with every set key at its default; raises ``DocsError`` for a missing, extra, uncommented or misset key.
+
+    A key with a default is set; a key without one is commented out with an example value. Every key has a comment
+    line above it written for players, which ``make docs`` never writes.
+    """
+    defaults = DEFAULT_SETTINGS.to_dict()
+    lines = text.split("\n")
+    seen: set[str] = set()
+    table = ""
+    for index, line in enumerate(lines):
+        header = _TABLE.match(line)
+        if header:
+            table = header["table"]
+            if table not in SETTING_KEYS and table != "llm.profiles":
+                raise DocsError(f"configuration example: unknown table [{table}]")
+            continue
+        setting = _SETTING.match(line)
+        if setting is None or table == "llm.profiles":
+            continue
+        key, name = setting["key"], f"{table}.{setting['key']}"
+        if key not in SETTING_KEYS[table]:
+            raise DocsError(f"configuration example: {name} is not a setting; remove it")
+        if name in seen:
+            raise DocsError(f"configuration example: {name} appears twice")
+        seen.add(name)
+        above = lines[index - 1] if index else ""
+        if not above.startswith("# ") or _SETTING.match(above):
+            raise DocsError(f"configuration example: {name} needs a comment line above it, written by hand")
+        default = defaults[table].get(key)
+        if default is None:
+            if not setting["commented"]:
+                raise DocsError(f"configuration example: {name} has no default; comment it out with an example value")
+            continue
+        if setting["commented"]:
+            raise DocsError(f"configuration example: {name} has a default; set it instead of commenting it out")
+        if tomllib.loads(f"v = {setting['value']}")["v"] != default:
+            lines[index] = f"{key} = {_toml(default)}"
+    missing = sorted({f"{table}.{key}" for table, keys in SETTING_KEYS.items() for key in keys} - seen)
+    if missing:
+        raise DocsError(f"configuration example: add {', '.join(missing)} by hand, with a comment")
+    return "\n".join(lines)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="make docs", description="Rewrite the generated regions of the docs.")
-    parser.add_argument("--check", action="store_true", help="Fail when a page is stale instead of rewriting it.")
-    parser.add_argument("--dir", type=Path, default=COMMANDS_DIR, help="The command pages (default %(default)s).")
+    parser = argparse.ArgumentParser(prog="make docs", description="Rewrite the generated parts of the docs.")
+    parser.add_argument("--check", action="store_true", help="Fail when a file is stale instead of rewriting it.")
     args = parser.parse_args(argv)
     try:
-        pages = generate(args.dir)
+        files = generate(COMMANDS_DIR)
+        files[CONFIG_EXAMPLE] = config_example(CONFIG_EXAMPLE.read_text(encoding="utf-8"))
     except DocsError as error:
         print(f"make docs: {error}", file=sys.stderr)
         return 1
-    stale = [page for page, text in pages.items() if page.read_text(encoding="utf-8") != text]
+    stale = [path for path, text in files.items() if path.read_text(encoding="utf-8") != text]
     if args.check:
-        for page in stale:
-            print(f"{page} is stale; run make docs", file=sys.stderr)
+        for path in stale:
+            print(f"{path} is stale; run make docs", file=sys.stderr)
         return 1 if stale else 0
-    for page in stale:
-        page.write_text(pages[page], encoding="utf-8", newline="\n")
-        print(f"updated {page}")
+    for path in stale:
+        path.write_text(files[path], encoding="utf-8", newline="\n")
+        print(f"updated {path}")
     return 0
 
 
