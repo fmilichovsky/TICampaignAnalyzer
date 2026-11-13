@@ -52,7 +52,7 @@ Exit codes are stable and defined at the top of `src/tinarrative/cli.py`.
 | 7 | The unknowns registry could not be read, is not a valid registry document, or could not be written; the report or summary is still printed. |
 | 8 | The settings file (`--config` or `TINARRATIVE_CONFIG`) could not be read or is not valid settings; nothing is printed on stdout. |
 | 9 | `narrate --output` (or the history of `--assemble`) or `councilors --output` could not be written. |
-| 10 | `narrate --send` or `councilors --send`: a provider request failed (authentication, network, HTTP error, invalid response), or a completion stopped at its output limit or was refused. `narrate` stops there and keeps the chapters completed before it; `councilors` skips the article and writes the others. |
+| 10 | `narrate --send` or `councilors --send`: a provider request failed (authentication, network, HTTP error, invalid response), or a completion stopped at its output limit, was refused or had no text. `narrate` stops there and keeps the chapters completed before it; `councilors` skips the article and writes the others. |
 
 Command pages state which of these codes they use and what is printed in each
 case.

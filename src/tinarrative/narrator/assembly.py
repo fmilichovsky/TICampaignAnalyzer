@@ -20,7 +20,7 @@ from .request import chapter_package
 UNCITED_FROM = "major"
 """The lowest significance the audit expects a footnote to cite."""
 KEPT_FINISHES = ("complete", "other")
-"""``length`` and ``refused`` completions are never written."""
+"""``length``, ``refused`` and ``empty`` completions are never written, nor is a kept finish with a blank text."""
 SENT_WITH = ("provider", "model", "max_output_tokens", "temperature")
 """With the request file, these response members reconstruct the request that was sent."""
 
@@ -112,6 +112,8 @@ def stored_chapter(entry: Mapping[str, Any], request: bytes | None, response: by
         raise ValueError(f"chapter {index}: the response file is not a response")
     if stored.get("request_sha256") != entry["request_sha256"]:
         raise ValueError(f"chapter {index}: the response was made from another request; send it again with --send")
+    if not stored["text"].strip():
+        raise ValueError(f"chapter {index}: the response has no text; send it again with --send")
     return StoredChapter(entry=entry, request=document, package=package, response=stored)
 
 

@@ -95,8 +95,10 @@ usage error and nothing is contacted.
 Chapters are sent in order. A chapter whose stored response was made from the same request,
 provider and model is kept, not sent again, so an interrupted run resumes where it stopped;
 `--force` sends every chapter again. The run stops at the first failed chapter (exit 10), keeping
-the chapters completed before it. A completion cut off at the output limit or refused counts as
-failed. The providers are in [`narrator/providers.py`](../../src/tinarrative/narrator/providers.py).
+the chapters completed before it. A completion cut off at the output limit, refused, or with no
+text (some reasoning models stop after their reasoning without writing) counts as failed, and a
+rerun sends that chapter again. Reasoning a provider returns beside the text is never used as the
+chapter. The providers are in [`narrator/providers.py`](../../src/tinarrative/narrator/providers.py).
 
 ## Output
 
@@ -133,7 +135,7 @@ the run still exits 0; the details are in `manifest.json`. Assembly and the audi
 | 5 | A save is not a supported save, or the package is not a narrator package. `--assemble` (and the assembly after `--send`): the plan, a request or a response is missing, invalid or does not match. |
 | 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |
 | 9 | `--output`, or the history and manifest, cannot be written. |
-| 10 | `--send`: a chapter request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit or was refused. Completed chapters are kept. |
+| 10 | `--send`: a chapter request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit, was refused or had no text. Completed chapters are kept. |
 
 ## Examples
 

@@ -19,7 +19,8 @@ from .transport import HttpResponse, Transport, TransportError
 
 logger = get_logger(__name__)
 
-FINISHES = ("complete", "length", "refused", "other")
+FINISHES = ("complete", "length", "refused", "empty", "other")
+"""``empty`` is a completion that would otherwise be ``complete`` or ``other`` but whose text is blank."""
 DEFAULT_URLS = {
     "anthropic": "https://api.anthropic.com",
     "openai": "https://api.openai.com/v1",
@@ -222,7 +223,7 @@ def _anthropic_decode(document: Mapping[str, Any]) -> Completion:
     usage = document.get("usage") or {}
     return Completion(
         text=text,
-        finish=_ANTHROPIC_FINISH.get(_text(document.get("stop_reason")) or "", "other"),
+        finish=_finish(_ANTHROPIC_FINISH.get(_text(document.get("stop_reason")) or "", "other"), text),
         model=_text(document.get("model")),
         input_tokens=_count(usage.get("input_tokens")),
         output_tokens=_count(usage.get("output_tokens")),
@@ -249,9 +250,10 @@ def _openai_decode(document: Mapping[str, Any]) -> Completion:
     else:
         finish = {"stop": "complete", "length": "length"}.get(reason, "other")
     usage = document.get("usage") or {}
+    text = _text(message.get("content")) or ""
     return Completion(
-        text=_text(message.get("content")) or "",
-        finish=finish,
+        text=text,
+        finish=_finish(finish, text),
         model=_text(document.get("model")),
         input_tokens=_count(usage.get("prompt_tokens")),
         output_tokens=_count(usage.get("completion_tokens")),
@@ -274,13 +276,22 @@ def _ollama_body(request: CompletionRequest, target: Endpoint) -> dict[str, Any]
 
 def _ollama_decode(document: Mapping[str, Any]) -> Completion:
     message = document["message"]
+    text = _text(message.get("content")) or ""
     return Completion(
-        text=_text(message.get("content")) or "",
-        finish={"stop": "complete", "length": "length"}.get(_text(document.get("done_reason")) or "", "other"),
+        text=text,
+        finish=_finish(
+            {"stop": "complete", "length": "length"}.get(_text(document.get("done_reason")) or "", "other"), text
+        ),
         model=_text(document.get("model")),
         input_tokens=_count(document.get("prompt_eval_count")),
         output_tokens=_count(document.get("eval_count")),
     )
+
+
+def _finish(finish: str, text: str) -> str:
+    """A blank text makes a ``complete`` or ``other`` finish ``empty``. Reasoning a model returns beside its text
+    (Anthropic ``thinking`` blocks, an OpenAI-compatible ``reasoning`` field) is never read as the text."""
+    return "empty" if finish in ("complete", "other") and not text.strip() else finish
 
 
 ADAPTERS = {

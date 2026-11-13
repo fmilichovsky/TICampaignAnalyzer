@@ -105,7 +105,7 @@ def assemble_articles(
     """``(markdown, manifest)`` from the responses ``stored`` by article index.
 
     An article is written only when its record was made from the recomputed request, has a kept finish and a
-    text; any other record (a failure stub with ``finish`` and ``error``) is listed in the manifest only.
+    non-blank text; any other record (a failure stub with ``finish`` and ``error``) is listed in the manifest only.
     ``sent_with`` are the resolved provider settings, shown when no record carries them.
     """
     entries = validate_dossier(dossier)["councilors"]
@@ -119,6 +119,7 @@ def assemble_articles(
             and record.get("request_sha256") == expected
             and record.get("finish") in KEPT_FINISHES
             and isinstance(record.get("text"), str)
+            and bool(record["text"].strip())
         )
         if usable and record is not None:
             written[index] = record

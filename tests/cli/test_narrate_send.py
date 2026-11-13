@@ -38,10 +38,12 @@ def _cited(text: str, user: str, extra: str = "") -> str:
 
 class FakeTransport:
     """Answers Anthropic or Ollama completions by URL, citing the chapter's narrative events (and ``extra``);
-    ``stops`` gives the Anthropic stop reason per call (``end_turn`` when exhausted)."""
+    ``stops`` gives the Anthropic stop reason per call (``end_turn`` when exhausted); the calls numbered in
+    ``blank`` answer whitespace only."""
 
     def __init__(self, *stops: str) -> None:
         self.stops = list(stops)
+        self.blank: set[int] = set()
         self.extra = ""
         self.calls: list[tuple[str, dict[str, str], dict[str, Any]]] = []
 
@@ -49,6 +51,8 @@ class FakeTransport:
         request = json.loads(body)
         self.calls.append((url, dict(headers), request))
         text = _cited(f"{PROSE} ({len(self.calls)})", request["messages"][-1]["content"], self.extra)
+        if len(self.calls) in self.blank:
+            text = " \n"
         document: dict[str, Any] = {
             "model": "reported-model",
             "content": [{"type": "text", "text": text}],
@@ -170,6 +174,42 @@ def test_a_failed_chapter_stops_the_run_and_keeps_the_completed_ones(
     err = capsys.readouterr().err
     assert "chapter 2: anthropic: " in err and message in err
     assert [path.name for path in (tmp_path / "out" / "responses").iterdir()] == ["01.json"]
+
+
+def test_an_empty_chapter_fails_the_run_and_is_sent_again(
+    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    transport.blank = {2}
+
+    assert _narrate(tmp_path, "--send") == EXIT_PROVIDER_ERROR
+
+    err = capsys.readouterr().err
+    assert "tinarrative narrate: chapter 2: anthropic: the completion has no text" in err
+    assert [path.name for path in (tmp_path / "out" / "responses").iterdir()] == ["01.json"]
+    assert not (tmp_path / "out" / "history.md").exists()
+
+    assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
+
+    out = capsys.readouterr().out
+    assert "- 1 kept: complete" in out and "- 2 sent: complete" in out
+    assert len(transport.calls) == 3
+    assert (tmp_path / "out" / "history.md").exists()
+
+
+def test_a_stored_blank_response_is_sent_again_and_never_assembled(
+    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
+    path = tmp_path / "out" / "responses" / "02.json"
+    path.write_text(json.dumps({**json.loads(path.read_text(encoding="utf-8")), "text": ""}), encoding="utf-8")
+    capsys.readouterr()
+
+    assert main(["narrate", "--assemble", str(tmp_path / "out")]) == EXIT_UNSUPPORTED_INPUT
+    assert "chapter 2: the response has no text; send it again with --send" in capsys.readouterr().err
+
+    assert _narrate(tmp_path, "--send") == EXIT_SUCCESS
+    assert "- 2 sent: complete" in capsys.readouterr().out
+    assert len(transport.calls) == 3
 
 
 def test_an_http_failure_is_a_provider_error(

@@ -1379,18 +1379,18 @@ def _send(
             )
             failure = ("error", str(error))
         else:
-            if completion.finish in ("length", "refused"):
+            if completion.finish in ("length", "refused", "empty"):
                 logger.info(
                     "%s send failed %s",
                     command,
                     fields(**{noun: item.index}, provider=target.provider, finish=completion.finish),
                 )
-                reason = (
-                    f"the completion stopped at max_output_tokens {request.max_output_tokens}; raise "
-                    "llm.max_output_tokens or give --max-output-tokens"
-                    if completion.finish == "length"
-                    else "the model refused the request"
-                )
+                reason = {
+                    "length": f"the completion stopped at max_output_tokens {request.max_output_tokens}; raise "
+                    "llm.max_output_tokens or give --max-output-tokens",
+                    "refused": "the model refused the request",
+                    "empty": "the completion has no text; run the command again to send it again",
+                }[completion.finish]
                 failure = (completion.finish, reason)
         if failure is not None:
             print(f"tinarrative {command}: {item.label}: {target.provider}: {failure[1]}", file=sys.stderr)
@@ -1447,7 +1447,7 @@ def _send(
 
 def _stored(path: Path, request_sha256: str, request: CompletionRequest, provider: str) -> dict[str, Any] | None:
     """The response stored at ``path`` when it was made from the same request: the same request file and the same
-    provider, model, output limit and temperature, with a finish that is kept."""
+    provider, model, output limit and temperature, with a finish that is kept and a non-blank text."""
     try:
         record = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -1464,6 +1464,7 @@ def _stored(path: Path, request_sha256: str, request: CompletionRequest, provide
         or any(record.get(key) != value for key, value in sent_with.items())
         or record.get("finish") not in KEPT_FINISHES
         or not isinstance(record.get("text"), str)
+        or not record["text"].strip()
     ):
         return None
     return record
