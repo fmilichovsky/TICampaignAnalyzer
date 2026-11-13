@@ -17,7 +17,9 @@ from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.assets import asset_rules
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
+from tinarrative.narrative.diplomacy import diplomacy_rules
 from tinarrative.narrative.geopolitics import geopolitical_rules
+from tinarrative.narrative.nation_metrics import nation_metric_rules
 from tinarrative.narrative.space import space_rules
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
@@ -53,6 +55,11 @@ def test_every_geopolitics_kind_declares_its_base_level_and_no_narrative_event_k
     }
     assert all(KINDS[event_type].base is not None for event_type in geopolitical)
     assert not [event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is not None]
+
+
+def test_every_nation_metric_and_diplomacy_kind_declares_its_base_level() -> None:
+    rules = (*nation_metric_rules(DEFAULT_SETTINGS.narrative), *diplomacy_rules(GeopoliticsSettings()))
+    assert all(KINDS[event_type].base is not None for rule in rules for event_type in rule.emitted_types)
 
 
 def test_every_asset_and_space_kind_declares_its_base_level() -> None:

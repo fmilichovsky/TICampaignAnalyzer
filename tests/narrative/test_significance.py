@@ -30,6 +30,7 @@ from tinarrative.config import GeopoliticsSettings
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.kinds import KINDS
 from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
+from tinarrative.kinds.nations import BAND_SHIFTS, NUCLEAR_DISARMAMENT, POPULATION_COLLAPSE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
 from tinarrative.model.kinds import Rule, Stake
@@ -38,6 +39,8 @@ from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.significance import (
+    LARGE_ARSENAL,
+    PROMOTED,
     RULE_IMPLEMENTATIONS,
     STAKE_IMPLEMENTATIONS,
     narrative_score,
@@ -249,11 +252,11 @@ def test_notification_types_take_their_kind_and_an_undeclared_type_is_a_code_bug
 
 
 def test_a_narrative_event_kind_is_never_ranked_here() -> None:
-    unleveled = next(event_type for event_type, kind in KINDS.items() if kind.base is None)
-    leveled = next(event_type for event_type, kind in KINDS.items() if kind.narrative and kind.base is not None)
-    for narrative in (unleveled, leveled):
+    narrative = [event_type for event_type, kind in KINDS.items() if kind.narrative]
+    assert narrative
+    for event_type in narrative:
         with pytest.raises(ValueError, match="narrative event"):
-            significance_of(bare_event(narrative), empty_lookup())
+            significance_of(bare_event(event_type), empty_lookup())
 
 
 def test_table_entries_resolve_without_context() -> None:
@@ -572,6 +575,65 @@ def narrative_level(event_type: str, **attributes: Observed) -> Significance:
     kind = KINDS[event_type]
     event = bare_event(event_type, **attributes)
     return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings()))
+
+
+@pytest.mark.parametrize(
+    ("statistic", "before", "after", "expected"),
+    [
+        ("democracy", 1.0, 2.5, Significance.MAJOR),
+        ("unrest", 4.0, 5.0, Significance.MAJOR),  # into severe unrest
+        ("unrest", 0.5, 2.0, Significance.MINOR),
+        ("unrest", 0.5, 3.5, Significance.MAJOR),  # two bands
+        ("cohesion", 0.5, 1.5, Significance.MAJOR),  # a cohesion extreme
+        ("cohesion", 4.5, 5.5, Significance.MINOR),
+        ("inequality", 1.5, 2.5, Significance.MINOR),
+        ("inequality", 1.5, 3.5, Significance.MAJOR),
+    ],
+)
+def test_a_band_shift_reads_its_crossing_from_the_event(
+    statistic: str, before: float, after: float, expected: Significance
+) -> None:
+    event_type = next(kind.event_type for key, kind in BAND_SHIFTS.items() if key == statistic)
+    assert narrative_level(event_type, statistic=statistic, before=before, after=after, gdp_rank=None) is expected
+
+
+def test_a_band_shift_of_a_top_economy_is_one_level_up() -> None:
+    event_type = BAND_SHIFTS["inequality"].event_type
+    attributes = {"statistic": "inequality", "before": 1.5, "after": 2.5}
+    assert narrative_level(event_type, **attributes, gdp_rank=2) is Significance.MAJOR
+    assert (
+        narrative_level(event_type, **attributes, gdp_rank=GeopoliticsSettings().top_gdp_nations + 1)
+        is Significance.MINOR
+    )
+
+
+def test_a_population_collapse_is_campaign_defining_after_nuked_regions_or_nuclear_strikes() -> None:
+    kind = POPULATION_COLLAPSE.event_type
+    assert narrative_level(kind, nuked_regions=(), nuclear_strikes=False) is Significance.MAJOR
+    assert (
+        narrative_level(kind, nuked_regions=(ref(EntityDomain.REGION, "r"),), nuclear_strikes=False)
+        is Significance.CAMPAIGN_DEFINING
+    )
+    assert narrative_level(kind, nuked_regions=(), nuclear_strikes=True) is Significance.CAMPAIGN_DEFINING
+
+
+def test_only_a_large_arsenal_dismantled_to_zero_is_campaign_defining() -> None:
+    kind = NUCLEAR_DISARMAMENT.event_type
+    assert narrative_level(kind, before=LARGE_ARSENAL, after=0) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(kind, before=LARGE_ARSENAL - 1, after=0) is Significance.MAJOR
+    assert narrative_level(kind, before=LARGE_ARSENAL, after=1) is Significance.MAJOR
+
+
+@pytest.mark.parametrize(
+    "event_type",
+    [kind.event_type for kind in KINDS.values() if kind.rule is Rule.TOP_GDP_NATION and kind.narrative],
+)
+def test_a_top_economy_is_one_level_up_for_every_kind_with_the_temporary_rule(event_type: str) -> None:
+    top = GeopoliticsSettings().top_gdp_nations
+    base = KINDS[event_type].base
+    assert base is not None
+    assert narrative_level(event_type, gdp_rank=top + 1) is base
+    assert narrative_level(event_type, gdp_rank=top) is Significance.of(PROMOTED[base].base)
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,7 @@ from ..config import GeopoliticsSettings
 from ..kinds import nations as nation_kinds
 from ..kinds.nations import RELATION_CHANGED
 from ..model.entities import EntityId, EntityRef
-from ..model.events import Event, Role, Significance
+from ..model.events import Event, Role
 from ..model.values import Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .geopolitics import TAKEOVER
@@ -32,7 +32,6 @@ from .rulekit import (
     unique_refs,
     within,
 )
-from .significance import in_top_n
 from .situation import SituationReport
 from .stream import EventStream
 
@@ -65,6 +64,7 @@ class DiplomaticRealignmentRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.realignment_window_days
+        build = build.scoring_with(self.settings)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         by_nation: dict[EntityId, list[Event]] = defaultdict(list)
         for event in by_type(stream, RELATION_CHANGED.event_type):
@@ -95,7 +95,6 @@ class DiplomaticRealignmentRule:
                 executive = _actor(context[0]) if context else None
                 roles = [(Role.ACTOR, nation), *((Role.TARGET, partner) for partner in partners)]
                 rank = report.rank(nation_id, GDP)
-                top = in_top_n(rank, self.settings.top_gdp_nations)
                 shifts = metric_shifts(stream, [nation_id], intervals_of(run))
                 built.append(
                     build.event(
@@ -113,7 +112,6 @@ class DiplomaticRealignmentRule:
                             ("strength_rank", report.rank(nation_id, STRENGTH)),
                             *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                         ),
-                        significance=Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR,
                         open=within(high, last, days),
                     )
                 )

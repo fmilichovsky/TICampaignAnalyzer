@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
-from ..analyzers.politics.bands import BANDS, crossed, rest_value_delta
+from ..analyzers.politics.bands import BANDS, COHESION_EXTREMES, crossed, crosses, rest_value_delta
 from ..analyzers.politics.nation_assets import GDP, STRENGTH
 from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, TREND_QUARTERS
 from ..analyzers.politics.nation_population import DROP
@@ -16,7 +16,7 @@ from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettin
 from ..kinds import nations as nation_kinds
 from ..kinds.campaign import NUCLEAR_STRIKES_CHANGED as NUCLEAR_STRIKES_CHANGED_KIND
 from ..model.entities import EntityId
-from ..model.events import Event, Role, Significance
+from ..model.events import Event, Role
 from ..model.kinds import EventKind
 from ..model.values import FrozenMap, number
 from .aggregation import Join, NarrativeBuilder, interval_reports
@@ -47,7 +47,6 @@ from .rulekit import (
     subject,
     within,
 )
-from .significance import promoted_at_rank, promoted_by_rank
 from .situation import SituationReport
 from .stream import EventStream
 
@@ -62,8 +61,6 @@ NUCLEAR_DISARMAMENT = nation_kinds.NUCLEAR_DISARMAMENT.event_type
 NUCLEAR_WEAPONS = "numNuclearWeapons"
 NUCLEAR_SHARE = 0.5
 """A buildup gains, and a disarmament loses, at least this share of the arsenal it started from."""
-LARGE_ARSENAL = 10
-"""Dismantling an arsenal at least this large to zero is campaign defining."""
 TREND_WINDOW_DAYS = round(TREND_QUARTERS * MONTHS_PER_QUARTER * 365.25 / 12)
 
 BAND_SHIFTS: Mapping[str, EventKind] = nation_kinds.BAND_SHIFTS
@@ -72,15 +69,6 @@ SHIFT_EXPLAINERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BRE
 """Their metric shifts explain the affected nations' band changes."""
 REST_VALUE_FILTERED = frozenset({"unrest", "cohesion"})
 """The game converges these towards a rest value; a crossing that drift alone explains is not a story."""
-UNREST_SEVERE = 4.5
-"""The lower bound of Insurgency."""
-COHESION_EXTREMES = (1.0, 9.0)
-"""Fragmented below the first, Hegemonic and Monolithic from the second."""
-ALWAYS_MAJOR = frozenset({"democracy", "education", "militaryTechLevel"})
-
-
-def _crosses(boundary: float, before: float, after: float) -> bool:
-    return (before < boundary) != (after < boundary)
 
 
 @dataclass(frozen=True)
@@ -113,6 +101,7 @@ class BandShiftRule:
         return self.settings.band_hold_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         crossings = [event for event in by_type(stream, BAND_CROSSED) if event.attribute("statistic") == self.statistic]
         explainers = by_type(stream, *self.explains)
         reports = interval_reports(situations)
@@ -137,7 +126,6 @@ class BandShiftRule:
             if _explained(crossing, nation.entity_id, explainers):
                 continue
             rank = pair[1].rank(nation.entity_id, GDP)
-            level = promoted_at_rank(self._level(before, after), rank, self.geopolitics.top_gdp_nations)
             roles = [(Role.ACTOR, nation)]
             shifts = metric_shifts(stream, [nation.entity_id], [interval_of(crossing.id)])
             built.append(
@@ -157,7 +145,6 @@ class BandShiftRule:
                         ("gdp_rank", rank),
                         *bounded_shifts(shifts, roles, self.geopolitics.metric_shifts_max),
                     ),
-                    significance=level,
                     open=later is None,
                 )
             )
@@ -175,23 +162,10 @@ class BandShiftRule:
             return True
         move = crossed(self.statistic, before, after)
         extreme = any(
-            _crosses(boundary, before, after) and _crosses(boundary, before, after - rest)
+            crosses(boundary, before, after) and crosses(boundary, before, after - rest)
             for boundary in COHESION_EXTREMES
         )
         return extreme or (move is not None and min(move.bands_crossed, filtered.bands_crossed) >= 2)
-
-    def _level(self, before: float, after: float) -> Significance:
-        move = crossed(self.statistic, before, after)
-        bands = move.bands_crossed if move is not None else 0
-        if self.statistic in ALWAYS_MAJOR:
-            major = True
-        elif self.statistic == "unrest":
-            major = bands >= 2 or _crosses(UNREST_SEVERE, before, after)
-        elif self.statistic == "cohesion":
-            major = any(_crosses(boundary, before, after) for boundary in COHESION_EXTREMES)
-        else:
-            major = bands >= 2
-        return Significance.MAJOR if major else Significance.MINOR
 
 
 def _date(report: SituationReport) -> str | None:
@@ -206,7 +180,7 @@ def _boundary(statistic: str, before: float, after: float) -> float:
 def _holds(report: SituationReport, nation_id: EntityId, statistic: str, before: float, boundary: float) -> bool:
     item = report.nation(nation_id)
     value = number(dict(item.statistics).get(statistic)) if item is not None else None
-    return value is not None and _crosses(boundary, before, value)
+    return value is not None and crosses(boundary, before, value)
 
 
 def _explained(crossing: Event, nation_id: EntityId, explainers: Sequence[Event]) -> bool:
@@ -256,6 +230,7 @@ class PopulationCollapseRule:
                         ("residual", drop.attribute("residual")),
                         ("relative_change", drop.attribute("relative_change")),
                         ("nuked_regions", nuked),
+                        ("nuclear_strikes", bool(nuclear)),
                         ("causes", drop.attribute("causes")),
                         (
                             "gdp_rank",
@@ -263,7 +238,6 @@ class PopulationCollapseRule:
                         ),
                         *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
-                    significance=Significance.CAMPAIGN_DEFINING if nuked or nuclear else Significance.MAJOR,
                     open=False,
                 )
             )
@@ -286,6 +260,7 @@ class EconomicTrajectoryRule:
     window_days: int | None = TREND_WINDOW_DAYS
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        build = build.scoring_with(self.settings)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         trends = [event for event in by_type(stream, nation_kinds.PCGDP_TREND.event_type) if stream.citable(event)]
@@ -300,7 +275,6 @@ class EconomicTrajectoryRule:
                     continue
                 pair = reports.get(interval_of(last.id))
                 rank = pair[1].rank(nation_id, GDP) if pair is not None else None
-                level = promoted_at_rank(Significance.MAJOR, rank, self.settings.top_gdp_nations)
                 window_start = first.attribute("window_start")
                 built.append(
                     build.event(
@@ -319,7 +293,6 @@ class EconomicTrajectoryRule:
                             ("before_sequence", any(event.attribute("before_sequence") is True for event in run)),
                             ("gdp_rank", rank),
                         ),
-                        significance=level,
                         open=interval_of(last.id) == last_key,
                         starts_on=window_start if isinstance(window_start, str) else None,
                     )
@@ -366,6 +339,7 @@ class NuclearArcRule:
         return self.settings.nuclear_window_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         days = self.settings.nuclear_window_days
         reports = interval_reports(situations)
         shifts = [
@@ -392,7 +366,6 @@ class NuclearArcRule:
                 corroborating: list[Event] = []
                 if start == 0 < end:
                     kind = nation_kinds.NUCLEAR_ARMAMENT
-                    level = promoted_by_rank(Significance.MAJOR, report, nation_id, self.geopolitics.top_gdp_nations)
                     low = shifted(earliest(first), -days)
                     corroborating = [
                         event for event in programs.get(nation_id, []) if overlaps(event, low, latest(last))
@@ -400,11 +373,9 @@ class NuclearArcRule:
                 elif 0 < start < end and (
                     end - start >= self.settings.nuclear_buildup_min or end - start >= NUCLEAR_SHARE * start
                 ):
-                    kind, level = nation_kinds.NUCLEAR_BUILDUP, Significance.MAJOR
+                    kind = nation_kinds.NUCLEAR_BUILDUP
                 elif start > end and start - end >= NUCLEAR_SHARE * start:
                     kind = nation_kinds.NUCLEAR_DISARMAMENT
-                    dismantled = end == 0 and start >= LARGE_ARSENAL
-                    level = Significance.CAMPAIGN_DEFINING if dismantled else Significance.MAJOR
                 else:
                     continue
                 built.append(
@@ -421,7 +392,6 @@ class NuclearArcRule:
                             ("gdp_rank", report.rank(nation_id, GDP)),
                             ("strength_rank", report.rank(nation_id, STRENGTH)),
                         ),
-                        significance=level,
                         open=within(latest(last), last_date(situations), days),
                     )
                 )

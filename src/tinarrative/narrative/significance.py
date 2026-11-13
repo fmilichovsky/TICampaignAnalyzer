@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
+from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
 from ..analyzers.politics.nation_assets import GDP, STRENGTH
 from ..config import DEFAULT_SETTINGS, GeopoliticsSettings, SignificanceSettings
 from ..kinds import kind_for
@@ -25,7 +26,7 @@ from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Significance, SignificanceBasis
 from ..model.kinds import EventKind, Rule, Stake, StakeMeasure
 from ..model.snapshot import SaveSnapshot
-from ..model.values import Observed
+from ..model.values import Observed, number
 from .milestones import MILESTONE_TEMPLATES, milestone_of
 from .prominence import nation_power, organization_shares, region_shares, total
 from .situation import SituationReport
@@ -62,6 +63,9 @@ DISCRETE_STATISTICS = frozenset({"numNuclearWeapons"})
 """``nation.statistic_shifted`` statistics whose every change is a narrative event: a nuclear arsenal. Other statistics
 shift past their threshold for routine reasons too (event effects, priorities), so a shift is evidence for the rules
 that explain it and stays trivial on its own."""
+
+LARGE_ARSENAL = 10
+"""Dismantling an arsenal at least this large to zero is campaign defining."""
 
 # --- Rank promotion ---------------------------------------------------------------------------------------
 # TODO(#362): temporary; the named context rule and the stakes replace these, then they go with ``top_gdp_nations``.
@@ -185,9 +189,50 @@ def _claims_changed(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR
 
 
-def _top_gdp_takeover(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
-    """A takeover of a top-ranked economy is one level up. TODO(#362): temporary; the takeover's stake replaces it."""
+def _top_gdp_nation(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+    """An event about a top-ranked economy is one level up. TODO(#362): temporary; the nation's power share replaces
+    it."""
     return promoted_at_rank(_base(event), event.attribute("gdp_rank"), geopolitics.top_gdp_nations)
+
+
+def _band_shift(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+    """Major for a statistic that is always major, a crossing into severe unrest, a crossing of a cohesion extreme or
+    two bands crossed, else minor; a top-ranked economy is one level up (TODO(#362): temporary)."""
+    statistic, before, after = (
+        event.attribute("statistic"),
+        number(event.attribute("before")),
+        number(event.attribute("after")),
+    )
+    if not isinstance(statistic, str) or before is None or after is None:
+        return None
+    move = crossed(statistic, before, after)
+    bands = move.bands_crossed if move is not None else 0
+    if statistic in ALWAYS_MAJOR:
+        major = True
+    elif statistic == "unrest":
+        major = bands >= 2 or crosses(UNREST_SEVERE, before, after)
+    elif statistic == "cohesion":
+        major = any(crosses(boundary, before, after) for boundary in COHESION_EXTREMES)
+    else:
+        major = bands >= 2
+    level = Significance.MAJOR if major else Significance.MINOR
+    return promoted_at_rank(level, event.attribute("gdp_rank"), geopolitics.top_gdp_nations)
+
+
+def _collapse_after_strikes(event: Event, _: GeopoliticsSettings) -> Significance | None:
+    """A population collapse of nuked regions, or one citing nuclear strikes, is campaign defining."""
+    nuked = event.attribute("nuked_regions")
+    if (isinstance(nuked, tuple) and nuked) or event.attribute("nuclear_strikes") is True:
+        return Significance.CAMPAIGN_DEFINING
+    return None
+
+
+def _large_arsenal_disarmed(event: Event, _: GeopoliticsSettings) -> Significance | None:
+    """Dismantling a large arsenal to zero is campaign defining."""
+    before, after = number(event.attribute("before")), number(event.attribute("after"))
+    if before is not None and after == 0 and before >= LARGE_ARSENAL:
+        return Significance.CAMPAIGN_DEFINING
+    return None
 
 
 def _top_rank(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
@@ -221,7 +266,10 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
     Rule.SPACE_ASSETS_CHANGED: _space_assets_changed,
     Rule.ARMY_PRESENCE: _army_presence,
     Rule.COMPLETION: _completion,
-    Rule.TOP_GDP_TAKEOVER: NarrativeContextRule(_top_gdp_takeover),
+    Rule.TOP_GDP_NATION: NarrativeContextRule(_top_gdp_nation),
+    Rule.BAND_SHIFT: NarrativeContextRule(_band_shift),
+    Rule.COLLAPSE_AFTER_STRIKES: NarrativeContextRule(_collapse_after_strikes),
+    Rule.LARGE_ARSENAL_DISARMED: NarrativeContextRule(_large_arsenal_disarmed),
     Rule.TOP_RANK: NarrativeContextRule(_top_rank),
     Rule.ENTERED_TOP: NarrativeContextRule(_entered_top),
     Rule.MILESTONE_TIER: NarrativeContextRule(_milestone_tier),

@@ -553,7 +553,9 @@ CLAIMS_DECLARED = narrative_kind(
 _BAND_SHIFT = SHIFTED | {"statistic", "before", "after", "from_band", "to_band", "bands_crossed"}
 BAND_SHIFTS: Mapping[str, EventKind] = MappingProxyType(
     {
-        statistic: narrative_kind(event_type, _band_shift, required=_BAND_SHIFT)
+        statistic: narrative_kind(
+            event_type, _band_shift, required=_BAND_SHIFT, base=Significance.MINOR, rule=Rule.BAND_SHIFT
+        )
         for statistic, event_type in (
             ("unrest", "nation.unrest_shift"),
             ("democracy", "nation.government_shift"),
@@ -569,7 +571,9 @@ BAND_SHIFTS: Mapping[str, EventKind] = MappingProxyType(
 POPULATION_COLLAPSE = narrative_kind(
     "nation.population_collapse",
     _population_collapse,
-    required=SHIFTED | {"before", "after", "residual", "relative_change", "nuked_regions", "causes"},
+    required=SHIFTED | {"before", "after", "residual", "relative_change", "nuked_regions", "nuclear_strikes", "causes"},
+    base=Significance.MAJOR,
+    rule=Rule.COLLAPSE_AFTER_STRIKES,
 )
 ECONOMIC_TRAJECTORY = narrative_kind(
     "nation.economic_trajectory",
@@ -586,6 +590,8 @@ ECONOMIC_TRAJECTORY = narrative_kind(
             "gdp_rank",
         }
     ),
+    base=Significance.MAJOR,
+    rule=Rule.TOP_GDP_NATION,
 )
 DIPLOMATIC_REALIGNMENT = narrative_kind(
     "nation.diplomatic_realignment",
@@ -601,16 +607,29 @@ DIPLOMATIC_REALIGNMENT = narrative_kind(
         "executive",
         "strength_rank",
     },
+    base=Significance.MAJOR,
+    rule=Rule.TOP_GDP_NATION,
 )
 _ARSENAL = frozenset({"before", "after", "gdp_rank", "strength_rank"})
 NUCLEAR_ARMAMENT = narrative_kind(
-    "nation.nuclear_armament", _nuclear_arsenal("armed with nuclear weapons"), required=_ARSENAL
+    "nation.nuclear_armament",
+    _nuclear_arsenal("armed with nuclear weapons"),
+    required=_ARSENAL,
+    base=Significance.MAJOR,
+    rule=Rule.TOP_GDP_NATION,
 )
 NUCLEAR_BUILDUP = narrative_kind(
-    "nation.nuclear_buildup", _nuclear_arsenal("built up its nuclear arsenal"), required=_ARSENAL
+    "nation.nuclear_buildup",
+    _nuclear_arsenal("built up its nuclear arsenal"),
+    required=_ARSENAL,
+    base=Significance.MAJOR,
 )
 NUCLEAR_DISARMAMENT = narrative_kind(
-    "nation.nuclear_disarmament", _nuclear_arsenal("dismantled its nuclear arsenal"), required=_ARSENAL
+    "nation.nuclear_disarmament",
+    _nuclear_arsenal("dismantled its nuclear arsenal"),
+    required=_ARSENAL,
+    base=Significance.MAJOR,
+    rule=Rule.LARGE_ARSENAL_DISARMED,
 )
 SPACE_PROGRAM_GROWTH = narrative_kind(
     "nation.space_program_growth",
