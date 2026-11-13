@@ -87,9 +87,9 @@ def promoted_by_rank(
     level: Significance, report: SituationReport, nation_id: EntityId, top: int, *, by_strength: bool = False
 ) -> Significance:
     """``level`` one up when the nation ranks in the top ``top`` by GDP (or, with ``by_strength``, by strength) in
-    ``report``. Every nation with a known value is ranked, landless ones included."""
+    ``report``, ranked as ``SituationReport.rank`` ranks."""
     statistics = (GDP, STRENGTH) if by_strength else (GDP,)
-    if any(in_top_n(report.rank_including_landless(nation_id, statistic), top) for statistic in statistics):
+    if any(in_top_n(report.rank(nation_id, statistic), top) for statistic in statistics):
         return PROMOTED[level]
     return level
 

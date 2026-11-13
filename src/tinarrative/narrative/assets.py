@@ -117,8 +117,8 @@ class MilitaryBuildupRule:
                         attributes=(
                             ("before", before),
                             ("after", after),
-                            ("gdp_rank", last[1].rank_including_landless(nation_id, GDP)),
-                            ("strength_rank", last[1].rank_including_landless(nation_id, STRENGTH)),
+                            ("gdp_rank", last[1].rank(nation_id, GDP)),
+                            ("strength_rank", last[1].rank(nation_id, STRENGTH)),
                         ),
                         significance=level,
                         open=keys[-1] == last_key,
@@ -164,8 +164,8 @@ class NavyEstablishedRule:
                         join=Join.ENTITY,
                         attributes=(
                             ("navies", item.navies),
-                            ("gdp_rank", later.rank_including_landless(nation_id, GDP)),
-                            ("strength_rank", later.rank_including_landless(nation_id, STRENGTH)),
+                            ("gdp_rank", later.rank(nation_id, GDP)),
+                            ("strength_rank", later.rank(nation_id, STRENGTH)),
                         ),
                         significance=promoted_by_rank(
                             Significance.MAJOR, later, nation_id, self.geopolitics.top_gdp_nations, by_strength=True
