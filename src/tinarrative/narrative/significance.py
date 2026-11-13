@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
+from ..analyzers.politics.nation_assets import GDP, STRENGTH
 from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..kinds import kind_for
 from ..kinds.nations import REGION_NATION_CHANGED
@@ -24,10 +25,13 @@ from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Significance, SignificanceBasis
 from ..model.kinds import EventKind, Rule, Stake, StakeMeasure
 from ..model.snapshot import SaveSnapshot
+from ..model.values import Observed
 from .milestones import milestone_of
 from .prominence import nation_power, organization_shares, region_shares, total
+from .situation import SituationReport
 
 __all__ = [
+    "PROMOTED",
     "RULE_IMPLEMENTATIONS",
     "SIGNIFICANCE_ORDER",
     "STAKE_IMPLEMENTATIONS",
@@ -35,6 +39,9 @@ __all__ = [
     "Significance",
     "Stakes",
     "assign_significance",
+    "in_top_n",
+    "promoted_at_rank",
+    "promoted_by_rank",
     "significance_of",
 ]
 
@@ -53,6 +60,39 @@ DISCRETE_STATISTICS = frozenset({"numNuclearWeapons"})
 """``nation.statistic_shifted`` statistics whose every change is a narrative event: a nuclear arsenal. Other statistics
 shift past their threshold for routine reasons too (event effects, priorities), so a shift is evidence for the rules
 that explain it and stays trivial on its own."""
+
+# --- Rank promotion ---------------------------------------------------------------------------------------
+# Temporary: #355-#357 turn it into a named context rule, the stake issues replace its uses, #362 deletes it.
+
+PROMOTED = {
+    Significance.TRIVIAL: Significance.MINOR,
+    Significance.MINOR: Significance.MAJOR,
+    Significance.MAJOR: Significance.CAMPAIGN_DEFINING,
+    Significance.CAMPAIGN_DEFINING: Significance.CAMPAIGN_DEFINING,
+}
+"""One level up; the highest level stays."""
+
+
+def in_top_n(rank: Observed, top: int) -> bool:
+    """Whether ``rank`` (1 is the largest) is at most ``top``. An unranked nation (``None``, unknown) is not in it."""
+    return isinstance(rank, int) and not isinstance(rank, bool) and rank <= top
+
+
+def promoted_at_rank(level: Significance, rank: Observed, top: int) -> Significance:
+    """``level`` one up when ``rank`` is in the top ``top``."""
+    return PROMOTED[level] if in_top_n(rank, top) else level
+
+
+def promoted_by_rank(
+    level: Significance, report: SituationReport, nation_id: EntityId, top: int, *, by_strength: bool = False
+) -> Significance:
+    """``level`` one up when the nation ranks in the top ``top`` by GDP (or, with ``by_strength``, by strength) in
+    ``report``. Every nation with a known value is ranked, landless ones included."""
+    statistics = (GDP, STRENGTH) if by_strength else (GDP,)
+    if any(in_top_n(report.rank_including_landless(nation_id, statistic), top) for statistic in statistics):
+        return PROMOTED[level]
+    return level
+
 
 # --- Context rules ----------------------------------------------------------------------------------------
 
