@@ -1,13 +1,13 @@
 """Narrative aggregation: named rules that join the qualified event stream of a sequence into narrative events.
 
-See ADR-0009. Rules run in layers derived from the narrative event types they declare to read (ADR-0019).
+See ADR-0009. Rules run in layers derived from what they read and from which kinds own their constituents (ADR-0019).
 """
 
 from __future__ import annotations
 
 import time
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -16,6 +16,7 @@ from typing import Protocol
 
 from ..analyzers.common import event_id
 from ..kinds import attributes as kind_attributes
+from ..kinds import kind_for
 from ..log import TIMING_LOGGER, fields, get_logger
 from ..model.entities import EntityRef
 from ..model.events import (
@@ -53,7 +54,9 @@ class NarrativeRule(Protocol):
 
     It sees every atomic event and the narrative events of the types it ``reads`` or that ``explains`` its own away,
     in chronological order: the rules emitting those run in an earlier layer. ``explains`` names the types whose
-    events keep one of its own from existing. ``window_days`` is ``None`` for the whole sequence.
+    events keep one of its own from existing. An event the stream says is not ``citable`` is an exclusive constituent
+    of an earlier narrative event of another kind: the rule may read it for context, never cite it. ``window_days`` is
+    ``None`` for the whole sequence.
     """
 
     @property
@@ -233,31 +236,46 @@ def aggregate(
     stream: Sequence[Event],
     situations: Sequence[SituationReport],
     rules: Sequence[NarrativeRule],
+    *,
+    kinds: Callable[[str], EventKind | None] = kind_for,
 ) -> list[Event]:
-    """Rules run in layers derived from what they read, each layer by rule name.
+    """Rules run in layers derived from what they read and which ``kinds`` have exclusive constituents, each layer by
+    rule name. ``kinds`` is the registry; tests pass their own to declare fixture kinds exclusive.
 
     Narrative events already in ``stream`` are hidden from a rule that does not read their type, like those the rules
     build. These programming errors raise ``ValueError``: a duplicate rule name or event ID, rules reading each other
     in a cycle, a typed lookup of a narrative type the rule does not read, a narrative event of a type its rule does
-    not emit, and a citation of an event the rule cannot see.
+    not emit, a citation of an event the rule cannot see, and a citation of an exclusive constituent of a narrative
+    event of another kind, at any order.
     """
     names = [rule.name for rule in rules]
     duplicated = sorted({name for name in names if names.count(name) > 1})
     if duplicated:
         raise ValueError(f"narrative rules share a name: {duplicated}")
-    layers = _layers(rules)
     narrative_types = frozenset(
         {event_type for rule in rules for event_type in rule.emitted_types}
         | {event.event_type for event in stream if event.is_narrative}
     )
+    exclusive = frozenset(
+        event_type
+        for event_type in narrative_types
+        if (kind := kinds(event_type)) is not None and kind.exclusive_constituents
+    )
+    layers = _layers(rules, exclusive)
     started = time.perf_counter()
     build = NarrativeBuilder(situations)
     built: list[Event] = []
     for layer, layer_rules in enumerate(layers):
         visible = EventStream(chronological([*stream, *built]))
+        owners = _owners(visible, exclusive)
         produced = []
         for rule in layer_rules:
-            seen = visible.hiding(narrative_types - rule.reads - rule.explains)
+            withheld = (
+                constituent
+                for constituent, owned in owners.items()
+                if any(owner.event_type not in rule.emitted_types for owner in owned)
+            )
+            seen = visible.hiding(narrative_types - rule.reads - rule.explains).withholding(withheld)
             produced.append((rule, seen, _timed_apply(rule, seen, situations, build)))
         same_layer = {event.id for _, _, events in produced for event in events}
         for rule, seen, events in produced:
@@ -265,15 +283,16 @@ def aggregate(
                 _check(rule, event, seen, same_layer)
             logger.debug("narrative rule done %s", fields(rule=rule.name, layer=layer, events=len(events)))
             built.extend(events)
-    chronological([*stream, *built])
+    _check_exclusive(built, _owners(chronological([*stream, *built]), exclusive))
     narrative = chronological(built)
     logger.info("narrative aggregated %s", fields(rules=len(rules), stream=len(stream), events=len(narrative)))
     timing.info("aggregate %s", fields(seconds=round(time.perf_counter() - started, 4)))
     return narrative
 
 
-def _layers(rules: Sequence[NarrativeRule]) -> list[list[NarrativeRule]]:
-    """Each rule one layer after the latest rule emitting a type it reads or that explains its events."""
+def _layers(rules: Sequence[NarrativeRule], exclusive: frozenset[str]) -> list[list[NarrativeRule]]:
+    """Each rule one layer after the latest rule emitting a type it reads or that explains its events, and after every
+    owner (a rule emitting an ``exclusive`` type) it does not feed. Two owners are ordered only by their reads."""
     emitters: dict[str, set[str]] = defaultdict(set)
     for rule in rules:
         for event_type in rule.emitted_types:
@@ -282,6 +301,11 @@ def _layers(rules: Sequence[NarrativeRule]) -> list[list[NarrativeRule]]:
         rule.name: {name for event_type in rule.reads | rule.explains for name in emitters.get(event_type, ())}
         for rule in rules
     }
+    owners = [rule.name for rule in rules if rule.emitted_types & exclusive]
+    feeding = {owner: _ancestors(graph, owner) for owner in owners}
+    for rule in rules:
+        if rule.name not in feeding:
+            graph[rule.name] |= {owner for owner in owners if rule.name not in feeding[owner]}
     sorter = TopologicalSorter(graph)
     try:
         sorter.prepare()
@@ -294,6 +318,37 @@ def _layers(rules: Sequence[NarrativeRule]) -> list[list[NarrativeRule]]:
         layers.append([by_name[name] for name in ready])
         sorter.done(*ready)
     return layers
+
+
+def _ancestors(graph: Mapping[str, set[str]], name: str) -> set[str]:
+    found: set[str] = set()
+    pending = list(graph.get(name, ()))
+    while pending:
+        current = pending.pop()
+        if current not in found:
+            found.add(current)
+            pending.extend(graph.get(current, ()))
+    return found
+
+
+def _owners(events: Iterable[Event], exclusive: frozenset[str]) -> dict[str, list[Event]]:
+    """Each exclusive constituent with the narrative events of an ``exclusive`` kind that cite it."""
+    owners: dict[str, list[Event]] = defaultdict(list)
+    for event in events:
+        if event.is_narrative and event.event_type in exclusive:
+            for constituent in event.constituents:
+                owners[constituent].append(event)
+    return owners
+
+
+def _check_exclusive(built: Iterable[Event], owners: Mapping[str, list[Event]]) -> None:
+    for event in built:
+        for constituent in event.constituents:
+            for owner in owners.get(constituent, ()):
+                if owner.event_type != event.event_type:
+                    raise ValueError(
+                        f"narrative event {event.id} cites {constituent}, an exclusive constituent of {owner.id}"
+                    )
 
 
 def _timed_apply(

@@ -148,3 +148,9 @@ def test_every_emitted_type_matches_exactly_one_kind(pair: str) -> None:
     for event_type in emitted:
         homes = [event_type in KINDS, event_type not in KINDS and kind_for(event_type) is not None]
         assert homes.count(True) == 1, (event_type, homes)
+
+
+def test_the_merger_the_cession_and_the_expansion_own_their_constituents() -> None:
+    owners = sorted(event_type for event_type, kind in KINDS.items() if kind.exclusive_constituents)
+
+    assert owners == ["nation.cession", "nation.expansion", "nation.merger"]

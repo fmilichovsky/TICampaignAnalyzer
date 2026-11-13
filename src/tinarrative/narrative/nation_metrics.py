@@ -28,7 +28,6 @@ from .geopolitics import (
     RELEASE,
     TAKEOVER,
     WAR_ARC,
-    MergerParties,
     bounded_shifts,
     gdp_rank,
     metric_shifts,
@@ -245,11 +244,10 @@ class PopulationCollapseRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         strikes = by_type(stream, NUCLEAR_STRIKES_CHANGED)
-        parties = MergerParties.of(stream)
         built = []
         for drop in by_type(stream, nation_kinds.POPULATION_CHANGED.event_type):
             nation = subject(drop)
-            if nation is None or drop.attribute("direction") != DROP or parties.absorbed(nation, drop):
+            if nation is None or drop.attribute("direction") != DROP or not stream.citable(drop):
                 continue
             key = interval_of(drop.id)
             nuclear = [strike for strike in strikes if interval_of(strike.id) == key]
@@ -300,12 +298,7 @@ class EconomicTrajectoryRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
-        parties = MergerParties.of(stream)
-        trends = [
-            event
-            for event in by_type(stream, nation_kinds.PCGDP_TREND.event_type)
-            if not parties.absorbed(subject(event), event)
-        ]
+        trends = [event for event in by_type(stream, nation_kinds.PCGDP_TREND.event_type) if stream.citable(event)]
         grouped = by_subject(trends)
         built = []
         for nation_id in sorted_keys(grouped):
@@ -387,11 +380,10 @@ class NuclearArcRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.nuclear_window_days
         reports = interval_reports(situations)
-        parties = MergerParties.of(stream)
         shifts = [
             event
             for event in by_type(stream, nation_kinds.STATISTIC_SHIFTED.event_type)
-            if event.attribute("statistic") == NUCLEAR_WEAPONS and not parties.merged(subject(event), event)
+            if event.attribute("statistic") == NUCLEAR_WEAPONS and stream.citable(event)
         ]
         programs = by_subject(
             event

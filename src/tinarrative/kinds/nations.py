@@ -520,11 +520,13 @@ EXPANSION = narrative_kind(
     "nation.expansion",
     _expansion,
     required=frozenset({"losers", "regions", "region_count", "mode", "metric_shifts"}),
+    exclusive_constituents=True,
 )
 CESSION = narrative_kind(
     "nation.cession",
     _cession,
     required=frozenset({"regions", "region_count", "allied", "shared_federation", "metric_shifts"}),
+    exclusive_constituents=True,
 )
 MERGER = narrative_kind(
     "nation.merger",
@@ -532,6 +534,7 @@ MERGER = narrative_kind(
     required=frozenset(
         {"absorbed", "regions", "region_count", "unifying_faction", "bases", "executive_since", "metric_shifts"}
     ),
+    exclusive_constituents=True,
 )
 _INDEPENDENCE = frozenset({"parents", "releasing_nation", "executive_faction", "metric_shifts"})
 RELEASE = narrative_kind("nation.release", _release, required=_INDEPENDENCE)

@@ -32,7 +32,7 @@ from ..model.events import Event, Role, Significance
 from ..model.values import FrozenMap, Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
-from .geopolitics import MergerParties, gdp_rank, strength_rank
+from .geopolitics import gdp_rank, strength_rank
 from .nation_metrics import PROMOTED
 from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chained, intervals_of, sorted_keys, subject
 from .situation import NationSituation, SituationReport
@@ -145,11 +145,10 @@ class MilitaryBuildupRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
-        parties = MergerParties.of(stream)
         candidates = [
             event
             for event in by_type(stream, APPEARED, DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED)
-            if _of_kind(event, STANDARD) and not parties.merged(army_home(event), event)
+            if _of_kind(event, STANDARD) and stream.citable(event)
         ]
         grouped = _by_home(candidates)
         built = []
@@ -200,11 +199,10 @@ class NavyEstablishedRule:
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        parties = MergerParties.of(stream)
         candidates = [
             event
             for event in by_type(stream, APPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED)
-            if _of_kind(event, NAVAL) and not parties.merged(army_home(event), event)
+            if _of_kind(event, NAVAL) and stream.citable(event)
         ]
         grouped = _by_home(candidates)
         built = []
@@ -253,13 +251,12 @@ class SpaceProgramGrowthRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
-        parties = MergerParties.of(stream)
         growth = [
             event
             for event in by_type(stream, SPACE_ASSETS_CHANGED.event_type)
             if event.attribute("direction") == GROWTH
             and event.attribute("statistic") in (BOOST_STATISTIC, MISSION_CONTROL_STATISTIC)
-            and not parties.merged(subject(event), event)
+            and stream.citable(event)
         ]
         grouped = by_subject(growth)
         top = min(self.settings.ranking_top_n, RANKED_PLACES)
@@ -329,13 +326,12 @@ class SpaceDefencesEstablishedRule:
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        parties = MergerParties.of(stream)
         built = []
         for event in by_type(stream, SPACE_ASSETS_CHANGED.event_type):
             nation = subject(event)
             if (
                 nation is None
-                or parties.merged(nation, event)
+                or not stream.citable(event)
                 or event.attribute("statistic") != SPACE_DEFENCES_STATISTIC
                 or event.attribute("before") != 0
             ):
@@ -382,11 +378,10 @@ class RankingRule:
         reports = interval_reports(situations)
         following = {id(report): later for report, later in zip(situations, situations[1:], strict=False)}
         top = min(self.settings.ranking_top_n, RANKED_PLACES)
-        merged = {(nation, key) for nation, key in MergerParties.of(stream).unifications}
         changes: dict[tuple[str, str, EntityId], Event] = {}
         for event in by_type(stream, RANK_CHANGED.event_type):
             metric, nation = event.attribute("metric"), subject(event)
-            if isinstance(metric, str) and nation is not None:
+            if isinstance(metric, str) and nation is not None and stream.citable(event):
                 changes[(interval_of(event.id), metric, nation.entity_id)] = event
         built = []
         for key, (earlier, report) in reports.items():
@@ -398,14 +393,11 @@ class RankingRule:
                     if not _placed(earlier, nation, metric, top)
                     and (later is None or _placed(later, nation, metric, top))
                 ]
-                # A merged nation does not fall out of a top: the gainer only grows and the absorbed nation's exit is
-                # the merger itself.
                 leavers = [
                     place
                     for nation, place in top_members(earlier, metric, top).items()
                     if not _placed(report, nation, metric, top)
                     and (later is None or not _placed(later, nation, metric, top))
-                    and (nation, key) not in merged
                 ]
                 cited = {
                     place.nation.entity_id: change

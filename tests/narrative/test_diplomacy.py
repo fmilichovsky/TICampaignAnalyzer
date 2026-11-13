@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.narrative.support import atomic, faction, nation, nation_row, situation, unification
+from tests.narrative.support import atomic, faction, nation, nation_row, situation
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
@@ -161,17 +161,6 @@ def test_a_pair_change_counts_for_both_nations() -> None:
 
     assert [item.entities[0] for item in items] == [NORTH, SOUTH]
     assert dict(items[1].attributes)["allies_gained"] == (NORTH, EAST, WEST)
-
-
-def test_changes_a_merger_carries_are_left_to_it() -> None:
-    stream = [
-        unification(K1, NORTH, SOUTH, not_before=K0),
-        relation(K1, SOUTH, EAST, "allies", "removed"),
-        relation(K1, SOUTH, WEST, "allies", "removed"),
-        relation(K1, SOUTH, FAR, "allies", "removed"),
-    ]
-
-    assert built(stream) == []
 
 
 def test_a_takeover_inside_the_window_is_cited_as_context_and_names_the_executive() -> None:

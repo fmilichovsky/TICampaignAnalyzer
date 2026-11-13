@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field, replace
 
 import pytest
 
@@ -12,6 +12,7 @@ from tests.narrative.support import CitingRule, GroupRule, atomic, faction, nati
 from tinarrative.kinds.space import FLEET_BUILDUP
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
+from tinarrative.model.kinds import EventKind
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, aggregate, days_between, present_in
 from tinarrative.narrative.situation import SituationReport
@@ -377,6 +378,79 @@ def test_the_result_does_not_depend_on_stream_or_rule_order() -> None:
     assert aggregate(list(reversed(stream)), reports, list(reversed(rules))) == forward
     assert [event.sort_key for event in forward] == sorted(event.sort_key for event in forward)
     assert len(forward) == 4
+
+
+def exclusive(*event_types: str) -> Callable[[str], EventKind | None]:
+    """The kind lookup ``aggregate`` takes: ``event_types`` declare their constituents exclusive, nothing else does."""
+    kinds = {event_type: replace(fixture_kind(event_type), exclusive_constituents=True) for event_type in event_types}
+    return kinds.get
+
+
+@dataclass(frozen=True)
+class CitableRule:
+    """Emits one ``test.citable`` citing every atomic event the stream lets it cite, and records every one it read."""
+
+    name: str
+    reads: frozenset[str] = frozenset()
+    explains: frozenset[str] = frozenset()
+    emitted_types: frozenset[str] = frozenset({"test.citable"})
+    window_days: int | None = None
+    read: list[str] = field(default_factory=list)
+
+    def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        found = [event for event in stream if not event.is_narrative]
+        self.read.extend(event.id for event in found)
+        cited = [event for event in found if stream.citable(event)]
+        if not cited:
+            return []
+        return [
+            build.event(
+                fixture_kind("test.citable"), id_parts=[self.name], constituents=cited, roles=(), join=Join.ENTITY
+            )
+        ]
+
+
+def other(key: str) -> Event:
+    return atomic(f"nation.other/{GERMANY.entity_id}", key, entities=(GERMANY,))
+
+
+def test_a_rule_runs_after_every_owner_it_does_not_feed_and_reads_but_may_not_cite_its_constituents() -> None:
+    owned, free = changed(K1), other(K1)
+    reader = CitableRule("a-reader")
+
+    arc, citable = aggregate([owned, free], (), [RULE, reader], kinds=exclusive(ARC))
+
+    assert arc.constituents == (owned.id,)
+    assert sorted(reader.read) == sorted([owned.id, free.id])
+    assert citable.constituents == (free.id,)
+
+
+def test_a_rule_feeding_an_owner_runs_before_it_and_an_overlap_with_the_owner_is_rejected() -> None:
+    owned = changed(K1)
+    reader = CitableRule("reader")
+    owner = GroupRule("owner", "nation.changed", reads=frozenset({"test.citable"}))
+
+    with pytest.raises(ValueError, match="exclusive constituent"):
+        aggregate([owned], (), [owner, reader], kinds=exclusive(ARC))
+    assert reader.read == [owned.id]
+
+
+def test_a_narrative_event_of_another_kind_citing_an_exclusive_constituent_is_rejected_at_any_order() -> None:
+    owned = changed(K1)
+    later = CitingRule("citing", (owned,))
+    with pytest.raises(ValueError, match=f"cites {owned.id}, an exclusive constituent of {ARC}/"):
+        aggregate([owned], (), [RULE, later], kinds=exclusive(ARC))
+    with pytest.raises(ValueError, match="exclusive constituent"):
+        aggregate([owned], (), [RULE, later], kinds=exclusive(ARC, "test.citing"))
+
+
+def test_events_of_the_same_kind_may_share_an_exclusive_constituent() -> None:
+    owned = changed(K1)
+    first, second = CitingRule("first", (owned,)), CitingRule("second", (owned,))
+
+    built = aggregate([owned], (), [first, second], kinds=exclusive("test.citing"))
+
+    assert [event.constituents for event in built] == [(owned.id,), (owned.id,)]
 
 
 def test_days_between_measures_game_days() -> None:

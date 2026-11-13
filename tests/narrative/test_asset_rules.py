@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import atomic, nation, nation_row, situation, unification
+from tests.narrative.support import atomic, nation, nation_row, situation
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
@@ -201,25 +201,3 @@ def test_a_tie_across_the_top_boundary_is_in_neither_and_zero_is_never_in_the_to
     assert built(stream, situations, RANKING_CHANGED, ranking_top_n=1) == []
     zero = reports({"boost": 0.0}, {"boost": 0.0}, {"boost": 0.0}, south=[{"boost": 0.0}] * 3)
     assert built([rank(K1, NORTH, 2, 1, "boost")], zero, RANKING_CHANGED, ranking_top_n=1) == []
-
-
-def test_a_merged_nation_leaving_a_top_is_the_merger_and_an_entrant_is_still_reported() -> None:
-    merger = unification(K1, NORTH, SOUTH, not_before=K0)
-    stream = [merger, rank(K1, NORTH, 2, 1), rank(K1, SOUTH, 1, 2)]
-    (ranking,) = built(stream, reports({}, {"gdp": 200.0}, {"gdp": 200.0}), RANKING_CHANGED, ranking_top_n=1)
-    assert ranking.roles == ((Role.BENEFICIARY, NORTH),)
-    assert dict(ranking.attributes)["leavers"] == ()
-    assert rank(K1, SOUTH, 1, 2).id not in ranking.constituents
-    only_leaver = [unification(K1, SOUTH, NORTH, not_before=K0), rank(K1, NORTH, 1, 2)]
-    situations = reports({"gdp": 200.0}, {}, {})
-    assert built(only_leaver, situations, RANKING_CHANGED, ranking_top_n=1) == []
-
-
-def test_assets_a_merger_moves_are_no_growth_or_buildup_of_their_own() -> None:
-    merger = unification(K1, NORTH, SOUTH, not_before=K0)
-    growth = [space(K1, "boost", 5.0, 8.0, 3.0)]
-    assert built([merger, *growth], reports({}, {}, {}), SPACE_PROGRAM_GROWTH) == []
-    assert built([merger, space(K2, "boost", 5.0, 8.0)], reports({}, {}, {}), SPACE_PROGRAM_GROWTH) != []
-    armies = [army(K1, 110), army(K1, 111)]
-    assert built([merger, *armies], reports({"armies": 2}, {"armies": 4}), MILITARY_BUILDUP) == []
-    assert built([merger, army(K1, 110, "Naval")], reports({"navies": 0}, {"navies": 1}), NAVY_ESTABLISHED) == []

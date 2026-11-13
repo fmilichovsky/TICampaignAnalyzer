@@ -113,12 +113,12 @@ LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
 """Rank ahead of any relative change when shifts are bounded: a shift from zero has no relative change but is the
 story."""
 MERGED_EITHER = frozenset({TERRITORY_GAINED, TERRITORY_LOST, RENAMED, SPACE_ASSETS_CHANGED})
-"""Events of either merged nation that the merger carries in its interval."""
+"""Events of either merged nation that are the merger's exclusive constituents in its interval."""
 MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, POPULATION_CHANGED, PCGDP_TREND})
-"""Events of the absorbed nation only that the merger carries in its interval."""
+"""Events of the absorbed nation only that are the merger's exclusive constituents in its interval."""
 MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_RECORDED})
 MERGED_ARMIES = frozenset({ARMY_APPEARED, ARMY_DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED})
-MERGER_CARRIED = tuple(
+MERGER_CONSTITUENT_TYPES = tuple(
     sorted(
         MERGED_EITHER
         | MERGED_ABSORBED
@@ -127,7 +127,7 @@ MERGER_CARRIED = tuple(
         | {RELATION_CHANGED, STATISTIC_SHIFTED, BREAKAWAY_PARENT_CHANGED}
     )
 )
-"""Every event type ``_carried_by_merger`` can accept."""
+"""Every event type ``_merger_constituent`` can accept."""
 
 
 # --- Mergers -----------------------------------------------------------------------------------------------------
@@ -135,7 +135,7 @@ MERGER_CARRIED = tuple(
 
 @dataclass(frozen=True)
 class MergerParties:
-    """The nations of every ``nation.unification`` by interval: what a merger carries, no other rule reports."""
+    """The nations of every ``nation.unification`` by interval, for lookups such as a merged nation's gainer."""
 
     unifications: Mapping[tuple[EntityId, str], Event]
 
@@ -148,15 +148,6 @@ class MergerParties:
                 found[(ref.entity_id, key)] = event
         return cls(found)
 
-    def merged(self, nation: EntityRef | EntityId | None, event: Event) -> bool:
-        """Whether ``nation`` gained or was absorbed in ``event``'s interval."""
-        return self._unification(nation, event) is not None
-
-    def absorbed(self, nation: EntityRef | EntityId | None, event: Event) -> bool:
-        """Whether ``nation`` was absorbed in ``event``'s interval."""
-        found = self._unification(nation, event)
-        return found is not None and found.entities[0].entity_id != _id(nation)
-
     def gainer(self, nation: EntityRef | EntityId | None, key: str) -> EntityRef | None:
         """The nation that absorbed ``nation`` in interval ``key``."""
         nation_id = _id(nation)
@@ -164,12 +155,6 @@ class MergerParties:
         if found is None or found.entities[0].entity_id == nation_id:
             return None
         return found.entities[0]
-
-    def _unification(self, nation: EntityRef | EntityId | None, event: Event) -> Event | None:
-        nation_id = _id(nation)
-        if nation_id is None or event.is_narrative:
-            return None
-        return self.unifications.get((nation_id, interval_of(event.id)))
 
 
 def _id(nation: EntityRef | EntityId | None) -> EntityId | None:
@@ -770,8 +755,7 @@ class CessionRule:
 class MergerRule:
     """``nation.merger``: a nation absorbed others by unification, with what the merge did to both in that interval.
 
-    Events other rules skip because of a merger are its constituents, not stories of their own; ``MergerParties`` keeps
-    those rules off them.
+    Its kind's constituents are exclusive: the rules running after it may read them, never cite them.
     """
 
     settings: GeopoliticsSettings
@@ -789,10 +773,10 @@ class MergerRule:
             absorbed_ids = {ref.entity_id for ref in absorbed}
             attached = [
                 event
-                for event in stream.in_intervals(key, *MERGER_CARRIED)
+                for event in stream.in_intervals(key, *MERGER_CONSTITUENT_TYPES)
                 if event is not anchor
                 and not event.is_narrative
-                and _carried_by_merger(event, gainer.entity_id, absorbed_ids)
+                and _merger_constituent(event, gainer.entity_id, absorbed_ids)
             ]
             regions = unique_refs(
                 region
@@ -829,7 +813,7 @@ class MergerRule:
         return built
 
 
-def _carried_by_merger(event: Event, gainer: EntityId, absorbed: Collection[EntityId]) -> bool:
+def _merger_constituent(event: Event, gainer: EntityId, absorbed: Collection[EntityId]) -> bool:
     nation = subject_id(event)
     if event.event_type in MERGED_EITHER:
         return nation == gainer or nation in absorbed
@@ -876,7 +860,6 @@ class IndependenceRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         days = self.settings.release_window_days
-        parties = MergerParties.of(stream)
         own_types = (nation_kinds.APPEARED.event_type, BREAKAWAY_PARENT_CHANGED, NATION_CONTROL)
         own = by_subject(by_type(stream, *own_types))
         built = []
@@ -886,10 +869,7 @@ class IndependenceRule:
             attached = [
                 event
                 for event in own.get(nation.entity_id, [])
-                if overlaps(event, earliest(anchor), high)
-                and not (
-                    parties.absorbed(nation, event) and event.event_type in (NATION_CONTROL, BREAKAWAY_PARENT_CHANGED)
-                )
+                if overlaps(event, earliest(anchor), high) and stream.citable(event)
             ]
             constituents = [anchor, *attached]
             released = anchor.attribute("released") is True
@@ -1008,7 +988,6 @@ class ExpansionRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         explained = _readings(stream)
         nested = by_type(stream, CESSION, MERGER)
-        covered = {constituent for event in nested for constituent in event.constituents}
         gains: dict[EntityId, list[Event]] = defaultdict(list)
         for event in by_type(stream, ANNEXATION):
             key = subject_id(event)
@@ -1019,7 +998,7 @@ class ExpansionRule:
         aggregates = by_subject(by_type(stream, TERRITORY_GAINED))
         for gainer_id, events in aggregates.items():
             for event in events:
-                if (gainer_id, interval_of(event.id)) not in explained and event.id not in covered:
+                if (gainer_id, interval_of(event.id)) not in explained and stream.citable(event):
                     gains[gainer_id].append(event)
         days = self.settings.expansion_gap_days
         last = last_date(situations)
@@ -1041,8 +1020,7 @@ class ExpansionRule:
         gainer = _gainer(run[0])
         losers = unique_refs(loser for gain in run for loser in _losers(gain))
         keys = set(intervals_of(run))
-        inside = {constituent for gain in run for constituent in gain.constituents}
-        territory = [event for event in aggregates if interval_of(event.id) in keys and event.id not in inside]
+        territory = [event for event in aggregates if interval_of(event.id) in keys and stream.citable(event)]
         start = min((date for date in map(earliest, run) if date is not None), default=None)
         end = max((date for date in map(latest, run) if date is not None), default=None)
         loser_ids = {ref.entity_id for ref in losers}
@@ -1057,7 +1035,7 @@ class ExpansionRule:
                 or (event.event_type == RENAMED and subject_id(event) == gainer.entity_id)
             )
             and overlaps(event, start, end)
-            and event.id not in inside
+            and stream.citable(event)
         ]
         constituents = [*run, *(event for event in territory if event not in run), *attached]
         regions = unique_refs(region for event in (*run, *territory) for region in refs_attribute(event, "regions"))
@@ -1186,7 +1164,7 @@ class WarArcRule:
             and len(event.entities) > 1
             and belligerents(event.entities[0].entity_id, event.entities[1].entity_id, interval_of(event.id))
         ]
-        constituents = [*events, *(event for event in annexations if event.id not in nested), *expansions]
+        constituents = [*events, *(event for event in annexations if stream.citable(event)), *expansions]
         if not constituents:
             return None
         attackers, defenders = self._sides(situations, war.entity_id, events)

@@ -19,6 +19,7 @@ def narrative_kind(
     optional: frozenset[str] = frozenset(),
     *,
     digests_members: bool = False,
+    exclusive_constituents: bool = False,
 ) -> EventKind:
     """A kind whose level its rule sets; a kind with ``metric_shifts`` may also carry ``metric_shifts_omitted``."""
     if "metric_shifts" in required:
@@ -31,6 +32,7 @@ def narrative_kind(
         required,
         optional,
         digests_members=digests_members,
+        exclusive_constituents=exclusive_constituents,
     )
 
 
