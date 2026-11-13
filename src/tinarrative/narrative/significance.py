@@ -447,11 +447,7 @@ def _kind(event: Event) -> EventKind:
 
 
 def _base(event: Event) -> Significance:
-    return _base_of(_kind(event))
-
-
-def _base_of(kind: EventKind) -> Significance:
-    return kind.base
+    return _kind(event).base
 
 
 def significance_of(event: Event, lookup: Lookup) -> Significance:
@@ -481,7 +477,7 @@ def narrative_score(kind: EventKind, event: Event, cited: Iterable[Event], geopo
     """
     if kind.stake is not None:
         raise ValueError(f"narrative-event kind {kind.event_type} declares a stake, which is not implemented")
-    level = _base_of(kind)
+    level = kind.base
     if kind.rule is not None:
         rule = RULE_IMPLEMENTATIONS[kind.rule]
         if not isinstance(rule, NarrativeContextRule):

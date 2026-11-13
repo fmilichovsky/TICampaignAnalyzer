@@ -190,8 +190,8 @@ class NarrativeBuilder:
         event_type = kind.event_type
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
-        if not kind.narrative or kind.base is None:
-            raise ValueError(f"event type {event_type} is not a narrative-event kind with a base level")
+        if not kind.narrative:
+            raise ValueError(f"event type {event_type} is not a narrative-event kind")
         cited = [*constituents, *(event for event in corroborating if event not in constituents)]
         intervals = tuple(sorted({key for event in cited for key in _intervals(event)}, key=interval_sort_key))
         starts = [dated for dated in map(_start, cited) if dated is not None]

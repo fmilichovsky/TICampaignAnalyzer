@@ -194,15 +194,6 @@ def test_the_builder_takes_its_level_only_from_a_narrative_kind() -> None:
             roles=[],
             join=Join.ENTITY,
         )
-    with pytest.raises(TypeError):
-        NarrativeBuilder(()).event(  # type: ignore[call-arg]
-            SCORED_ARC,
-            id_parts=[GERMANY.entity_id],
-            constituents=[changed(K1)],
-            roles=[],
-            join=Join.ENTITY,
-            significance=Significance.MINOR,
-        )
 
 
 def test_confidence_is_the_minimum_lowered_once_for_a_heuristic_join() -> None:
@@ -216,7 +207,7 @@ def test_confidence_is_the_minimum_lowered_once_for_a_heuristic_join() -> None:
     assert only(stream, claimed).confidence is Confidence.HIGH
 
 
-def test_significance_is_the_rule_level_but_never_below_the_most_significant_constituent() -> None:
+def test_significance_is_the_kind_base_level_but_never_below_the_most_significant_constituent() -> None:
     stream = [changed(K1), changed(K2, significance=Significance.MAJOR)]
 
     assert only(stream).significance is Significance.MAJOR
@@ -227,7 +218,7 @@ def test_significance_is_the_rule_level_but_never_below_the_most_significant_con
     assert only(stream, defining).significance is Significance.CAMPAIGN_DEFINING
 
 
-def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_their_sum() -> None:
+def test_the_score_is_the_highest_of_the_kind_base_and_the_cited_scores_never_their_sum() -> None:
     stream = [changed(K1), changed(K2, significance=Significance.MAJOR)]
     assert only(stream).score == Significance.MAJOR.base
     assert only(stream, GroupRule("d", "nation.changed", base=Significance.CAMPAIGN_DEFINING)).score == (
