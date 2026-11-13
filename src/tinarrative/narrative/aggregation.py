@@ -8,13 +8,14 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from enum import StrEnum
 from graphlib import CycleError, TopologicalSorter
 from typing import Protocol
 
 from ..analyzers.common import event_id
+from ..config import DEFAULT_SETTINGS, GeopoliticsSettings
 from ..kinds import attributes as kind_attributes
 from ..kinds import kind_for
 from ..log import TIMING_LOGGER, fields, get_logger
@@ -31,6 +32,7 @@ from ..model.kinds import EventKind
 from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
+from .significance import narrative_score
 from .situation import SituationReport
 from .stream import EventStream, UndeclaredRead
 
@@ -141,11 +143,25 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 
 class NarrativeBuilder:
-    """Applies the shared policy: confidence is the constituents' minimum, the score never below the highest-scored
-    cited event or the base of the rule's level, and ``open`` while the anchor is in the last report."""
+    """Applies the shared policy: confidence is the constituents' minimum, the score is significance's
+    (``narrative_score``), and ``open`` while the anchor is in the last report.
 
-    def __init__(self, situations: Sequence[SituationReport]) -> None:
-        self._last = situations[-1] if situations else None
+    A kind without a base level is scored by the level its rule passes instead, never below the highest-scored
+    cited event.
+    """
+
+    def __init__(
+        self,
+        situations: Sequence[SituationReport],
+        geopolitics: GeopoliticsSettings = DEFAULT_SETTINGS.narrative.geopolitics,
+    ) -> None:
+        self._situations = tuple(situations)
+        self._last = self._situations[-1] if self._situations else None
+        self._geopolitics = geopolitics
+
+    def scoring_with(self, geopolitics: GeopoliticsSettings) -> NarrativeBuilder:
+        """This builder, scoring by the rule's own settings. TODO(#362): goes with ``top_gdp_nations``."""
+        return NarrativeBuilder(self._situations, geopolitics)
 
     def event(
         self,
@@ -176,6 +192,9 @@ class NarrativeBuilder:
         event_type = kind.event_type
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
+        scored = kind.narrative and kind.base is not None
+        if scored and significance is not None:
+            raise ValueError(f"narrative event {event_type}: its kind declares its base level, so its rule passes none")
         cited = [*constituents, *(event for event in corroborating if event not in constituents)]
         intervals = tuple(sorted({key for event in cited for key in _intervals(event)}, key=interval_sort_key))
         starts = [dated for dated in map(_start, cited) if dated is not None]
@@ -187,7 +206,7 @@ class NarrativeBuilder:
         bounds = [event.not_before for event in cited if isinstance(event.not_before, str)]
         role_list = tuple(roles)
         score = self._score(cited, significance)
-        return Event(
+        event = Event(
             id=qualified_id(event_id(event_type, *id_parts), id_interval or intervals[0]),
             event_type=event_type,
             status=self._status(cited, join),
@@ -209,6 +228,10 @@ class NarrativeBuilder:
             intervals=intervals,
             roles=role_list,
         )
+        if not scored:
+            return event
+        score = narrative_score(kind, event, cited, self._geopolitics)
+        return replace(event, significance=Significance.of(score), score=score)
 
     def _open(self, anchor: EntityRef | None) -> bool:
         return anchor is not None and self._last is not None and present_in(self._last, anchor)

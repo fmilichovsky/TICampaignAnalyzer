@@ -9,6 +9,7 @@ import pytest
 
 from tests.analyzers.support import fixture_kind
 from tests.narrative.support import CitingRule, GroupRule, atomic, faction, nation, situation, state_change
+from tinarrative.kinds.narrative import narrative_kind
 from tinarrative.kinds.space import FLEET_BUILDUP
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
@@ -25,6 +26,7 @@ GERMANY = nation("1", "Germany")
 FRANCE = nation("2", "France")
 RULE = GroupRule("changes", "nation.changed")
 CHANGED_ARC = fixture_kind("nation.changed.arc")
+SCORED_ARC = narrative_kind("nation.scored.arc", lambda event: event.id, frozenset(), base=Significance.MAJOR)
 
 
 def changed(key: str, subject: EntityRef = GERMANY, **overrides: object) -> Event:
@@ -155,6 +157,35 @@ def test_an_event_is_open_when_its_anchor_is_present_in_the_last_save() -> None:
     assert built == {GERMANY: False, FRANCE: True}
     assert present_in(reports[-1], faction("7"))
     assert not aggregate(stream, (), [RULE])[0].open
+
+
+def test_a_kind_with_a_base_level_scores_it_never_below_the_highest_cited_score_nor_their_sum() -> None:
+    def scored(*constituents: Event) -> Event:
+        return NarrativeBuilder(()).event(
+            SCORED_ARC, id_parts=[GERMANY.entity_id], constituents=constituents, roles=[], join=Join.ENTITY
+        )
+
+    assert (scored(changed(K1)).score, scored(changed(K1)).significance) == (
+        Significance.MAJOR.base,
+        Significance.MAJOR,
+    )
+    cited = [
+        changed(K1, significance=Significance.CAMPAIGN_DEFINING, score=80),
+        changed(K2, significance=Significance.CAMPAIGN_DEFINING, score=78),
+    ]
+    assert (scored(*cited).score, scored(*cited).significance) == (80, Significance.CAMPAIGN_DEFINING)
+
+
+def test_a_rule_passing_a_level_for_a_kind_that_declares_one_is_a_code_bug() -> None:
+    with pytest.raises(ValueError, match="declares its base level"):
+        NarrativeBuilder(()).event(
+            SCORED_ARC,
+            id_parts=[GERMANY.entity_id],
+            constituents=[changed(K1)],
+            roles=[],
+            join=Join.ENTITY,
+            significance=Significance.MINOR,
+        )
 
 
 def test_confidence_is_the_minimum_lowered_once_for_a_heuristic_join() -> None:

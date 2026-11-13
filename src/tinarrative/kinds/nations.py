@@ -520,12 +520,14 @@ EXPANSION = narrative_kind(
     "nation.expansion",
     _expansion,
     required=frozenset({"losers", "regions", "region_count", "mode", "metric_shifts"}),
+    base=Significance.MAJOR,
     exclusive_constituents=True,
 )
 CESSION = narrative_kind(
     "nation.cession",
     _cession,
     required=frozenset({"regions", "region_count", "allied", "shared_federation", "metric_shifts"}),
+    base=Significance.MAJOR,
     exclusive_constituents=True,
 )
 MERGER = narrative_kind(
@@ -534,13 +536,18 @@ MERGER = narrative_kind(
     required=frozenset(
         {"absorbed", "regions", "region_count", "unifying_faction", "bases", "executive_since", "metric_shifts"}
     ),
+    base=Significance.MAJOR,
     exclusive_constituents=True,
 )
 _INDEPENDENCE = frozenset({"parents", "releasing_nation", "executive_faction", "metric_shifts"})
-RELEASE = narrative_kind("nation.release", _release, required=_INDEPENDENCE)
-BREAKAWAY = narrative_kind("nation.breakaway", _breakaway, required=_INDEPENDENCE)
+# Trivial: the independence or claims change they cite sets their level.
+RELEASE = narrative_kind("nation.release", _release, required=_INDEPENDENCE, base=Significance.TRIVIAL)
+BREAKAWAY = narrative_kind("nation.breakaway", _breakaway, required=_INDEPENDENCE, base=Significance.TRIVIAL)
 CLAIMS_DECLARED = narrative_kind(
-    "nation.claims_declared", _claims_declared, required=frozenset({"regions", "metric_shifts"})
+    "nation.claims_declared",
+    _claims_declared,
+    required=frozenset({"regions", "metric_shifts"}),
+    base=Significance.TRIVIAL,
 )
 
 _BAND_SHIFT = SHIFTED | {"statistic", "before", "after", "from_band", "to_band", "bands_crossed"}

@@ -2,8 +2,8 @@
 
 A post-pass, so no analyzer has to judge impact. Evidence for the entries is in
 ``docs/game-data-notes/higher-level-event-sources.md``. Notification templates are never ranked: the game's own log
-is player-centric and open-ended. Narrative events are not ranked here, as they span intervals and no snapshot is kept
-for them.
+is player-centric and open-ended. Narrative events span intervals and keep no snapshot: ``narrative_score`` scores
+each as the narrative builder builds it.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.nation_assets import GDP, STRENGTH
-from ..config import DEFAULT_SETTINGS, SignificanceSettings
+from ..config import DEFAULT_SETTINGS, GeopoliticsSettings, SignificanceSettings
 from ..kinds import kind_for
 from ..kinds.nations import REGION_NATION_CHANGED
 from ..log import fields as log_fields
@@ -35,11 +35,13 @@ __all__ = [
     "RULE_IMPLEMENTATIONS",
     "SIGNIFICANCE_ORDER",
     "STAKE_IMPLEMENTATIONS",
+    "NarrativeContextRule",
     "Scaling",
     "Significance",
     "Stakes",
     "assign_significance",
     "in_top_n",
+    "narrative_score",
     "promoted_at_rank",
     "promoted_by_rank",
     "significance_of",
@@ -97,7 +99,15 @@ def promoted_by_rank(
 # --- Context rules ----------------------------------------------------------------------------------------
 
 ContextRule = Callable[[Event, Lookup], Significance | None]
-"""``None`` defers to the base level."""
+"""An atomic kind's context rule; ``None`` defers to the base level."""
+
+
+@dataclass(frozen=True)
+class NarrativeContextRule:
+    """A narrative-event kind's context rule: it reads only the event, and the settings of a temporary rule."""
+
+    judge: Callable[[Event, GeopoliticsSettings], Significance | None]
+    """``None`` defers to the base level."""
 
 
 def _subject(event: Event) -> EntityRef | None:
@@ -175,7 +185,12 @@ def _claims_changed(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR
 
 
-RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
+def _top_gdp_takeover(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+    """A takeover of a top-ranked economy is one level up. TODO(#362): temporary; the takeover's stake replaces it."""
+    return promoted_at_rank(_base(event), event.attribute("gdp_rank"), geopolitics.top_gdp_nations)
+
+
+RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
     Rule.COUNCILOR_PRESENCE: _councilor_presence,
     Rule.RELATION_CHANGED: _relation_changed,
     Rule.CLAIMS_CHANGED: _claims_changed,
@@ -185,6 +200,7 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
     Rule.SPACE_ASSETS_CHANGED: _space_assets_changed,
     Rule.ARMY_PRESENCE: _army_presence,
     Rule.COMPLETION: _completion,
+    Rule.TOP_GDP_TAKEOVER: NarrativeContextRule(_top_gdp_takeover),
 }
 """Every ``Rule``'s implementation."""
 
@@ -358,20 +374,52 @@ def _kind(event: Event) -> EventKind:
     return kind
 
 
+def _base(event: Event) -> Significance:
+    return _base_of(_kind(event))
+
+
+def _base_of(kind: EventKind) -> Significance:
+    if kind.base is None:
+        raise ValueError(f"event type {kind.event_type} has its level set by its narrative rule")
+    return kind.base
+
+
 def significance_of(event: Event, lookup: Lookup) -> Significance:
     """The kind's context rule, else its base level: the level before the stake scales the score.
 
-    Raises ``ValueError`` for a type no kind declares, or a narrative-event kind (no base level), whose rule sets its
-    level: each is a code bug, as every emitter passes a kind and narrative events are not ranked here.
+    Raises ``ValueError`` for a type no kind declares, or a narrative-event kind, scored by ``narrative_score``: each
+    is a code bug, as every emitter passes a kind and narrative events are not ranked here.
     """
     kind = _kind(event)
+    if kind.narrative:
+        raise ValueError(f"event type {event.event_type} is a narrative event, scored when it is built")
     if kind.rule is not None:
-        decided = RULE_IMPLEMENTATIONS[kind.rule](event, lookup)
+        if isinstance(rule := RULE_IMPLEMENTATIONS[kind.rule], NarrativeContextRule):
+            raise ValueError(f"rule {kind.rule} of {event.event_type} judges a narrative event")
+        decided = rule(event, lookup)
         if decided is not None:
             return decided
-    if kind.base is None:
-        raise ValueError(f"event type {event.event_type} has its level set by its narrative rule")
-    return kind.base
+    return _base(event)
+
+
+def narrative_score(kind: EventKind, event: Event, cited: Iterable[Event], geopolitics: GeopoliticsSettings) -> int:
+    """The higher of the kind's context-rule level, else its base level, and the highest score among the ``cited``
+    events (ADR-0011).
+
+    Raises ``ValueError`` for a kind without a base level, one declaring a stake (no narrative stake is implemented
+    yet), or one whose context rule judges atomic events: each is a code bug.
+    """
+    if kind.stake is not None:
+        raise ValueError(f"narrative-event kind {kind.event_type} declares a stake, which is not implemented")
+    level = _base_of(kind)
+    if kind.rule is not None:
+        rule = RULE_IMPLEMENTATIONS[kind.rule]
+        if not isinstance(rule, NarrativeContextRule):
+            raise ValueError(f"rule {kind.rule} of {event.event_type} judges an atomic event")
+        decided = rule.judge(event, geopolitics)
+        if decided is not None:
+            level = decided
+    return max([level.base, *(item.score for item in cited)])
 
 
 def assign_significance(

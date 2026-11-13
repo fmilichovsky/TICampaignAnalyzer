@@ -29,7 +29,7 @@ from ..kinds.wars import APPEARED as WAR_APPEARED
 from ..kinds.wars import ARC as WAR_ARC_KIND
 from ..kinds.wars import DISAPPEARED as WAR_DISAPPEARED
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import DateBasis, Event, Role, Significance
+from ..model.events import DateBasis, Event, Role
 from ..model.values import FieldValue, FrozenMap, Observed
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
@@ -193,6 +193,7 @@ class TakeoverRule:
         return self.settings.takeover_consolidation_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        build = build.scoring_with(self.settings)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         by_nation = by_subject(by_type(stream, NATION_CONTROL))
         charges = DatedEvents(
@@ -304,7 +305,6 @@ class TakeoverRule:
         cause = next(
             (value for value in (anchor.attribute("cause") for anchor in anchors) if isinstance(value, str)), None
         )
-        defining = in_top_n(rank, settings.top_gdp_nations)
         roles = [(Role.ACTOR, actor), (Role.TARGET, nation)]
         if loser is not None:
             roles.append((Role.LOSER, loser))
@@ -327,7 +327,6 @@ class TakeoverRule:
                     metric_shifts(stream, [nation.entity_id], intervals), roles, settings.metric_shifts_max
                 ),
             ),
-            significance=Significance.CAMPAIGN_DEFINING if defining else Significance.MAJOR,
             open=_holds_executive_only(situations, nation.entity_id, actor.entity_id),
         )
 
@@ -430,8 +429,6 @@ class TakeoverWaveRule:
                         roles=[(Role.ACTOR, faction), *((Role.TARGET, nation) for nation in nations)],
                         join=Join.ENTITY,
                         attributes=(("nations", nations), ("count", len(run))),
-                        # TODO(#199): scale by the members' stakes.
-                        significance=Significance.MAJOR,
                         open=within(latest(run[0]), last, days),
                     )
                 )
@@ -522,7 +519,6 @@ class FederationLifecycleRule:
                         *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
                     anchor=federation,
-                    significance=Significance.MAJOR,
                 )
             )
         return built
@@ -607,7 +603,6 @@ class CessionRule:
                 ("shared_federation", shared),
                 *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
             ),
-            significance=Significance.MAJOR,
             open=False,
         )
 
@@ -667,7 +662,6 @@ class MergerRule:
                         ("executive_since", anchor.attribute("executive_since")),
                         *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
-                    significance=Significance.MAJOR,
                     open=False,
                 )
             )
@@ -924,7 +918,6 @@ class ExpansionRule:
                 ("mode", mode),
                 *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
             ),
-            significance=Significance.MAJOR,
             open=within(end, last, self.settings.expansion_gap_days),
         )
 
@@ -1081,7 +1074,6 @@ class WarArcRule:
                 *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
             ),
             anchor=war,
-            significance=Significance.MAJOR,
             starts_on=started,
         )
 

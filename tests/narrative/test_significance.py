@@ -246,9 +246,11 @@ def test_notification_types_take_their_kind_and_an_undeclared_type_is_a_code_bug
 
 
 def test_a_narrative_event_kind_is_never_ranked_here() -> None:
-    narrative = next(event_type for event_type, kind in KINDS.items() if kind.base is None)
-    with pytest.raises(ValueError, match="narrative rule"):
-        significance_of(bare_event(narrative), empty_lookup())
+    unleveled = next(event_type for event_type, kind in KINDS.items() if kind.base is None)
+    leveled = next(event_type for event_type, kind in KINDS.items() if kind.narrative and kind.base is not None)
+    for narrative in (unleveled, leveled):
+        with pytest.raises(ValueError, match="narrative event"):
+            significance_of(bare_event(narrative), empty_lookup())
 
 
 def test_table_entries_resolve_without_context() -> None:
@@ -323,14 +325,14 @@ def test_a_ledger_charge_is_minor_and_named_in_the_kind() -> None:
 def test_every_atomic_kind_resolves_to_a_level() -> None:
     lookup = empty_lookup()
     for event_type, kind in KINDS.items():
-        if kind.base is not None and not kind.is_prefix:
+        if not kind.narrative and not kind.is_prefix:
             assert significance_of(bare_event(event_type), lookup) in SIGNIFICANCE_ORDER, event_type
 
 
 def test_a_kind_without_a_context_rule_is_judged_by_its_base_level() -> None:
     lookup = empty_lookup()
     for event_type, kind in KINDS.items():
-        if kind.base is not None and kind.rule is None:
+        if not kind.narrative and kind.rule is None:
             assert significance_of(bare_event(event_type), lookup) is kind.base, event_type
 
 

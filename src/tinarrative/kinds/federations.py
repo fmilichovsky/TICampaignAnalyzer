@@ -73,6 +73,7 @@ LIFECYCLE = narrative_kind(
     "federation.lifecycle",
     _lifecycle,
     required=frozenset({"members_initial", "member_changes", "members_final", "metric_shifts"}),
+    base=Significance.MAJOR,
 )
 
 KINDS = (APPEARED, DISAPPEARED, MEMBERS_CHANGED, RENAMED, NATION_FEDERATION_CHANGED, LIFECYCLE)

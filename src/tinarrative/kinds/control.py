@@ -250,9 +250,15 @@ TAKEOVER = narrative_kind(
     ),
     # Takeovers sharing an anchor interval: the derived order, else both ambiguous.
     optional=frozenset({"succeeds", "succeeded_by", "ambiguous", "alternatives"}),
+    base=Significance.MAJOR,
+    rule=Rule.TOP_GDP_TAKEOVER,
 )
 TAKEOVER_WAVE = narrative_kind(
-    "faction.takeover_wave", _takeover_wave, required=frozenset({"nations", "count"}), digests_members=True
+    "faction.takeover_wave",
+    _takeover_wave,
+    required=frozenset({"nations", "count"}),
+    base=Significance.MAJOR,  # TODO(#199): scale by the members' stakes.
+    digests_members=True,
 )
 
 KINDS = (

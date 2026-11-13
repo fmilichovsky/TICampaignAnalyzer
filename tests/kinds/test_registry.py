@@ -9,12 +9,14 @@ import pytest
 from tests.analyzers.support import AFTER, BEFORE, snapshot
 from tests.fixtures import FIXTURES_ROOT
 from tinarrative.analyzers.common import EventBuilder
+from tinarrative.config import GeopoliticsSettings
 from tinarrative.kinds import KINDS, attributes, describe_event, kind_for, known_event_types
 from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
 from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
 from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
+from tinarrative.narrative.geopolitics import geopolitical_rules
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
@@ -36,11 +38,19 @@ def test_every_declared_kind_has_exactly_one_entry() -> None:
     assert all(KINDS[kind.event_type] is kind for family in FAMILIES for kind in family)
 
 
-def test_a_kind_without_a_base_level_is_exactly_a_narrative_event_kind() -> None:
+def test_a_narrative_event_kind_is_exactly_one_a_rule_emits_and_only_it_may_lack_a_base_level() -> None:
     narrative = {event_type for rule in NARRATIVE_RULES for event_type in rule.emitted_types}
-    ruled_elsewhere = {event_type for event_type, kind in KINDS.items() if kind.base is None}
-    assert ruled_elsewhere == narrative
+    assert {event_type for event_type, kind in KINDS.items() if kind.narrative} == narrative
+    assert {event_type for event_type, kind in KINDS.items() if kind.base is None} <= narrative
     assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
+
+
+def test_every_geopolitics_kind_declares_its_base_level_and_no_narrative_event_kind_a_stake() -> None:
+    geopolitical = {
+        event_type for rule in geopolitical_rules(GeopoliticsSettings()) for event_type in rule.emitted_types
+    }
+    assert all(KINDS[event_type].base is not None for event_type in geopolitical)
+    assert not [event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is not None]
 
 
 def test_the_constructor_keeps_required_and_optional_attributes_in_order() -> None:
