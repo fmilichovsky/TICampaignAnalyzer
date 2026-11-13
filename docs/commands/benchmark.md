@@ -1,6 +1,10 @@
 # `tinarrative benchmark`
 
-## `tinarrative benchmark sample`
+Maintainer tooling for the real sample campaigns in `benchmarks/`: import them, and measure how big the narrator
+packages are and how long `events` takes. Pull requests get both measurements automatically; what they measure is in
+[benchmarks/README.md](../../benchmarks/README.md). Run these commands from the repository root.
+
+## `benchmark sample`
 
 <!-- generated: synopsis benchmark sample -->
 ```
@@ -8,12 +12,16 @@ tinarrative benchmark sample [--description TEXT] [--campaign SELECTOR] name PAT
 ```
 <!-- end generated -->
 
-Compresses saves into `benchmarks/samples/<name>/` and refreshes `samples.json`. If that campaign already exists,
-its sample directory is replaced. Explicit save paths are all checked before replacement; an invalid save rejects the
-import. The benchmark data directory is resolved from the current working directory. A directory is read one level
-deep, and unusable files are skipped and reported.
+Adds a campaign to the samples, or replaces it. Afterwards, add a description in `samples.json` if it has none, and
+add runs for the campaign to `benchmarks/matrix.toml` if needed.
 
-## Options
+```sh
+# Import one campaign from a save directory.
+tinarrative benchmark sample protectorate ~/saves --campaign protectorate --description "Protectorate, early game"
+
+# Refresh a sample from chosen saves.
+tinarrative benchmark sample resist ~/campaign/save1.json ~/campaign/save2.json
+```
 
 <!-- generated: options benchmark sample -->
 | Option | Meaning |
@@ -23,19 +31,6 @@ deep, and unusable files are skipped and reported.
 | `--description TEXT` | Campaign description for samples.json (default: keep the existing one). |
 | `--campaign SELECTOR` | The campaign to import from a directory that holds several. |
 <!-- end generated -->
-
-After a successful import, add a description in `samples.json` if one is missing, review `benchmarks/matrix.toml`,
-and add runs for the campaign if needed. Run `tinarrative benchmark metrics samples` to verify the manifest.
-
-## Examples
-
-```sh
-tinarrative benchmark sample protectorate ~/saves --campaign protectorate \
-  --description "Protectorate campaign, early game"
-tinarrative benchmark sample resist ~/campaign/save1.json ~/campaign/save2.json
-```
-
-## Exit codes
 
 <!-- generated: exit-codes benchmark sample -->
 | Code | When |
@@ -47,9 +42,7 @@ tinarrative benchmark sample resist ~/campaign/save1.json ~/campaign/save2.json
 | 9 | The sample directory or samples.json cannot be written. |
 <!-- end generated -->
 
-## `tinarrative benchmark metrics`
-
-### Verify samples
+## `benchmark metrics samples`
 
 <!-- generated: synopsis benchmark metrics samples -->
 ```
@@ -57,8 +50,12 @@ tinarrative benchmark metrics samples [--samples PATH] [--update]
 ```
 <!-- end generated -->
 
-Checks every compressed save against `samples.json`. `--update` rebuilds the manifest while retaining campaign
-descriptions and the configured size limit. 
+Checks the sample files against `samples.json`, for example after editing them by hand.
+
+```sh
+tinarrative benchmark metrics samples
+```
+
 <!-- generated: options benchmark metrics samples -->
 | Option | Meaning |
 | --- | --- |
@@ -74,7 +71,7 @@ descriptions and the configured size limit.
 | 9 | The samples or samples.json cannot be read or written. |
 <!-- end generated -->
 
-### Measure
+## `benchmark metrics measure`
 
 <!-- generated: synopsis benchmark metrics measure -->
 ```
@@ -84,11 +81,12 @@ tinarrative benchmark metrics measure [--python PYTHON] [--samples PATH] [--matr
 ```
 <!-- end generated -->
 
-By default, reads `benchmarks/samples`, `benchmarks/matrix.toml`, and `benchmarks/config.toml` relative to the current
-working directory. Runs every matrix entry against every sample campaign, writes packages and narrator plans under `PATH`, then writes
-`metrics.json`. The selected `--python` runs `events` and `narrate`; the current CLI performs the measurement.
-`--chars-per-token` accepts a decimal estimate (minimum 1). Progress appears on stderr in a terminal. Failed runs are
-recorded in the metrics output.
+Runs every matrix entry against every sample campaign and writes the packages and `metrics.json`. `make
+package-metrics` runs it for the working tree.
+
+```sh
+tinarrative benchmark metrics measure --out build/package-metrics --label "$(git rev-parse --short HEAD)"
+```
 
 <!-- generated: options benchmark metrics measure -->
 | Option | Meaning |
@@ -111,7 +109,7 @@ recorded in the metrics output.
 | 9 | The outputs cannot be written. |
 <!-- end generated -->
 
-### Compare
+## `benchmark metrics compare`
 
 <!-- generated: synopsis benchmark metrics compare -->
 ```
@@ -119,8 +117,11 @@ tinarrative benchmark metrics compare [--out PATH] [--run-url URL] [--threshold 
 ```
 <!-- end generated -->
 
-Writes a Markdown comparison to stdout or `PATH`. The report highlights package-size changes at or above the threshold
-(1% by default). `--run-url` links the report to its CI artifact.
+Compares two `metrics.json` files, such as a base and a head, in Markdown.
+
+```sh
+tinarrative benchmark metrics compare base/metrics.json head/metrics.json --out compare.md
+```
 
 <!-- generated: options benchmark metrics compare -->
 | Option | Meaning |
@@ -140,9 +141,7 @@ Writes a Markdown comparison to stdout or `PATH`. The report highlights package-
 | 4 | A metrics file cannot be read or is not a metrics file, or the report cannot be written. |
 <!-- end generated -->
 
-## `tinarrative benchmark runtime`
-
-### Measure
+## `benchmark runtime measure`
 
 <!-- generated: synopsis benchmark runtime measure -->
 ```
@@ -153,12 +152,16 @@ tinarrative benchmark runtime measure --out FILE [--python PYTHON] [--label TEXT
 ```
 <!-- end generated -->
 
-Times one `events` run per campaign and writes the runtime JSON to `FILE`. `--run` names the matrix's `events` run
-to time (default `major`). `--samples` is either a benchmark samples directory (it holds `samples.json`, which is
-verified first) or one directory of saves. For a directory of saves that holds several campaigns, `--campaign` is
-passed on to `events`. With `--base-python`, the base and `--python` are measured in alternation. Each side keeps
-the fastest of `--repeats` runs (default 1). Commands run one at a time. A failed run is recorded with its exit
-code and the end of its stderr. See [benchmarks](../../benchmarks/README.md#runtime) for what is measured.
+Times one `events` run per sample campaign. With `--base-python`, a base and a head are timed in alternation. `make
+runtime-metrics` runs it for the working tree.
+
+```sh
+# Time the working tree.
+tinarrative benchmark runtime measure --out build/runtime.json
+
+# Time a base against a head, three times each.
+tinarrative benchmark runtime measure --out build/runtime.json --base-python ../base/.venv/bin/python --repeats 3
+```
 
 <!-- generated: options benchmark runtime measure -->
 | Option | Meaning |
@@ -185,7 +188,7 @@ code and the end of its stderr. See [benchmarks](../../benchmarks/README.md#runt
 | 9 | The runtime JSON cannot be written. |
 <!-- end generated -->
 
-### Report
+## `benchmark runtime report`
 
 <!-- generated: synopsis benchmark runtime report -->
 ```
@@ -193,8 +196,11 @@ tinarrative benchmark runtime report [--out PATH] [--run-url URL] FILE
 ```
 <!-- end generated -->
 
-Writes the Markdown report of a runtime JSON file to stdout or `PATH`: wall time, seconds per stage and peak memory
-per campaign, base → head when both were measured. `--run-url` links the report to its CI artifact.
+Writes the Markdown report of a runtime JSON file: wall time, time per stage and peak memory per campaign.
+
+```sh
+tinarrative benchmark runtime report build/runtime.json --out build/runtime.md
+```
 
 <!-- generated: options benchmark runtime report -->
 | Option | Meaning |

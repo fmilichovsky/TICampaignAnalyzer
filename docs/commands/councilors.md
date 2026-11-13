@@ -10,53 +10,36 @@ tinarrative councilors [--campaign SELECTOR] [--player-only] [--output DIR] [--s
 ```
 <!-- end generated -->
 
-Selects the notable councilors of a campaign, builds the dossier a neutral, public-perception
-article about each is written from, and builds one model request per councilor. Without `--send`
-it is a dry run: it never contacts the network and never calls a model. Stdout gets a one-line
-summary per selected councilor, and `--output` writes `dossier.json` and the requests. With
-`--send` the requests go to the configured provider and the answers are assembled into
-`councilors.md`, with the run record in `manifest.json`.
+Writes a short encyclopedia article about each notable councilor of a campaign, as the public sees them, with an LLM.
+It selects the councilors, builds a dossier and one model request per councilor. Without `--send` it contacts nothing:
+review the requests, or run them by hand against any model. With `--send` it sends them and collects the articles in
+`councilors.md`. Read [sending to a model](README.md#sending-to-a-model) before the first `--send`.
+
+## Examples
+
+```sh
+# Who would get an article? Prints the selection only.
+tinarrative councilors saves/Protectorate00092.json
+
+# Write the dossier and requests for the player's councilors.
+tinarrative councilors saves/ --campaign protectorate --player-only --output profiles/
+
+# Write the articles with the "local" settings profile.
+tinarrative councilors saves/ --campaign latest --output profiles/ --send --profile local
+```
+
+Saves are chosen as described in [saves and campaigns](README.md#saves-and-campaigns). One save is enough, but **pass
+every save of the campaign** for a fuller record: careers come from the changes between saves, and each save
+remembers only about two months of missions.
 
 ## Who is selected
 
-From the latest save, a councilor needs at least `councilors.min_tenure_days` of employment
-(365 by default) and a human faction. Alien-faction councilors, the unemployed pool and departed
-councilors are never selected. Then:
+Every councilor of the player's faction, plus the two most prominent of each other human faction, once employed for a
+year. `--player-only` drops the rivals; `councilors.rivals_per_faction` and `councilors.min_tenure_days` in the
+[settings](../configuration.md) change the numbers.
 
-- every councilor of the player's faction is selected;
-- of each other human faction, the `councilors.rivals_per_faction` most prominent (2 by default).
-  `--player-only` drops them.
-
-Prominence ranks by the councilor's organization share (each organization's tier squared over the
-total of all organizations, summed over the councilor's organizations; the exponent is
-`built-in organization tier exponent`), then the skill sum, then XP, then entity ID. The player's faction is the one of the save's single human
-player.
-
-## Input
-
-The same inputs as [`events`](events.md): one save, or several saves and directories of one
-campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as there).
-
-- **The portrait** comes from the latest save and may use everything in it, including
-  councilors the other factions have not detected. `Loyalty` and `ApparentLoyalty` are never
-  written, and neither are traits the public cannot see: cybernetic implants, covert tradecraft and
-  pure game mechanics.
-- **Visibility** sets how well known the article makes the person: `public` (a world-wide
-  celebrity), `private` (high-level but out of the spotlight) or `shadow` (almost a rumor). It
-  follows the councilor's espionage, with trait and organization bonuses, and how much the traits
-  hide or expose the person; fame traits such as Famous or Megastar push strongly towards
-  `public`, Low Profile and Undercover towards `shadow`. A trait the game always reveals rules out
-  `shadow`; a low-profile trait rules out `public`.
-- **The career** (faction, detention, status and organization changes) comes from the events
-  between the saves. One save gives an empty career. Recruitment from the unemployed pool is not a
-  career milestone: `recruited` dates it exactly, where the event could only date it to a save.
-- **Missions** are listed for the player's councilors only. They come from the game's notification log, which
-  keeps only the last two months of resolved missions per save, so with several saves each outcome is
-  counted once across all of them; one save gives its own two months. Only the last
-  `councilors.missions_window_years` years count; aborted missions do not. The dossier lists the
-  `councilors.missions_per_councilor` most frequent mission types with their counts and most frequent regions,
-  and says that it is a sample: the period covered and how many outcomes were seen. The mission a
-  councilor is on now is listed separately as `active_mission`.
+Articles are written from the latest save as a whole, so they can mention councilors that other factions have not
+detected. Keep that in mind before sharing them during a campaign.
 
 ## Options
 
@@ -79,110 +62,22 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 | `--jobs N` | Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs). |
 <!-- end generated -->
 
-## Requests
-
-Each request holds the councilor brief: the dossier date and one councilor's entry, without the
-dossier's audit data (identifiers, templates, the selection, the source file, the player flag,
-experience, prominence and the concealment score). No faction name reaches the request: the
-brief gives the person's faction as a stance (defence-minded, hard-line, pro-contact, opportunist,
-emigrationist, accommodationist or devotional, by the faction's template), earlier factions as
-former stances, and the career as plain dated lines (a change of stance, a detention, a release).
-It turns profession and trait names, policy measurements and visibility into the same public wording
-and bands as before. Status and organization changes stay in the dossier only. A request block names the councilor and
-the length (`about <councilors.article_words> words`). The system
-prompt asks for an encyclopedia entry about the person's public standing: a lead, then background,
-career and public profile ([llm](../narrator.md#councilor-articles)). The same dossier always
-gives the same request files, so a request can be reviewed, or run by hand against any model.
-
-## Sending
-
-**`--send` hands the dossier to the provider, a third party unless it runs on your machine**
-(Ollama, or an OpenAI-compatible server at a local `base_url`). The requests carry no file paths,
-but they do carry councilor, nation and organization names.
-
-`--send` needs `--output DIR`, a provider and a model (there is no default model), and, for
-`anthropic`, `openrouter`, and for `openai` without a `base_url`, an `api_key_env` setting naming
-the environment variable that holds the API key. Anything missing is a usage error and nothing is
-contacted.
-
-Articles are sent in dossier order. An article whose stored response was made from the same
-request, provider and model is kept, not sent again; `--force` sends every article again. A failed
-request, or a completion cut off at the output limit, refused or with no text, skips that article
-only: the run goes on, the other articles are written, and the command exits 10 at the end. A rerun
-sends only the missing articles and reuses the stored responses.
-
 ## Output
 
-stdout gets the selection summary (as of the latest save, the player faction and, per councilor,
-the faction, player or rival, rank and tenure), then what was written. With `--send` it adds one
-line per article (`sent` or `kept`, with token counts) and names the articles file. With
-`--output DIR`, the command writes:
+stdout gets the selection: per councilor the faction, player or rival, rank and tenure. With `--send` it adds one line
+per article, `sent` or `kept`. With `--output DIR`, the command writes:
 
 ```text
 DIR/
   dossier.json       # the dossier
-  requests/01.json   # one request per councilor, in dossier order
+  requests/01.json   # one request per councilor
   responses/01.json  # with --send: one per completed article
   councilors.md      # with --send: the articles
-  manifest.json      # with --send: the run record, written with councilors.md
+  manifest.json      # with --send: the run record
 ```
 
-`dossier.json` has a header (`as_of`, `source` as the file name of the latest save, `player_faction`,
-`factions` mapping each human faction's name to its `templateName`, and the `selection` settings) and a `councilors` list, the player's councilors first. Each entry
-carries identity, the game's profession template name (such as `Spy`), gender (`male`, `female` or
-`null`), traits, the seven skills, the organization skills, age, home
-region and nation, recruitment date and tenure, organizations, policy influence, prominence, career
-and, for the player's councilors, missions and the active mission.
-
-`skills` are the councilor's own values, implants included. `org_skills` are what their organizations
-add on top: per skill, the sum of the organization bonuses, capped so that `skills` plus `org_skills`
-never exceed the game's limit of 25. Only nonzero skills are listed in either.
-
-`policy_influence` keeps the game field names and summed organization bonuses for selected causes,
-strongest first, leaving out any cause below +3% or below half of the strongest one. It also records
-`effective_causes`, the effective number of all nonzero causes, including those left out of the list.
-The request brief turns these measurements into public cause names, strength bands (`leading`,
-`strong` or `modest`) and a focus (`single-issue`, `focused` or `broad`).
-
-```json
-"policy_influence": {
-  "effective_causes": 1.8,
-  "causes": [
-    {"field": "oppressionBonus", "bonus": 0.1},
-    {"field": "spoilsBonus", "bonus": 0.06}
-  ]
-}
-```
-
-`prominence` is audit data: the organization share (`org_share`) and the skill sum the ranking uses, the
-capped organization skill sum (`org_skill_sum`, which does not affect the ranking) and the rank in
-the faction.
-
-Traits retain their game template names (`Averse`, for example), grouped as `temperament`,
-`expertise`, `reputation`, `circumstance` and `affiliation`. A trait this version does not know yet
-is listed under `other` by its template name. The request brief supplies display names such as
-`Cautious` and splits unknown names into words.
-
-`visibility` keeps the measured concealment score and public-profile flags used to interpret it. The
-request brief derives the `public`, `private` or `shadow` level and omits these measurements.
-
-An organization entry names its nature: `origin` (`generated` or `real`), `category` and the
-`basis` of the category. A generated organization takes its category from its template (`template`).
-A real-world organization takes it from a hand-assigned catalog of the game's named organizations
-(`catalog`); one the catalog does not know yet is categorized by the effects it grants (`stats`). The
-categories are `research`, `security_intelligence`, `military`, `militant`, `aerospace`, `government`,
-`public_interest`, `commercial`, `engineering_industry`, `technology`, `mining_resources`,
-`media_influence`, `ngo`, `criminal`, `vigilante` and `other`. The raw `template` is kept for audit.
-`nation` is the name of the nation that holds the organization's home region now; it is `null` for
-an organization without a home region, such as a faction's own special organization.
-
-`councilors.md` opens with a header naming the provider, the model as reported, the prompt
-version, the dossier date and the player faction, then one `##` section per faction, the player's
-first, with one `###` article per councilor. It carries no citations. An article that was not
-written is left out of it and listed in `manifest.json`, which records the prompt version, the
-dossier hash, the selection and provider settings and, per article, the request hash, whether it
-was written, the finish, the reason when it failed, and the token counts. When an article is
-missing, stderr gets one summary line.
+`councilors.md` has one section per faction, the player's first. A failed article is left out and listed in
+`manifest.json`; the others are still written, the run exits 10, and a rerun sends only the missing ones.
 
 ## Exit codes
 
@@ -197,11 +92,3 @@ missing, stderr gets one summary line.
 | 9 | --output cannot be written. |
 | 10 | An article request failed, or its completion was cut off, refused or empty; the other articles are written. |
 <!-- end generated -->
-
-## Examples
-
-```sh
-tinarrative councilors saves/Protectorate00092.json
-tinarrative councilors saves/ --campaign protectorate --player-only --output profiles/
-tinarrative councilors saves/ --campaign latest --output profiles/ --send --profile local
-```

@@ -10,11 +10,27 @@ tinarrative events [--campaign SELECTOR] [--format {markdown,json}]
 ```
 <!-- end generated -->
 
-Reads the saves of one campaign, puts them in game-time order and reports what happened between
-every pair of consecutive saves: the events found in each interval, how significant each one is
-and, on request, the events inferred from them, the narrative events that span the whole campaign and
-the literal state changes. It is the analyzed counterpart of [`save diff`](diff.md), and the
-source of the package that [`narrate`](narrate.md) tells.
+Reports what happened in one campaign between every pair of consecutive saves: the events found in each interval and
+how significant each one is. On request it adds the events inferred from them, the narrative events that span the
+whole campaign, and the literal state changes. Use it to read a campaign's analysis yourself, to check what
+[`narrate`](narrate.md) will tell, or to build a narrator package for your own model. Saves and campaigns are chosen as
+described in [saves and campaigns](README.md#saves-and-campaigns); at least two usable saves are needed.
+
+## Examples
+
+```sh
+# Everything that happened in the campaign being played.
+tinarrative events ~/saves --campaign latest > report.md
+
+# A digest: the major narrative events, each with the evidence behind it.
+tinarrative events ~/saves --narrative --min-significance major --constituents evidence
+
+# The narrator package, for narrate --package or your own model.
+tinarrative events ~/saves --narrative --format json > package.json
+
+# Audit a package: every ID in it resolves here, with its sources.
+tinarrative events ~/saves --inferred --format json > audit.json
+```
 
 ## Options
 
@@ -34,140 +50,39 @@ source of the package that [`narrate`](narrate.md) tells.
 | `--jobs N` | Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs). |
 <!-- end generated -->
 
-## Input
+The thresholds of the narrative rules are [settings](../configuration.md); a report built with non-default settings
+says so.
 
-- Files and directories can be mixed. A directory contributes its files one level deep;
-  subdirectories are not entered.
-- A named file that is not a usable save stops the run (exit 4 or 5). A file inside a named
-  directory that is not a usable save is skipped and listed in the report.
-- At least two usable saves are needed, after directory expansion and in the chosen campaign.
-  Fewer is a usage error (exit 2).
-- Saves are ordered by game time, never by file name or argument order. Byte-identical copies
-  (such as an `Exitsave.json` beside the save it copies) are merged into one.
+## Output
 
-## Campaigns
+The Markdown report has four parts:
 
-The saves are grouped by campaign as [`campaigns`](campaigns.md) lists them.
-
-- With one campaign, `--campaign` is not needed.
-- With several and no `--campaign`, a terminal opens the [campaign picker](#campaign-picker);
-  otherwise the run exits 2 and prints the listing to stderr. Campaigns are never mixed.
-- `--campaign` takes a key or unique key prefix, the listing number, or `latest`
-  ([selector keys](campaigns.md#selector-keys)). A selector that matches no campaign or several
-  opens the picker in a terminal, or exits 2 otherwise.
-
-### Campaign picker
-
-The picker opens only when stdin and stderr are both terminals. It writes to stderr, so
-`events saves > report.md` still asks in the terminal. At the prompt
-`Campaign (number, key or search text; empty to cancel):` type:
-
-- anything `--campaign` accepts (a number, a key or key prefix, `latest`); or
-- search text, matched against the key, faction name, scenario and start date. Letters may be
-  skipped (`prot` finds `protectorate`) and case is ignored. With several matches the listing
-  narrows and the prompt asks again.
-
-An empty answer, end of input or Ctrl-C cancels: the run prints `no campaign chosen` and exits 2.
-
-## Markdown output
-
-- `## Campaign`: the chosen campaign and the signals it was grouped on.
-- `## Saves`: the saves in game-time order with their merged copies, and any skipped files.
+- `## Campaign`: the chosen campaign.
+- `## Saves`: the saves in game-time order, with merged copies and skipped files.
 - `## Narrative` (with `--narrative`): the narrative events by period.
-- `## Intervals`: one section per pair of saves with its change count, `#### Inferred events`
-  (with `--inferred`), `#### Objective analyzer results` grouped by category, and
-  `#### State changes` (with `--changes`).
+- `## Intervals`: one section per pair of saves, with its inferred events (with `--inferred`), its analyzer results by
+  category, and its state changes (with `--changes`).
 
-Entities are named as `Name (domain:key)`, such as `Germany (nation:3857)`. Every event has an ID
-qualified by its interval, such as `region.nation_changed/region:42@2032-07-01T00:00:00`, so it can
-be cited and looked up. An inferred event lists the events it rests on:
-
-```
-- nation:20 annexed 1 region of nation:21 (confidence: `medium`)
-  - from `region.nation_changed/region:42@2032-04-01T00:00:00`: region:42 nation: nation:21 -> nation:20
-```
-
-## Narrative events
-
-`--narrative` joins the events of the whole campaign into narrative events that span
-intervals, such as a takeover and its consolidation, a war from start to peace, or a nation's
-economic boom. Each is listed under its starting period with its span, `(open)` when it is still
-under way in the last save, its description, confidence and significance, its roles, its key
-attributes and the IDs of the events it is built from:
+Entities are named as `Name (domain:key)`, such as `Germany (nation:3857)`. Every event has an ID, such as
+`region.nation_changed/region:42@2032-07-01T00:00:00`, and an inferred or narrative event lists the IDs it rests on:
 
 ```
 - `2032-01-01T00:00:00` to `2032-07-01T00:00:00` (open): <description> (inferred, confidence `medium`, significance `major`)
   - roles: actor: Fixture Faction (faction:7); target: Fixture Nation (nation:20)
-  - attributes: metric_shifts: 2; region_count: `1`
   - from `faction.nation_control_changed/executive/nation:20@2032-04-01T00:00:00`
 ```
 
-With `--narrative`, `--min-significance` filters the narrative events, and the interval sections
-list only the events behind them that `--constituents` keeps; an interval with nothing to list
-shrinks to one line. `events --narrative` thus reads as a digest, with `--constituents evidence`
-or `all` filling in the drill-down. The takeovers a listed `faction.takeover_wave` groups are
-listed by headline only, as members of the wave, and their own evidence is left out. The rules'
-thresholds come from the settings file
-([configuration](../configuration.md)); when they differ from the defaults, the section says so.
-The rules themselves are in the [`narrative`](../../src/tinarrative/narrative/) package.
+`(open)` marks a narrative event still under way in the last save. With `--narrative`, the interval sections list
+only the events that `--constituents` keeps.
 
-## JSON output
-
-`--format json` prints one object, built by
-[`rendering/json_report.py`](../../src/tinarrative/rendering/json_report.py):
-
-- `campaign`: the chosen campaign, as `campaigns --format json` lists it;
-- `inputs`, `duplicates`, `skipped`: what was read, merged and skipped;
-- `saves`: the saves in order, each with its [situation report](#situation-report);
-- `intervals`: per interval, its dates, change count, `events`, `inferred`, `state_changes` and
-  `omitted` counts;
-- `narrative`, `narrative_omitted`: the narrative events and how many were filtered out; a
-  takeover a listed `faction.takeover_wave` groups keeps only its `id`, `event_type`,
-  `significance`, span, `roles` and `intervals`, plus `member_of` naming the wave;
-- `settings`, `min_significance`, `constituents`: how the report was built;
-- `glossary`: names for the entities the document references by ID only.
-
-Members that an option did not ask for are `null`. Events are serialized by
-[`model/events.py`](../../src/tinarrative/model/events.py) and state changes as in
-`save diff --format json`. Every event and narrative event carries its `significance` level and a
-`score` from 0 to 100 that always lies in that level's band (`trivial` 0–24, `minor` 25–49, `major`
-50–74, `campaign_defining` 75–100). An event whose type has no stake scores the midpoint of its level's
-band. For the types the stake scales (nation, territory, control-point and organization events, wars), the score
-moves with the share of the world the event touched, and the level follows the score; such an event also carries
-a `significance_basis` with its `base` score, the `measure` (`power`, `population` or `organization`), the
-`share`, the `scale` it added and the stake `entities` (plus a `bonus` for a war between nuclear-armed nations).
-Geopolitical narrative events are scaled the same way, from the situation reports of their first interval: a
-takeover, takeover wave or merger by the power share of the nations taken or absorbed, a war arc by that of every
-belligerent (with the bonus when both sides hold warheads), a federation by that of every member, a release or
-breakaway by that of the new nation, and an expansion, cession or claim by the population share of its regions. A
-narrative event never scores below the highest-scored event it cites, so its basis may explain less than its
-score.
-The [narrator package](#narrator-package) keeps the `score` and drops the basis. The reference shares and the
-clamp are [settings](../configuration.md). Without `--narrative`, every event keeps its source locations in the
-saves.
+`--format json` prints the same report as one document, with a situation report per save and a glossary of the
+entities it references. Every event carries a `significance` level and a `score` from 0 to 100.
 
 ### Narrator package
 
-`events --format json --narrative` is the narrator package, the input of [`narrate`](narrate.md)
-and of an LLM narrator ([narrator](../narrator.md)). It holds the narrative events, a situation
-report per save, the glossary and, with `--constituents all` or `evidence`, the events the listed
-narrative events are built from. It carries IDs but no file paths and no source locations, and leaves
-out detail a narrator does not need. `--changes` is a usage error with it.
-
-To audit a package, run the same saves with `--inferred` instead of `--narrative` and without
-`--min-significance`: every ID in the package resolves there, with its sources. The package form
-is built by `_narrator_package` in
-[`rendering/json_report.py`](../../src/tinarrative/rendering/json_report.py), and the glossary by
-[`narrative/glossary.py`](../../src/tinarrative/narrative/glossary.py).
-
-### Situation report
-
-Each save's `situation` is a digest of that one save: per nation its controlling factions'
-shares, federation, wars, regions, population, statistics, armies, nuclear warheads and space assets; the
-federations and wars; per faction its habs, fleets and ships; and world totals such as
-milestones, nuclear and climate figures and the largest spaceports. It states literal values and
-counts, never an inference, and a value the save does not establish is `{"unknown": <reason>}`.
-It is built by [`narrative/situation.py`](../../src/tinarrative/narrative/situation.py).
+`events --narrative --format json` is the narrator package: the input of [`narrate --package`](narrate.md) and of any
+LLM narrator ([narrator](../narrator.md)). It holds the narrative events, a situation report per save, the glossary
+and, with `--constituents all` or `evidence`, the events behind them, but no file paths or locations in the saves.
 
 ## Exit codes
 
@@ -180,11 +95,3 @@ It is built by [`narrative/situation.py`](../../src/tinarrative/narrative/situat
 | 5 | A named file is not a supported save or has no game time. |
 | 8 | The settings file cannot be read or is not valid settings. |
 <!-- end generated -->
-
-## Examples
-
-```sh
-tinarrative events ~/saves --campaign latest > report.md
-tinarrative events ~/saves --narrative --min-significance major --constituents evidence
-tinarrative events ~/saves --narrative --format json > package.json
-```

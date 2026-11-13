@@ -40,9 +40,11 @@ Each fact has exactly one home. Point to it; do not restate it.
   real data, labeled observed vs. hypothesis. Nowhere else cites save samples, counts or dates. Known state types
   match the inventory there
   (`tests/parsing/test_unknowns.py::test_known_state_types_match_the_documented_inventory`).
-- **Command pages are for users.** Usage, options, outputs, exit codes and examples; no internals. Update the page
-  when a command's behavior changes. The synopsis, options and exit codes are generated from `cli.py` (help strings
-  and `EXIT_CODES`); edit them there and run `make docs` (`tests/test_reference_docs.py`).
+- **Command pages are for users.** When to use the command, examples for its likely uses, then the options and exit
+  codes; an output sample only where the output's shape is the point. No internals, formulas or motivations: those live
+  in code and ADRs. Behavior shared by several commands is described once, in `docs/commands/README.md`. The synopsis,
+  options and exit codes are generated from `cli.py` (help strings and `EXIT_CODES`); edit them there and run
+  `make docs` (`tests/test_reference_docs.py`). Update the page when a command's behavior changes.
 - **Settings have one example.** `docs/configuration.example.toml` is exactly the defaults
   (`tests/test_config.py::test_example_is_the_defaults`).
 - **The narrator's system prompts exist once,** as `prompt.md` and `councilor_prompt.md` in the package; docs point

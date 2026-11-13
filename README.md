@@ -23,44 +23,26 @@ leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
 
 ## Commands
 
-- [`tinarrative campaigns <path>...`](docs/commands/campaigns.md): list the campaigns
-  that saves belong to, with the selector for `events --campaign`.
-- [`tinarrative councilors <path>...`](docs/commands/councilors.md): select a campaign's
-  notable councilors, write the dossier and one article request per councilor, and with
-  `--send` have a model write the neutral, public-perception articles.
-- [`tinarrative events <path> <path>...`](docs/commands/events.md): group saves
-  (files, or directories read one level deep) by campaign, order one campaign's saves
-  by game time and report the analyzer results (and, with
-  `--inferred`, the inferred events; with `--changes`, the literal state changes)
-  of every pair of consecutive saves; with `--narrative`, the narrative events that span
-  intervals (takeovers, wars, federations, expansions, ...), tuned by an optional
-  [settings file](docs/configuration.md). This is the only command that reports analysis;
-  `narrate` runs the same analysis to build its package.
-- [`tinarrative narrate <path>...`](docs/commands/narrate.md): cut a campaign's narrator
-  package into chapters under a token budget and write one LLM request per chapter; with
-  `--send`, send them to an Anthropic, OpenAI-compatible or Ollama model and assemble the
-  responses into one footnoted history with a citation audit and a run manifest.
-- `tinarrative save COMMAND`: per-save evidence and debugging commands.
-  - [`tinarrative save inspect <save>`](docs/commands/inspect.md): report one save's
-    raw serialized structure without interpreting it.
-  - [`tinarrative save parse <save>`](docs/commands/parse.md): load and validate one
-    save as a supported raw save and print an envelope summary, ending with the
-    number of unknown structures met.
-  - [`tinarrative save diff <before> <after>`](docs/commands/diff.md): compare two saves and
-    list every literal state change between them, with before/after values and
-    evidence, without analyzing or inferring anything.
-- [`tinarrative benchmark sample <name> <path>...`](docs/commands/benchmark.md): import or refresh a campaign's
-  saves in the package-size benchmark samples.
-- [`tinarrative unknowns <path>...`](docs/commands/unknowns.md): scan saves for
-  structures the parser does not describe and record them in the
-  [unknowns registry](docs/game-data-notes/unknowns/README.md) for triage.
+Campaign history:
 
-Each page documents the command's options, output, and exit codes. See the
-[command index](docs/commands/README.md) for the shared exit-code conventions.
+- [`campaigns`](docs/commands/campaigns.md): list the campaigns your saves belong to.
+- [`narrate`](docs/commands/narrate.md): have an LLM write the campaign's history.
+- [`councilors`](docs/commands/councilors.md): have an LLM write articles about the notable councilors.
 
-To see what the parser decided, run any command with `--log-level debug` before
-the command name, or set `TINARRATIVE_LOG_LEVEL=debug`; the log goes to stderr and
-names no paths or save content. See the [debugging guide](docs/debugging.md).
+Analysis and debugging:
+
+- [`events`](docs/commands/events.md): report what happened between consecutive saves; builds the narrator package.
+- [`save diff`](docs/commands/diff.md): list every literal change between two saves.
+- [`save parse`](docs/commands/parse.md): check that a save loads.
+- [`save inspect`](docs/commands/inspect.md): show a save's raw structure.
+
+Maintainer tooling:
+
+- [`unknowns`](docs/commands/unknowns.md): find save structures the parser does not describe yet.
+- [`benchmark`](docs/commands/benchmark.md): maintain the sample campaigns and measure package size and runtime.
+
+Options, saves, campaigns and exit codes shared by the commands are in the [command reference](docs/commands/README.md).
+Add `--log-level debug` before the command to see what the parser decided; see the [debugging guide](docs/debugging.md).
 
 ## Testing
 
