@@ -13,8 +13,10 @@ from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, TREND_QUARTE
 from ..analyzers.politics.nation_population import DROP
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from ..kinds import nations as nation_kinds
+from ..kinds.campaign import NUCLEAR_STRIKES_CHANGED as NUCLEAR_STRIKES_CHANGED_KIND
 from ..model.entities import EntityId
 from ..model.events import Event, Role, Significance
+from ..model.kinds import EventKind
 from ..model.values import FrozenMap, Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
@@ -51,13 +53,13 @@ from .situation import SituationReport
 from .stream import EventStream
 
 BAND_CROSSED = nation_kinds.BAND_CROSSED.event_type
-POPULATION_COLLAPSE = "nation.population_collapse"
-ECONOMIC_TRAJECTORY = "nation.economic_trajectory"
-NUCLEAR_STRIKES_CHANGED = "campaign.nuclear_strikes_changed"
+POPULATION_COLLAPSE = nation_kinds.POPULATION_COLLAPSE.event_type
+ECONOMIC_TRAJECTORY = nation_kinds.ECONOMIC_TRAJECTORY.event_type
+NUCLEAR_STRIKES_CHANGED = NUCLEAR_STRIKES_CHANGED_KIND.event_type
 NUCLEAR_ARC = "nation.nuclear_arc"
-NUCLEAR_ARMAMENT = "nation.nuclear_armament"
-NUCLEAR_BUILDUP = "nation.nuclear_buildup"
-NUCLEAR_DISARMAMENT = "nation.nuclear_disarmament"
+NUCLEAR_ARMAMENT = nation_kinds.NUCLEAR_ARMAMENT.event_type
+NUCLEAR_BUILDUP = nation_kinds.NUCLEAR_BUILDUP.event_type
+NUCLEAR_DISARMAMENT = nation_kinds.NUCLEAR_DISARMAMENT.event_type
 NUCLEAR_WEAPONS = "numNuclearWeapons"
 NUCLEAR_SHARE = 0.5
 """A buildup gains, and a disarmament loses, at least this share of the arsenal it started from."""
@@ -65,14 +67,7 @@ LARGE_ARSENAL = 10
 """Dismantling an arsenal at least this large to zero is campaign defining."""
 TREND_WINDOW_DAYS = round(TREND_QUARTERS * MONTHS_PER_QUARTER * 365.25 / 12)
 
-BAND_SHIFTS: Mapping[str, str] = {
-    "unrest": "nation.unrest_shift",
-    "democracy": "nation.government_shift",
-    "education": "nation.education_shift",
-    "cohesion": "nation.cohesion_shift",
-    "inequality": "nation.inequality_shift",
-    "militaryTechLevel": "nation.miltech_shift",
-}
+BAND_SHIFTS: Mapping[str, EventKind] = nation_kinds.BAND_SHIFTS
 
 SHIFT_EXPLAINERS = frozenset({TAKEOVER, EXPANSION, CESSION, MERGER, RELEASE, BREAKAWAY})
 """Their metric shifts explain the affected nations' band changes."""
@@ -119,7 +114,7 @@ class BandShiftRule:
 
     @property
     def name(self) -> str:
-        return BAND_SHIFTS[self.statistic]
+        return BAND_SHIFTS[self.statistic].event_type
 
     @property
     def emitted_types(self) -> frozenset[str]:
@@ -161,7 +156,7 @@ class BandShiftRule:
             shifts = metric_shifts(stream, [nation.entity_id], [interval_of(crossing.id)])
             built.append(
                 build.event(
-                    self.name,
+                    BAND_SHIFTS[self.statistic],
                     id_parts=[nation.entity_id],
                     constituents=[crossing],
                     roles=roles,
@@ -264,7 +259,7 @@ class PopulationCollapseRule:
             shifts = metric_shifts(stream, [nation.entity_id], [key])
             built.append(
                 build.event(
-                    POPULATION_COLLAPSE,
+                    nation_kinds.POPULATION_COLLAPSE,
                     id_parts=[nation.entity_id],
                     constituents=[drop],
                     corroborating=nuclear,
@@ -328,7 +323,7 @@ class EconomicTrajectoryRule:
                 window_start = first.attribute("window_start")
                 built.append(
                     build.event(
-                        ECONOMIC_TRAJECTORY,
+                        nation_kinds.ECONOMIC_TRAJECTORY,
                         id_parts=[nation_id, first.attribute("quarter")],
                         constituents=run,
                         roles=[(Role.ACTOR, nation)],
@@ -416,7 +411,7 @@ class NuclearArcRule:
                 report = pair[1]
                 corroborating: list[Event] = []
                 if start == 0 < end:
-                    event_type = NUCLEAR_ARMAMENT
+                    kind = nation_kinds.NUCLEAR_ARMAMENT
                     rank = gdp_rank(report, nation_id)
                     top = rank is not None and rank <= self.geopolitics.top_gdp_nations
                     level = Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR
@@ -427,16 +422,16 @@ class NuclearArcRule:
                 elif 0 < start < end and (
                     end - start >= self.settings.nuclear_buildup_min or end - start >= NUCLEAR_SHARE * start
                 ):
-                    event_type, level = NUCLEAR_BUILDUP, Significance.MAJOR
+                    kind, level = nation_kinds.NUCLEAR_BUILDUP, Significance.MAJOR
                 elif start > end and start - end >= NUCLEAR_SHARE * start:
-                    event_type = NUCLEAR_DISARMAMENT
+                    kind = nation_kinds.NUCLEAR_DISARMAMENT
                     dismantled = end == 0 and start >= LARGE_ARSENAL
                     level = Significance.CAMPAIGN_DEFINING if dismantled else Significance.MAJOR
                 else:
                     continue
                 built.append(
                     build.event(
-                        event_type,
+                        kind,
                         id_parts=[nation_id],
                         constituents=run,
                         corroborating=corroborating,

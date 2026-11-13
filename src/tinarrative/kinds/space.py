@@ -1,12 +1,15 @@
-"""Fleets, habs, ships and space-combat events."""
+"""Fleets, habs, ships and space-combat events, and the campaigns, colonisation waves and fleet buildups told from
+them."""
 
 from __future__ import annotations
 
 from ..diff.render import render_value
 from ..model.entities import EntityDomain
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole
 from ..model.values import FrozenMap, Unknown
+from .narrative import count as _count
+from .narrative import narrative_kind, role
 from .text import (
     attribute_label as _attr,
 )
@@ -18,6 +21,9 @@ from .text import (
     list_changed,
     plain,
     render_event_value,
+)
+from .text import (
+    refs as _refs,
 )
 from .text import (
     subject_label as _subject,
@@ -353,6 +359,67 @@ FACTION_BATTLE_OUTCOME = EventKind(
     ),
 )
 
+
+def _space_campaign(event: Event) -> str:
+    target = role(event, Role.TARGET)
+    if event.attribute("victim_kind") == "alien":
+        target = f"the aliens ({target})"
+    text = f"{role(event, Role.ACTOR)} fought {target} over {_count(event.attribute('battles'), 'recorded outcome')}"
+    losses = [
+        _count(lost, label)
+        for key, label in (("habs_lost", "hab"), ("fleets_lost", "fleet"))
+        if (lost := event.attribute(key))
+    ]
+    if losses:
+        text += f", which lost {' and '.join(losses)}"
+    won, lost = event.attribute("combats_won"), event.attribute("combats_lost")
+    if won or lost:
+        text += f"; recorded combats won {render_value(won)}, lost {render_value(lost)}"
+    if event.attribute("bodies"):
+        text += f"; habs lost at {_refs(event, 'bodies')}"
+    return text
+
+
+def _colonisation_wave(event: Event) -> str:
+    return (
+        f"{role(event, Role.ACTOR)} reached {_refs(event, 'bodies')} in quick succession "
+        f"({_count(event.attribute('hab_count'), 'hab')})"
+    )
+
+
+def _fleet_buildup(event: Event) -> str:
+    return (
+        f"{role(event, Role.ACTOR)} put {_count(event.attribute('count'), 'ship')} of hull "
+        f"{_text(event, 'hull')} into service"
+    )
+
+
+SPACE_CAMPAIGN = narrative_kind(
+    "faction.space_campaign",
+    _space_campaign,
+    required=frozenset(
+        {
+            "victim_kind",
+            "battles",
+            "habs_lost",
+            "fleets_lost",
+            "combats_won",
+            "combats_lost",
+            "bodies",
+            "span_from",
+            "span_to",
+        }
+    ),
+    # The campaign of the opposite pair telling the same combats.
+    optional=frozenset({"mirror"}),
+)
+COLONISATION_WAVE = narrative_kind(
+    "faction.colonisation_wave",
+    _colonisation_wave,
+    required=frozenset({"bodies", "hab_count", "first_of_any_faction"}),
+)
+FLEET_BUILDUP = narrative_kind("faction.fleet_buildup", _fleet_buildup, required=frozenset({"hull", "count"}))
+
 KINDS = (
     FLEET_FACTION_CHANGED,
     FLEET_DOCKED_LOCATION_CHANGED,
@@ -385,4 +452,7 @@ KINDS = (
     FACTION_FIRST_HAB_ON_BODY,
     HAB_DESTROYED,
     FACTION_BATTLE_OUTCOME,
+    SPACE_CAMPAIGN,
+    COLONISATION_WAVE,
+    FLEET_BUILDUP,
 )

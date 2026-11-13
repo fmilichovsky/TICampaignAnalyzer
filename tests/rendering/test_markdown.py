@@ -4,6 +4,9 @@ from collections.abc import Iterable
 from dataclasses import replace
 from datetime import datetime
 
+from tests.narrative.support import declared_attributes
+from tinarrative.kinds import attributes as kind_attributes
+from tinarrative.kinds.control import TAKEOVER, TAKEOVER_WAVE
 from tinarrative.model.changes import StateChange
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
@@ -351,14 +354,19 @@ def test_with_a_narrative_an_interval_lists_only_cited_events_and_only_with_cons
 
 
 def test_a_wave_member_shows_its_headline_and_wave_without_its_constituents() -> None:
-    member = _arc("1", "2030-01-01T00:00:00", event_type="faction.takeover")
+    member = _arc(
+        "1",
+        "2030-01-01T00:00:00",
+        event_type=TAKEOVER.event_type,
+        attributes=declared_attributes(TAKEOVER.event_type, ()),
+    )
     wave = _arc(
         "9",
         "2030-01-01T00:00:00",
-        id=f"faction.takeover_wave/nation:9@{AFTER.date}",
-        event_type="faction.takeover_wave",
+        id=f"{TAKEOVER_WAVE.event_type}/nation:9@{AFTER.date}",
+        event_type=TAKEOVER_WAVE.event_type,
         constituents=(member.id,),
-        attributes=(("nations", (_nation(),)), ("count", 1)),
+        attributes=kind_attributes(TAKEOVER_WAVE, nations=(_nation(),), count=1),
     )
 
     rendered = _narrative_render([member, wave])

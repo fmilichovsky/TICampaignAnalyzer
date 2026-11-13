@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.narrative.support import atomic, nation, situation
+from tests.narrative.support import atomic, declared_attributes, nation, situation
 from tinarrative.kinds import KINDS
 from tinarrative.model.events import Event, Role
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, NarrativeRule, aggregate
@@ -33,11 +33,12 @@ def every_type() -> list[Event]:
     build = NarrativeBuilder(())
     narratives = [
         build.event(
-            event_type,
+            KINDS[event_type],
             id_parts=["injected"],
             constituents=atomics[:1],
             roles=[(Role.ACTOR, NORTH), (Role.TARGET, SOUTH), (Role.BENEFICIARY, NORTH), (Role.LOSER, SOUTH)],
             join=Join.ENTITY,
+            attributes=declared_attributes(event_type, ()),
         )
         for event_type in NARRATIVE_TYPES
     ]

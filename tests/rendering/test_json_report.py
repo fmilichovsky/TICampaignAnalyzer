@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from tests.narrative.support import declared_attributes
+from tinarrative.kinds.control import TAKEOVER, TAKEOVER_WAVE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
 
@@ -163,8 +165,8 @@ def test_a_digested_member_keeps_its_headline_and_names_its_wave() -> None:
     nation = EntityRef(EntityId(EntityDomain.NATION, "1"), IdentityConfidence.IN_SAVE_ID)
     date = datetime(2030, 2, 1).isoformat()
     member = Event(
-        id="faction.takeover/nation:1@k",
-        event_type="faction.takeover",
+        id=f"{TAKEOVER.event_type}/nation:1@k",
+        event_type=TAKEOVER.event_type,
         status=EventStatus.INFERRED,
         confidence=Confidence.MEDIUM,
         date=date,
@@ -172,7 +174,7 @@ def test_a_digested_member_keeps_its_headline_and_names_its_wave() -> None:
         not_before=date,
         sources=(),
         entities=(nation,),
-        attributes=(("cause", "Politics"),),
+        attributes=declared_attributes(TAKEOVER.event_type, (("cause", "Politics"),)),
         significance=Significance.MAJOR,
         constituents=("faction.nation_control_changed/nation:1@k",),
         start=date,
@@ -183,10 +185,11 @@ def test_a_digested_member_keeps_its_headline_and_names_its_wave() -> None:
         roles=((Role.TARGET, nation),),
     )
 
-    digest = _entry(member, {member.id: "faction.takeover_wave/faction:2@k"})
+    wave_id = f"{TAKEOVER_WAVE.event_type}/faction:2@k"
+    digest = _entry(member, {member.id: wave_id})
 
     assert set(digest) == {
         "id", "event_type", "significance", "start", "start_basis", "end", "roles", "intervals", "member_of"
     }  # fmt: skip
-    assert digest["member_of"] == "faction.takeover_wave/faction:2@k"
+    assert digest["member_of"] == wave_id
     assert _entry(member, {}) == member.to_dict()

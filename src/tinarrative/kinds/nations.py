@@ -1,9 +1,6 @@
-"""Nation territory, structure, relations, claims, names, statistics, population, space and rank, and the territorial
-readings inferred from region transfers.
-
-Narrator evidence: territory and its readings, names, a nation's end, statistic and band moves, population, space
-assets, the nuclear program and relations. The rest is bookkeeping a narrative event states in summary form.
-"""
+"""Nation territory, structure, relations, claims, names, statistics, population, space and rank, the territorial
+readings inferred from region transfers, and the narrative events told from them. Narrator evidence: territory, names,
+a nation's end, statistic and band moves, population, space assets, the nuclear program and relations."""
 
 from __future__ import annotations
 
@@ -11,9 +8,10 @@ from collections.abc import Callable, Mapping
 from types import MappingProxyType
 
 from ..model.entities import EntityDomain, EntityRef
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule, Stake
 from ..model.values import Unknown
+from .narrative import has_role, narrative_kind, role
 from .text import (
     TRANSITION,
     attribute_label,
@@ -25,6 +23,7 @@ from .text import (
     plain,
     presence,
     refs,
+    region_count,
     regions,
     render_event_value,
     subject_label,
@@ -415,6 +414,211 @@ ANNEXATION = EventKind(
     stake=Stake.TERRITORY,
 )
 
+# --- Narrative events ---------------------------------------------------------------------------------------------
+
+SHIFTED = frozenset({"gdp_rank", "metric_shifts"})
+"""What a nation-level narrative event with metric shifts always carries besides its own facts."""
+
+
+def _expansion(event: Event) -> str:
+    text = f"{role(event, Role.ACTOR)} expanded over {role(event, Role.TARGET)}: {regions(event)}"
+    mode = event.attribute("mode")
+    return f"{text} ({mode})" if isinstance(mode, str) else text
+
+
+def _cession(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} ceded {regions(event)} to {role(event, Role.BENEFICIARY)}"
+
+
+def _merger(event: Event) -> str:
+    text = f"{role(event, Role.ACTOR)} absorbed {role(event, Role.TARGET)} by unification"
+    faction = event.attribute("unifying_faction")
+    return f"{text} under {name(faction)}" if isinstance(faction, EntityRef) else text
+
+
+def _release(event: Event) -> str:
+    if has_role(event, Role.ACTOR):
+        return f"{role(event, Role.ACTOR)} released {role(event, Role.BENEFICIARY)}"
+    return f"{role(event, Role.BENEFICIARY)} was released by one of {refs(event, 'parents')}"
+
+
+def _breakaway(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} broke away from {role(event, Role.TARGET)}"
+
+
+def _claims_declared(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} claimed regions of {role(event, Role.TARGET)}"
+
+
+def _band_shift(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} {bands(event)}"
+
+
+def _population_collapse(event: Event) -> str:
+    return (
+        f"{role(event, Role.ACTOR)} population collapse: {attribute_label(event, 'before')} -> "
+        f"{attribute_label(event, 'residual')}"
+    )
+
+
+def _economic_trajectory(event: Event) -> str:
+    return (
+        f"{role(event, Role.ACTOR)} per-capita GDP {attribute_text(event, 'direction')}: "
+        f"{attribute_label(event, 'first_value')} -> {attribute_label(event, 'last_value')}"
+    )
+
+
+def _diplomatic_realignment(event: Event) -> str:
+    def listed(key: str) -> int:
+        value = event.attribute(key)
+        return len(value) if isinstance(value, tuple) else 0
+
+    text = (
+        f"{role(event, Role.ACTOR)} realigned its diplomacy with {attribute_label(event, 'partner_count')} partners: "
+        f"allies +{listed('allies_gained')}/-{listed('allies_lost')}, "
+        f"rivals +{listed('rivals_gained')}/-{listed('rivals_lost')}"
+    )
+    if listed("reversed_partners"):
+        text += f"; reversed with {attribute_label(event, 'reversed_partners')}"
+    if event.attribute("executive") is not None:
+        text += f"; executive {attribute_label(event, 'executive')}"
+    return text
+
+
+def _nuclear_arsenal(change: str) -> Callable[[Event], str]:
+    def describe(event: Event) -> str:
+        return (
+            f"{role(event, Role.ACTOR)} {change}: {attribute_label(event, 'before')} -> "
+            f"{attribute_label(event, 'after')} nuclear weapons"
+        )
+
+    return describe
+
+
+def _space_program_growth(event: Event) -> str:
+    return (
+        f"{role(event, Role.ACTOR)} space program grew: boost {attribute_label(event, 'boost_before')} -> "
+        f"{attribute_label(event, 'boost_after')}, mission control {attribute_label(event, 'mission_control_before')} "
+        f"-> {attribute_label(event, 'mission_control_after')}"
+    )
+
+
+def _space_defences_established(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} established space defences ({region_count(event.attribute('regions'))})"
+
+
+def _ranking_changed(event: Event) -> str:
+    text = f"Top {attribute_label(event, 'top')} by {attribute_text(event, 'metric')} changed"
+    if has_role(event, Role.BENEFICIARY):
+        text += f": entered {role(event, Role.BENEFICIARY)}"
+    if has_role(event, Role.LOSER):
+        text += f"; left {role(event, Role.LOSER)}"
+    return text
+
+
+EXPANSION = narrative_kind(
+    "nation.expansion",
+    _expansion,
+    required=frozenset({"losers", "regions", "region_count", "mode", "metric_shifts"}),
+)
+CESSION = narrative_kind(
+    "nation.cession",
+    _cession,
+    required=frozenset({"regions", "region_count", "allied", "shared_federation", "metric_shifts"}),
+)
+MERGER = narrative_kind(
+    "nation.merger",
+    _merger,
+    required=frozenset(
+        {"absorbed", "regions", "region_count", "unifying_faction", "bases", "executive_since", "metric_shifts"}
+    ),
+)
+_INDEPENDENCE = frozenset({"parents", "releasing_nation", "executive_faction", "metric_shifts"})
+RELEASE = narrative_kind("nation.release", _release, required=_INDEPENDENCE)
+BREAKAWAY = narrative_kind("nation.breakaway", _breakaway, required=_INDEPENDENCE)
+CLAIMS_DECLARED = narrative_kind(
+    "nation.claims_declared", _claims_declared, required=frozenset({"regions", "metric_shifts"})
+)
+
+_BAND_SHIFT = SHIFTED | {"statistic", "before", "after", "from_band", "to_band", "bands_crossed"}
+BAND_SHIFTS: Mapping[str, EventKind] = MappingProxyType(
+    {
+        statistic: narrative_kind(event_type, _band_shift, required=_BAND_SHIFT)
+        for statistic, event_type in (
+            ("unrest", "nation.unrest_shift"),
+            ("democracy", "nation.government_shift"),
+            ("education", "nation.education_shift"),
+            ("cohesion", "nation.cohesion_shift"),
+            ("inequality", "nation.inequality_shift"),
+            ("militaryTechLevel", "nation.miltech_shift"),
+        )
+    }
+)
+"""The band-shift kind of each banded statistic."""
+
+POPULATION_COLLAPSE = narrative_kind(
+    "nation.population_collapse",
+    _population_collapse,
+    required=SHIFTED | {"before", "after", "residual", "relative_change", "nuked_regions", "causes"},
+)
+ECONOMIC_TRAJECTORY = narrative_kind(
+    "nation.economic_trajectory",
+    _economic_trajectory,
+    required=frozenset(
+        {
+            "direction",
+            "start_quarter",
+            "end_quarter",
+            "first_value",
+            "last_value",
+            "ratio",
+            "before_sequence",
+            "gdp_rank",
+        }
+    ),
+)
+DIPLOMATIC_REALIGNMENT = narrative_kind(
+    "nation.diplomatic_realignment",
+    _diplomatic_realignment,
+    required=SHIFTED
+    | {
+        "allies_gained",
+        "allies_lost",
+        "rivals_gained",
+        "rivals_lost",
+        "reversed_partners",
+        "partner_count",
+        "executive",
+        "strength_rank",
+    },
+)
+_ARSENAL = frozenset({"before", "after", "gdp_rank", "strength_rank"})
+NUCLEAR_ARMAMENT = narrative_kind(
+    "nation.nuclear_armament", _nuclear_arsenal("armed with nuclear weapons"), required=_ARSENAL
+)
+NUCLEAR_BUILDUP = narrative_kind(
+    "nation.nuclear_buildup", _nuclear_arsenal("built up its nuclear arsenal"), required=_ARSENAL
+)
+NUCLEAR_DISARMAMENT = narrative_kind(
+    "nation.nuclear_disarmament", _nuclear_arsenal("dismantled its nuclear arsenal"), required=_ARSENAL
+)
+SPACE_PROGRAM_GROWTH = narrative_kind(
+    "nation.space_program_growth",
+    _space_program_growth,
+    required=frozenset(
+        f"{metric}_{measure}"
+        for metric in ("boost", "mission_control")
+        for measure in ("before", "after", "territory_share", "rank")
+    )
+    | {"entered_top"},
+)
+SPACE_DEFENCES_ESTABLISHED = narrative_kind(
+    "nation.space_defences_established", _space_defences_established, required=frozenset({"regions"})
+)
+RANKING_CHANGED = narrative_kind(
+    "world.ranking_changed", _ranking_changed, required=frozenset({"metric", "top", "entrants", "leavers"})
+)
+
 KINDS = (
     REGION_NATION_CHANGED,
     CAPITAL_CHANGED,
@@ -442,4 +646,20 @@ KINDS = (
     INDEPENDENCE,
     UNIFICATION,
     ANNEXATION,
+    EXPANSION,
+    CESSION,
+    MERGER,
+    RELEASE,
+    BREAKAWAY,
+    CLAIMS_DECLARED,
+    *BAND_SHIFTS.values(),
+    POPULATION_COLLAPSE,
+    ECONOMIC_TRAJECTORY,
+    DIPLOMATIC_REALIGNMENT,
+    NUCLEAR_ARMAMENT,
+    NUCLEAR_BUILDUP,
+    NUCLEAR_DISARMAMENT,
+    SPACE_PROGRAM_GROWTH,
+    SPACE_DEFENCES_ESTABLISHED,
+    RANKING_CHANGED,
 )

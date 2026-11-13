@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import pytest
 
 from tests.narrative.support import CitingRule, GroupRule, atomic, faction, nation, situation, state_change
+from tinarrative.kinds.space import FLEET_BUILDUP
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
 from tinarrative.model.values import Unknown
@@ -67,6 +68,28 @@ def test_a_rule_can_start_the_span_at_a_record_date_before_every_constituent() -
 
     assert (event.start, event.start_basis) == ("2031-06-01T00:00:00", DateBasis.RECORD)
     assert event.not_before == "2032-01-01T00:00:00"
+
+
+def test_a_narrative_event_of_a_kind_takes_its_type_and_has_its_attributes_checked() -> None:
+    def build(attributes: tuple[tuple[str, object], ...]) -> Event:
+        return NarrativeBuilder([]).event(
+            FLEET_BUILDUP,
+            id_parts=[GERMANY.entity_id],
+            constituents=[changed(K1)],
+            roles=[],
+            join=Join.ENTITY,
+            attributes=attributes,  # type: ignore[arg-type]
+        )
+
+    event = build((("hull", "Frigate"), ("count", 3)))
+
+    assert event.event_type == FLEET_BUILDUP.event_type
+    assert event.id.startswith(f"{FLEET_BUILDUP.event_type}/")
+    assert dict(event.attributes) == {"hull": "Frigate", "count": 3}
+    with pytest.raises(ValueError, match="missing"):
+        build((("hull", "Frigate"),))
+    with pytest.raises(ValueError, match="undeclared"):
+        build((("hull", "Frigate"), ("count", 3), ("extra", 1)))
 
 
 def test_a_corroborating_event_is_cited_and_may_narrow_the_start_but_never_sets_the_end() -> None:

@@ -1,11 +1,12 @@
-"""Research completions and faction project lists."""
+"""Research completions, faction project lists, and the completions that are milestones."""
 
 from __future__ import annotations
 
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule
 from ..model.values import Unknown
-from .text import attribute_label, list_changed, plain, subject_label, transition_label
+from .narrative import has_role, narrative_kind, role
+from .text import attribute_label, attribute_text, list_changed, plain, subject_label, transition_label
 
 
 def _presence(event: Event) -> str:
@@ -94,6 +95,14 @@ FACTION_FINISHED_PROJECT_NAMES_CHANGED = EventKind(
     optional=frozenset({"member", "before", "after", "count"}),
 )
 
+
+def _milestone(event: Event) -> str:
+    who = f"{role(event, Role.ACTOR)} completed" if has_role(event, Role.ACTOR) else "Completed"
+    return f"{who} {attribute_text(event, 'template')}: {attribute_text(event, 'rationale')}"
+
+
+MILESTONE = narrative_kind("technology.milestone", _milestone, required=frozenset({"template", "rationale"}))
+
 KINDS = (
     TECHNOLOGY_COMPLETED,
     TECHNOLOGY_FINISHED_CHANGED,
@@ -102,4 +111,5 @@ KINDS = (
     RESEARCH_FINISHED_TECHS_CHANGED,
     FACTION_PROJECT_COMPLETED,
     FACTION_FINISHED_PROJECT_NAMES_CHANGED,
+    MILESTONE,
 )

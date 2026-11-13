@@ -9,6 +9,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
 from ..config import SpaceSettings
+from ..kinds import campaign as campaign_kinds
+from ..kinds import space as space_kinds
+from ..kinds.faction import TRANSACTION_RECORDED
 from ..kinds.space import (
     FACTION_BATTLE_OUTCOME,
     FACTION_COMBAT_RECORDED,
@@ -27,6 +30,7 @@ from ..kinds.space import (
 from ..kinds.space import (
     SHIP_APPEARED as SHIP_APPEARED_KIND,
 )
+from ..kinds.technology import MILESTONE as TECHNOLOGY_MILESTONE_KIND
 from ..model.entities import EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FrozenMap
@@ -52,11 +56,11 @@ from .rulekit import (
 from .situation import SituationReport
 from .stream import EventStream
 
-SPACE_CAMPAIGN = "faction.space_campaign"
-COLONISATION_WAVE = "faction.colonisation_wave"
-FIRST_MILESTONE = "campaign.first_milestone"
-FLEET_BUILDUP = "faction.fleet_buildup"
-TECHNOLOGY_MILESTONE = "technology.milestone"
+SPACE_CAMPAIGN = space_kinds.SPACE_CAMPAIGN.event_type
+COLONISATION_WAVE = space_kinds.COLONISATION_WAVE.event_type
+FIRST_MILESTONE = campaign_kinds.FIRST_MILESTONE.event_type
+FLEET_BUILDUP = space_kinds.FLEET_BUILDUP.event_type
+TECHNOLOGY_MILESTONE = TECHNOLOGY_MILESTONE_KIND.event_type
 
 BATTLE_OUTCOME = FACTION_BATTLE_OUTCOME.event_type
 HAB_DESTROYED = HAB_DESTROYED_KIND.event_type
@@ -66,8 +70,8 @@ BATTLE_NOTIFICATION = "notification.LogSpaceBattleTakesPlace"
 FLEET_DISAPPEARED = FLEET_DISAPPEARED_KIND.event_type
 FIRST_HAB_ON_BODY = FACTION_FIRST_HAB_ON_BODY.event_type
 HAB_ESTABLISHED = HAB_ESTABLISHED_KIND.event_type
-GLOBAL_MILESTONE = "campaign.global_milestone_recorded"
-TRANSACTION = "faction.transaction_recorded"
+GLOBAL_MILESTONE = campaign_kinds.GLOBAL_MILESTONE_RECORDED.event_type
+TRANSACTION = TRANSACTION_RECORDED.event_type
 SHIP_APPEARED = SHIP_APPEARED_KIND.event_type
 MILESTONE_LEDGER_LABEL = "Global Milestone"
 SHIP_LEDGER_LABEL = "Ship Construction"
@@ -182,7 +186,7 @@ class SpaceCampaignRule:
         start, end = earliest(run[0]), max((date for date in map(latest, run) if date), default=None)
         kind = _kind(run[0], victim)
         return build.event(
-            SPACE_CAMPAIGN,
+            space_kinds.SPACE_CAMPAIGN,
             id_parts=[killer_id, victim_id],
             constituents=constituents,
             roles=[(Role.ACTOR, killer), (Role.TARGET, victim), *((Role.BODY, body) for body in bodies)],
@@ -265,7 +269,7 @@ class ColonisationWaveRule:
                 faction = run[0].entities[0]
                 built.append(
                     build.event(
-                        COLONISATION_WAVE,
+                        space_kinds.COLONISATION_WAVE,
                         id_parts=[faction_id],
                         constituents=_dedupe([*run, *attached]),
                         roles=[(Role.ACTOR, faction), *((Role.BODY, ref) for ref in body_refs)],
@@ -309,7 +313,7 @@ class FirstMilestoneRule:
                 charges = _ledger(same, MILESTONE_LEDGER_LABEL, faction.entity_id, earliest(anchor), latest(anchor))
             roles = [(Role.ACTOR, faction)] if faction is not None else []
             event = build.event(
-                FIRST_MILESTONE,
+                campaign_kinds.FIRST_MILESTONE,
                 id_parts=[anchor.entities[0].entity_id if anchor.entities else "", anchor.attribute("milestone")],
                 constituents=[anchor, *charges],
                 roles=roles,
@@ -363,7 +367,7 @@ class FleetBuildupRule:
             )
             built.append(
                 build.event(
-                    FLEET_BUILDUP,
+                    space_kinds.FLEET_BUILDUP,
                     id_parts=[owner_id, hull],
                     constituents=[*ships, *charges],
                     roles=[(Role.ACTOR, ships[0].entities[2])],
@@ -403,7 +407,7 @@ class TechnologyMilestoneRule:
             is_project = event.event_type == PROJECT_COMPLETED
             built.append(
                 build.event(
-                    TECHNOLOGY_MILESTONE,
+                    TECHNOLOGY_MILESTONE_KIND,
                     id_parts=[event.event_type, *([ref.entity_id] if is_project else []), name],
                     constituents=[event],
                     roles=[(Role.ACTOR, ref)] if is_project else [],

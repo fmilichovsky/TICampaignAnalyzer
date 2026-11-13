@@ -1,13 +1,14 @@
-"""Control points, councilors, organizations and inferred faction control of nations."""
+"""Control points, councilors, organizations, inferred faction control of nations, and the takeovers it adds up to."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 
 from ..model.entities import EntityDomain
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule, Stake
 from ..model.values import Unknown
+from .narrative import count, has_role, narrative_kind, role
 from .text import (
     TRANSITION,
     attribute_label,
@@ -15,6 +16,7 @@ from .text import (
     list_changed,
     plain,
     presence,
+    refs,
     subject_label,
     transition_label,
 )
@@ -215,6 +217,44 @@ NATION_CONTROL_CHANGED = EventKind(
     stake=Stake.NATION,
 )
 
+
+def _takeover(event: Event) -> str:
+    text = f"{role(event, Role.ACTOR)} took control of {role(event, Role.TARGET)}"
+    if has_role(event, Role.LOSER):
+        text += f" from {role(event, Role.LOSER)}"
+    if event.attribute("consolidated") is True:
+        text += " and holds every control point"
+    return text
+
+
+def _takeover_wave(event: Event) -> str:
+    return (
+        f"{role(event, Role.ACTOR)} took control of {refs(event, 'nations')} in quick succession "
+        f"({count(event.attribute('count'), 'takeover')})"
+    )
+
+
+TAKEOVER = narrative_kind(
+    "faction.takeover",
+    _takeover,
+    required=frozenset(
+        {
+            "scopes",
+            "cause",
+            "executive_recorded_on",
+            "previous_executive",
+            "consolidated",
+            "gdp_rank",
+            "metric_shifts",
+        }
+    ),
+    # Takeovers sharing an anchor interval: the derived order, else both ambiguous.
+    optional=frozenset({"succeeds", "succeeded_by", "ambiguous", "alternatives"}),
+)
+TAKEOVER_WAVE = narrative_kind(
+    "faction.takeover_wave", _takeover_wave, required=frozenset({"nations", "count"}), digests_members=True
+)
+
 KINDS = (
     CONTROL_POINT_CONTROLLER_CHANGED,
     CONTROL_POINT_NATION_CHANGED,
@@ -237,4 +277,6 @@ KINDS = (
     COUNCILOR_ORGS_CHANGED,
     FACTION_UNASSIGNED_ORGS_CHANGED,
     NATION_CONTROL_CHANGED,
+    TAKEOVER,
+    TAKEOVER_WAVE,
 )

@@ -16,13 +16,17 @@ from ..analyzers.politics.bands import BANDS, band
 from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
 from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
 from ..config import GeopoliticsSettings
+from ..kinds import control as control_kinds
 from ..kinds import nations as nation_kinds
+from ..kinds.faction import TRANSACTION_RECORDED
 from ..kinds.federations import APPEARED as FEDERATION_APPEARED
 from ..kinds.federations import DISAPPEARED as FEDERATION_DISAPPEARED
+from ..kinds.federations import LIFECYCLE as FEDERATION_LIFECYCLE_KIND
 from ..kinds.federations import MEMBERS_CHANGED as FEDERATION_MEMBERS_CHANGED
 from ..kinds.federations import RENAMED as FEDERATION_RENAMED
 from ..kinds.wars import ALLIANCE_CHANGED, LAST_FIGHTING_CHANGED
 from ..kinds.wars import APPEARED as WAR_APPEARED
+from ..kinds.wars import ARC as WAR_ARC_KIND
 from ..kinds.wars import DISAPPEARED as WAR_DISAPPEARED
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
@@ -57,24 +61,24 @@ from .rulekit import (
 from .situation import NationSituation, SituationReport, WarSituation
 from .stream import EventStream
 
-TAKEOVER = "faction.takeover"
-TAKEOVER_WAVE = "faction.takeover_wave"
-WAR_ARC = "war.arc"
-FEDERATION_LIFECYCLE = "federation.lifecycle"
-EXPANSION = "nation.expansion"
-CESSION = "nation.cession"
-MERGER = "nation.merger"
-RELEASE = "nation.release"
-BREAKAWAY = "nation.breakaway"
-CLAIMS_DECLARED = "nation.claims_declared"
+TAKEOVER = control_kinds.TAKEOVER.event_type
+TAKEOVER_WAVE = control_kinds.TAKEOVER_WAVE.event_type
+WAR_ARC = WAR_ARC_KIND.event_type
+FEDERATION_LIFECYCLE = FEDERATION_LIFECYCLE_KIND.event_type
+EXPANSION = nation_kinds.EXPANSION.event_type
+CESSION = nation_kinds.CESSION.event_type
+MERGER = nation_kinds.MERGER.event_type
+RELEASE = nation_kinds.RELEASE.event_type
+BREAKAWAY = nation_kinds.BREAKAWAY.event_type
+CLAIMS_DECLARED = nation_kinds.CLAIMS_DECLARED.event_type
 
-NATION_CONTROL = "faction.nation_control_changed"
+NATION_CONTROL = control_kinds.NATION_CONTROL_CHANGED.event_type
 BREAKAWAY_PARENT_CHANGED = nation_kinds.BREAKAWAY_PARENT_CHANGED.event_type
-CONTROLLER_CHANGED = "control_point.controller_changed"
+CONTROLLER_CHANGED = control_kinds.CONTROL_POINT_CONTROLLER_CHANGED.event_type
 EXECUTIVE_RECORDED = nation_kinds.EXECUTIVE_CHANGE_RECORDED.event_type
 UNREST_ATTEMPTS = nation_kinds.UNREST_ATTEMPTS_CHANGED.event_type
 STATISTIC_SHIFTED = nation_kinds.STATISTIC_SHIFTED.event_type
-TRANSACTION = "faction.transaction_recorded"
+TRANSACTION = TRANSACTION_RECORDED.event_type
 TERRITORY_GAINED = nation_kinds.TERRITORY_GAINED.event_type
 TERRITORY_LOST = nation_kinds.TERRITORY_LOST.event_type
 UNIFICATION = nation_kinds.UNIFICATION.event_type
@@ -92,7 +96,14 @@ TAKEOVER_SCOPES = ("executive", "sole")
 """The ``faction.nation_control_changed`` scopes that anchor a takeover; a plurality is not control."""
 INDEPENDENCE_CAUSE = "Independence"
 """A control change with this cause belongs to the release and breakaway rule, not to a takeover."""
-TAKEOVER_COUNCILOR_TYPES = ("councilor.faction_changed", "councilor.disappeared", "councilor.detaining_faction_changed")
+TAKEOVER_COUNCILOR_TYPES = tuple(
+    kind.event_type
+    for kind in (
+        control_kinds.COUNCILOR_FACTION_CHANGED,
+        control_kinds.COUNCILOR_DISAPPEARED,
+        control_kinds.COUNCILOR_DETAINING_FACTION_CHANGED,
+    )
+)
 PRECURSOR_STATISTICS = frozenset({"unrest", "publicOpinion"})
 TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of ADR-0010."""
@@ -452,7 +463,7 @@ class TakeoverRule:
         if loser is not None:
             roles.append((Role.LOSER, loser))
         return build.event(
-            TAKEOVER,
+            control_kinds.TAKEOVER,
             id_parts=[nation.entity_id, actor.entity_id],
             id_interval=anchored,
             constituents=constituents,
@@ -566,7 +577,7 @@ class TakeoverWaveRule:
                 faction = next(ref for role, ref in run[0].roles if role is Role.ACTOR)
                 built.append(
                     build.event(
-                        TAKEOVER_WAVE,
+                        control_kinds.TAKEOVER_WAVE,
                         id_parts=[faction_id],
                         id_interval=interval_of(run[0].id),
                         constituents=run,
@@ -653,7 +664,7 @@ class FederationLifecycleRule:
             shifts = metric_shifts(stream, members, intervals_of(events), windows)
             built.append(
                 build.event(
-                    FEDERATION_LIFECYCLE,
+                    FEDERATION_LIFECYCLE_KIND,
                     id_parts=[federation_id],
                     constituents=events,
                     roles=roles,
@@ -738,7 +749,7 @@ class CessionRule:
         roles = [(Role.ACTOR, loser), (Role.BENEFICIARY, gainer), *((Role.LOCATION, region) for region in regions)]
         shifts = metric_shifts(stream, [gainer.entity_id, loser.entity_id], intervals_of(constituents))
         return build.event(
-            CESSION,
+            nation_kinds.CESSION,
             id_parts=[loser.entity_id, gainer.entity_id],
             constituents=constituents,
             roles=roles,
@@ -797,7 +808,7 @@ class MergerRule:
             shifts = metric_shifts(stream, [gainer.entity_id, *absorbed_ids], [key])
             built.append(
                 build.event(
-                    MERGER,
+                    nation_kinds.MERGER,
                     id_parts=[gainer.entity_id],
                     constituents=[anchor, *attached],
                     roles=roles,
@@ -890,7 +901,7 @@ class IndependenceRule:
                 roles = [(Role.ACTOR, nation), *((Role.TARGET, parent) for parent in parents)]
             built.append(
                 build.event(
-                    RELEASE if released else BREAKAWAY,
+                    nation_kinds.RELEASE if released else nation_kinds.BREAKAWAY,
                     id_parts=[nation.entity_id],
                     constituents=constituents,
                     roles=roles,
@@ -962,7 +973,7 @@ class ClaimsDeclaredRule:
             shifts = metric_shifts(stream, [nation.entity_id], intervals_of([anchor]))
             built.append(
                 build.event(
-                    CLAIMS_DECLARED,
+                    nation_kinds.CLAIMS_DECLARED,
                     id_parts=[nation.entity_id],
                     constituents=[anchor],
                     roles=roles,
@@ -1062,7 +1073,7 @@ class ExpansionRule:
         roles = [(Role.ACTOR, gainer), *((Role.TARGET, loser) for loser in losers)]
         shifts = metric_shifts(stream, [gainer.entity_id, *loser_ids], intervals_of(constituents))
         return build.event(
-            EXPANSION,
+            nation_kinds.EXPANSION,
             id_parts=[gainer.entity_id],
             constituents=constituents,
             roles=roles,
@@ -1214,7 +1225,7 @@ class WarArcRule:
         roles = [*((Role.ACTOR, ref) for ref in attackers), *((Role.TARGET, ref) for ref in defenders)]
         shifts = metric_shifts(stream, sides, _since(intervals_of(constituents), started))
         return build.event(
-            WAR_ARC,
+            WAR_ARC_KIND,
             id_parts=[war.entity_id],
             constituents=constituents,
             roles=roles,

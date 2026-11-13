@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from tests.narrative.support import declared_attributes
+from tinarrative.kinds.control import TAKEOVER as TAKEOVER_KIND
+from tinarrative.kinds.control import TAKEOVER_WAVE as TAKEOVER_WAVE_KIND
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus, Role, Significance
-from tinarrative.narrative.geopolitics import TAKEOVER, TAKEOVER_WAVE
 from tinarrative.rendering.listing import listing
 from tinarrative.sequence import IntervalResult, SaveRef
 
+TAKEOVER = TAKEOVER_KIND.event_type
+TAKEOVER_WAVE = TAKEOVER_WAVE_KIND.event_type
 BEFORE = SaveRef("before.save", "a" * 64, datetime(2030, 1, 1))
 AFTER = SaveRef("after.save", "b" * 64, datetime(2030, 2, 1))
 NATION = EntityRef(EntityId(EntityDomain.NATION, "1"), IdentityConfidence.IN_SAVE_ID, name="Germany")
@@ -51,6 +55,7 @@ def _narrative(
         entities=(NATION,),
         significance=significance,
         constituents=cites,
+        attributes=declared_attributes(event_type, ()),
         start=BEFORE.date,
         start_basis=DateBasis.INTERVAL,
         end=AFTER.date,

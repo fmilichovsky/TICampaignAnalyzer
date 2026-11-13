@@ -1,12 +1,13 @@
-"""Wars and the nation lists that corroborate them."""
+"""Wars, the nation lists that corroborate them, and the arc of each war."""
 
 from __future__ import annotations
 
 from ..model.entities import EntityDomain
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole
 from ..model.values import Unknown
-from .text import attribute_label, attribute_text, list_changed, plain, presence, subject_label
+from .narrative import narrative_kind, role
+from .text import attribute_label, attribute_text, list_changed, plain, presence, region_count, subject_label
 
 BOOKKEEPING = EvidenceRole.BOOKKEEPING
 EVIDENCE = EvidenceRole.EVIDENCE
@@ -82,6 +83,33 @@ NATION_WARS_CHANGED = EventKind(
     optional=frozenset({"member", "before", "after"}),
 )
 
+
+def _war_arc(event: Event) -> str:
+    text = f"{attribute_label(event, 'war')} between {role(event, Role.ACTOR)} and {role(event, Role.TARGET)}"
+    regions = event.attribute("regions_transferred")
+    if isinstance(regions, tuple) and regions:
+        text += f"; {region_count(len(regions))} changed hands between the sides"
+    return text
+
+
+ARC = narrative_kind(
+    "war.arc",
+    _war_arc,
+    required=frozenset(
+        {
+            "war",
+            "started_on",
+            "duration_days",
+            "duration_days_at_most",
+            "attackers",
+            "defenders",
+            "regions_transferred",
+            "nuclear_strikes",
+            "metric_shifts",
+        }
+    ),
+)
+
 KINDS = (
     APPEARED,
     DISAPPEARED,
@@ -92,4 +120,5 @@ KINDS = (
     ATTACKING_ALLIANCE_CHANGED,
     DEFENDING_ALLIANCE_CHANGED,
     NATION_WARS_CHANGED,
+    ARC,
 )

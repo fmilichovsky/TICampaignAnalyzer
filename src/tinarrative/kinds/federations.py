@@ -1,10 +1,11 @@
-"""Federation presence, membership, names and mirrored nation references."""
+"""Federation presence, membership, names, mirrored nation references, and the lifecycle of each federation."""
 
 from __future__ import annotations
 
 from ..model.entities import EntityDomain
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Stake
+from .narrative import count, narrative_kind, role
 from .text import attribute_label, list_changed, plain, presence, subject_label
 
 BOOKKEEPING = EvidenceRole.BOOKKEEPING
@@ -58,4 +59,20 @@ NATION_FEDERATION_CHANGED = EventKind(
     stake=Stake.NATION,
 )
 
-KINDS = (APPEARED, DISAPPEARED, MEMBERS_CHANGED, RENAMED, NATION_FEDERATION_CHANGED)
+
+def _lifecycle(event: Event) -> str:
+    changes = event.attribute("member_changes")
+    number = len(changes) if isinstance(changes, tuple) else 0
+    return (
+        f"{role(event, Role.ACTOR)} members {attribute_label(event, 'members_initial')} -> "
+        f"{attribute_label(event, 'members_final')} ({count(number, 'member change')})"
+    )
+
+
+LIFECYCLE = narrative_kind(
+    "federation.lifecycle",
+    _lifecycle,
+    required=frozenset({"members_initial", "member_changes", "members_final", "metric_shifts"}),
+)
+
+KINDS = (APPEARED, DISAPPEARED, MEMBERS_CHANGED, RENAMED, NATION_FEDERATION_CHANGED, LIFECYCLE)
