@@ -40,11 +40,13 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.11"
 files = ["src"]
+mypy_path = "src"
 strict = true
 warn_unused_configs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 addopts = ["--strict-markers", "-m", "not samples", "-p", "no:cacheprovider"]
 markers = [
   "samples: test reads the committed benchmark campaigns in benchmarks/samples/; excluded from the default run, run with make samples",

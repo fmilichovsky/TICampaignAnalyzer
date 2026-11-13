@@ -42,6 +42,9 @@ python scripts/verify_fixture_manifest.py tests/fixtures/io/terra_invicta_json_v
 make package-metrics PYTHON=.venv/bin/python
 ```
 
+In a worktree, direct `tinarrative` or `python -m` runs need `PYTHONPATH=src` (or `make install` inside the
+worktree); `make` targets handle it themselves.
+
 ## Agent-only rules
 
 - Do not add agent attribution lines to commits or PR descriptions.

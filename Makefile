@@ -1,7 +1,14 @@
 .DEFAULT_GOAL := check
 
-# Prefer an activated environment, then a Codex or project environment, then PATH.
-PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.venv-codex/bin/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,python)))
+# The main checkout, found through git's common directory; equals this tree outside a worktree.
+MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))
+
+# Prefer an activated environment, then a Codex or project environment, then the main checkout's
+# (when run from a worktree without its own), then PATH.
+PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.venv-codex/bin/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(wildcard $(MAIN_CHECKOUT)/.venv/bin/python),$(MAIN_CHECKOUT)/.venv/bin/python,python))))
+
+# Run this tree's source whatever environment's editable install points elsewhere.
+export PYTHONPATH := $(CURDIR)/src$(if $(PYTHONPATH),:$(PYTHONPATH))
 SAMPLE_CAMPAIGNS ?=
 
 .PHONY: install format lint typecheck test check samples package-metrics runtime-metrics
