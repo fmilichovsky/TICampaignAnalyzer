@@ -191,8 +191,8 @@ def _top_gdp_takeover(event: Event, geopolitics: GeopoliticsSettings) -> Signifi
 
 
 def _top_rank(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
-    """An event of a nation ranked in the top by GDP or strength is one level up. TODO(#362): temporary; the nation's
-    power share replaces it."""
+    """An event of a nation ranked in the top by GDP or strength is one level up."""
+    # TODO(#362): temporary; the nation's power share replaces it.
     top = geopolitics.top_gdp_nations
     if in_top_n(event.attribute("gdp_rank"), top) or in_top_n(event.attribute("strength_rank"), top):
         return PROMOTED[_base(event)]

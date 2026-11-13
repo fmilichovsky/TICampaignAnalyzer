@@ -574,18 +574,21 @@ def narrative_level(event_type: str, **attributes: Observed) -> Significance:
     return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings()))
 
 
-def test_an_army_or_navy_event_of_a_top_ranked_nation_is_one_level_up() -> None:
-    top = GeopoliticsSettings().top_gdp_nations
-    for event_type, extra in (
+@pytest.mark.parametrize(
+    ("event_type", "extra"),
+    [
         ("nation.military_buildup", {"before": 1, "after": 5}),
         ("nation.demobilization", {"before": 5, "after": 1}),
         ("nation.navy_established", {"navies": 1}),
-    ):
-        ranks = {"gdp_rank": top + 1, "strength_rank": top + 1}
-        assert narrative_level(event_type, **extra, **ranks) is Significance.MAJOR
-        assert narrative_level(event_type, **extra, **{**ranks, "gdp_rank": top}) is Significance.CAMPAIGN_DEFINING
-        assert narrative_level(event_type, **extra, **{**ranks, "strength_rank": 1}) is Significance.CAMPAIGN_DEFINING
-        assert narrative_level(event_type, **extra, gdp_rank=None, strength_rank=Unknown()) is Significance.MAJOR
+    ],
+)
+def test_an_army_or_navy_event_of_a_top_ranked_nation_is_one_level_up(event_type: str, extra: dict[str, int]) -> None:
+    top = GeopoliticsSettings().top_gdp_nations
+    ranks = {"gdp_rank": top + 1, "strength_rank": top + 1}
+    assert narrative_level(event_type, **extra, **ranks) is Significance.MAJOR
+    assert narrative_level(event_type, **extra, **{**ranks, "gdp_rank": top}) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(event_type, **extra, **{**ranks, "strength_rank": 1}) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(event_type, **extra, gdp_rank=None, strength_rank=Unknown()) is Significance.MAJOR
 
 
 def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:
@@ -605,4 +608,7 @@ def test_a_technology_milestone_takes_its_curated_tier() -> None:
         if milestone.significance is Significance.CAMPAIGN_DEFINING
     )
     assert narrative_level("technology.milestone", template=defining, rationale="r") is Significance.CAMPAIGN_DEFINING
-    assert narrative_level("technology.milestone", template="Unlisted", rationale="r") is Significance.MINOR
+    assert (
+        narrative_level("technology.milestone", template="".join(MILESTONE_TEMPLATES) + "Unlisted", rationale="r")
+        is Significance.MINOR
+    )
