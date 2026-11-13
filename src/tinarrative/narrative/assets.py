@@ -24,6 +24,8 @@ from ..analyzers.politics.nation_space import (
     SPACE_DEFENCES_STATISTIC,
 )
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..kinds import military as military_kinds
+from ..kinds import nations as nation_kinds
 from ..kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
@@ -36,12 +38,12 @@ from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chai
 from .situation import NationSituation, SituationReport
 from .stream import EventStream
 
-MILITARY_BUILDUP = "nation.military_buildup"
-DEMOBILIZATION = "nation.demobilization"
-NAVY_ESTABLISHED = "nation.navy_established"
-SPACE_PROGRAM_GROWTH = "nation.space_program_growth"
-SPACE_DEFENCES_ESTABLISHED = "nation.space_defences_established"
-RANKING_CHANGED = "world.ranking_changed"
+MILITARY_BUILDUP = military_kinds.MILITARY_BUILDUP.event_type
+DEMOBILIZATION = military_kinds.DEMOBILIZATION.event_type
+NAVY_ESTABLISHED = military_kinds.NAVY_ESTABLISHED.event_type
+SPACE_PROGRAM_GROWTH = nation_kinds.SPACE_PROGRAM_GROWTH.event_type
+SPACE_DEFENCES_ESTABLISHED = nation_kinds.SPACE_DEFENCES_ESTABLISHED.event_type
+RANKING_CHANGED = nation_kinds.RANKING_CHANGED.event_type
 BUILDUP_WINDOW_DAYS = 365
 SPACE_METRICS = ((BOOST_STATISTIC, BOOST_METRIC), (MISSION_CONTROL_STATISTIC, MISSION_CONTROL_METRIC))
 
@@ -168,7 +170,7 @@ class MilitaryBuildupRule:
                 level = _promoted(Significance.MAJOR, last[1], nation_id, self.geopolitics.top_gdp_nations)
                 built.append(
                     build.event(
-                        MILITARY_BUILDUP if after > before else DEMOBILIZATION,
+                        military_kinds.MILITARY_BUILDUP if after > before else military_kinds.DEMOBILIZATION,
                         id_parts=[nation_id],
                         constituents=run,
                         roles=[(Role.ACTOR, nation)],
@@ -217,7 +219,7 @@ class NavyEstablishedRule:
                     continue
                 built.append(
                     build.event(
-                        NAVY_ESTABLISHED,
+                        military_kinds.NAVY_ESTABLISHED,
                         id_parts=[nation_id],
                         constituents=cited,
                         roles=[(Role.ACTOR, item.nation)],
@@ -288,7 +290,7 @@ class SpaceProgramGrowthRule:
                     )
                 built.append(
                     build.event(
-                        SPACE_PROGRAM_GROWTH,
+                        nation_kinds.SPACE_PROGRAM_GROWTH,
                         id_parts=[nation_id],
                         constituents=run,
                         roles=[(Role.ACTOR, nation)],
@@ -340,7 +342,7 @@ class SpaceDefencesEstablishedRule:
                 continue
             built.append(
                 build.event(
-                    SPACE_DEFENCES_ESTABLISHED,
+                    nation_kinds.SPACE_DEFENCES_ESTABLISHED,
                     id_parts=[nation.entity_id],
                     constituents=[event],
                     roles=[(Role.ACTOR, nation)],
@@ -416,7 +418,7 @@ class RankingRule:
                     continue
                 built.append(
                     build.event(
-                        RANKING_CHANGED,
+                        nation_kinds.RANKING_CHANGED,
                         id_parts=[metric],
                         constituents=list(cited.values()),
                         roles=[

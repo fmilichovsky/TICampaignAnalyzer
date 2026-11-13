@@ -1,11 +1,12 @@
-"""Campaign-wide facts and the game's notification log."""
+"""Campaign-wide facts, the game's notification log, and the campaign's first milestones."""
 
 from __future__ import annotations
 
 from ..diff.render import render_value
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole
 from ..model.values import Unknown
+from .narrative import narrative_kind, role
 from .text import (
     attribute_label,
     attribute_text,
@@ -220,6 +221,15 @@ NOTIFICATION_ENTRY_CHANGED = EventKind(
     required=NOTIFICATION_ENTRY.required | {"logged_on"} | _BEFORE_ENTRY,
 )
 
+
+def _first_milestone(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} recorded the campaign milestone {attribute_text(event, 'milestone')}"
+
+
+FIRST_MILESTONE = narrative_kind(
+    "campaign.first_milestone", _first_milestone, required=frozenset({"milestone", "faction"})
+)
+
 KINDS = (
     GLOBAL_VALUES_APPEARED,
     GLOBAL_VALUES_DISAPPEARED,
@@ -237,4 +247,5 @@ KINDS = (
     NOTIFICATION_QUEUE_VALUE_CHANGED,
     NOTIFICATION_ENTRY_REMOVED,
     NOTIFICATION_ENTRY_CHANGED,
+    FIRST_MILESTONE,
 )

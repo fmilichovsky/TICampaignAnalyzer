@@ -157,7 +157,7 @@ Tracking #249.
   - [x] Nations family (#322).
   - [ ] Control family (#323).
   - [ ] Wars and federations family (#324).
-  - [ ] Narrative-event kinds (#325).
+  - [x] Narrative-event kinds (#325).
   - [ ] Cleanup (#326).
 - [ ] Campaign analysis: one module from save inputs to an analysed campaign (#328):
   - [ ] Narrative settings enter interval analysis as one slice (#329).

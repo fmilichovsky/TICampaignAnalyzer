@@ -14,6 +14,7 @@ from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENT
 from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
 from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
+from tinarrative.narrative.catalogue import NARRATIVE_RULES
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
@@ -35,8 +36,11 @@ def test_every_declared_kind_has_exactly_one_entry() -> None:
     assert all(KINDS[kind.event_type] is kind for family in FAMILIES for kind in family)
 
 
-def test_every_kind_declares_a_base_level_or_context_rule() -> None:
-    assert all(kind.base is not None or kind.rule is not None for kind in KINDS.values())
+def test_a_kind_without_a_base_level_or_context_rule_is_exactly_a_narrative_event_kind() -> None:
+    narrative = {event_type for rule in NARRATIVE_RULES for event_type in rule.emitted_types}
+    ruled_elsewhere = {event_type for event_type, kind in KINDS.items() if kind.base is None and kind.rule is None}
+    assert ruled_elsewhere == narrative
+    assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
 
 
 def test_the_constructor_keeps_required_and_optional_attributes_in_order() -> None:

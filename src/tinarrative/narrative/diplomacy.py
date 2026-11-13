@@ -8,6 +8,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from ..config import GeopoliticsSettings
+from ..kinds import nations as nation_kinds
 from ..kinds.nations import RELATION_CHANGED
 from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
@@ -31,7 +32,7 @@ from .rulekit import (
 from .situation import SituationReport
 from .stream import EventStream
 
-REALIGNMENT = "nation.diplomatic_realignment"
+REALIGNMENT = nation_kinds.DIPLOMATIC_REALIGNMENT.event_type
 DIPLOMATIC_RELATIONS = ("allies", "rivals")
 """The ``relation`` values the rule reads; ``wars`` is war evidence and belongs to the war arc."""
 ADDED = "added"
@@ -95,7 +96,7 @@ class DiplomaticRealignmentRule:
                 shifts = metric_shifts(stream, [nation_id], intervals_of(run))
                 built.append(
                     build.event(
-                        REALIGNMENT,
+                        nation_kinds.DIPLOMATIC_REALIGNMENT,
                         id_parts=[nation_id],
                         constituents=run,
                         corroborating=context,

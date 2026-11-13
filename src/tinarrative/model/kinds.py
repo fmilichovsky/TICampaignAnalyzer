@@ -59,7 +59,8 @@ class EventKind:
 
     ``base`` is ``None`` only for a narrative-event kind, whose level is set by the rule that emits it. An emitter
     always passes every ``required`` attribute, its value possibly ``Unknown``; an attribute whose presence depends
-    on the save is ``optional``.
+    on the save is ``optional``. A narrative-event kind that ``digests_members`` groups the narrative events it cites
+    as its members: the listing tells such a member as a digest under it.
     """
 
     event_type: str
@@ -70,6 +71,7 @@ class EventKind:
     optional: frozenset[str] = frozenset()
     rule: Rule | None = None
     stake: Stake | None = None
+    digests_members: bool = False
 
     @property
     def is_prefix(self) -> bool:

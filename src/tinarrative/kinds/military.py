@@ -1,11 +1,14 @@
-"""Army movements and deployments."""
+"""Army movements and deployments, and the buildups and navies told from a nation's army counts."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from ..model.entities import EntityDomain
-from ..model.events import Event, Significance
+from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule
-from .text import TRANSITION, contextual, list_changed, subject_label
+from .narrative import count, narrative_kind, role
+from .text import TRANSITION, attribute_label, contextual, list_changed, subject_label
 
 
 def _presence(event: Event) -> str:
@@ -119,6 +122,28 @@ REGION_ARMIES_CHANGED = EventKind(
     optional=frozenset({"member", "before", "after"}),
 )
 
+
+def _army_count(change: str) -> Callable[[Event], str]:
+    def describe(event: Event) -> str:
+        return (
+            f"{role(event, Role.ACTOR)} {change} its standard armies: {attribute_label(event, 'before')} -> "
+            f"{attribute_label(event, 'after')}"
+        )
+
+    return describe
+
+
+def _navy_established(event: Event) -> str:
+    return f"{role(event, Role.ACTOR)} established a navy ({count(event.attribute('navies'), 'naval army')})"
+
+
+_ARMY_COUNT = frozenset({"before", "after", "gdp_rank", "strength_rank"})
+MILITARY_BUILDUP = narrative_kind("nation.military_buildup", _army_count("built up"), required=_ARMY_COUNT)
+DEMOBILIZATION = narrative_kind("nation.demobilization", _army_count("demobilized"), required=_ARMY_COUNT)
+NAVY_ESTABLISHED = narrative_kind(
+    "nation.navy_established", _navy_established, required=frozenset({"navies", "gdp_rank", "strength_rank"})
+)
+
 KINDS = (
     REGION_CHANGED,
     FACTION_CHANGED,
@@ -132,4 +157,7 @@ KINDS = (
     FACTION_ARMIES_CHANGED,
     NATION_ARMIES_CHANGED,
     REGION_ARMIES_CHANGED,
+    MILITARY_BUILDUP,
+    DEMOBILIZATION,
+    NAVY_ESTABLISHED,
 )

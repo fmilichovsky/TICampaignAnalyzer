@@ -4,13 +4,24 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import UNKNOWN, atomic, faction, nation, nation_row, situation, unification, war
+from tests.narrative.support import (
+    UNKNOWN,
+    atomic,
+    declared_attributes,
+    faction,
+    nation,
+    nation_row,
+    situation,
+    unification,
+    war,
+)
 from tinarrative.analyzers.politics.bands import crossed
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import BAND_CROSSED, STATISTIC_SHIFTED
+from tinarrative.kinds.wars import ARC
 from tinarrative.model.events import Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
@@ -77,7 +88,7 @@ def built(stream: Sequence[Event], situations: Sequence[SituationReport], **sett
         nation_metrics=NationMetricsSettings(**{k: v for k, v in settings.items() if k == "band_hold_days"}),  # type: ignore[arg-type]
     )
     events = aggregate(stream, situations, narrative_rules(narrative))
-    return [event for event in events if event.event_type in BAND_SHIFTS.values()]
+    return [event for event in events if event.event_type in {kind.event_type for kind in BAND_SHIFTS.values()}]
 
 
 def test_a_held_unrest_crossing_is_a_shift_named_by_the_game_bands() -> None:
@@ -97,8 +108,8 @@ def test_a_held_unrest_crossing_is_a_shift_named_by_the_game_bands() -> None:
 
 def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> None:
     class WarArcRule:
-        name = "war.arc"
-        emitted_types = frozenset({"war.arc"})
+        name = ARC.event_type
+        emitted_types = frozenset({ARC.event_type})
         reads: frozenset[str] = frozenset()
         explains: frozenset[str] = frozenset()
         window_days = None
@@ -109,11 +120,12 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
             fighting = next(event for event in stream if event.event_type == "war.last_fighting_changed")
             return [
                 build.event(
-                    self.name,
+                    ARC,
                     id_parts=["war:1"],
                     constituents=[fighting],
                     roles=[(Role.ACTOR, NORTH)],
                     join=Join.ENTITY,
+                    attributes=declared_attributes(ARC.event_type, ()),
                 )
             ]
 
@@ -123,7 +135,7 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
 
     result = aggregate([event, fighting], reports(2.5, 4.75, 5.0), [WarArcRule(), rule])
 
-    assert [item.event_type for item in result] == ["war.arc"]
+    assert [item.event_type for item in result] == [ARC.event_type]
 
 
 def test_an_unrest_crossing_the_rest_value_explains_is_dropped() -> None:
