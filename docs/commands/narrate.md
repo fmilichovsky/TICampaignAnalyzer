@@ -40,7 +40,7 @@ provider and assembles the answers into one footnoted `history.md`, with a citat
 | `--audience public\|insider` | `public` | Who the history is for. `insider` centres on the player faction. |
 | `--citations footnotes\|none` | `footnotes` | Footnotes citing event IDs, or none. |
 | `--style chronicle\|headlines` | `chronicle` | Running prose or headlines. |
-| `--length WORDS` | | Target length of the whole history, shared out across chapters by their narrative events. |
+| `--length WORDS` | from the narrative weight | Target length of the whole history, shared out across chapters by their narrative weight; see [Chapter plan](#chapter-plan). |
 | `--focus NAME` | player faction for `insider` | A faction or nation to centre the account on. |
 | `--output DIR` | | Write the plan and the requests here; without it only the plan summary is printed. |
 | `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: narrative rules and the `[llm]` budget, provider and profiles ([configuration](../configuration.md)). |
@@ -58,8 +58,13 @@ The audience, citation and style defaults are the prompt's; see [llm](../narrato
 Each chapter is a run of whole periods that fits within `llm.max_input_tokens`, and carries
 the narrative events that start in it, the situation at its opening and closing saves, and a
 reminder of what earlier chapters told. A period too large for one request is told without the
-supporting events, then split; narrative events are never dropped. If a single interval does not fit,
-the command stops before writing anything (exit 2).
+supporting events, then split; narrative events are never dropped.
+
+Every chapter is asked for a length by its narrative weight: its top-level narrative events counted by
+significance (campaign-defining 4, major 2, minor 1, trivial 0). Without `--length`, the whole history is
+6 words per point. A chapter's length may take half of `llm.max_output_tokens`, at 1.5 tokens a word; periods
+that ask for more go to separate chapters, and a single period is split at saves, keeping its supporting events.
+If a single interval does not fit either budget, the command stops before writing anything (exit 2).
 
 Without `--period`, the period is `quarter`, `half` or `year` by the campaign's span
 (`narrator.quarter_span_days`, `narrator.half_span_days`), made coarser chapter by chapter where
@@ -79,7 +84,7 @@ the previous one:
 3. the override flags `--provider`, `--model`, `--base-url`, `--max-input-tokens`,
    `--max-output-tokens` and `--temperature`.
 
-`max_input_tokens` shapes the chapter plan; the other keys only affect sending.
+`max_input_tokens` and `max_output_tokens` shape the chapter plan; the other keys only affect sending.
 
 ## Sending
 

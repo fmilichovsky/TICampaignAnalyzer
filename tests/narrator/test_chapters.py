@@ -20,6 +20,7 @@ from tinarrative.narrator.chapters import (
     base_options,
     derive_period,
     estimate,
+    narrative_weight,
     period_label,
     plan_chapters,
     validate,
@@ -174,7 +175,9 @@ def test_a_small_package_is_one_whole_chapter() -> None:
         None,
         ("2032-Q2", "2032-Q3", "2032-Q4", "2033-Q1"),
     )
-    assert _block(plan, 0) == "chapter: 1 of 1\npart: whole\ncovers: 2032-01-01 to 2033-01-01\nperiod: quarter"
+    assert _block(plan, 0) == (
+        "chapter: 1 of 1\npart: whole\ncovers: 2032-01-01 to 2033-01-01\nperiod: quarter\nlength: about 48 words"
+    )
     embedded = _embedded(plan, 0)
     assert embedded["narrative"] == package["narrative"]
     assert embedded["chapter"] == {
@@ -467,6 +470,72 @@ def test_the_length_is_shared_by_significance_weighted_narrative_events() -> Non
     lengths = [_block(plan, position).rpartition("length: about ")[2] for position in range(4)]
     assert lengths == ["445 words", "222 words", "222 words", "111 words"]
     assert plan.to_dict()["request"]["length"] == 1000
+
+
+def test_narrative_weight_counts_top_level_narrative_events_by_significance() -> None:
+    events = [
+        _narrative_event("defining", QUARTERS[0], QUARTERS[1], significance="campaign_defining"),
+        _narrative_event("major", QUARTERS[0], QUARTERS[1]),
+        _narrative_event("minor", QUARTERS[0], QUARTERS[1], significance="minor"),
+        _narrative_event("trivial", QUARTERS[0], QUARTERS[1], significance="trivial"),
+        {**_narrative_event("member", QUARTERS[0], QUARTERS[1]), "member_of": "major"},
+    ]
+
+    assert narrative_weight(events) == 4 + 2 + 1
+
+
+def test_without_a_length_each_point_of_narrative_weight_asks_for_six_words() -> None:
+    package = _quarterly()
+    package["narrative"][0]["significance"] = "campaign_defining"
+    package["narrative"].append({**_narrative_event("member", QUARTERS[0], QUARTERS[1]), "member_of": "x"})
+
+    plan = _plan(package, NarratorSettings())
+
+    assert plan.to_dict()["request"]["length"] == (4 + 2 + 2 + 2) * 6
+    assert _block(plan, 0).endswith("\nlength: about 60 words")
+
+
+def test_a_package_of_trivial_narrative_events_asks_for_no_length() -> None:
+    package = _quarterly()
+    for event in package["narrative"]:
+        event["significance"] = "trivial"
+
+    plan = _plan(package, NarratorSettings())
+
+    assert "length" not in plan.to_dict()["request"]
+    assert "length:" not in _block(plan, 0)
+
+
+def test_periods_whose_length_needs_more_output_than_the_budget_go_to_separate_chapters() -> None:
+    package = _quarterly()  # 12 words a quarter; 60 output tokens leave room for 20
+
+    plan = _plan(package, replace(NarratorSettings(), max_output_tokens=60))
+
+    assert [chapter.periods for chapter in plan.chapters] == [("2032-Q2",), ("2032-Q3",), ("2032-Q4",), ("2033-Q1",)]
+    assert all(chapter.chapter.reduction is None and chapter.chapter.atomic for chapter in plan.chapters)
+    assert plan.to_dict()["settings"]["max_output_tokens"] == 60
+
+
+def test_a_period_whose_length_needs_more_output_is_split_at_saves_with_its_atomic_stream() -> None:
+    package = _monthly(0)
+    package["intervals"][1]["events"] = [_atomic("atom")]
+    package["narrative"][1]["constituents"] = ["atom"]
+
+    plan = _plan(package, replace(NarratorSettings(), max_output_tokens=60))
+
+    assert [chapter.covers for chapter in plan.chapters] == list(zip(MONTHS, MONTHS[1:], strict=False))
+    assert [(chapter.chapter.reduction, chapter.chapter.atomic) for chapter in plan.chapters] == [("split", True)] * 3
+    assert [interval["events"] for interval in _embedded(plan, 1)["intervals"]] == [[_atomic("atom")]]
+    assert [entry["atomic"] for entry in plan.to_dict()["chapters"]] == [True] * 3
+
+
+def test_an_interval_whose_length_cannot_fit_the_output_stops_the_plan_with_the_budget_it_needs() -> None:
+    package = _monthly(0)  # 12 words a month; 30 output tokens leave room for 10
+    settings = replace(NarratorSettings(), max_output_tokens=30)
+
+    result = plan_chapters(package, base_options(package, settings), settings)
+
+    assert result == OverBudget(MONTHS[1], 36, 30, kind="output")
 
 
 def test_the_same_inputs_give_the_same_plan_and_requests() -> None:

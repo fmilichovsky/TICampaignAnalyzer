@@ -120,6 +120,21 @@ def test_without_output_only_the_plan_is_printed(capsys: pytest.CaptureFixture[s
 
 
 @pytest.mark.usefixtures("in_fixtures")
+def test_an_interval_whose_length_needs_more_output_is_a_usage_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    output = tmp_path / "narration"
+
+    code = main(["narrate", *SAVES, "--max-output-tokens", "3", "--output", str(output)])
+
+    captured = capsys.readouterr()
+    assert code == EXIT_USAGE_ERROR
+    assert captured.out == ""
+    assert "over max_output_tokens 3; raise llm.max_output_tokens or give a smaller --length" in captured.err
+    assert not output.exists()
+
+
+@pytest.mark.usefixtures("in_fixtures")
 def test_an_interval_over_the_budget_is_a_usage_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     output = tmp_path / "narration"
 

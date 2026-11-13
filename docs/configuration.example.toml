@@ -9,11 +9,15 @@ top_nations = 10
 recalled_narrative_events = 40
 
 [llm] # narrate and --send for narrate and councilors
-# Larger inputs allow larger chapters; smaller values split them sooner.
+# Larger inputs allow larger chapters; smaller values split them sooner. 200000-300000 suits most campaigns,
+# even with a larger context window: bigger chapters save little input, run one after another and come back
+# shorter, quoting the package. A value below the largest period's request splits that period or leaves out its
+# atomic stream.
 max_input_tokens = 200000
 # Larger estimates allow larger chapters; smaller values budget more cautiously.
 chars_per_token = 2.4
-# Larger outputs allow longer responses; smaller values limit each chapter.
+# Larger outputs allow longer chapters; smaller values split them sooner. A chapter's length may take half;
+# raise it for models that reason at length.
 max_output_tokens = 16000
 # Longer timeouts allow slower providers to finish; shorter ones fail sooner.
 timeout_seconds = 600
