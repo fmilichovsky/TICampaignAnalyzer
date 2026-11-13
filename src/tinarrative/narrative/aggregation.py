@@ -5,6 +5,7 @@ See ADR-0009. Rules run in layers derived from what they read and from which kin
 
 from __future__ import annotations
 
+import copy
 import time
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -15,7 +16,7 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Protocol
 
 from ..analyzers.common import event_id
-from ..config import DEFAULT_SETTINGS, GeopoliticsSettings
+from ..config import DEFAULT_SETTINGS, GeopoliticsSettings, SignificanceSettings
 from ..kinds import attributes as kind_attributes
 from ..kinds import kind_for
 from ..log import TIMING_LOGGER, fields, get_logger
@@ -32,7 +33,7 @@ from ..model.kinds import EventKind
 from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
-from .significance import narrative_score
+from .significance import ReportStakes, narrative_score
 from .situation import SituationReport
 from .stream import EventStream, UndeclaredRead
 
@@ -143,24 +144,34 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 
 class NarrativeBuilder:
-    """Applies the shared policy: confidence is the constituents' minimum, the score is significance's
-    (``narrative_score``), and ``open`` while the anchor is in the last report.
+    """Applies the shared policy: confidence is the constituents' minimum, the score and its basis are significance's
+    (``narrative_score``, the stake read from the reports of the event's first interval), and ``open`` while the
+    anchor is in the last report.
 
-    A rule chooses no level: the kind's base level and context rule do, never below the highest-scored cited event.
+    A rule chooses no level: the kind's base level, context rule and stake do, never below the highest-scored cited
+    event.
     """
 
     def __init__(
         self,
         situations: Sequence[SituationReport],
         geopolitics: GeopoliticsSettings = DEFAULT_SETTINGS.narrative.geopolitics,
+        significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
     ) -> None:
         self._situations = tuple(situations)
         self._last = self._situations[-1] if self._situations else None
         self._geopolitics = geopolitics
+        self._stakes = {
+            key: ReportStakes(before, after, significance)
+            for key, (before, after) in interval_reports(self._situations).items()
+        }
 
     def scoring_with(self, geopolitics: GeopoliticsSettings) -> NarrativeBuilder:
-        """This builder, scoring by the rule's own settings. TODO(#362): goes with ``top_gdp_nations``."""
-        return NarrativeBuilder(self._situations, geopolitics)
+        """This builder, scoring by the rule's own settings and sharing its measured stakes. TODO(#362): goes with
+        ``top_gdp_nations``."""
+        scoring = copy.copy(self)
+        scoring._geopolitics = geopolitics
+        return scoring
 
     def event(
         self,
@@ -224,8 +235,8 @@ class NarrativeBuilder:
             intervals=intervals,
             roles=role_list,
         )
-        score = narrative_score(kind, event, cited, self._geopolitics)
-        return replace(event, significance=Significance.of(score), score=score)
+        score, basis = narrative_score(kind, event, cited, self._geopolitics, self._stakes.get(intervals[0]))
+        return replace(event, significance=Significance.of(score), score=score, significance_basis=basis)
 
     def _open(self, anchor: EntityRef | None) -> bool:
         return anchor is not None and self._last is not None and present_in(self._last, anchor)
@@ -247,9 +258,11 @@ def aggregate(
     rules: Sequence[NarrativeRule],
     *,
     kinds: Callable[[str], EventKind | None] = kind_for,
+    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
 ) -> list[Event]:
     """Rules run in layers derived from what they read and which ``kinds`` have exclusive constituents, each layer by
-    rule name. ``kinds`` is the registry; tests pass their own to declare fixture kinds exclusive.
+    rule name. ``kinds`` is the registry; tests pass their own to declare fixture kinds exclusive. ``significance``
+    scales the narrative events' stakes.
 
     Narrative events already in ``stream`` are hidden from a rule that does not read their type, like those the rules
     build. These programming errors raise ``ValueError``: a duplicate rule name or event ID, rules reading each other
@@ -272,7 +285,7 @@ def aggregate(
     )
     layers = _layers(rules, exclusive)
     started = time.perf_counter()
-    build = NarrativeBuilder(situations)
+    build = NarrativeBuilder(situations, significance=significance)
     built: list[Event] = []
     for layer, layer_rules in enumerate(layers):
         visible = EventStream(chronological([*stream, *built]))

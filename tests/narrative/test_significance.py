@@ -40,6 +40,7 @@ from tinarrative.narrative import assign_significance, significance, significanc
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.significance import (
     LARGE_ARSENAL,
+    NARRATIVE_STAKE_IMPLEMENTATIONS,
     PROMOTED,
     RULE_IMPLEMENTATIONS,
     STAKE_IMPLEMENTATIONS,
@@ -345,7 +346,15 @@ def test_a_kind_without_a_context_rule_is_judged_by_its_base_level() -> None:
 
 def test_every_rule_and_stake_has_exactly_one_implementation() -> None:
     assert set(RULE_IMPLEMENTATIONS) == set(Rule)
-    assert set(STAKE_IMPLEMENTATIONS) == set(Stake)
+    assert set(STAKE_IMPLEMENTATIONS) | set(NARRATIVE_STAKE_IMPLEMENTATIONS) == set(Stake)
+    assert not set(STAKE_IMPLEMENTATIONS) & set(NARRATIVE_STAKE_IMPLEMENTATIONS)
+
+
+def test_every_kind_declares_a_stake_of_its_own_scope() -> None:
+    for event_type, kind in KINDS.items():
+        if kind.stake is not None:
+            implemented = NARRATIVE_STAKE_IMPLEMENTATIONS if kind.narrative else STAKE_IMPLEMENTATIONS
+            assert kind.stake in implemented, event_type
 
 
 def test_every_narrative_kind_names_an_implemented_context_rule_and_stake() -> None:
@@ -353,7 +362,7 @@ def test_every_narrative_kind_names_an_implemented_context_rule_and_stake() -> N
     assert narrative
     for kind in narrative:
         assert kind.rule is None or isinstance(RULE_IMPLEMENTATIONS[kind.rule], NarrativeContextRule), kind.event_type
-        assert kind.stake is None or kind.stake in STAKE_IMPLEMENTATIONS, kind.event_type
+        assert kind.stake is None or kind.stake in NARRATIVE_STAKE_IMPLEMENTATIONS, kind.event_type
 
 
 def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
@@ -583,7 +592,7 @@ def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None
 def narrative_level(event_type: str, **attributes: Observed) -> Significance:
     kind = KINDS[event_type]
     event = bare_event(event_type, **attributes)
-    return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings()))
+    return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings())[0])
 
 
 @pytest.mark.parametrize(

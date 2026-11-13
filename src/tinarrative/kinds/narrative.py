@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from ..diff.render import render_value
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, Template
+from ..model.kinds import EventKind, EvidenceRole, Rule, Stake, Template
 from ..model.values import Observed
 
 METRIC_SHIFTS_OMITTED = frozenset({"metric_shifts_omitted"})
@@ -20,11 +20,12 @@ def narrative_kind(
     *,
     base: Significance,
     rule: Rule | None = None,
+    stake: Stake | None = None,
     digests_members: bool = False,
     exclusive_constituents: bool = False,
 ) -> EventKind:
-    """A narrative-event kind, scored from its ``base`` and context ``rule``; a kind with ``metric_shifts`` may also
-    carry ``metric_shifts_omitted``."""
+    """A narrative-event kind, scored from its ``base`` and context ``rule``, scaled by its ``stake``; a kind with
+    ``metric_shifts`` may also carry ``metric_shifts_omitted``."""
     if "metric_shifts" in required:
         optional |= METRIC_SHIFTS_OMITTED
     return EventKind(
@@ -35,6 +36,7 @@ def narrative_kind(
         required,
         optional,
         rule=rule,
+        stake=stake,
         narrative=True,
         digests_members=digests_members,
         exclusive_constituents=exclusive_constituents,

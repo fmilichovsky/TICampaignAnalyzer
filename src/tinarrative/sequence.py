@@ -446,7 +446,9 @@ def situations(intervals: Iterable[IntervalResult]) -> tuple[SituationReport, ..
 
 
 def narrative_events(
-    intervals: Sequence[IntervalResult], rules: Sequence[NarrativeRule] = NARRATIVE_RULES
+    intervals: Sequence[IntervalResult],
+    rules: Sequence[NarrativeRule] = NARRATIVE_RULES,
+    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
 ) -> list[Event]:
     """The narrative events the rules build over the stream and situation reports (``narrative.aggregate``)."""
-    return aggregate(event_stream(intervals), situations(intervals), rules)
+    return aggregate(event_stream(intervals), situations(intervals), rules, significance=significance)

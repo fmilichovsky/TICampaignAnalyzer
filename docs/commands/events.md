@@ -128,6 +128,12 @@ band. For the types the stake scales (nation, territory, control-point and organ
 moves with the share of the world the event touched, and the level follows the score; such an event also carries
 a `significance_basis` with its `base` score, the `measure` (`power`, `population` or `organization`), the
 `share`, the `scale` it added and the stake `entities` (plus a `bonus` for a war between nuclear-armed nations).
+Geopolitical narrative events are scaled the same way, from the situation reports of their first interval: a
+takeover, takeover wave or merger by the power share of the nations taken or absorbed, a war arc by that of every
+belligerent (with the bonus when both sides hold warheads), a federation by that of every member, a release or
+breakaway by that of the new nation, and an expansion, cession or claim by the population share of its regions. A
+narrative event never scores below the highest-scored event it cites, so its basis may explain less than its
+score.
 The [narrator package](#narrator-package) keeps the `score` and drops the basis. The reference shares and the
 clamp are [settings](../configuration.md). Without `--narrative`, every event keeps its source locations in the
 saves.

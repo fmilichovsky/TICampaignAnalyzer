@@ -32,7 +32,7 @@ from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, UnknownReason, number, to_jsonable
 from ..reconstruction.common import control_points, executive_seat
 from ..reconstruction.control import Holder
-from .prominence import PowerInputs, power_inputs, power_shares
+from .prominence import PowerInputs, population_shares, power_inputs, power_shares
 
 logger = get_logger(__name__)
 
@@ -301,6 +301,8 @@ class SituationReport:
     factions: tuple[FactionSituation, ...]
     unattributed: Unattributed
     world: WorldSituation
+    region_population: tuple[tuple[EntityId, Observed], ...] = ()
+    """Each region's ``populationInMillions``, the territory stakes of narrative events; not part of ``to_dict``."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -353,6 +355,11 @@ class SituationReport:
             if found is not None:
                 inputs.append(found)
         return power_shares(inputs, weights)
+
+    def population_shares(self) -> dict[EntityId, float]:
+        """Each region's share of world population, as ``prominence.region_shares`` gives for the snapshot this
+        report was built from."""
+        return population_shares(self.region_population)
 
     def _landed_order(self, statistic: str) -> list[tuple[float, NationSituation]]:
         value = RANKED[statistic]
@@ -623,6 +630,7 @@ def build_situation(snapshot: SaveSnapshot, *, spaceports: int = SPACEPORTS) -> 
         factions=factions,
         unattributed=unattributed,
         world=_world(reader, nations, spaceports),
+        region_population=tuple((state.ref.entity_id, state.get("populationInMillions")) for state in snapshot.regions),
     )
     logger.debug(
         "situation built %s",

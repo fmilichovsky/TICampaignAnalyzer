@@ -23,7 +23,7 @@ Aggregated from the events of every interval below.
 
 ### 2032
 
-- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: Fixture Resistance (faction:15) took control of Fixture Northland (nation:20) from Fixture Servants (faction:16) (inferred, confidence `low`, significance `campaign_defining`)
+- `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: Fixture Resistance (faction:15) took control of Fixture Northland (nation:20) from Fixture Servants (faction:16) (inferred, confidence `low`, significance `major`)
   - roles: actor: Fixture Resistance (faction:15); target: Fixture Northland (nation:20); loser: Fixture Servants (faction:16)
   - attributes: cause: `"Politics"`
   - from `control_point.controller_changed/control point:9@2032-04-01T00:00:00`
@@ -33,7 +33,7 @@ Aggregated from the events of every interval below.
   - from `faction.nation_control_changed/nation:20/executive@2032-04-01T00:00:00`
   - from `nation.executive_change_recorded/nation:20@2032-04-01T00:00:00`
   - from `nation.unrest_attempts_changed/nation:20/faction:15@2032-04-01T00:00:00`
-- `2032-01-01T00:00:00` to `2032-07-01T00:00:00` (open): Fixture Servants (faction:16) took control of Fixture Northland (nation:20) from Fixture Resistance (faction:15) (inferred, confidence `low`, significance `campaign_defining`)
+- `2032-01-01T00:00:00` to `2032-07-01T00:00:00` (open): Fixture Servants (faction:16) took control of Fixture Northland (nation:20) from Fixture Resistance (faction:15) (inferred, confidence `low`, significance `major`)
   - roles: actor: Fixture Servants (faction:16); target: Fixture Northland (nation:20); loser: Fixture Resistance (faction:15)
   - from `control_point.controller_changed/control point:9@2032-07-01T00:00:00`
   - from `faction.nation_control_changed/nation:20/executive@2032-07-01T00:00:00`
@@ -41,7 +41,7 @@ Aggregated from the events of every interval below.
 - `2032-01-01T00:00:00` to `2032-04-01T00:00:00`: Fixture Southland (nation:21) claimed regions of Fixture Northland (nation:20) (objective, confidence `high`, significance `major`)
   - roles: actor: Fixture Southland (nation:21); target: Fixture Northland (nation:20)
   - from `nation.claims_changed/nation:21@2032-04-01T00:00:00`
-- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: Fixture Northland (nation:20) ceded 1 region to Fixture Southland (nation:21) (inferred, confidence `low`, significance `major`)
+- `2032-04-01T00:00:00` to `2032-07-01T00:00:00`: Fixture Northland (nation:20) ceded 1 region to Fixture Southland (nation:21) (inferred, confidence `low`, significance `campaign_defining`)
   - roles: actor: Fixture Northland (nation:20); beneficiary: Fixture Southland (nation:21); location: Fixture South (region:42)
   - attributes: region_count: `1`
   - from `nation.territory_gained/nation:21@2032-07-01T00:00:00`

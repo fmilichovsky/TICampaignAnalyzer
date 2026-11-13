@@ -57,15 +57,15 @@ class GeopoliticsSettings:
     """Thresholds and windows of the geopolitical narrative rules (``narrative.geopolitics``), in game days."""
 
     top_gdp_nations: int = _int(10, 1)
-    """A takeover is ``campaign_defining`` when its nation ranks this high or higher by ``GDP`` in the report after
-    the anchor's interval."""
+    """A nation-level narrative event of a nation this high or higher by ``GDP`` is one level up (TODO(#362): temporary,
+    the nation's power share replaces it)."""
     takeover_consolidation_days: int = _int(180, 0)
     """Control changes of one nation to the same faction this soon after the first join one takeover; its
     control-point gains are attached over the same window."""
     takeover_wave_window_days: int = _int(180, 0)
     """Takeovers by one faction starting at most this long after the first of them ended form one takeover wave."""
     takeover_wave_min_nations: int = _int(3, 2)
-    """A takeover wave needs at least this many nations below ``top_gdp_nations``."""
+    """A takeover wave needs at least this many nations, each taken by a takeover below ``campaign_defining``."""
     takeover_precursor_days: int = _int(90, 0)
     """Unrest and opinion evidence of the nation this long before the takeover is attached as its precursors."""
     ledger_window_days: int = _int(28, 0)
@@ -149,7 +149,9 @@ class ReferenceSettings:
     organization: float = _float(0.01, 1e-6)
     """Organization tier² share."""
     nuclear_bonus: int = _int(5, 0, 100)
-    """Points added to a war between two nations that both hold nuclear weapons."""
+    """Points added to a war between two nations that both hold nuclear weapons, and to a war arc with warheads on
+    both sides. The power share already counts warheads through the strength estimate; the bonus stands outside the
+    clamp, so it still lifts a war of great powers whose share is at the clamp."""
 
 
 @dataclass(frozen=True)

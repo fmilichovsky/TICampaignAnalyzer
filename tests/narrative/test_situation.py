@@ -34,6 +34,7 @@ from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.records import ItemEntry, KeyedEntry, RecordKind
 from tinarrative.model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown, UnknownReason
+from tinarrative.narrative.prominence import region_shares
 from tinarrative.narrative.situation import (
     BodyHabs,
     Milestone,
@@ -448,6 +449,14 @@ def test_opposed_wars_are_the_wars_two_nations_fight_on_opposite_sides() -> None
 
     assert report.opposed_wars(SOUTH.entity_id, NORTH.entity_id) == (against,)
     assert report.opposed_wars(SOUTH.entity_id, EAST.entity_id) == ()
+
+
+def test_population_shares_are_the_snapshots_region_shares_and_stay_out_of_the_document() -> None:
+    snapshot = campaign()
+    report = build_situation(snapshot)
+
+    assert report.population_shares() and report.population_shares() == region_shares(snapshot)
+    assert "region_population" not in report.to_dict()
 
 
 def test_power_shares_of_the_landed_nations_sum_to_one() -> None:

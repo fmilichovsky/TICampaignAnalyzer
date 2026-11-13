@@ -48,12 +48,14 @@ def test_a_narrative_event_kind_is_exactly_one_a_rule_emits() -> None:
     assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
 
 
-def test_every_geopolitics_kind_declares_its_base_level_and_no_narrative_event_kind_a_stake() -> None:
+def test_every_geopolitics_kind_declares_its_base_level_and_stake_and_no_other_narrative_event_kind_a_stake() -> None:
     geopolitical = {
         event_type for rule in geopolitical_rules(GeopoliticsSettings()) for event_type in rule.emitted_types
     }
     assert all(KINDS[event_type].base is not None for event_type in geopolitical)
-    assert not [event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is not None]
+    assert all(KINDS[event_type].stake is not None for event_type in geopolitical)
+    staked = {event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is not None}
+    assert staked == geopolitical
 
 
 def test_every_nation_metric_and_diplomacy_kind_declares_its_base_level() -> None:

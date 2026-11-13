@@ -20,11 +20,21 @@ from tests.narrative.support import (
     war,
     war_row,
 )
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings, SignificanceSettings
 from tinarrative.kinds import KINDS, describe_event
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.model.entities import EntityDomain, EntityRef
-from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
+from tinarrative.model.events import (
+    Confidence,
+    DateBasis,
+    Event,
+    EventSource,
+    EventStatus,
+    Role,
+    Significance,
+    SignificanceBasis,
+)
+from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
 from tinarrative.narrative.rulekit import bounded_shifts
@@ -193,6 +203,30 @@ def only(events: Sequence[Event], event_type: str) -> Event:
     return found
 
 
+REST = nation("29", "Rest of the world")
+"""Holds the power the nations of a ``powers`` report leave, so their weights are shares of 1000."""
+TAKEOVER = "faction.takeover"
+SCALING = SignificanceSettings()
+"""The default scaling: the clamp and the nuclear bonus the stake tests derive their expectations from."""
+
+
+def powers(
+    key: str, *weights: tuple[EntityRef, float], armed: Sequence[EntityRef] = (), **kwargs: object
+) -> SituationReport:
+    """A report whose nations' power shares are their weights over 1000: each weight is the nation's GDP, population
+    and strength alike. ``armed`` nations hold one warhead, the others none."""
+    rows = [*weights, (REST, 1000.0 - sum(weight for _, weight in weights))]
+    listed = [
+        nation_row(item, gdp=weight, population=weight, strength=weight, regions=1, nuclear_weapons=int(item in armed))
+        for item, weight in rows
+    ]
+    return situation(key, nations=listed, **kwargs)  # type: ignore[arg-type]
+
+
+def by_target(events: Sequence[Event]) -> dict[EntityRef, Event]:
+    return {next(ref for role, ref in item.roles if role is Role.TARGET): item for item in events}
+
+
 def roles(item: Event) -> list[tuple[Role, str]]:
     return [(role, str(entity.entity_id)) for role, entity in item.roles]
 
@@ -351,22 +385,27 @@ def test_an_independence_control_change_is_left_to_the_release_rule() -> None:
     assert of_type(built(stream, plain(K0, K1)), "faction.takeover") == []
 
 
-def test_a_top_economy_takeover_is_campaign_defining_by_the_configured_rank() -> None:
-    stream = [control(K1, "executive", RESISTANCE, SERVANTS)]
-    after = situation(
-        K1,
-        nations=[
-            nation_row(SOUTH, gdp=900.0, regions=1),
-            nation_row(NORTH, gdp=500.0, regions=1),
-            nation_row(EAST, gdp=1.0, regions=1),
-        ],
-    )
-    situations = [situation(K0), after]
+def test_a_takeover_scales_with_its_nations_power_share_before_it() -> None:
+    stream = [_seized(K1, NORTH), _seized(K1, SOUTH)]
 
-    takeover = only(built(stream, situations), "faction.takeover")
-    assert (takeover.attribute("gdp_rank"), takeover.significance) == (2, Significance.CAMPAIGN_DEFINING)
-    strict = only(built(stream, situations, GeopoliticsSettings(top_gdp_nations=1)), "faction.takeover")
-    assert strict.significance is Significance.MAJOR
+    takeovers = by_target(of_type(built(stream, [powers(K0, (NORTH, 400.0), (SOUTH, 0.1)), powers(K1)]), TAKEOVER))
+
+    great, micro = takeovers[NORTH], takeovers[SOUTH]
+    assert great.significance is Significance.CAMPAIGN_DEFINING
+    assert great.significance_basis == SignificanceBasis(
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+    )
+    assert micro.significance_basis is not None and micro.significance_basis.scale == SCALING.scale_min
+    assert micro.significance.rank < Significance.MAJOR.rank
+
+
+def test_a_low_stake_never_pulls_a_takeover_below_its_highest_cited_score() -> None:
+    stream = [control(K1, "executive", RESISTANCE, SERVANTS, subject=SOUTH, significance=Significance.MAJOR, score=70)]
+
+    takeover = only(built(stream, [powers(K0, (SOUTH, 0.1)), powers(K1)]), TAKEOVER)
+
+    assert takeover.significance_basis is not None and takeover.significance_basis.scale == SCALING.scale_min
+    assert takeover.score == 70
 
 
 def _seized(key: str, subject: EntityRef, actor: EntityRef = SERVANTS) -> Event:
@@ -383,7 +422,7 @@ def test_takeovers_of_several_small_nations_by_one_faction_form_a_wave() -> None
     assert set(wave.constituents) == {item.id for item in members}
     assert wave.attribute("nations") == (NORTH, SOUTH, EAST) and wave.attribute("count") == 3
     assert wave.roles == ((Role.ACTOR, SERVANTS), (Role.TARGET, NORTH), (Role.TARGET, SOUTH), (Role.TARGET, EAST))
-    assert wave.significance is Significance.MAJOR
+    assert (wave.significance, wave.significance_basis) == (Significance.MAJOR, None)
     assert describe_event(wave).startswith(f"{SERVANTS.label()} took control of ")
 
 
@@ -395,15 +434,30 @@ def test_fewer_takeovers_than_the_minimum_are_no_wave() -> None:
     assert only(loose, "faction.takeover_wave").attribute("count") == 2
 
 
-def test_a_top_economy_takeover_stays_out_of_the_wave() -> None:
+def test_a_campaign_defining_takeover_stays_out_of_the_wave_while_minor_ones_join_it() -> None:
     stream = [_seized(K1, nation_ref) for nation_ref in (NORTH, SOUTH, EAST, WEST)]
-    after = situation(K1, nations=[nation_row(NORTH, gdp=900.0, regions=1), nation_row(SOUTH, gdp=1.0, regions=1)])
+    before = powers(K0, (NORTH, 400.0), (SOUTH, 1.0), (EAST, 1.0), (WEST, 1.0))
 
-    settings = GeopoliticsSettings(top_gdp_nations=1)
+    events = built(stream, [before, powers(K1)])
 
-    wave = only(built(stream, [situation(K0), after], settings), "faction.takeover_wave")
-
+    assert by_target(of_type(events, TAKEOVER))[NORTH].significance is Significance.CAMPAIGN_DEFINING
+    wave = only(events, "faction.takeover_wave")
     assert wave.attribute("nations") == (SOUTH, EAST, WEST)
+    assert wave.significance_basis is not None
+    assert wave.significance_basis.entities == (SOUTH, EAST, WEST) and wave.significance_basis.share == 0.003
+
+
+def test_a_wave_of_many_nations_outranks_one_of_few_with_members_of_the_same_size() -> None:
+    many = [nation(str(100 + index)) for index in range(20)]
+    few = [nation(str(200 + index)) for index in range(2)]
+    stream = [*(_seized(K1, item) for item in many), *(_seized(K1, item, actor=ACADEMY) for item in few)]
+    before = powers(K0, *((item, 10.0) for item in (*many, *few)))
+
+    events = built(stream, [before, powers(K1)], GeopoliticsSettings(takeover_wave_min_nations=2))
+
+    waves = {wave.roles[0][1]: wave for wave in of_type(events, "faction.takeover_wave")}
+    largest_member = max(item.score for item in of_type(events, TAKEOVER))
+    assert waves[SERVANTS].score > waves[ACADEMY].score > largest_member
 
 
 def test_a_takeover_after_the_window_starts_a_new_run() -> None:
@@ -694,6 +748,34 @@ def test_a_war_arc_leaves_out_what_closed_before_its_start_date() -> None:
     assert shift_ids(arc) == []
 
 
+def _arc_of(attackers: Sequence[EntityRef], defenders: Sequence[EntityRef], before: SituationReport) -> Event:
+    row = war_row(WAR, attackers, defenders, start_date="2032-02-01T00:00:00")
+    appeared = war_event("war.appeared", K1, entities=[*attackers, *defenders], started_on="2032-02-01T00:00:00")
+    return only(built([appeared], [before, situation(K1, wars=[row])]), "war.arc")
+
+
+def test_a_multilateral_war_outranks_a_two_state_war_of_the_same_leading_belligerent() -> None:
+    before = powers(K0, (NORTH, 30.0), (SOUTH, 10.0), (EAST, 30.0), (WEST, 30.0))
+
+    two = _arc_of([NORTH], [SOUTH], before)
+    many = _arc_of([NORTH, EAST], [SOUTH, WEST], before)
+
+    assert two.score < many.score
+    assert many.significance_basis is not None
+    assert many.significance_basis.entities == (NORTH, EAST, SOUTH, WEST) and many.significance_basis.bonus == 0
+
+
+def test_the_nuclear_bonus_needs_warheads_on_both_sides_of_a_war() -> None:
+    weights = ((NORTH, 30.0), (SOUTH, 10.0), (EAST, 30.0))
+
+    opposed = _arc_of([NORTH], [SOUTH], powers(K0, *weights, armed=[NORTH, SOUTH]))
+    allied = _arc_of([NORTH, EAST], [SOUTH], powers(K0, *weights, armed=[NORTH, EAST]))
+
+    assert opposed.significance_basis is not None
+    assert opposed.significance_basis.bonus == SCALING.reference.nuclear_bonus > 0
+    assert allied.significance_basis is not None and allied.significance_basis.bonus == 0
+
+
 def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_inside_it() -> None:
     sides = war_row(WAR, [NORTH], [SOUTH, EAST])
     situations = [situation(key, wars=[sides]) for key in (K0, K1, K2)]
@@ -755,6 +837,21 @@ def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> 
     assert describe_event(lifecycle) == (
         "Union (federation:60) members [Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
     )
+
+
+def test_a_federation_lifecycle_scales_with_every_nation_that_was_a_member() -> None:
+    situations = [
+        powers(K0, (NORTH, 100.0), (SOUTH, 50.0), federations=[federation_row(UNION, [NORTH])]),
+        powers(K1, federations=[federation_row(UNION, [NORTH, SOUTH])]),
+    ]
+
+    lifecycle = only(
+        built([federation_event("federation.members_changed", K1, SOUTH)], situations), "federation.lifecycle"
+    )
+
+    assert lifecycle.significance_basis is not None
+    assert lifecycle.significance_basis.entities == (NORTH, SOUTH) and lifecycle.significance_basis.share == 0.15
+    assert lifecycle.score > Significance.MAJOR.base
 
 
 def test_a_federation_lifecycle_attaches_a_members_shifts_only_from_its_membership() -> None:
@@ -834,6 +931,18 @@ def test_gains_chained_within_the_gap_are_one_expansion_with_cessions_nested() -
     )
 
 
+def test_an_expansion_scales_with_the_population_share_of_every_region_it_gained() -> None:
+    populations = [(SOUTH_REGION, 30.0), (EAST_REGION, 70.0), (NORTH_REGION, 900.0)]
+    situations = [situation(key, regions=populations) for key in (K0, K1, K2, K3)]
+    stream = [*transfer(K1, NORTH, SOUTH, SOUTH_REGION), *annexation(K2, NORTH, EAST, EAST_REGION)]
+
+    expansion = only(built(stream, situations), "nation.expansion")
+
+    basis = expansion.significance_basis
+    assert basis is not None
+    assert (basis.measure, basis.share, basis.entities) == (StakeMeasure.POPULATION, 0.1, (EAST_REGION, SOUTH_REGION))
+
+
 def test_a_cession_is_a_transfer_no_reading_or_war_explains_with_allies_as_context() -> None:
     before = situation(
         K0,
@@ -847,6 +956,17 @@ def test_a_cession_is_a_transfer_no_reading_or_war_explains_with_allies_as_conte
     assert (cession.attribute("allied"), cession.attribute("shared_federation")) == (True, UNION)
     assert (cession.confidence, cession.significance, cession.open) == (Confidence.MEDIUM, Significance.MAJOR, False)
     assert describe_event(cession) == "Northland (nation:20) ceded 1 region to Southland (nation:21)"
+
+
+def test_a_cession_scales_with_the_population_share_of_the_regions_it_moved() -> None:
+    before = situation(K0, regions=[(SOUTH_REGION, 50.0), (NORTH_REGION, 950.0)])
+
+    cession = only(built(transfer(K1, SOUTH, NORTH, SOUTH_REGION), [before, situation(K1)]), "nation.cession")
+
+    basis = cession.significance_basis
+    assert basis is not None
+    assert (basis.measure, basis.share, basis.entities) == (StakeMeasure.POPULATION, 0.05, (SOUTH_REGION,))
+    assert cession.score > Significance.MAJOR.base
 
 
 def test_no_cession_with_a_reading_a_war_between_the_two_or_an_unmatched_loss() -> None:
@@ -907,6 +1027,18 @@ def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes()
     assert describe_event(merger) == (
         "Northland (nation:20) absorbed Southland (nation:21) by unification under Resistance (faction:15)"
     )
+
+
+def test_absorbing_a_micro_state_ranks_below_absorbing_a_great_power_and_is_not_campaign_defining() -> None:
+    def merger(weight: float) -> Event:
+        situations = [powers(K0, (NORTH, 100.0), (SOUTH, weight)), powers(K1)]
+        return only(built(merged(K1, NORTH, SOUTH, SOUTH_REGION), situations), "nation.merger")
+
+    micro, great = merger(0.1), merger(400.0)
+
+    assert micro.significance_basis is not None and micro.significance_basis.entities == (SOUTH,)
+    assert micro.significance is not Significance.CAMPAIGN_DEFINING
+    assert great.significance is Significance.CAMPAIGN_DEFINING and great.score > micro.score
 
 
 def test_a_merger_carries_events_skipped_by_every_rule_that_checks_its_parties() -> None:
@@ -1068,6 +1200,28 @@ def test_a_breakaway_names_the_parents_and_is_open_while_the_window_reaches_past
     assert describe_event(breakaway) == "Eastland (nation:22) broke away from Northland (nation:20)"
 
 
+def test_a_release_is_scaled_by_the_new_nations_power_share_read_after_it_appeared() -> None:
+    def release(weight: float) -> Event:
+        situations = [powers(K0, (NORTH, 500.0)), powers(K1, (NORTH, 400.0), (EAST, weight)), powers(K2)]
+        return only(built([independence(K1, True)], situations), "nation.release")
+
+    large, micro = release(100.0), release(0.1)
+
+    assert large.significance_basis is not None and micro.significance_basis is not None
+    assert large.significance_basis.entities == (EAST,) and large.significance_basis.share == 0.1
+    assert large.significance_basis.scale > 0 and micro.significance_basis.scale == SCALING.scale_min
+    assert large.score == micro.score == Significance.MAJOR.base  # the independence it cites sets the floor
+
+
+def test_a_breakaway_is_scaled_by_the_power_share_of_the_nation_that_broke_away() -> None:
+    situations = [powers(K0, (NORTH, 500.0)), powers(K1, (NORTH, 400.0), (EAST, 100.0)), powers(K2)]
+
+    breakaway = only(built([independence(K1, False)], situations), "nation.breakaway")
+
+    assert breakaway.significance_basis is not None
+    assert (breakaway.significance_basis.entities, breakaway.significance_basis.share) == ((EAST,), 0.1)
+
+
 # --- nation.claims_declared --------------------------------------------------------------------------------------
 
 
@@ -1090,6 +1244,15 @@ def test_claims_on_another_nations_regions_are_declared_and_on_its_own_are_not()
     assert describe_event(declared) == "Southland (nation:21) claimed regions of Northland (nation:20)"
     assert of_type(built([claims(K1, [SOUTH_REGION], [SOUTH])], plain(K0, K1)), "nation.claims_declared") == []
     assert of_type(built([claims(K1, [], [])], plain(K0, K1)), "nation.claims_declared") == []
+
+
+def test_declared_claims_scale_with_the_population_share_of_the_claimed_regions() -> None:
+    situations = [situation(key, regions=[(NORTH_REGION, 20.0), (SOUTH_REGION, 980.0)]) for key in (K0, K1)]
+
+    declared = only(built([claims(K1, [NORTH_REGION], [NORTH])], situations), "nation.claims_declared")
+
+    assert declared.significance_basis is not None
+    assert (declared.significance_basis.entities, declared.significance_basis.share) == ((NORTH_REGION,), 0.02)
 
 
 # --- Across rules ------------------------------------------------------------------------------------------------

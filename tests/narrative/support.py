@@ -156,9 +156,11 @@ def situation(
     wars: Sequence[EntityRef | WarSituation] = (),
     factions: Sequence[EntityRef] = (),
     nuclear_strikes: Observed = UNKNOWN,
+    regions: Sequence[tuple[EntityRef, Observed]] = (),
 ) -> SituationReport:
     """A report listing the given entities and nothing else; every other value is unknown or empty. A bare reference
-    stands for a row with unknown values; ``nation_row``, ``federation_row`` and ``war_row`` build fuller ones."""
+    stands for a row with unknown values; ``nation_row``, ``federation_row`` and ``war_row`` build fuller ones.
+    ``regions`` are region populations in millions."""
     return SituationReport(
         date=date,
         player_faction_name=Unknown(),
@@ -173,6 +175,7 @@ def situation(
         world=WorldSituation(
             len(nations), Unknown(), Unknown(), Unknown(), Unknown(), (("nuclearStrikes", nuclear_strikes),), ()
         ),
+        region_population=tuple((region.entity_id, population) for region, population in regions),
     )
 
 
@@ -189,6 +192,7 @@ def nation_row(
     alien: bool = False,
     statistics: Mapping[str, Observed] | None = None,
     regions: Observed = UNKNOWN,
+    population: Observed = UNKNOWN,
     armies: Observed = UNKNOWN,
     navies: Observed = UNKNOWN,
     strength: Observed = UNKNOWN,
@@ -199,7 +203,7 @@ def nation_row(
     nuclear_weapons: Observed = UNKNOWN,
 ) -> NationSituation:
     """A nation row; ``shares`` are points held per faction, ``statistics`` the values besides ``GDP``, the rest the
-    region count and the asset fields."""
+    region count, the population and the asset fields."""
     return NationSituation(
         nation=item,
         executive=executive,  # type: ignore[arg-type]
@@ -213,7 +217,7 @@ def nation_row(
         allies=tuple(allies),
         wars=(),
         regions=regions,  # type: ignore[arg-type]
-        population=Unknown(),
+        population=population,
         statistics=(("GDP", gdp), *(statistics or {}).items()),
         alien=alien,
         armies=armies,  # type: ignore[arg-type]
