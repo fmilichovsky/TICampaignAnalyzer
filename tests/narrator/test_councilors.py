@@ -220,6 +220,15 @@ def test_a_missing_article_is_in_the_manifest_only() -> None:
     assert manifest["program"] == {"name": "tinarrative", "version": "0.1.0"}
 
 
+def test_a_stored_blank_article_is_not_written() -> None:
+    stored = {1: _record(1, "Ada."), 2: _record(2, " \n")}
+
+    markdown, manifest = assemble_articles(DOSSIER, stored, generated=GENERATED, version="0.1.0")
+
+    assert "### Bo Two" not in markdown and "### Ada One" in markdown
+    assert missing(manifest) == [2, 3]
+
+
 def test_a_stale_or_never_sent_article_is_not_written() -> None:
     stored = {1: _record(1, "Old.", request_sha256="0" * 64)}
     sent_with = {"provider": "ollama", "model": "local", "max_output_tokens": 500, "temperature": 0.2}

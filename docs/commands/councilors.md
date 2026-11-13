@@ -97,9 +97,9 @@ contacted.
 
 Articles are sent in dossier order. An article whose stored response was made from the same
 request, provider and model is kept, not sent again; `--force` sends every article again. A failed
-request, or a completion cut off at the output limit or refused, skips that article only: the run
-goes on, the other articles are written, and the command exits 10 at the end. A rerun sends only
-the missing articles and reuses the stored responses.
+request, or a completion cut off at the output limit, refused or with no text, skips that article
+only: the run goes on, the other articles are written, and the command exits 10 at the end. A rerun
+sends only the missing articles and reuses the stored responses.
 
 ## Output
 
@@ -184,7 +184,7 @@ missing, stderr gets one summary line.
 | 5 | A save is not a supported save. |
 | 8 | The settings file cannot be read or is not valid settings. |
 | 9 | `--output`, or the articles and manifest, cannot be written. |
-| 10 | `--send`: an article request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit or was refused. The other articles are written. |
+| 10 | `--send`: an article request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit, was refused or had no text. The other articles are written. |
 
 ## Examples
 

@@ -224,11 +224,58 @@ def test_ollama_finish_reasons(done_reason: str, finish: str) -> None:
 
 
 def test_missing_usage_gives_no_counts() -> None:
-    document = {"choices": [{"message": {"content": None}, "finish_reason": "stop"}]}
+    document = {"choices": [{"message": {"content": "Once upon"}, "finish_reason": "stop"}]}
 
     completion = send(FakeTransport(ok(document)), "openai")
 
-    assert completion == Completion("", "complete", None, None, None)
+    assert completion == Completion("Once upon", "complete", None, None, None)
+
+
+def _blank(provider: str, text: str | None, reason: str) -> dict[str, Any]:
+    if provider == "anthropic":
+        document = anthropic_response(reason)
+        document["content"] = [{"type": "thinking", "thinking": "Plan the chapter."}]
+        if text is not None:
+            document["content"].append({"type": "text", "text": text})
+        return document
+    if provider == "ollama":
+        document = ollama_response(reason)
+        document["message"]["content"] = text
+        return document
+    document = openai_response(reason)
+    document["choices"][0]["message"]["content"] = text
+    return document
+
+
+@pytest.mark.parametrize(("provider", "reason"), [("anthropic", "end_turn"), ("openai", "stop"), ("ollama", "stop")])
+@pytest.mark.parametrize("text", [None, "", " \n\t "])
+def test_a_blank_completion_is_empty(provider: str, reason: str, text: str | None) -> None:
+    completion = send(FakeTransport(ok(_blank(provider, text, reason))), provider, key=None)
+
+    assert completion.finish == "empty"
+    assert completion.text == (text or "")
+
+
+@pytest.mark.parametrize(
+    ("provider", "reason"), [("anthropic", "max_tokens"), ("openai", "length"), ("ollama", "length")]
+)
+def test_a_blank_completion_at_the_output_limit_stays_length(provider: str, reason: str) -> None:
+    assert send(FakeTransport(ok(_blank(provider, None, reason))), provider, key=None).finish == "length"
+
+
+def test_openrouter_reasoning_without_content_is_empty_not_prose() -> None:
+    """The shape OpenRouter returned for a free reasoning model that stopped before writing."""
+    document = openai_response("stop")
+    message = document["choices"][0]["message"]
+    message.update(
+        content=None,
+        reasoning="We need to write the chapter.",
+        reasoning_details=[{"type": "reasoning.text", "text": "We need to write the chapter.", "index": 0}],
+    )
+
+    completion = send(FakeTransport(ok(document)), "openrouter")
+
+    assert (completion.text, completion.finish) == ("", "empty")
 
 
 # Errors and retries
