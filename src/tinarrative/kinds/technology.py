@@ -101,7 +101,13 @@ def _milestone(event: Event) -> str:
     return f"{who} {attribute_text(event, 'template')}: {attribute_text(event, 'rationale')}"
 
 
-MILESTONE = narrative_kind("technology.milestone", _milestone, required=frozenset({"template", "rationale"}))
+MILESTONE = narrative_kind(
+    "technology.milestone",
+    _milestone,
+    required=frozenset({"template", "rationale"}),
+    base=Significance.MINOR,  # Only the fallback: a rule builds this kind for curated names, whose tier sets the level.
+    rule=Rule.MILESTONE_TIER,
+)
 
 KINDS = (
     TECHNOLOGY_COMPLETED,

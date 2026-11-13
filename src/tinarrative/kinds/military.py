@@ -138,10 +138,26 @@ def _navy_established(event: Event) -> str:
 
 
 _ARMY_COUNT = frozenset({"before", "after", "gdp_rank", "strength_rank"})
-MILITARY_BUILDUP = narrative_kind("nation.military_buildup", _army_count("built up"), required=_ARMY_COUNT)
-DEMOBILIZATION = narrative_kind("nation.demobilization", _army_count("demobilized"), required=_ARMY_COUNT)
+MILITARY_BUILDUP = narrative_kind(
+    "nation.military_buildup",
+    _army_count("built up"),
+    required=_ARMY_COUNT,
+    base=Significance.MAJOR,
+    rule=Rule.TOP_RANK,
+)
+DEMOBILIZATION = narrative_kind(
+    "nation.demobilization",
+    _army_count("demobilized"),
+    required=_ARMY_COUNT,
+    base=Significance.MAJOR,
+    rule=Rule.TOP_RANK,
+)
 NAVY_ESTABLISHED = narrative_kind(
-    "nation.navy_established", _navy_established, required=frozenset({"navies", "gdp_rank", "strength_rank"})
+    "nation.navy_established",
+    _navy_established,
+    required=frozenset({"navies", "gdp_rank", "strength_rank"}),
+    base=Significance.MAJOR,
+    rule=Rule.TOP_RANK,
 )
 
 KINDS = (

@@ -9,14 +9,16 @@ import pytest
 from tests.analyzers.support import AFTER, BEFORE, snapshot
 from tests.fixtures import FIXTURES_ROOT
 from tinarrative.analyzers.common import EventBuilder
-from tinarrative.config import GeopoliticsSettings
+from tinarrative.config import DEFAULT_SETTINGS, GeopoliticsSettings
 from tinarrative.kinds import KINDS, attributes, describe_event, kind_for, known_event_types
 from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
 from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
 from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.values import Unknown
+from tinarrative.narrative.assets import asset_rules
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
 from tinarrative.narrative.geopolitics import geopolitical_rules
+from tinarrative.narrative.space import space_rules
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
@@ -51,6 +53,16 @@ def test_every_geopolitics_kind_declares_its_base_level_and_no_narrative_event_k
     }
     assert all(KINDS[event_type].base is not None for event_type in geopolitical)
     assert not [event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is not None]
+
+
+def test_every_asset_and_space_kind_declares_its_base_level() -> None:
+    emitted = {
+        event_type
+        for rule in (*asset_rules(DEFAULT_SETTINGS.narrative), *space_rules(DEFAULT_SETTINGS.narrative.space))
+        for event_type in rule.emitted_types
+    }
+    assert emitted
+    assert all(KINDS[event_type].base is not None for event_type in emitted)
 
 
 def test_the_constructor_keeps_required_and_optional_attributes_in_order() -> None:

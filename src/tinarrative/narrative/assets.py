@@ -28,12 +28,12 @@ from ..kinds import military as military_kinds
 from ..kinds import nations as nation_kinds
 from ..kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from ..model.entities import EntityId
-from ..model.events import Event, Role, Significance
+from ..model.events import Event, Role
 from ..model.values import FrozenMap, Observed, number
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
 from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chained, intervals_of, sorted_keys, subject
-from .significance import in_top_n, promoted_by_rank
+from .significance import in_top_n
 from .situation import Place, SituationReport
 from .stream import EventStream
 
@@ -81,6 +81,7 @@ class MilitaryBuildupRule:
     window_days: int | None = BUILDUP_WINDOW_DAYS
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-rank rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         candidates = [
@@ -104,9 +105,6 @@ class MilitaryBuildupRule:
                 if abs(after - before) < self.settings.buildup_min_armies:
                     continue
                 nation = end.nation
-                level = promoted_by_rank(
-                    Significance.MAJOR, last[1], nation_id, self.geopolitics.top_gdp_nations, by_strength=True
-                )
                 built.append(
                     build.event(
                         military_kinds.MILITARY_BUILDUP if after > before else military_kinds.DEMOBILIZATION,
@@ -120,7 +118,6 @@ class MilitaryBuildupRule:
                             ("gdp_rank", last[1].rank(nation_id, GDP)),
                             ("strength_rank", last[1].rank(nation_id, STRENGTH)),
                         ),
-                        significance=level,
                         open=keys[-1] == last_key,
                     )
                 )
@@ -139,6 +136,7 @@ class NavyEstablishedRule:
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
+        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-rank rule reads ``top_gdp_nations``
         candidates = [
             event
             for event in by_type(stream, APPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED)
@@ -166,9 +164,6 @@ class NavyEstablishedRule:
                             ("navies", item.navies),
                             ("gdp_rank", later.rank(nation_id, GDP)),
                             ("strength_rank", later.rank(nation_id, STRENGTH)),
-                        ),
-                        significance=promoted_by_rank(
-                            Significance.MAJOR, later, nation_id, self.geopolitics.top_gdp_nations, by_strength=True
                         ),
                         open=False,
                     )
@@ -234,7 +229,6 @@ class SpaceProgramGrowthRule:
                         roles=[(Role.ACTOR, nation)],
                         join=Join.ENTITY,
                         attributes=(*attributes, ("entered_top", entered)),
-                        significance=Significance.MAJOR if entered else Significance.MINOR,
                         open=keys[-1] == last_key,
                     )
                 )
@@ -285,7 +279,6 @@ class SpaceDefencesEstablishedRule:
                     roles=[(Role.ACTOR, nation)],
                     join=Join.ENTITY,
                     attributes=(("regions", event.attribute("after")),),
-                    significance=Significance.MAJOR,
                     open=False,
                 )
             )
@@ -365,7 +358,6 @@ class RankingRule:
                             ("entrants", tuple(_entry(place) for place in entrants)),
                             ("leavers", tuple(_entry(place) for place in leavers)),
                         ),
-                        significance=Significance.MAJOR,
                         open=later is None,
                     )
                 )
