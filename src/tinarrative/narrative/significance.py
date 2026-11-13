@@ -62,7 +62,7 @@ shift past their threshold for routine reasons too (event effects, priorities), 
 that explain it and stays trivial on its own."""
 
 # --- Rank promotion ---------------------------------------------------------------------------------------
-# Temporary: #355-#357 turn it into a named context rule, the stake issues replace its uses, #362 deletes it.
+# TODO(#362): temporary; the named context rule and the stakes replace these, then they go with ``top_gdp_nations``.
 
 PROMOTED = {
     Significance.TRIVIAL: Significance.MINOR,
