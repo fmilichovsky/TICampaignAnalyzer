@@ -1,8 +1,10 @@
 # `tinarrative save diff`
 
+<!-- generated: synopsis save diff -->
 ```
-tinarrative save diff <before> <after> [--format text|json]
+tinarrative save diff [--format {text,json}] before after
 ```
+<!-- end generated -->
 
 Reads two saves and lists every literal difference between them: which value of which entity
 changed, from what to what, and where in each save it came from. It infers nothing about causes;
@@ -11,11 +13,13 @@ the analyzed view of the same saves (events, significance, inferences), use [`ev
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `before` | required | The earlier save file. |
-| `after` | required | The later save file. |
-| `--format text\|json` | `text` | Human-readable report or the same report as JSON. |
+<!-- generated: options save diff -->
+| Option | Meaning |
+| --- | --- |
+| `BEFORE` | The earlier save file. |
+| `AFTER` | The later save file; the saves are compared in argument order. |
+| `--format text\|json` | Report format (default text). |
+<!-- end generated -->
 
 The saves are compared in argument order, whatever their game dates, so swapping them reverses
 the report.
@@ -47,12 +51,14 @@ option (before `save`) explains more; see the [debugging guide](../debugging.md)
 
 ## Exit codes
 
+<!-- generated: exit-codes save diff -->
 | Code | When |
 | --- | --- |
-| 0 | Both saves were loaded and compared. |
-| 2 | Usage error (a save path missing, an unknown `--format`, or an unknown option such as `--inferred`). |
-| 4 | A save path cannot be read (missing, unreadable, or a directory). |
-| 5 | A save is not a supported save: empty, not UTF-8 JSON, an unsupported format, or an unexpected shape. |
+| 0 | Both saves were compared. |
+| 2 | Usage error. |
+| 4 | A save cannot be read. |
+| 5 | A save is not a supported save. |
+<!-- end generated -->
 
 ## Examples
 

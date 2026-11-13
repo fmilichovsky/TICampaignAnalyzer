@@ -1,10 +1,14 @@
 # `tinarrative councilors`
 
+<!-- generated: synopsis councilors -->
 ```
-tinarrative councilors <path> [<path>...] [--campaign <selector>] [--player-only] [--output <dir>] [--config <file>]
-                       [--send] [--force] [--profile <name>] [--provider anthropic|openai|openrouter|ollama]
-                       [--model <id>] [--base-url <url>] [--max-output-tokens <tokens>] [--temperature <t>]
+tinarrative councilors [--campaign SELECTOR] [--player-only] [--output DIR] [--send] [--force]
+                       [--profile NAME] [--provider {anthropic,openai,openrouter,ollama}]
+                       [--model MODEL] [--base-url URL] [--max-output-tokens TOKENS]
+                       [--temperature TEMPERATURE] [--config FILE] [--jobs N]
+                       PATH [PATH ...]
 ```
+<!-- end generated -->
 
 Selects the notable councilors of a campaign, builds the dossier a neutral, public-perception
 article about each is written from, and builds one model request per councilor. Without `--send`
@@ -56,18 +60,24 @@ campaign (`--campaign` and the [campaign picker](events.md#campaign-picker) as t
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `PATH...` | | One save, or save files and directories of one campaign. |
-| `--campaign SELECTOR` | | The campaign to use when the saves hold several. |
-| `--player-only` | off | Select the player's councilors only. |
-| `--output DIR` | | Write `dossier.json` and the requests here; without it only the summary is printed. |
-| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: the `[councilors]` selection keys and the `[llm]` provider and profiles ([configuration](../configuration.md)). |
-| `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | With several saves, worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
-| `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
-| `--force` | off | With `--send`, send every article again, even one with a matching stored response. |
-| `--profile NAME` | | Apply the settings profile `[llm.profiles.NAME]`. |
-| `--provider`, `--model`, `--base-url`, `--max-output-tokens`, `--temperature` | | Override the `narrator` setting of the same name, as [`narrate`](narrate.md#provider-and-budget) does. |
+<!-- generated: options councilors -->
+| Option | Meaning |
+| --- | --- |
+| `PATH...` | One save, or saves and directories of one campaign; a directory is read one level deep. |
+| `--campaign SELECTOR` | The campaign to use when the saves hold several: a key, a unique key prefix, a listing number or 'latest'. |
+| `--player-only` | Select only the player's councilors. |
+| `--output DIR` | Write dossier.json and one request per councilor here. |
+| `--send` | Send the requests to the provider and write councilors.md; needs --output. Hands the dossier to a third party unless the provider runs locally. |
+| `--force` | With --send, send every article again, even one with a matching stored response. |
+| `--profile NAME` | Apply the settings profile llm.profiles.NAME. |
+| `--provider anthropic\|openai\|openrouter\|ollama` | Override llm.provider. |
+| `--model MODEL` | Override llm.model; there is no default model. |
+| `--base-url URL` | Override llm.base_url. |
+| `--max-output-tokens TOKENS` | Override llm.max_output_tokens. |
+| `--temperature TEMPERATURE` | Override llm.temperature. |
+| `--config FILE` | TOML settings file (default: $TINARRATIVE_CONFIG, else the built-in settings). |
+| `--jobs N` | Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs). |
+<!-- end generated -->
 
 ## Requests
 
@@ -176,15 +186,17 @@ missing, stderr gets one summary line.
 
 ## Exit codes
 
+<!-- generated: exit-codes councilors -->
 | Code | When |
 | --- | --- |
-| 0 | The summary was printed and, with `--output`, the dossier and requests were written; with `--send`, every article was written. |
-| 2 | Usage error: the save input errors of `events` (several campaigns without `--campaign`, fewer than two usable saves among several inputs); `--force` without `--send`; an unknown `--profile` or an invalid override; `--send` without `--output`, provider, model or API key, or over the context window. |
+| 0 | The summary was printed; with --send, every article was written. |
+| 2 | Usage error, no campaign chosen, or --send without --output, a provider, a model or an API key. |
 | 4 | A save cannot be read. |
 | 5 | A save is not a supported save. |
 | 8 | The settings file cannot be read or is not valid settings. |
-| 9 | `--output`, or the articles and manifest, cannot be written. |
-| 10 | `--send`: an article request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit, was refused or had no text. The other articles are written. |
+| 9 | --output cannot be written. |
+| 10 | An article request failed, or its completion was cut off, refused or empty; the other articles are written. |
+<!-- end generated -->
 
 ## Examples
 

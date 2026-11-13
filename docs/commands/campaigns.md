@@ -1,8 +1,10 @@
 # `tinarrative campaigns`
 
+<!-- generated: synopsis campaigns -->
 ```
-tinarrative campaigns <path>... [--format text|json]
+tinarrative campaigns [--format {text,json}] PATH [PATH ...]
 ```
+<!-- end generated -->
 
 Lists the campaigns that the given saves belong to, with the selector that
 [`events --campaign`](events.md#campaigns) and `narrate --campaign` accept. It reads only what it
@@ -10,10 +12,12 @@ needs to group the saves, so it is fast even for a full save directory. A single
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `PATH...` | required | Save files or directories, in any order. A directory is read one level deep; files in it that are not usable saves are listed as skipped. |
-| `--format text\|json` | `text` | Human-readable listing or the same listing as JSON. |
+<!-- generated: options campaigns -->
+| Option | Meaning |
+| --- | --- |
+| `PATH...` | Save files or directories, in any order; a directory is read one level deep. |
+| `--format text\|json` | Report format (default text). |
+<!-- end generated -->
 
 Saves belong to one campaign when the human player's faction, the faction name, the scenario and
 the real-world campaign start all match (see
@@ -56,12 +60,14 @@ built by [`grouping.py`](../../src/tinarrative/grouping.py).
 
 ## Exit codes
 
+<!-- generated: exit-codes campaigns -->
 | Code | When |
 | --- | --- |
-| 0 | The listing was printed. Files skipped inside a named directory do not change it. |
-| 2 | Usage error: an unknown `--format`. |
-| 4 | A named path cannot be read, or a named directory holds no files or no usable save. |
-| 5 | A named file is not a supported save or has no parseable game time. |
+| 0 | The listing was printed. |
+| 2 | Usage error. |
+| 4 | A named path cannot be read, or a named directory holds no usable save. |
+| 5 | A named file is not a supported save or has no game time. |
+<!-- end generated -->
 
 ## Examples
 

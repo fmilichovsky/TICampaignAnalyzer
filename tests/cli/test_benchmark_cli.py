@@ -123,6 +123,6 @@ def test_progress_tracker_reports_phase_filename_and_count_only_on_tty(monkeypat
 def test_metrics_defaults_resolve_from_the_working_directory() -> None:
     args = cli.build_parser().parse_args(["benchmark", "metrics", "measure", "--out", "out"])
 
-    assert args.samples == Path.cwd() / "benchmarks" / "samples"
-    assert args.matrix == Path.cwd() / "benchmarks" / "matrix.toml"
-    assert args.config == Path.cwd() / "benchmarks" / "config.toml"
+    assert args.samples.resolve() == Path.cwd() / "benchmarks" / "samples"
+    assert args.matrix.resolve() == Path.cwd() / "benchmarks" / "matrix.toml"
+    assert args.config.resolve() == Path.cwd() / "benchmarks" / "config.toml"

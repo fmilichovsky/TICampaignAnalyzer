@@ -28,10 +28,12 @@ without a command is a usage error (exit 2).
 
 Global options precede the command name.
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `--version` | | Print the package version and exit. |
-| `--log-level LEVEL` | `warning` | Diagnostic log level on stderr: `debug`, `info`, `warning`, or `error`. Overrides the `TINARRATIVE_LOG_LEVEL` environment variable. See the [debugging guide](../debugging.md). |
+<!-- generated: options tinarrative -->
+| Option | Meaning |
+| --- | --- |
+| `--version` | Print the version. |
+| `--log-level debug\|info\|warning\|error` | Diagnostic log level on stderr: debug, info, warning, error; must precede COMMAND (default: $TINARRATIVE_LOG_LEVEL, else warning). |
+<!-- end generated -->
 
 `save parse` and `unknowns` share a per-command `--registry PATH` option whose default is the
 `TINARRATIVE_UNKNOWNS_REGISTRY` environment variable; see the

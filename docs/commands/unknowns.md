@@ -1,8 +1,10 @@
 # `tinarrative unknowns`
 
+<!-- generated: synopsis unknowns -->
 ```
-tinarrative unknowns <path>... [--registry PATH] [--format text|json]
+tinarrative unknowns [--registry PATH] [--format {text,json}] PATH [PATH ...]
 ```
+<!-- end generated -->
 
 Scans saves for structures the parser does not describe (unknown state types, undocumented
 fields, unexpected shapes) and, optionally, folds them into the unknowns registry
@@ -12,11 +14,13 @@ unless a registry is named. The triage workflow and the registry format are in t
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `PATH...` | required | Save files or directories. A directory is read one level deep; files in it that are not saves are listed as skipped. |
-| `--registry PATH` | `$TINARRATIVE_UNKNOWNS_REGISTRY` | Registry JSON file to update; created when missing. Without a registry the command only prints the report. |
-| `--format text\|json` | `text` | Human-readable report or the same report as JSON. |
+<!-- generated: options unknowns -->
+| Option | Meaning |
+| --- | --- |
+| `PATH...` | Save files or directories, in any order; a directory is read one level deep. |
+| `--registry PATH` | Unknowns registry JSON file to update, created when missing (default: $TINARRATIVE_UNKNOWNS_REGISTRY). |
+| `--format text\|json` | Report format (default text). |
+<!-- end generated -->
 
 ## Output
 
@@ -44,13 +48,15 @@ pruned entries are those the parser now describes. `--format json` prints
 
 ## Exit codes
 
-| Code | Meaning | Output |
-| --- | --- | --- |
-| 0 | Every path given on the command line was scanned. Findings are not failures. | Full report on stdout. |
-| 2 | Usage error. | argparse message on stderr. |
-| 4 | A given path cannot be read, or a given directory holds no files. | Full report on stdout; the input is listed as skipped. |
-| 5 | A given file was read but is not a supported save. | Full report on stdout; the input is listed as skipped. |
-| 7 | The registry cannot be read, is not a valid registry document, or cannot be written. | Full report on stdout with `registry: not updated`; one line on stderr. |
+<!-- generated: exit-codes unknowns -->
+| Code | When |
+| --- | --- |
+| 0 | Every named path was scanned; findings are not failures. |
+| 2 | Usage error. |
+| 4 | A named path cannot be read, or a named directory holds no files. |
+| 5 | A named file is not a supported save. |
+| 7 | The registry cannot be read, is invalid or cannot be written; the report is printed. 7 wins over 4 and 5. |
+<!-- end generated -->
 
 Files inside a given directory that fail never change the exit code. 7 takes precedence over 4,
 and 4 over 5.

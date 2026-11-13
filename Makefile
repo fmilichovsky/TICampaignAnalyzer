@@ -11,7 +11,7 @@ PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.ve
 export PYTHONPATH := $(CURDIR)/src$(if $(PYTHONPATH),:$(PYTHONPATH))
 SAMPLE_CAMPAIGNS ?=
 
-.PHONY: install format lint typecheck test check samples package-metrics runtime-metrics
+.PHONY: install format lint typecheck test check docs samples package-metrics runtime-metrics
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -29,6 +29,10 @@ test:
 	$(PYTHON) -m pytest
 
 check: format lint typecheck test
+
+# Rewrite the generated regions of docs/commands/ from the CLI parser.
+docs:
+	$(PYTHON) -m tinarrative.reference_docs
 
 # The tests that read the committed benchmark campaigns; see docs/testing.md.
 samples:
