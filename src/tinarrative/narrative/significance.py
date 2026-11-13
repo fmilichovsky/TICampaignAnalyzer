@@ -27,7 +27,7 @@ from ..model.events import SIGNIFICANCE_ORDER, Event, Significance, Significance
 from ..model.kinds import EventKind, Rule, Stake, StakeMeasure
 from ..model.snapshot import SaveSnapshot
 from ..model.values import Observed, number
-from .milestones import milestone_of
+from .milestones import MILESTONE_TEMPLATES, milestone_of
 from .prominence import nation_power, organization_shares, region_shares, total
 from .situation import SituationReport
 
@@ -235,6 +235,27 @@ def _large_arsenal_disarmed(event: Event, _: GeopoliticsSettings) -> Significanc
     return None
 
 
+def _top_rank(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+    """An event of a nation ranked in the top by GDP or strength is one level up."""
+    # TODO(#362): temporary; the nation's power share replaces it.
+    top = geopolitics.top_gdp_nations
+    if in_top_n(event.attribute("gdp_rank"), top) or in_top_n(event.attribute("strength_rank"), top):
+        return PROMOTED[_base(event)]
+    return None
+
+
+def _entered_top(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+    """A nation entering the top of a space measure is a major event."""
+    return Significance.MAJOR if event.attribute("entered_top") is True else None
+
+
+def _milestone_tier(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+    """A completion's level is the tier the curated milestone list gives its template."""
+    template = event.attribute("template")
+    milestone = MILESTONE_TEMPLATES.get(template) if isinstance(template, str) else None
+    return milestone.significance if milestone is not None else None
+
+
 RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
     Rule.COUNCILOR_PRESENCE: _councilor_presence,
     Rule.RELATION_CHANGED: _relation_changed,
@@ -249,6 +270,9 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
     Rule.BAND_SHIFT: NarrativeContextRule(_band_shift),
     Rule.COLLAPSE_AFTER_STRIKES: NarrativeContextRule(_collapse_after_strikes),
     Rule.LARGE_ARSENAL_DISARMED: NarrativeContextRule(_large_arsenal_disarmed),
+    Rule.TOP_RANK: NarrativeContextRule(_top_rank),
+    Rule.ENTERED_TOP: NarrativeContextRule(_entered_top),
+    Rule.MILESTONE_TIER: NarrativeContextRule(_milestone_tier),
 }
 """Every ``Rule``'s implementation."""
 

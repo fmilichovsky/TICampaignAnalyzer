@@ -412,13 +412,17 @@ SPACE_CAMPAIGN = narrative_kind(
     ),
     # The campaign of the opposite pair telling the same combats.
     optional=frozenset({"mirror"}),
+    base=Significance.MAJOR,
 )
 COLONISATION_WAVE = narrative_kind(
     "faction.colonisation_wave",
     _colonisation_wave,
     required=frozenset({"bodies", "hab_count", "first_of_any_faction"}),
+    base=Significance.MAJOR,
 )
-FLEET_BUILDUP = narrative_kind("faction.fleet_buildup", _fleet_buildup, required=frozenset({"hull", "count"}))
+FLEET_BUILDUP = narrative_kind(
+    "faction.fleet_buildup", _fleet_buildup, required=frozenset({"hull", "count"}), base=Significance.MINOR
+)
 
 KINDS = (
     FLEET_FACTION_CHANGED,

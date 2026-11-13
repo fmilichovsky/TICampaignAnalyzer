@@ -37,6 +37,7 @@ from tinarrative.model.kinds import Rule, Stake
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
+from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.significance import (
     LARGE_ARSENAL,
     PROMOTED,
@@ -251,11 +252,11 @@ def test_notification_types_take_their_kind_and_an_undeclared_type_is_a_code_bug
 
 
 def test_a_narrative_event_kind_is_never_ranked_here() -> None:
-    unleveled = next(event_type for event_type, kind in KINDS.items() if kind.base is None)
-    leveled = next(event_type for event_type, kind in KINDS.items() if kind.narrative and kind.base is not None)
-    for narrative in (unleveled, leveled):
+    narrative = [event_type for event_type, kind in KINDS.items() if kind.narrative]
+    assert narrative
+    for event_type in narrative:
         with pytest.raises(ValueError, match="narrative event"):
-            significance_of(bare_event(narrative), empty_lookup())
+            significance_of(bare_event(event_type), empty_lookup())
 
 
 def test_table_entries_resolve_without_context() -> None:
@@ -570,13 +571,9 @@ def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None
     assert "significance_basis" not in bare_event("nation.rank_changed").to_dict()
 
 
-def _narrative(event_type: str, **attributes: Observed) -> Event:
-    return replace(bare_event(event_type), attributes=tuple(attributes.items()), intervals=("i",))
-
-
-def _scored(event_type: str, **attributes: Observed) -> Significance:
+def narrative_level(event_type: str, **attributes: Observed) -> Significance:
     kind = KINDS[event_type]
-    event = _narrative(event_type, **attributes)
+    event = bare_event(event_type, **attributes)
     return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings()))
 
 
@@ -597,31 +594,34 @@ def test_a_band_shift_reads_its_crossing_from_the_event(
     statistic: str, before: float, after: float, expected: Significance
 ) -> None:
     event_type = next(kind.event_type for key, kind in BAND_SHIFTS.items() if key == statistic)
-    assert _scored(event_type, statistic=statistic, before=before, after=after, gdp_rank=None) is expected
+    assert narrative_level(event_type, statistic=statistic, before=before, after=after, gdp_rank=None) is expected
 
 
 def test_a_band_shift_of_a_top_economy_is_one_level_up() -> None:
     event_type = BAND_SHIFTS["inequality"].event_type
     attributes = {"statistic": "inequality", "before": 1.5, "after": 2.5}
-    assert _scored(event_type, **attributes, gdp_rank=2) is Significance.MAJOR
-    assert _scored(event_type, **attributes, gdp_rank=GeopoliticsSettings().top_gdp_nations + 1) is Significance.MINOR
+    assert narrative_level(event_type, **attributes, gdp_rank=2) is Significance.MAJOR
+    assert (
+        narrative_level(event_type, **attributes, gdp_rank=GeopoliticsSettings().top_gdp_nations + 1)
+        is Significance.MINOR
+    )
 
 
 def test_a_population_collapse_is_campaign_defining_after_nuked_regions_or_nuclear_strikes() -> None:
     kind = POPULATION_COLLAPSE.event_type
-    assert _scored(kind, nuked_regions=(), nuclear_strikes=False) is Significance.MAJOR
+    assert narrative_level(kind, nuked_regions=(), nuclear_strikes=False) is Significance.MAJOR
     assert (
-        _scored(kind, nuked_regions=(ref(EntityDomain.REGION, "r"),), nuclear_strikes=False)
+        narrative_level(kind, nuked_regions=(ref(EntityDomain.REGION, "r"),), nuclear_strikes=False)
         is Significance.CAMPAIGN_DEFINING
     )
-    assert _scored(kind, nuked_regions=(), nuclear_strikes=True) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(kind, nuked_regions=(), nuclear_strikes=True) is Significance.CAMPAIGN_DEFINING
 
 
 def test_only_a_large_arsenal_dismantled_to_zero_is_campaign_defining() -> None:
     kind = NUCLEAR_DISARMAMENT.event_type
-    assert _scored(kind, before=LARGE_ARSENAL, after=0) is Significance.CAMPAIGN_DEFINING
-    assert _scored(kind, before=LARGE_ARSENAL - 1, after=0) is Significance.MAJOR
-    assert _scored(kind, before=LARGE_ARSENAL, after=1) is Significance.MAJOR
+    assert narrative_level(kind, before=LARGE_ARSENAL, after=0) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(kind, before=LARGE_ARSENAL - 1, after=0) is Significance.MAJOR
+    assert narrative_level(kind, before=LARGE_ARSENAL, after=1) is Significance.MAJOR
 
 
 @pytest.mark.parametrize(
@@ -632,5 +632,45 @@ def test_a_top_economy_is_one_level_up_for_every_kind_with_the_temporary_rule(ev
     top = GeopoliticsSettings().top_gdp_nations
     base = KINDS[event_type].base
     assert base is not None
-    assert _scored(event_type, gdp_rank=top + 1) is base
-    assert _scored(event_type, gdp_rank=top) is Significance.of(PROMOTED[base].base)
+    assert narrative_level(event_type, gdp_rank=top + 1) is base
+    assert narrative_level(event_type, gdp_rank=top) is Significance.of(PROMOTED[base].base)
+
+
+@pytest.mark.parametrize(
+    ("event_type", "extra"),
+    [
+        ("nation.military_buildup", {"before": 1, "after": 5}),
+        ("nation.demobilization", {"before": 5, "after": 1}),
+        ("nation.navy_established", {"navies": 1}),
+    ],
+)
+def test_an_army_or_navy_event_of_a_top_ranked_nation_is_one_level_up(event_type: str, extra: dict[str, int]) -> None:
+    top = GeopoliticsSettings().top_gdp_nations
+    ranks = {"gdp_rank": top + 1, "strength_rank": top + 1}
+    assert narrative_level(event_type, **extra, **ranks) is Significance.MAJOR
+    assert narrative_level(event_type, **extra, **{**ranks, "gdp_rank": top}) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(event_type, **extra, **{**ranks, "strength_rank": 1}) is Significance.CAMPAIGN_DEFINING
+    assert narrative_level(event_type, **extra, gdp_rank=None, strength_rank=Unknown()) is Significance.MAJOR
+
+
+def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:
+    measures = {
+        f"{metric}_{measure}": None
+        for metric in ("boost", "mission_control")
+        for measure in ("before", "after", "territory_share", "rank")
+    }
+    assert narrative_level("nation.space_program_growth", **measures, entered_top=True) is Significance.MAJOR
+    assert narrative_level("nation.space_program_growth", **measures, entered_top=False) is Significance.MINOR
+
+
+def test_a_technology_milestone_takes_its_curated_tier() -> None:
+    defining = next(
+        name
+        for name, milestone in MILESTONE_TEMPLATES.items()
+        if milestone.significance is Significance.CAMPAIGN_DEFINING
+    )
+    assert narrative_level("technology.milestone", template=defining, rationale="r") is Significance.CAMPAIGN_DEFINING
+    assert (
+        narrative_level("technology.milestone", template="".join(MILESTONE_TEMPLATES) + "Unlisted", rationale="r")
+        is Significance.MINOR
+    )
