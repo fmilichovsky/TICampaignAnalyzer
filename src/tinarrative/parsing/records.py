@@ -256,52 +256,61 @@ def _combat_log(raw: Any, ctx: _Context) -> Entries:
     for position, item in enumerate(raw):
         if not isinstance(item, dict):
             bad = ctx.unparseable(ARRAY_OF_OBJECTS, item)
-            entries.append(CombatEntry(position, bad, bad, bad, bad, bad, bad))
+            entries.append(CombatEntry(position, bad, bad, bad, bad, bad, bad, bad))
             continue
         for name, value in item.items():
             if name not in known:
                 ctx.collector.field(ctx.state_type, entry_member_name(ctx.field, str(name)), value)
+        sides, designs = _combat_sides(item, ctx)
         entries.append(
             CombatEntry(
                 position,
                 date=ctx.member_date(item, "Date"),
-                sides=_combat_sides(item, ctx),
+                sides=sides,
                 hab_faction=ctx.member_reference(item, "HabFaction"),
                 winner=ctx.member_reference(item, "winner"),
                 attacks=ctx.member(item, "Attacks"),
                 surprising=ctx.member(item, "WasSurprising"),
+                designs=designs,
             )
         )
     return tuple(entries)
 
 
-def _combat_sides(item: dict[str, Any], ctx: _Context) -> Observed:
-    """``Ships`` (pair map faction -> list of ``{Item1, Item2}``) as faction -> hull class counts.
+def _combat_sides(item: dict[str, Any], ctx: _Context) -> tuple[Observed, Observed]:
+    """``Ships`` (pair map faction -> list of ``{Item1, Item2}``) as ``(sides, designs)``.
 
-    ``Item1`` is a player-chosen design name and is never kept. One unresolvable faction makes the member unknown,
-    with only the faction keys as its raw value.
+    ``sides`` is faction -> hull class counts. ``designs`` is faction -> ``(design, hull class, count)`` triples,
+    kept for computation only (``CombatEntry``); a missing ``Item1`` is an empty design. One unresolvable faction makes
+    both unknown, with only the faction keys as the raw value of the first.
     """
     if "Ships" not in item:
-        return Unknown()
+        return Unknown(), Unknown()
     raw = item["Ships"]
     pairs = decode_pair_map(raw)
     if pairs is None:
-        return ctx.unparseable(PAIR_MAP, raw)
+        bad = ctx.unparseable(PAIR_MAP, raw)
+        return bad, bad
     name = f"{ctx.field}.Ships"
     sides: list[tuple[EntityRef, FrozenMap]] = []
+    designs: list[tuple[EntityRef, tuple[tuple[str, str, int], ...]]] = []
     unresolved = False
     for key, ships in pairs:
         if not isinstance(ships, list) or not all(isinstance(ship, dict) and "Item2" in ship for ship in ships):
-            return ctx.unparseable(ARRAY_OF_OBJECTS, ships)
+            bad = ctx.unparseable(ARRAY_OF_OBJECTS, ships)
+            return bad, bad
         faction = ctx.reference(key, RECORD_MEMBER_TARGETS[name], name)
         if not isinstance(faction, EntityRef):
             unresolved = True
             continue
         hulls = Counter(str(ship["Item2"]) for ship in ships)
         sides.append((faction, FrozenMap(tuple(hulls.items()))))
+        counts = Counter((str(ship.get("Item1", "")), str(ship["Item2"])) for ship in ships)
+        designs.append((faction, tuple((design, hull, count) for (design, hull), count in counts.items())))
     if unresolved:
-        return Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze([key for key, _ in pairs]))
-    return tuple(sides)
+        unknown = Unknown(UnknownReason.UNRESOLVED_REFERENCE, freeze([key for key, _ in pairs]))
+        return unknown, unknown
+    return tuple(sides), tuple(designs)
 
 
 def _entries(spec: RecordField, raw: Any, ctx: _Context) -> Entries:

@@ -1351,6 +1351,28 @@
     },
     {
       "domain": "ship",
+      "entity_id": "ship:130",
+      "field": "propellant_tons",
+      "kind": "value",
+      "before": 100.0,
+      "after": 80.0,
+      "detail": null,
+      "description": "propellant_tons changed",
+      "before_location": {
+        "save_id": "interval_before.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 130,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/0/Value"
+      },
+      "after_location": {
+        "save_id": "interval_after.json",
+        "state_type": "TISpaceShipState",
+        "map_id": 130,
+        "path": "/gamestates/PavonisInteractive.TerraInvicta.TISpaceShipState/0/Value"
+      }
+    },
+    {
+      "domain": "ship",
       "entity_id": "ship:131",
       "field": "fleet",
       "kind": "unknown",

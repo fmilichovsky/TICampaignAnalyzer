@@ -18,8 +18,10 @@ Observed on 2026-10-23 in the ten benchmark saves (`benchmarks/samples/`), read 
 - A hab is a `TIHabState` entry, owned by its `faction`; its weight is `tier` squared (`tier` ran 1 to 3 on every
   hab).
 - A ship is a `TISpaceShipState` entry, owned by the `faction` of the `TISpaceFleetState` its `fleet` references;
-  every ship of every save resolved to a faction this way. Its mass is `currentMass_kg`. Whether that figure
-  includes the ship's propellant (`propellant_tons`) was not checked (*hypothesis*: it is the current wet mass).
+  every ship of every save resolved to a faction this way. Its mass is the **dry mass**,
+  `currentMass_kg − 1000·propellant_tons`: `currentMass_kg` is wet mass (scan of 24 private saves, 2026-11-13: within a
+  design it moves one for one with `propellant_tons`, slope 1.000 over 61 designs), and ships of one design have
+  identical dry mass.
 - The alien faction is the one whose `templateName` is `AlienCouncil` (the
   [domain field map](domain-field-map.md)); every other faction is human.
 
@@ -50,5 +52,18 @@ Observations:
   in the early game, and so nearly half the world in any blend with Earth holdings. A total of human holdings alone
   is 2 tier² and no mass at the start, so one tier-1 station is half of it. Neither total is usable early without a
   floor. The late-game human totals (about 1,400 tier², 4 to 5 Mt) are the scale such a floor is calibrated against.
-- Mass per hull class, which a battle stake needs because combat records carry hull counts only, is not recorded
-  here yet.
+- A combat record names each ship's design (`Item1`, a `dataName` such as `playerShipTemplate16`) beside its hull
+  class (`Item2`); a live ship's `templateName` is the same `dataName`, and its hull class is the `hullName` of the
+  design in its faction's `shipDesigns`. A battle stake reads a record's ships through them: a live ship of the design,
+  else the median dry mass of the hull class, else nothing.
+
+## Progression and combats (scan of 24 private saves, 2026-11-13)
+
+- Human space holdings in Protectorate: Σ tier² 2 at the start, 13 (2028), 106 (2030), 259 (2032-11); no human ship
+  before 2031-06, 45 kt dry by 2032-11 (aliens 24 to 410 kt). Resist: about 1,400 Σ tier², 3,250 to 4,700 kt dry.
+- Faction Earth shares (each nation's power share times the faction's share of its control points): Protectorate's
+  leading faction 0.015 to 0.33; ResistCouncil 0.89; the alien faction 0 until the alien administration's saves
+  (0.035 to 0.058).
+- Combat logs: none in any of the 19 Protectorate saves; Resist 122 distinct combats, 116 in its first save.
+  Contested mass (alien ships ×2, larger side capped at twice the smaller): p10 5 kt, median 71 kt, p90 443 kt, max
+  1,130 kt. 19 entries list one side, 15 of them with a `HabFaction`.

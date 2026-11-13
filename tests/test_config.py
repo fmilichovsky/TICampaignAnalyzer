@@ -85,3 +85,10 @@ def test_top_nations_is_capped(tmp_path: Path) -> None:
 def test_no_file_gives_the_defaults_and_an_override_replaces_one_field() -> None:
     assert load_settings(None) is DEFAULT_SETTINGS
     assert override(DEFAULT_SETTINGS.narrator, "max_input_tokens", 1000).max_input_tokens == 1000
+
+
+def test_w_space_is_an_events_setting_between_zero_and_one(tmp_path: Path) -> None:
+    assert load_settings(write(tmp_path, "[events]\nw_space=0.25\n")).narrative.significance.w_space == 0.25
+    for bad in ("1.5", "-0.1", "true"):
+        with pytest.raises(ConfigError, match="events.w_space"):
+            load_settings(write(tmp_path, f"[events]\nw_space={bad}\n"))

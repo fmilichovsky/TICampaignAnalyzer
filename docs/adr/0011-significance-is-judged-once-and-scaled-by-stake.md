@@ -21,7 +21,9 @@ summary to a forensic log. It measures impact, not certainty, and is independent
 - **Space totals count humans only.** The alien faction holds nearly every space asset early in a campaign
   ([space assets](../game-data-notes/space-assets.md)). Counting it would make the aliens half the world from the
   start; counting humans alone would make one early station half of space. So space shares are taken over the human
-  total with a saturation floor. A faction's stake weighs space more as humans build up a real presence there.
+  total with a floor, which only keeps a share defined. The floor and the saturation, the holdings at which space
+  counts fully in a faction's stake, are separate: a faction's stake weighs space more as humans build up a real
+  presence there.
 - **Battles use contested mass.** A side's mass is weighted up for alien ships. Mass beyond a multiple of the
   opponent's adds nothing, so a large fleet swatting a scout is a skirmish. The outcome never changes the stake.
 - **The maximum, never a sum.** A narrative event scores the higher of its rule's base plus its own stake and the

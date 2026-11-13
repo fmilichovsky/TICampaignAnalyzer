@@ -165,8 +165,15 @@ class SignificanceSettings:
     tier_exponent: int = _int(2, 1)
     """An organization's stake is its tier to this power over the total of all organizations; also ranks the
     councilors of the dossier."""
+    w_space: float = _float(0.5, 0.0)
+    """How far space counts in a human faction's stake once humans hold the saturation of habs and ships (0 to 1);
+    below it, space counts in proportion."""
     power: PowerSettings = field(default_factory=PowerSettings)
     reference: ReferenceSettings = field(default_factory=ReferenceSettings)
+
+    def __post_init__(self) -> None:
+        if self.w_space > 1:
+            raise ConfigError("'narrative.significance.w_space' must be between 0 and 1")
 
 
 @dataclass(frozen=True)
@@ -294,7 +301,7 @@ def load_settings(path: Path | None) -> Settings:
         raise ConfigError("'events' must be a table")
     if not isinstance(llm, Mapping):
         raise ConfigError("'llm' must be a table")
-    event_keys = {"episode_gap_days", "top_nations", "recalled_narrative_events"}
+    event_keys = {"episode_gap_days", "top_nations", "recalled_narrative_events", "w_space"}
     for key in events:
         if key not in event_keys:
             raise ConfigError(f"unknown setting 'events.{key}'")
@@ -316,7 +323,11 @@ def load_settings(path: Path | None) -> Settings:
         if isinstance(top, bool) or not isinstance(top, int) or top < 1:
             raise ConfigError("'events.top_nations' must be an integer at least 1")
         top = min(top, 20)
+        weight = events.get("w_space", DEFAULT_SETTINGS.narrative.significance.w_space)
+        if isinstance(weight, bool) or not isinstance(weight, int | float) or not 0 <= weight <= 1:
+            raise ConfigError("'events.w_space' must be a number from 0 to 1")
         normalized["narrative"] = {
+            "significance": {"w_space": weight},
             "geopolitics": {"expansion_gap_days": gap, "realignment_window_days": gap},
             "space": {"campaign_gap_days": gap},
             "nation_metrics": {"space_assets_window_days": gap, "nuclear_window_days": gap, "ranking_top_n": top},
@@ -415,6 +426,7 @@ def _to_dict(settings: Any) -> dict[str, Any]:
                 "episode_gap_days": gap,
                 "top_nations": settings.narrative.nation_metrics.ranking_top_n,
                 "recalled_narrative_events": narrator.recalled_narrative_events,
+                "w_space": settings.narrative.significance.w_space,
             },
             "llm": {},
             "councilors": {
