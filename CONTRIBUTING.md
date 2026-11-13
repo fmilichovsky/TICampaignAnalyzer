@@ -41,7 +41,8 @@ Each fact has exactly one home. Point to it; do not restate it.
   match the inventory there
   (`tests/parsing/test_unknowns.py::test_known_state_types_match_the_documented_inventory`).
 - **Command pages are for users.** Usage, options, outputs, exit codes and examples; no internals. Update the page
-  when a command's behavior changes.
+  when a command's behavior changes. The synopsis, options and exit codes are generated from `cli.py` (help strings
+  and `EXIT_CODES`); edit them there and run `make docs` (`tests/test_reference_docs.py`).
 - **Settings have one example.** `docs/configuration.example.toml` is exactly the defaults
   (`tests/test_config.py::test_example_is_the_defaults`).
 - **The narrator's system prompts exist once,** as `prompt.md` and `councilor_prompt.md` in the package; docs point

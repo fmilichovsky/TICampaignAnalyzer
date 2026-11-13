@@ -1,8 +1,14 @@
 # `tinarrative events`
 
+<!-- generated: synopsis events -->
 ```
-tinarrative events <path> <path> [<path>...] [--campaign <selector>] [--format markdown|json] [--min-significance <level>] [--period year|half|quarter] [--inferred] [--narrative] [--constituents all|evidence|none] [--changes] [--config <file>]
+tinarrative events [--campaign SELECTOR] [--format {markdown,json}]
+                   [--min-significance {trivial,minor,major,campaign_defining}]
+                   [--constituents {all,evidence,none}] [--period {year,half,quarter}] [--inferred]
+                   [--changes] [--narrative] [--config FILE] [--jobs N]
+                   PATH [PATH ...]
 ```
+<!-- end generated -->
 
 Reads the saves of one campaign, puts them in game-time order and reports what happened between
 every pair of consecutive saves: the events found in each interval, how significant each one is
@@ -12,19 +18,21 @@ source of the package that [`narrate`](narrate.md) tells.
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `PATH...` | required | Save files or directories, in any order. A directory is read one level deep. |
-| `--campaign SELECTOR` | | The campaign to report when the saves hold several ([campaigns](#campaigns)). |
-| `--format markdown\|json` | `markdown` | Markdown report or the JSON document. |
-| `--min-significance LEVEL` | `trivial` | Lowest significance listed: `trivial`, `minor`, `major` or `campaign_defining`. Omitted events are counted, never hidden. With `--narrative` it filters the narrative events. |
-| `--inferred` | off | Also list the events inferred from each interval's results, with what they rest on. |
-| `--narrative` | off | Also join the events of the whole campaign into [narrative events](#narrative-events); implies `--inferred`. |
-| `--constituents all\|evidence\|none` | `none` | With `--narrative`, which of the events behind the listed narrative events to list: all of them, the narrator evidence among them, or none. Ignored without `--narrative`. |
-| `--period year\|half\|quarter` | `year` | How the Markdown narrative section is grouped. The JSON is not grouped. |
-| `--changes` | off | Also list every literal state change under its interval. A usage error with `--narrative --format json`. |
-| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file for the narrative rules' thresholds and windows ([configuration](../configuration.md)). Read and validated on every run. |
-| `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | Worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
+<!-- generated: options events -->
+| Option | Meaning |
+| --- | --- |
+| `PATH...` | Save files or directories, in any order; a directory is read one level deep. |
+| `--campaign SELECTOR` | The campaign to use when the saves hold several: a key, a unique key prefix, a listing number or 'latest'. |
+| `--format markdown\|json` | Report format (default markdown). |
+| `--min-significance trivial\|minor\|major\|campaign_defining` | Lowest significance listed; with --narrative, of the narrative events (default trivial). |
+| `--constituents all\|evidence\|none` | With --narrative, which events behind the listed narrative events to list (default none). |
+| `--period year\|half\|quarter` | How the Markdown narrative section is grouped (default year). |
+| `--inferred` | Also list the events inferred in each interval, with the results they rest on. |
+| `--changes` | Also list every literal state change under its interval; not with --narrative --format json. |
+| `--narrative` | Also join the whole campaign's events into narrative events; implies --inferred. |
+| `--config FILE` | TOML settings file (default: $TINARRATIVE_CONFIG, else the built-in settings). |
+| `--jobs N` | Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs). |
+<!-- end generated -->
 
 ## Input
 
@@ -163,13 +171,15 @@ It is built by [`narrative/situation.py`](../../src/tinarrative/narrative/situat
 
 ## Exit codes
 
+<!-- generated: exit-codes events -->
 | Code | When |
 | --- | --- |
-| 0 | The report was printed. Files skipped inside a named directory do not change it. |
-| 2 | Usage error: fewer than two usable saves; several campaigns or an unmatched `--campaign` outside a terminal; a cancelled picker; an unknown option value; or `--changes` with `--narrative --format json`. |
-| 4 | A named path cannot be read, or a named directory holds no files or no usable save. |
-| 5 | A named file is not a supported save or has no parseable game time. |
-| 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |
+| 0 | The report was printed. |
+| 2 | Usage error, fewer than two usable saves, or no campaign chosen. |
+| 4 | A named path cannot be read, or a named directory holds no usable save. |
+| 5 | A named file is not a supported save or has no game time. |
+| 8 | The settings file cannot be read or is not valid settings. |
+<!-- end generated -->
 
 ## Examples
 

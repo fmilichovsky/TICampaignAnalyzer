@@ -1,15 +1,19 @@
 # `tinarrative narrate`
 
+<!-- generated: synopsis narrate -->
 ```
-tinarrative narrate <path> [<path>...] [--campaign <selector>] [--min-significance <level>] [--constituents all|evidence|none] [options]
-tinarrative narrate --package <file>|- [options]
-tinarrative narrate --assemble <dir>
-
-options: [--period year|half|quarter] [--audience public|insider] [--citations footnotes|none]
-         [--style chronicle|headlines] [--length <words>] [--focus <name>] [--output <dir>] [--config <file>]
-         [--send] [--force] [--profile <name>] [--provider anthropic|openai|openrouter|ollama] [--model <id>] [--base-url <url>]
-         [--max-input-tokens <tokens>] [--max-output-tokens <tokens>] [--temperature <t>]
+tinarrative narrate [--package FILE] [--campaign SELECTOR]
+                    [--min-significance {trivial,minor,major,campaign_defining}]
+                    [--constituents {all,evidence,none}] [--period {year,half,quarter}]
+                    [--audience {public,insider}] [--citations {footnotes,none}]
+                    [--style {chronicle,headlines}] [--length WORDS] [--focus NAME] [--output DIR]
+                    [--send] [--force] [--assemble DIR] [--profile NAME]
+                    [--provider {anthropic,openai,openrouter,ollama}] [--model MODEL]
+                    [--base-url URL] [--max-input-tokens TOKENS] [--max-output-tokens TOKENS]
+                    [--temperature TEMPERATURE] [--config FILE] [--jobs N]
+                    [PATH ...]
 ```
+<!-- end generated -->
 
 Turns a campaign into a written history told by an LLM. It cuts the campaign's
 [narrator package](events.md#narrator-package) into chapters small enough for one model request
@@ -29,27 +33,34 @@ provider and assembles the answers into one footnoted `history.md`, with a citat
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `PATH...` | | Save files or directories, in any order. |
-| `--package FILE` | | A finished narrator package to narrate as it is; `-` for stdin. |
-| `--campaign SELECTOR` | | The campaign to narrate when the saves hold several (as `events --campaign`). |
-| `--min-significance LEVEL` | `major` | Lowest significance of a narrative event told (saves only). |
-| `--constituents all\|evidence\|none` | `evidence` | Which events behind the narrative events the model also gets (saves only). |
-| `--period year\|half\|quarter` | from the campaign span | The sections the history is told in; see [Chapter plan](#chapter-plan). |
-| `--audience public\|insider` | `public` | Who the history is for. `insider` centres on the player faction. |
-| `--citations footnotes\|none` | `footnotes` | Footnotes citing event IDs, or none. |
-| `--style chronicle\|headlines` | `chronicle` | Running prose or headlines. |
-| `--length WORDS` | from the narrative weight | Target length of the whole history, shared out across chapters by their narrative weight; see [Chapter plan](#chapter-plan). |
-| `--focus NAME` | player faction for `insider` | A faction or nation to centre the account on. |
-| `--output DIR` | | Write the plan and the requests here; without it only the plan summary is printed. |
-| `--config FILE` | `$TINARRATIVE_CONFIG`, else built-in | Settings file: narrative rules and the `[llm]` budget, provider and profiles ([configuration](../configuration.md)). |
-| `--jobs N` | `processing.jobs`, else bounded by CPUs and memory | Saves only: worker processes for surveying the saves and analyzing the intervals; `1` runs everything in one process. Small inputs run in one process. The output is the same for every value ([configuration](../configuration.md)). |
-| `--send` | off | Send the requests to the provider ([Sending](#sending)). Needs `--output`. |
-| `--force` | off | With `--send`, send every chapter again, even one with a matching stored response. |
-| `--assemble DIR` | | Assemble `history.md` and `manifest.json` from a directory written earlier. Takes no other option. |
-| `--profile NAME` | | Apply the settings profile `[llm.profiles.NAME]`. |
-| `--provider`, `--model`, `--base-url`, `--max-input-tokens`, `--max-output-tokens`, `--temperature` | | Override the `narrator` setting of the same name ([Provider and budget](#provider-and-budget)). |
+<!-- generated: options narrate -->
+| Option | Meaning |
+| --- | --- |
+| `PATH...` | Save files or directories, in any order; a directory is read one level deep. |
+| `--package FILE` | A narrator package from 'events --narrative --format json' to narrate instead; '-' reads stdin. |
+| `--campaign SELECTOR` | The campaign to use when the saves hold several: a key, a unique key prefix, a listing number or 'latest'. |
+| `--min-significance trivial\|minor\|major\|campaign_defining` | Lowest significance of a narrative event told, from saves (default major). |
+| `--constituents all\|evidence\|none` | Which events behind the narrative events the model also gets (default evidence). |
+| `--period year\|half\|quarter` | The sections the history is told in (default: from the campaign's span). |
+| `--audience public\|insider` | Who the history is for; insider centres on the player faction (default public). |
+| `--citations footnotes\|none` | Footnotes citing event IDs, or none (default footnotes). |
+| `--style chronicle\|headlines` | Running prose or headlines (default chronicle). |
+| `--length WORDS` | Target length of the whole history (default: from how much happened). |
+| `--focus NAME` | A faction or nation to centre the account on (default: the player faction with --audience insider). |
+| `--output DIR` | Write the plan and one request per chapter here. |
+| `--send` | Send the requests to the provider and assemble history.md; needs --output. Hands the campaign to a third party unless the provider runs locally. |
+| `--force` | With --send, send every chapter again, even one with a matching stored response. |
+| `--assemble DIR` | Assemble history.md from a directory written earlier, sending nothing; takes no other option. |
+| `--profile NAME` | Apply the settings profile llm.profiles.NAME. |
+| `--provider anthropic\|openai\|openrouter\|ollama` | Override llm.provider. |
+| `--model MODEL` | Override llm.model; there is no default model. |
+| `--base-url URL` | Override llm.base_url. |
+| `--max-input-tokens TOKENS` | Override llm.max_input_tokens. |
+| `--max-output-tokens TOKENS` | Override llm.max_output_tokens. |
+| `--temperature TEMPERATURE` | Override llm.temperature. |
+| `--config FILE` | TOML settings file (default: $TINARRATIVE_CONFIG, else the built-in settings). |
+| `--jobs N` | Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs). |
+<!-- end generated -->
 
 The audience, citation and style defaults are the prompt's; see [llm](../narrator.md).
 
@@ -132,15 +143,17 @@ the run still exits 0; the details are in `manifest.json`. Assembly and the audi
 
 ## Exit codes
 
+<!-- generated: exit-codes narrate -->
 | Code | When |
 | --- | --- |
-| 0 | The plan was printed and, with `--output`, written; with `--send`, the history was assembled, whatever the audit found. |
-| 2 | Usage error: no save paths and no `--package`; `--force` without `--send`; `--assemble` with another option; `--package` with save paths, `--campaign`, `--min-significance`, `--constituents` or `--jobs`; a package with no interval; a single interval over the token budget; the save input errors of `events`; an unknown `--profile` or an invalid override; `--send` without `--output`, provider, model or API key, or over the context window. |
-| 4 | A save or the `--package` file cannot be read; `--assemble`: DIR or its `plan.json` cannot be read. |
-| 5 | A save is not a supported save, or the package is not a narrator package. `--assemble` (and the assembly after `--send`): the plan, a request or a response is missing, invalid or does not match. |
-| 8 | The settings file cannot be read or is not valid settings. Nothing is printed on stdout. |
-| 9 | `--output`, or the history and manifest, cannot be written. |
-| 10 | `--send`: a chapter request failed (authentication, network, HTTP error, invalid response), or its completion hit the output limit, was refused or had no text. Completed chapters are kept. |
+| 0 | The plan was printed; with --send, the history was assembled. |
+| 2 | Usage error, no campaign chosen, a single interval over llm.max_input_tokens, or --send without --output, a provider, a model or an API key. |
+| 4 | A save, the --package file or the --assemble directory cannot be read. |
+| 5 | A save is not a supported save, the package is not a narrator package, or a run directory does not match its plan. |
+| 8 | The settings file cannot be read or is not valid settings. |
+| 9 | --output cannot be written. |
+| 10 | A chapter request failed, or its completion was cut off, refused or empty; earlier chapters are kept. |
+<!-- end generated -->
 
 ## Examples
 

@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import textwrap
 import threading
 import time
 from collections.abc import Callable, Sequence
@@ -13,7 +14,7 @@ from contextlib import closing
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, TypeAlias, cast
 
 from . import __version__
 from .benchmarking import metrics as benchmark_metrics
@@ -82,8 +83,6 @@ logger = get_logger(__name__)
 
 EXIT_SUCCESS = 0
 EXIT_USAGE_ERROR = 2
-EXIT_NOT_IMPLEMENTED = 3
-"""Reserved for commands registered before they are implemented; none is at present."""
 EXIT_INPUT_ERROR = 4
 """The save path could not be read (missing, unreadable, or a directory)."""
 EXIT_UNSUPPORTED_INPUT = 5
@@ -99,7 +98,129 @@ EXIT_OUTPUT_ERROR = 9
 EXIT_PROVIDER_ERROR = 10
 """``--send``: a request failed, hit the output limit or was refused. ``narrate`` stops at the first failed chapter
 and keeps the earlier ones; ``councilors`` skips the failed articles and reports at the end."""
-BENCHMARK_ROOT = Path.cwd() / "benchmarks"
+
+ExitCodes = tuple[tuple[int, str], ...]
+_USAGE: ExitCodes = ((EXIT_USAGE_ERROR, "usage error."),)
+_SAVE_INPUT: ExitCodes = (
+    (EXIT_INPUT_ERROR, "a named path cannot be read, or a named directory holds no usable save."),
+    (EXIT_UNSUPPORTED_INPUT, "a named file is not a supported save or has no game time."),
+)
+_CONFIG: ExitCodes = ((EXIT_CONFIG_ERROR, "the settings file cannot be read or is not valid settings."),)
+EXIT_CODES: dict[str, ExitCodes] = {
+    "campaigns": ((EXIT_SUCCESS, "the listing was printed."), *_USAGE, *_SAVE_INPUT),
+    "events": (
+        (EXIT_SUCCESS, "the report was printed."),
+        (EXIT_USAGE_ERROR, "usage error, fewer than two usable saves, or no campaign chosen."),
+        *_SAVE_INPUT,
+        *_CONFIG,
+    ),
+    "narrate": (
+        (EXIT_SUCCESS, "the plan was printed; with --send, the history was assembled."),
+        (
+            EXIT_USAGE_ERROR,
+            "usage error, no campaign chosen, a single interval over llm.max_input_tokens, or --send without "
+            "--output, a provider, a model or an API key.",
+        ),
+        (EXIT_INPUT_ERROR, "a save, the --package file or the --assemble directory cannot be read."),
+        (
+            EXIT_UNSUPPORTED_INPUT,
+            "a save is not a supported save, the package is not a narrator package, or a run directory does not "
+            "match its plan.",
+        ),
+        *_CONFIG,
+        (EXIT_OUTPUT_ERROR, "--output cannot be written."),
+        (
+            EXIT_PROVIDER_ERROR,
+            "a chapter request failed, or its completion was cut off, refused or empty; earlier chapters are kept.",
+        ),
+    ),
+    "councilors": (
+        (EXIT_SUCCESS, "the summary was printed; with --send, every article was written."),
+        (
+            EXIT_USAGE_ERROR,
+            "usage error, no campaign chosen, or --send without --output, a provider, a model or an API key.",
+        ),
+        (EXIT_INPUT_ERROR, "a save cannot be read."),
+        (EXIT_UNSUPPORTED_INPUT, "a save is not a supported save."),
+        *_CONFIG,
+        (EXIT_OUTPUT_ERROR, "--output cannot be written."),
+        (
+            EXIT_PROVIDER_ERROR,
+            "an article request failed, or its completion was cut off, refused or empty; the other articles are "
+            "written.",
+        ),
+    ),
+    "save inspect": (
+        (EXIT_SUCCESS, "the report was printed."),
+        (EXIT_USAGE_ERROR, "usage error, including a negative limit."),
+        (EXIT_INPUT_ERROR, "the save cannot be read."),
+        (EXIT_UNSUPPORTED_INPUT, "the bytes are not decodable JSON; file facts and diagnostics are still printed."),
+        (EXIT_PATH_NOT_FOUND, "a --path did not resolve; the report is still printed. 5 wins over 6."),
+    ),
+    "save parse": (
+        (EXIT_SUCCESS, "the save was loaded."),
+        (EXIT_USAGE_ERROR, "usage error, including --record-unknowns without a registry."),
+        (EXIT_INPUT_ERROR, "the save cannot be read."),
+        (EXIT_UNSUPPORTED_INPUT, "the file is not a supported save."),
+        (EXIT_REGISTRY_ERROR, "the registry cannot be read, is invalid or cannot be written; the summary is printed."),
+    ),
+    "save diff": (
+        (EXIT_SUCCESS, "both saves were compared."),
+        *_USAGE,
+        (EXIT_INPUT_ERROR, "a save cannot be read."),
+        (EXIT_UNSUPPORTED_INPUT, "a save is not a supported save."),
+    ),
+    "unknowns": (
+        (EXIT_SUCCESS, "every named path was scanned; findings are not failures."),
+        *_USAGE,
+        (EXIT_INPUT_ERROR, "a named path cannot be read, or a named directory holds no files."),
+        (EXIT_UNSUPPORTED_INPUT, "a named file is not a supported save."),
+        (
+            EXIT_REGISTRY_ERROR,
+            "the registry cannot be read, is invalid or cannot be written; the report is printed. 7 wins over 4 and 5.",
+        ),
+    ),
+    "benchmark sample": (
+        (EXIT_SUCCESS, f"the sample and {MANIFEST} were updated."),
+        (EXIT_USAGE_ERROR, "usage error, or a campaign selector that cannot be resolved without a terminal."),
+        *_SAVE_INPUT,
+        (EXIT_OUTPUT_ERROR, f"the sample directory or {MANIFEST} cannot be written."),
+    ),
+    "benchmark metrics samples": (
+        (EXIT_SUCCESS, f"every sample matches {MANIFEST}."),
+        (EXIT_USAGE_ERROR, f"usage error, or a sample does not match {MANIFEST}."),
+        (EXIT_OUTPUT_ERROR, f"the samples or {MANIFEST} cannot be read or written."),
+    ),
+    "benchmark metrics measure": (
+        (EXIT_SUCCESS, "metrics.json was written; failed runs are recorded in it."),
+        (EXIT_USAGE_ERROR, f"usage error, a sample that does not match {MANIFEST}, or an invalid matrix."),
+        (EXIT_OUTPUT_ERROR, "the outputs cannot be written."),
+    ),
+    "benchmark metrics compare": (
+        (EXIT_SUCCESS, "the report was written."),
+        *_USAGE,
+        (EXIT_INPUT_ERROR, "a metrics file cannot be read or is not a metrics file, or the report cannot be written."),
+    ),
+    "benchmark runtime measure": (
+        (EXIT_SUCCESS, "the runtime JSON was written; failed runs are recorded in it."),
+        (EXIT_USAGE_ERROR, f"usage error, a sample that does not match {MANIFEST}, or a --run the matrix lacks."),
+        (EXIT_INPUT_ERROR, "--samples is not a directory."),
+        (EXIT_OUTPUT_ERROR, "the runtime JSON cannot be written."),
+    ),
+    "benchmark runtime report": (
+        (EXIT_SUCCESS, "the report was written."),
+        *_USAGE,
+        (
+            EXIT_INPUT_ERROR,
+            "the runtime JSON cannot be read or is not a runtime file, or the report cannot be written.",
+        ),
+    ),
+}
+"""Each leaf command's exit codes and when they occur; ``--help`` and the command pages are rendered from these."""
+
+NARRATE_MIN_SIGNIFICANCE = Significance.MAJOR
+NARRATE_CONSTITUENTS: Constituents = "evidence"
+BENCHMARK_ROOT = Path("benchmarks")
 BENCHMARK_SAMPLES_DIR = BENCHMARK_ROOT / "samples"
 
 Handler = Callable[[argparse.Namespace], int]
@@ -565,14 +686,14 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
         progress_tracker = _ProgressTracker("benchmark metrics measure", total)
         progress = progress_tracker
         metrics = benchmark_metrics.measure(
-            python=cast(str, args.python),
+            python=cast("str | None", args.python) or sys.executable,
             samples=samples,
             matrix_path=cast(Path, args.matrix),
             config=cast(Path, args.config),
             out=cast(Path, args.out),
             label=cast(str, args.label),
             chars_per_token=cast(float, args.chars_per_token),
-            jobs=cast(int, args.jobs),
+            jobs=cast("int | None", args.jobs) or os.cpu_count() or 1,
             on_progress=lambda amount: progress_tracker.advance("Measuring runs", amount),
             on_campaign_complete=progress_tracker.report,
         )
@@ -611,7 +732,7 @@ def _run_benchmark_runtime(args: argparse.Namespace) -> int:
             return EXIT_INPUT_ERROR
 
     samples = cast(Path, args.samples)
-    sides = [benchmark_runtime.Side("head", cast(str, args.python), cast(str, args.label))]
+    sides = [benchmark_runtime.Side("head", cast("str | None", args.python) or sys.executable, cast(str, args.label))]
     if args.base_python is not None:
         sides.insert(0, benchmark_runtime.Side("base", cast(str, args.base_python), cast(str, args.base_label)))
     progress: _ProgressTracker | None = None
@@ -1604,8 +1725,8 @@ def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settin
         campaign=run.campaign,
         settings=settings,
         narrative=run.narrative,
-        min_significance=Significance(cast("str | None", args.min_significance) or Significance.MAJOR.value),
-        constituents=cast("Constituents | None", args.constituents) or "evidence",
+        min_significance=Significance(cast("str | None", args.min_significance) or NARRATE_MIN_SIGNIFICANCE.value),
+        constituents=cast("Constituents | None", args.constituents) or NARRATE_CONSTITUENTS,
     )
     package: object = json.loads(json.dumps(document))
     return package
@@ -1755,26 +1876,66 @@ def _render_observed(value: Observed) -> str:
     return str(rendered)
 
 
-def _add_parse_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Load and validate a save file as a supported raw save."
-    parser = subcommands.add_parser(
-        "parse",
-        help=summary,
-        description=(
-            f"{summary} Reports the validated envelope and a summary of the normalized "
-            "snapshot: game date, campaign day, player faction, and entity counts."
-        ),
-        epilog=(
-            "Exit codes: 0 success; 2 usage error (including --record-unknowns without a registry); "
-            "4 file cannot be read; 5 malformed data or unsupported shape, format, or game version; "
-            "7 the unknowns registry cannot be read, is invalid, or cannot be written."
-        ),
+Subcommands: TypeAlias = "argparse._SubParsersAction[argparse.ArgumentParser]"
+
+SAVES_HELP = "Save files or directories, in any order; a directory is read one level deep."
+CAMPAIGN_HELP = (
+    "The campaign to use when the saves hold several: a key, a unique key prefix, a listing number or 'latest'."
+)
+FORMAT_HELP = "Report format (default %(default)s)."
+CONFIG_HELP = f"TOML settings file (default: ${CONFIG_ENV_VAR}, else the built-in settings)."
+JOBS_HELP = "Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs)."
+
+
+class _HelpFormatter(argparse.HelpFormatter):
+    """Wraps each line of a description or epilog on its own, so the exit codes stay one per line."""
+
+    def _fill_text(self, text: str, width: int, indent: str) -> str:
+        lines = []
+        for line in text.splitlines():
+            hanging = len(line) - len(line.lstrip(" 0123456789"))
+            lines.append(textwrap.fill(line, width, initial_indent=indent, subsequent_indent=indent + " " * hanging))
+        return "\n".join(lines)
+
+
+def _epilog(command: str) -> str:
+    return "exit codes:\n" + "\n".join(f"  {code:<3} {meaning}" for code, meaning in EXIT_CODES[command])
+
+
+def _add_command(subcommands: Subcommands, name: str, summary: str, command: str) -> argparse.ArgumentParser:
+    """A leaf command whose ``--help`` shows ``summary`` and its exit codes from ``EXIT_CODES[command]``."""
+    return subcommands.add_parser(
+        name, help=summary, description=summary, epilog=_epilog(command), formatter_class=_HelpFormatter
     )
+
+
+def _add_format_argument(parser: argparse.ArgumentParser, choices: tuple[str, ...] = ("text", "json")) -> None:
+    parser.add_argument("--format", choices=choices, default=choices[0], help=FORMAT_HELP)
+
+
+def _add_config_and_jobs(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--config", type=Path, metavar="FILE", help=CONFIG_HELP)
+    parser.add_argument("--jobs", type=_positive_int, metavar="N", help=JOBS_HELP)
+
+
+def _add_provider_arguments(parser: argparse.ArgumentParser, *, input_budget: bool) -> None:
+    parser.add_argument("--profile", metavar="NAME", help="Apply the settings profile llm.profiles.NAME.")
+    parser.add_argument("--provider", choices=PROVIDERS, help="Override llm.provider.")
+    parser.add_argument("--model", help="Override llm.model; there is no default model.")
+    parser.add_argument("--base-url", metavar="URL", help="Override llm.base_url.")
+    if input_budget:
+        parser.add_argument("--max-input-tokens", type=int, metavar="TOKENS", help="Override llm.max_input_tokens.")
+    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override llm.max_output_tokens.")
+    parser.add_argument("--temperature", type=float, help="Override llm.temperature.")
+
+
+def _add_parse_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(subcommands, "parse", "Check that a save loads and summarize what it holds.", "save parse")
     parser.add_argument("save", type=Path, help="Path to a single save file.")
     parser.add_argument(
         "--record-unknowns",
         action="store_true",
-        help="Also fold the unknown structures met in this save into the registry (see 'tinarrative unknowns').",
+        help="Also fold the unknown structures in this save into the unknowns registry.",
     )
     _add_registry_argument(parser)
     parser.set_defaults(handler=_run_parse)
@@ -1786,64 +1947,26 @@ def _add_registry_argument(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=None,
         metavar="PATH",
-        help=(
-            f"Unknowns registry JSON file to update; created when missing. Overrides the {REGISTRY_ENV_VAR} "
-            "environment variable."
-        ),
+        help=f"Unknowns registry JSON file to update, created when missing (default: ${REGISTRY_ENV_VAR}).",
     )
 
 
-def _add_unknowns_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Scan saves for structures the parser does not describe and record them for triage."
-    parser = subcommands.add_parser(
+def _add_unknowns_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(
+        subcommands,
         "unknowns",
-        help=summary,
-        description=(
-            f"{summary} Each save is normalized exactly as 'save parse' does, and every state type, field, "
-            "envelope key, field shape or reference target outside the documented schema is reported with "
-            "a content-free shape summary (type labels and member names only). With a registry, the findings "
-            "are merged into it; entries the schema has since learned are pruned."
-        ),
-        epilog=(
-            "Exit codes: 0 every given path was scanned (findings are not failures); 2 usage error; "
-            "4 a given path cannot be read or a given directory holds no files; 5 a given file is not a "
-            "supported save; 7 the registry cannot be read, is invalid, or cannot be written (report still "
-            "printed). Files found inside a given directory that fail are listed as skipped and never change "
-            "the exit code. 7 takes precedence over 4, and 4 over 5."
-        ),
+        "Scan saves for structures the parser does not describe and, with a registry, record them for triage.",
+        "unknowns",
     )
-    parser.add_argument(
-        "paths",
-        type=Path,
-        nargs="+",
-        metavar="PATH",
-        help="Save files or directories; a directory is scanned one level deep.",
-    )
+    parser.add_argument("paths", type=Path, nargs="+", metavar="PATH", help=SAVES_HELP)
     _add_registry_argument(parser)
-    parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="Report format (default %(default)s).",
-    )
+    _add_format_argument(parser)
     parser.set_defaults(handler=_run_unknowns)
 
 
-def _add_inspect_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Inspect one save file's raw structure without interpreting it."
-    parser = subcommands.add_parser(
-        "inspect",
-        help=summary,
-        description=(
-            f"{summary} Reports byte-level facts, the JSON root type, top-level "
-            "keys with their types and lengths, one further level of keys, and "
-            "any selected JSON-pointer paths with bounded output."
-        ),
-        epilog=(
-            "Exit codes: 0 success; 2 usage error; 4 file cannot be read; "
-            "5 bytes are not decodable JSON (report still printed); "
-            "6 a --path did not resolve (report still printed)."
-        ),
+def _add_inspect_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(
+        subcommands, "inspect", "Report one save file's raw structure without interpreting it.", "save inspect"
     )
     parser.add_argument("save", type=Path, help="Path to a single save file.")
     parser.add_argument(
@@ -1852,537 +1975,377 @@ def _add_inspect_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         action="append",
         default=[],
         metavar="POINTER",
-        help=("RFC 6901 JSON pointer to print, e.g. /gamestates/Some.State/0/Value. May be repeated."),
+        help="RFC 6901 JSON pointer to print, such as /gamestates/Some.State/0/Value; may be repeated.",
     )
     parser.add_argument(
         "--max-items",
         type=_non_negative_int,
         default=RenderLimits.max_items,
         metavar="N",
-        help="Maximum array items or object keys shown per container (default %(default)s).",
+        help="Maximum array items or object keys shown per container in a selected path (default %(default)s).",
     )
     parser.add_argument(
         "--max-string",
         type=_non_negative_int,
         default=RenderLimits.max_string,
         metavar="N",
-        help="Maximum string characters shown (default %(default)s).",
+        help="Maximum characters shown per string in a selected path (default %(default)s).",
     )
     parser.add_argument(
         "--max-depth",
         type=_non_negative_int,
         default=RenderLimits.max_depth,
         metavar="N",
-        help="Maximum nesting depth rendered for selected paths (default %(default)s).",
+        help="Maximum nesting depth shown in a selected path (default %(default)s).",
     )
-    parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="Report format (default %(default)s).",
-    )
+    _add_format_argument(parser)
     parser.set_defaults(handler=_run_inspect)
 
 
-def _add_diff_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Compare two campaign snapshots and report state changes."
-    parser = subcommands.add_parser(
-        "diff",
-        help=summary,
-        description=(
-            f"{summary} Both saves are normalized exactly as 'save parse' does, entities are matched by "
-            "their in-save ID (technologies by name), and every differing field is listed with its "
-            "before and after value and its location in each save. Entities present in only one save "
-            "are reported as appeared or disappeared; no cause is inferred. The saves are compared in argument "
-            "order, whatever their game dates. Analyzer results and inferred events are reported by 'events'."
-        ),
-        epilog=(
-            "Exit codes: 0 success; 2 usage error; 4 a save cannot be read; "
-            "5 a save is malformed or has an unsupported shape, format, or game version."
-        ),
+def _add_diff_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(
+        subcommands, "diff", "List every literal difference between two saves, without inferring causes.", "save diff"
     )
-    parser.add_argument("before", type=Path, help="Path to the earlier save file.")
-    parser.add_argument("after", type=Path, help="Path to the later save file.")
-    parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="Report format (default %(default)s).",
-    )
+    parser.add_argument("before", type=Path, help="The earlier save file.")
+    parser.add_argument("after", type=Path, help="The later save file; the saves are compared in argument order.")
+    _add_format_argument(parser)
     parser.set_defaults(handler=_run_diff)
 
 
-def _add_councilors_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = (
-        "Select a campaign's notable councilors, build the dossier and one article request per councilor, and "
-        "send them."
-    )
-    parser = subcommands.add_parser(
+def _add_councilors_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(
+        subcommands,
         "councilors",
-        help=summary,
-        description=(
-            f"{summary} The dossier lists every player councilor employed long enough, plus the most prominent "
-            "councilors of each other human faction (councilors.rivals_per_faction), from the latest save; with "
-            "several saves it adds each councilor's career from the events between them. Stdout gets a selection "
-            "summary and --output writes dossier.json and requests/NN.json. Nothing is sent without --send; with "
-            "it, the requests (and so the dossier) go to the configured provider, a third party unless it runs "
-            "locally, and the responses are assembled into councilors.md with a manifest.json. An article whose "
-            "stored response was made from the same request is not sent again."
-        ),
-        epilog=(
-            "Exit codes: 0 success; 2 usage error (including several campaigns without --campaign, an unknown "
-            "--profile, --force without --send, or --send without --output, provider, model or API key); 4 a save "
-            "cannot be read; 5 a save is not a supported save; 8 the settings file is invalid; 9 --output cannot "
-            "be written; 10 an article request failed, or its completion stopped at its output limit or was "
-            "refused; the other articles are written."
-        ),
+        "Write public-perception articles about a campaign's notable councilors with an LLM.",
+        "councilors",
     )
     parser.add_argument(
         "saves",
         type=Path,
         nargs="+",
         metavar="PATH",
-        help="One save, or saves and directories of one campaign, any order; a directory is read one level deep.",
+        help="One save, or saves and directories of one campaign; a directory is read one level deep.",
     )
-    parser.add_argument("--campaign", metavar="SELECTOR", help="The campaign to use when the saves hold several.")
-    parser.add_argument("--player-only", action="store_true", help="Select the player's councilors only.")
+    parser.add_argument("--campaign", metavar="SELECTOR", help=CAMPAIGN_HELP)
+    parser.add_argument("--player-only", action="store_true", help="Select only the player's councilors.")
     parser.add_argument(
-        "--output",
-        type=Path,
-        metavar="DIR",
-        help=(
-            "Write dossier.json and requests/NN.json here; with --send also responses/NN.json, councilors.md and "
-            "manifest.json."
-        ),
+        "--output", type=Path, metavar="DIR", help="Write dossier.json and one request per councilor here."
     )
     parser.add_argument(
         "--send",
         action="store_true",
         help=(
-            "Send each article request to the provider and write responses/NN.json under --output. This hands the "
-            "dossier to the provider, a third party unless it runs locally."
+            "Send the requests to the provider and write councilors.md; needs --output. Hands the dossier to a "
+            "third party unless the provider runs locally."
         ),
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="With --send, send every article again, even one whose stored response matches its request.",
+        help="With --send, send every article again, even one with a matching stored response.",
     )
-    parser.add_argument(
-        "--profile",
-        metavar="NAME",
-        help="Apply the settings profile [llm.profiles.NAME] over the [llm] keys.",
-    )
-    parser.add_argument("--provider", choices=PROVIDERS, help="Override llm.provider.")
-    parser.add_argument("--model", help="Override llm.model (there is no default model).")
-    parser.add_argument("--base-url", metavar="URL", help="Override llm.base_url.")
-    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override llm.max_output_tokens.")
-    parser.add_argument("--temperature", type=float, help="Override llm.temperature.")
-    parser.add_argument(
-        "--config",
-        type=Path,
-        metavar="FILE",
-        help=(
-            f"A TOML settings file: the [councilors] selection and the [narrator] provider and profiles (default: "
-            f"${CONFIG_ENV_VAR} if set, see docs/configuration.md)."
-        ),
-    )
-    parser.add_argument(
-        "--jobs",
-        type=_positive_int,
-        metavar="N",
-        help=(
-            "Worker processes for surveying the saves and analyzing the intervals; 1 runs everything in one process "
-            "(default: processing.jobs, else bounded by the CPUs and the memory the saves need)."
-        ),
-    )
+    _add_provider_arguments(parser, input_budget=False)
+    _add_config_and_jobs(parser)
     parser.set_defaults(handler=_run_councilors)
 
 
-def _add_events_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Order the saves of a campaign by game time and report the events of every consecutive pair."
-    parser = subcommands.add_parser(
+def _add_events_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(
+        subcommands,
         "events",
-        help=summary,
-        description=(
-            f"{summary} Each save is normalized exactly as 'save parse' does. Saves are ordered by their serialized "
-            "game time, never by file name or argument order; byte-identical saves are merged. Every pair of "
-            "consecutive saves is diffed, run through every objective analyzer and the significance rules and, "
-            "with --inferred, the reconstruction rules; every event ID is qualified by its interval so that IDs "
-            "are unique across the sequence. Saves are grouped by campaign first (see 'tinarrative campaigns'); "
-            "when they hold more than one campaign, --campaign chooses which one to report."
-        ),
-        epilog=(
-            "In a terminal, several campaigns without --campaign, or a --campaign that matches none or several, "
-            "open a picker that takes a listing number, a key or fuzzy search text. "
-            "Exit codes: 0 success; 2 usage error (including fewer than two usable saves in the chosen campaign, "
-            "several campaigns without --campaign or a --campaign that matches none when stdin or stderr is not a "
-            "terminal, or a cancelled picker); 4 a given path cannot be "
-            "read, or a given directory holds no files or no usable save; "
-            "5 a given file is malformed, has an unsupported shape, format, or game version, or has no game time. "
-            "Files found inside a given directory that fail are listed as skipped and never change the exit code."
-        ),
+        "Report what happened between every pair of consecutive saves of one campaign.",
+        "events",
     )
-    parser.add_argument(
-        "saves",
-        type=Path,
-        nargs="+",
-        metavar="PATH",
-        help="Save files or directories, any order; a directory is read one level deep.",
-    )
-    parser.add_argument(
-        "--campaign",
-        metavar="SELECTOR",
-        help=(
-            "The campaign to report when the saves hold several: a key or unique key prefix from "
-            "'tinarrative campaigns', its listing index, or 'latest' (the campaign of the most recently "
-            "modified file). In a terminal, a missing or unmatched selector opens a picker instead of failing."
-        ),
-    )
-    parser.add_argument(
-        "--format",
-        choices=("markdown", "json"),
-        default="markdown",
-        help="Report format (default %(default)s).",
-    )
+    parser.add_argument("saves", type=Path, nargs="+", metavar="PATH", help=SAVES_HELP)
+    parser.add_argument("--campaign", metavar="SELECTOR", help=CAMPAIGN_HELP)
+    _add_format_argument(parser, ("markdown", "json"))
     parser.add_argument(
         "--min-significance",
         choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
         default=Significance.TRIVIAL.value,
-        help=(
-            "Lowest significance an event needs to be listed (default %(default)s, which lists every event): an "
-            "objective or inferred event, or with --narrative a narrative event, whose objective and inferred events "
-            "follow --constituents instead; applies to the markdown and the JSON report, and omitted events are "
-            "counted."
-        ),
+        help="Lowest significance listed; with --narrative, of the narrative events (default %(default)s).",
     )
     parser.add_argument(
         "--constituents",
         choices=CONSTITUENTS,
         default="none",
-        help=(
-            "With --narrative, which of the objective and inferred events the listed narrative events are built "
-            "from (transitively and whatever their significance) to list: all of them, the narrator evidence among "
-            "them, or none (default %(default)s); with all and evidence, the lower-order narrative events they cite "
-            "are listed too. Ignored without --narrative."
-        ),
+        help="With --narrative, which events behind the listed narrative events to list (default %(default)s).",
     )
     parser.add_argument(
         "--period",
         choices=PERIODS,
         default="year",
-        help=(
-            "The period the markdown narrative section groups events by: year, half (H1, H2) or quarter "
-            "(default %(default)s); the JSON report is not grouped."
-        ),
+        help="How the Markdown narrative section is grouped (default %(default)s).",
     )
     parser.add_argument(
         "--inferred",
         action="store_true",
-        help="Also reconstruct inferred events in every interval and report them with the results they rest on.",
+        help="Also list the events inferred in each interval, with the results they rest on.",
     )
     parser.add_argument(
         "--changes",
         action="store_true",
-        help="Also list every literal state change of each interval under that interval.",
+        help="Also list every literal state change under its interval; not with --narrative --format json.",
     )
     parser.add_argument(
         "--narrative",
         action="store_true",
-        help=(
-            "Also aggregate the events of the whole sequence into narrative events and list them by period above "
-            "the intervals; implies --inferred."
-        ),
+        help="Also join the whole campaign's events into narrative events; implies --inferred.",
     )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        metavar="FILE",
-        help=(
-            f"A TOML settings file for the narrative rules' thresholds and windows (default: ${CONFIG_ENV_VAR} if "
-            "set, else the built-in defaults; see docs/configuration.md)."
-        ),
-    )
-    parser.add_argument(
-        "--jobs",
-        type=_positive_int,
-        metavar="N",
-        help=(
-            "Worker processes for surveying the saves and analyzing the intervals; 1 runs everything in one process "
-            "(default: processing.jobs, else bounded by the CPUs and the memory the saves need)."
-        ),
-    )
+    _add_config_and_jobs(parser)
     parser.set_defaults(handler=_run_events)
 
 
-def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = (
-        "Cut a campaign's narrator package into chapters under a token budget, build their LLM requests and send them."
-    )
-    parser = subcommands.add_parser(
-        "narrate",
-        help=summary,
-        description=(
-            f"{summary} The package is built from the saves exactly as 'events --narrative --constituents evidence "
-            "--format json' builds it, or read with --package. Each chapter is a run of whole periods whose "
-            "estimated request stays within llm.max_input_tokens; it carries the narrative events that start in "
-            "it, its opening and closing situation and a continuity member, and is the same schema as the package. "
-            "With --output the plan and one request per chapter are written. Nothing is sent without --send; with "
-            "it, the requests (and so the campaign) go to the configured provider, a third party unless it runs "
-            "locally, and the responses are assembled into history.md with a citation audit in manifest.json. A "
-            "chapter whose stored response was made from the same request is not sent again."
-        ),
-        epilog=(
-            "Exit codes: 0 success; 2 usage error (including --package with save paths, --campaign, "
-            "--min-significance or --constituents, a package with no interval, a single interval over the token "
-            "budget, an unknown --profile, or --send without --output, provider, model or API key, or over the "
-            "context window); 4 a save or the package cannot be read; 5 a save is not a supported save, or the "
-            "package is not valid JSON or not a narrator package; 8 the settings file is invalid; 9 --output cannot "
-            "be written; 10 a provider request failed, or a completion stopped at its output limit or was refused. "
-            "With --assemble: 2 another option was given; 4 DIR or its plan.json cannot be read; 5 a request or "
-            "response is missing, invalid or does not match the plan; 9 the history cannot be written."
-        ),
-    )
-    parser.add_argument(
-        "saves",
-        type=Path,
-        nargs="*",
-        metavar="PATH",
-        help="Save files or directories, any order; a directory is read one level deep.",
-    )
+def _add_narrate_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(subcommands, "narrate", "Turn a campaign into a written history told by an LLM.", "narrate")
+    parser.add_argument("saves", type=Path, nargs="*", metavar="PATH", help=SAVES_HELP)
     parser.add_argument(
         "--package",
         metavar="FILE",
-        help="A narrator package ('events --narrative --format json') to narrate as built; '-' reads stdin.",
+        help="A narrator package from 'events --narrative --format json' to narrate instead; '-' reads stdin.",
     )
-    parser.add_argument(
-        "--campaign",
-        metavar="SELECTOR",
-        help="The campaign to narrate when the saves hold several (as 'events --campaign').",
-    )
+    parser.add_argument("--campaign", metavar="SELECTOR", help=CAMPAIGN_HELP)
     parser.add_argument(
         "--min-significance",
         choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
         default=None,
-        help=(
-            "Lowest significance of a listed narrative event when building from saves (default major); the atomic "
-            "stream keeps only the constituents of the listed narrative events."
-        ),
+        help=f"Lowest significance of a narrative event told, from saves (default {NARRATE_MIN_SIGNIFICANCE.value}).",
     )
     parser.add_argument(
         "--constituents",
         choices=CONSTITUENTS,
         default=None,
-        help=(
-            "Which constituents of the listed narrative events the atomic stream keeps when building from saves, as "
-            "'events --constituents' does (default evidence)."
-        ),
+        help=f"Which events behind the narrative events the model also gets (default {NARRATE_CONSTITUENTS}).",
     )
     parser.add_argument(
-        "--period",
-        choices=PERIODS,
-        help=(
-            "The sections of the history and the unit chapters are cut by (default: from the campaign span, using "
-            "the built-in quarter and half-year spans, made coarser chapter by chapter where the "
-            "saves are further apart than the period runs). A given period is kept, with a warning where the "
-            "saves are too sparse for it."
-        ),
+        "--period", choices=PERIODS, help="The sections the history is told in (default: from the campaign's span)."
     )
-    parser.add_argument("--audience", choices=AUDIENCES, help="Who the history is for (prompt default public).")
-    parser.add_argument("--citations", choices=CITATIONS, help="Footnotes citing event IDs (prompt default) or none.")
-    parser.add_argument("--style", choices=STYLES, help="Chronicle (prompt default) or headlines.")
+    parser.add_argument(
+        "--audience",
+        choices=AUDIENCES,
+        help=f"Who the history is for; insider centres on the player faction (default {AUDIENCES[0]}).",
+    )
+    parser.add_argument(
+        "--citations", choices=CITATIONS, help=f"Footnotes citing event IDs, or none (default {CITATIONS[0]})."
+    )
+    parser.add_argument("--style", choices=STYLES, help=f"Running prose or headlines (default {STYLES[0]}).")
     parser.add_argument(
         "--length",
         type=_positive_int,
         metavar="WORDS",
-        help=(
-            "A target length for the whole history, shared out across chapters by their narrative weight "
-            "(default: from the narrative weight)."
-        ),
+        help="Target length of the whole history (default: from how much happened).",
     )
     parser.add_argument(
         "--focus",
-        help="A faction or nation to centre the account on (default: the player faction for an insider audience).",
+        metavar="NAME",
+        help="A faction or nation to centre the account on (default: the player faction with --audience insider).",
     )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        metavar="DIR",
-        help="Write plan.json and requests/NN.json here; without it only the plan summary is printed.",
-    )
+    parser.add_argument("--output", type=Path, metavar="DIR", help="Write the plan and one request per chapter here.")
     parser.add_argument(
         "--send",
         action="store_true",
         help=(
-            "Send each chapter request to the provider and write responses/NN.json under --output. This hands the "
-            "campaign to the provider, a third party unless it runs locally."
+            "Send the requests to the provider and assemble history.md; needs --output. Hands the campaign to a "
+            "third party unless the provider runs locally."
         ),
     )
     parser.add_argument(
         "--force",
         action="store_true",
-        help="With --send, send every chapter again, even one whose stored response matches its request.",
+        help="With --send, send every chapter again, even one with a matching stored response.",
     )
     parser.add_argument(
         "--assemble",
         type=Path,
         metavar="DIR",
-        help=(
-            "Assemble history.md and manifest.json from the plan, requests and responses already in DIR; sends "
-            "nothing and takes no other option."
-        ),
+        help="Assemble history.md from a directory written earlier, sending nothing; takes no other option.",
     )
-    parser.add_argument(
-        "--profile",
-        metavar="NAME",
-        help="Apply the settings profile [llm.profiles.NAME] over the [llm] keys.",
-    )
-    parser.add_argument("--provider", choices=PROVIDERS, help="Override llm.provider.")
-    parser.add_argument("--model", help="Override llm.model (there is no default model).")
-    parser.add_argument("--base-url", metavar="URL", help="Override llm.base_url.")
-    parser.add_argument("--max-input-tokens", type=int, metavar="TOKENS", help="Override llm.max_input_tokens.")
-    parser.add_argument("--max-output-tokens", type=int, metavar="TOKENS", help="Override llm.max_output_tokens.")
-    parser.add_argument("--temperature", type=float, help="Override llm.temperature.")
-    parser.add_argument(
-        "--config",
-        type=Path,
-        metavar="FILE",
-        help=(
-            f"A TOML settings file: the narrative rules, and the [narrator] budget, provider and profiles (default: "
-            f"${CONFIG_ENV_VAR} if set, else the built-in defaults; see docs/configuration.md)."
-        ),
-    )
-    parser.add_argument(
-        "--jobs",
-        type=_positive_int,
-        metavar="N",
-        help=(
-            "Worker processes for surveying the saves and analyzing the intervals; 1 runs everything in one process "
-            "(default: processing.jobs, else bounded by the CPUs and the memory the saves need)."
-        ),
-    )
+    _add_provider_arguments(parser, input_budget=True)
+    _add_config_and_jobs(parser)
     parser.set_defaults(handler=_run_narrate)
 
 
-def _add_campaigns_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "List the campaigns that saves belong to, with the selector for 'events --campaign'."
-    parser = subcommands.add_parser(
+def _add_campaigns_parser(subcommands: Subcommands) -> None:
+    parser = _add_command(
+        subcommands,
         "campaigns",
-        help=summary,
-        description=(
-            f"{summary} Saves belong to one campaign when the human player's faction, the faction name, the "
-            "scenario and the real-world campaign start all match; a save without exactly one resolvable human "
-            "player is listed on its own. Only the time and identity of each save are read; nothing is analyzed."
-        ),
-        epilog=(
-            "Exit codes: 0 success; 2 usage error; 4 a given path cannot be read, or a given directory holds no "
-            "files or no usable save; 5 a given file is malformed, has an unsupported shape, format, or game "
-            "version, or has no game time. Files found inside a given directory that fail are listed as skipped "
-            "and never change the exit code."
-        ),
+        "List the campaigns that saves belong to, with the selector that --campaign accepts.",
+        "campaigns",
     )
-    parser.add_argument(
-        "saves",
-        type=Path,
-        nargs="+",
-        metavar="PATH",
-        help="Save files or directories, any order; a directory is read one level deep.",
-    )
-    parser.add_argument(
-        "--format",
-        choices=("text", "json"),
-        default="text",
-        help="Report format (default %(default)s).",
-    )
+    parser.add_argument("saves", type=Path, nargs="+", metavar="PATH", help=SAVES_HELP)
+    _add_format_argument(parser)
     parser.set_defaults(handler=_run_campaigns)
 
 
-def _add_benchmark_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    parser = subcommands.add_parser("benchmark", help="Manage benchmark samples.")
+def _add_benchmark_parser(subcommands: Subcommands) -> None:
+    summary = "Maintain the benchmark samples and measure package size and runtime."
+    parser = subcommands.add_parser("benchmark", help=summary, description=summary)
     commands = parser.add_subparsers(dest="benchmark_command", metavar="COMMAND", required=True)
-    sample = commands.add_parser(
-        "sample",
-        help="Import or refresh a campaign in benchmarks/samples/.",
-        description=(
-            "Import save files into benchmarks/samples/ and refresh samples.json. A single directory is grouped by "
-            "campaign; choose one with --campaign or the interactive picker. Refresh replaces the named campaign."
-        ),
-        epilog=(
-            "Progress is written to stderr in a terminal. After import, review samples.json and matrix.toml; "
-            "add a campaign description if one is not already present."
-        ),
+    sample = _add_command(
+        commands, "sample", "Import or refresh a campaign in benchmarks/samples/ and samples.json.", "benchmark sample"
     )
-    sample.add_argument("name", help="Name of the campaign directory to create or replace.")
-    sample.add_argument("paths", type=Path, nargs="+", metavar="PATH", help="One directory or save file paths.")
-    sample.add_argument("--description", help="Campaign description to write to samples.json.")
-    sample.add_argument("--campaign", metavar="SELECTOR", help="Campaign to import from a directory input.")
+    sample.add_argument("name", help="The sample campaign's directory name under benchmarks/samples/.")
+    sample.add_argument("paths", type=Path, nargs="+", metavar="PATH", help="One directory, or save files.")
+    sample.add_argument(
+        "--description", metavar="TEXT", help="Campaign description for samples.json (default: keep the existing one)."
+    )
+    sample.add_argument(
+        "--campaign", metavar="SELECTOR", help="The campaign to import from a directory that holds several."
+    )
     sample.set_defaults(handler=_run_benchmark_sample)
 
-    metrics = commands.add_parser("metrics", help="Measure and compare narrator package sizes.")
+    summary = "Measure and compare narrator package sizes."
+    metrics = commands.add_parser("metrics", help=summary, description=summary)
     metric_commands = metrics.add_subparsers(dest="metrics_command", metavar="OPERATION", required=True)
-    samples = metric_commands.add_parser("samples", help=f"Verify the sample files against {MANIFEST}, or rewrite it.")
-    samples.add_argument("--samples", type=Path, default=BENCHMARK_SAMPLES_DIR)
-    samples.add_argument("--update", action="store_true", help="Rewrite the manifest from the files.")
+    samples = _add_command(
+        metric_commands,
+        "samples",
+        f"Verify the sample files against {MANIFEST}, or rewrite it.",
+        "benchmark metrics samples",
+    )
+    _add_samples_argument(samples)
+    samples.add_argument("--update", action="store_true", help=f"Rewrite {MANIFEST} from the files.")
     samples.set_defaults(handler=_run_benchmark_metrics)
 
-    measure = metric_commands.add_parser("measure", help="Run the matrix and write metrics.json.")
-    measure.add_argument("--python", default=sys.executable, help="The interpreter with the tinarrative to measure.")
-    measure.add_argument("--samples", type=Path, default=BENCHMARK_SAMPLES_DIR)
-    measure.add_argument("--matrix", type=Path, default=BENCHMARK_ROOT / "matrix.toml")
-    measure.add_argument("--config", type=Path, default=BENCHMARK_ROOT / "config.toml")
-    measure.add_argument("--out", type=Path, required=True)
-    measure.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
-    measure.add_argument("--chars-per-token", type=_positive_float, default=2.4)
-    measure.add_argument("--jobs", type=_positive_int, default=os.cpu_count() or 1, help="Commands to run at once.")
+    measure = _add_command(
+        metric_commands,
+        "measure",
+        "Run the package-size matrix on every sample campaign and write metrics.json.",
+        "benchmark metrics measure",
+    )
+    _add_python_argument(measure)
+    _add_samples_argument(measure)
+    _add_matrix_and_config_arguments(measure)
+    measure.add_argument(
+        "--out", type=Path, required=True, metavar="PATH", help="Directory for the packages, plans and metrics.json."
+    )
+    _add_label_argument(measure)
+    measure.add_argument(
+        "--chars-per-token",
+        type=_positive_float,
+        default=2.4,
+        metavar="FLOAT",
+        help="Characters per estimated token (default %(default)s).",
+    )
+    measure.add_argument(
+        "--jobs", type=_positive_int, metavar="N", help="Commands run at once (default: the CPU count)."
+    )
     measure.set_defaults(handler=_run_benchmark_metrics)
 
-    compare = metric_commands.add_parser("compare", help="Write the Markdown report of two metrics files.")
-    compare.add_argument("base", type=Path)
-    compare.add_argument("head", type=Path)
-    compare.add_argument("--out", type=Path, help="Where to write the report (default: stdout).")
-    compare.add_argument("--threshold", type=float, default=1.0, help="Highlight changes of at least this per cent.")
-    compare.add_argument("--run-url", help="The CI run whose artifact holds the outputs.")
+    compare = _add_command(
+        metric_commands, "compare", "Write the Markdown comparison of two metrics files.", "benchmark metrics compare"
+    )
+    compare.add_argument("base", type=Path, help="The base metrics.json.")
+    compare.add_argument("head", type=Path, help="The head metrics.json.")
+    _add_report_arguments(compare)
+    compare.add_argument(
+        "--threshold",
+        type=float,
+        default=1.0,
+        metavar="PERCENT",
+        help="Highlight size changes of at least this percentage (default %(default)s).",
+    )
     compare.set_defaults(handler=_run_benchmark_metrics)
 
-    runtime = commands.add_parser("runtime", help="Measure and report the processing runtime of events.")
+    summary = "Measure and report the processing runtime of events."
+    runtime = commands.add_parser("runtime", help=summary, description=summary)
     runtime_commands = runtime.add_subparsers(dest="runtime_command", metavar="OPERATION", required=True)
-    timed = runtime_commands.add_parser("measure", help="Time one events run per campaign and write runtime JSON.")
-    timed.add_argument("--python", default=sys.executable, help="The interpreter with the tinarrative to measure.")
-    timed.add_argument("--label", default="working tree", help="What is measured, for example a commit.")
-    timed.add_argument("--base-python", help="A second interpreter to measure as the base, alternating with --python.")
-    timed.add_argument("--base-label", default="base", help="What the base is, for example a commit.")
+    timed = _add_command(
+        runtime_commands,
+        "measure",
+        "Time one events run per campaign and write the runtime JSON.",
+        "benchmark runtime measure",
+    )
+    timed.add_argument("--out", type=Path, required=True, metavar="FILE", help="The runtime JSON file to write.")
+    _add_python_argument(timed)
+    _add_label_argument(timed)
+    timed.add_argument(
+        "--base-python", metavar="PYTHON", help="A second interpreter measured as the base, alternating with --python."
+    )
+    timed.add_argument(
+        "--base-label", default="base", metavar="TEXT", help="What the base is, such as a commit (default %(default)s)."
+    )
     timed.add_argument(
         "--samples",
         type=Path,
         default=BENCHMARK_SAMPLES_DIR,
-        help=f"Benchmark samples (a directory with {MANIFEST}), or one directory of saves.",
+        metavar="PATH",
+        help=f"Benchmark samples (a directory with {MANIFEST}) or one directory of saves (default %(default)s).",
     )
-    timed.add_argument("--campaign", help="Passed to events as --campaign, for a directory of several campaigns.")
-    timed.add_argument("--matrix", type=Path, default=BENCHMARK_ROOT / "matrix.toml")
-    timed.add_argument("--run", default="major", help="The events run of the matrix to time (default major).")
-    timed.add_argument("--config", type=Path, default=BENCHMARK_ROOT / "config.toml")
-    timed.add_argument("--repeats", type=_positive_int, default=1, help="Runs per side; the fastest is kept.")
-    timed.add_argument("--out", type=Path, required=True, help="The runtime JSON file to write.")
+    timed.add_argument(
+        "--campaign", metavar="SELECTOR", help="Passed to events --campaign, for a directory of several campaigns."
+    )
+    _add_matrix_and_config_arguments(timed)
+    timed.add_argument(
+        "--run", default="major", metavar="ID", help="The matrix's events run to time (default %(default)s)."
+    )
+    timed.add_argument(
+        "--repeats",
+        type=_positive_int,
+        default=1,
+        metavar="N",
+        help="Runs per side; the fastest is kept (default %(default)s).",
+    )
     timed.set_defaults(handler=_run_benchmark_runtime)
 
-    reported = runtime_commands.add_parser("report", help="Write the Markdown report of a runtime JSON file.")
-    reported.add_argument("runtime", type=Path)
-    reported.add_argument("--out", type=Path, help="Where to write the report (default: stdout).")
-    reported.add_argument("--run-url", help="The CI run whose artifact holds the measurements.")
+    reported = _add_command(
+        runtime_commands, "report", "Write the Markdown report of a runtime JSON file.", "benchmark runtime report"
+    )
+    reported.add_argument("runtime", type=Path, metavar="FILE", help="The runtime JSON file.")
+    _add_report_arguments(reported)
     reported.set_defaults(handler=_run_benchmark_runtime)
 
 
-def _add_save_parser(subcommands: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    summary = "Inspect, parse or diff individual save files."
-    parser = subcommands.add_parser(
-        "save",
-        help=summary,
-        description=(
-            f"{summary} These commands report the evidence of one save, or the literal changes between two, "
-            "without analyzing anything; campaign history is reported by 'events'."
-        ),
-        epilog="Exit codes: 2 usage error (including a missing COMMAND); each command documents its own codes.",
+def _add_python_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--python", metavar="PYTHON", help="The interpreter whose tinarrative is measured (default: this one)."
     )
+
+
+def _add_label_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--label",
+        default="working tree",
+        metavar="TEXT",
+        help="What is measured, such as a commit (default %(default)s).",
+    )
+
+
+def _add_samples_argument(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--samples",
+        type=Path,
+        default=BENCHMARK_SAMPLES_DIR,
+        metavar="PATH",
+        help="Benchmark samples directory (default %(default)s).",
+    )
+
+
+def _add_matrix_and_config_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--matrix",
+        type=Path,
+        default=BENCHMARK_ROOT / "matrix.toml",
+        metavar="PATH",
+        help="The run matrix (default %(default)s).",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=BENCHMARK_ROOT / "config.toml",
+        metavar="PATH",
+        help="Settings file for the measured runs (default %(default)s).",
+    )
+
+
+def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--out", type=Path, metavar="PATH", help="Write the report here (default: stdout).")
+    parser.add_argument("--run-url", metavar="URL", help="Link the report to this CI run.")
+
+
+def _add_save_parser(subcommands: Subcommands) -> None:
+    summary = "Inspect, parse or diff individual save files."
+    parser = subcommands.add_parser("save", help=summary, description=summary)
     save_commands = parser.add_subparsers(
         dest="save_command",
         title="commands",
@@ -2400,15 +2363,15 @@ def build_parser() -> argparse.ArgumentParser:
         prog="tinarrative",
         description="Reconstruct Terra Invicta campaign history from save files.",
     )
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}", help="Print the version.")
     parser.add_argument(
         "--log-level",
         choices=tuple(LEVELS),
         default=None,
         metavar="LEVEL",
         help=(
-            f"Diagnostic log level written to stderr: {', '.join(LEVELS)}. Overrides the "
-            f"{ENV_VAR} environment variable; default {DEFAULT_LEVEL}. Must precede COMMAND."
+            f"Diagnostic log level on stderr: {', '.join(LEVELS)}; must precede COMMAND (default: ${ENV_VAR}, "
+            f"else {DEFAULT_LEVEL})."
         ),
     )
 

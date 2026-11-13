@@ -1,8 +1,12 @@
 # `tinarrative save inspect`
 
+<!-- generated: synopsis save inspect -->
 ```
-tinarrative save inspect <save> [-p|--path POINTER]... [--max-items N] [--max-string N] [--max-depth N] [--format text|json]
+tinarrative save inspect [-p POINTER] [--max-items N] [--max-string N] [--max-depth N]
+                         [--format {text,json}]
+                         save
 ```
+<!-- end generated -->
 
 Reports the raw structure of one save file without interpreting it: file facts, the JSON root,
 the top-level keys with their types and sizes, an ID census per entity type, and any parts of the
@@ -11,14 +15,16 @@ document you select by JSON pointer. Use it to check format observations in
 
 ## Options
 
-| Option | Default | Meaning |
-| --- | --- | --- |
-| `save` | required | Path to a single save file. Only the file name appears in the report. |
-| `-p`, `--path POINTER` | none | RFC 6901 JSON pointer to print. May be repeated. Dotted state-type names need no escaping; `~0` and `~1` escape `~` and `/`. |
-| `--max-items N` | 10 | Maximum array items or object keys shown per container in a selected path. |
-| `--max-string N` | 80 | Maximum characters shown per string in a selected path. |
-| `--max-depth N` | 3 | Maximum nesting depth shown in a selected path. |
-| `--format text\|json` | `text` | Human-readable report or the same report as JSON. |
+<!-- generated: options save inspect -->
+| Option | Meaning |
+| --- | --- |
+| `SAVE` | Path to a single save file. |
+| `-p, --path POINTER` | RFC 6901 JSON pointer to print, such as /gamestates/Some.State/0/Value; may be repeated. |
+| `--max-items N` | Maximum array items or object keys shown per container in a selected path (default 10). |
+| `--max-string N` | Maximum characters shown per string in a selected path (default 80). |
+| `--max-depth N` | Maximum nesting depth shown in a selected path (default 3). |
+| `--format text\|json` | Report format (default text). |
+<!-- end generated -->
 
 All limits accept 0, which shows only the truncation marker. The global `--log-level debug`
 option (before `save`) explains the decoding on stderr; see the [debugging guide](../debugging.md).
@@ -56,13 +62,15 @@ valid JSON do not fail the command.
 
 ## Exit codes
 
-| Code | Meaning | Output |
-| --- | --- | --- |
-| 0 | Report printed. | Full report on stdout. |
-| 2 | Usage error, including a negative limit. | argparse message on stderr. |
-| 4 | The save path is missing, unreadable, or a directory. | One line on stderr; nothing on stdout. |
-| 5 | Bytes were read but are not decodable UTF-8 JSON. | File facts and diagnostics on stdout. |
-| 6 | At least one `--path` did not resolve. | Full report on stdout. |
+<!-- generated: exit-codes save inspect -->
+| Code | When |
+| --- | --- |
+| 0 | The report was printed. |
+| 2 | Usage error, including a negative limit. |
+| 4 | The save cannot be read. |
+| 5 | The bytes are not decodable JSON; file facts and diagnostics are still printed. |
+| 6 | A --path did not resolve; the report is still printed. 5 wins over 6. |
+<!-- end generated -->
 
 Code 5 takes precedence over 6.
 
