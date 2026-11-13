@@ -325,6 +325,20 @@ def test_a_nation_reports_its_armies_strength_and_space_assets_and_the_world_its
     assert list(report.to_dict()["world"]["spaceports"][0]) == ["region", "nation", "boost"]
 
 
+def test_a_nation_reports_its_nuclear_warheads_and_an_absent_count_stays_unknown_not_zero() -> None:
+    states = (
+        state(NATION, "20", AFTER, numNuclearWeapons=3),
+        state(NATION, "21", AFTER, numNuclearWeapons=0),
+        state(NATION, "22", AFTER),
+    )
+
+    report = build_situation(snapshot(AFTER, *states))
+
+    assert nation(report, "20").nuclear_weapons == 3
+    assert nation(report, "21").nuclear_weapons == 0
+    assert nation(report, "22").nuclear_weapons == Unknown(UnknownReason.MISSING)
+
+
 def test_an_unparseable_milestone_record_stays_unknown() -> None:
     entries = Unknown(UnknownReason.UNPARSEABLE, "raw")
     broken = record_set(AFTER, GLOBAL, "globalMilestones", RecordKind.LABELLED_REFERENCES, entries)

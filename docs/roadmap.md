@@ -70,7 +70,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Numeric score with unchanged levels (#196).
   - [x] Prominence shares (#197).
   - [x] Atomic events scaled by stake (#198).
-  - [ ] Nuclear warheads in the situation report (#354).
+  - [x] Nuclear warheads in the situation report (#354).
   - [ ] Geopolitical narrative events scaled by stake (#199).
   - [ ] Nation narrative events scaled by power share (#359).
   - [ ] Nuclear arsenal share (#360).

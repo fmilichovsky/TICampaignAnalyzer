@@ -55,7 +55,7 @@ The user message may carry a request block.  Defaults in brackets.
   nation's executive, control-point shares (only when control is split up), federations, wars and their
   sides, regions, population, statistics, armies, navies, the
   game's own `strength` estimate, `boost`, `mission_control`, space defences
-  and STO fighters, habs and fleets by faction (`habs_by_body` lists the
+  and STO fighters, `nuclear_weapons`, habs and fleets by faction (`habs_by_body` lists the
   bodies with two or more habs; `other_bodies` counts those with one),
   milestones, nuclear and climate counters, and the `spaceports`: the
   regions with the most boost, largest first.
