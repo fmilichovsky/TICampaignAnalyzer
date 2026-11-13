@@ -188,6 +188,7 @@ def nation_row(
     mission_control: Observed = UNKNOWN,
     space_defence_regions: Observed = UNKNOWN,
     sto_fighters: Observed = UNKNOWN,
+    nuclear_weapons: Observed = UNKNOWN,
 ) -> NationSituation:
     """A nation row; ``shares`` are points held per faction, ``statistics`` the values besides ``GDP``, the rest the
     region count and the asset fields."""
@@ -214,6 +215,7 @@ def nation_row(
         mission_control=mission_control,
         space_defence_regions=space_defence_regions,  # type: ignore[arg-type]
         sto_fighters=sto_fighters,
+        nuclear_weapons=nuclear_weapons,
     )
 
 

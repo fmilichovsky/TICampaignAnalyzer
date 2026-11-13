@@ -149,7 +149,7 @@ is built by `_narrator_package` in
 ### Situation report
 
 Each save's `situation` is a digest of that one save: per nation its controlling factions'
-shares, federation, wars, regions, population, statistics, armies and space assets; the
+shares, federation, wars, regions, population, statistics, armies, nuclear warheads and space assets; the
 federations and wars; per faction its habs, fleets and ships; and world totals such as
 milestones, nuclear and climate figures and the largest spaceports. It states literal values and
 counts, never an inference, and a value the save does not establish is `{"unknown": <reason>}`.

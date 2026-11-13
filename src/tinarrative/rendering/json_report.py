@@ -26,6 +26,7 @@ ZERO_DROPPED = (
     "mission_control",
     "space_defence_regions",
     "sto_fighters",
+    "nuclear_weapons",
 )
 """Nation counts the narrator form leaves out when they are zero, as most nations' are."""
 DIGEST_KEYS = ("id", "event_type", "significance", "start", "start_basis", "end", "roles", "intervals")

@@ -232,6 +232,11 @@ the rest-value filter, the hold and carrier suppression. Over the private saves 
 
 ## Nuclear weapons and programs
 
+The situation report reads each nation's warhead count from `TINationState.numNuclearWeapons`, an integer, **observed**
+(2026-11-13) on every nation of every save of the Protectorate and Resist benchmark campaigns (positive on 169 of
+3,675 and 27 of 270 nation rows, 0 on the rest), never absent. A nation whose save lacks the field is reported
+unknown, not zero; that case occurs only in the synthetic fixtures.
+
 `numNuclearWeapons` and `nuclearProgram` did not change in any Appease or Protectorate interval: 9 nations held
 weapons (30, 28, 6, 3, 2, 2, 2, 1, 1) and 10 ran a program. In Resist, 5 nations held weapons in the first four saves
 (37, 13, 5, 2, 2) and 8 ran a program; in the 228-day interval two nations went from 0 to 1 weapon with

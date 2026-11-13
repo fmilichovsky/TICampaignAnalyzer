@@ -97,6 +97,8 @@ class NationSituation:
     mission_control: Observed = field(default_factory=Unknown)
     space_defence_regions: Count = field(default_factory=Unknown)
     sto_fighters: Observed = field(default_factory=Unknown)
+    nuclear_weapons: Observed = field(default_factory=Unknown)
+    """``numNuclearWeapons`` read as is; a nation without the field stays unknown, never zero."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -120,6 +122,7 @@ class NationSituation:
             "mission_control": to_jsonable(self.mission_control),
             "space_defence_regions": to_jsonable(self.space_defence_regions),
             "sto_fighters": to_jsonable(self.sto_fighters),
+            "nuclear_weapons": to_jsonable(self.nuclear_weapons),
         }
 
 
@@ -385,6 +388,7 @@ def _nation(reader: _Reader, state: EntityState, wars: list[WarParty]) -> Nation
         mission_control=owned.mission_control,
         space_defence_regions=owned.space_defence_regions,
         sto_fighters=owned.sto_fighters,
+        nuclear_weapons=state.get("numNuclearWeapons"),
     )
 
 
