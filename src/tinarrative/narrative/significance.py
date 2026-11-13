@@ -447,13 +447,7 @@ def _kind(event: Event) -> EventKind:
 
 
 def _base(event: Event) -> Significance:
-    return _base_of(_kind(event))
-
-
-def _base_of(kind: EventKind) -> Significance:
-    if kind.base is None:
-        raise ValueError(f"event type {kind.event_type} has its level set by its narrative rule")
-    return kind.base
+    return _kind(event).base
 
 
 def significance_of(event: Event, lookup: Lookup) -> Significance:
@@ -478,12 +472,12 @@ def narrative_score(kind: EventKind, event: Event, cited: Iterable[Event], geopo
     """The higher of the kind's context-rule level, else its base level, and the highest score among the ``cited``
     events (ADR-0011).
 
-    Raises ``ValueError`` for a kind without a base level, one declaring a stake (no narrative stake is implemented
+    Raises ``ValueError`` for a kind declaring a stake (no narrative stake is implemented
     yet), or one whose context rule judges atomic events: each is a code bug.
     """
     if kind.stake is not None:
         raise ValueError(f"narrative-event kind {kind.event_type} declares a stake, which is not implemented")
-    level = _base_of(kind)
+    level = kind.base
     if kind.rule is not None:
         rule = RULE_IMPLEMENTATIONS[kind.rule]
         if not isinstance(rule, NarrativeContextRule):

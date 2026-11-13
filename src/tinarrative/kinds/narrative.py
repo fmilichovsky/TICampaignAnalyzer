@@ -1,6 +1,5 @@
-"""What every narrative-event kind shares: significance scores it from its base level and context rule, else the rule
-that emits it sets its level; it is bookkeeping when another narrative event cites it, and its template names
-entities by role."""
+"""What every narrative-event kind shares: significance scores it from its base level and context rule; it is
+bookkeeping when another narrative event cites it, and its template names entities by role."""
 
 from __future__ import annotations
 
@@ -19,13 +18,13 @@ def narrative_kind(
     required: frozenset[str],
     optional: frozenset[str] = frozenset(),
     *,
-    base: Significance | None = None,
+    base: Significance,
     rule: Rule | None = None,
     digests_members: bool = False,
     exclusive_constituents: bool = False,
 ) -> EventKind:
-    """A narrative-event kind, scored from its ``base`` and context ``rule`` (without a ``base``, its emitting rule sets
-    the level); a kind with ``metric_shifts`` may also carry ``metric_shifts_omitted``."""
+    """A narrative-event kind, scored from its ``base`` and context ``rule``; a kind with ``metric_shifts`` may also
+    carry ``metric_shifts_omitted``."""
     if "metric_shifts" in required:
         optional |= METRIC_SHIFTS_OMITTED
     return EventKind(

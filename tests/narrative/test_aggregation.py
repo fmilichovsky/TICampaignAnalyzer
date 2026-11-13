@@ -8,7 +8,16 @@ from dataclasses import dataclass, field, replace
 import pytest
 
 from tests.analyzers.support import fixture_kind
-from tests.narrative.support import CitingRule, GroupRule, atomic, faction, nation, situation, state_change
+from tests.narrative.support import (
+    CitingRule,
+    GroupRule,
+    atomic,
+    faction,
+    narrative_fixture_kind,
+    nation,
+    situation,
+    state_change,
+)
 from tinarrative.kinds.narrative import narrative_kind
 from tinarrative.kinds.space import FLEET_BUILDUP
 from tinarrative.model.entities import EntityRef
@@ -25,7 +34,7 @@ K3 = "2032-10-01T00:00:00"
 GERMANY = nation("1", "Germany")
 FRANCE = nation("2", "France")
 RULE = GroupRule("changes", "nation.changed")
-CHANGED_ARC = fixture_kind("nation.changed.arc")
+CHANGED_ARC = narrative_fixture_kind("nation.changed.arc")
 SCORED_ARC = narrative_kind("nation.scored.arc", lambda event: event.id, frozenset(), base=Significance.MAJOR)
 
 
@@ -142,7 +151,7 @@ def test_a_tied_interval_key_sorts_after_its_bare_time_and_by_tie_position() -> 
     constituents = [atomic(f"nation.changed/{position}", key) for position, key in enumerate(keys)]
 
     event = builder.event(
-        fixture_kind("test.arc"), id_parts=["x"], constituents=constituents, roles=(), join=Join.ENTITY
+        narrative_fixture_kind("test.arc"), id_parts=["x"], constituents=constituents, roles=(), join=Join.ENTITY
     )
 
     assert event.intervals == (K1, f"{K1}#2", f"{K1}#10")
@@ -176,15 +185,14 @@ def test_a_kind_with_a_base_level_scores_it_never_below_the_highest_cited_score_
     assert (scored(*cited).score, scored(*cited).significance) == (80, Significance.CAMPAIGN_DEFINING)
 
 
-def test_a_rule_passing_a_level_for_a_kind_that_declares_one_is_a_code_bug() -> None:
-    with pytest.raises(ValueError, match="declares its base level"):
+def test_the_builder_takes_its_level_only_from_a_narrative_kind() -> None:
+    with pytest.raises(ValueError, match="not a narrative-event kind"):
         NarrativeBuilder(()).event(
-            SCORED_ARC,
+            fixture_kind("nation.plain"),
             id_parts=[GERMANY.entity_id],
             constituents=[changed(K1)],
             roles=[],
             join=Join.ENTITY,
-            significance=Significance.MINOR,
         )
 
 
@@ -199,26 +207,26 @@ def test_confidence_is_the_minimum_lowered_once_for_a_heuristic_join() -> None:
     assert only(stream, claimed).confidence is Confidence.HIGH
 
 
-def test_significance_is_the_rule_level_but_never_below_the_most_significant_constituent() -> None:
+def test_significance_is_the_kind_base_level_but_never_below_the_most_significant_constituent() -> None:
     stream = [changed(K1), changed(K2, significance=Significance.MAJOR)]
 
     assert only(stream).significance is Significance.MAJOR
-    assert only(stream, GroupRule("t", "nation.changed", significance=Significance.TRIVIAL)).significance is (
+    assert only(stream, GroupRule("t", "nation.changed", base=Significance.TRIVIAL)).significance is (
         Significance.MAJOR
     )
-    defining = GroupRule("d", "nation.changed", significance=Significance.CAMPAIGN_DEFINING)
+    defining = GroupRule("d", "nation.changed", base=Significance.CAMPAIGN_DEFINING)
     assert only(stream, defining).significance is Significance.CAMPAIGN_DEFINING
 
 
-def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_their_sum() -> None:
+def test_the_score_is_the_highest_of_the_kind_base_and_the_cited_scores_never_their_sum() -> None:
     stream = [changed(K1), changed(K2, significance=Significance.MAJOR)]
     assert only(stream).score == Significance.MAJOR.base
-    assert only(stream, GroupRule("d", "nation.changed", significance=Significance.CAMPAIGN_DEFINING)).score == (
+    assert only(stream, GroupRule("d", "nation.changed", base=Significance.CAMPAIGN_DEFINING)).score == (
         Significance.CAMPAIGN_DEFINING.base
     )
 
     scaled = [changed(K1, significance=Significance.CAMPAIGN_DEFINING, score=80), changed(K2)]
-    narrative_event = only(scaled, GroupRule("m", "nation.changed", significance=Significance.MAJOR))
+    narrative_event = only(scaled, GroupRule("m", "nation.changed", base=Significance.MAJOR))
     assert (narrative_event.score, narrative_event.significance) == (80, Significance.CAMPAIGN_DEFINING)
     assert narrative_event.to_dict()["score"] == 80
 
@@ -226,7 +234,7 @@ def test_the_score_is_the_highest_of_the_rule_base_and_the_cited_scores_never_th
         changed(K1, significance=Significance.MAJOR, score=50),
         changed(K2, significance=Significance.MAJOR, score=51),
     ]
-    assert only(low, GroupRule("m", "nation.changed", significance=Significance.MAJOR)).score == Significance.MAJOR.base
+    assert only(low, GroupRule("m", "nation.changed", base=Significance.MAJOR)).score == Significance.MAJOR.base
     assert only(low).score == 51
 
 
@@ -271,7 +279,11 @@ class LookupRule:
         found = stream.of_type(self.looked_up)
         return [
             build.event(
-                fixture_kind("test.lookup"), id_parts=[self.name], constituents=found, roles=(), join=Join.ENTITY
+                narrative_fixture_kind("test.lookup"),
+                id_parts=[self.name],
+                constituents=found,
+                roles=(),
+                join=Join.ENTITY,
             )
         ]
 
@@ -413,7 +425,10 @@ def test_the_result_does_not_depend_on_stream_or_rule_order() -> None:
 
 def exclusive(*event_types: str) -> Callable[[str], EventKind | None]:
     """The kind lookup ``aggregate`` takes: ``event_types`` declare their constituents exclusive, nothing else does."""
-    kinds = {event_type: replace(fixture_kind(event_type), exclusive_constituents=True) for event_type in event_types}
+    kinds = {
+        event_type: replace(narrative_fixture_kind(event_type), exclusive_constituents=True)
+        for event_type in event_types
+    }
     return kinds.get
 
 
@@ -436,7 +451,11 @@ class CitableRule:
             return []
         return [
             build.event(
-                fixture_kind("test.citable"), id_parts=[self.name], constituents=cited, roles=(), join=Join.ENTITY
+                narrative_fixture_kind("test.citable"),
+                id_parts=[self.name],
+                constituents=cited,
+                roles=(),
+                join=Join.ENTITY,
             )
         ]
 

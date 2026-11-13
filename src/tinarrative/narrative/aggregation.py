@@ -146,8 +146,7 @@ class NarrativeBuilder:
     """Applies the shared policy: confidence is the constituents' minimum, the score is significance's
     (``narrative_score``), and ``open`` while the anchor is in the last report.
 
-    A kind without a base level is scored by the level its rule passes instead, never below the highest-scored
-    cited event.
+    A rule chooses no level: the kind's base level and context rule do, never below the highest-scored cited event.
     """
 
     def __init__(
@@ -173,7 +172,6 @@ class NarrativeBuilder:
         join: Join,
         attributes: Iterable[tuple[str, Observed]] = (),
         anchor: EntityRef | None = None,
-        significance: Significance | None = None,
         confidence: Confidence | None = None,
         open: bool | None = None,
         starts_on: str | None = None,
@@ -192,9 +190,8 @@ class NarrativeBuilder:
         event_type = kind.event_type
         if not constituents:
             raise ValueError(f"narrative event {event_type} has no constituents")
-        scored = kind.narrative and kind.base is not None
-        if scored and significance is not None:
-            raise ValueError(f"narrative event {event_type}: its kind declares its base level, so its rule passes none")
+        if not kind.narrative:
+            raise ValueError(f"event type {event_type} is not a narrative-event kind")
         cited = [*constituents, *(event for event in corroborating if event not in constituents)]
         intervals = tuple(sorted({key for event in cited for key in _intervals(event)}, key=interval_sort_key))
         starts = [dated for dated in map(_start, cited) if dated is not None]
@@ -205,7 +202,6 @@ class NarrativeBuilder:
         end = max(ends, key=lambda dated: (dated.date, -dated.key[1])) if ends else None
         bounds = [event.not_before for event in cited if isinstance(event.not_before, str)]
         role_list = tuple(roles)
-        score = self._score(cited, significance)
         event = Event(
             id=qualified_id(event_id(event_type, *id_parts), id_interval or intervals[0]),
             event_type=event_type,
@@ -217,8 +213,8 @@ class NarrativeBuilder:
             sources=tuple(cite(cited, Support())),
             entities=tuple(ref for _, ref in sorted(role_list, key=lambda item: item[0].rank)),
             attributes=tuple(attributes),
-            significance=Significance.of(score),
-            score=score,
+            significance=kind.base,
+            score=kind.base.base,
             constituents=tuple(event.id for event in cited),
             start=start.date if start else Unknown(),
             start_basis=start.basis if start else None,
@@ -228,8 +224,6 @@ class NarrativeBuilder:
             intervals=intervals,
             roles=role_list,
         )
-        if not scored:
-            return event
         score = narrative_score(kind, event, cited, self._geopolitics)
         return replace(event, significance=Significance.of(score), score=score)
 
@@ -245,14 +239,6 @@ class NarrativeBuilder:
     def _confidence(constituents: Sequence[Event], join: Join) -> Confidence:
         least = min((event.confidence for event in constituents), key=_CONFIDENCE_ORDER.index)
         return lower(least) if join is Join.HEURISTIC else least
-
-    @staticmethod
-    def _score(cited: Sequence[Event], ruled: Significance | None) -> int:
-        """Never a sum: one fact is often recorded several times."""
-        scores = [event.score for event in cited]
-        if ruled is not None:
-            scores.append(ruled.base)
-        return max(scores)
 
 
 def aggregate(
