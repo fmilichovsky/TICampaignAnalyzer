@@ -17,6 +17,21 @@ jobs:
       - run: make install
       - run: make check
 
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - run: make install
+      - run: make docs
+      - name: Fail if generated docs are stale
+        run: |
+          git status --porcelain
+          git diff --exit-code
+          test -z "$(git status --porcelain)"
+
   samples:
     runs-on: ubuntu-latest
     env:
