@@ -171,11 +171,11 @@ Tracking #249.
   - [ ] Run directory: layout and response record (#339).
   - [ ] Send run into the narrator (#340).
   - [ ] Step functions per product (#341).
-- [ ] Exclusive constituents: rule order keeps narrative events from re-telling each other's events (#344):
+- [x] Exclusive constituents: rule order keeps narrative events from re-telling each other's events (#344):
   - [x] Explained events: rules declare their explainers (#345).
   - [x] The merger cites everything it causes (#346).
   - [x] Derived rule order: narrative rules declare what they read (#382).
-  - [ ] Exclusive constituents: kinds declare them, rule order enforces them (#347).
+  - [x] Exclusive constituents: kinds declare them, rule order enforces them (#347).
 - [ ] Narrative-event significance in one place (#349):
   - [x] Rename "development" to "narrative event" (#350).
   - [ ] Situation report answers its own questions (#351).

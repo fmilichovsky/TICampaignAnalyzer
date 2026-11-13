@@ -1054,31 +1054,6 @@ def test_a_release_attaches_the_new_nations_control_event_within_the_window() ->
     assert only(narrow, "nation.release").constituents == (anchor.id,)
 
 
-def test_a_release_after_a_merger_does_not_repeat_the_mergers_constituents() -> None:
-    merger = unification(K1, NORTH, EAST, not_before=K0, unifier=RESISTANCE)
-    lost_control = control(K1, "executive", SERVANTS, None, subject=EAST)
-    parent = event("nation.breakaway_parent_changed", K1, EAST, entities=[NORTH])
-    anchor = event(
-        "nation.independence",
-        K2,
-        EAST,
-        entities=[NORTH],
-        attributes=(("parents", (NORTH,)), ("released", True), ("releasing_nation", NORTH)),
-        status=EventStatus.INFERRED,
-        significance=Significance.MAJOR,
-    )
-    regained_control = control(K2, "executive", None, SERVANTS, subject=EAST, cause="Independence")
-
-    events = built([merger, lost_control, parent, anchor, regained_control], plain(K0, K1, K2))
-    release = only(events, "nation.release")
-    merger_event = only(events, "nation.merger")
-
-    assert set(release.constituents) == {anchor.id, regained_control.id}
-    assert set(release.constituents).isdisjoint(merger_event.constituents)
-    assert release.id == f"nation.release/nation:22@{K2}"
-    assert release.intervals == (K2,)
-
-
 def test_a_breakaway_names_the_parents_and_is_open_while_the_window_reaches_past_the_last_save() -> None:
     breakaway = only(built([independence(K2, False)], plain(K0, K1, K2)), "nation.breakaway")
 

@@ -60,7 +60,8 @@ class EventKind:
     ``base`` is ``None`` only for a narrative-event kind, whose level is set by the rule that emits it. An emitter
     always passes every ``required`` attribute, its value possibly ``Unknown``; an attribute whose presence depends
     on the save is ``optional``. A narrative-event kind that ``digests_members`` groups the narrative events it cites
-    as its members: the listing tells such a member as a digest under it.
+    as its members: the listing tells such a member as a digest under it. A narrative-event kind with
+    ``exclusive_constituents`` cites them as its own: no narrative event of another kind may cite them (ADR-0002).
     """
 
     event_type: str
@@ -72,6 +73,7 @@ class EventKind:
     rule: Rule | None = None
     stake: Stake | None = None
     digests_members: bool = False
+    exclusive_constituents: bool = False
 
     @property
     def is_prefix(self) -> bool:

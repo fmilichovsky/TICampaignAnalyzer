@@ -28,12 +28,13 @@ class UndeclaredRead(ValueError):
 class EventStream(Sequence[Event]):
     """A read-only sequence of events with lazily built position indexes.
 
-    A stream ``hiding`` some event types shares the indexes of the stream it came from.
+    A stream ``hiding`` some event types or ``withholding`` some events shares the indexes of the stream it came from.
     """
 
     def __init__(self, events: Iterable[Event]) -> None:
         self._indexes = _Indexes(tuple(events))
         self._hidden: frozenset[str] = frozenset()
+        self._withheld: frozenset[str] = frozenset()
         self._shown: tuple[Event, ...] | None = None
 
     @classmethod
@@ -45,8 +46,22 @@ class EventStream(Sequence[Event]):
         hidden = self._hidden | frozenset(types)
         if hidden == self._hidden:
             return self
+        return self._view(hidden, self._withheld)
+
+    def withholding(self, event_ids: Iterable[str]) -> EventStream:
+        """This stream with the events of ``event_ids`` still read but no longer ``citable``."""
+        withheld = self._withheld | frozenset(event_ids)
+        if withheld == self._withheld:
+            return self
+        return self._view(self._hidden, withheld)
+
+    def citable(self, event: Event) -> bool:
+        """Whether a rule reading this stream may cite ``event``: not the exclusive constituent of another kind."""
+        return event.id not in self._withheld
+
+    def _view(self, hidden: frozenset[str], withheld: frozenset[str]) -> EventStream:
         view = EventStream(())
-        view._indexes, view._hidden = self._indexes, hidden
+        view._indexes, view._hidden, view._withheld = self._indexes, hidden, withheld
         return view
 
     @overload

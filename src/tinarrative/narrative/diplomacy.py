@@ -14,7 +14,7 @@ from ..model.entities import EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.values import Observed
 from .aggregation import Join, NarrativeBuilder, interval_reports
-from .geopolitics import TAKEOVER, MergerParties, bounded_shifts, gdp_rank, metric_shifts, strength_rank
+from .geopolitics import TAKEOVER, bounded_shifts, gdp_rank, metric_shifts, strength_rank
 from .rulekit import (
     by_type,
     chained,
@@ -44,7 +44,7 @@ class DiplomaticRealignmentRule:
     """``nation.diplomatic_realignment``: one nation gained or lost several partners as allies or rivals, each change
     soon after the previous.
 
-    A pair change is filed under both nations, so either side may realign. Changes a merger carries are left to it.
+    A pair change is filed under both nations, so either side may realign.
     A takeover of the nation inside the window is cited as context: it precedes the effect, so it may date the
     start, and its faction is the ``executive`` attribute, never a stated cause.
     """
@@ -62,13 +62,12 @@ class DiplomaticRealignmentRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.realignment_window_days
         reports = interval_reports(situations)
-        parties = MergerParties.of(stream)
         by_nation: dict[EntityId, list[Event]] = defaultdict(list)
         for event in by_type(stream, RELATION_CHANGED.event_type):
             pair = event.entities[:2]
             if event.attribute("relation") not in DIPLOMATIC_RELATIONS or len(pair) < 2:
                 continue
-            if any(parties.merged(ref, event) for ref in pair):
+            if not stream.citable(event):
                 continue
             for ref in pair:
                 by_nation[ref.entity_id].append(event)
