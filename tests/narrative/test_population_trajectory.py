@@ -81,7 +81,10 @@ def trend(
 
 def reports(gdp: Observed = 1.0) -> list[SituationReport]:
     """Reports at K0, K1, K2; NORTH ranks first by GDP when ``gdp`` exceeds SOUTH's 100."""
-    return [situation(key, nations=[nation_row(NORTH, gdp=gdp), nation_row(SOUTH, gdp=100.0)]) for key in (K0, K1, K2)]
+    return [
+        situation(key, nations=[nation_row(NORTH, gdp=gdp, regions=1), nation_row(SOUTH, gdp=100.0, regions=1)])
+        for key in (K0, K1, K2)
+    ]
 
 
 def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:

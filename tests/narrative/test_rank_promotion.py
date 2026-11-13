@@ -16,8 +16,8 @@ def report(big_gdp: float, small_gdp: float, big_strength: float = 1.0, small_st
     return situation(
         "2027-01-01",
         nations=[
-            nation_row(BIG, gdp=big_gdp, strength=big_strength),
-            nation_row(SMALL, gdp=small_gdp, strength=small_strength),
+            nation_row(BIG, gdp=big_gdp, strength=big_strength, regions=1),
+            nation_row(SMALL, gdp=small_gdp, strength=small_strength, regions=1),
         ],
     )
 

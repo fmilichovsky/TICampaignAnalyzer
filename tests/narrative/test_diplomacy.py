@@ -70,7 +70,10 @@ def executive_change(key: str, before: EntityRef, after: EntityRef, subject: Ent
 def reports(gdp: Observed = 1.0, *keys: str) -> list[SituationReport]:
     """Reports at K0..K4 by default; NORTH ranks first by GDP when ``gdp`` exceeds SOUTH's 100."""
     return [
-        situation(key, nations=[nation_row(NORTH, gdp=gdp), nation_row(SOUTH, gdp=100.0), EAST, WEST, FAR])
+        situation(
+            key,
+            nations=[nation_row(NORTH, gdp=gdp, regions=1), nation_row(SOUTH, gdp=100.0, regions=1), EAST, WEST, FAR],
+        )
         for key in (keys or (K0, *PREVIOUS))
     ]
 

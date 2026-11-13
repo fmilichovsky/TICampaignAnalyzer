@@ -94,7 +94,7 @@ class DiplomaticRealignmentRule:
                 )
                 executive = _actor(context[0]) if context else None
                 roles = [(Role.ACTOR, nation), *((Role.TARGET, partner) for partner in partners)]
-                rank = report.rank_including_landless(nation_id, GDP)
+                rank = report.rank(nation_id, GDP)
                 top = in_top_n(rank, self.settings.top_gdp_nations)
                 shifts = metric_shifts(stream, [nation_id], intervals_of(run))
                 built.append(
@@ -110,7 +110,7 @@ class DiplomaticRealignmentRule:
                             ("partner_count", len(partners)),
                             ("executive", executive),
                             ("gdp_rank", rank),
-                            ("strength_rank", report.rank_including_landless(nation_id, STRENGTH)),
+                            ("strength_rank", report.rank(nation_id, STRENGTH)),
                             *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                         ),
                         significance=Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR,

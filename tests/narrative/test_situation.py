@@ -413,7 +413,7 @@ def test_rank_orders_landed_nations_by_value_with_ties_by_id() -> None:
     assert [report.rank(item.entity_id, GDP) for item in (NORTH, SOUTH, EAST, WEST)] == [1, 2, None, None]
 
 
-def test_rank_including_landless_ranks_every_nation_with_a_value_with_ties_by_id() -> None:
+def test_a_nation_without_land_is_not_ranked_by_strength_either() -> None:
     report = ranked(
         nation_row(SOUTH, strength=5.0, regions=LANDED),
         nation_row(NORTH, strength=5.0, regions=LANDED),
@@ -421,9 +421,7 @@ def test_rank_including_landless_ranks_every_nation_with_a_value_with_ties_by_id
         nation_row(WEST, regions=LANDED),
     )
 
-    ranks = [report.rank_including_landless(item.entity_id, STRENGTH) for item in (NORTH, SOUTH, EAST, WEST)]
-
-    assert ranks == [2, 3, 1, None]
+    assert [report.rank(item.entity_id, STRENGTH) for item in (NORTH, SOUTH, EAST, WEST)] == [1, 2, None, None]
 
 
 def test_the_top_leaves_out_a_tie_across_the_boundary_and_a_zero_value() -> None:

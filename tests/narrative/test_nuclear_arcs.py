@@ -55,7 +55,8 @@ def program(key: str, after: bool = True) -> Event:
 def reports(gdp: Observed = 1.0) -> list[SituationReport]:
     """Reports at K0..K4; NORTH ranks first by GDP when ``gdp`` exceeds SOUTH's 100."""
     return [
-        situation(key, nations=[nation_row(NORTH, gdp=gdp), nation_row(SOUTH, gdp=100.0)]) for key in (K0, *PREVIOUS)
+        situation(key, nations=[nation_row(NORTH, gdp=gdp, regions=1), nation_row(SOUTH, gdp=100.0, regions=1)])
+        for key in (K0, *PREVIOUS)
     ]
 
 

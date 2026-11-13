@@ -322,14 +322,6 @@ class SituationReport:
         ranked, ties go by ID."""
         return _place(self._landed_order(statistic), nation_id)
 
-    def rank_including_landless(self, nation_id: EntityId, statistic: str) -> int | None:
-        """1 is the largest; every nation with a known value is ranked, ties by ID. The ordering of the ``gdp_rank``
-        and ``strength_rank`` attributes."""
-        # TODO(#353): one ranking, leaving out nations without land.
-        value = RANKED[statistic]
-        known = [(found, item) for item in self.nations if (found := number(value(item))) is not None]
-        return _place(_ordered(known), nation_id)
-
     def top(self, statistic: str, count: int) -> dict[EntityId, Place]:
         """The clear top ``count`` by ``rank``: above zero and above the first value outside, so a tie across the
         boundary never enters or leaves."""
@@ -364,13 +356,8 @@ class SituationReport:
 
     def _landed_order(self, statistic: str) -> list[tuple[float, NationSituation]]:
         value = RANKED[statistic]
-        return _ordered(
-            [(found, item) for item in self.nations if item.landed and (found := number(value(item))) is not None]
-        )
-
-
-def _ordered(known: list[tuple[float, NationSituation]]) -> list[tuple[float, NationSituation]]:
-    return sorted(known, key=lambda pair: (-pair[0], pair[1].nation.entity_id.sort_key))
+        known = [(found, item) for item in self.nations if item.landed and (found := number(value(item))) is not None]
+        return sorted(known, key=lambda pair: (-pair[0], pair[1].nation.entity_id.sort_key))
 
 
 def _place(ordered: list[tuple[float, NationSituation]], nation_id: EntityId) -> int | None:

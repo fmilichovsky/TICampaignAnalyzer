@@ -301,7 +301,7 @@ class TakeoverRule:
         intervals = intervals_of([*constituents, *corroborating])
         anchored = intervals_of(anchors[:1])[0]
         first_after = reports.get(anchored)
-        rank = first_after[1].rank_including_landless(nation.entity_id, GDP) if first_after is not None else None
+        rank = first_after[1].rank(nation.entity_id, GDP) if first_after is not None else None
         cause = next(
             (value for value in (anchor.attribute("cause") for anchor in anchors) if isinstance(value, str)), None
         )
