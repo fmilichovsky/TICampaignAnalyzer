@@ -9,6 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from ..analyzers.politics.bands import BANDS, crossed, rest_value_delta
+from ..analyzers.politics.nation_assets import GDP, STRENGTH
 from ..analyzers.politics.nation_economy import MONTHS_PER_QUARTER, TREND_QUARTERS
 from ..analyzers.politics.nation_population import DROP
 from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
@@ -17,7 +18,7 @@ from ..kinds.campaign import NUCLEAR_STRIKES_CHANGED as NUCLEAR_STRIKES_CHANGED_
 from ..model.entities import EntityId
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind
-from ..model.values import FrozenMap, Observed
+from ..model.values import FrozenMap, number
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
 from .geopolitics import (
@@ -28,12 +29,9 @@ from .geopolitics import (
     RELEASE,
     TAKEOVER,
     WAR_ARC,
-    bounded_shifts,
-    gdp_rank,
-    metric_shifts,
-    strength_rank,
 )
 from .rulekit import (
+    bounded_shifts,
     by_subject,
     by_type,
     chained,
@@ -41,6 +39,7 @@ from .rulekit import (
     intervals_of,
     last_date,
     latest,
+    metric_shifts,
     overlaps,
     refs_attribute,
     shifted,
@@ -86,10 +85,6 @@ PROMOTED = {
 }
 
 
-def _number(value: Observed) -> float | None:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
-
-
 def _crosses(boundary: float, before: float, after: float) -> bool:
     return (before < boundary) != (after < boundary)
 
@@ -131,7 +126,7 @@ class BandShiftRule:
         built = []
         for crossing in crossings:
             nation = subject(crossing)
-            before, after = _number(crossing.attribute("before")), _number(crossing.attribute("after"))
+            before, after = number(crossing.attribute("before")), number(crossing.attribute("after"))
             pair = reports.get(interval_of(crossing.id))
             if nation is None or before is None or after is None or pair is None:
                 continue
@@ -147,7 +142,7 @@ class BandShiftRule:
                 continue
             if _explained(crossing, nation.entity_id, explainers):
                 continue
-            rank = gdp_rank(pair[1], nation.entity_id)
+            rank = pair[1].rank_including_landless(nation.entity_id, GDP)
             level = self._level(before, after)
             if rank is not None and rank <= self.geopolitics.top_gdp_nations:
                 level = PROMOTED[level]
@@ -217,8 +212,8 @@ def _boundary(statistic: str, before: float, after: float) -> float:
 
 
 def _holds(report: SituationReport, nation_id: EntityId, statistic: str, before: float, boundary: float) -> bool:
-    item = next((item for item in report.nations if item.nation.entity_id == nation_id), None)
-    value = _number(dict(item.statistics).get(statistic)) if item is not None else None
+    item = report.nation(nation_id)
+    value = number(dict(item.statistics).get(statistic)) if item is not None else None
     return value is not None and _crosses(boundary, before, value)
 
 
@@ -270,7 +265,10 @@ class PopulationCollapseRule:
                         ("relative_change", drop.attribute("relative_change")),
                         ("nuked_regions", nuked),
                         ("causes", drop.attribute("causes")),
-                        ("gdp_rank", gdp_rank(pair[1], nation.entity_id) if pair is not None else None),
+                        (
+                            "gdp_rank",
+                            pair[1].rank_including_landless(nation.entity_id, GDP) if pair is not None else None,
+                        ),
                         *bounded_shifts(shifts, roles, self.settings.metric_shifts_max),
                     ),
                     significance=Significance.CAMPAIGN_DEFINING if nuked or nuclear else Significance.MAJOR,
@@ -305,11 +303,11 @@ class EconomicTrajectoryRule:
             for run in _trend_runs(grouped[nation_id]):
                 first, last = run[0], run[-1]
                 nation = subject(first)
-                start, end = _number(first.attribute("before")), _number(last.attribute("after"))
+                start, end = number(first.attribute("before")), number(last.attribute("after"))
                 if nation is None or start is None or end is None or start == 0:
                     continue
                 pair = reports.get(interval_of(last.id))
-                rank = gdp_rank(pair[1], nation_id) if pair is not None else None
+                rank = pair[1].rank_including_landless(nation_id, GDP) if pair is not None else None
                 level = Significance.MAJOR
                 if rank is not None and rank <= self.settings.top_gdp_nations:
                     level = PROMOTED[level]
@@ -396,7 +394,7 @@ class NuclearArcRule:
             for run in chained(grouped[nation_id], days):
                 first, last = run[0], run[-1]
                 nation = subject(first)
-                start, end = _number(first.attribute("before")), _number(last.attribute("after"))
+                start, end = number(first.attribute("before")), number(last.attribute("after"))
                 pair = reports.get(intervals_of(run)[-1])
                 if nation is None or start is None or end is None or pair is None:
                     continue
@@ -404,7 +402,7 @@ class NuclearArcRule:
                 corroborating: list[Event] = []
                 if start == 0 < end:
                     kind = nation_kinds.NUCLEAR_ARMAMENT
-                    rank = gdp_rank(report, nation_id)
+                    rank = report.rank_including_landless(nation_id, GDP)
                     top = rank is not None and rank <= self.geopolitics.top_gdp_nations
                     level = Significance.CAMPAIGN_DEFINING if top else Significance.MAJOR
                     low = shifted(earliest(first), -days)
@@ -432,8 +430,8 @@ class NuclearArcRule:
                         attributes=(
                             ("before", start),
                             ("after", end),
-                            ("gdp_rank", gdp_rank(report, nation_id)),
-                            ("strength_rank", strength_rank(report, nation_id)),
+                            ("gdp_rank", report.rank_including_landless(nation_id, GDP)),
+                            ("strength_rank", report.rank_including_landless(nation_id, STRENGTH)),
                         ),
                         significance=level,
                         open=within(latest(last), last_date(situations), days),

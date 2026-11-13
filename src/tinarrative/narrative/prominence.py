@@ -1,6 +1,7 @@
 """Prominence shares: each entity's share of a world total in one snapshot, the stakes of entity-scaled significance.
 
-The atomic pass reads snapshots and the narrative rules read situation reports; both build the same shares here.
+The atomic pass reads snapshots and the narrative rules read situation reports (``SituationReport.power_shares``); both
+build the same shares here.
 """
 
 from __future__ import annotations
@@ -14,8 +15,7 @@ from ..analyzers.politics.nation_assets import assets, strength
 from ..config import PowerSettings
 from ..model.entities import EntityId, EntityRef
 from ..model.snapshot import SaveSnapshot
-from ..model.values import Observed
-from .situation import SituationReport
+from ..model.values import Observed, number
 
 
 @dataclass(frozen=True)
@@ -28,12 +28,9 @@ class PowerInputs:
     strength: float
 
 
-def _number(value: Observed) -> float | None:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
-
-
-def _inputs(nation: EntityId, gdp: Observed, population: Observed, estimate: Observed) -> PowerInputs | None:
-    values = (_number(gdp), _number(population), _number(estimate))
+def power_inputs(nation: EntityId, gdp: Observed, population: Observed, estimate: Observed) -> PowerInputs | None:
+    """``None`` unless all three values are numbers."""
+    values = (number(gdp), number(population), number(estimate))
     if values[0] is None or values[1] is None or values[2] is None:
         return None
     # Unrest can push the estimate below zero; a share of a world total cannot be negative.
@@ -72,7 +69,7 @@ def nation_power(snapshot: SaveSnapshot, weights: PowerSettings) -> dict[EntityI
         regions = state.get("regions")
         if not isinstance(regions, tuple) or not regions:
             continue
-        found = _inputs(
+        found = power_inputs(
             state.ref.entity_id,
             state.get("GDP"),
             lookup.population((ref.entity_id for ref in regions if isinstance(ref, EntityRef)), Side.AFTER),
@@ -83,24 +80,12 @@ def nation_power(snapshot: SaveSnapshot, weights: PowerSettings) -> dict[EntityI
     return power_shares(inputs, weights)
 
 
-def nation_power_from_report(report: SituationReport, weights: PowerSettings) -> dict[EntityId, float]:
-    """``nation_power`` of the snapshot ``report`` was built from."""
-    inputs: list[PowerInputs] = []
-    for row in report.nations:
-        if not isinstance(row.regions, int) or row.regions == 0:
-            continue
-        found = _inputs(row.nation.entity_id, dict(row.statistics).get("GDP"), row.population, row.strength)
-        if found is not None:
-            inputs.append(found)
-    return power_shares(inputs, weights)
-
-
 def region_shares(snapshot: SaveSnapshot) -> dict[EntityId, float]:
     """Each region's share of world population, over the regions with a known population."""
     populations = {
         state.ref.entity_id: max(value, 0.0)
         for state in snapshot.regions
-        if (value := _number(state.get("populationInMillions"))) is not None
+        if (value := number(state.get("populationInMillions"))) is not None
     }
     return _normalized(populations)
 
@@ -110,7 +95,7 @@ def organization_shares(snapshot: SaveSnapshot, exponent: int) -> dict[EntityId,
     weights = {
         state.ref.entity_id: max(value, 0.0) ** exponent
         for state in snapshot.organizations
-        if (value := _number(state.get("tier"))) is not None
+        if (value := number(state.get("tier"))) is not None
     }
     return _normalized(weights)
 

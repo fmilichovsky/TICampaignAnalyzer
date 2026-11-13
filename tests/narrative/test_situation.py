@@ -1,9 +1,13 @@
-"""Situation reports built from synthetic snapshots: every section, the ``Unknown`` paths and determinism."""
+"""Situation reports built from synthetic snapshots: every section, the ``Unknown`` paths and determinism; and the
+questions a report answers."""
 
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import replace
+
+import pytest
 
 from tests.analyzers.support import (
     AFTER,
@@ -22,6 +26,10 @@ from tests.analyzers.support import (
     state,
     war_ref,
 )
+from tests.narrative import support
+from tests.narrative.support import nation_row, situation, war_row
+from tinarrative.analyzers.politics.nation_assets import GDP, STRENGTH
+from tinarrative.config import PowerSettings
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.records import ItemEntry, KeyedEntry, RecordKind
 from tinarrative.model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
@@ -375,3 +383,86 @@ def test_two_builds_are_identical_and_serialize_to_json() -> None:
     assert northland["wars"] == [{"war": document["wars"][0]["war"], "side": "attacker"}]
     assert document["nations"][3]["control_points"] == {"unknown": "missing"}
     assert document["factions"][0]["habs_by_body"][0]["habs"] == 2
+
+
+# --- Questions ---------------------------------------------------------------------------------------------------
+
+NORTH, SOUTH, EAST, WEST = (support.nation(key) for key in ("20", "21", "22", "23"))
+LANDED = 3
+
+
+def ranked(*rows: NationSituation) -> SituationReport:
+    return situation("2032-01-01T00:00:00", nations=rows)
+
+
+def test_a_report_finds_a_nation_row_by_id() -> None:
+    report = ranked(nation_row(NORTH), nation_row(SOUTH))
+
+    assert report.nation(SOUTH.entity_id) == report.nations[1]
+    assert report.nation(EAST.entity_id) is None
+
+
+def test_rank_orders_landed_nations_by_value_with_ties_by_id() -> None:
+    report = ranked(
+        nation_row(SOUTH, gdp=500.0, regions=LANDED),
+        nation_row(NORTH, gdp=500.0, regions=LANDED),
+        nation_row(EAST, gdp=900.0, regions=0),
+        nation_row(WEST, regions=LANDED),
+    )
+
+    assert [report.rank(item.entity_id, GDP) for item in (NORTH, SOUTH, EAST, WEST)] == [1, 2, None, None]
+
+
+def test_rank_including_landless_ranks_every_nation_with_a_value_with_ties_by_id() -> None:
+    report = ranked(
+        nation_row(SOUTH, strength=5.0, regions=LANDED),
+        nation_row(NORTH, strength=5.0, regions=LANDED),
+        nation_row(EAST, strength=9.0, regions=0),
+        nation_row(WEST, regions=LANDED),
+    )
+
+    ranks = [report.rank_including_landless(item.entity_id, STRENGTH) for item in (NORTH, SOUTH, EAST, WEST)]
+
+    assert ranks == [2, 3, 1, None]
+
+
+def test_the_top_leaves_out_a_tie_across_the_boundary_and_a_zero_value() -> None:
+    report = ranked(
+        nation_row(NORTH, gdp=900.0, regions=LANDED),
+        nation_row(SOUTH, gdp=500.0, regions=LANDED),
+        nation_row(EAST, gdp=500.0, regions=LANDED),
+        nation_row(WEST, gdp=0.0, regions=LANDED),
+    )
+
+    assert list(report.top(GDP, 2)) == [NORTH.entity_id]
+    assert {key: place.rank for key, place in report.top(GDP, 3).items()} == {
+        NORTH.entity_id: 1,
+        SOUTH.entity_id: 2,
+        EAST.entity_id: 3,
+    }
+    assert WEST.entity_id not in report.top(GDP, 4)
+
+
+def test_opposed_wars_are_the_wars_two_nations_fight_on_opposite_sides() -> None:
+    against = war_row(support.war("1"), [NORTH], [SOUTH, EAST])
+    together = war_row(support.war("2"), [NORTH, SOUTH], [WEST])
+    report = situation("2032-01-01T00:00:00", wars=[against, together])
+
+    assert report.opposed_wars(SOUTH.entity_id, NORTH.entity_id) == (against,)
+    assert report.opposed_wars(SOUTH.entity_id, EAST.entity_id) == ()
+
+
+def test_power_shares_of_the_landed_nations_sum_to_one() -> None:
+    def row(item: EntityRef, gdp: float, population: float, strength: float, regions: int) -> NationSituation:
+        return replace(nation_row(item, gdp=gdp, strength=strength, regions=regions), population=population)
+
+    report = ranked(
+        row(NORTH, 900.0, 300.0, 40.0, LANDED),
+        row(SOUTH, 400.0, 800.0, 10.0, LANDED),
+        row(EAST, 999.0, 999.0, 99.0, 0),
+    )
+
+    shares = report.power_shares(PowerSettings())
+
+    assert set(shares) == {NORTH.entity_id, SOUTH.entity_id}
+    assert math.fsum(shares.values()) == pytest.approx(1.0)

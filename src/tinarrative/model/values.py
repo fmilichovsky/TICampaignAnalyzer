@@ -48,6 +48,11 @@ def is_unknown(value: Observed) -> bool:
     return isinstance(value, Unknown)
 
 
+def number(value: Observed) -> float | None:
+    """The value as a float when it is a number (never a flag), else ``None``."""
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
 def freeze(value: Any) -> FieldValue:
     """Convert decoded JSON (lists/dicts) into an immutable, deterministic value."""
     kind = type(value)

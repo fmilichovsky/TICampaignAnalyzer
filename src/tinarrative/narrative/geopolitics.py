@@ -6,15 +6,15 @@ No rule names a motive or a public framing; that stays with the narrator (ADR-00
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from ..analyzers.military.armies import APPEARED as ARMY_APPEARED
 from ..analyzers.military.armies import DEPLOYMENT_TYPE_CHANGED
 from ..analyzers.military.armies import DISAPPEARED as ARMY_DISAPPEARED
-from ..analyzers.politics.bands import BANDS, band
 from ..analyzers.politics.control_points import DISAPPEARED as POINT_DISAPPEARED
 from ..analyzers.politics.control_points import LOSS_RECORDED as POINT_LOSS_RECORDED
+from ..analyzers.politics.nation_assets import GDP
 from ..config import GeopoliticsSettings
 from ..kinds import control as control_kinds
 from ..kinds import nations as nation_kinds
@@ -30,14 +30,16 @@ from ..kinds.wars import ARC as WAR_ARC_KIND
 from ..kinds.wars import DISAPPEARED as WAR_DISAPPEARED
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
-from ..model.values import FieldValue, FrozenMap, Observed, Unknown
+from ..model.values import FieldValue, FrozenMap, Observed
 from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
 from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
 from .rulekit import (
     NATION_ARMIES_CHANGED,
+    STATISTIC_SHIFTED,
     DatedEvents,
     anchored,
     army_home,
+    bounded_shifts,
     by_subject,
     by_type,
     chained,
@@ -47,7 +49,9 @@ from .rulekit import (
     intervals_of,
     last_date,
     latest,
+    literal,
     mentions,
+    metric_shifts,
     overlaps,
     ref_attribute,
     refs_attribute,
@@ -58,7 +62,7 @@ from .rulekit import (
     unique_refs,
     within,
 )
-from .situation import NationSituation, SituationReport, WarSituation
+from .situation import SituationReport
 from .stream import EventStream
 
 TAKEOVER = control_kinds.TAKEOVER.event_type
@@ -77,7 +81,6 @@ BREAKAWAY_PARENT_CHANGED = nation_kinds.BREAKAWAY_PARENT_CHANGED.event_type
 CONTROLLER_CHANGED = control_kinds.CONTROL_POINT_CONTROLLER_CHANGED.event_type
 EXECUTIVE_RECORDED = nation_kinds.EXECUTIVE_CHANGE_RECORDED.event_type
 UNREST_ATTEMPTS = nation_kinds.UNREST_ATTEMPTS_CHANGED.event_type
-STATISTIC_SHIFTED = nation_kinds.STATISTIC_SHIFTED.event_type
 TRANSACTION = TRANSACTION_RECORDED.event_type
 TERRITORY_GAINED = nation_kinds.TERRITORY_GAINED.event_type
 TERRITORY_LOST = nation_kinds.TERRITORY_LOST.event_type
@@ -109,9 +112,6 @@ TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of ADR-0010."""
 READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 """A gain without one of these readings is a cession candidate."""
-LEADING_STATISTICS = frozenset({"numNuclearWeapons"})
-"""Rank ahead of any relative change when shifts are bounded: a shift from zero has no relative change but is the
-story."""
 MERGED_EITHER = frozenset({TERRITORY_GAINED, TERRITORY_LOST, RENAMED, SPACE_ASSETS_CHANGED})
 """Events of either merged nation that are the merger's exclusive constituents in its interval."""
 MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, POPULATION_CHANGED, PCGDP_TREND})
@@ -161,152 +161,12 @@ def _id(nation: EntityRef | EntityId | None) -> EntityId | None:
     return nation.entity_id if isinstance(nation, EntityRef) else nation
 
 
-# --- Situation context -------------------------------------------------------------------------------------------
-
-
-def _nation(report: SituationReport, nation_id: EntityId) -> NationSituation | None:
-    return next((item for item in report.nations if item.nation.entity_id == nation_id), None)
-
-
 def _refs(value: Observed) -> tuple[EntityRef, ...]:
     return tuple(item for item in value if isinstance(item, EntityRef)) if isinstance(value, tuple) else ()
 
 
 def _members(value: Observed) -> set[EntityId]:
     return {item.entity_id for item in _refs(value)}
-
-
-def opposed(report: SituationReport, first: EntityId, second: EntityId) -> list[WarSituation]:
-    found = []
-    for war in report.wars:
-        attackers, defenders = _members(war.attacking_alliance), _members(war.defending_alliance)
-        if (first in attackers and second in defenders) or (first in defenders and second in attackers):
-            found.append(war)
-    return found
-
-
-def _rank(report: SituationReport, nation_id: EntityId, value: Callable[[NationSituation], Observed]) -> int | None:
-    """1 is the largest; nations without a known value are not ranked."""
-    known = [
-        (number, item.nation.entity_id)
-        for item in report.nations
-        if isinstance(number := value(item), int | float) and not isinstance(number, bool)
-    ]
-    ordered = sorted(known, key=lambda pair: (-pair[0], pair[1].sort_key))
-    return next((position for position, (_, key) in enumerate(ordered, start=1) if key == nation_id), None)
-
-
-def gdp_rank(report: SituationReport, nation_id: EntityId) -> int | None:
-    """1 is the largest."""
-    return _rank(report, nation_id, lambda item: dict(item.statistics).get("GDP"))
-
-
-def strength_rank(report: SituationReport, nation_id: EntityId) -> int | None:
-    """1 is the strongest."""
-    return _rank(report, nation_id, lambda item: item.strength)
-
-
-# --- Metric shifts -----------------------------------------------------------------------------------------------
-
-
-def _number(value: Observed) -> float | None:
-    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
-
-
-def _literal(value: Observed) -> FieldValue:
-    return None if isinstance(value, Unknown) else value
-
-
-def metric_shifts(
-    stream: Iterable[Event],
-    nations: Iterable[EntityId],
-    intervals: Iterable[str],
-    windows: Mapping[EntityId, Collection[str]] | None = None,
-) -> tuple[FrozenMap, ...]:
-    """One net entry per nation, statistic and key over the ``nation.statistic_shifted`` events in ``intervals``.
-
-    The net covers the reported shifts only: an interval whose change stayed below the analyzer's threshold is missing
-    from it. ``relative_change`` is unsigned. ``windows`` limits a nation to its own intervals; a nation without a
-    window keeps all of ``intervals``. Shifts are context, never constituents.
-    """
-    wanted, keys = set(nations), set(intervals)
-    groups: dict[tuple[EntityId, str, str], list[Event]] = defaultdict(list)
-    for event in EventStream.of(stream).of_subject(wanted, STATISTIC_SHIFTED):
-        nation = subject_id(event)
-        if nation is None or interval_of(event.id) not in keys:
-            continue
-        if windows is not None and nation in windows and interval_of(event.id) not in windows[nation]:
-            continue
-        key = event.attribute("key")
-        groups[(nation, str(event.attribute("statistic")), key if isinstance(key, str) else "")].append(event)
-    entries = []
-    for (_, statistic, key), shifts in sorted(groups.items(), key=lambda item: (item[0][0].sort_key, item[0][1:])):
-        shifts.sort(key=lambda event: interval_sort_key(interval_of(event.id)))
-        before, after = _literal(shifts[0].attribute("before")), _literal(shifts[-1].attribute("after"))
-        low, high = _number(before), _number(after)
-        relative = abs(high - low) / abs(low) if low is not None and high is not None and low != 0 else None
-        items: list[tuple[str, FieldValue]] = [
-            ("nation", shifts[0].entities[0]),
-            ("statistic", statistic),
-            ("before", before),
-            ("after", after),
-            ("relative_change", relative),
-            ("not_before", _literal(shifts[0].not_before)),
-            ("date", _literal(shifts[-1].date)),
-            ("date_basis", shifts[-1].date_basis.value),
-            ("events", tuple(event.id for event in shifts)),
-        ]
-        if key:
-            items.append(("key", key))
-        if statistic in BANDS and low is not None and high is not None:
-            items.extend((("from_band", band(statistic, low)), ("to_band", band(statistic, high))))
-        causes = _summed_causes(shifts)
-        if causes is not None:
-            items.append(("causes", causes))
-        entries.append(FrozenMap(tuple(items)))
-    return tuple(entries)
-
-
-def _summed_causes(shifts: Sequence[Event]) -> FrozenMap | None:
-    maps = [value for value in (event.attribute("causes") for event in shifts) if isinstance(value, FrozenMap)]
-    if not maps:
-        return None
-    totals: dict[str, float] = defaultdict(float)
-    for causes in maps:
-        for reason, delta in causes.items:
-            number = _number(delta)
-            if number is not None:
-                totals[reason] += number
-    return FrozenMap(tuple((reason, total) for reason, total in totals.items() if total != 0))
-
-
-def bounded_shifts(
-    entries: Sequence[FrozenMap], roles: Iterable[tuple[Role, EntityRef]], limit: int
-) -> tuple[tuple[str, FieldValue], ...]:
-    """At most ``limit`` entries, with ``metric_shifts_omitted`` counting the cut.
-
-    Selection prefers role nations, then ``LEADING_STATISTICS``, then the largest ``relative_change``; the kept entries
-    keep their original order.
-    """
-    first = {ref.entity_id for _, ref in roles if ref.entity_id.domain is EntityDomain.NATION}
-
-    def rank(position: int) -> tuple[bool, bool, bool, float, int]:
-        entry = dict(entries[position].items)
-        relative = _number(entry.get("relative_change"))
-        nation = entry.get("nation")
-        return (
-            not (isinstance(nation, EntityRef) and nation.entity_id in first),
-            entry.get("statistic") not in LEADING_STATISTICS,
-            relative is None,
-            -(relative or 0.0),
-            position,
-        )
-
-    kept = sorted(sorted(range(len(entries)), key=rank)[:limit])
-    attributes: tuple[tuple[str, FieldValue], ...] = (("metric_shifts", tuple(entries[index] for index in kept)),)
-    if len(kept) < len(entries):
-        attributes += (("metric_shifts_omitted", len(entries) - len(kept)),)
-    return attributes
 
 
 # --- Rules -------------------------------------------------------------------------------------------------------
@@ -439,7 +299,7 @@ class TakeoverRule:
         intervals = intervals_of([*constituents, *corroborating])
         anchored = intervals_of(anchors[:1])[0]
         first_after = reports.get(anchored)
-        rank = gdp_rank(first_after[1], nation.entity_id) if first_after is not None else None
+        rank = first_after[1].rank_including_landless(nation.entity_id, GDP) if first_after is not None else None
         cause = next(
             (value for value in (anchor.attribute("cause") for anchor in anchors) if isinstance(value, str)), None
         )
@@ -518,7 +378,7 @@ def _with_succession(built: Sequence[tuple[list[Event], Event]]) -> list[Event]:
 def _holds_executive_only(situations: Sequence[SituationReport], nation_id: EntityId, faction_id: EntityId) -> bool:
     if not situations:
         return False
-    nation = _nation(situations[-1], nation_id)
+    nation = situations[-1].nation(nation_id)
     if nation is None or not isinstance(nation.executive, EntityRef) or nation.executive.entity_id != faction_id:
         return False
     if not isinstance(nation.shares, FrozenMap) or not isinstance(nation.control_points, int):
@@ -671,9 +531,9 @@ def _member_change(event: Event, parties: MergerParties) -> FrozenMap:
     """A member that left by merging into another nation names it in ``merged_into``."""
     member = ref_attribute(event, "member")
     items: list[tuple[str, FieldValue]] = [
-        ("date", _literal(event.date)),
+        ("date", literal(event.date)),
         ("nation", member),
-        ("transition", _literal(event.attribute("transition"))),
+        ("transition", literal(event.attribute("transition"))),
     ]
     gainer = parties.gainer(member, interval_of(event.id)) if event.attribute("transition") == "removed" else None
     if gainer is not None:
@@ -711,7 +571,7 @@ class CessionRule:
                 ):
                     continue
                 around = reports.get(key, ())
-                if any(opposed(report, gainer.entity_id, loser.entity_id) for report in around):
+                if any(report.opposed_wars(gainer.entity_id, loser.entity_id) for report in around):
                     continue
                 built.append(self._cession(stream, build, gain, loss, around[0] if around else None))
         return built
@@ -724,7 +584,7 @@ class CessionRule:
         regions = tuple(ref for ref in refs_attribute(gain, "regions") if ref.entity_id in lost_regions)
         allied, shared = None, None
         if before is not None:
-            first, second = _nation(before, gainer.entity_id), _nation(before, loser.entity_id)
+            first, second = before.nation(gainer.entity_id), before.nation(loser.entity_id)
             if first is not None and second is not None:
                 allied = loser.entity_id in _members(first.allies) or gainer.entity_id in _members(second.allies)
                 if isinstance(first.federation, EntityRef) and isinstance(second.federation, EntityRef):
@@ -918,7 +778,7 @@ def _executive_after(
         if holder is not None:
             return holder
     around = reports.get(interval_of(anchor.id))
-    nation = _nation(around[1], nation_id) if around is not None else None
+    nation = around[1].nation(nation_id) if around is not None else None
     return nation.executive if nation is not None and isinstance(nation.executive, EntityRef) else None
 
 
@@ -942,7 +802,7 @@ class ClaimsDeclaredRule:
         for anchor in sorted(by_type(stream, nation_kinds.CLAIMS_CHANGED.event_type), key=lambda event: event.id):
             nation = anchor.entities[0]
             around = reports.get(interval_of(anchor.id))
-            claimant = _nation(around[1], nation.entity_id) if around is not None else None
+            claimant = around[1].nation(nation.entity_id) if around is not None else None
             if claimant is not None and claimant.alien:
                 continue
             regions = refs_attribute(anchor, "added")
@@ -1142,7 +1002,7 @@ class WarArcRule:
 
         def belligerents(gainer: EntityId, loser: EntityId, key: str) -> bool:
             return any(
-                any(found.war.entity_id == war.entity_id for found in opposed(report, gainer, loser))
+                any(found.war.entity_id == war.entity_id for found in report.opposed_wars(gainer, loser))
                 for report in reports.get(key, ())
             )
 

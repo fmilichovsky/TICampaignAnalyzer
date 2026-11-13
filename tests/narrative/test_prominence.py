@@ -13,7 +13,6 @@ from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative.prominence import (
     nation_power,
-    nation_power_from_report,
     organization_shares,
     region_shares,
     total,
@@ -86,7 +85,7 @@ def test_power_is_the_weighted_mean_of_the_gdp_population_and_strength_shares() 
 def test_a_snapshot_and_its_situation_report_give_the_same_shares() -> None:
     save = world()
 
-    from_report = nation_power_from_report(build_situation(save), THIRDS)
+    from_report = build_situation(save).power_shares(THIRDS)
 
     assert from_report == pytest.approx(nation_power(save, THIRDS))
 

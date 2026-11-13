@@ -8,21 +8,31 @@ establish stays ``Unknown``, never zero or empty.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
 from ..analyzers.campaign.global_values import MILESTONES, NUCLEAR_STRIKES, SEA_LEVEL_RISES
 from ..analyzers.common import Lookup, Side
-from ..analyzers.politics.nation_assets import BOOST, assets, strength
+from ..analyzers.politics.nation_assets import (
+    BOOST,
+    BOOST_METRIC,
+    GDP,
+    MISSION_CONTROL_METRIC,
+    STRENGTH,
+    assets,
+    strength,
+)
 from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, LAST_FIGHTING, START_DATE
+from ..config import PowerSettings
 from ..log import fields, get_logger
 from ..model.entities import EntityId, EntityRef
 from ..model.records import ItemEntry, KeyedEntry
 from ..model.snapshot import EntityState, SaveSnapshot
-from ..model.values import FrozenMap, Observed, Unknown, UnknownReason, to_jsonable
+from ..model.values import FrozenMap, Observed, Unknown, UnknownReason, number, to_jsonable
 from ..reconstruction.common import control_points, executive_seat
 from ..reconstruction.control import Holder
+from .prominence import PowerInputs, power_inputs, power_shares
 
 logger = get_logger(__name__)
 
@@ -99,6 +109,11 @@ class NationSituation:
     sto_fighters: Observed = field(default_factory=Unknown)
     nuclear_weapons: Observed = field(default_factory=Unknown)
     """``numNuclearWeapons`` read as is; a nation without the field stays unknown, never zero."""
+
+    @property
+    def landed(self) -> bool:
+        """Holds at least one region; a nation with an unknown region list does not."""
+        return isinstance(self.regions, int) and self.regions > 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -256,8 +271,28 @@ class WorldSituation:
         }
 
 
+RANKED: Mapping[str, Callable[[NationSituation], Observed]] = {
+    GDP: lambda item: dict(item.statistics).get(GDP),
+    STRENGTH: lambda item: item.strength,
+    BOOST_METRIC: lambda item: item.boost,
+    MISSION_CONTROL_METRIC: lambda item: item.mission_control,
+}
+"""The statistics a report ranks nations by, and where a nation row holds each."""
+
+
+@dataclass(frozen=True)
+class Place:
+    """A nation's place in a ranking by one statistic."""
+
+    nation: EntityRef
+    rank: int
+    value: float
+
+
 @dataclass(frozen=True)
 class SituationReport:
+    """The questions narrative rules ask of a snapshot are its methods; a nation is ranked by a ``RANKED`` statistic."""
+
     date: Observed
     player_faction_name: Observed
     nations: tuple[NationSituation, ...]
@@ -278,6 +313,72 @@ class SituationReport:
             "unattributed": self.unattributed.to_dict(),
             "world": self.world.to_dict(),
         }
+
+    def nation(self, nation_id: EntityId) -> NationSituation | None:
+        return next((item for item in self.nations if item.nation.entity_id == nation_id), None)
+
+    def rank(self, nation_id: EntityId, statistic: str) -> int | None:
+        """1 is the largest. Orders exactly as ``nation.rank_changed`` places nations: nations without land are not
+        ranked, ties go by ID."""
+        return _place(self._landed_order(statistic), nation_id)
+
+    def rank_including_landless(self, nation_id: EntityId, statistic: str) -> int | None:
+        """1 is the largest; every nation with a known value is ranked, ties by ID. The ordering of the ``gdp_rank``
+        and ``strength_rank`` attributes."""
+        # TODO(#353): one ranking, leaving out nations without land.
+        value = RANKED[statistic]
+        known = [(found, item) for item in self.nations if (found := number(value(item))) is not None]
+        return _place(_ordered(known), nation_id)
+
+    def top(self, statistic: str, count: int) -> dict[EntityId, Place]:
+        """The clear top ``count`` by ``rank``: above zero and above the first value outside, so a tie across the
+        boundary never enters or leaves."""
+        ordered = self._landed_order(statistic)
+        outside = ordered[count][0] if len(ordered) > count else None
+        return {
+            item.nation.entity_id: Place(item.nation, place, value)
+            for place, (value, item) in enumerate(ordered[:count], start=1)
+            if value > 0 and (outside is None or value > outside)
+        }
+
+    def opposed_wars(self, first: EntityId, second: EntityId) -> tuple[WarSituation, ...]:
+        """The wars ``first`` and ``second`` fight on opposite sides, in report order."""
+        found = []
+        for war in self.wars:
+            attackers, defenders = _members(war.attacking_alliance), _members(war.defending_alliance)
+            if (first in attackers and second in defenders) or (first in defenders and second in attackers):
+                found.append(war)
+        return tuple(found)
+
+    def power_shares(self, weights: PowerSettings) -> dict[EntityId, float]:
+        """Each nation's stake: ``prominence.power_shares`` over the nations holding land with known GDP, population
+        and strength, as ``prominence.nation_power`` gives for the snapshot this report was built from."""
+        inputs: list[PowerInputs] = []
+        for row in self.nations:
+            if not row.landed:
+                continue
+            found = power_inputs(row.nation.entity_id, dict(row.statistics).get(GDP), row.population, row.strength)
+            if found is not None:
+                inputs.append(found)
+        return power_shares(inputs, weights)
+
+    def _landed_order(self, statistic: str) -> list[tuple[float, NationSituation]]:
+        value = RANKED[statistic]
+        return _ordered(
+            [(found, item) for item in self.nations if item.landed and (found := number(value(item))) is not None]
+        )
+
+
+def _ordered(known: list[tuple[float, NationSituation]]) -> list[tuple[float, NationSituation]]:
+    return sorted(known, key=lambda pair: (-pair[0], pair[1].nation.entity_id.sort_key))
+
+
+def _place(ordered: list[tuple[float, NationSituation]], nation_id: EntityId) -> int | None:
+    return next((place for place, (_, item) in enumerate(ordered, start=1) if item.nation.entity_id == nation_id), None)
+
+
+def _members(value: Observed) -> set[EntityId]:
+    return {item.entity_id for item in value if isinstance(item, EntityRef)} if isinstance(value, tuple) else set()
 
 
 class _Reader:
