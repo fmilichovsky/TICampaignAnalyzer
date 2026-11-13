@@ -238,7 +238,7 @@ class EventBuilder:
 
     def event(
         self,
-        event_type: EventKind | str,
+        kind: EventKind,
         *,
         type_id: str | None = None,
         id_parts: Sequence[object],
@@ -253,18 +253,16 @@ class EventBuilder:
         """An event, objective by default; ``recorded_on`` (an ISO date string from a record entry) dates it by it.
 
         Events naming a faction carry ``faction_kinds`` (alien or human): snapshot context, never evidence. A kind's
-        attributes are checked by its constructor; a bare type string is not yet migrated to a kind. A prefix kind
-        (``notification.*``) takes the concrete ``type_id`` the save supplied; an exact kind takes none.
+        attributes are checked by its constructor. A prefix kind (``notification.*``) takes the concrete ``type_id``
+        the save supplied; an exact kind takes none.
         """
-        if isinstance(event_type, EventKind):
-            kind = event_type
-            if kind.is_prefix:
-                if type_id is None or not type_id.startswith(kind.prefix):
-                    raise ValueError(f"event type {type_id} does not match prefix kind {kind.event_type}")
-            elif type_id is not None:
-                raise ValueError(f"kind {kind.event_type} is exact; it takes no type_id ({type_id})")
-            attributes = kind_attributes(kind, attributes)
-            event_type = type_id if type_id is not None else kind.event_type
+        if kind.is_prefix:
+            if type_id is None or not type_id.startswith(kind.prefix):
+                raise ValueError(f"event type {type_id} does not match prefix kind {kind.event_type}")
+        elif type_id is not None:
+            raise ValueError(f"kind {kind.event_type} is exact; it takes no type_id ({type_id})")
+        attributes = kind_attributes(kind, attributes)
+        event_type = type_id if type_id is not None else kind.event_type
         date: Observed = self.observed
         basis = DateBasis.INTERVAL
         if isinstance(recorded_on, str):
@@ -333,7 +331,7 @@ def transition_attributes(change: StateChange, transition: Transition) -> tuple[
 
 
 def value_transition_event(
-    event_type: EventKind | str,
+    kind: EventKind,
     change: StateChange,
     lookup: Lookup,
     build: EventBuilder,
@@ -351,7 +349,7 @@ def value_transition_event(
         return None
     subject = change.entity_id
     return build.event(
-        event_type,
+        kind,
         id_parts=(subject,),
         sources=(primary(change),),
         entities=(lookup.ref(subject), *context, lookup.resolve(change.before), lookup.resolve(change.after)),
@@ -379,7 +377,7 @@ def mirrored_sources(
 
 
 def list_changed_event(
-    event_type: EventKind | str,
+    kind: EventKind,
     change: StateChange,
     member: Observed,
     transition: Transition,
@@ -400,7 +398,7 @@ def list_changed_event(
         attributes = (("member", member), ("transition", transition.value))
         id_parts = (owner_id, member_ref.entity_id if member_ref is not None else member, transition.value)
     return build.event(
-        event_type,
+        kind,
         id_parts=id_parts,
         sources=(primary(change, member if isinstance(member, EntityRef) else None),),
         entities=(lookup.ref(owner_id), member_ref),

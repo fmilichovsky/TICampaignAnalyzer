@@ -41,7 +41,7 @@ def _finished_projects_changed(event: Event) -> str:
 TECHNOLOGY_COMPLETED = EventKind(
     "technology.completed",
     _technology_completed,
-    None,
+    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset(),
     optional=frozenset({"side", "transition", "before", "after", "completions"}),
@@ -80,7 +80,7 @@ RESEARCH_FINISHED_TECHS_CHANGED = EventKind(
 FACTION_PROJECT_COMPLETED = EventKind(
     "faction.project_completed",
     _project_completed,
-    None,
+    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset({"project"}),
     optional=frozenset({"completions"}),

@@ -10,8 +10,9 @@ from tinarrative.diff.state_diff import diff_states
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.changes import StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
-from tinarrative.model.events import Event
+from tinarrative.model.events import Event, Significance
 from tinarrative.model.evidence import SourceLocation
+from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.records import RecordEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown
@@ -48,6 +49,11 @@ COLLECTIONS_BY_STATE_TYPE = {state_type: collection for _, state_type, collectio
 """Where a state type other than its domain's default lands (a Lagrange point among the space objects)."""
 MEGAFAUNA_STATE_TYPE = "TIMegafaunaArmyState"
 RESEARCH_ID = 150
+
+
+def fixture_kind(event_type: str) -> EventKind:
+    """A throwaway minor, bookkeeping kind without attributes, for tests of what every kind shares."""
+    return EventKind(event_type, lambda event: event.id, Significance.MINOR, EvidenceRole.BOOKKEEPING, frozenset())
 
 
 def ref(domain: EntityDomain, key: str) -> EntityRef:

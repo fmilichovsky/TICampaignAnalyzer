@@ -59,7 +59,7 @@ ATTACKERS = WarSide(ATTACKING, "attacking", "attacker")
 DEFENDERS = WarSide(DEFENDING, "defending", "defender")
 SIDES = ((ATTACKERS, DEFENDERS), (DEFENDERS, ATTACKERS))
 """Each side of a war with its opponents."""
-LEFTOVER_TYPES: Mapping[str, EventKind | str] = {
+LEFTOVER_TYPES: Mapping[str, EventKind] = {
     ATTACKING: ATTACKING_ALLIANCE_CHANGED,
     DEFENDING: DEFENDING_ALLIANCE_CHANGED,
     "wars": WARS_LIST_CHANGED,

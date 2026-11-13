@@ -11,9 +11,8 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Final, Literal
 
-from ..kinds import kind_for
+from ..kinds import is_evidence, kind_for
 from ..model.events import Event, Significance
-from ..narrative.evidence import is_evidence
 from ..sequence import IntervalResult, event_stream
 
 Constituents = Literal["all", "evidence", "none"]

@@ -136,7 +136,7 @@ COUNCILOR_DETAINING_FACTION_CHANGED = EventKind(
 COUNCILOR_APPEARED = EventKind(
     "councilor.appeared",
     _councilor_presence,
-    None,
+    Significance.MINOR,
     EVIDENCE,
     frozenset({"side"}),
     rule=Rule.COUNCILOR_PRESENCE,
@@ -144,7 +144,7 @@ COUNCILOR_APPEARED = EventKind(
 COUNCILOR_DISAPPEARED = EventKind(
     "councilor.disappeared",
     _councilor_presence,
-    None,
+    Significance.MINOR,
     EVIDENCE,
     frozenset({"side"}),
     rule=Rule.COUNCILOR_PRESENCE,
