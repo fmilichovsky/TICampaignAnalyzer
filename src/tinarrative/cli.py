@@ -1089,12 +1089,21 @@ def _run_narrate(args: argparse.Namespace) -> int:
         print(f"tinarrative narrate: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
     if isinstance(plan, OverBudget):
-        print(
-            f"tinarrative narrate: interval {plan.interval} needs about {plan.needed} input tokens without its atomic "
-            f"stream, over max_input_tokens {plan.budget}; raise llm.max_input_tokens",
-            file=sys.stderr,
+        if plan.kind == "output":
+            problem = (
+                f"interval {plan.interval} asks for a length that needs about {plan.needed} max_output_tokens, over "
+                f"max_output_tokens {plan.budget}; raise llm.max_output_tokens or give a smaller --length"
+            )
+        else:
+            problem = (
+                f"interval {plan.interval} needs about {plan.needed} input tokens without its atomic stream, over "
+                f"max_input_tokens {plan.budget}; raise llm.max_input_tokens"
+            )
+        print(f"tinarrative narrate: {problem}", file=sys.stderr)
+        logger.info(
+            "narrate over budget %s",
+            fields(kind=plan.kind, needed=plan.needed, budget=plan.budget, exit=EXIT_USAGE_ERROR),
         )
-        logger.info("narrate over budget %s", fields(needed=plan.needed, budget=plan.budget, exit=EXIT_USAGE_ERROR))
         return EXIT_USAGE_ERROR
     if plan.sparse:
         period = plan.options["period"]
@@ -1635,7 +1644,7 @@ def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
         f"{_count(count, 'chapter')} by {plan.options.get('period', 'year')}, max_input_tokens "
         f"{settings.max_input_tokens} at {settings.chars_per_token:g} characters per token:"
     ]
-    reductions = {"atomic_dropped": "; atomic stream left out", "split": "; period split at saves, no atomic stream"}
+    reductions = {"atomic_dropped": "; atomic stream left out", "split": "; period split at saves"}
     coarsened = {"save_spacing": f" (saves too far apart for a {plan.options.get('period', 'year')})"}
     for planned in plan.chapters:
         lines.append(
@@ -1644,6 +1653,7 @@ def _render_plan(plan: ChapterPlan, output: Path | None) -> str:
             f"{_count(planned.narrative_events, 'narrative event')}, "
             f"{planned.continuing} continuing, {planned.recalled} recalled; ~{planned.estimate} input tokens"
             f"{reductions.get(planned.chapter.reduction or '', '')}"
+            f"{', no atomic stream' if planned.chapter.reduction == 'split' and not planned.chapter.atomic else ''}"
         )
     if output is not None:
         lines.append(f"Wrote plan.json and {_count(count, 'request')} to {output}.")
@@ -2180,7 +2190,10 @@ def _add_narrate_parser(subcommands: argparse._SubParsersAction[argparse.Argumen
         "--length",
         type=_positive_int,
         metavar="WORDS",
-        help="A target length for the whole history, shared out across chapters by their narrative events.",
+        help=(
+            "A target length for the whole history, shared out across chapters by their narrative weight "
+            "(default: from the narrative weight)."
+        ),
     )
     parser.add_argument(
         "--focus",

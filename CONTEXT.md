@@ -119,6 +119,12 @@ _Avoid_: export, events JSON
 A run of whole periods of the narrator package, small enough to be told in one model request.
 _Avoid_: section (a section is one period inside a chapter), part
 
+**Narrative weight**:
+How much narrative a chapter is compelled to cover: its top-level narrative events, each counted by significance,
+with trivial ones counting nothing. Members and developments continuing from an earlier chapter add none. Every
+length a chapter is asked for scales with it.
+_Avoid_: event count, chapter size (size is the request's tokens)
+
 **Councilor article**:
 A neutral, public-perception piece about one notable councilor, told from its councilor brief in one model
 request.

@@ -29,6 +29,11 @@ package = "major"
 args = []
 
 [[narrate]]
+id = "budget-500k"  # fewer, larger chapters: the input that continuity costs at the default budget
+package = "major"
+args = ["--max-input-tokens", "500000"]
+
+[[narrate]]
 id = "budget-160k"  # a local model's context
 package = "major"
 args = ["--max-input-tokens", "160000"]

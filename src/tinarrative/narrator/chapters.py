@@ -22,13 +22,21 @@ LONGEST_DAYS = {"year": 366, "half": 184, "quarter": 92}
 """Saves further apart than this, by median, are too sparse to tell the period."""
 SIGNIFICANCE = ("trivial", "minor", "major", "campaign_defining")
 RECALLED_FROM = "major"
-LENGTH_WEIGHTS = {"trivial": 1, "minor": 1, "major": 2, "campaign_defining": 4}
+NARRATIVE_WEIGHTS = {"trivial": 0, "minor": 1, "major": 2, "campaign_defining": 4}
+"""Trivial narrative events add detail, never length; an unknown significance counts as minor."""
+WORDS_PER_WEIGHT = 6
+"""The length asked for when none is given: words per point of narrative weight."""
+TOKENS_PER_WORD = 1.5
+"""Output tokens per word of prose, footnotes and headings included."""
+PROSE_SHARE = 0.5
+"""The part of ``max_output_tokens`` a chapter's length may take; the rest is left for reasoning."""
 REDUCTIONS = ("atomic_dropped", "split")
 PLANNER_KEYS = (
     "max_input_tokens",
+    "max_output_tokens",
     "chars_per_token",
 )
-"""Recorded in ``plan.json``; the provider keys never change a plan."""
+"""Recorded in ``plan.json``; the other provider keys never change a plan."""
 
 
 @dataclass(frozen=True)
@@ -93,6 +101,7 @@ class ChapterPlan:
                     "recalled": planned.recalled,
                     "estimate": planned.estimate,
                     "reduction": planned.chapter.reduction,
+                    "atomic": planned.chapter.atomic,
                     "request_sha256": planned.request_sha256,
                 }
                 for planned in self.chapters
@@ -102,11 +111,22 @@ class ChapterPlan:
 
 @dataclass(frozen=True)
 class OverBudget:
-    """A single interval whose request, without atomic stream, needs more than the budget."""
+    """A single interval whose request, without atomic stream, needs more than the budget: ``input`` tokens for the
+    request, or ``output`` tokens for the length its narrative weight asks for."""
 
     interval: str
     needed: int
     budget: int
+    kind: str = "input"
+
+
+def narrative_weight(narrative_events: Iterable[Mapping[str, Any]]) -> int:
+    """Members are told through the narrative event they belong to, so they add none."""
+    return sum(
+        NARRATIVE_WEIGHTS.get(str(event.get("significance")), 1)
+        for event in narrative_events
+        if "member_of" not in event
+    )
 
 
 def validate(package: object) -> dict[str, Any]:
@@ -201,8 +221,10 @@ def plan_chapters(
     length: int | None = None,
     requested: bool = False,
 ) -> ChapterPlan | OverBudget:
-    """narrative events are never dropped: a period that does not fit loses its atomic stream, then is split at saves;
-    an interval that still does not fit is ``OverBudget``. A ``requested`` period is never coarsened."""
+    """narrative events are never dropped: a period over the input budget loses its atomic stream, then is split at
+    saves; a period whose length needs more output than the budget is split at saves with its atomic stream; an
+    interval that still does not fit is ``OverBudget``. Without ``length``, the length is ``WORDS_PER_WEIGHT`` per
+    point of narrative weight. A ``requested`` period is never coarsened."""
     planner = _Planner(validate(dict(package)), options, settings, length, requested)
     chapters = planner.plan()
     if isinstance(chapters, OverBudget):
@@ -224,7 +246,9 @@ class _Planner:
         self.package = package
         self.options = dict(options)
         self.settings = settings
-        self.length = length
+        self.weight = narrative_weight(package["narrative"])
+        self.length = length if length is not None else (self.weight * WORDS_PER_WEIGHT or None)
+        self.prose_words = settings.max_output_tokens * PROSE_SHARE / TOKENS_PER_WORD
         self.intervals: list[dict[str, Any]] = package["intervals"]
         self.save_position = {save["key"]: position for position, save in enumerate(package["saves"])}
         interval_position = {interval["key"]: position for position, interval in enumerate(self.intervals)}
@@ -322,36 +346,66 @@ class _Planner:
             if self._fits(alone, chapters):
                 current = alone
                 continue
-            reduced = Chapter(first, last, atomic=False, reduction="atomic_dropped")
-            if self._fits(reduced, chapters):
-                chapters.append(reduced)
-                continue
-            failed = self._split(first, last, chapters)
+            if self._over_output(alone):
+                # Leaving out the atomic stream shortens the request, never the length.
+                failed = self._split(first, last, chapters, atomic=True)
+            else:
+                reduced = Chapter(first, last, atomic=False, reduction="atomic_dropped")
+                if self._fits(reduced, chapters):
+                    chapters.append(reduced)
+                    continue
+                failed = self._split(first, last, chapters, atomic=False)
             if failed is not None:
                 return failed
         if current is not None:
             chapters.append(current)
         return chapters
 
-    def _split(self, first: int, last: int, chapters: list[Chapter]) -> OverBudget | None:
+    def _split(self, first: int, last: int, chapters: list[Chapter], *, atomic: bool) -> OverBudget | None:
         run: Chapter | None = None
         for position in range(first, last + 1):
             if run is not None:
-                grown = Chapter(run.first, position, atomic=False, reduction="split")
+                grown = Chapter(run.first, position, atomic=run.atomic, reduction="split")
                 if self._fits(grown, chapters):
                     run = grown
                     continue
                 chapters.append(run)
-            run = Chapter(position, position, atomic=False, reduction="split")
-            needed = self._estimate(run, chapters)
-            if needed > self.settings.max_input_tokens:
-                return OverBudget(self.intervals[position]["key"], needed, self.settings.max_input_tokens)
+            single = self._single(position, chapters, atomic=atomic)
+            if isinstance(single, OverBudget):
+                return single
+            run = single
         if run is not None:
             chapters.append(run)
         return None
 
+    def _single(self, position: int, earlier: Sequence[Chapter], *, atomic: bool) -> Chapter | OverBudget:
+        """One interval as a split run, with its atomic stream when asked and it fits."""
+        interval = self.intervals[position]["key"]
+        alone = Chapter(position, position, atomic=atomic, reduction="split")
+        if self._over_output(alone):
+            needed = math.ceil(math.ceil(self._words(alone)) * TOKENS_PER_WORD / PROSE_SHARE)
+            return OverBudget(interval, needed, self.settings.max_output_tokens, kind="output")
+        if atomic and self._fits(alone, earlier):
+            return alone
+        bare = Chapter(position, position, atomic=False, reduction="split")
+        needed = self._estimate(bare, earlier)
+        if needed > self.settings.max_input_tokens:
+            return OverBudget(interval, needed, self.settings.max_input_tokens)
+        return bare
+
     def _fits(self, chapter: Chapter, earlier: Sequence[Chapter]) -> bool:
-        return self._estimate(chapter, earlier) <= self.settings.max_input_tokens
+        return not self._over_output(chapter) and self._estimate(chapter, earlier) <= self.settings.max_input_tokens
+
+    def _over_output(self, chapter: Chapter) -> bool:
+        return math.ceil(self._words(chapter)) > self.prose_words
+
+    def _words(self, chapter: Chapter) -> float:
+        """The chapter's share of the length before rounding, as ``_shares`` gives it."""
+        if self.length is None:
+            return 0.0
+        if self.weight:
+            return self.length * narrative_weight(self._narrative_events(chapter)) / self.weight
+        return self.length * (chapter.last - chapter.first + 1) / len(self.intervals)
 
     def _estimate(self, chapter: Chapter, earlier: Sequence[Chapter]) -> int:
         """Values not known yet are taken at their largest, so a final request never exceeds its estimate."""
@@ -401,11 +455,8 @@ class _Planner:
         """Rounded by largest remainder so the shares add up to ``length``."""
         if self.length is None:
             return [None] * len(chapters)
-        weights = [
-            sum(LENGTH_WEIGHTS.get(str(event.get("significance")), 1) for event in self._narrative_events(chapter))
-            for chapter in chapters
-        ]
-        if not any(weights):
+        weights = [narrative_weight(self._narrative_events(chapter)) for chapter in chapters]
+        if not self.weight:
             weights = [chapter.last - chapter.first + 1 for chapter in chapters]
         total = sum(weights)
         exact = [self.length * weight / total for weight in weights]

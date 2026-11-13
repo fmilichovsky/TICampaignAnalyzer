@@ -101,6 +101,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [ ] Drop unresolvable constituent IDs (#271).
   - [ ] Slim down atomic event attributes (#272).
   - [ ] Apply slimming to continuing events (#273)
+- [x] Chapter length by narrative weight within an output budget (#418).
 
 ## CLI user experience
 
