@@ -75,7 +75,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [ ] Nation narrative events scaled by power share (#359).
   - [ ] Nuclear arsenal share (#360).
   - [ ] Space program share (#361).
-  - [ ] Space and faction stakes (#200).
+  - [x] Space and faction stakes (#200).
   - [ ] Remove the top-N promotion (#362).
   - [ ] Narrator length and recall by score (#201).
 - [x] Councilor profiles (#222):

@@ -5,7 +5,7 @@ before: interval_before.json
 after: interval_after.json
   date: "2031-06-01T00:00:00"
   game_version: not serialized
-changes: 48
+changes: 49
   army: 3
   campaign: 4
   control point: 2
@@ -17,7 +17,7 @@ changes: 48
   organization: 1
   region: 4
   research: 2
-  ship: 2
+  ship: 3
   space object: 2
   technology: 3
 changes:
@@ -62,6 +62,7 @@ changes:
   region:42 isBeingAnnexed: false -> true
   research finished_techs_names: +"FixtureTechB"
   research tech_progress: [{"accumulatedResearch": 5.0, "factionContributions": [{"Key": {"value": 15}, "Value": 5.0}], "selector": {"value": 15}, "techTemplateName": "FixtureTechB"}] -> [{"accumulatedResearch": 3.0, "factionContributions": [{"Key": {"value": 15}, "Value": 3.0}], "selector": {"value": 15}, "techTemplateName": "FixtureTechC"}]
+  ship:130 propellant_tons: 100.0 -> 80.0
   ship:131 fleet: fleet:120 -> unknown (unresolved_reference, raw={"value": 999})
   ship:131 kills: +"FixtureKill"
   space object:140 dockedFleets: +fleet:120 +fleet:121

@@ -40,11 +40,20 @@ class Rule(StrEnum):
 
 
 class StakeMeasure(StrEnum):
-    """The world total a stake is a share of; each is a ``config.ReferenceSettings`` key."""
+    """The world total a stake is a share of. The first three are ``config.ReferenceSettings`` keys; the space and
+    faction measures have code constants for their references (``narrative.significance.CODE_REFERENCES``)."""
 
     POWER = "power"
     POPULATION = "population"
     ORGANIZATION = "organization"
+    HAB = "hab"
+    """A hab's tier² over the human habs' total (at least ``prominence.HAB_FLOOR``)."""
+    FLEET = "fleet"
+    """A ship's or fleet's dry mass over the human ships' total (at least ``prominence.FLEET_SATURATION``)."""
+    BATTLE = "battle"
+    """A combat's contested mass over the world's weighted ship mass."""
+    FACTION = "faction"
+    """A faction's weight in the world: its Earth share blended with its space share."""
 
 
 class Stake(StrEnum):
@@ -66,6 +75,18 @@ class Stake(StrEnum):
     """A narrative-event stake: the population share of the regions the event lists."""
     INDEPENDENT_NATION = "independent_nation"
     """A narrative-event stake: the power share of the nation that became independent."""
+    HAB = "hab"
+    """The hab share of the habs the event is about: its ``habs`` attribute, else its first hab."""
+    FLEET = "fleet"
+    """The fleet share of the fleet the event is about."""
+    COMBAT = "combat"
+    """The contested mass of the recorded combat, read from its record entry."""
+    LEFT_FACTION = "left_faction"
+    """The stake of the faction a transition leaves, on the interval's earlier side."""
+    COLONY = "colony"
+    """A narrative-event stake: the hab share of every hab the cited first-presence events list."""
+    NEW_SHIPS = "new_ships"
+    """A narrative-event stake: the fleet share of every ship the cited appearance events are about."""
 
 
 class EvidenceRole(StrEnum):

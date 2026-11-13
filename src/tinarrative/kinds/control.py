@@ -118,7 +118,7 @@ NATION_CONTROL_POINTS_CHANGED = EventKind(
 )
 
 COUNCILOR_FACTION_CHANGED = EventKind(
-    "councilor.faction_changed", plain("faction"), Significance.MAJOR, EVIDENCE, TRANSITION
+    "councilor.faction_changed", plain("faction"), Significance.MAJOR, EVIDENCE, TRANSITION, stake=Stake.LEFT_FACTION
 )
 COUNCILOR_STATUS_CHANGED = EventKind(
     "councilor.status_changed", _councilor_field("status"), Significance.MINOR, EVIDENCE, TRANSITION

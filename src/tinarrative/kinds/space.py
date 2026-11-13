@@ -6,7 +6,7 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole
+from ..model.kinds import EventKind, EvidenceRole, Stake
 from ..model.values import FrozenMap, Unknown
 from .narrative import count as _count
 from .narrative import narrative_kind, role
@@ -136,7 +136,12 @@ TRANSITION = frozenset({"transition", "before", "after"})
 _LIST_OPTIONAL = frozenset({"member", "before", "after"})
 
 FLEET_FACTION_CHANGED = EventKind(
-    "fleet.faction_changed", plain("faction"), Significance.MAJOR, EvidenceRole.BOOKKEEPING, TRANSITION
+    "fleet.faction_changed",
+    plain("faction"),
+    Significance.MAJOR,
+    EvidenceRole.BOOKKEEPING,
+    TRANSITION,
+    stake=Stake.FLEET,
 )
 FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     "fleet.docked_location_changed",
@@ -239,7 +244,12 @@ FLEET_SHIPS_CHANGED = EventKind(
 )
 
 HAB_FACTION_CHANGED = EventKind(
-    "hab.faction_changed", plain("faction"), Significance.MAJOR, EvidenceRole.BOOKKEEPING, TRANSITION
+    "hab.faction_changed",
+    plain("faction"),
+    Significance.MINOR,
+    EvidenceRole.BOOKKEEPING,
+    TRANSITION,
+    stake=Stake.HAB,
 )
 HAB_TYPE_CHANGED = EventKind(
     "hab.type_changed",
@@ -290,6 +300,7 @@ HAB_APPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     frozenset({"core_completed", "projected_arrival", "projected_completion"}),
+    stake=Stake.HAB,
 )
 HAB_DISAPPEARED = EventKind(
     "hab.disappeared",
@@ -309,9 +320,10 @@ FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
 FACTION_COMBAT_RECORDED = EventKind(
     "faction.combat_recorded",
     _combat_recorded,
-    Significance.MAJOR,
+    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on"}),
+    stake=Stake.COMBAT,
 )
 FACTION_COMBAT_ENTRY_REMOVED = EventKind(
     "faction.combat_entry_removed",
@@ -330,15 +342,18 @@ FACTION_FIRST_HAB_ON_BODY = EventKind(
     Significance.MAJOR,
     EvidenceRole.EVIDENCE,
     frozenset({"body", "habs", "hab_count", "first_of_any_faction", "milestones"}),
+    stake=Stake.HAB,
 )
 HAB_DESTROYED = EventKind(
     "hab.destroyed",
     _hab_destroyed,
-    Significance.MAJOR,
+    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     frozenset({"hab_type", "body", "signals", "ambiguous"}),
     frozenset({"destroyer", "recorded_on", "destroyers", "recorded_dates", "candidates", "vanished"}),
+    stake=Stake.HAB,
 )
+# TODO(#303): not scaled until the attribution problems of combat and destruction records are settled.
 FACTION_BATTLE_OUTCOME = EventKind(
     "faction.battle_outcome",
     _battle_outcome,
@@ -419,9 +434,14 @@ COLONISATION_WAVE = narrative_kind(
     _colonisation_wave,
     required=frozenset({"bodies", "hab_count", "first_of_any_faction"}),
     base=Significance.MAJOR,
+    stake=Stake.COLONY,
 )
 FLEET_BUILDUP = narrative_kind(
-    "faction.fleet_buildup", _fleet_buildup, required=frozenset({"hull", "count"}), base=Significance.MINOR
+    "faction.fleet_buildup",
+    _fleet_buildup,
+    required=frozenset({"hull", "count"}),
+    base=Significance.MINOR,
+    stake=Stake.NEW_SHIPS,
 )
 
 KINDS = (

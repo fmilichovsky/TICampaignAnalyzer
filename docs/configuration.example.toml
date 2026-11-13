@@ -7,6 +7,9 @@ episode_gap_days = 365
 top_nations = 10
 # Maximum earlier narrative events recalled by each chapter.
 recalled_narrative_events = 40
+# How far space counts in a faction's weight once humans hold a large presence there (0-1). Higher ranks space
+# events of a faction more by its space holdings; lower ranks them by its hold on Earth.
+w_space = 0.5
 
 [llm] # narrate and --send for narrate and councilors
 # Larger inputs allow larger chapters; smaller values split them sooner. 200000-300000 suits most campaigns,

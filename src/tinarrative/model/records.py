@@ -145,7 +145,11 @@ class CombatEntry:
 
     ``sides`` is the resolved ``Ships`` pair map in serialized order, as
     ``((faction EntityRef, FrozenMap(hull class -> ship count)), ...)``; one unresolvable faction makes it
-    ``Unknown``. Ship design names are player-chosen campaign content and deliberately not kept.
+    ``Unknown``.
+
+    ``designs`` has the same factions in the same order, each with its ships as ``(design dataName, hull class,
+    count)`` triples in order of first appearance. It is kept for computation only (a ship's mass is read from its
+    design) and never copied into an event attribute: design names are player-chosen campaign content.
     """
 
     index: int
@@ -155,6 +159,7 @@ class CombatEntry:
     winner: Observed
     attacks: Observed
     surprising: Observed
+    designs: Observed = None
 
 
 RecordEntry = LedgerEntry | DestructionEntry | KeyedEntry | ItemEntry | NotificationEntry | CombatEntry
@@ -184,8 +189,17 @@ def content_key(entry: RecordEntry) -> tuple[Hashable, ...]:
     return (type(entry), *(getattr(entry, name) for name in _CONTENT_FIELDS[type(entry)]))
 
 
+_COMPUTATION_ONLY = frozenset({"designs"})
+"""Entry members kept for computation, never serialized: the JSON output (and so the events JSON and the narrator
+package) is the same with or without them."""
+
+
 def entry_to_dict(entry: RecordEntry) -> dict[str, Any]:
-    return {item.name: to_jsonable(getattr(entry, item.name)) for item in dataclass_fields(entry)}
+    return {
+        item.name: to_jsonable(getattr(entry, item.name))
+        for item in dataclass_fields(entry)
+        if item.name not in _COMPUTATION_ONLY
+    }
 
 
 @dataclass(frozen=True)

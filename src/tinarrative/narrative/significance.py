@@ -11,25 +11,38 @@ from __future__ import annotations
 import logging
 import math
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
 from ..analyzers.politics.nation_assets import GDP, STRENGTH
+from ..analyzers.space.combat import LOG_FIELD as COMBAT_LOG
 from ..config import DEFAULT_SETTINGS, GeopoliticsSettings, SignificanceSettings
 from ..kinds import kind_for
 from ..kinds.nations import REGION_NATION_CHANGED
+from ..kinds.space import SHIP_APPEARED
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Role, Significance, SignificanceBasis
 from ..model.kinds import EventKind, Rule, Stake, StakeMeasure
+from ..model.records import CombatEntry
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
 from .milestones import MILESTONE_TEMPLATES, milestone_of
-from .prominence import nation_power, organization_shares, region_shares, total
-from .situation import SituationReport
+from .prominence import (
+    ALIEN_MASS_WEIGHT,
+    FLEET_SATURATION,
+    ShipMasses,
+    contested_mass,
+    nation_power,
+    organization_shares,
+    region_shares,
+    ship_masses,
+    total,
+)
+from .situation import SituationReport, build_situation
 
 __all__ = [
     "PROMOTED",
@@ -292,6 +305,18 @@ class _IntervalShares:
     def _measured(self, measure: StakeMeasure, side: Side) -> dict[EntityId, float]:
         raise NotImplementedError
 
+    def _report(self, side: Side) -> SituationReport:
+        raise NotImplementedError
+
+    def _space_measured(self, measure: StakeMeasure, side: Side) -> dict[EntityId, float]:
+        """The hab, fleet and faction shares, read from the side's situation report."""
+        report = self._report(side)
+        if measure is StakeMeasure.HAB:
+            return report.hab_shares()
+        if measure is StakeMeasure.FLEET:
+            return report.fleet_shares()
+        return report.faction_stakes(self.settings.power, self.settings.w_space)
+
     def shares(self, measure: StakeMeasure, side: Side) -> dict[EntityId, float]:
         key = (measure, side)
         if key not in self._shares:
@@ -310,6 +335,17 @@ class _IntervalShares:
         return total(found, found) if found else None
 
 
+def _is_design_count(value: object) -> bool:
+    """A ``CombatEntry.designs`` triple: design, hull class, count."""
+    return (
+        isinstance(value, tuple)
+        and len(value) == 3
+        and isinstance(value[0], str)
+        and isinstance(value[1], str)
+        and isinstance(value[2], int)
+    )
+
+
 class Stakes(_IntervalShares):
     """The prominence shares of the two snapshots of one interval: an atomic event's stakes."""
 
@@ -324,6 +360,13 @@ class Stakes(_IntervalShares):
         self.lookup = Lookup(before, after)
         self._snapshots = {Side.BEFORE: before, Side.AFTER: after}
         self._evidence = {event.id: event for event in evidence}
+        self._reports: dict[Side, SituationReport] = {}
+        self._masses: ShipMasses | None = None
+
+    def _report(self, side: Side) -> SituationReport:
+        if side not in self._reports:
+            self._reports[side] = build_situation(self._snapshots[side])
+        return self._reports[side]
 
     def _measured(self, measure: StakeMeasure, side: Side) -> dict[EntityId, float]:
         snapshot = self._snapshots[side]
@@ -331,7 +374,57 @@ class Stakes(_IntervalShares):
             return nation_power(snapshot, self.settings.power)
         if measure is StakeMeasure.POPULATION:
             return region_shares(snapshot)
-        return organization_shares(snapshot, self.settings.tier_exponent)
+        if measure is StakeMeasure.ORGANIZATION:
+            return organization_shares(snapshot, self.settings.tier_exponent)
+        if measure is StakeMeasure.BATTLE:
+            raise ValueError("a battle stake is read from a combat record, not from shares")
+        return self._space_measured(measure, side)
+
+    def contested_share(self, event: Event) -> tuple[float, tuple[EntityRef, ...]] | None:
+        """A recorded combat's contested mass over the world's weighted ship mass in the interval's earlier snapshot,
+        with the factions of its sides; ``None`` when the record does not say enough to measure it.
+
+        Each side's mass is its ships' dry mass (a live ship of the design in the earlier snapshot, else the median of
+        its hull class there, else nothing), alien ships weighted up. A record with one side and a ``HabFaction``
+        does not name the hab, so it is not measured; one side without is contested mass 0.
+        """
+        entry = self._combat_entry(event)
+        if entry is None or not isinstance(entry.designs, tuple):
+            return None
+        sides: list[tuple[EntityRef, tuple[tuple[str, str, int], ...]]] = []
+        for side in entry.designs:
+            if not (isinstance(side, tuple) and isinstance(side[0], EntityRef) and isinstance(side[1], tuple)):
+                return None
+            sides.append((side[0], tuple(ship for ship in side[1] if _is_design_count(ship))))  # type: ignore[misc]
+        if not 1 <= len(sides) <= 2 or (len(sides) == 1 and isinstance(entry.hab_faction, EntityRef)):
+            return None
+        if self._masses is None:
+            self._masses = ship_masses(self._snapshots[Side.BEFORE])
+        masses = [self._side_mass(faction, ships, self._masses) for faction, ships in sides]
+        contested = contested_mass(masses[0], masses[1]) if len(masses) == 2 else 0.0
+        world = max(self._report(Side.BEFORE).world.weighted_ship_mass, FLEET_SATURATION)
+        return contested / world, tuple(self.lookup.resolve(faction) or faction for faction, _ in sides)
+
+    def _side_mass(self, faction: EntityRef, ships: tuple[tuple[str, str, int], ...], masses: ShipMasses) -> float:
+        weight = ALIEN_MASS_WEIGHT if self.lookup.faction_kind(faction.entity_id) == "alien" else 1.0
+        return weight * math.fsum(
+            (masses.of(faction.entity_id, design, hull) or 0.0) * count for design, hull, count in ships
+        )
+
+    def _combat_entry(self, event: Event) -> CombatEntry | None:
+        """The entry a ``faction.combat_recorded`` event rests on, found by its record index."""
+        source = event.sources[0] if event.sources else None
+        location = source.entry if source is not None else None
+        owner = event.entities[0] if event.entities else None
+        if location is None or location.path is None or owner is None:
+            return None
+        tail = location.path.rsplit("/", 1)[-1]
+        record_set = self.lookup.record_set(owner.entity_id, COMBAT_LOG, Side.AFTER)
+        if not tail.isdigit() or record_set is None or not isinstance(record_set.entries, tuple):
+            return None
+        return next(
+            (item for item in record_set.entries if isinstance(item, CombatEntry) and item.index == int(tail)), None
+        )
 
     def cited(self, event: Event) -> tuple[Event, ...]:
         return tuple(self._evidence[item] for item in event.constituents if item in self._evidence)
@@ -339,11 +432,14 @@ class Stakes(_IntervalShares):
 
 class ReportStakes(_IntervalShares):
     """The prominence shares of the two situation reports of a narrative event's first interval. A report states no
-    organization tiers, so a narrative stake is a power or population share."""
+    organization tiers, so a narrative stake is a power, population, hab or fleet share."""
 
     def __init__(self, before: SituationReport, after: SituationReport, settings: SignificanceSettings) -> None:
         super().__init__(settings)
         self._reports = {Side.BEFORE: before, Side.AFTER: after}
+
+    def _report(self, side: Side) -> SituationReport:
+        return self._reports[side]
 
     def _measured(self, measure: StakeMeasure, side: Side) -> dict[EntityId, float]:
         report = self._reports[side]
@@ -351,6 +447,8 @@ class ReportStakes(_IntervalShares):
             return report.power_shares(self.settings.power)
         if measure is StakeMeasure.POPULATION:
             return report.population_shares()
+        if measure in (StakeMeasure.HAB, StakeMeasure.FLEET, StakeMeasure.FACTION):
+            return self._space_measured(measure, side)
         raise ValueError(f"a situation report states no {measure} shares")
 
     def nuclear_armed(self, nation: EntityId) -> bool:
@@ -376,6 +474,9 @@ class Scaling:
     per_point: bool = False
     """The share of a single control point: the nation's, divided by the points it holds."""
     nuclear_bonus: bool = False
+    from_record: bool = False
+    """The share is read from the record entry the event rests on (``Stakes.contested_share``), not from the shares of
+    ``entities``."""
 
 
 def _first(event: Event, domain: EntityDomain) -> tuple[EntityId, ...]:
@@ -412,22 +513,47 @@ def _moved_regions(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
     )
 
 
+HAB_STATE_TYPE = "TIHabState"
+
+
+def _habs(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    """The habs the event lists, else its first hab (lagrange points share the domain, so the state type tells)."""
+    listed = _listed_refs(event.attribute("habs"))
+    refs = listed or tuple(ref for ref in event.entities if ref.state_type == HAB_STATE_TYPE)[:1]
+    return tuple(ref.entity_id for ref in refs)
+
+
+def _fleet(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    return _first(event, EntityDomain.FLEET)
+
+
+def _left_faction(event: Event, stakes: Stakes) -> tuple[EntityId, ...]:
+    """The faction a transition leaves: its ``before`` value."""
+    left = event.attribute("before")
+    return (left.entity_id,) if isinstance(left, EntityRef) else ()
+
+
 STAKE_IMPLEMENTATIONS: Mapping[Stake, Scaling] = {
     Stake.NATION: Scaling(StakeMeasure.POWER, _nation),
     Stake.BELLIGERENTS: Scaling(StakeMeasure.POWER, _belligerents, nuclear_bonus=True),
     Stake.TERRITORY: Scaling(StakeMeasure.POPULATION, _moved_regions),
     Stake.CONTROL_POINT: Scaling(StakeMeasure.POWER, _nation, per_point=True),
     Stake.ORGANIZATION: Scaling(StakeMeasure.ORGANIZATION, _organization),
+    Stake.HAB: Scaling(StakeMeasure.HAB, _habs),
+    Stake.FLEET: Scaling(StakeMeasure.FLEET, _fleet),
+    Stake.LEFT_FACTION: Scaling(StakeMeasure.FACTION, _left_faction),
+    Stake.COMBAT: Scaling(StakeMeasure.BATTLE, lambda event, stakes: (), from_record=True),
 }
 """Every atomic ``Stake``'s implementation."""
 
-NarrativeEntitiesOf = Callable[[Event], tuple[EntityRef, ...]]
+NarrativeEntitiesOf = Callable[[Event, Sequence[Event]], tuple[EntityRef, ...]]
 
 
 @dataclass(frozen=True)
 class NarrativeScaling:
-    """A narrative-event ``Stake``'s implementation: its measure and the entities whose summed share, in the situation
-    reports of the event's first interval, is the stake; no entities, no scale."""
+    """A narrative-event ``Stake``'s implementation: its measure and the entities (of the event, or of the events it
+    cites) whose summed share, in the situation reports of the event's first interval, is the stake; no entities, no
+    scale."""
 
     measure: StakeMeasure
     entities: NarrativeEntitiesOf
@@ -444,7 +570,7 @@ def _listed_refs(value: Observed) -> tuple[EntityRef, ...]:
     return tuple(item for item in value if isinstance(item, EntityRef)) if isinstance(value, tuple) else ()
 
 
-def _targets(event: Event) -> tuple[EntityRef, ...]:
+def _targets(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return _role_nations(event, Role.TARGET)
 
 
@@ -456,11 +582,11 @@ def _sides(event: Event) -> tuple[tuple[EntityRef, ...], ...]:
     return tuple(_listed_refs(event.attribute(side)) for side in WAR_SIDES)
 
 
-def _war_sides(event: Event) -> tuple[EntityRef, ...]:
+def _war_sides(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return tuple(ref for side in _sides(event) for ref in side)
 
 
-def _federation_members(event: Event) -> tuple[EntityRef, ...]:
+def _federation_members(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     changes = event.attribute("member_changes")
     changed = tuple(
         member
@@ -474,13 +600,23 @@ def _federation_members(event: Event) -> tuple[EntityRef, ...]:
     )
 
 
-def _listed_regions(event: Event) -> tuple[EntityRef, ...]:
+def _listed_regions(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return _listed_refs(event.attribute("regions"))
 
 
-def _independent_nation(event: Event) -> tuple[EntityRef, ...]:
+def _independent_nation(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """A released nation is the beneficiary (the releasing nation acts); a breakaway nation acts."""
     return _role_nations(event, Role.BENEFICIARY)[:1] or _role_nations(event, Role.ACTOR)[:1]
+
+
+def _cited_habs(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
+    """The habs of the cited first-presence events."""
+    return tuple(ref for item in cited for ref in _listed_refs(item.attribute("habs")))
+
+
+def _cited_ships(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
+    """The ships of the cited appearance events: the first entity of each."""
+    return tuple(item.entities[0] for item in cited if item.event_type == SHIP_APPEARED.event_type and item.entities)
 
 
 NARRATIVE_STAKE_IMPLEMENTATIONS: Mapping[Stake, NarrativeScaling] = {
@@ -489,8 +625,24 @@ NARRATIVE_STAKE_IMPLEMENTATIONS: Mapping[Stake, NarrativeScaling] = {
     Stake.MEMBERS: NarrativeScaling(StakeMeasure.POWER, _federation_members),
     Stake.REGIONS: NarrativeScaling(StakeMeasure.POPULATION, _listed_regions),
     Stake.INDEPENDENT_NATION: NarrativeScaling(StakeMeasure.POWER, _independent_nation),
+    Stake.COLONY: NarrativeScaling(StakeMeasure.HAB, _cited_habs),
+    Stake.NEW_SHIPS: NarrativeScaling(StakeMeasure.FLEET, _cited_ships),
 }
 """Every narrative-event ``Stake``'s implementation."""
+
+
+CODE_REFERENCES: Mapping[StakeMeasure, float] = {
+    StakeMeasure.HAB: 0.015,
+    StakeMeasure.FLEET: 0.01,
+    StakeMeasure.BATTLE: 0.0033,
+    StakeMeasure.FACTION: 1 / 7,  # an even split among the seven human factions
+}
+"""The share at which a space or faction stake leaves a score at its base. Code constants, not settings: the
+power, population and organization references are ``ReferenceSettings``."""
+
+
+def _reference(measure: StakeMeasure, settings: SignificanceSettings) -> float:
+    return CODE_REFERENCES[measure] if measure in CODE_REFERENCES else float(getattr(settings.reference, measure.value))
 
 
 def _scale(share: float, reference: float, settings: SignificanceSettings) -> int:
@@ -517,6 +669,14 @@ def _holds_nuclear_weapons(stakes: Stakes, nation: EntityId) -> bool:
     return False
 
 
+def _combat_basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBasis | None:
+    measured = stakes.contested_share(event)
+    if measured is None:
+        return None
+    share, factions = measured
+    return _scaled(level, StakeMeasure.BATTLE, share, factions, 0, stakes.settings)
+
+
 def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBasis | None:
     named = _kind(event).stake
     if named is None:
@@ -524,6 +684,8 @@ def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBas
     stake = STAKE_IMPLEMENTATIONS.get(named)
     if stake is None:
         raise ValueError(f"stake {named} of {event.event_type} scales a narrative event")
+    if stake.from_record:
+        return _combat_basis(event, level, stakes)
     entities = stake.entities(event, stakes)
     share = stakes.share(stake.measure, entities)
     if share is None:
@@ -542,7 +704,7 @@ def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBas
 
 
 def _narrative_basis(
-    kind: EventKind, event: Event, level: Significance, stakes: ReportStakes
+    kind: EventKind, event: Event, cited: Sequence[Event], level: Significance, stakes: ReportStakes
 ) -> SignificanceBasis | None:
     named = kind.stake
     if named is None:
@@ -550,7 +712,7 @@ def _narrative_basis(
     stake = NARRATIVE_STAKE_IMPLEMENTATIONS.get(named)
     if stake is None:
         raise ValueError(f"stake {named} of {event.event_type} scales an atomic event")
-    refs = _unique(stake.entities(event))
+    refs = _unique(stake.entities(event, cited))
     share = stakes.share(stake.measure, (ref.entity_id for ref in refs))
     if share is None:
         return None
@@ -584,7 +746,7 @@ def _scaled(
         base=level.base,
         measure=measure,
         share=float(f"{share:.6g}"),
-        scale=_scale(share, getattr(settings.reference, measure.value), settings),
+        scale=_scale(share, _reference(measure, settings), settings),
         entities=entities,
         bonus=bonus,
     )
@@ -640,6 +802,7 @@ def narrative_score(
     Raises ``ValueError`` for a kind whose context rule judges atomic events, or whose stake scales atomic events:
     each is a code bug.
     """
+    cited = tuple(cited)
     level = kind.base
     if kind.rule is not None:
         rule = RULE_IMPLEMENTATIONS[kind.rule]
@@ -648,7 +811,7 @@ def narrative_score(
         decided = rule.judge(event, geopolitics)
         if decided is not None:
             level = decided
-    basis = _narrative_basis(kind, event, level, stakes) if stakes is not None else None
+    basis = _narrative_basis(kind, event, cited, level, stakes) if stakes is not None else None
     own = level.base if basis is None else _clamped(basis)
     return max([own, *(item.score for item in cited)]), basis
 

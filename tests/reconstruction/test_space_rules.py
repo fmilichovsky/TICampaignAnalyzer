@@ -561,7 +561,7 @@ def test_lines_name_the_reading_and_significance_ranks_it() -> None:
     assert lines_of(unique_destruction())["hab.destroyed/space object:70"] == (
         f'Fixture space object 70 (space object:70) (type "Base" at space body:900) was '
         f"destroyed by Fixture faction 15 (faction:15) on {IN_INTERVAL}",
-        Significance.MAJOR,
+        Significance.MINOR,
     )
     assert lines_of(ambiguous_destruction(2))["hab.destroyed/space object:72"][0] == (
         'Fixture space object 72 (space object:72) (type "Base" at space body:900) was '

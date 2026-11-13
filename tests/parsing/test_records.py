@@ -545,12 +545,26 @@ def test_the_combat_log_decodes_sides_as_hull_class_counts_with_provenance_and_a
                 ),
             ),
             surprising="No",
+            designs=(
+                (FACTION_15, (("Fixture Design A", "FixtureEscort", 1), ("Fixture Design B", "FixtureEscort", 1))),
+                (FACTION_16, (("Fixture Design C", "FixtureCruiser", 1),)),
+            ),
         ),
-        CombatEntry(1, None, ((FACTION_16, FrozenMap((("FixtureCruiser", 1),))),), FACTION_16, FACTION_16, (), "No"),
+        CombatEntry(
+            1,
+            None,
+            ((FACTION_16, FrozenMap((("FixtureCruiser", 1),))),),
+            FACTION_16,
+            FACTION_16,
+            (),
+            "No",
+            ((FACTION_16, (("Fixture Design C", "FixtureCruiser", 1),)),),
+        ),
     )
     assert isinstance(log.entries, tuple)
     assert log.entry_location(log.entries[1]).path == f"/gamestates/{FACTION_TYPE}/0/Value/CombatLogs/1"
-    assert "Fixture Design" not in repr(log.entries)  # design names are campaign content and are not kept
+    # Design dataNames are kept for computation only; the entry's sides never carry them.
+    assert "Fixture Design" not in repr(tuple(entry.sides for entry in log.entries))
     assert report.findings == ()
 
 

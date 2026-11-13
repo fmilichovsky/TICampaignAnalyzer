@@ -162,6 +162,8 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
         "fleet",
         "lastRefitDate",
         "kills",
+        "currentMass_kg",
+        "propellant_tons",
     ),
     "TIWarState": COMMON_FIELDS
     + (
@@ -1058,12 +1060,10 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         (
             UnsupportedReason.DERIVED_CACHE,
             (
-                "propellant_tons",
                 "cruiseAcceleration_mps2",
                 "combatAcceleration_mps2",
                 "currentDeltaV_kps",
                 "currentMaxDeltaV_kps",
-                "currentMass_kg",
                 "armor",
                 "damagedParts",
                 "damagedSystems",

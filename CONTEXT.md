@@ -108,6 +108,29 @@ _Avoid_: magnitude, size, weight
 The world total a stake is a share of, such as nation power, population or organization strength.
 _Avoid_: metric (a nation metric is a statistic, not a stake measure)
 
+**Space share**:
+A faction's share of human space holdings: the mean of its share of human habs, weighted by tier squared, and its
+share of human ship dry mass. Each total has a floor, so a share stays defined before humans hold anything there.
+
+**Saturation**:
+The human space holdings at which space counts fully in a faction stake; below it, space counts in proportion.
+_Avoid_: floor (the floor only keeps a share defined; it is far smaller for habs)
+
+**Faction stake**:
+A human faction's weight in the world: its Earth share (each nation's power share times the faction's share of that
+nation's control points), blended with its space share in proportion to how far humans have reached the
+saturation. The alien faction is the backdrop: its stake is its Earth share alone.
+_Avoid_: faction power, faction strength
+
+**Contested mass**:
+How much of a combat was really fought: the smaller side's dry mass plus the larger side's, capped at a multiple of
+the smaller one, with alien ships weighted up. A large fleet swatting a scout contests little; the outcome never
+changes it.
+_Avoid_: battle size, fleet size
+
+**Dry mass**:
+A ship's mass without its propellant; the save's current mass includes propellant, which swings with refuelling.
+
 ### Narration
 
 **Narrator package**:
