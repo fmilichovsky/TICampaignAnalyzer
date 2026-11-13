@@ -100,6 +100,19 @@ def band(statistic: str, value: float) -> str:
     return BANDS[statistic][_index(statistic, value)][1]
 
 
+UNREST_SEVERE = 4.5
+"""The lower bound of Insurgency."""
+COHESION_EXTREMES = (1.0, 9.0)
+"""Fragmented below the first, Hegemonic and Monolithic from the second."""
+ALWAYS_MAJOR = frozenset({"democracy", "education", "militaryTechLevel"})
+"""The statistics whose every band shift is major."""
+
+
+def crosses(boundary: float, before: float, after: float) -> bool:
+    """Whether a move from ``before`` to ``after`` passes ``boundary``."""
+    return (before < boundary) != (after < boundary)
+
+
 def crossed(statistic: str, before: float, after: float) -> Crossing | None:
     """The band move from ``before`` to ``after``; ``None`` when both are in one band."""
     start, end = _index(statistic, before), _index(statistic, after)

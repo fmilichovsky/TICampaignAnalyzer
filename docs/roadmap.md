@@ -182,6 +182,6 @@ Tracking #249.
   - [x] One top-N promotion helper (#352).
   - [x] One ranking of nations (#353).
   - [x] Scored from kinds: geopolitics rules (#355).
-  - [ ] Scored from kinds: nation-metric and diplomacy rules (#356).
+  - [x] Scored from kinds: nation-metric and diplomacy rules (#356).
   - [ ] Scored from kinds: asset and space rules (#357).
   - [ ] Rules no longer choose a level (#358).
