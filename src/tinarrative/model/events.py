@@ -96,27 +96,22 @@ UNSCORED: Final = -1
 
 @dataclass(frozen=True)
 class SignificanceBasis:
-    """How a stake moved an event's score: ``score = clamp(base + scale + bonus, 0, 100)`` (ADR-0011)."""
+    """How a stake moved an event's score: ``score = clamp(base + scale, 0, 100)`` (ADR-0011)."""
 
     base: int
     measure: StakeMeasure
     share: float
     scale: int
     entities: tuple[EntityRef, ...]
-    bonus: int = 0
-    """Points a type adds beyond the share (a war between nuclear-armed nations)."""
 
     def to_dict(self) -> dict[str, Any]:
-        document: dict[str, Any] = {
+        return {
             "base": self.base,
             "measure": self.measure.value,
             "share": self.share,
             "scale": self.scale,
             "entities": [to_jsonable(ref) for ref in self.entities],
         }
-        if self.bonus:
-            document["bonus"] = self.bonus
-        return document
 
 
 class DateBasis(StrEnum):

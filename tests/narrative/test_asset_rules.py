@@ -7,7 +7,7 @@ from collections.abc import Sequence
 import pytest
 
 from tests.narrative.support import atomic, nation, nation_row, powered, situation, with_rest
-from tinarrative.config import NarrativeSettings, NationMetricsSettings, SignificanceSettings
+from tinarrative.config import NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from tinarrative.model.entities import EntityRef
@@ -23,6 +23,7 @@ from tinarrative.narrative.assets import (
     SPACE_DEFENCES_ESTABLISHED,
     SPACE_PROGRAM_GROWTH,
 )
+from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.situation import NationSituation, SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -32,7 +33,6 @@ KEYS = (K0, K1, K2)
 PREVIOUS = {K1: K0, K2: K1}
 NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
-SCALING = SignificanceSettings()
 
 
 def army(key: str, number: int, kind: str = "Standard", event_type: str = "army.appeared") -> Event:
@@ -149,7 +149,7 @@ def test_an_army_event_scales_with_its_nations_power_share(
 
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
     )
     assert micro.significance is Significance.MINOR
 

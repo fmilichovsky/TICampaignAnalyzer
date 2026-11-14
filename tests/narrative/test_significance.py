@@ -498,18 +498,11 @@ def test_the_stake_is_read_on_the_later_side_for_an_entity_that_exists_only_ther
     assert result.significance_basis is not None and result.significance_basis.share == 0.2
 
 
-def test_a_war_sums_both_nations_and_nuclear_arms_on_both_sides_add_the_bonus(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_war_sums_both_nations(monkeypatch: pytest.MonkeyPatch) -> None:
     pair = (nation_ref(BIG), nation_ref(OTHER))
     war = scaled_event("nation.relation_changed", *pair, relation="wars")
-    unarmed = scored(monkeypatch, war, power=POWER)
-    assert unarmed.significance_basis is not None
-    assert unarmed.significance_basis.share == 0.4 and unarmed.significance_basis.bonus == 0
-    armed_states = tuple(state(NATION, key, BEFORE, numNuclearWeapons=3) for key in (BIG, OTHER))
-    armed = scored(monkeypatch, war, power=POWER, states=armed_states)
-    assert armed.significance_basis is not None and armed.significance_basis.bonus == 5
-    assert armed.score == unarmed.score + 5
-    one_sided = scored(monkeypatch, war, power=POWER, states=armed_states[:1])
-    assert one_sided.significance_basis is not None and one_sided.significance_basis.bonus == 0
+    result = scored(monkeypatch, war, power=POWER)
+    assert result.significance_basis is not None and result.significance_basis.share == 0.4
 
 
 def test_only_wars_are_scaled_among_relations(monkeypatch: pytest.MonkeyPatch) -> None:

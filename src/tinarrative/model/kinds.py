@@ -33,22 +33,17 @@ class Rule(StrEnum):
 
 
 class StakeMeasure(StrEnum):
-    """The world total a stake is a share of. The first three are ``config.ReferenceSettings`` keys; the space and
-    faction measures have code constants for their references (``narrative.significance.CODE_REFERENCES``)."""
+    """The world total a stake is a share of. Each measure's reference, label and description are its entry in
+    ``narrative.measures.MEASURES``."""
 
     POWER = "power"
     POPULATION = "population"
     ORGANIZATION = "organization"
     HAB = "hab"
-    """A hab's tier² over the human habs' total (at least ``prominence.HAB_FLOOR``)."""
     FLEET = "fleet"
-    """A ship's or fleet's dry mass over the human ships' total (at least ``prominence.FLEET_SATURATION``)."""
     BATTLE = "battle"
-    """A combat's contested mass over the world's weighted ship mass."""
     FACTION = "faction"
-    """A faction's weight in the world: its Earth share blended with its space share."""
     NUCLEAR = "nuclear"
-    """The nuclear share: a nuclear arc's net move over the world's warheads at the arc's larger end."""
 
 
 class Stake(StrEnum):
@@ -64,8 +59,7 @@ class Stake(StrEnum):
     TARGETS = "targets"
     """A narrative-event stake: the power share of the nations in the target role."""
     WAR_SIDES = "war_sides"
-    """A narrative-event stake: the power share of every attacker and defender, with the nuclear bonus when both sides
-    hold warheads."""
+    """A narrative-event stake: the power share of every attacker and defender."""
     MEMBERS = "members"
     """A narrative-event stake: the power share of every nation that was a member."""
     REGIONS = "regions"

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from tests.narrative.support import atomic, faction, nation, nation_row, powered, situation, with_rest
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings, SignificanceSettings
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import RELATION_CHANGED
@@ -13,6 +13,7 @@ from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.diplomacy import REALIGNMENT
+from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -28,7 +29,6 @@ WEST = nation("23", "Westland")
 FAR = nation("24", "Farland")
 RESISTANCE = faction("15", "Resistance")
 SERVANTS = faction("16", "Servants")
-SCALING = SignificanceSettings()
 
 
 def relation(key: str, one: EntityRef, other: EntityRef, field: str = "allies", transition: str = "added") -> Event:
@@ -204,7 +204,7 @@ def test_a_realignment_scales_with_its_nations_power_share_alone() -> None:
     [item] = great
     assert item.significance is Significance.CAMPAIGN_DEFINING
     assert item.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
     )
     assert [item.significance for item in micro] == [Significance.MINOR]
 

@@ -13,8 +13,8 @@ from tinarrative.model.events import Event, Significance
 from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import Observed, Unknown
 from tinarrative.narrative import aggregate, narrative_rules
+from tinarrative.narrative.measures import MEASURES
 from tinarrative.narrative.nation_metrics import NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT
-from tinarrative.narrative.significance import CODE_REFERENCES
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -155,7 +155,7 @@ def test_a_great_buildup_outranks_a_token_one() -> None:
 
 
 def test_a_one_warhead_armament_stays_major_in_a_world_at_the_reference() -> None:
-    world = round(1 / CODE_REFERENCES[StakeMeasure.NUCLEAR])
+    world = round(1 / MEASURES[StakeMeasure.NUCLEAR].reference)
     (arc,) = built([weapons(K1, 0, 1)], arsenals({K0: 0, K1: 1}, south=world - 1))
     assert arc.event_type == NUCLEAR_ARMAMENT and arc.significance is Significance.MAJOR
     assert arc.significance_basis is not None and arc.significance_basis.scale >= 0
