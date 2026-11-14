@@ -408,8 +408,12 @@ def test_uncatalogued_org_category_comes_from_its_stats() -> None:
         assert (org["origin"], org["category"], org["basis"], org["template"]) == ("real", category, "stats", template)
 
 
-ROUTINE = "{day} May 2031: Name rolled a Success for the {mission} mission in the {region} region of Fixture."
+ROUTINE = "{day} May 2031: Name rolled a {roll} for the {mission} mission in the {region} region of {nation}."
 COMPLETED = "<color=#fff>01 May 2031</color>: Name completed their {mission} mission in the {region} region of Fixture."
+
+
+def _rolled(mission: str, region: str, nation: str = "Fixture", roll: str = "Success", day: str = "01") -> str:
+    return ROUTINE.format(day=day, roll=roll, mission=mission, region=region, nation=nation)
 
 
 def _outcome_event(
@@ -446,21 +450,22 @@ def _mission_world() -> Any:
 
 
 def test_missions_come_from_the_outcomes_of_the_whole_career_ranked_by_type_with_regions() -> None:
-    def routine(councilor: str, date: str, mission: str, region: str) -> Event:
-        return _outcome_event(councilor, date, ROUTINE.format(day="01", mission=mission, region=region))
+    def routine(councilor: str, date: str, mission: str, region: str, nation: str) -> Event:
+        return _outcome_event(councilor, date, _rolled(mission, region, nation))
 
+    usa = "the United States of America"
     career = [
-        routine("100", "2031-05-01T00:00:00", "Advise", "Washington"),
-        routine("100", "2031-04-01T00:00:00", "Advise", "Washington"),
-        routine("100", "2031-03-01T00:00:00", "Advise", "Beijing"),
-        routine("100", "2031-02-01T00:00:00", "Advise", "Beijing"),
-        routine("100", "2031-01-01T00:00:00", "Advise", "Beijing"),
-        routine("100", "2030-12-01T00:00:00", "Advise", "Cairo"),
-        routine("100", "2030-11-01T00:00:00", "Advise", "Delhi"),
-        routine("100", "2030-10-01T00:00:00", "Turn Councilor", "Lima"),
-        routine("100", "2030-09-01T00:00:00", "Turn Councilor", "Lima"),
-        routine("100", "2030-08-01T00:00:00", "Inspire", "Oslo"),
-        routine("110", "2031-05-01T00:00:00", "Advise", "Washington"),
+        routine("100", "2031-05-01T00:00:00", "Advise", "Washington", usa),
+        routine("100", "2031-04-01T00:00:00", "Advise", "Washington", usa),
+        routine("100", "2031-03-01T00:00:00", "Advise", "Beijing", "China"),
+        routine("100", "2031-02-01T00:00:00", "Advise", "Beijing", "China"),
+        routine("100", "2031-01-01T00:00:00", "Advise", "Beijing", "China"),
+        routine("100", "2030-12-01T00:00:00", "Advise", "Cairo", "Egypt"),
+        routine("100", "2030-11-01T00:00:00", "Advise", "Delhi", "India"),
+        routine("100", "2030-10-01T00:00:00", "Turn Councilor", "Lima", "Peru"),
+        routine("100", "2030-09-01T00:00:00", "Turn Councilor", "Lima", "Peru"),
+        routine("100", "2030-08-01T00:00:00", "Inspire", "Oslo", "Norway"),
+        routine("110", "2031-05-01T00:00:00", "Advise", "Washington", usa),
     ]
     dossier = _build(_mission_world(), CouncilorSettings(missions_per_councilor=2), career=career)
     player, rival = dossier["councilors"]
@@ -474,29 +479,50 @@ def test_missions_come_from_the_outcomes_of_the_whole_career_ranked_by_type_with
                 "mission": "Advise",
                 "count": 7,
                 "regions": [
-                    {"name": "Beijing", "count": 3},
-                    {"name": "Washington", "count": 2},
-                    {"name": "Cairo", "count": 1},
+                    {"name": "Beijing", "nation": "China", "count": 3},
+                    {"name": "Washington", "nation": "United States of America", "count": 2},
+                    {"name": "Cairo", "nation": "Egypt", "count": 1},
+                ],
+                "nations": [
+                    {"name": "China", "count": 3},
+                    {"name": "United States of America", "count": 2},
+                    {"name": "Egypt", "count": 1},
                 ],
             },
-            {"mission": "Turn Councilor", "count": 2, "regions": [{"name": "Lima", "count": 2}]},
+            {
+                "mission": "Turn Councilor",
+                "count": 2,
+                "regions": [{"name": "Lima", "nation": "Peru", "count": 2}],
+                "nations": [{"name": "Peru", "count": 2}],
+            },
         ],
     }
     assert "missions" not in rival
 
 
-def test_missions_skip_aborted_unreadable_unattributed_and_old_outcomes() -> None:
+def test_missions_count_successes_and_skip_failed_aborted_unreadable_unattributed_and_old_outcomes() -> None:
+    def failed(date: str, roll: str, outcome: str) -> Event:
+        return _outcome_event("100", date, _rolled("Purge", "Oslo", roll=roll), outcome=outcome)
+
     career = [
-        _outcome_event("100", "2031-05-01T00:00:00", ROUTINE.format(day="01", mission="Advise", region="Oslo")),
+        _outcome_event("100", "2031-05-01T00:00:00", _rolled("Advise", "Oslo")),
         _outcome_event("100", "2031-05-02T00:00:00", COMPLETED.format(mission="Advise", region="Oslo")),
+        _outcome_event(
+            "100",
+            "2031-05-02T00:00:00",
+            _rolled("Advise", "Oslo", roll="Critical Success"),
+            outcome="CriticalSuccess",
+        ),
+        failed("2031-05-03T00:00:00", "Failure", "Failure"),
+        failed("2031-05-03T00:00:00", "Critical Failure", "CriticalFailure"),
         _outcome_event("100", "2031-05-03T00:00:00", "Name aborted a pending Inspire mission.", outcome="Aborted"),
         _outcome_event("100", "2031-05-04T00:00:00", "Something else happened."),
-        _outcome_event("100", "2028-05-01T00:00:00", ROUTINE.format(day="01", mission="Coup", region="Oslo")),
+        _outcome_event("100", "2028-05-01T00:00:00", _rolled("Coup", "Oslo")),
         _outcome_event("100", "2031-05-05T00:00:00", "x", template="LogNewCouncilorTurn"),
     ]
     missions = _build(_mission_world(), career=career)["councilors"][0]["missions"]
-    assert [(item["mission"], item["count"]) for item in missions["types"]] == [("Advise", 2)]
-    assert missions["outcomes_seen"] == 2
+    assert [(item["mission"], item["count"]) for item in missions["types"]] == [("Advise", 3)]
+    assert missions["outcomes_seen"] == 3
 
 
 def test_missions_of_a_single_save_come_from_its_own_log() -> None:
@@ -521,8 +547,8 @@ def test_missions_of_a_single_save_come_from_its_own_log() -> None:
         "notificationSummaryQueue",
         RecordKind.NOTIFICATION_LOG,
         (
-            entry(0, councilor_ref("100"), ROUTINE.format(day="01", mission="Advise", region="Oslo")),
-            entry(1, None, ROUTINE.format(day="02", mission="Advise", region="Oslo")),
+            entry(0, councilor_ref("100"), _rolled("Advise", "Oslo", "Norway")),
+            entry(1, None, _rolled("Advise", "Oslo", "Norway", day="02")),
             entry(2, councilor_ref("100"), "Name aborted a pending Inspire mission.", "Aborted"),
         ),
     )
@@ -538,7 +564,14 @@ def test_missions_of_a_single_save_come_from_its_own_log() -> None:
     )
     missions = _build(snap)["councilors"][0]["missions"]
     assert missions["outcomes_seen"] == 1
-    assert missions["types"] == [{"mission": "Advise", "count": 1, "regions": [{"name": "Oslo", "count": 1}]}]
+    assert missions["types"] == [
+        {
+            "mission": "Advise",
+            "count": 1,
+            "regions": [{"name": "Oslo", "nation": "Norway", "count": 1}],
+            "nations": [{"name": "Norway", "count": 1}],
+        }
+    ]
 
 
 def test_missions_of_a_councilor_without_outcomes_are_an_empty_sample() -> None:
