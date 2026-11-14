@@ -78,6 +78,8 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Space and faction stakes (#200).
   - [ ] Remove the top-N promotion (#362).
   - [ ] Narrator length and recall by score (#201).
+- [ ] Stake calibration dashboard (#446):
+  - [x] Public rule layers and the takeover wave member gate (#459).
 - [x] Councilor profiles (#222):
   - [x] Missions and councilor dates (#228).
   - [x] Dossier and dry run (#229).
