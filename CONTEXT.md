@@ -66,6 +66,8 @@ in)
 **Member**:
 A narrative event that a larger one groups, as a takeover wave groups takeovers, because the larger event's kind
 declares it. When nothing else cites it, the narrator package tells it only inside the larger event, as a digest.
+A kind may admit members only up to a level: a takeover that is campaign defining is never a member, and stays a
+narrative event of its own.
 _Avoid_: child, sub-event, wave member ("wave" is part of some event type names, not a term of its own)
 
 **Explained event**:
