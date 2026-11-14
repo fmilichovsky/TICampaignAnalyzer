@@ -1,7 +1,8 @@
 """The councilor brief: the model-facing rendering of the dossier header and one entry (ADR-0020).
 
 The dossier stays the audit artifact; only the brief omits, rewords or bands what the model reads. No faction name
-reaches the brief: the person's faction becomes a stance, and career events become plain dated lines.
+reaches the brief: the person's faction becomes a stance, career events become plain dated lines, and missions
+become activities as the public would see them.
 """
 
 from __future__ import annotations
@@ -80,6 +81,106 @@ POLICY_LABELS = {
 }
 POLICY_STRENGTHS = ((0.10, "leading"), (0.05, "strong"), (0.0, "modest"))
 POLICY_FOCUS = ((1.5, "single-issue"), (2.5, "focused"))
+NATION = "nation"
+REGION = "region"
+_MISSION_PHRASE_ROWS: tuple[tuple[tuple[str, ...], str, str, str], ...] = (
+    # Seen in the logs, keyed by their log wording; the game's other names follow where they differ.
+    (("Advise",), "advising the government", "of", NATION),
+    (("Public Campaign", "Propaganda"), "public campaigning", "in", NATION),
+    (("Stabilize Nation", "Stabilize"), "working to calm unrest", "in", NATION),
+    (("Control Nation", "GainInfluence"), "lobbying at the highest levels of government", "in", NATION),
+    (("Set National Policy", "SetNationalPolicy"), "steering national policy", "in", NATION),
+    (("Defend Interests", "DefendInterests"), "shoring up officials and institutions under pressure", "in", NATION),
+    (("Crackdown",), "pressing investigations and scandals against sitting officials", "in", REGION),
+    (("Purge",), "pushing for changes of leadership in government posts", "in", REGION),
+    (
+        ("Investigate Councilor", "InvestigateCouncilor"),
+        "looking into the affairs of other public figures",
+        "in",
+        REGION,
+    ),
+    (
+        ("Inspire", "Inspire Councilor"),
+        "holding long discussions of principle with like-minded public figures",
+        "in",
+        REGION,
+    ),
+    (("Hostile Takeover", "HostileTakeover"), "buying up control of organizations", "in", REGION),
+    (("Turn Councilor", "Turn"), "holding private meetings with public figures of differing views", "in", REGION),
+    (("Detain Councilor", "Detain"), "pressing for the arrest of other public figures", "in", REGION),
+    (("Extract Councilor", "Extract"), "securing the release of detained public figures", "in", REGION),
+    (("Increase Unrest", "Unrest"), "stirring public discontent", "in", REGION),
+    (("Assassinate", "Assassinate Councilor"), "being nearby when prominent figures died suddenly", "in", REGION),
+    (("Go To Ground", "GoToGround"), "dropping out of public view", "in", REGION),
+    (("Surveil Location", "DetectCouncilActivity"), "staying on for unexplained lengths of time", "in", REGION),
+    (
+        ("Investigate Alien Activity", "InvestigateAlienActivity"),
+        "looking into reports of alien activity",
+        "in",
+        REGION,
+    ),
+    (("Assault Alien Asset", "AssaultAlienAsset"), "leading armed operations against alien sites", "in", REGION),
+    (("Contact", "Contact Councilor"), "holding unexplained private meetings", "in", REGION),
+    # Not seen yet: the log wording is unknown, so both of the game's names are keys.
+    (("Coup d'Etat", "Coup"), "backing a sudden seizure of power", "in", NATION),
+    (("Protect Councilor", "Protect"), "guarding other public figures", "in", REGION),
+    (
+        ("Sabotage Facilities", "SabotageFacilities"),
+        "being present around incidents at launch and control facilities",
+        "in",
+        REGION,
+    ),
+    (
+        ("Sabotage Hab Module", "SabotageHabModule"),
+        "being present around accidents aboard space stations",
+        "in",
+        REGION,
+    ),
+    (
+        ("Sabotage Project", "SabotageProject"),
+        "being around private labs when their research suffered setbacks",
+        "in",
+        REGION,
+    ),
+    (("Steal Project", "StealProject"), "snooping around private research labs", "in", REGION),
+    (("Control Space Asset", "ControlSpaceAsset"), "lobbying the crews of spacecraft and stations", "in", REGION),
+    (("Seize Space Asset", "SeizeSpaceAsset"), "leading boarding operations in space", "in", REGION),
+    (("Orbit",), "travelling to orbit", "from", REGION),
+    (("Deorbit",), "returning from orbit to Earth", "near", REGION),
+    (("Transfer",), "travelling in space", "from", REGION),
+    # Alien missions, which Protectorate and Servant councilors can come to run.
+    (("Abductions",), "being present in areas struck by mass disappearances", "in", REGION),
+    (("Enthrall Elites", "EnthrallElites"), "gaining an unusual hold over officials", "in", REGION),
+    (("Enthrall Unaligned Elites", "EnthrallUnalignedElites"), "gaining an unusual hold over officials", "in", NATION),
+    (("Enthrall Org", "EnthrallOrg"), "gaining unusual sway over organizations", "in", REGION),
+    (("Enthrall Public", "EnthrallPublic"), "drawing an unusually devoted public following", "in", REGION),
+    (("Xenoform",), "being present where unfamiliar plant life spread", "in", REGION),
+    (("Terrorize Region", "TerrorizeRegion"), "being present during waves of fear and violence", "in", REGION),
+    (
+        ("Pass Technology", "PassTechnology"),
+        "sharing unexplained technical knowledge with other public figures",
+        "in",
+        REGION,
+    ),
+    (
+        ("Grant Alien Control", "AssumeControl"),
+        "brokering the handover of government authority to the visitors",
+        "in",
+        NATION,
+    ),
+    (("Build Facility", "BuildFacility"), "overseeing construction of an alien installation", "in", REGION),
+    (("Dominate Nation", "DominateNation"), "tightening an unusual grip on the government", "of", NATION),
+)
+MISSION_PHRASES: dict[str, tuple[str, str, str]] = {
+    name: (phrase, preposition, scope) for names, phrase, preposition, scope in _MISSION_PHRASE_ROWS for name in names
+}
+"""What the public would see of a mission type, by its name in the log: a phrase, the preposition before its place,
+and whether the place is the nation or the region.
+
+The game's mission template table (https://wiki.hoodedhorse.com/Terra_Invicta/TIMissionTemplate_CSV) lists every
+type; the victory missions have no phrase. A phrase names the visible means, never the game's verb for a covert act,
+and holds for a success, the only outcome the dossier counts. A type without a phrase never reaches the brief.
+"""
 PUBLIC_MAX = 5
 PRIVATE_MAX = 17
 _CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
@@ -102,6 +203,11 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
             value = _traits(value)
         elif key == "policy_influence" and isinstance(value, Mapping):
             value = _policy_influence(value)
+        elif key == "missions":
+            activities = _activities(value) if isinstance(value, Mapping) else []
+            if activities:
+                councilor["activities"] = activities
+            continue
         if key == "visibility" and isinstance(value, Mapping):
             value = _visibility(value)
         elif key == "orgs" and isinstance(value, list):
@@ -160,6 +266,36 @@ def _policy_influence(value: Mapping[str, Any]) -> dict[str, Any]:
         if isinstance(causes, list)
         else [],
     }
+
+
+def _activities(missions: Mapping[str, Any]) -> list[str]:
+    """The phrased mission types in rank order, each with its places; a type seen once only when it stands alone."""
+    phrased = [
+        (MISSION_PHRASES[item["mission"]], item)
+        for item in missions.get("types", ())
+        if isinstance(item, Mapping) and isinstance(item.get("mission"), str) and item["mission"] in MISSION_PHRASES
+    ]
+    if len(phrased) > 1:
+        phrased = [(phrase, item) for phrase, item in phrased if item.get("count") != 1]
+    return [_activity(phrase, preposition, _places(item, scope)) for (phrase, preposition, scope), item in phrased]
+
+
+def _places(item: Mapping[str, Any], scope: str) -> list[str]:
+    places: list[str] = []
+    for place in item.get("nations" if scope == NATION else "regions", ()):
+        if not isinstance(place, Mapping) or not isinstance(place.get("name"), str):
+            continue
+        nation = place.get("nation")
+        places.append(f"{place['name']}, {nation}" if isinstance(nation, str) else place["name"])
+    return places
+
+
+def _activity(phrase: str, preposition: str, places: list[str]) -> str:
+    if not places:
+        return phrase
+    separator = "; " if any("," in place for place in places) else ", "
+    joined = places[0] if len(places) == 1 else f"{separator.join(places[:-1])} and {places[-1]}"
+    return f"{phrase} {preposition} {joined}"
 
 
 def _policy_strength(value: int | float) -> str:

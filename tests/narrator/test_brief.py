@@ -4,12 +4,14 @@ names no faction."""
 from __future__ import annotations
 
 import copy
+import json
 from collections.abc import Iterator
 from typing import Any
 
 from tinarrative.narrator.brief import (
     AUDIT_KEYS,
     HEADER_KEYS,
+    MISSION_PHRASES,
     NAMED_AUDIT_KEYS,
     ORG_AUDIT_KEYS,
     VISIBILITY_AUDIT_KEYS,
@@ -65,7 +67,14 @@ ENTRY: dict[str, Any] = {
     ],
     "missions": {
         "sample": True,
-        "types": [{"mission": "Advise", "count": 2, "regions": [{"name": "Hefei", "count": 2}]}],
+        "types": [
+            {
+                "mission": "Advise",
+                "count": 2,
+                "regions": [{"name": "Hefei", "nation": "China", "count": 2}],
+                "nations": [{"name": "China", "count": 2}],
+            }
+        ],
     },
 }
 DOSSIER: dict[str, Any] = {
@@ -105,7 +114,7 @@ def test_the_brief_holds_the_header_date_and_the_entry_without_audit_fields() ->
 def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> None:
     councilor = councilor_brief(DOSSIER, ENTRY)["councilor"]
 
-    kept = set(ENTRY) - AUDIT_KEYS - {"faction"}
+    kept = set(ENTRY) - AUDIT_KEYS - {"faction", "missions"}
     assert [key for key in councilor if key in kept] == [key for key in ENTRY if key in kept]
     for key in kept - {"visibility", "orgs", "career", "home", "policy_influence", "profession", "traits"}:
         assert councilor[key] == ENTRY[key]
@@ -252,3 +261,81 @@ def test_career_items_become_plain_dated_lines_without_status_or_organization_ch
         "detained",
     ]
     assert "Fixture" not in str(lines)
+
+
+SEEN_MISSIONS = (
+    "Advise",
+    "Investigate Councilor",
+    "Public Campaign",
+    "Stabilize Nation",
+    "Control Nation",
+    "Inspire",
+    "Hostile Takeover",
+    "Defend Interests",
+    "Crackdown",
+    "Set National Policy",
+    "Purge",
+    "Surveil Location",
+    "Turn Councilor",
+    "Assassinate",
+    "Go To Ground",
+    "Detain Councilor",
+    "Increase Unrest",
+    "Extract Councilor",
+    "Investigate Alien Activity",
+    "Assault Alien Asset",
+    "Contact",
+)
+"""The mission types of the resolved-mission log entries in the benchmark campaigns, by their log wording."""
+
+
+def _mission(name: str, count: int, *regions: tuple[str, str]) -> dict[str, Any]:
+    nations: dict[str, int] = {}
+    for _, nation in regions:
+        nations[nation] = nations.get(nation, 0) + 1
+    return {
+        "mission": name,
+        "count": count,
+        "regions": [{"name": region, "nation": nation, "count": 1} for region, nation in regions],
+        "nations": [{"name": nation, "count": n} for nation, n in nations.items()],
+    }
+
+
+def _activities(*types: dict[str, Any]) -> object:
+    entry = {**ENTRY, "missions": {"sample": True, "outcomes_seen": 9, "types": list(types)}}
+    return councilor_brief(DOSSIER, entry)["councilor"].get("activities")
+
+
+def test_every_mission_type_seen_in_the_samples_has_a_public_phrase() -> None:
+    assert [name for name in SEEN_MISSIONS if name not in MISSION_PHRASES] == []
+
+
+def test_missions_become_activities_placed_by_nation_or_by_region() -> None:
+    activities = _activities(
+        _mission("Advise", 5, ("Beijing", "China"), ("Shanghai", "China"), ("Almaty", "Kazakhstan")),
+        _mission("Assassinate", 2, ("Lisbon", "Portugal"), ("Madrid", "Spain")),
+    )
+
+    assert activities == [
+        "advising the government of China and Kazakhstan",
+        "being nearby when prominent figures died suddenly in Lisbon, Portugal and Madrid, Spain",
+    ]
+    brief = councilor_brief(DOSSIER, ENTRY)
+    assert "missions" not in brief["councilor"]
+    assert brief["councilor"]["activities"] == ["advising the government of China"]
+
+
+def test_an_unphrased_type_is_dropped_and_a_single_sighting_only_stands_alone() -> None:
+    assert _activities(_mission("Close the Gate", 4, ("Oslo", "Norway"))) is None
+    assert _activities(_mission("Purge", 1, ("Oslo", "Norway"))) == [
+        "pushing for changes of leadership in government posts in Oslo, Norway"
+    ]
+    activities = _activities(
+        _mission("Close the Gate", 4, ("Oslo", "Norway")),
+        _mission("Public Campaign", 3, ("Lima", "Peru")),
+        _mission("Purge", 1, ("Oslo", "Norway")),
+    )
+    assert activities == ["public campaigning in Peru"]
+    assert "Close the Gate" not in json.dumps(
+        councilor_brief(DOSSIER, {**ENTRY, "missions": {"types": [_mission("Close the Gate", 4)]}})
+    )
