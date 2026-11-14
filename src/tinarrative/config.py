@@ -227,7 +227,7 @@ class CouncilorSettings:
     missions_per_councilor: int = _int(3, 0)
     """A player councilor's dossier keeps this many mission types, the most frequent first."""
     missions_window_years: int = _int(2, 1)
-    """The dossier counts the missions resolved in this many years before the latest save."""
+    """The dossier counts the missions that succeeded in this many years before the latest save."""
     article_words: int = _int(300, 1)
     """The length each article request asks for; also carried in the dossier header."""
 

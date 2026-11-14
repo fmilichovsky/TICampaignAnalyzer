@@ -124,13 +124,10 @@ article is set by Shape alone.
     captors or a release.  Tell them in order with their dates.  When there are none,
     say nothing about milestones: never write that none are known or
     recorded.
-  - `missions` (some entries only): the activities the person is most
-    associated with, from a sample of the recent past.  `types` lists mission
-    types, each with a `count` and its most frequent `regions`.  Put the type
-    into what the public would see ("frequently advises the government of
-    Kazakhstan", "known for humanitarian work in East Africa", "a series of
-    public campaigns in Brazil"); `count` is frequency, so say "often" or
-    "repeatedly", never the number.
+  - `activities` (some entries only): what the person has been seen doing
+    in support of their cause, most characteristic first, each with where it
+    happened.  Put each into your own words; the first may be called
+    frequent or repeated, nothing stronger.
 
 ## Facts
 
@@ -214,7 +211,7 @@ Write about `length` words, in this order, as continuous prose:
   `policy_influence` they are publicly identified with, and a general theme
   of how the holdings fit together and serve that agenda.
 - `#### Public life`: what the person is seen doing and how they are seen.
-  The activities in `missions` as a sample of what they commonly do in
+  The `activities` as a sample of what they commonly do in
   support of their cause, and from `career` only a detention or a release,
   with its date; a change of stance is never told again here.  Then
   manner, public image and present situation from the `temperament`,
@@ -244,7 +241,7 @@ section to the next, and do not reuse the wording of this prompt.
 
 Before returning, reread once for eight things only: a fact about the person
 or the world the dossier does not contain, a number for a skill, an
-organization skill, a tier or a mission count, a word from the banned list,
+organization skill or a tier, a word from the banned list,
 a title or heading above `####`, a tone that does not match
 `visibility.level`, and a subject described in more than one section.  Fix
 those and return the text.

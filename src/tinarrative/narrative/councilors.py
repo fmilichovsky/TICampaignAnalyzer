@@ -91,9 +91,12 @@ MISSION_OUTCOME_PREFIX = "LogMissionOutcome"
 REGIONS_PER_MISSION = 3
 _MARKUP = re.compile(r"<[^>]+>")
 _MISSION_TEXT = re.compile(
-    r"(?:rolled an? \w+ for the|completed their) (?P<mission>.+?) mission(?: in the (?P<region>.+?) region of )?"
+    r"(?:rolled an? [\w ]+? for the|completed their) (?P<mission>.+?) mission"
+    r"(?: in the (?P<region>.+?) region of (?:the )?(?P<nation>.+?)\.?\s*$)?"
 )
 """The two summary phrasings of a resolved mission; an aborted mission has another and is skipped."""
+SUCCESSES = frozenset({"Success", "CriticalSuccess"})
+"""The outcomes the dossier counts; a failed mission left nothing the public could see."""
 
 
 @dataclass(frozen=True)
@@ -102,6 +105,7 @@ class _Outcome:
     date: datetime
     mission: str
     region: str | None
+    nation: str | None
 
 
 @dataclass(frozen=True)
@@ -523,12 +527,13 @@ def _event_outcome(event: Event) -> _Outcome | None:
 def _outcome(
     template: Observed, summary: Observed, outcome: Observed, subject: Observed, date: Observed
 ) -> _Outcome | None:
-    """A resolved mission of a councilor, or ``None`` for another entry, an abort, an unattributed or unreadable one."""
+    """A successful mission of a councilor, or ``None`` for another entry, a failure, an abort, an unattributed or
+    unreadable one."""
     when = _datetime(date)
     if (
         not isinstance(template, str)
         or not template.startswith(MISSION_OUTCOME_PREFIX)
-        or outcome == "Aborted"
+        or outcome not in SUCCESSES
         or not isinstance(subject, EntityRef)
         or subject.entity_id.domain is not EntityDomain.COUNCILOR
         or not isinstance(summary, str)
@@ -538,28 +543,41 @@ def _outcome(
     match = _MISSION_TEXT.search(_MARKUP.sub("", summary))
     if match is None:
         return None
-    return _Outcome(subject.entity_id, when, match.group("mission"), match.group("region"))
+    return _Outcome(subject.entity_id, when, match.group("mission"), match.group("region"), match.group("nation"))
 
 
 def _missions(outcomes: list[_Outcome], now: datetime | None, settings: CouncilorSettings) -> dict[str, Any]:
-    """Mission types ranked by frequency, each with its most frequent regions.
+    """Mission types ranked by successes, each with its most frequent regions and nations.
 
-    The log shows only part of the mission turns, so the result is a sample of the period; it says so itself.
+    The log shows only part of the mission turns, so the result is a sample of the period; it says so itself. Failed
+    and aborted missions are not counted.
     """
-    by_type: dict[str, Counter[str | None]] = {}
+    by_type: dict[str, Counter[tuple[str | None, str | None]]] = {}
     for outcome in outcomes:
-        by_type.setdefault(outcome.mission, Counter())[outcome.region] += 1
+        by_type.setdefault(outcome.mission, Counter())[outcome.region, outcome.nation] += 1
     ranked = sorted(by_type.items(), key=lambda item: (-item[1].total(), item[0]))
     types = []
-    for mission, regions in ranked[: settings.missions_per_councilor]:
-        named = sorted(
-            ((name, count) for name, count in regions.items() if name is not None), key=lambda i: (-i[1], i[0])
+    for mission, places in ranked[: settings.missions_per_councilor]:
+        regions = sorted(
+            ((region, nation, count) for (region, nation), count in places.items() if region is not None),
+            key=lambda i: (-i[2], i[0], i[1] or ""),
         )
+        nations: Counter[str] = Counter()
+        for (_, nation), count in places.items():
+            if nation is not None:
+                nations[nation] += count
         types.append(
             {
                 "mission": mission,
-                "count": regions.total(),
-                "regions": [{"name": name, "count": count} for name, count in named[:REGIONS_PER_MISSION]],
+                "count": places.total(),
+                "regions": [
+                    {"name": region, "nation": nation, "count": count}
+                    for region, nation, count in regions[:REGIONS_PER_MISSION]
+                ],
+                "nations": [
+                    {"name": name, "count": count}
+                    for name, count in sorted(nations.items(), key=lambda i: (-i[1], i[0]))[:REGIONS_PER_MISSION]
+                ],
             }
         )
     return {

@@ -100,7 +100,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Councilor brief without audit fields (#397).
   - [x] Move dossier wording and banding into the brief (#398).
   - [x] Stances in place of faction names (#399).
-  - [ ] Public phrasing for missions (#400).
+  - [x] Public phrasing for missions (#400).
   - [ ] Plain phrases for jargon trait labels (#401).
   - [ ] Numbers as words (#402).
 - [x] Diplomatic realignments as narrative events (#173).
