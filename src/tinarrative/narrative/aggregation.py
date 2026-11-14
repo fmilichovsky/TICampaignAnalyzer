@@ -52,6 +52,28 @@ class Join(StrEnum):
     """By a shared entity within a time window."""
 
 
+@dataclass(frozen=True)
+class MemberGate:
+    """What a rule admits as the members of the larger narrative event it builds (glossary: Member).
+
+    ``member_type`` is the event type grouped, ``admitted_levels`` the significance levels a member may have (an event
+    above them stays a narrative event of its own) and ``minimum`` the fewest distinct members that make the larger
+    event.
+    """
+
+    member_type: str
+    admitted_levels: frozenset[Significance]
+    minimum: int
+
+    def admits(self, event: Event) -> bool:
+        return event.event_type == self.member_type and event.significance in self.admitted_levels
+
+
+def member_gates(rules: Sequence[NarrativeRule]) -> dict[str, MemberGate]:
+    """Every member gate the ``rules`` declare through a ``member_gate`` property, by rule name."""
+    return {rule.name: gate for rule in rules if isinstance(gate := getattr(rule, "member_gate", None), MemberGate)}
+
+
 class NarrativeRule(Protocol):
     """A named rule building narrative events of its ``emitted_types``.
 
@@ -285,7 +307,7 @@ def aggregate(
         for event_type in narrative_types
         if (kind := kinds(event_type)) is not None and kind.exclusive_constituents
     )
-    layers = _layers(rules, exclusive)
+    layers = rule_layers(rules, exclusive)
     started = time.perf_counter()
     build = NarrativeBuilder(situations, significance=significance)
     built: list[Event] = []
@@ -314,9 +336,12 @@ def aggregate(
     return narrative
 
 
-def _layers(rules: Sequence[NarrativeRule], exclusive: frozenset[str]) -> list[list[NarrativeRule]]:
-    """Each rule one layer after the latest rule emitting a type it reads or that explains its events, and after every
-    owner (a rule emitting an ``exclusive`` type) it does not feed. Two owners are ordered only by their reads."""
+def rule_layers(rules: Sequence[NarrativeRule], exclusive: frozenset[str]) -> list[list[NarrativeRule]]:
+    """The order ``aggregate`` runs ``rules`` in: each rule one layer after the latest rule emitting a type it reads or
+    that explains its events, and after every owner (a rule emitting an ``exclusive`` type) it does not feed. Two
+    owners are ordered only by their reads. ``exclusive`` holds the narrative types whose kind has exclusive
+    constituents. A cycle raises ``ValueError``.
+    """
     emitters: dict[str, set[str]] = defaultdict(set)
     for rule in rules:
         for event_type in rule.emitted_types:
