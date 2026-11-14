@@ -31,7 +31,7 @@ from ..kinds.wars import DISAPPEARED as WAR_DISAPPEARED
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import DateBasis, Event, Role, Significance
 from ..model.values import FieldValue, FrozenMap, Observed
-from .aggregation import Join, NarrativeBuilder, days_between, interval_reports
+from .aggregation import Join, MemberGate, NarrativeBuilder, days_between, interval_reports
 from .chronology import TIE_SEPARATOR, interval_of, interval_sort_key
 from .rulekit import (
     NATION_ARMIES_CHANGED,
@@ -390,10 +390,11 @@ class TakeoverWaveRule:
     """``faction.takeover_wave``: one faction took several nations in a short period.
 
     A takeover whose stake makes it campaign defining stays a headline narrative event of its own and never joins a
-    wave.
+    wave. ``member_gate`` declares that.
     """
 
     settings: GeopoliticsSettings
+    admitted_levels: frozenset[Significance] = frozenset({Significance.TRIVIAL, Significance.MINOR, Significance.MAJOR})
     name: str = TAKEOVER_WAVE
     emitted_types: frozenset[str] = frozenset({TAKEOVER_WAVE})
     reads: frozenset[str] = frozenset({TAKEOVER})
@@ -403,19 +404,24 @@ class TakeoverWaveRule:
     def window_days(self) -> int:
         return self.settings.takeover_wave_window_days
 
+    @property
+    def member_gate(self) -> MemberGate:
+        return MemberGate(TAKEOVER, self.admitted_levels, self.settings.takeover_wave_min_nations)
+
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.takeover_wave_window_days
+        gate = self.member_gate
         by_actor: dict[EntityId, list[Event]] = defaultdict(list)
         for takeover in by_type(stream, TAKEOVER):
             actor = _role(takeover, Role.ACTOR)
-            if actor is not None and takeover.significance is not Significance.CAMPAIGN_DEFINING:
+            if actor is not None and gate.admits(takeover):
                 by_actor[actor].append(takeover)
         last = last_date(situations)
         built = []
         for faction_id in sorted_keys(by_actor):
             for run in anchored(by_actor[faction_id], days):
                 nations = unique_refs(ref for event in run for role, ref in event.roles if role is Role.TARGET)
-                if len(nations) < self.settings.takeover_wave_min_nations:
+                if len(nations) < gate.minimum:
                     continue
                 faction = next(ref for role, ref in run[0].roles if role is Role.ACTOR)
                 built.append(

@@ -37,7 +37,8 @@ from tinarrative.model.events import (
 )
 from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap, Observed, Unknown
-from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
+from tinarrative.narrative import NARRATIVE_RULES, aggregate, default_member_gates, narrative_rules, rule_layers
+from tinarrative.narrative.geopolitics import TakeoverWaveRule
 from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.rulekit import bounded_shifts
 from tinarrative.narrative.situation import SituationReport
@@ -430,6 +431,37 @@ def test_a_campaign_defining_takeover_stays_out_of_the_wave_while_minor_ones_joi
     assert wave.attribute("nations") == (SOUTH, EAST, WEST)
     assert wave.significance_basis is not None
     assert wave.significance_basis.entities == (SOUTH, EAST, WEST) and wave.significance_basis.share == 0.003
+
+
+def test_a_gate_admitting_levels_only_up_to_minor_excludes_a_major_takeover_from_the_members() -> None:
+    stream = [_seized(K1, nation_ref) for nation_ref in (NORTH, SOUTH, EAST, WEST)]
+    situations = plain(K0, K1)
+    takeovers = of_type(built(stream, situations), TAKEOVER)
+    assert {item.significance for item in takeovers} == {Significance.MAJOR}
+    assert only(built(stream, situations), "faction.takeover_wave").attribute("count") == 4
+    minor_only = tuple(
+        replace(rule, admitted_levels=frozenset({Significance.TRIVIAL, Significance.MINOR}))
+        if isinstance(rule, TakeoverWaveRule)
+        else rule
+        for rule in NARRATIVE_RULES
+    )
+
+    assert not of_type(aggregate(stream, situations, minor_only), "faction.takeover_wave")
+
+
+def test_every_declared_member_gate_is_listed_for_the_default_rules() -> None:
+    gates = default_member_gates()
+
+    gate = gates["faction.takeover_wave"]
+    assert gate.member_type == TAKEOVER and gate.minimum == GeopoliticsSettings().takeover_wave_min_nations
+    assert gate.admitted_levels == {Significance.TRIVIAL, Significance.MINOR, Significance.MAJOR}
+
+
+def test_the_public_rule_layers_put_the_wave_after_the_takeovers_it_reads() -> None:
+    layers = rule_layers(NARRATIVE_RULES, frozenset())
+
+    position = {rule.name: index for index, layer in enumerate(layers) for rule in layer}
+    assert position["faction.takeover_wave"] > position["faction.takeover"]
 
 
 def test_a_wave_of_many_nations_outranks_one_of_few_with_members_of_the_same_size() -> None:
