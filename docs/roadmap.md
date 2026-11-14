@@ -79,7 +79,15 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [ ] Remove the top-N promotion (#362).
   - [ ] Narrator length and recall by score (#201).
 - [ ] Stake calibration dashboard (#446):
+  - [x] Stake measure registry, no nuclear bonus (#458).
   - [x] Public rule layers and the takeover wave member gate (#459).
+  - [ ] Calibration table extraction (#460).
+  - [ ] Calibration replay in Python, with pipeline parity (#461).
+  - [ ] Calibration replay in the browser, with parity against Python (#462).
+  - [ ] `benchmark calibrate report` and the calibration cache (#463).
+  - [ ] Calibration page and `benchmark calibrate open` (#464).
+  - [ ] Draft stakes: declaration, scoring seam and shadow rows (#465).
+  - [ ] Draft stakes in the readout and on the page (#466).
 - [x] Councilor profiles (#222):
   - [x] Missions and councilor dates (#228).
   - [x] Dossier and dry run (#229).

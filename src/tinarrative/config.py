@@ -145,30 +145,9 @@ class PowerSettings:
 
 
 @dataclass(frozen=True)
-class ReferenceSettings:
-    """The share at which a stake leaves a score at its base (``narrative.significance.reference``), one per measure,
-    and the escalation bonus of a war between nuclear-armed nations."""
-
-    power: float = _float(0.01, 1e-6)
-    """Nation power share; also the unit of every nation-scaled event type."""
-    population: float = _float(0.01, 1e-6)
-    """Share of world population: the territory a region or territory event moved."""
-    organization: float = _float(0.01, 1e-6)
-    """Organization tier² share."""
-    nuclear_bonus: int = _int(5, 0, 100)
-    """Points added to a war between two nations that both hold nuclear weapons, and to a war arc with warheads on
-    both sides. The power share already counts warheads through the strength estimate; the bonus stands outside the
-    clamp, so it still lifts a war of great powers whose share is at the clamp."""
-
-
-@dataclass(frozen=True)
 class SignificanceSettings:
-    """How far an event's stake may move its score from its type's base, and how stakes are measured (ADR-0011)."""
+    """How stakes are measured (ADR-0011); the scale they are read on is ``narrative.measures``."""
 
-    scale_min: int = _int(-20, -100, 0)
-    """The stake lowers a score by at most this many points."""
-    scale_max: int = _int(15, 0, 100)
-    """The stake raises a score by at most this many points."""
     tier_exponent: int = _int(2, 1)
     """An organization's stake is its tier to this power over the total of all organizations; also ranks the
     councilors of the dossier."""
@@ -176,7 +155,6 @@ class SignificanceSettings:
     """How far space counts in a human faction's stake once humans hold the saturation of habs and ships (0 to 1);
     below it, space counts in proportion."""
     power: PowerSettings = field(default_factory=PowerSettings)
-    reference: ReferenceSettings = field(default_factory=ReferenceSettings)
 
     def __post_init__(self) -> None:
         if self.w_space > 1:

@@ -21,7 +21,7 @@ from tests.narrative.support import (
     war,
     war_row,
 )
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings, SignificanceSettings
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import KINDS, describe_event
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.model.entities import EntityDomain, EntityRef
@@ -39,6 +39,7 @@ from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, default_member_gates, narrative_rules, rule_layers
 from tinarrative.narrative.geopolitics import TakeoverWaveRule
+from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.rulekit import bounded_shifts
 from tinarrative.narrative.situation import SituationReport
 
@@ -206,8 +207,6 @@ def only(events: Sequence[Event], event_type: str) -> Event:
 
 
 TAKEOVER = "faction.takeover"
-SCALING = SignificanceSettings()
-"""The default scaling: the clamp and the nuclear bonus the stake tests derive their expectations from."""
 
 
 def by_target(events: Sequence[Event]) -> dict[EntityRef, Event]:
@@ -380,9 +379,9 @@ def test_a_takeover_scales_with_its_nations_power_share_before_it() -> None:
     great, micro = takeovers[NORTH], takeovers[SOUTH]
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
     )
-    assert micro.significance_basis is not None and micro.significance_basis.scale == SCALING.scale_min
+    assert micro.significance_basis is not None and micro.significance_basis.scale == SCALE_MIN
     assert micro.significance.rank < Significance.MAJOR.rank
 
 
@@ -391,7 +390,7 @@ def test_a_low_stake_never_pulls_a_takeover_below_its_highest_cited_score() -> N
 
     takeover = only(built(stream, [powers(K0, (SOUTH, 0.1)), powers(K1)]), TAKEOVER)
 
-    assert takeover.significance_basis is not None and takeover.significance_basis.scale == SCALING.scale_min
+    assert takeover.significance_basis is not None and takeover.significance_basis.scale == SCALE_MIN
     assert takeover.score == 70
 
 
@@ -780,18 +779,7 @@ def test_a_multilateral_war_outranks_a_two_state_war_of_the_same_leading_bellige
 
     assert two.score < many.score
     assert many.significance_basis is not None
-    assert many.significance_basis.entities == (NORTH, EAST, SOUTH, WEST) and many.significance_basis.bonus == 0
-
-
-def test_the_nuclear_bonus_needs_warheads_on_both_sides_of_a_war() -> None:
-    weights = ((NORTH, 30.0), (SOUTH, 10.0), (EAST, 30.0))
-
-    opposed = _arc_of([NORTH], [SOUTH], powers(K0, *weights, armed=[NORTH, SOUTH]))
-    allied = _arc_of([NORTH, EAST], [SOUTH], powers(K0, *weights, armed=[NORTH, EAST]))
-
-    assert opposed.significance_basis is not None
-    assert opposed.significance_basis.bonus == SCALING.reference.nuclear_bonus > 0
-    assert allied.significance_basis is not None and allied.significance_basis.bonus == 0
+    assert many.significance_basis.entities == (NORTH, EAST, SOUTH, WEST)
 
 
 def test_annexations_between_belligerents_join_the_arc_and_an_expansion_nests_inside_it() -> None:
@@ -1227,7 +1215,7 @@ def test_a_release_is_scaled_by_the_new_nations_power_share_read_after_it_appear
 
     assert large.significance_basis is not None and micro.significance_basis is not None
     assert large.significance_basis.entities == (EAST,) and large.significance_basis.share == 0.1
-    assert large.significance_basis.scale > 0 and micro.significance_basis.scale == SCALING.scale_min
+    assert large.significance_basis.scale > 0 and micro.significance_basis.scale == SCALE_MIN
     assert large.score == micro.score == Significance.MAJOR.base  # the independence it cites sets the floor
 
 

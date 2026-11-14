@@ -24,6 +24,7 @@ from tinarrative.model.records import CombatEntry, RecordKind
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import assign_significance
+from tinarrative.narrative.measures import SCALE_MIN
 from tinarrative.narrative.prominence import (
     CONTEST_RATIO,
     FLEET_SATURATION,
@@ -232,4 +233,4 @@ def test_a_defection_is_scaled_by_the_stake_of_the_faction_left() -> None:
     base = KINDS["councilor.faction_changed"].base.base
     # The faction left holds nothing here (no nations, habs or ships): the lowest stake.
     assert event.significance_basis is not None and event.significance_basis.share == 0
-    assert event.score == base + DEFAULT_SETTINGS.narrative.significance.scale_min
+    assert event.score == base + SCALE_MIN

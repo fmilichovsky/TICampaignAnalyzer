@@ -248,12 +248,9 @@ def with_rest(rows: Sequence[NationSituation]) -> list[NationSituation]:
     return [*rows, powered(REST, WORLD_POWER - held, nuclear_weapons=0)]
 
 
-def powers(
-    key: str, *weights: tuple[EntityRef, float], armed: Sequence[EntityRef] = (), **kwargs: object
-) -> SituationReport:
-    """A report whose nations' power shares are their weights over 1000. ``armed`` nations hold one warhead, the
-    others none."""
-    rows = [powered(item, weight, nuclear_weapons=int(item in armed)) for item, weight in weights]
+def powers(key: str, *weights: tuple[EntityRef, float], **kwargs: object) -> SituationReport:
+    """A report whose nations' power shares are their weights over 1000; no nation holds a warhead."""
+    rows = [powered(item, weight, nuclear_weapons=0) for item, weight in weights]
     return situation(key, nations=with_rest(rows), **kwargs)  # type: ignore[arg-type]
 
 

@@ -5,13 +5,14 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from tests.narrative.support import atomic, nation, nation_row, powers, situation
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings, SignificanceSettings
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import PCGDP_TREND, POPULATION_CHANGED
 from tinarrative.model.events import DateBasis, Event, Significance, SignificanceBasis
 from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import aggregate, narrative_rules
+from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.narrative.situation import SituationReport
 
@@ -22,7 +23,6 @@ PREVIOUS = {K1: K0, K2: K1}
 NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
 REGION = nation("40", "Coast")
-SCALING = SignificanceSettings()
 
 
 def population(key: str, direction: str, *, nuked: Sequence[object] = ()) -> Event:
@@ -160,6 +160,6 @@ def test_a_backstory_trajectory_is_closed_before_the_last_interval_and_scales_wi
     assert great.attribute("before_sequence") is True and great.attribute("ratio") == 0.6 and not great.open
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
     )
     assert micro.significance is Significance.MINOR
