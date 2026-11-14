@@ -48,7 +48,7 @@ svg text { font-size: 10px; fill: var(--mute); }
 .badge.draft { border-color: #7b5ea7; color: #fff; background: #7b5ea7; }
 .badge.ruled { border-color: #ccc; }
 .badge.weak { border-color: #e0b0b0; color: #933; background: #fbefef; }
-.verdict { font-size: 12px; padding: 1px 6px; border-radius: 4px; }
+.verdict { white-space: nowrap; font-size: 12px; padding: 1px 6px; border-radius: 4px; }
 .v-keeps { background: #e7f3e7; color: #2c6b2c; } .v-loses { background: repeating-linear-gradient(45deg, #fdf0d8, #fdf0d8 4px, #f7deb0 4px, #f7deb0 8px); color: #7a4b00; }
 .v-falls { background: #fbe3e3; color: #8a1f1f; } .v-could { background: #e8eefb; color: #2a4a8a; }
 table { border-collapse: collapse; width: 100%; }
@@ -109,6 +109,18 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .C-big { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .C-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .C-kpis .panel { padding: 10px; }
+.C-filter { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+.C-filter .chip.on { background: var(--ink); color: #fff; }
+.C-type { cursor: pointer; border-bottom: 1px dotted #aaa; } .C-type:hover { color: #2c6fb3; }
+.C-x { cursor: pointer; } .C-x:hover .f, .C-x.on .f { background: #f6f7fa; }
+.C-x.on .f { font-weight: 600; }
+.C-list { max-height: 260px; overflow: auto; font-size: 12px; padding: 6px 8px 8px 14px; border-left: 2px solid var(--line); margin: 0 0 6px 4px; background: #fbfbf9; }
+.C-list > div { padding: 2px 0; }
+.C-lrow { display: grid; grid-template-columns: 190px 1fr; gap: 8px; align-items: center; margin: 5px 0; font-size: 12px; }
+.C-seg { cursor: pointer; } .C-seg:hover, .C-seg.on { outline: 2px solid var(--ink); outline-offset: -2px; }
+#pop { position: fixed; z-index: 35; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.14);
+  padding: 8px 10px; font-size: 12px; max-width: 460px; pointer-events: none; display: none; }
+#pop > div { padding: 1px 0; }
 @media (max-width: 900px) { .C-shell { grid-template-columns: 1fr; } }
 </style>
 <script src="status.js"></script>
@@ -129,6 +141,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 <main id="app"></main>
 <div id="switcher"><button id="prev" title="previous variant (←)">‹</button><span id="vlabel"></span><button id="next" title="next variant (→)">›</button><span class="tag">prototype</span></div>
 <div class="toast" id="toast"></div>
+<div id="pop"></div>
 <div class="modal" id="modal"><div class="panel"><h3>Copied to the clipboard</h3><pre id="snippet"></pre><button id="closeModal">close</button></div></div>
 
 <script>
@@ -137,7 +150,7 @@ const D = window.CALIB, R = window.Replay, ST = window.CALIB_STATUS || {};
 const rows = D.rows, drafts = D.drafts;
 const LEVELS = ["trivial", "minor", "major", "campaign-defining"];
 const SHORT = ["T", "m", "M", "CD"];
-const VARIANTS = [["A", "Bench"], ["B", "Ledger"], ["C", "Cut-offs first"]];
+const VARIANTS = [["C", "What moves"], ["A", "Bench"], ["B", "Ledger"]];
 const MEASURE_LABEL = {
   power: "nation power", population: "population", organization: "organization tier²", hab: "hab tier²", fleet: "ship mass",
   battle: "contested mass", faction: "faction weight", nuclear: "warheads moved", boost: "boost (draft)", mission_control: "mission control (draft)",
@@ -152,8 +165,8 @@ const typeLabel = (t) => t.replace(/_/g, " ").replace(".", " · ");
 
 // ---------------- state: ?variant= in the search, the calibration in the hash ----------------
 const params = new URLSearchParams(location.search);
-let variant = params.get("variant") || "A";
-const state = { m: "power", refs: { ...R.CODE_REFS }, clamp: true, camps: D.campaigns.map(() => true), dbase: { held: 62, moved: 62 }, open: null };
+let variant = params.get("variant") || "C";
+const state = { m: "power", refs: { ...R.CODE_REFS }, clamp: true, camps: D.campaigns.map(() => true), dbase: { held: 62, moved: 62 }, open: null, filter: null, expand: null };
 (function readHash() {
   const h = new URLSearchParams(location.hash.slice(1));
   if (h.get("m") && MEASURES.includes(h.get("m"))) state.m = h.get("m");
@@ -161,6 +174,7 @@ const state = { m: "power", refs: { ...R.CODE_REFS }, clamp: true, camps: D.camp
   if (h.get("clamp") === "0") state.clamp = false;
   if (h.get("c")) state.camps = D.campaigns.map((_, i) => h.get("c")[i] !== "0");
   for (const k of Object.keys(state.dbase)) if (h.get("b." + k)) state.dbase[k] = Number(h.get("b." + k));
+  if (h.get("f")) state.filter = h.get("f");
 })();
 function writeHash() {
   const h = new URLSearchParams();
@@ -169,6 +183,7 @@ function writeHash() {
   if (!state.clamp) h.set("clamp", "0");
   if (state.camps.some((x) => !x)) h.set("c", state.camps.map((x) => (x ? 1 : 0)).join(""));
   for (const k of Object.keys(state.dbase)) if (state.dbase[k] !== 62) h.set("b." + k, state.dbase[k]);
+  if (state.filter) h.set("f", state.filter);
   history.replaceState(null, "", location.pathname + location.search + "#" + h.toString());
 }
 
@@ -180,16 +195,20 @@ function compute() {
   const on = (r) => state.camps[r.c];
   const lvl = (i) => R.levelOf(real.score[i]);
   const m = state.m, ref = state.refs[m];
+  const inF = (r) => !state.filter || r.t === state.filter;
+  const typeNames = new Set();
+  rows.forEach((r) => { if (r.m === m && on(r)) typeNames.add(r.t); });
+  drafts.forEach((d) => { if (on(d) && d.cand[m]) typeNames.add(d.t); });
   // distribution
   const shares = [], dshares = [];
-  rows.forEach((r) => { if (r.m === m && on(r)) shares.push(r.sh); });
-  drafts.forEach((d) => { if (on(d) && d.cand[m]) dshares.push(d.cand[m]); });
+  rows.forEach((r) => { if (r.m === m && on(r) && inF(r)) shares.push(r.sh); });
+  drafts.forEach((d) => { if (on(d) && d.cand[m] && inF(d)) dshares.push(d.cand[m]); });
   const all = shares.concat(dshares);
   const lo = all.length ? Math.floor(Math.log10(Math.min(...all)) - 0.2) : -5;
   // types on this measure
   const types = new Map();
   rows.forEach((r, i) => {
-    if (r.m !== m || !on(r)) return;
+    if (r.m !== m || !on(r) || !inF(r)) return;
     let t = types.get(r.t);
     if (!t) types.set(r.t, (t = { t: r.t, now: [0, 0, 0, 0], was: [0, 0, 0, 0], n: 0, ruled: 0, cited: 0, rows: [], fell: 0 }));
     t.n++; t.now[lvl(i)]++; t.was[baseLevel[i]]++; t.rows.push(i);
@@ -202,13 +221,15 @@ function compute() {
     if (r.m === m || !on(r)) return;
     const d = real.decided[i];
     if (d === i || rows[d].m !== m || lvl(i) === baseLevel[i]) return;
+    typeNames.add(r.t);
+    if (!inF(r)) return;
     let t = via.get(r.t);
-    if (!t) via.set(r.t, (t = { t: r.t, moved: 0, up: 0, down: 0, own: r.m || null }));
-    t.moved++; lvl(i) > baseLevel[i] ? t.up++ : t.down++;
+    if (!t) via.set(r.t, (t = { t: r.t, moved: 0, up: 0, down: 0, own: r.m || null, rows: [] }));
+    t.moved++; t.rows.push(i); lvl(i) > baseLevel[i] ? t.up++ : t.down++;
   });
   // members (takeover waves): the member gate admits takeovers below campaign-defining
   const waves = [], could = [];
-  if (m === "power") {
+  if (m === "power" && (!state.filter || state.filter.startsWith("faction.takeover"))) {
     rows.forEach((r, i) => {
       if (!r.wave || !on(r)) return;
       const members = (r.ci || []).filter((j) => rows[j].t === "faction.takeover");
@@ -224,8 +245,8 @@ function compute() {
     if (w) for (const x of waves) if (x.verdict === "falls") { w.now[lvl(x.i)]--; w.fell++; }
   }
   // cut-offs: where a base level's score crosses a band edge
-  const bases = new Set(); rows.forEach((r) => { if (r.m === m && on(r)) bases.add(r.b); });
-  drafts.forEach((d) => { if (on(d) && d.cand[m]) bases.add(state.dbase[d.draft]); });
+  const bases = new Set(); rows.forEach((r) => { if (r.m === m && on(r) && inF(r)) bases.add(r.b); });
+  drafts.forEach((d) => { if (on(d) && d.cand[m] && inF(d)) bases.add(state.dbase[d.draft]); });
   const cutmap = new Map();
   for (const b of bases) for (const edge of [25, 50, 75]) {
     const k = edge - b; // the scale that reaches the edge
@@ -238,8 +259,8 @@ function compute() {
   cuts.forEach((c) => {
     const bs = new Set(c.bases.map((x) => x.b));
     const near = [];
-    rows.forEach((r, i) => { if (r.m === m && on(r) && bs.has(r.b)) near.push({ i, dist: Math.log10(r.sh / c.x) }); });
-    drafts.forEach((d, j) => { if (on(d) && d.cand[m] && bs.has(state.dbase[d.draft])) near.push({ draft: j, dist: Math.log10(d.cand[m] / c.x) }); });
+    rows.forEach((r, i) => { if (r.m === m && on(r) && inF(r) && bs.has(r.b)) near.push({ i, dist: Math.log10(r.sh / c.x) }); });
+    drafts.forEach((d, j) => { if (on(d) && d.cand[m] && inF(d) && bs.has(state.dbase[d.draft])) near.push({ draft: j, dist: Math.log10(d.cand[m] / c.x) }); });
     c.below = near.filter((e) => e.dist < 0).sort((a, b) => b.dist - a.dist).slice(0, 5);
     c.above = near.filter((e) => e.dist >= 0).sort((a, b) => a.dist - b.dist).slice(0, 5);
     c.count = near.length;
@@ -248,7 +269,7 @@ function compute() {
   // drafts on this measure
   const dp = [];
   for (const [id, info] of Object.entries(D.draftInfo)) {
-    const mine = drafts.map((d, j) => [d, j]).filter(([d]) => d.draft === id && on(d) && d.cand[m]);
+    const mine = drafts.map((d, j) => [d, j]).filter(([d]) => d.draft === id && on(d) && d.cand[m] && inF(d));
     if (!mine.length) continue;
     const now = [0, 0, 0, 0], realNow = [0, 0, 0, 0]; let floored = 0, ruled = 0;
     const res = mine.map(([d, j]) => {
@@ -262,7 +283,7 @@ function compute() {
   }
   // downstream: the narrator's default package (narrative events at major or above)
   let pkgNow = 0, pkgWas = 0, narr = 0;
-  rows.forEach((r, i) => { if (r.s === "n" && on(r)) { narr++; if (lvl(i) >= 2) pkgNow++; if (baseLevel[i] >= 2) pkgWas++; } });
+  rows.forEach((r, i) => { if (r.s === "n" && on(r) && inF(r)) { narr++; if (lvl(i) >= 2) pkgNow++; if (baseLevel[i] >= 2) pkgWas++; } });
   // strip: every measure's reference and how many events it moves now
   const strip = MEASURES.map((mm) => {
     let n = 0, moved = 0;
@@ -270,7 +291,7 @@ function compute() {
     const dn = drafts.filter((d) => on(d) && d.cand[mm]).length;
     return { m: mm, ref: state.refs[mm], code: R.CODE_REFS[mm], n, dn, moved, mod: state.refs[mm] !== R.CODE_REFS[mm] };
   });
-  return { real, lvl, m, ref, shares, dshares, lo, types: [...types.values()].sort((a, b) => b.n - a.n), via: [...via.values()], waves, could, cuts, dp, pkg: { now: pkgNow, was: pkgWas, narr }, strip };
+  return { typeNames: [...typeNames].sort(), real, lvl, m, ref, shares, dshares, lo, types: [...types.values()].sort((a, b) => b.n - a.n), via: [...via.values()], waves, could, cuts, dp, pkg: { now: pkgNow, was: pkgWas, narr }, strip };
 }
 
 // ---------------- shared pieces ----------------
@@ -310,7 +331,7 @@ function refControl(M) {
   <div class="mute" style="font-size:12px;margin-top:4px">window keeps the base: ${fmt(M.ref / 17.8)} … ${fmt(M.ref * 17.8)}
     · <span class="lvdot" style="background:var(--drop)"></span>drop <span class="lvdot" style="background:var(--keep)"></span>keep <span class="lvdot" style="background:var(--rise)"></span>rise
     ${M.dshares.length ? '· <span class="lvdot" style="border:1px dashed #7b5ea7"></span>draft candidates' : ""}
-    · <span style="color:#a33">┊</span> cut-offs</div>`;
+    · <span style="color:#a33">┊</span> cut-offs · <b>${M.shares.length}</b> events${state.filter ? " of this type" : ""}</div>`;
 }
 function stack(counts) {
   const n = counts.reduce((a, b) => a + b, 0) || 1;
@@ -422,42 +443,80 @@ function viewB(M) {
   </div>`;
 }
 
-// ---------------- variant C: cut-offs first ----------------
+// ---------------- variant C: what moves (left: stable counts, right: changes) ----------------
+const DIGEST = new Map(); // key → row indices, rebuilt on every render; read by the hover popover
+let lastM = null;
+function expandable(key, idx, inner, cls = "") {
+  DIGEST.set(key, idx);
+  return `<div class="C-x ${cls} ${state.expand === key ? "on" : ""}" data-act="expand" data-key="${esc(key)}" data-dig="${esc(key)}">${inner}</div>`;
+}
+function expansion(M, key) {
+  if (state.expand !== key) return "";
+  const idx = (DIGEST.get(key) || []).slice().sort((a, b) => (rows[b].sh || 0) - (rows[a].sh || 0));
+  return `<div class="C-list">${idx.slice(0, 300).map((i) => `<div>${eventLine(M, { i })}</div>`).join("")}
+    ${idx.length > 300 ? `<div class="mute">… and ${idx.length - 300} more</div>` : ""}</div>`;
+}
+function filterBar(M) {
+  return `<div class="C-filter">
+    <label class="mute" style="font-size:12px">event type
+      <select data-act="filter"><option value="">all on ${esc(MEASURE_LABEL[M.m])}</option>
+      ${M.typeNames.map((t) => `<option value="${esc(t)}" ${state.filter === t ? "selected" : ""}>${esc(typeLabel(t))}</option>`).join("")}</select></label>
+    ${state.filter ? `<span class="chip on" data-act="unfilter">${esc(typeLabel(state.filter))} ✕</span>` : ""}</div>`;
+}
 function viewC(M) {
+  DIGEST.clear(); lastM = M;
   const moves = [];
   M.types.forEach((t) => {
     const flows = new Map();
-    t.rows.forEach((i) => { const a = baseLevel[i], b = M.lvl(i); if (a !== b) flows.set(a + ">" + b, (flows.get(a + ">" + b) || 0) + 1); });
-    flows.forEach((n, k) => { const [a, b] = k.split(">").map(Number); moves.push({ t: t.t, a, b, n }); });
+    t.rows.forEach((i) => { const a = baseLevel[i], b = M.lvl(i); if (a !== b) { const k = a + ">" + b; if (!flows.has(k)) flows.set(k, []); flows.get(k).push(i); } });
+    flows.forEach((idx, k) => { const [a, b] = k.split(">").map(Number); moves.push({ t: t.t, a, b, n: idx.length, idx }); });
   });
-  M.via.forEach((v) => moves.push({ t: v.t, via: true, n: v.moved, up: v.up, down: v.down }));
-  moves.sort((x, y) => y.n - x.n);
+  M.via.forEach((v) => moves.push({ t: v.t, via: true, n: v.moved, up: v.up, down: v.down, idx: v.rows }));
+  moves.sort((x, y) => y.n - x.n || x.t.localeCompare(y.t));
   const totalMoved = moves.reduce((a, x) => a + x.n, 0);
   const pill = (e) => `<div class="C-pill">${eventLine(M, e, { compact: true })}</div>`;
+  const typeLink = (t) => `<span class="C-type" data-act="filter-to" data-t="${esc(t)}" title="filter to this type">${esc(typeLabel(t))}</span>`;
+  const moveRow = (x) => {
+    const key = x.via ? `via:${x.t}` : `mv:${x.t}|${x.a}|${x.b}`;
+    const inner = x.via
+      ? `<span class="mute">↳ ${typeLink(x.t)} <span class="badge cited">via cited</span></span><span>${x.up ? `<span class="d-up">${x.up}↑</span>` : ""} ${x.down ? `<span class="d-down">${x.down}↓</span>` : ""}</span>`
+      : `<span>${typeLink(x.t)} <span class="lvdot lv${x.a}"></span>${SHORT[x.a]} → <span class="lvdot lv${x.b}"></span>${SHORT[x.b]}</span><span class="${x.b > x.a ? "d-up" : "d-down"}">${x.n}</span>`;
+    return expandable(key, x.idx, `<div class="f">${inner}</div>`) + expansion(M, key);
+  };
+  const levelRow = (t) => {
+    const n = t.n || 1;
+    const segs = t.now.map((c, l) => {
+      if (!c) return "";
+      const key = `lv:${t.t}|${l}`;
+      DIGEST.set(key, t.rows.filter((i) => M.lvl(i) === l));
+      return `<div class="lv${l} C-seg ${state.expand === key ? "on" : ""}" style="width:${(100 * c) / n}%" data-act="expand" data-key="${esc(key)}" data-dig="${esc(key)}">${c}</div>`;
+    }).join("");
+    const open = [0, 1, 2, 3].map((l) => expansion(M, `lv:${t.t}|${l}`)).join("");
+    return `<div class="C-lrow"><span>${typeLink(t.t)} <span class="mute" style="font-size:11px">${t.n}</span></span><div class="stack">${segs}</div></div>${open}`;
+  };
   return `<div class="C-shell">
   <section>
     <div class="C-measures">${M.strip.map((s) => `<span class="chip ${s.m === M.m ? "on" : ""}" data-act="focus" data-m="${s.m}">${esc(MEASURE_LABEL[s.m])}${s.mod ? " •" : ""}</span>`).join("")}</div>
-    <div class="panel">${refControl(M)}${chart(M, { h: 200 })}</div>
-    ${M.cuts.map((c) => `<div class="panel" style="margin-top:10px"><h3>${c.db < 0 ? "Lower" : "Upper"} cut-off · ${fmt(c.x)} <span class="mute">(${c.bases.map((b) => `${LEVELS[R.levelOf(b.b)]} ${c.db < 0 ? "↓" : "↑"} ${LEVELS[R.levelOf(b.edge)]}`).join(", ")})</span></h3>
-      <div class="C-cut"><div class="side l">${c.below.map(pill).join("") || '<span class="mute">none</span>'}</div><div class="wall"><div></div></div><div class="side">${c.above.map(pill).join("") || '<span class="mute">none</span>'}</div></div></div>`).join("")}
+    <div class="panel">${filterBar(M)}${refControl(M)}${chart(M, { h: 200 })}</div>
+    <h2>Level counts</h2>
+    <div class="panel">${M.types.map(levelRow).join("") || '<div class="mute">No event of this type on this measure.</div>'}
+      <div class="mute" style="font-size:11px;margin-top:6px">Hover a segment for a digest, click it for the full list. Click a type name to filter to it.</div></div>
+    ${M.dp.length ? `<h2>Drafts</h2>${M.dp.map((p) => draftPanel(M, p)).join("")}` : ""}
+    <h2>Other references</h2>
+    <div class="panel" style="font-size:12px">${M.strip.filter((s) => s.m !== M.m).map((s) => `<div>${esc(MEASURE_LABEL[s.m])}: ${stripBadge(s)}${s.moved ? ` · <span class="d-up">${s.moved} moved</span>` : ""}</div>`).join("")}</div>
   </section>
   <section>
     <div class="C-kpis">
       <div class="panel"><div class="mute" style="font-size:12px">events moved</div><div class="C-big">${totalMoved}</div></div>
       <div class="panel"><div class="mute" style="font-size:12px">narrator package ≥ major</div><div class="C-big">${M.pkg.now} <span style="font-size:14px">${delta(M.pkg.now, M.pkg.was)}</span></div></div>
-      <div class="panel"><div class="mute" style="font-size:12px">waves changed</div><div class="C-big">${M.m === "power" ? M.waves.filter((w) => w.verdict !== "keeps").length + M.could.length : "–"}</div></div>
+      <div class="panel"><div class="mute" style="font-size:12px">waves changed</div><div class="C-big">${M.m === "power" && M.waves.length ? M.waves.filter((w) => w.verdict !== "keeps").length + M.could.length : "–"}</div></div>
     </div>
     <h2>What moves</h2>
-    <div class="panel C-flow">${moves.length ? moves.map((x) => x.via
-      ? `<div class="f"><span class="mute">↳ ${esc(typeLabel(x.t))} <span class="badge cited">via cited</span></span><span>${x.up ? `<span class="d-up">${x.up}↑</span>` : ""} ${x.down ? `<span class="d-down">${x.down}↓</span>` : ""}</span></div>`
-      : `<div class="f"><span>${esc(typeLabel(x.t))} <span class="lvdot lv${x.a}"></span>${SHORT[x.a]} → <span class="lvdot lv${x.b}"></span>${SHORT[x.b]}</span><span class="${x.b > x.a ? "d-up" : "d-down"}">${x.n}</span></div>`).join("")
-      : '<div class="mute">Nothing moves at these references. Slide the reference.</div>'}</div>
-    <h2>Level counts</h2>
-    <div class="panel">${M.types.map((t) => `<div style="display:grid;grid-template-columns:150px 1fr;gap:8px;align-items:center;margin:4px 0"><span style="font-size:12px">${esc(typeLabel(t.t))}</span>${stack(t.now)}</div>`).join("")}</div>
-    ${M.dp.length ? `<h2>Drafts</h2>${M.dp.map((p) => draftPanel(M, p)).join("")}` : ""}
-    ${M.m === "power" ? `<h2>Members</h2>${wavesBlock(M)}` : ""}
-    <h2>Other references</h2>
-    <div class="panel" style="font-size:12px">${M.strip.filter((s) => s.m !== M.m).map((s) => `<div>${esc(MEASURE_LABEL[s.m])}: ${stripBadge(s)}${s.moved ? ` · <span class="d-up">${s.moved} moved</span>` : ""}</div>`).join("")}</div>
+    <div class="panel C-flow">${moves.length ? moves.map(moveRow).join("") : '<div class="mute">Nothing moves at these references. Slide the reference.</div>'}</div>
+    ${M.waves.length ? `<h2>Members</h2>${wavesBlock(M)}` : ""}
+    <h2>Nearest each cut-off</h2>
+    ${M.cuts.map((c) => `<div class="panel" style="margin-top:10px"><h3>${c.db < 0 ? "Lower" : "Upper"} cut-off · ${fmt(c.x)} <span class="mute">(${c.bases.map((b) => `${LEVELS[R.levelOf(b.b)]} ${c.db < 0 ? "↓" : "↑"} ${LEVELS[R.levelOf(b.edge)]}`).join(", ")})</span></h3>
+      <div class="C-cut"><div class="side l">${c.below.map(pill).join("") || '<span class="mute">none</span>'}</div><div class="wall"><div></div></div><div class="side">${c.above.map(pill).join("") || '<span class="mute">none</span>'}</div></div></div>`).join("") || '<div class="mute">No cut-off.</div>'}
   </section></div>`;
 }
 
@@ -514,6 +573,7 @@ document.addEventListener("input", (e) => {
   if (act === "ref") { state.refs[state.m] = Number((10 ** Number(e.target.value)).toPrecision(3)); soon(); }
   if (act === "refnum" && Number(e.target.value) > 0) { state.refs[state.m] = Number(e.target.value); soon(); }
   if (act === "dbase") { state.dbase[e.target.dataset.id] = Number(e.target.value); soon(); }
+  if (act === "filter") { state.filter = e.target.value || null; state.expand = null; soon(); }
   if (e.target.id === "clamp") { state.clamp = e.target.checked; soon(); }
 });
 // keep the focused range input under the pointer while re-rendering: re-focus it
@@ -522,9 +582,12 @@ const rerenderKeepFocus = () => { const wasRange = document.activeElement?.datas
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]"); if (!el) return;
   const act = el.dataset.act;
-  if (act === "focus") { state.m = el.dataset.m; state.open = null; render(); }
+  if (act === "focus") { state.m = el.dataset.m; state.open = null; state.filter = null; state.expand = null; render(); }
   if (act === "coderef") { state.refs[state.m] = R.CODE_REFS[state.m]; render(); }
   if (act === "camp") { state.camps[el.dataset.i] = !state.camps[el.dataset.i]; render(); }
+  if (act === "filter-to") { e.stopPropagation(); state.filter = el.dataset.t; state.expand = null; hidePop(); render(); return; }
+  if (act === "unfilter") { state.filter = null; state.expand = null; render(); }
+  if (act === "expand") { state.expand = state.expand === el.dataset.key ? null : el.dataset.key; hidePop(); render(); }
   if (act === "open") { state.open = state.open === el.dataset.t ? null : el.dataset.t; render(); }
 });
 document.getElementById("reset").onclick = () => { state.refs = { ...R.CODE_REFS }; state.clamp = true; state.camps = D.campaigns.map(() => true); state.dbase = { held: 62, moved: 62 }; render(); };
@@ -535,6 +598,23 @@ document.getElementById("copy").onclick = async () => {
   document.getElementById("modal").classList.add("on");
 };
 document.getElementById("closeModal").onclick = () => document.getElementById("modal").classList.remove("on");
+
+// hover digest
+const pop = document.getElementById("pop");
+function hidePop() { pop.style.display = "none"; }
+document.addEventListener("mouseover", (e) => {
+  const el = e.target.closest("[data-dig]");
+  if (!el || !lastM || e.target.closest(".C-type") || state.expand === el.dataset.dig) return hidePop();
+  const idx = (DIGEST.get(el.dataset.dig) || []).slice().sort((a, b) => (rows[b].sh || 0) - (rows[a].sh || 0));
+  if (!idx.length) return hidePop();
+  pop.innerHTML = idx.slice(0, 6).map((i) => `<div>${eventLine(lastM, { i })}</div>`).join("") + (idx.length > 6 ? `<div class="mute">+ ${idx.length - 6} more · click for all</div>` : "");
+  const r = el.getBoundingClientRect();
+  pop.style.display = "block";
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(innerWidth - w - 8, r.left)) + "px";
+  pop.style.top = (r.bottom + h + 8 > innerHeight ? r.top - h - 6 : r.bottom + 6) + "px";
+});
+document.addEventListener("scroll", hidePop, true);
 
 // prototype switcher
 function go(dir) {
