@@ -108,6 +108,16 @@ _Avoid_: magnitude, size, weight
 The world total a stake is a share of, such as nation power, population or organization strength.
 _Avoid_: metric (a nation metric is a statistic, not a stake measure)
 
+**Reference**:
+The share of a stake measure at which a stake leaves an event's score at its base level; each tenfold share above or
+below it moves the score ten points.
+_Avoid_: reference value, baseline, target share
+
+**Reference window**:
+The shares a reference lets keep a minor or major base level, from the reference ÷ 17.8 to × 17.8; a reference
+slides the window along the shares and never changes its width.
+_Avoid_: band (a band is a level's score range)
+
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
 the arc's two ends, so a share never exceeds one.
