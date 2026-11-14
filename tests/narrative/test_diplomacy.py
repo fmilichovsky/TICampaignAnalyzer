@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-from tests.narrative.support import atomic, faction, nation, nation_row, situation
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tests.narrative.support import atomic, faction, nation, nation_row, powered, situation, with_rest
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings, SignificanceSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import RELATION_CHANGED
 from tinarrative.model.entities import EntityRef
-from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance
-from tinarrative.model.values import FrozenMap, Observed
+from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance, SignificanceBasis
+from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.diplomacy import REALIGNMENT
 from tinarrative.narrative.situation import SituationReport
@@ -27,6 +28,7 @@ WEST = nation("23", "Westland")
 FAR = nation("24", "Farland")
 RESISTANCE = faction("15", "Resistance")
 SERVANTS = faction("16", "Servants")
+SCALING = SignificanceSettings()
 
 
 def relation(key: str, one: EntityRef, other: EntityRef, field: str = "allies", transition: str = "added") -> Event:
@@ -67,19 +69,26 @@ def executive_change(key: str, before: EntityRef, after: EntityRef, subject: Ent
     )
 
 
-def reports(gdp: Observed = 1.0, *keys: str) -> list[SituationReport]:
-    """Reports at K0..K4 by default; NORTH ranks first by GDP when ``gdp`` exceeds SOUTH's 100."""
+def reports() -> list[SituationReport]:
+    """Reports at K0..K4; NORTH ranks second by GDP."""
     return [
         situation(
             key,
-            nations=[nation_row(NORTH, gdp=gdp, regions=1), nation_row(SOUTH, gdp=100.0, regions=1), EAST, WEST, FAR],
+            nations=[nation_row(NORTH, gdp=1.0, regions=1), nation_row(SOUTH, gdp=100.0, regions=1), EAST, WEST, FAR],
         )
-        for key in (keys or (K0, *PREVIOUS))
+        for key in (K0, *PREVIOUS)
+    ]
+
+
+def power_reports(weight: float) -> list[SituationReport]:
+    """Reports at K0..K4 in which NORTH's power share is ``weight`` over 1000; its partners have no known power."""
+    return [
+        situation(key, nations=[*with_rest([powered(NORTH, weight)]), SOUTH, EAST, WEST]) for key in (K0, *PREVIOUS)
     ]
 
 
 def built(stream: list[Event], situations: list[SituationReport] | None = None, **settings: object) -> list[Event]:
-    narrative = NarrativeSettings(geopolitics=GeopoliticsSettings(top_gdp_nations=1, **settings))  # type: ignore[arg-type]
+    narrative = NarrativeSettings(geopolitics=GeopoliticsSettings(**settings))  # type: ignore[arg-type]
     events = aggregate(stream, reports() if situations is None else situations, narrative_rules(narrative))
     return [event for event in events if event.event_type == REALIGNMENT]
 
@@ -189,10 +198,15 @@ def test_a_takeover_outside_the_window_or_of_another_nation_is_not_cited() -> No
     assert dict(item.attributes)["executive"] is None
 
 
-def test_a_top_economy_realignment_is_campaign_defining() -> None:
-    [item] = built(three_partners(), reports(gdp=1000.0))
+def test_a_realignment_scales_with_its_nations_power_share_alone() -> None:
+    great, micro = (built(three_partners(), power_reports(weight)) for weight in (400.0, 0.1))
 
-    assert (item.significance, dict(item.attributes)["gdp_rank"]) == (Significance.CAMPAIGN_DEFINING, 1)
+    [item] = great
+    assert item.significance is Significance.CAMPAIGN_DEFINING
+    assert item.significance_basis == SignificanceBasis(
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+    )
+    assert [item.significance for item in micro] == [Significance.MINOR]
 
 
 def test_war_entries_and_one_sided_lists_are_not_diplomacy() -> None:

@@ -211,9 +211,9 @@ def _top_gdp_nation(event: Event, geopolitics: GeopoliticsSettings) -> Significa
     return promoted_at_rank(_base(event), event.attribute("gdp_rank"), geopolitics.top_gdp_nations)
 
 
-def _band_shift(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+def _band_shift(event: Event, _: GeopoliticsSettings) -> Significance | None:
     """Major for a statistic that is always major, a crossing into severe unrest, a crossing of a cohesion extreme or
-    two bands crossed, else minor; a top-ranked economy is one level up (TODO(#362): temporary)."""
+    two bands crossed, else minor."""
     statistic, before, after = (
         event.attribute("statistic"),
         number(event.attribute("before")),
@@ -231,8 +231,7 @@ def _band_shift(event: Event, geopolitics: GeopoliticsSettings) -> Significance 
         major = any(crosses(boundary, before, after) for boundary in COHESION_EXTREMES)
     else:
         major = bands >= 2
-    level = Significance.MAJOR if major else Significance.MINOR
-    return promoted_at_rank(level, event.attribute("gdp_rank"), geopolitics.top_gdp_nations)
+    return Significance.MAJOR if major else Significance.MINOR
 
 
 def _collapse_after_strikes(event: Event, _: GeopoliticsSettings) -> Significance | None:
@@ -248,15 +247,6 @@ def _large_arsenal_disarmed(event: Event, _: GeopoliticsSettings) -> Significanc
     before, after = number(event.attribute("before")), number(event.attribute("after"))
     if before is not None and after == 0 and before >= LARGE_ARSENAL:
         return Significance.CAMPAIGN_DEFINING
-    return None
-
-
-def _top_rank(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
-    """An event of a nation ranked in the top by GDP or strength is one level up."""
-    # TODO(#362): temporary; the nation's power share replaces it.
-    top = geopolitics.top_gdp_nations
-    if in_top_n(event.attribute("gdp_rank"), top) or in_top_n(event.attribute("strength_rank"), top):
-        return PROMOTED[_base(event)]
     return None
 
 
@@ -286,7 +276,6 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
     Rule.BAND_SHIFT: NarrativeContextRule(_band_shift),
     Rule.COLLAPSE_AFTER_STRIKES: NarrativeContextRule(_collapse_after_strikes),
     Rule.LARGE_ARSENAL_DISARMED: NarrativeContextRule(_large_arsenal_disarmed),
-    Rule.TOP_RANK: NarrativeContextRule(_top_rank),
     Rule.ENTERED_TOP: NarrativeContextRule(_entered_top),
     Rule.MILESTONE_TIER: NarrativeContextRule(_milestone_tier),
 }
@@ -570,6 +559,12 @@ def _listed_refs(value: Observed) -> tuple[EntityRef, ...]:
     return tuple(item for item in value if isinstance(item, EntityRef)) if isinstance(value, tuple) else ()
 
 
+def _actor(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
+    """The nation the event is about; the kinds with this stake name one actor, so a second would be another nation's
+    stake."""
+    return _role_nations(event, Role.ACTOR)[:1]
+
+
 def _targets(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return _role_nations(event, Role.TARGET)
 
@@ -620,6 +615,7 @@ def _cited_ships(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
 
 
 NARRATIVE_STAKE_IMPLEMENTATIONS: Mapping[Stake, NarrativeScaling] = {
+    Stake.ACTOR: NarrativeScaling(StakeMeasure.POWER, _actor),
     Stake.TARGETS: NarrativeScaling(StakeMeasure.POWER, _targets),
     Stake.WAR_SIDES: NarrativeScaling(StakeMeasure.POWER, _war_sides, nuclear_bonus=True),
     Stake.MEMBERS: NarrativeScaling(StakeMeasure.POWER, _federation_members),

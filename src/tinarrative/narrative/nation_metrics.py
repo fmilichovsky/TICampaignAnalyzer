@@ -101,7 +101,6 @@ class BandShiftRule:
         return self.settings.band_hold_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         crossings = [event for event in by_type(stream, BAND_CROSSED) if event.attribute("statistic") == self.statistic]
         explainers = by_type(stream, *self.explains)
         reports = interval_reports(situations)
@@ -252,7 +251,6 @@ class EconomicTrajectoryRule:
     (``before_sequence``).
     """
 
-    settings: GeopoliticsSettings
     name: str = ECONOMIC_TRAJECTORY
     emitted_types: frozenset[str] = frozenset({ECONOMIC_TRAJECTORY})
     reads: frozenset[str] = frozenset()
@@ -260,7 +258,6 @@ class EconomicTrajectoryRule:
     window_days: int | None = TREND_WINDOW_DAYS
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        build = build.scoring_with(self.settings)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         trends = [event for event in by_type(stream, nation_kinds.PCGDP_TREND.event_type) if stream.citable(event)]
@@ -404,6 +401,6 @@ def nation_metric_rules(
     return (
         *(BandShiftRule(statistic, settings.nation_metrics, settings.geopolitics) for statistic in BANDS),
         PopulationCollapseRule(settings.geopolitics),
-        EconomicTrajectoryRule(settings.geopolitics),
+        EconomicTrajectoryRule(),
         NuclearArcRule(settings.nation_metrics, settings.geopolitics),
     )

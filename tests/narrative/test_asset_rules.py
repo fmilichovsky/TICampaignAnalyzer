@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import atomic, nation, nation_row, situation
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+import pytest
+
+from tests.narrative.support import atomic, nation, nation_row, powered, situation, with_rest
+from tinarrative.config import NarrativeSettings, NationMetricsSettings, SignificanceSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from tinarrative.model.entities import EntityRef
-from tinarrative.model.events import Event, Role, Significance
+from tinarrative.model.events import Event, Role, Significance, SignificanceBasis
+from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.assets import (
@@ -29,6 +32,7 @@ KEYS = (K0, K1, K2)
 PREVIOUS = {K1: K0, K2: K1}
 NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
+SCALING = SignificanceSettings()
 
 
 def army(key: str, number: int, kind: str = "Standard", event_type: str = "army.appeared") -> Event:
@@ -96,20 +100,23 @@ def reports(*north: dict[str, Observed], south: Sequence[dict[str, Observed]] = 
     ]
 
 
+def power_reports(weight: float, *north: dict[str, Observed]) -> list[SituationReport]:
+    """One report per key, NORTH's power share ``weight`` over 1000 and its other values from ``north``, in order."""
+    return [
+        situation(key, nations=with_rest([powered(NORTH, weight, **values)]))
+        for key, values in zip(KEYS, north, strict=False)
+    ]
+
+
 def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:
-    geopolitics = {key: value for key, value in settings.items() if key == "top_gdp_nations"}
-    metrics = {key: value for key, value in settings.items() if key != "top_gdp_nations"}
-    narrative = NarrativeSettings(
-        geopolitics=GeopoliticsSettings(**geopolitics),  # type: ignore[arg-type]
-        nation_metrics=NationMetricsSettings(**metrics),  # type: ignore[arg-type]
-    )
+    narrative = NarrativeSettings(nation_metrics=NationMetricsSettings(**settings))  # type: ignore[arg-type]
     return [event for event in aggregate(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
 
 
 def test_standard_armies_growing_by_the_minimum_over_chained_appearances_are_a_buildup() -> None:
     stream = [army(K1, 110), army(K2, 111), army(K2, 112), army(K2, 113, "Naval")]
     situations = reports({"armies": 2}, {"armies": 3}, {"armies": 5})
-    (buildup,) = built(stream, situations, MILITARY_BUILDUP, top_gdp_nations=1)
+    (buildup,) = built(stream, situations, MILITARY_BUILDUP)
     assert buildup.significance is Significance.MAJOR and buildup.open
     assert buildup.intervals == (K1, K2)
     assert len(buildup.constituents) == 3  # the naval army is not a standard one
@@ -117,24 +124,46 @@ def test_standard_armies_growing_by_the_minimum_over_chained_appearances_are_a_b
     assert describe_event(buildup) == "Northland (nation:20) built up its standard armies: 2 -> 5"
 
 
-def test_a_top_nation_by_strength_is_promoted_and_one_army_is_no_buildup() -> None:
-    situations = reports({"armies": 2, "strength": 500.0}, {"armies": 4, "strength": 500.0})
-    (buildup,) = built([army(K1, 110), army(K1, 111)], situations, MILITARY_BUILDUP, top_gdp_nations=1)
-    assert buildup.significance is Significance.CAMPAIGN_DEFINING and buildup.open  # K1 is the last interval
+def test_one_army_is_no_buildup() -> None:
     assert built([army(K1, 110)], reports({"armies": 2}, {"armies": 3}), MILITARY_BUILDUP) == []
     assert built([army(K1, 110)], reports({"armies": 2}, {"armies": 4}), MILITARY_BUILDUP, buildup_min_armies=3) == []
 
 
+@pytest.mark.parametrize(
+    ("kind", "stream", "north"),
+    [
+        (MILITARY_BUILDUP, [army(K1, 110), army(K1, 111)], ({"armies": 2}, {"armies": 4})),
+        (
+            DEMOBILIZATION,
+            [army(K1, 110, event_type="army.disappeared"), army(K1, 111, event_type="army.disappeared")],
+            ({"armies": 4}, {"armies": 2}),
+        ),
+        (NAVY_ESTABLISHED, [army(K1, 110, "Naval")], ({"navies": 0}, {"navies": 1})),
+    ],
+)
+def test_an_army_event_scales_with_its_nations_power_share(
+    kind: str, stream: list[Event], north: tuple[dict[str, Observed], ...]
+) -> None:
+    (great,) = built(stream, power_reports(400.0, *north), kind)
+    (micro,) = built(stream, power_reports(0.1, *north), kind)
+
+    assert great.significance is Significance.CAMPAIGN_DEFINING
+    assert great.significance_basis == SignificanceBasis(
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+    )
+    assert micro.significance is Significance.MINOR
+
+
 def test_standard_armies_shrinking_are_a_demobilization() -> None:
     stream = [army(K1, 110, event_type="army.disappeared"), army(K1, 111, event_type="army.disappeared")]
-    (demobilization,) = built(stream, reports({"armies": 4}, {"armies": 2}), DEMOBILIZATION, top_gdp_nations=1)
+    (demobilization,) = built(stream, reports({"armies": 4}, {"armies": 2}), DEMOBILIZATION)
     assert dict(demobilization.attributes)["after"] == 2
     assert describe_event(demobilization) == "Northland (nation:20) demobilized its standard armies: 4 -> 2"
 
 
 def test_a_first_naval_army_establishes_a_navy() -> None:
     situations = reports({"navies": 0}, {"navies": 1}, {"navies": 2})
-    (navy,) = built([army(K1, 110, "Naval"), army(K2, 111, "Naval")], situations, NAVY_ESTABLISHED, top_gdp_nations=1)
+    (navy,) = built([army(K1, 110, "Naval"), army(K2, 111, "Naval")], situations, NAVY_ESTABLISHED)
     assert navy.intervals == (K1,) and navy.significance is Significance.MAJOR and not navy.open
     assert dict(navy.attributes) == {"navies": 1, "gdp_rank": 2, "strength_rank": 2}
     assert describe_event(navy) == "Northland (nation:20) established a navy (1 naval army)"

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from tests.narrative.support import atomic, nation, nation_row, situation
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings
+from tests.narrative.support import atomic, nation, nation_row, powers, situation
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings, SignificanceSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import PCGDP_TREND, POPULATION_CHANGED
-from tinarrative.model.events import DateBasis, Event, Significance
-from tinarrative.model.values import FrozenMap, Observed
+from tinarrative.model.events import DateBasis, Event, Significance, SignificanceBasis
+from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.narrative.situation import SituationReport
@@ -21,6 +22,7 @@ PREVIOUS = {K1: K0, K2: K1}
 NORTH = nation("20", "Northland")
 SOUTH = nation("21", "Southland")
 REGION = nation("40", "Coast")
+SCALING = SignificanceSettings()
 
 
 def population(key: str, direction: str, *, nuked: Sequence[object] = ()) -> Event:
@@ -79,12 +81,17 @@ def trend(
     )
 
 
-def reports(gdp: Observed = 1.0) -> list[SituationReport]:
-    """Reports at K0, K1, K2; NORTH ranks first by GDP when ``gdp`` exceeds SOUTH's 100."""
+def reports() -> list[SituationReport]:
+    """Reports at K0, K1, K2; NORTH ranks second by GDP."""
     return [
-        situation(key, nations=[nation_row(NORTH, gdp=gdp, regions=1), nation_row(SOUTH, gdp=100.0, regions=1)])
+        situation(key, nations=[nation_row(NORTH, gdp=1.0, regions=1), nation_row(SOUTH, gdp=100.0, regions=1)])
         for key in (K0, K1, K2)
     ]
+
+
+def power_reports(weight: float) -> list[SituationReport]:
+    """Reports at K0, K1, K2 in which NORTH's power share is ``weight`` over 1000."""
+    return [powers(key, (NORTH, weight)) for key in (K0, K1, K2)]
 
 
 def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:
@@ -114,7 +121,7 @@ def test_a_collapse_with_a_detonation_or_a_nuclear_strike_is_campaign_defining()
 
 def test_trends_of_one_direction_chain_into_one_trajectory_spanning_the_first_window() -> None:
     first, second = trend(K1, 22, "boom", 100.0, 160.0), trend(K2, 30, "boom", 120.0, 190.0)
-    (trajectory,) = built([first, second], reports(), ECONOMIC_TRAJECTORY, top_gdp_nations=1)
+    (trajectory,) = built([first, second], reports(), ECONOMIC_TRAJECTORY)
     assert trajectory.id == f"{ECONOMIC_TRAJECTORY}/nation:20/22@{K1}"
     assert (trajectory.start, trajectory.start_basis) == ("2026-07-01T00:00:00", DateBasis.RECORD)
     assert (trajectory.end, trajectory.end_basis) == ("2033-07-01T00:00:00", DateBasis.RECORD)
@@ -144,12 +151,15 @@ def test_a_change_of_direction_or_a_gap_beyond_the_window_starts_a_new_trajector
     assert sorted(runs) == [("20", 2), ("20", 10), ("20", 31), ("21", 2)]
 
 
-def test_a_backstory_trajectory_of_a_top_economy_is_promoted_and_closed_before_the_last_interval() -> None:
-    (trajectory,) = built(
-        [trend(K1, 22, "slump", 100.0, 60.0, backstory=True)],
-        reports(gdp=500.0),
-        ECONOMIC_TRAJECTORY,
-        top_gdp_nations=1,
+def test_a_backstory_trajectory_is_closed_before_the_last_interval_and_scales_with_its_nations_power_share() -> None:
+    stream = [trend(K1, 22, "slump", 100.0, 60.0, backstory=True)]
+
+    (great,) = built(stream, power_reports(400.0), ECONOMIC_TRAJECTORY)
+    (micro,) = built(stream, power_reports(0.1), ECONOMIC_TRAJECTORY)
+
+    assert great.attribute("before_sequence") is True and great.attribute("ratio") == 0.6 and not great.open
+    assert great.significance is Significance.CAMPAIGN_DEFINING
+    assert great.significance_basis == SignificanceBasis(
+        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
     )
-    assert trajectory.attribute("before_sequence") is True and trajectory.attribute("ratio") == 0.6
-    assert trajectory.significance is Significance.CAMPAIGN_DEFINING and not trajectory.open
+    assert micro.significance is Significance.MINOR

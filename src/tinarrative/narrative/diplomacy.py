@@ -64,7 +64,6 @@ class DiplomaticRealignmentRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         days = self.settings.realignment_window_days
-        build = build.scoring_with(self.settings)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         by_nation: dict[EntityId, list[Event]] = defaultdict(list)
         for event in by_type(stream, RELATION_CHANGED.event_type):

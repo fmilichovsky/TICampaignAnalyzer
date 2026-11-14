@@ -231,6 +231,32 @@ def nation_row(
     )
 
 
+REST = nation("29", "Rest of the world")
+"""Holds the power the weighted nations of a report leave, so their weights are shares of 1000."""
+WORLD_POWER = 1000.0
+
+
+def powered(item: EntityRef, weight: float, **values: object) -> NationSituation:
+    """A landed nation row whose GDP, population and strength are all ``weight``; ``values`` are its other fields."""
+    return nation_row(item, gdp=weight, population=weight, strength=weight, regions=1, **values)  # type: ignore[arg-type]
+
+
+def with_rest(rows: Sequence[NationSituation]) -> list[NationSituation]:
+    """``rows`` and ``REST``, which holds what they leave of ``WORLD_POWER``: each ``powered`` row's power share is
+    its weight over 1000. A ``powered`` row's population is its weight."""
+    held = sum(value for row in rows if isinstance(value := row.population, int | float))
+    return [*rows, powered(REST, WORLD_POWER - held, nuclear_weapons=0)]
+
+
+def powers(
+    key: str, *weights: tuple[EntityRef, float], armed: Sequence[EntityRef] = (), **kwargs: object
+) -> SituationReport:
+    """A report whose nations' power shares are their weights over 1000. ``armed`` nations hold one warhead, the
+    others none."""
+    rows = [powered(item, weight, nuclear_weapons=int(item in armed)) for item, weight in weights]
+    return situation(key, nations=with_rest(rows), **kwargs)  # type: ignore[arg-type]
+
+
 def federation_row(item: EntityRef, members: Sequence[EntityRef]) -> FederationSituation:
     return FederationSituation(item, Unknown(), tuple(members))
 

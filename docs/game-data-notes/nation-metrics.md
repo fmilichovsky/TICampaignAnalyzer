@@ -343,3 +343,23 @@ Most nations and regions hold far less than a hundredth of the world, so the typ
 only the large ones keep or exceed their level: of the organization assignments 132 stay `major` and 201 fall to
 `minor`, the split the former top-tier rule drew by tier alone. The references were left at 0.01 (*hypothesis*: a
 reference near the median share would lift most events instead of lowering them, which the clamp bounds either way).
+
+### Scaled nation narrative events
+
+Band shifts, per-capita GDP trajectories, diplomatic realignments, military buildups and demobilizations and navies
+established scale by the power share of their nation, read in the situation reports of the event's first interval.
+Observed 2026-11-14 on the three benchmark campaigns (`events --narrative`, every reference share at 0.01), compared
+with raising a top-ten GDP nation's event one level:
+
+| Campaign | Narrative events | Level changed | Up | Down |
+| --- | --- | --- | --- | --- |
+| Protectorate (benchmark) | 772 | 86 | 0 | 86 |
+| Protectorate, first five saves | 201 | 22 | 0 | 22 |
+| Resist (benchmark) | 64 | 14 | 0 | 14 |
+
+- The nations of GDP places 11 to about 100 keep their level: their stake lies within a few points of the
+  reference.
+- Small states drop one level (GDP places from about 100 down, such as Iceland, Djibouti and The Bahamas).
+- The top-ten economies drop one level too. Their stake adds 3 to 12 points, while a level is 25 points wide and
+  starts 13 points above a base. Rising a level takes a share of about 20 %, which no nation of the Protectorate
+  saves holds (the largest is 14 to 16 %, table above).

@@ -72,7 +72,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Atomic events scaled by stake (#198).
   - [x] Nuclear warheads in the situation report (#354).
   - [x] Geopolitical narrative events scaled by stake (#199).
-  - [ ] Nation narrative events scaled by power share (#359).
+  - [x] Nation narrative events scaled by power share (#359).
   - [ ] Nuclear arsenal share (#360).
   - [ ] Space program share (#361).
   - [x] Space and faction stakes (#200).

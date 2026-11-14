@@ -23,16 +23,14 @@ class Rule(StrEnum):
     COMPLETION = "completion"
     TOP_GDP_NATION = "top_gdp_nation"  # TODO(#362): temporary; the nation's power share replaces it.
     """A narrative-event kind's rule: it promotes an event about a top-ranked economy."""
-    BAND_SHIFT = "band_shift"  # TODO(#362): the top-GDP promotion inside it is temporary.
+    BAND_SHIFT = "band_shift"
     """A narrative-event kind's rule: statistics that are always major, severe unrest, cohesion extremes and two bands
-    crossed are major, others minor; a top-ranked economy is one level up."""
+    crossed are major, others minor."""
     COLLAPSE_AFTER_STRIKES = "collapse_after_strikes"
     """A narrative-event kind's rule: a population collapse of nuked regions, or with nuclear strikes, is campaign
     defining."""
     LARGE_ARSENAL_DISARMED = "large_arsenal_disarmed"
     """A narrative-event kind's rule: dismantling a large arsenal is campaign defining."""
-    TOP_RANK = "top_rank"  # TODO(#362): temporary; the nation's power share replaces it.
-    """A narrative-event kind's rule: it promotes an event of a nation ranked in the top by GDP or strength."""
     ENTERED_TOP = "entered_top"
     """A narrative-event kind's rule: it raises the level when the nation entered the top of a space measure."""
     MILESTONE_TIER = "milestone_tier"
@@ -64,6 +62,8 @@ class Stake(StrEnum):
     TERRITORY = "territory"
     CONTROL_POINT = "control_point"
     ORGANIZATION = "organization"
+    ACTOR = "actor"
+    """A narrative-event stake: the power share of the nation in the actor role, the nation the event is about."""
     TARGETS = "targets"
     """A narrative-event stake: the power share of the nations in the target role."""
     WAR_SIDES = "war_sides"
