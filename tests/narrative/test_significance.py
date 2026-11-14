@@ -30,7 +30,7 @@ from tinarrative.config import GeopoliticsSettings
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.kinds import KINDS
 from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
-from tinarrative.kinds.nations import BAND_SHIFTS, NUCLEAR_DISARMAMENT, POPULATION_COLLAPSE
+from tinarrative.kinds.nations import BAND_SHIFTS, POPULATION_COLLAPSE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
 from tinarrative.model.kinds import Rule, Stake
@@ -39,9 +39,7 @@ from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.significance import (
-    LARGE_ARSENAL,
     NARRATIVE_STAKE_IMPLEMENTATIONS,
-    PROMOTED,
     RULE_IMPLEMENTATIONS,
     STAKE_IMPLEMENTATIONS,
     NarrativeContextRule,
@@ -210,13 +208,13 @@ def test_megafauna_presence_is_major_and_regular_army_presence_is_minor() -> Non
     assert only(events, "army.appeared").significance is Significance.MAJOR
 
 
-def test_a_nuclear_arsenal_shift_is_major_and_any_other_statistic_shift_is_trivial() -> None:
+def test_every_statistic_shift_is_trivial() -> None:
     regions = (region_ref("40"),)
     before = snapshot(BEFORE, state(NATION, "20", BEFORE, regions=regions, numNuclearWeapons=0, GDP=1.0e9))
     after = snapshot(AFTER, state(NATION, "20", AFTER, regions=regions, numNuclearWeapons=1, GDP=2.0e9))
     events = classified(NationMetricAnalyzer(), before, after)
     levels = {event.attribute("statistic"): event.significance for event in events}
-    assert levels == {"numNuclearWeapons": Significance.MAJOR, "GDP": Significance.TRIVIAL}
+    assert levels == {"numNuclearWeapons": Significance.TRIVIAL, "GDP": Significance.TRIVIAL}
     lookup = empty_lookup()
     assert significance_of(bare_event("nation.statistic_shifted", statistic="numControlPoints"), lookup) is (
         Significance.TRIVIAL
@@ -623,25 +621,6 @@ def test_a_population_collapse_is_campaign_defining_after_nuked_regions_or_nucle
         is Significance.CAMPAIGN_DEFINING
     )
     assert narrative_level(kind, nuked_regions=(), nuclear_strikes=True) is Significance.CAMPAIGN_DEFINING
-
-
-def test_only_a_large_arsenal_dismantled_to_zero_is_campaign_defining() -> None:
-    kind = NUCLEAR_DISARMAMENT.event_type
-    assert narrative_level(kind, before=LARGE_ARSENAL, after=0) is Significance.CAMPAIGN_DEFINING
-    assert narrative_level(kind, before=LARGE_ARSENAL - 1, after=0) is Significance.MAJOR
-    assert narrative_level(kind, before=LARGE_ARSENAL, after=1) is Significance.MAJOR
-
-
-@pytest.mark.parametrize(
-    "event_type",
-    [kind.event_type for kind in KINDS.values() if kind.rule is Rule.TOP_GDP_NATION and kind.narrative],
-)
-def test_a_top_economy_is_one_level_up_for_every_kind_with_the_temporary_rule(event_type: str) -> None:
-    top = GeopoliticsSettings().top_gdp_nations
-    base = KINDS[event_type].base
-    assert base is not None
-    assert narrative_level(event_type, gdp_rank=top + 1) is base
-    assert narrative_level(event_type, gdp_rank=top) is Significance.of(PROMOTED[base].base)
 
 
 def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:

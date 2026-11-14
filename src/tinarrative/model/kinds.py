@@ -16,21 +16,16 @@ class Rule(StrEnum):
     RELATION_CHANGED = "relation_changed"
     CLAIMS_CHANGED = "claims_changed"
     EXECUTIVE_CHANGE = "executive_change"
-    STATISTIC_SHIFTED = "statistic_shifted"
     POPULATION_CHANGED = "population_changed"
     SPACE_ASSETS_CHANGED = "space_assets_changed"
     ARMY_PRESENCE = "army_presence"
     COMPLETION = "completion"
-    TOP_GDP_NATION = "top_gdp_nation"  # TODO(#362): temporary; the nation's power share replaces it.
-    """A narrative-event kind's rule: it promotes an event about a top-ranked economy."""
     BAND_SHIFT = "band_shift"
     """A narrative-event kind's rule: statistics that are always major, severe unrest, cohesion extremes and two bands
     crossed are major, others minor."""
     COLLAPSE_AFTER_STRIKES = "collapse_after_strikes"
     """A narrative-event kind's rule: a population collapse of nuked regions, or with nuclear strikes, is campaign
     defining."""
-    LARGE_ARSENAL_DISARMED = "large_arsenal_disarmed"
-    """A narrative-event kind's rule: dismantling a large arsenal is campaign defining."""
     ENTERED_TOP = "entered_top"
     """A narrative-event kind's rule: it raises the level when the nation entered the top of a space measure."""
     MILESTONE_TIER = "milestone_tier"
@@ -52,6 +47,8 @@ class StakeMeasure(StrEnum):
     """A combat's contested mass over the world's weighted ship mass."""
     FACTION = "faction"
     """A faction's weight in the world: its Earth share blended with its space share."""
+    NUCLEAR = "nuclear"
+    """The nuclear share: a nuclear arc's net move over the world's warheads at the arc's larger end."""
 
 
 class Stake(StrEnum):
@@ -87,6 +84,8 @@ class Stake(StrEnum):
     """A narrative-event stake: the hab share of every hab the cited first-presence events list."""
     NEW_SHIPS = "new_ships"
     """A narrative-event stake: the fleet share of every ship the cited appearance events are about."""
+    NUCLEAR_ARC = "nuclear_arc"
+    """A narrative-event stake: the nuclear share of the arc's net move, its actor the nation."""
 
 
 class EvidenceRole(StrEnum):
