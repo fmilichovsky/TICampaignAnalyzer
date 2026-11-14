@@ -23,7 +23,7 @@ from ..analyzers.politics.nation_space import (
     MISSION_CONTROL_STATISTIC,
     SPACE_DEFENCES_STATISTIC,
 )
-from ..config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from ..config import NarrativeSettings, NationMetricsSettings
 from ..kinds import military as military_kinds
 from ..kinds import nations as nation_kinds
 from ..kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
@@ -73,7 +73,6 @@ class MilitaryBuildupRule:
     """
 
     settings: NationMetricsSettings
-    geopolitics: GeopoliticsSettings
     name: str = MILITARY_BUILDUP
     emitted_types: frozenset[str] = frozenset({MILITARY_BUILDUP, DEMOBILIZATION})
     reads: frozenset[str] = frozenset()
@@ -81,7 +80,6 @@ class MilitaryBuildupRule:
     window_days: int | None = BUILDUP_WINDOW_DAYS
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-rank rule reads ``top_gdp_nations``
         reports = interval_reports(situations)
         last_key = next(reversed(reports), None)
         candidates = [
@@ -128,7 +126,6 @@ class MilitaryBuildupRule:
 class NavyEstablishedRule:
     """``nation.navy_established``: a nation without a naval army has one in the next report."""
 
-    geopolitics: GeopoliticsSettings
     name: str = NAVY_ESTABLISHED
     emitted_types: frozenset[str] = frozenset({NAVY_ESTABLISHED})
     reads: frozenset[str] = frozenset()
@@ -136,7 +133,6 @@ class NavyEstablishedRule:
     window_days: int | None = 0
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-rank rule reads ``top_gdp_nations``
         candidates = [
             event
             for event in by_type(stream, APPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED)
@@ -371,8 +367,8 @@ AssetRule = (
 
 def asset_rules(settings: NarrativeSettings) -> tuple[AssetRule, ...]:
     return (
-        MilitaryBuildupRule(settings.nation_metrics, settings.geopolitics),
-        NavyEstablishedRule(settings.geopolitics),
+        MilitaryBuildupRule(settings.nation_metrics),
+        NavyEstablishedRule(),
         SpaceProgramGrowthRule(settings.nation_metrics),
         SpaceDefencesEstablishedRule(),
         RankingRule(settings.nation_metrics),

@@ -12,8 +12,9 @@ from tinarrative.analyzers.common import EventBuilder
 from tinarrative.config import DEFAULT_SETTINGS, GeopoliticsSettings
 from tinarrative.kinds import KINDS, attributes, describe_event, kind_for, known_event_types
 from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
+from tinarrative.kinds.nations import BAND_SHIFTS
 from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
-from tinarrative.model.kinds import EventKind, EvidenceRole
+from tinarrative.model.kinds import EventKind, EvidenceRole, Stake
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.assets import asset_rules
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
@@ -48,14 +49,23 @@ def test_a_narrative_event_kind_is_exactly_one_a_rule_emits() -> None:
     assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
 
 
-def test_every_geopolitics_and_scaled_space_kind_declares_its_stake_and_no_other_narrative_event_kind_one() -> None:
+def test_every_geopolitics_nation_and_scaled_space_kind_declares_its_stake_and_no_other_narrative_kind_one() -> None:
     geopolitical = {
         event_type for rule in geopolitical_rules(GeopoliticsSettings()) for event_type in rule.emitted_types
     }
     assert all(KINDS[event_type].base is not None for event_type in geopolitical)
     assert all(KINDS[event_type].stake is not None for event_type in geopolitical)
     staked = {event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is not None}
-    assert staked == geopolitical | {"faction.colonisation_wave", "faction.fleet_buildup"}
+    nation = {event_type for event_type, kind in KINDS.items() if kind.narrative and kind.stake is Stake.ACTOR}
+    assert nation == {
+        *(kind.event_type for kind in BAND_SHIFTS.values()),
+        "nation.economic_trajectory",
+        "nation.diplomatic_realignment",
+        "nation.military_buildup",
+        "nation.demobilization",
+        "nation.navy_established",
+    }
+    assert staked == geopolitical | nation | {"faction.colonisation_wave", "faction.fleet_buildup"}
 
 
 def test_every_nation_metric_and_diplomacy_kind_declares_its_base_level() -> None:

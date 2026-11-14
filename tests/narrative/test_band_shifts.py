@@ -4,25 +4,30 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import pytest
+
 from tests.narrative.support import (
-    UNKNOWN,
+    WORLD_POWER,
     atomic,
     declared_attributes,
     faction,
     nation,
     nation_row,
+    powered,
     situation,
     unification,
     war,
+    with_rest,
 )
 from tinarrative.analyzers.politics.bands import crossed
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings, SignificanceSettings
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import BAND_CROSSED, STATISTIC_SHIFTED
 from tinarrative.kinds.wars import ARC
-from tinarrative.model.events import Event, EventStatus, Role, Significance
+from tinarrative.model.events import Event, EventStatus, Role, Significance, SignificanceBasis
+from tinarrative.model.kinds import StakeMeasure
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
 from tinarrative.narrative.nation_metrics import BAND_SHIFTS, BandShiftRule
@@ -37,6 +42,7 @@ SOUTH = nation("21", "Southland")
 EXILE = nation("22", "Exileland")
 LANDED = 3
 RESISTANCE = faction("15", "Resistance")
+SCALING = SignificanceSettings()
 
 
 def crossing(
@@ -73,20 +79,25 @@ def crossing(
     )
 
 
-def reports(
-    *values: Observed, statistic: str = "unrest", gdp: Observed = UNKNOWN, landless_gdp: Observed = UNKNOWN
-) -> list[SituationReport]:
-    """One report per key K0, K1, K2 with NORTH's ``statistic`` at each value; NORTH unranked unless ``gdp`` is given
-    (SOUTH has 100, and the landless EXILE has ``landless_gdp``)."""
+def reports(*values: Observed, statistic: str = "unrest") -> list[SituationReport]:
+    """One report per key K0, K1, K2 with NORTH's ``statistic`` at each value; no nation has a known power share."""
     return [
         situation(
             key,
             nations=[
-                nation_row(NORTH, gdp=gdp, statistics={statistic: value}, regions=LANDED),
+                nation_row(NORTH, statistics={statistic: value}, regions=LANDED),
                 nation_row(SOUTH, gdp=100.0, regions=LANDED),
-                nation_row(EXILE, gdp=landless_gdp, regions=0),
             ],
         )
+        for key, value in zip((K0, K1, K2), values, strict=False)
+    ]
+
+
+def power_reports(*values: Observed, statistic: str, weight: float) -> list[SituationReport]:
+    """As ``reports``, with NORTH's power share ``weight`` over 1000 and a landless EXILE ten times larger."""
+    exile = nation_row(EXILE, gdp=10 * WORLD_POWER, population=10 * WORLD_POWER, strength=10 * WORLD_POWER, regions=0)
+    return [
+        situation(key, nations=[*with_rest([powered(NORTH, weight, statistics={statistic: value})]), exile])
         for key, value in zip((K0, K1, K2), values, strict=False)
     ]
 
@@ -190,21 +201,32 @@ def test_cohesion_needs_two_bands_or_an_extreme_after_the_rest_value() -> None:
     assert fragmented.attribute("to_band") == "Fragmented" and fragmented.significance is Significance.MAJOR
 
 
-def test_a_top_gdp_nation_is_promoted_one_level() -> None:
-    event = crossing(K1, "unrest", 2.5, 3.5, rest=0.0)
-    (shift,) = built([event], reports(2.5, 3.5, 3.5, gdp=1000.0))
-    assert (shift.attribute("gdp_rank"), shift.significance) == (1, Significance.MAJOR)
-    (strict,) = built([event], reports(2.5, 3.5, 3.5, gdp=50.0), top_gdp_nations=1)
-    assert (strict.attribute("gdp_rank"), strict.significance) == (2, Significance.MINOR)
-    miltech = crossing(K1, "militaryTechLevel", 3.5, 4.5)
-    (age,) = built([miltech], reports(3.5, 4.5, 4.5, statistic="militaryTechLevel", gdp=1000.0))
-    assert age.event_type == "nation.miltech_shift" and age.significance is Significance.CAMPAIGN_DEFINING
+@pytest.mark.parametrize(
+    ("statistic", "before", "after"),
+    [
+        ("unrest", 0.5, 2.0),
+        ("democracy", 1.0, 2.5),
+        ("education", 4.5, 5.5),
+        ("cohesion", 0.5, 1.5),
+        ("inequality", 1.5, 2.5),
+        ("militaryTechLevel", 3.5, 4.5),
+    ],
+)
+def test_a_shift_scales_with_its_nations_power_share_and_a_landless_nation_dilutes_none(
+    statistic: str, before: float, after: float
+) -> None:
+    event = crossing(K1, statistic, before, after, rest=0.0 if statistic in {"unrest", "cohesion"} else None)
 
+    (great,) = built([event], power_reports(before, after, after, statistic=statistic, weight=400.0))
+    (micro,) = built([event], power_reports(before, after, after, statistic=statistic, weight=0.1))
 
-def test_a_larger_economy_without_land_pushes_no_nation_down() -> None:
-    event = crossing(K1, "unrest", 2.5, 3.5, rest=0.0)
-    (shift,) = built([event], reports(2.5, 3.5, 3.5, gdp=1000.0, landless_gdp=5000.0), top_gdp_nations=1)
-    assert (shift.attribute("gdp_rank"), shift.significance) == (1, Significance.MAJOR)
+    assert great.significance_basis is not None and micro.significance_basis is not None
+    level = Significance.of(great.significance_basis.base)
+    assert great.significance_basis == SignificanceBasis(
+        base=level.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALING.scale_max, entities=(NORTH,)
+    )
+    assert great.significance.rank == level.rank + 1
+    assert micro.significance_basis.scale == SCALING.scale_min and micro.significance.rank == level.rank - 1
 
 
 def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None:

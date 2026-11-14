@@ -13,6 +13,7 @@ from tests.narrative.support import (
     federation_row,
     nation,
     nation_row,
+    powers,
     ref,
     situation,
     state_change,
@@ -203,24 +204,9 @@ def only(events: Sequence[Event], event_type: str) -> Event:
     return found
 
 
-REST = nation("29", "Rest of the world")
-"""Holds the power the nations of a ``powers`` report leave, so their weights are shares of 1000."""
 TAKEOVER = "faction.takeover"
 SCALING = SignificanceSettings()
 """The default scaling: the clamp and the nuclear bonus the stake tests derive their expectations from."""
-
-
-def powers(
-    key: str, *weights: tuple[EntityRef, float], armed: Sequence[EntityRef] = (), **kwargs: object
-) -> SituationReport:
-    """A report whose nations' power shares are their weights over 1000: each weight is the nation's GDP, population
-    and strength alike. ``armed`` nations hold one warhead, the others none."""
-    rows = [*weights, (REST, 1000.0 - sum(weight for _, weight in weights))]
-    listed = [
-        nation_row(item, gdp=weight, population=weight, strength=weight, regions=1, nuclear_weapons=int(item in armed))
-        for item, weight in rows
-    ]
-    return situation(key, nations=listed, **kwargs)  # type: ignore[arg-type]
 
 
 def by_target(events: Sequence[Event]) -> dict[EntityRef, Event]:

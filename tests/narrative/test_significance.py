@@ -615,16 +615,6 @@ def test_a_band_shift_reads_its_crossing_from_the_event(
     assert narrative_level(event_type, statistic=statistic, before=before, after=after, gdp_rank=None) is expected
 
 
-def test_a_band_shift_of_a_top_economy_is_one_level_up() -> None:
-    event_type = BAND_SHIFTS["inequality"].event_type
-    attributes = {"statistic": "inequality", "before": 1.5, "after": 2.5}
-    assert narrative_level(event_type, **attributes, gdp_rank=2) is Significance.MAJOR
-    assert (
-        narrative_level(event_type, **attributes, gdp_rank=GeopoliticsSettings().top_gdp_nations + 1)
-        is Significance.MINOR
-    )
-
-
 def test_a_population_collapse_is_campaign_defining_after_nuked_regions_or_nuclear_strikes() -> None:
     kind = POPULATION_COLLAPSE.event_type
     assert narrative_level(kind, nuked_regions=(), nuclear_strikes=False) is Significance.MAJOR
@@ -652,23 +642,6 @@ def test_a_top_economy_is_one_level_up_for_every_kind_with_the_temporary_rule(ev
     assert base is not None
     assert narrative_level(event_type, gdp_rank=top + 1) is base
     assert narrative_level(event_type, gdp_rank=top) is Significance.of(PROMOTED[base].base)
-
-
-@pytest.mark.parametrize(
-    ("event_type", "extra"),
-    [
-        ("nation.military_buildup", {"before": 1, "after": 5}),
-        ("nation.demobilization", {"before": 5, "after": 1}),
-        ("nation.navy_established", {"navies": 1}),
-    ],
-)
-def test_an_army_or_navy_event_of_a_top_ranked_nation_is_one_level_up(event_type: str, extra: dict[str, int]) -> None:
-    top = GeopoliticsSettings().top_gdp_nations
-    ranks = {"gdp_rank": top + 1, "strength_rank": top + 1}
-    assert narrative_level(event_type, **extra, **ranks) is Significance.MAJOR
-    assert narrative_level(event_type, **extra, **{**ranks, "gdp_rank": top}) is Significance.CAMPAIGN_DEFINING
-    assert narrative_level(event_type, **extra, **{**ranks, "strength_rank": 1}) is Significance.CAMPAIGN_DEFINING
-    assert narrative_level(event_type, **extra, gdp_rank=None, strength_rank=Unknown()) is Significance.MAJOR
 
 
 def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:

@@ -64,8 +64,8 @@ class GeopoliticsSettings:
     """Thresholds and windows of the geopolitical narrative rules (``narrative.geopolitics``), in game days."""
 
     top_gdp_nations: int = _int(10, 1)
-    """A nation-level narrative event of a nation this high or higher by ``GDP`` is one level up (TODO(#362): temporary,
-    the nation's power share replaces it)."""
+    """A nuclear armament of a nation this high or higher by ``GDP`` is one level up (TODO(#362): temporary, the nuclear
+    arsenal share replaces it)."""
     takeover_consolidation_days: int = _int(180, 0)
     """Control changes of one nation to the same faction this soon after the first join one takeover; its
     control-point gains are attached over the same window."""

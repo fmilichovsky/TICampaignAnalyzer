@@ -562,7 +562,12 @@ _BAND_SHIFT = SHIFTED | {"statistic", "before", "after", "from_band", "to_band",
 BAND_SHIFTS: Mapping[str, EventKind] = MappingProxyType(
     {
         statistic: narrative_kind(
-            event_type, _band_shift, required=_BAND_SHIFT, base=Significance.MINOR, rule=Rule.BAND_SHIFT
+            event_type,
+            _band_shift,
+            required=_BAND_SHIFT,
+            base=Significance.MINOR,
+            rule=Rule.BAND_SHIFT,
+            stake=Stake.ACTOR,
         )
         for statistic, event_type in (
             ("unrest", "nation.unrest_shift"),
@@ -599,7 +604,7 @@ ECONOMIC_TRAJECTORY = narrative_kind(
         }
     ),
     base=Significance.MAJOR,
-    rule=Rule.TOP_GDP_NATION,
+    stake=Stake.ACTOR,
 )
 DIPLOMATIC_REALIGNMENT = narrative_kind(
     "nation.diplomatic_realignment",
@@ -616,7 +621,7 @@ DIPLOMATIC_REALIGNMENT = narrative_kind(
         "strength_rank",
     },
     base=Significance.MAJOR,
-    rule=Rule.TOP_GDP_NATION,
+    stake=Stake.ACTOR,
 )
 _ARSENAL = frozenset({"before", "after", "gdp_rank", "strength_rank"})
 NUCLEAR_ARMAMENT = narrative_kind(
