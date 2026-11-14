@@ -323,11 +323,10 @@ PCGDP_TREND = EventKind(
 STATISTIC_SHIFTED = EventKind(
     "nation.statistic_shifted",
     _statistic_shifted,
-    Significance.MINOR,
+    Significance.TRIVIAL,
     EVIDENCE,
     required=frozenset({"statistic", "before", "after", "relative_change", "interval_days"}),
     optional=frozenset({"causes", "key"}),
-    rule=Rule.STATISTIC_SHIFTED,
     stake=Stake.NATION,
 )
 POPULATION_CHANGED = EventKind(
@@ -629,20 +628,21 @@ NUCLEAR_ARMAMENT = narrative_kind(
     _nuclear_arsenal("armed with nuclear weapons"),
     required=_ARSENAL,
     base=Significance.MAJOR,
-    rule=Rule.TOP_GDP_NATION,
+    stake=Stake.NUCLEAR_ARC,
 )
 NUCLEAR_BUILDUP = narrative_kind(
     "nation.nuclear_buildup",
     _nuclear_arsenal("built up its nuclear arsenal"),
     required=_ARSENAL,
     base=Significance.MAJOR,
+    stake=Stake.NUCLEAR_ARC,
 )
 NUCLEAR_DISARMAMENT = narrative_kind(
     "nation.nuclear_disarmament",
     _nuclear_arsenal("dismantled its nuclear arsenal"),
     required=_ARSENAL,
     base=Significance.MAJOR,
-    rule=Rule.LARGE_ARSENAL_DISARMED,
+    stake=Stake.NUCLEAR_ARC,
 )
 SPACE_PROGRAM_GROWTH = narrative_kind(
     "nation.space_program_growth",

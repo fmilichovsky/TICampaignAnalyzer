@@ -26,6 +26,11 @@ summary to a forensic log. It measures impact, not certainty, and is independent
   presence there.
 - **Battles use contested mass.** A side's mass is weighted up for alien ships. Mass beyond a multiple of the
   opponent's adds nothing, so a large fleet swatting a scout is a skirmish. The outcome never changes the stake.
+- **A nuclear arc uses its nuclear share.** An armament, buildup or disarmament scales by the warheads it moved, net,
+  over the world's warheads. The world total is taken at the larger of the arc's two ends, not on the earlier side, so
+  it always holds the moved warheads and a buildup from a near-empty world is a share of at most one. A single
+  warhead shift is evidence, so a great power's token buildup does not inherit the power share of the shift it
+  cites.
 - **The maximum, never a sum.** A narrative event scores the higher of its rule's base plus its own stake and the
   highest score among the events it cites. One fact is often recorded several times, so a sum would rank events
   by how often they were recorded.
@@ -39,4 +44,4 @@ summary to a forensic log. It measures impact, not certainty, and is independent
 - **Counting the alien faction in space totals.** It was rejected because humans would rank near zero until the
   late game.
 
-Tracked in #199, #200 and #201.
+Tracked in #199, #200, #201 and #360.

@@ -145,8 +145,8 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 class NarrativeBuilder:
     """Applies the shared policy: confidence is the constituents' minimum, the score and its basis are significance's
-    (``narrative_score``, the stake read from the reports of the event's first interval), and ``open`` while the
-    anchor is in the last report.
+    (``narrative_score``, the stake read from the reports of the event's first interval, the nuclear share also from
+    its last), and ``open`` while the anchor is in the last report.
 
     A rule chooses no level: the kind's base level, context rule and stake do, never below the highest-scored cited
     event.
@@ -235,7 +235,9 @@ class NarrativeBuilder:
             intervals=intervals,
             roles=role_list,
         )
-        score, basis = narrative_score(kind, event, cited, self._geopolitics, self._stakes.get(intervals[0]))
+        score, basis = narrative_score(
+            kind, event, cited, self._geopolitics, self._stakes.get(intervals[0]), self._stakes.get(intervals[-1])
+        )
         return replace(event, significance=Significance.of(score), score=score, significance_basis=basis)
 
     def _open(self, anchor: EntityRef | None) -> bool:

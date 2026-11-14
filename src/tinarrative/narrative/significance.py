@@ -75,14 +75,6 @@ UPHEAVAL_CAUSES = frozenset({"Coup", "RegimeChange", "Independence", "Enthrall"}
 WAR_RELATION = "wars"
 """The ``nation.relation_changed`` relation that names a war; ``allies`` and ``rivals`` are routine diplomacy."""
 
-DISCRETE_STATISTICS = frozenset({"numNuclearWeapons"})
-"""``nation.statistic_shifted`` statistics whose every change is a narrative event: a nuclear arsenal. Other statistics
-shift past their threshold for routine reasons too (event effects, priorities), so a shift is evidence for the rules
-that explain it and stays trivial on its own."""
-
-LARGE_ARSENAL = 10
-"""Dismantling an arsenal at least this large to zero is campaign defining."""
-
 # --- Rank promotion ---------------------------------------------------------------------------------------
 # TODO(#362): temporary; the named context rule and the stakes replace these, then they go with ``top_gdp_nations``.
 
@@ -167,10 +159,6 @@ def _executive_change(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR if isinstance(cause, str) and cause in UPHEAVAL_CAUSES else Significance.MINOR
 
 
-def _statistic_shifted(event: Event, lookup: Lookup) -> Significance | None:
-    return Significance.MAJOR if event.attribute("statistic") in DISCRETE_STATISTICS else Significance.TRIVIAL
-
-
 def _population_changed(event: Event, lookup: Lookup) -> Significance | None:
     """A population drop beyond territory is major, since routine decline is far slower; growth is minor."""
     return Significance.MAJOR if event.attribute("direction") == "drop" else Significance.MINOR
@@ -205,12 +193,6 @@ def _claims_changed(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR
 
 
-def _top_gdp_nation(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
-    """An event about a top-ranked economy is one level up. TODO(#362): temporary; the nation's power share replaces
-    it."""
-    return promoted_at_rank(_base(event), event.attribute("gdp_rank"), geopolitics.top_gdp_nations)
-
-
 def _band_shift(event: Event, _: GeopoliticsSettings) -> Significance | None:
     """Major for a statistic that is always major, a crossing into severe unrest, a crossing of a cohesion extreme or
     two bands crossed, else minor."""
@@ -241,12 +223,6 @@ def _collapse_after_strikes(event: Event, _: GeopoliticsSettings) -> Significanc
         return Significance.CAMPAIGN_DEFINING
     return None
 
-
-def _large_arsenal_disarmed(event: Event, _: GeopoliticsSettings) -> Significance | None:
-    """Dismantling a large arsenal to zero is campaign defining."""
-    before, after = number(event.attribute("before")), number(event.attribute("after"))
-    if before is not None and after == 0 and before >= LARGE_ARSENAL:
-        return Significance.CAMPAIGN_DEFINING
     return None
 
 
@@ -267,15 +243,12 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
     Rule.RELATION_CHANGED: _relation_changed,
     Rule.CLAIMS_CHANGED: _claims_changed,
     Rule.EXECUTIVE_CHANGE: _executive_change,
-    Rule.STATISTIC_SHIFTED: _statistic_shifted,
     Rule.POPULATION_CHANGED: _population_changed,
     Rule.SPACE_ASSETS_CHANGED: _space_assets_changed,
     Rule.ARMY_PRESENCE: _army_presence,
     Rule.COMPLETION: _completion,
-    Rule.TOP_GDP_NATION: NarrativeContextRule(_top_gdp_nation),
     Rule.BAND_SHIFT: NarrativeContextRule(_band_shift),
     Rule.COLLAPSE_AFTER_STRIKES: NarrativeContextRule(_collapse_after_strikes),
-    Rule.LARGE_ARSENAL_DISARMED: NarrativeContextRule(_large_arsenal_disarmed),
     Rule.ENTERED_TOP: NarrativeContextRule(_entered_top),
     Rule.MILESTONE_TIER: NarrativeContextRule(_milestone_tier),
 }
@@ -440,6 +413,13 @@ class ReportStakes(_IntervalShares):
             return self._space_measured(measure, side)
         raise ValueError(f"a situation report states no {measure} shares")
 
+    def world_warheads(self, side: Side) -> float | None:
+        """The warheads of every nation in the side's report whose count is known (ADR-0005: absent is not zero);
+        ``None`` when no count is known."""
+        counts = [number(row.nuclear_weapons) for row in self._reports[side].nations]
+        known = [count for count in counts if count is not None]
+        return math.fsum(known) if known else None
+
     def nuclear_armed(self, nation: EntityId) -> bool:
         """Whether the nation holds warheads, on the earlier side when it is listed there."""
         for side in (Side.BEFORE, Side.AFTER):
@@ -548,6 +528,9 @@ class NarrativeScaling:
     entities: NarrativeEntitiesOf
     nuclear_bonus: bool = False
     """Adds ``ReferenceSettings.nuclear_bonus`` when an attacker and a defender both hold warheads."""
+    net_move: bool = False
+    """The share is the arc's net move over the world total at its larger end (``_nuclear_share``), not the summed
+    share of ``entities``."""
 
 
 def _role_nations(event: Event, wanted: Role) -> tuple[EntityRef, ...]:
@@ -623,6 +606,7 @@ NARRATIVE_STAKE_IMPLEMENTATIONS: Mapping[Stake, NarrativeScaling] = {
     Stake.INDEPENDENT_NATION: NarrativeScaling(StakeMeasure.POWER, _independent_nation),
     Stake.COLONY: NarrativeScaling(StakeMeasure.HAB, _cited_habs),
     Stake.NEW_SHIPS: NarrativeScaling(StakeMeasure.FLEET, _cited_ships),
+    Stake.NUCLEAR_ARC: NarrativeScaling(StakeMeasure.NUCLEAR, _actor, net_move=True),
 }
 """Every narrative-event ``Stake``'s implementation."""
 
@@ -632,9 +616,10 @@ CODE_REFERENCES: Mapping[StakeMeasure, float] = {
     StakeMeasure.FLEET: 0.01,
     StakeMeasure.BATTLE: 0.0033,
     StakeMeasure.FACTION: 1 / 7,  # an even split among the seven human factions
+    StakeMeasure.NUCLEAR: 0.01,
 }
-"""The share at which a space or faction stake leaves a score at its base. Code constants, not settings: the
-power, population and organization references are ``ReferenceSettings``."""
+"""The share at which a space, faction or nuclear stake leaves a score at its base. Code constants, not settings:
+the power, population and organization references are ``ReferenceSettings``."""
 
 
 def _reference(measure: StakeMeasure, settings: SignificanceSettings) -> float:
@@ -700,7 +685,12 @@ def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBas
 
 
 def _narrative_basis(
-    kind: EventKind, event: Event, cited: Sequence[Event], level: Significance, stakes: ReportStakes
+    kind: EventKind,
+    event: Event,
+    cited: Sequence[Event],
+    level: Significance,
+    stakes: ReportStakes,
+    last: ReportStakes,
 ) -> SignificanceBasis | None:
     named = kind.stake
     if named is None:
@@ -709,13 +699,29 @@ def _narrative_basis(
     if stake is None:
         raise ValueError(f"stake {named} of {event.event_type} scales an atomic event")
     refs = _unique(stake.entities(event, cited))
-    share = stakes.share(stake.measure, (ref.entity_id for ref in refs))
+    if stake.net_move:
+        share = _nuclear_share(event, stakes, last)
+    else:
+        share = stakes.share(stake.measure, (ref.entity_id for ref in refs))
     if share is None:
         return None
     bonus = 0
     if stake.nuclear_bonus and _armed_on_both_sides(event, stakes):
         bonus = stakes.settings.reference.nuclear_bonus
     return _scaled(level, stake.measure, share, refs, bonus, stakes.settings)
+
+
+def _nuclear_share(event: Event, first: ReportStakes, last: ReportStakes) -> float | None:
+    """The arc's net move, its first ``before`` to its last ``after``, over the larger world total of the earlier report
+    of its first interval and the later report of its last (ADR-0011). A report missing counts can total less than the
+    move, so the move bounds the total. ``None`` when a count of the move or both world totals are unknown, or nothing
+    moved."""
+    before, after = number(event.attribute("before")), number(event.attribute("after"))
+    totals = [item for item in (first.world_warheads(Side.BEFORE), last.world_warheads(Side.AFTER)) if item is not None]
+    if before is None or after is None or not totals:
+        return None
+    moved = abs(after - before)
+    return moved / max(*totals, moved) if moved > 0 else None
 
 
 def _armed_on_both_sides(event: Event, stakes: ReportStakes) -> bool:
@@ -790,10 +796,12 @@ def narrative_score(
     cited: Iterable[Event],
     geopolitics: GeopoliticsSettings,
     stakes: ReportStakes | None = None,
+    last: ReportStakes | None = None,
 ) -> tuple[int, SignificanceBasis | None]:
     """The score and its basis: the higher of the kind's own score and the highest score among the ``cited`` events
     (ADR-0011). The own score is the kind's context-rule level, else its base level, moved by its stake as an atomic
-    event's is; ``stakes`` are the reports of the event's first interval, and without them there is no basis.
+    event's is; ``stakes`` are the reports of the event's first interval, and without them there is no basis. ``last``
+    are the reports of its last interval (by default the first's), read only by the nuclear share.
 
     Raises ``ValueError`` for a kind whose context rule judges atomic events, or whose stake scales atomic events:
     each is a code bug.
@@ -807,7 +815,7 @@ def narrative_score(
         decided = rule.judge(event, geopolitics)
         if decided is not None:
             level = decided
-    basis = _narrative_basis(kind, event, cited, level, stakes) if stakes is not None else None
+    basis = _narrative_basis(kind, event, cited, level, stakes, last or stakes) if stakes is not None else None
     own = level.base if basis is None else _clamped(basis)
     return max([own, *(item.score for item in cited)]), basis
 

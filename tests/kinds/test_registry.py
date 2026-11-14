@@ -49,7 +49,7 @@ def test_a_narrative_event_kind_is_exactly_one_a_rule_emits() -> None:
     assert all(KINDS[event_type].evidence is EvidenceRole.BOOKKEEPING for event_type in narrative)
 
 
-def test_every_geopolitics_nation_and_scaled_space_kind_declares_its_stake_and_no_other_narrative_kind_one() -> None:
+def test_every_geopolitics_nation_nuclear_and_scaled_space_kind_declares_its_stake_and_no_other_one() -> None:
     geopolitical = {
         event_type for rule in geopolitical_rules(GeopoliticsSettings()) for event_type in rule.emitted_types
     }
@@ -65,7 +65,8 @@ def test_every_geopolitics_nation_and_scaled_space_kind_declares_its_stake_and_n
         "nation.demobilization",
         "nation.navy_established",
     }
-    assert staked == geopolitical | nation | {"faction.colonisation_wave", "faction.fleet_buildup"}
+    nuclear = {"nation.nuclear_armament", "nation.nuclear_buildup", "nation.nuclear_disarmament"}
+    assert staked == geopolitical | nation | nuclear | {"faction.colonisation_wave", "faction.fleet_buildup"}
 
 
 def test_every_nation_metric_and_diplomacy_kind_declares_its_base_level() -> None:

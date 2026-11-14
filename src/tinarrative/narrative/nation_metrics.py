@@ -59,7 +59,7 @@ NUCLEAR_ARMAMENT = nation_kinds.NUCLEAR_ARMAMENT.event_type
 NUCLEAR_BUILDUP = nation_kinds.NUCLEAR_BUILDUP.event_type
 NUCLEAR_DISARMAMENT = nation_kinds.NUCLEAR_DISARMAMENT.event_type
 NUCLEAR_WEAPONS = "numNuclearWeapons"
-NUCLEAR_SHARE = 0.5
+ARC_MIN_FRACTION = 0.5
 """A buildup gains, and a disarmament loses, at least this share of the arsenal it started from."""
 TREND_WINDOW_DAYS = round(TREND_QUARTERS * MONTHS_PER_QUARTER * 365.25 / 12)
 
@@ -325,7 +325,6 @@ class NuclearArcRule:
     """
 
     settings: NationMetricsSettings
-    geopolitics: GeopoliticsSettings
     name: str = NUCLEAR_ARC
     emitted_types: frozenset[str] = frozenset({NUCLEAR_ARMAMENT, NUCLEAR_BUILDUP, NUCLEAR_DISARMAMENT})
     reads: frozenset[str] = frozenset()
@@ -336,7 +335,6 @@ class NuclearArcRule:
         return self.settings.nuclear_window_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        build = build.scoring_with(self.geopolitics)  # TODO(#362): the top-GDP rule reads ``top_gdp_nations``
         days = self.settings.nuclear_window_days
         reports = interval_reports(situations)
         shifts = [
@@ -368,10 +366,10 @@ class NuclearArcRule:
                         event for event in programs.get(nation_id, []) if overlaps(event, low, latest(last))
                     ]
                 elif 0 < start < end and (
-                    end - start >= self.settings.nuclear_buildup_min or end - start >= NUCLEAR_SHARE * start
+                    end - start >= self.settings.nuclear_buildup_min or end - start >= ARC_MIN_FRACTION * start
                 ):
                     kind = nation_kinds.NUCLEAR_BUILDUP
-                elif start > end and start - end >= NUCLEAR_SHARE * start:
+                elif start > end and start - end >= ARC_MIN_FRACTION * start:
                     kind = nation_kinds.NUCLEAR_DISARMAMENT
                 else:
                     continue
@@ -402,5 +400,5 @@ def nation_metric_rules(
         *(BandShiftRule(statistic, settings.nation_metrics, settings.geopolitics) for statistic in BANDS),
         PopulationCollapseRule(settings.geopolitics),
         EconomicTrajectoryRule(),
-        NuclearArcRule(settings.nation_metrics, settings.geopolitics),
+        NuclearArcRule(settings.nation_metrics),
     )
