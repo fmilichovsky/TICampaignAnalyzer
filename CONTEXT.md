@@ -120,6 +120,11 @@ The shares a reference lets keep a minor or major base level, from the reference
 slides the window along the shares and never changes its width.
 _Avoid_: band (a band is a level's score range)
 
+**Draft stake**:
+A stake tried on the events of an existing event type before its kind declares one, so its reference can be chosen
+first. It is scored beside the real events and never changes their scores.
+_Avoid_: design series, series builder
+
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
 the arc's two ends, so a share never exceeds one.
