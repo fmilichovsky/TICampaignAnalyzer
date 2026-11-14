@@ -100,13 +100,18 @@ A named judgement that sets an event's level from what the event itself says, ov
 _Avoid_: override, special case
 
 **Stake**:
-What an event's score scales with: the share of a world total (its stake measure) held by the entities the event
-concerns, in the same snapshot.
+What an event's score scales with: the share of a world total (its stake measure) held or moved by the entities the
+event concerns, in the same snapshot.
 _Avoid_: magnitude, size, weight
 
 **Stake measure**:
 The world total a stake is a share of, such as nation power, population or organization strength.
 _Avoid_: metric (a nation metric is a statistic, not a stake measure)
+
+**Nuclear share**:
+The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
+the arc's two ends, so a share never exceeds one.
+_Avoid_: arsenal share (an arsenal can mean every military asset), arsenal size
 
 **Space share**:
 A faction's share of human space holdings: the mean of its share of human habs, weighted by tier squared, and its
