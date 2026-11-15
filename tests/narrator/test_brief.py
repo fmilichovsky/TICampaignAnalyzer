@@ -8,11 +8,13 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
+from tinarrative.narrative.org_catalog import NAMED_ORG_CATEGORIES
 from tinarrative.narrator.brief import (
     AUDIT_KEYS,
     HEADER_KEYS,
     MISSION_PHRASES,
     NAMED_AUDIT_KEYS,
+    ORG_ALIASES,
     ORG_AUDIT_KEYS,
     VISIBILITY_AUDIT_KEYS,
     councilor_brief,
@@ -130,6 +132,25 @@ def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> N
         key: ENTRY["orgs"][0][key] for key in ("name", "tier", "nation", "origin", "category")
     }
     assert councilor["home"]["nation"] == {"name": ENTRY["home"]["nation"]["name"]}
+
+
+def test_an_aliased_organization_carries_its_public_alias_and_never_the_game_name() -> None:
+    game_name = "Fixture Game Name"
+    plain = ENTRY["orgs"][0]
+    for template, alias in ORG_ALIASES.items():
+        entry = copy.deepcopy(ENTRY)
+        entry["orgs"] = [{**plain, "name": game_name, "template": template, "origin": "faction"}, plain]
+
+        brief = councilor_brief(DOSSIER, entry)
+
+        orgs = brief["councilor"]["orgs"]
+        assert orgs[0]["name"] == alias
+        assert orgs[1]["name"] == plain["name"]
+        assert game_name not in json.dumps(brief)
+
+
+def test_every_alias_key_is_a_named_organization_template() -> None:
+    assert set(ORG_ALIASES) <= set(NAMED_ORG_CATEGORIES)
 
 
 def test_the_brief_leaves_the_dossier_untouched() -> None:
