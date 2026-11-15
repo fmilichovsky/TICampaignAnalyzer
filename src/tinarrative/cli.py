@@ -19,6 +19,10 @@ from typing import Any, TypeAlias, cast
 from . import __version__
 from .benchmarking import metrics as benchmark_metrics
 from .benchmarking import runtime as benchmark_runtime
+from .benchmarking.calibration import cache as calibration_cache
+from .benchmarking.calibration import readout as calibration_readout
+from .benchmarking.calibration import replay as calibration_replay
+from .benchmarking.calibration.table import CalibrationTableError
 from .benchmarking.manifest import MANIFEST, sample_files, update_samples, verify_samples
 from .benchmarking.samples import SampleImportError, import_sample_campaign
 from .config import (
@@ -207,6 +211,16 @@ EXIT_CODES: dict[str, ExitCodes] = {
         (EXIT_INPUT_ERROR, "--samples is not a directory."),
         (EXIT_OUTPUT_ERROR, "the runtime JSON cannot be written."),
     ),
+    "benchmark calibrate report": (
+        (EXIT_SUCCESS, "the readout was printed."),
+        (
+            EXIT_USAGE_ERROR,
+            f"usage error, a sample that does not match {MANIFEST}, an unknown measure, campaign or type, an invalid "
+            "--state, a measure given twice, or a failed extraction (status.js says failed; the old table stays).",
+        ),
+        (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
+        (EXIT_OUTPUT_ERROR, "--out cannot be written."),
+    ),
     "benchmark runtime report": (
         (EXIT_SUCCESS, "the report was written."),
         *_USAGE,
@@ -222,6 +236,7 @@ NARRATE_MIN_SIGNIFICANCE = Significance.MAJOR
 NARRATE_CONSTITUENTS: Constituents = "evidence"
 BENCHMARK_ROOT = Path("benchmarks")
 BENCHMARK_SAMPLES_DIR = BENCHMARK_ROOT / "samples"
+CALIBRATION_OUT_DIR = Path("build") / "calibration"
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -710,6 +725,64 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
     finally:
         if progress is not None:
             progress.finish("measurement")
+
+
+def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
+    """Refresh the calibration cache, replay it for the requested state and print the readout."""
+    command = "tinarrative benchmark calibrate report"
+    samples = cast(Path, args.samples)
+    out = cast(Path, args.out)
+    try:
+        if not samples.is_dir():
+            raise OSError(f"{samples}: not a directory")
+        (samples / MANIFEST).read_bytes()
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    errors = verify_samples(samples)
+    for sample_error in errors:
+        print(f"{command}: {sample_error}", file=sys.stderr)
+    if errors:
+        return EXIT_USAGE_ERROR
+
+    def stale(found: calibration_cache.CacheCheck) -> None:
+        what = "Rebuilding" if found.existing is not None else "Extracting"
+        print(f"{command}: {what} the calibration table in {out}...", file=sys.stderr)
+
+    try:
+        calibration_cache.refresh(samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale)
+    except calibration_cache.CalibrationCacheError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    try:
+        index, tables = calibration_replay.load(out)
+        state = (
+            calibration_replay.decode_state(cast(str, args.state), index)
+            if args.state is not None
+            else calibration_replay.default_state(index)
+        )
+        state = calibration_readout.override_state(
+            state,
+            index,
+            references=cast("list[str] | None", args.reference) or [],
+            campaigns=cast("list[str] | None", args.campaign) or [],
+            types=cast("list[str] | None", args.type) or [],
+            clamp=cast("str | None", args.clamp),
+        )
+        result = calibration_replay.replay(index, tables, state)
+    except (calibration_replay.ReplayError, CalibrationTableError) as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    state_hash = calibration_replay.encode_state(state, index)
+    if args.format == "json":
+        document = calibration_readout.render_json(index, tables, result, state_hash=state_hash)
+        sys.stdout.write(json.dumps(document, indent=2) + "\n")
+    else:
+        sys.stdout.write(calibration_readout.render_text(index, result, state_hash=state_hash))
+    return EXIT_SUCCESS
 
 
 def _run_benchmark_runtime(args: argparse.Namespace) -> int:
@@ -2178,7 +2251,7 @@ def _add_campaigns_parser(subcommands: Subcommands) -> None:
 
 
 def _add_benchmark_parser(subcommands: Subcommands) -> None:
-    summary = "Maintain the benchmark samples and measure package size and runtime."
+    summary = "Maintain the benchmark samples, measure package size and runtime, and calibrate stakes."
     parser = subcommands.add_parser("benchmark", help=summary, description=summary)
     commands = parser.add_subparsers(dest="benchmark_command", metavar="COMMAND", required=True)
     sample = _add_command(
@@ -2294,6 +2367,51 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     reported.add_argument("runtime", type=Path, metavar="FILE", help="The runtime JSON file.")
     _add_report_arguments(reported)
     reported.set_defaults(handler=_run_benchmark_runtime)
+
+    summary = "Replay the stake calibration table for other references."
+    calibrate = commands.add_parser("calibrate", help=summary, description=summary)
+    calibrate_commands = calibrate.add_subparsers(dest="calibrate_command", metavar="OPERATION", required=True)
+    report = _add_command(
+        calibrate_commands,
+        "report",
+        "Refresh the calibration cache and print the readout of a calibration state.",
+        "benchmark calibrate report",
+    )
+    _add_samples_argument(report)
+    report.add_argument(
+        "--out",
+        type=Path,
+        default=CALIBRATION_OUT_DIR,
+        metavar="PATH",
+        help="The calibration cache directory (default %(default)s).",
+    )
+    report.add_argument("--rebuild", action="store_true", help="Rebuild the cache even when it is fresh.")
+    report.add_argument(
+        "--reference",
+        action="append",
+        metavar="MEASURE=VALUE",
+        help="A measure's reference share; comma-separated, repeatable (default: the code's).",
+    )
+    report.add_argument(
+        "--campaign",
+        action="append",
+        metavar="NAME",
+        help="Replay only these sample campaigns; comma-separated, repeatable (default: every one).",
+    )
+    report.add_argument(
+        "--type",
+        action="append",
+        metavar="EVENT_TYPE",
+        help="Count only these event types; comma-separated, repeatable (default: every type).",
+    )
+    report.add_argument(
+        "--clamp", choices=("on", "off"), help="Clamp the stake's scale, as the page's toggle (default on)."
+    )
+    report.add_argument(
+        "--state", metavar="HASH", help="A calibration page's URL hash; the other flags override what it sets."
+    )
+    _add_format_argument(report)
+    report.set_defaults(handler=_run_benchmark_calibrate)
 
 
 def _add_python_argument(parser: argparse.ArgumentParser) -> None:

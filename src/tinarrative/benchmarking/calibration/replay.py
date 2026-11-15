@@ -597,7 +597,7 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
     default = default_state(index)
     fields: list[str] = []
     changed = [
-        f"{measure}:{_js_number(state.references[measure])}"
+        f"{measure}:{js_number(state.references[measure])}"
         for measure in index["measures"]
         if state.references[measure] != default.references[measure]
     ]
@@ -697,13 +697,13 @@ def _names(value: str, what: str, *, allow_empty: bool) -> list[str]:
     return names
 
 
-def _js_number(value: float) -> str:
+def js_number(value: float) -> str:
     """``value`` as JavaScript's ``String(value)``: the shortest round-trip digits, in exponent form only below 1e-6
     or from 1e21."""
     if value == 0:
         return "0"
     if value < 0:
-        return "-" + _js_number(-value)
+        return "-" + js_number(-value)
     _, digit_tuple, exponent = Decimal(repr(value)).normalize().as_tuple()
     assert isinstance(exponent, int)
     digits = "".join(map(str, digit_tuple))

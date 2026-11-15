@@ -33,10 +33,10 @@ from tinarrative.benchmarking.calibration.replay import (
     ReplayError,
     ReplayState,
     ReplayStateError,
-    _js_number,
     cutoff_offsets,
     decode_state,
     encode_state,
+    js_number,
     portable_log10,
     replay,
 )
@@ -285,7 +285,7 @@ def test_no_enabled_campaign_round_trips() -> None:
     ],
 )
 def test_a_number_is_written_as_javascript_writes_it(value: float, text: str) -> None:
-    assert _js_number(value) == text
+    assert js_number(value) == text
 
 
 @pytest.mark.parametrize(("text", "message"), INVALID_HASHES)

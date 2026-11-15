@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 
-from tinarrative.benchmarking.calibration.replay import ReplayState, _js_number, encode_state, load, replay
+from tinarrative.benchmarking.calibration.replay import ReplayState, encode_state, js_number, load, replay
 
 HARNESS = Path(__file__).with_name("replay_harness.js")
 REPLAY_JS = Path(str(files("tinarrative.benchmarking.calibration").joinpath("replay.js")))
@@ -57,7 +57,7 @@ def js_json(value: Any) -> str:
     if isinstance(value, int):
         return str(value)
     if isinstance(value, float):
-        return _js_number(value) if math.isfinite(value) else "null"
+        return js_number(value) if math.isfinite(value) else "null"
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
     if isinstance(value, Mapping):

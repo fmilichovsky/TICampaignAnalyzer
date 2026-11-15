@@ -1,0 +1,3 @@
+References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 8 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2.
+StakeMeasure.POWER: MeasureSpec(reference=0.006309573444801933, ...),  # code: 0.01
+StakeMeasure.FACTION: MeasureSpec(reference=1e-7, ...),  # code: 0.14285714285714285

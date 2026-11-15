@@ -30,6 +30,7 @@ from tinarrative.sequence import (
 SCHEMA_VERSION: Final = 1
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
+STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
 SUFFIX: Final = ";"
 SCORE_MIN: Final = 0
 SCORE_MAX: Final = 100
@@ -164,6 +165,17 @@ def write_index(directory: Path, index: dict[str, Any]) -> Path:
 
 def read_index(path: Path) -> dict[str, Any]:
     return _unwrap(path.read_text(encoding="utf-8").rstrip("\n"), INDEX_PREFIX, path)
+
+
+def write_status(directory: Path, status: dict[str, Any]) -> Path:
+    """Write ``status.js`` under ``directory``, in place: the page polls it and tolerates a torn read."""
+    path = directory / "status.js"
+    path.write_text(f"{STATUS_PREFIX}{_dumps(status)}{SUFFIX}\n", encoding="utf-8")
+    return path
+
+
+def read_status(path: Path) -> dict[str, Any]:
+    return _unwrap(path.read_text(encoding="utf-8").rstrip("\n"), STATUS_PREFIX, path)
 
 
 def extract_all(samples: Path, directory: Path, *, key: str, now: datetime | None = None) -> list[str]:
