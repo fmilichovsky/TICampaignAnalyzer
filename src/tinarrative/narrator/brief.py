@@ -34,6 +34,18 @@ STANCES = {
 }
 """The public stance of each human faction by ``templateName``; the councilor prompt's Stances section explains each."""
 
+ORG_ALIASES = {
+    "AppeaseWinner": "Global Stabilization Authority",
+    "AppeaseSpecial": "Civic Reorientation Bureau",
+    "SubmitAdministration": "Office of the Administrative Transition",
+    "ExploitWinner": "Pherocyte Accord Directorate",
+    "CooperateWinner": "Hydra Relations Commission",
+    "ExploitSpecial": "Pherocyte Applications Group",
+    "CooperateSpecial": "Joint Research Coordination Office",
+}
+"""A public-facing name for the faction-reward organizations whose game names read badly in an article, by
+``templateName``. It replaces ``name`` in the brief only; the dossier keeps the game name (ADR-0020)."""
+
 DETENTION_LINES = {"set": "detained", "cleared": "released", "changed": "transferred to other captors"}
 """A detention milestone by its transition; the captor is never named."""
 
@@ -211,7 +223,7 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
         if key == "visibility" and isinstance(value, Mapping):
             value = _visibility(value)
         elif key == "orgs" and isinstance(value, list):
-            value = [_without(org, ORG_AUDIT_KEYS) if isinstance(org, Mapping) else org for org in value]
+            value = [_org(org) if isinstance(org, Mapping) else org for org in value]
         elif key == "career" and isinstance(value, list):
             items = [item for item in value if isinstance(item, Mapping)]
             former = _former_stances(dossier, items, current)
@@ -225,6 +237,16 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
             }
         councilor[key] = value
     return {**{key: dossier.get(key) for key in HEADER_KEYS}, "councilor": councilor}
+
+
+def _org(org: Mapping[str, Any]) -> dict[str, Any]:
+    """``org`` without audit fields and under its public alias, when it has one."""
+    kept = _without(org, ORG_AUDIT_KEYS)
+    template = org.get("template")
+    alias = ORG_ALIASES.get(template) if isinstance(template, str) else None
+    if alias is not None:
+        kept["name"] = alias
+    return kept
 
 
 def _profession(value: object) -> str | None:
