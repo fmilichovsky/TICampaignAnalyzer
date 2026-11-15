@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from ..model.entities import EntityDomain
+from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule, Stake
 from ..model.values import Unknown
@@ -13,9 +13,9 @@ from .text import (
     TRANSITION,
     attribute_label,
     attribute_text,
-    list_changed,
+    entity,
+    name,
     plain,
-    presence,
     refs,
     subject_label,
     transition_label,
@@ -26,29 +26,41 @@ EVIDENCE = EvidenceRole.EVIDENCE
 
 
 def _controller_changed(event: Event) -> str:
-    text = (
-        f"{subject_label(event)} ({_entity_name(event, EntityDomain.NATION)}) {transition_label(event, 'controller')}"
-    )
+    text = f"{subject_label(event)} {transition_label(event, 'controller')}"
+    nation = entity(event, EntityDomain.NATION)
+    if nation is not None:
+        text += f"; nation {nation.label()}"
     recorded = event.attribute("loss_recorded_on")
     if not isinstance(recorded, Unknown):
         text += f"; loss recorded by {attribute_label(event, 'before')} on {attribute_text(event, 'loss_recorded_on')}"
     return text
 
 
-def _entity_name(event: Event, domain: EntityDomain) -> str:
-    ref = next((entity for entity in event.entities[1:] if entity.entity_id.domain is domain), None)
-    return ref.label() if ref is not None else "null"
+def _with_context(text: str, label: str, ref: EntityRef | None) -> str:
+    """``text (label ref)``; a missing context says nothing and is left out."""
+    return text if ref is None else f"{text} ({label} {ref.label()})"
 
 
 def _control_point_presence(event: Event) -> str:
-    return (
-        f"{subject_label(event)} ({_entity_name(event, EntityDomain.NATION)}, "
-        f"controller {_entity_name(event, EntityDomain.FACTION)}) {presence(event)}"
+    """``<point> appeared (nation N, controller C)``; the snapshot side is the type name."""
+    context = ", ".join(
+        f"{label} {ref.label()}"
+        for label, ref in (
+            ("nation", entity(event, EntityDomain.NATION)),
+            ("controller", entity(event, EntityDomain.FACTION)),
+        )
+        if ref is not None
     )
+    text = f"{subject_label(event)} {_arrival(event)}"
+    return f"{text} ({context})" if context else text
+
+
+def _arrival(event: Event) -> str:
+    return "appeared" if event.attribute("side") == "after" else "disappeared"
 
 
 def _loss_recorded(event: Event) -> str:
-    faction = _entity_name(event, EntityDomain.FACTION)
+    faction = name(entity(event, EntityDomain.FACTION))
     text = f"{faction} records {subject_label(event)} as lost on {attribute_text(event, 'recorded_on')}"
     if not isinstance(event.attribute("previous_recorded_on"), Unknown):
         text += f" (previously {attribute_text(event, 'previous_recorded_on')})"
@@ -57,21 +69,37 @@ def _loss_recorded(event: Event) -> str:
 
 def _councilor_field(label: str) -> Callable[[Event], str]:
     def describe(event: Event) -> str:
-        return f"{subject_label(event)} ({_entity_name(event, EntityDomain.FACTION)}) {transition_label(event, label)}"
+        text = f"{subject_label(event)} {transition_label(event, label)}"
+        return _with_context(text, "faction", entity(event, EntityDomain.FACTION))
 
     return describe
 
 
 def _councilor_presence(event: Event) -> str:
-    return f"{subject_label(event)} (faction {_entity_name(event, EntityDomain.FACTION)}) {presence(event)}"
+    text = f"{subject_label(event)} {_arrival(event)}"
+    return _with_context(text, "faction", entity(event, EntityDomain.FACTION))
 
 
 def _organization_presence(event: Event) -> str:
-    return f"{subject_label(event)} (home region {_entity_name(event, EntityDomain.REGION)}) {presence(event)}"
+    text = f"{subject_label(event)} {_arrival(event)}"
+    return _with_context(text, "home region", entity(event, EntityDomain.REGION))
+
+
+def _members(label: str) -> Callable[[Event], str]:
+    """``<subject> <label>: added <member>`` (``removed`` likewise), or the literal transition when unresolved."""
+
+    def describe(event: Event) -> str:
+        transition = event.attribute("transition")
+        if transition == "unresolved":
+            return f"{subject_label(event)} {transition_label(event, label)}"
+        verb = "added" if transition == "added" else "removed"
+        return f"{subject_label(event)} {label}: {verb} {attribute_label(event, 'member')}"
+
+    return describe
 
 
 def _nation_control_changed(event: Event) -> str:
-    return f"{subject_label(event)} {transition_label(event, attribute_text(event, 'scope') + ' control changed')}"
+    return f"{subject_label(event)} {transition_label(event, attribute_text(event, 'scope') + ' control')}"
 
 
 CONTROL_POINT_CONTROLLER_CHANGED = EventKind(
@@ -102,7 +130,7 @@ CONTROL_POINT_LOSS_RECORDED = EventKind(
 )
 FACTION_CONTROL_POINTS_CHANGED = EventKind(
     "faction.control_points_changed",
-    list_changed,
+    _members("control points"),
     Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
@@ -110,7 +138,7 @@ FACTION_CONTROL_POINTS_CHANGED = EventKind(
 )
 NATION_CONTROL_POINTS_CHANGED = EventKind(
     "nation.control_points_changed",
-    list_changed,
+    _members("control points"),
     Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
@@ -151,7 +179,7 @@ COUNCILOR_DISAPPEARED = EventKind(
 )
 FACTION_COUNCILORS_CHANGED = EventKind(
     "faction.councilors_changed",
-    list_changed,
+    _members("councilors"),
     Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
@@ -177,7 +205,7 @@ ORGANIZATION_FACTION_ORBIT_CHANGED = EventKind(
 )
 COUNCILOR_ORGS_CHANGED = EventKind(
     "councilor.orgs_changed",
-    list_changed,
+    _members("organizations"),
     Significance.TRIVIAL,
     EVIDENCE,
     required=frozenset({"transition"}),
@@ -185,7 +213,7 @@ COUNCILOR_ORGS_CHANGED = EventKind(
 )
 FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
     "faction.unassigned_orgs_changed",
-    list_changed,
+    _members("unassigned organizations"),
     Significance.TRIVIAL,
     BOOKKEEPING,
     required=frozenset({"transition"}),
@@ -229,8 +257,8 @@ def _takeover(event: Event) -> str:
 
 def _takeover_wave(event: Event) -> str:
     return (
-        f"{role(event, Role.ACTOR)} took control of {refs(event, 'nations')} in quick succession "
-        f"({count(event.attribute('count'), 'takeover')})"
+        f"{role(event, Role.ACTOR)} took control in quick succession "
+        f"({count(event.attribute('count'), 'takeover')}): {refs(event, 'nations')}"
     )
 
 
