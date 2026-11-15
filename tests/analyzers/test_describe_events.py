@@ -33,17 +33,16 @@ EXPECTED_INTERVAL = {
 
 EXPECTED_RECORDS = {
     "Fixture Resistance (faction:15) records Fixture CP 9 (control point:9) as lost on 2031-04-10T00:00:00",
-    "Fixture Northland (nation:20) records an executive change dated 2031-04-20T00:00:00: "
-    "new executive Fixture Resistance (faction:15) (previously null)",
+    "Fixture Northland (nation:20) new executive Fixture Resistance (faction:15) (previously null); "
+    "change recorded 2031-04-20T00:00:00",
     "Fixture Northland (nation:20) records a new government dated 2031-04-20T00:00:00",
 }
 
 EXPECTED_POLITICS = {
     "Fixture Southland (nation:21) GDP rank: 2 -> unranked",
     "Fixture Servants (faction:16) records Fixture CP 9 (control point:9) as lost on 2032-02-15T00:00:00",
-    "Fixture Northland (nation:20) records an executive change dated 2032-02-15T00:00:00: "
-    "new executive Fixture Resistance (faction:15) (previously Fixture Servants "
-    "(faction:16))",
+    "Fixture Northland (nation:20) new executive Fixture Resistance (faction:15) (previously "
+    "Fixture Servants (faction:16)); change recorded 2032-02-15T00:00:00",
     "Fixture CP 10 (control point:10) (Fixture Northland (nation:20)) controller: Fixture "
     "Resistance (faction:15) -> null",
     "Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture "
@@ -66,8 +65,8 @@ EXPECTED_POLITICS = {
     "(listed by Fixture Northland (nation:20) only)",
     "Fixture Northland (nation:20) and Fixture Southland (nation:21): wars entry added (listed by both)",
     "Fixture South (region:42) nation: Fixture Southland (nation:21) -> Fixture Northland (nation:20)",
-    "Fixture Southland (nation:21) claims list: +[Fixture North (region:40)]",
-    "Fixture Eastland (nation:22) hostile claims list: +[Fixture South (region:42)]",
+    "Fixture Southland (nation:21) claims list +1/-0: +[Fixture North (region:40)]",
+    "Fixture Eastland (nation:22) hostile claims list +1/-0: +[Fixture South (region:42)]",
     "Fixture Northland (nation:20) unrest attempts by Fixture Resistance (faction:15): null -> 1",
     "Fixture Northland (nation:20) unrest attempts by Fixture Servants (faction:16): 1 -> 2",
 }
