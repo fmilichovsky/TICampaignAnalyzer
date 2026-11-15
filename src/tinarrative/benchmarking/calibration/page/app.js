@@ -21,6 +21,7 @@
   ];
   const DIGEST_ROWS = 6;
   const RESORT_DELAY = 400;
+  const ORDER_KEY = "ti-calibration-count-order";
   const STATUS_POLL = 2000;
   const STATUS_GRACE = 20000;
   const SLIDER_STEP = 0.01;
@@ -31,7 +32,6 @@
   // --- Small helpers -----------------------------------------------------------------------------------------
 
   const $ = (id) => document.getElementById(id);
-  const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function el(tag, attributes, ...children) {
     const node = document.createElement(tag);
@@ -206,9 +206,6 @@
     result: null,
     full: null,
     chosenCuts: {},
-    moveOrder: [],
-    moveRows: new Map(),
-    expandedMove: null,
     resortTimer: null,
     hashTimer: null,
     frame: 0,
@@ -218,6 +215,9 @@
     chartCursor: -1,
     countsLayout: "",
     countRows: new Map(),
+    countExtras: [],
+    countStatic: [],
+    countOrder: "events",
 
     init(index, tables) {
       this.index = index;
@@ -407,6 +407,19 @@
       for (const level of this.levels) {
         levelKey.append(el("span", { class: "level-key-item" }, levelDot(level), levelName(level)));
       }
+      for (const [direction, label] of [["rise", "rose"], ["drop", "dropped"]]) {
+        $("flow-keys").append(el("span", { class: "level-key-item" }, el("i", { class: `flow-key ${direction}` }), label));
+      }
+
+      try {
+        if (window.localStorage.getItem(ORDER_KEY) === "moves") this.countOrder = "moves";
+      } catch (error) {
+        // Storage can be closed to a page opened from disk; the order then lasts for this visit only.
+      }
+      for (const button of document.querySelectorAll("#count-order .order-option")) {
+        button.setAttribute("aria-pressed", String(button.dataset.order === this.countOrder));
+        button.addEventListener("click", () => this.setCountOrder(button.dataset.order));
+      }
 
       const verdicts = $("verdicts");
       for (const [verdict, label, help] of VERDICTS) {
@@ -552,7 +565,7 @@
 
     settle() {
       clearTimeout(this.resortTimer);
-      this.renderMoves({ resort: true });
+      this.renderCounts({ resort: true });
       this.writeHash();
     },
 
@@ -600,7 +613,6 @@
       this.renderReferences();
       this.renderTotals();
       this.renderMembers();
-      this.renderMoves(options);
       if (options.from === "slider") this.writeHashSoon();
       else this.writeHash();
       Pop.refresh();
@@ -1011,71 +1023,200 @@
     },
 
     // --- Level counts -----------------------------------------------------------------------------------------
+    //
+    // One row per event type: the levels its events hold now, a band under the stretch that rose or dropped into
+    // each level, and the exact changes beside it. Staked types come first, by their staked events or, if chosen,
+    // by how many of their events change level; types that move without a stake on the focused measure follow.
+    // Rows only change place when the reference settles, never while it slides.
 
-    renderCounts(options) {
+    setCountOrder(order) {
+      if (order === this.countOrder) return;
+      this.countOrder = order;
+      try {
+        window.localStorage.setItem(ORDER_KEY, order);
+      } catch (error) {
+        // See build(): without storage the choice is kept for this visit.
+      }
+      for (const button of document.querySelectorAll("#count-order .order-option")) {
+        button.setAttribute("aria-pressed", String(button.dataset.order === order));
+      }
+      Pop.close();
+      this.renderCounts({ resort: true });
+    },
+
+    // Put the staked rows in the chosen order; rows that change place glide from where they were.
+    orderCounts(moves) {
+      const moved = (type) => (moves.get(type) || []).reduce((sum, move) => sum + move.count, 0);
+      const place = new Map(this.countStatic.map((type, i) => [type, i]));
+      const types = [...this.countStatic];
+      if (this.countOrder === "moves") types.sort((a, b) => moved(b) - moved(a) || place.get(a) - place.get(b));
+      const rows = types.map((type) => this.countRows.get(type).row);
+      const list = $("counts");
+      if (rows.every((row, i) => list.children[i] === row)) return;
+      const glide = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const before = glide ? rows.map((row) => row.getBoundingClientRect().top) : [];
+      const focused = list.contains(document.activeElement) ? document.activeElement : null;
+      list.prepend(...rows);
+      if (focused) focused.focus({ preventScroll: true });
+      rows.forEach((row, i) => {
+        const delta = glide ? before[i] - row.getBoundingClientRect().top : 0;
+        if (Math.abs(delta) < 1) return;
+        row.animate([{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }], {
+          duration: 220,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        });
+      });
+    },
+
+    renderCounts({ resort } = {}) {
       const focus = this.focus;
       const list = $("counts");
-      const layout = focus;
-      if (this.countsLayout !== layout) {
-        this.countsLayout = layout;
+      const staked = this.stakedTypes[focus];
+      if (this.countsLayout !== focus) {
+        this.countsLayout = focus;
         this.countRows.clear();
-        // Ordered by the type's staked rows in the whole table: the reference never reorders them.
-        const types = [...this.stakedTypes[focus].entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
-        const rows = types.map(([type]) => {
-          const segments = this.levels.map((level) =>
-            el("button", {
-              type: "button",
-              class: `segment lv-${level}`,
-              "data-level": level,
-              onclick: (event) => Pop.pin(event.currentTarget, () => this.countList(type, level, true)),
-              onmouseenter: (event) => Pop.hover(event.currentTarget, () => this.countList(type, level, false)),
-              onmouseleave: () => Pop.leave(),
-              onfocus: (event) => Pop.hover(event.currentTarget, () => this.countList(type, level, false)),
-              onblur: () => Pop.leave(),
-            }),
-          );
-          const baseline = this.levels.map((level) => el("i", { class: `base lv-${level}` }));
-          const row = el(
-            "div",
-            { class: "count-row" },
-            el("button", { type: "button", class: "type-button", text: type, title: `Filter by ${type}`, onclick: () => this.setType(type) }),
-            el("div", { class: "count-bars" }, el("div", { class: "count-bar" }, ...segments), el("div", { class: "count-base" }, ...baseline)),
-            el("span", { class: "count-total num" }),
-            el("span", { class: "count-change num" }),
-          );
-          this.countRows.set(type, { row, segments, baseline });
-          return row;
-        });
-        list.replaceChildren(...rows);
-        if (rows.length === 0) list.append(el("p", { class: "empty", text: "No event type carries this stake." }));
-        list.scrollTop = 0;
+        this.countExtras = [];
+        // The static order: by the type's staked rows in the whole table, which the reference never changes.
+        const types = [...staked.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+        this.countStatic = types.map(([type]) => type);
+        list.replaceChildren(...types.map(([type]) => this.countRow(type)));
+        if (types.length === 0) list.append(el("p", { class: "empty", text: "No event type carries this stake." }));
+        resort = true;
       }
+
+      const moves = new Map();
+      for (const move of this.full.moves) moves.set(move.type, [...(moves.get(move.type) || []), move]);
+      if (resort) this.orderCounts(moves);
+      const unstaked = [...moves.keys()].filter((type) => !staked.has(type)).sort();
+      const extras = resort ? unstaked : [...this.countExtras, ...unstaked.filter((type) => !this.countExtras.includes(type))];
+      if (extras.join("|") !== this.countExtras.join("|")) {
+        for (const type of this.countExtras) {
+          if (extras.includes(type)) continue;
+          this.countRows.get(type).row.remove();
+          this.countRows.delete(type);
+        }
+        this.countExtras = extras;
+        for (const stale of list.querySelectorAll(".count-divider")) stale.remove();
+        if (extras.length) list.append(el("p", { class: "count-divider", text: `Moving without a ${focus} stake` }));
+        for (const type of extras) list.append(this.countRows.has(type) ? this.countRows.get(type).row : this.countRow(type));
+      }
+
       const counts = this.levelCounts(this.full);
       for (const [type, parts] of this.countRows) {
         const entry = counts.get(type);
         const replay = entry ? entry.replay : {};
         const baseline = entry ? entry.baseline : {};
         const total = this.levels.reduce((sum, level) => sum + (replay[level] || 0), 0);
-        const baseTotal = this.levels.reduce((sum, level) => sum + (baseline[level] || 0), 0);
-        let moved = 0;
+        const typeMoves = moves.get(type) || [];
+        let before = 0;
         this.levels.forEach((level, i) => {
           const n = replay[level] || 0;
-          const b = baseline[level] || 0;
-          moved += Math.max(0, n - b);
           const segment = parts.segments[i];
           segment.style.flexBasis = total ? `${(n / total) * 100}%` : "0%";
           segment.hidden = n === 0;
-          segment.setAttribute("aria-label", `${type}: ${n} ${levelName(level)} (code: ${b})`);
+          segment.setAttribute("aria-label", `${type}: ${n} ${levelName(level)} (code: ${baseline[level] || 0})`);
           segment.textContent = n / Math.max(1, total) > 0.12 ? String(n) : "";
-          parts.baseline[i].style.flexBasis = baseTotal ? `${(b / baseTotal) * 100}%` : "0%";
+          // Risers came from the left of this level, so their band sits at its left edge; droppers at its right.
+          const arrived = { rise: 0, drop: 0 };
+          for (const move of typeMoves) {
+            if (move.to_level === level) arrived[this.levels.indexOf(move.from_level) < i ? "rise" : "drop"] += move.count;
+          }
+          const [rise, drop] = parts.flows[i];
+          rise.hidden = arrived.rise === 0;
+          rise.style.left = `${total ? (before / total) * 100 : 0}%`;
+          rise.style.width = `${total ? (arrived.rise / total) * 100 : 0}%`;
+          drop.hidden = arrived.drop === 0;
+          drop.style.right = `${total ? (1 - (before + n) / total) * 100 : 0}%`;
+          drop.style.width = `${total ? (arrived.drop / total) * 100 : 0}%`;
+          before += n;
         });
-        const dimmed = (this.state.types.length > 0 && !this.state.types.includes(type)) || total + baseTotal === 0;
+        const dimmed = (this.state.types.length > 0 && !this.state.types.includes(type)) || (total === 0 && typeMoves.length === 0);
         parts.row.classList.toggle("dim", dimmed);
         parts.row.classList.toggle("count-row-chosen", this.state.types.includes(type));
-        parts.row.querySelector(".count-total").textContent = String(total);
-        const change = parts.row.querySelector(".count-change");
-        change.textContent = moved ? `${moved} moved` : "";
-        change.classList.toggle("moved", moved > 0);
+        parts.total.textContent = String(total);
+        this.fillChanges(type, parts, typeMoves);
+      }
+
+      const shown = this.result.moves;
+      const via = shown.reduce((sum, move) => sum + move.via_cited, 0);
+      $("counts-note").textContent = shown.length
+        ? `${plural(shown.length, "change")} · ${plural(this.result.totals.events_moved, "event")}${via ? `, ${via} via a cited event` : ""}`
+        : "Nothing moves at these references";
+    },
+
+    countRow(type) {
+      const digest = (make) => ({
+        onclick: (event) => Pop.pin(event.currentTarget, () => make(true)),
+        onmouseenter: (event) => Pop.hover(event.currentTarget, () => make(false)),
+        onmouseleave: () => Pop.leave(),
+      });
+      const segments = this.levels.map((level) => {
+        const make = (full) => this.countList(type, level, full);
+        const segment = el("button", Object.assign({ type: "button", class: `segment lv-${level}` }, digest(make)));
+        segment.addEventListener("focus", () => Pop.hover(segment, () => make(false)));
+        segment.addEventListener("blur", () => Pop.leave());
+        return segment;
+      });
+      const flows = this.levels.map((level) =>
+        ["rise", "drop"].map((direction) =>
+          el("i", Object.assign({ class: `flow ${direction}`, hidden: true }, digest((full) => this.arrivalList(type, level, direction, full)))),
+        ),
+      );
+      const total = el("span", { class: "count-total num" });
+      const changes = el("span", { class: "count-changes" });
+      const row = el(
+        "div",
+        { class: "count-row" },
+        el("button", { type: "button", class: "type-button", text: type, title: `Filter by ${type}`, onclick: () => this.setType(type) }),
+        el("div", { class: "count-bars" }, el("div", { class: "count-bar" }, ...segments), el("div", { class: "count-flow", "aria-hidden": "true" }, ...flows.flat())),
+        total,
+        changes,
+      );
+      const parts = { row, segments, flows, total, changes, chips: new Map() };
+      this.countRows.set(type, parts);
+      return row;
+    },
+
+    // The exact changes of one type, in the order their bands sit in the bar.
+    fillChanges(type, parts, typeMoves) {
+      const rank = (move) => this.levels.indexOf(move.to_level) * this.levels.length + this.levels.indexOf(move.from_level);
+      const current = new Map(typeMoves.map((move) => [`${move.from_level}|${move.to_level}`, move]));
+      let added = false;
+      for (const [key, move] of current) {
+        if (parts.chips.has(key)) continue;
+        const make = (full) => this.moveList(type, move.from_level, move.to_level, full);
+        const chip = el(
+          "button",
+          {
+            type: "button",
+            class: `change ${this.levels.indexOf(move.to_level) > this.levels.indexOf(move.from_level) ? "rise" : "drop"}`,
+            "data-rank": rank(move),
+            title: `${levelName(move.from_level)} → ${levelName(move.to_level)}`,
+            onclick: (event) => Pop.pin(event.currentTarget, () => make(true)),
+            onmouseenter: (event) => Pop.hover(event.currentTarget, () => make(false)),
+            onmouseleave: () => Pop.leave(),
+            onfocus: (event) => Pop.hover(event.currentTarget, () => make(false)),
+            onblur: () => Pop.leave(),
+          },
+          el("span", { class: "change-path", text: `${levelShort(move.from_level)}→${levelShort(move.to_level)}` }),
+          el("span", { class: "change-count" }),
+          el("span", { class: "change-via" }),
+        );
+        parts.chips.set(key, chip);
+        added = true;
+      }
+      if (added) parts.changes.replaceChildren(...[...parts.chips.values()].sort((a, b) => a.dataset.rank - b.dataset.rank));
+      for (const [key, chip] of parts.chips) {
+        const move = current.get(key);
+        chip.hidden = !move;
+        if (!move) continue;
+        const [from, to] = key.split("|");
+        chip.querySelector(".change-count").textContent = String(move.count);
+        chip.querySelector(".change-via").textContent = move.via_cited ? `${move.via_cited} cited` : "";
+        chip.setAttribute(
+          "aria-label",
+          `${type}, ${levelName(from)} to ${levelName(to)}: ${plural(move.count, "event")}${move.via_cited ? `, ${move.via_cited} via a cited event` : ""}`,
+        );
       }
     },
 
@@ -1094,17 +1235,34 @@
       return summed;
     },
 
-    countList(type, level, full) {
+    // The events of one type the replay leaves standing that pass the test, largest share first.
+    typeEvents(type, test) {
       const items = [];
       for (const name of this.full.state.campaigns) {
         const fallen = this.fallen(this.full, name);
         this.full.campaigns[name].events.forEach((event, position) => {
           const row = this.tables[name][position];
-          if (row.type === type && event.level === level && !fallen.has(event.id)) items.push(this.eventItem(name, position, this.full));
+          if (row.type === type && !fallen.has(event.id) && test(row.level, event.level)) items.push(this.eventItem(name, position, this.full));
         });
       }
-      items.sort(byShare);
+      return items.sort(byShare);
+    },
+
+    countList(type, level, full) {
+      const items = this.typeEvents(type, (from, to) => to === level);
       return { title: `${type} · ${levelName(level)}`, note: plural(items.length, "event"), items, full };
+    },
+
+    moveList(type, from, to, full) {
+      const items = this.typeEvents(type, (was, now) => was === from && now === to);
+      return { title: `${type} · ${levelName(from)} → ${levelName(to)}`, note: plural(items.length, "event"), items, full };
+    },
+
+    arrivalList(type, level, direction, full) {
+      const at = this.levels.indexOf(level);
+      const rose = direction === "rise";
+      const items = this.typeEvents(type, (was, now) => now === level && was !== level && this.levels.indexOf(was) < at === rose);
+      return { title: `${type} · ${rose ? "rose" : "dropped"} to ${levelName(level)}`, note: plural(items.length, "event"), items, full };
     },
 
     // --- References and drafts --------------------------------------------------------------------------------
@@ -1177,153 +1335,6 @@
       items.sort(byShare);
       const label = VERDICTS.find(([key]) => key === verdict)[1];
       return { title: label, note: plural(items.length, "event"), items, full };
-    },
-
-    // --- What moves -------------------------------------------------------------------------------------------
-
-    moveKey: (move) => `${move.type}|${move.from_level}|${move.to_level}`,
-
-    renderMoves({ resort } = {}) {
-      const list = $("moves");
-      const moves = this.result.moves;
-      const byKey = new Map(moves.map((move) => [this.moveKey(move), move]));
-      if (resort || this.moveOrder.length === 0) {
-        this.moveOrder = moves.map((move) => this.moveKey(move));
-      } else {
-        for (const move of moves) {
-          const key = this.moveKey(move);
-          if (!this.moveOrder.includes(key)) this.moveOrder.push(key);
-        }
-      }
-      const before = resort && !reducedMotion() ? this.rects() : null;
-      const maxCount = Math.max(1, ...moves.map((move) => move.count));
-      const keep = new Set(this.moveOrder);
-      for (const [key, row] of this.moveRows) {
-        if (!keep.has(key)) {
-          row.remove();
-          this.moveRows.delete(key);
-        }
-      }
-      let previous = null;
-      for (const key of this.moveOrder) {
-        const move = byKey.get(key);
-        let row = this.moveRows.get(key);
-        if (!row) {
-          row = this.moveRow(key);
-          this.moveRows.set(key, row);
-        }
-        this.fillMove(row, key, move, maxCount);
-        const place = previous ? previous.nextSibling : list.firstChild;
-        if (place !== row) list.insertBefore(row, place);
-        previous = row;
-      }
-      if (this.expandedMove && !this.moveRows.has(this.expandedMove)) this.expandedMove = null;
-      $("moves-empty").hidden = moves.length > 0;
-      list.hidden = this.moveOrder.length === 0;
-      const via = moves.reduce((sum, move) => sum + move.via_cited, 0);
-      $("moves-note").textContent = moves.length
-        ? `${plural(moves.length, "change")} · ${plural(this.result.totals.events_moved, "event")}${via ? `, ${via} via a cited event` : ""}`
-        : "";
-      if (before) this.glide(before);
-    },
-
-    moveRow(key) {
-      const [type] = key.split("|");
-      const body = el(
-        "button",
-        {
-          type: "button",
-          class: "move-main",
-          "aria-expanded": "false",
-          onclick: () => this.toggleMove(key),
-          onmouseenter: (event) => this.expandedMove !== key && Pop.hover(event.currentTarget, () => this.moveList(key, false)),
-          onmouseleave: () => Pop.leave(),
-          onfocus: (event) => this.expandedMove !== key && Pop.hover(event.currentTarget, () => this.moveList(key, false)),
-          onblur: () => Pop.leave(),
-        },
-        el("span", { class: "move-change" }),
-        el("span", { class: "move-count num" }),
-        el("span", { class: "move-via num" }),
-        el("span", { class: "move-bar" }, el("i")),
-      );
-      return el(
-        "div",
-        { class: "move", "data-key": key },
-        el("div", { class: "move-line" }, el("button", { type: "button", class: "type-button", text: type, title: `Filter by ${type}`, onclick: () => this.setType(type) }), body),
-        el("div", { class: "move-detail", hidden: true }),
-      );
-    },
-
-    fillMove(row, key, move, maxCount) {
-      const [type, from, to] = key.split("|");
-      const count = move ? move.count : 0;
-      const rise = this.levels.indexOf(to) > this.levels.indexOf(from);
-      row.classList.toggle("move-zero", !move);
-      row.classList.toggle("dim", this.state.types.length > 0 && !this.state.types.includes(type));
-      const change = row.querySelector(".move-change");
-      change.replaceChildren(levelDot(from), el("span", { text: `${levelShort(from)}→${levelShort(to)}` }), levelDot(to));
-      change.title = `${levelName(from)} → ${levelName(to)}`;
-      row.querySelector(".move-count").textContent = String(count);
-      const via = row.querySelector(".move-via");
-      via.textContent = move && move.via_cited ? String(move.via_cited) : "";
-      via.title = move && move.via_cited ? `${move.via_cited} of these took their level from a cited event` : "";
-      const bar = row.querySelector(".move-bar i");
-      bar.style.width = `${(count / maxCount) * 100}%`;
-      bar.className = rise ? "rise" : "drop";
-      row.querySelector(".move-main").setAttribute("aria-label", `${type}, ${levelName(from)} to ${levelName(to)}: ${plural(count, "event")}${move && move.via_cited ? `, ${move.via_cited} via a cited event` : ""}`);
-      const detail = row.querySelector(".move-detail");
-      const open = this.expandedMove === key && move;
-      row.querySelector(".move-main").setAttribute("aria-expanded", String(Boolean(open)));
-      row.classList.toggle("move-open", Boolean(open));
-      if (open) {
-        detail.hidden = false;
-        detail.replaceChildren(listBody(this.moveList(key, true), () => this.toggleMove(key)));
-      } else if (!detail.hidden) {
-        detail.hidden = true;
-        detail.replaceChildren();
-      }
-    },
-
-    toggleMove(key) {
-      Pop.close();
-      this.expandedMove = this.expandedMove === key ? null : key;
-      this.renderMoves({});
-    },
-
-    moveList(key, full) {
-      const [type, from, to] = key.split("|");
-      const items = [];
-      for (const name of this.result.state.campaigns) {
-        const fallen = this.fallen(this.result, name);
-        this.result.campaigns[name].events.forEach((event, position) => {
-          const row = this.tables[name][position];
-          if (row.type === type && row.level === from && event.level === to && !fallen.has(event.id)) {
-            items.push(this.eventItem(name, position, this.result));
-          }
-        });
-      }
-      items.sort(byShare);
-      return { title: `${type} · ${levelName(from)} → ${levelName(to)}`, note: plural(items.length, "event"), items, full };
-    },
-
-    rects() {
-      const rects = new Map();
-      for (const [key, row] of this.moveRows) rects.set(key, row.getBoundingClientRect().top);
-      return rects;
-    },
-
-    // FLIP: rows that changed place glide from where they were.
-    glide(before) {
-      for (const [key, row] of this.moveRows) {
-        const was = before.get(key);
-        if (was === undefined) continue;
-        const delta = was - row.getBoundingClientRect().top;
-        if (Math.abs(delta) < 1) continue;
-        row.animate([{ transform: `translateY(${delta}px)` }, { transform: "translateY(0)" }], {
-          duration: 220,
-          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-        });
-      }
     },
 
     // --- Events -----------------------------------------------------------------------------------------------

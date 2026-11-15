@@ -228,9 +228,11 @@ tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [
 
 Writes the stake calibration page into `--out`, prints its path and opens it in the default browser. The page is a
 static file that works from disk with no network: pick a measure, slide its reference, and see the three totals,
-which event types change level (What moves), which takeover waves lose members, the level counts per type, and the
-real events on each side of each cut-off. Hover a row, a bar or a segment for its six largest events; click it for
-the full list. The URL hash holds the whole state, so a reloaded page comes back as it was, and **Copy readout**
+which takeover waves lose members, the level counts per type, and the real events on each side of each cut-off.
+Level counts also shows what moves: a band under each bar marks the events that rose or dropped into a level, and
+the exact changes stand beside it. Its rows are ordered by events, or by moves once the reference settles. Hover a
+bar, a segment, a band or a change for its six largest events; click it for the full list. The URL hash holds the
+whole state, so a reloaded page comes back as it was, and **Copy readout**
 copies the snippet, the shared paragraph and the hash, ready for `report --state`.
 
 The page uses the same cache as `report`. A fresh cache opens at once. A stale one opens the old page at once,
