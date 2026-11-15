@@ -213,7 +213,7 @@ def test_a_top_change_confirmed_by_the_next_report_lists_entrants_and_leavers() 
     assert (attributes["metric"], attributes["top"]) == ("GDP", 1)
     assert attributes["entrants"] == (FrozenMap((("nation", NORTH), ("rank", 1), ("value", 200.0))),)
     assert attributes["leavers"] == (FrozenMap((("nation", SOUTH), ("rank", 1), ("value", 100.0))),)
-    assert describe_event(ranking) == "Top 1 by GDP changed: entered Northland (nation:20); left Southland (nation:21)"
+    assert describe_event(ranking) == "Northland (nation:20) entered the top 1 by GDP; Southland (nation:21) left it"
     # Two places of ten: the membership of the top ten did not change.
     assert built(stream, situations, RANKING_CHANGED) == []
 
@@ -223,7 +223,7 @@ def test_a_top_change_the_next_report_reverses_is_dropped_and_the_last_one_is_op
     assert built([rank(K1, NORTH, 2, 1), rank(K1, SOUTH, 1, 2)], reverted, RANKING_CHANGED, ranking_top_n=1) == []
     (latest,) = built([rank(K2, NORTH, 2, 1)], reports({}, {}, {"gdp": 200.0}), RANKING_CHANGED, ranking_top_n=1)
     assert latest.open and latest.intervals == (K2,)
-    assert describe_event(latest) == "Top 1 by GDP changed: entered Northland (nation:20)"
+    assert describe_event(latest) == "Northland (nation:20) entered the top 1 by GDP"
 
 
 def test_a_tie_across_the_top_boundary_is_in_neither_and_zero_is_never_in_the_top() -> None:
