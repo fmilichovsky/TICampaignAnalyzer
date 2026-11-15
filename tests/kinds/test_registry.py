@@ -176,7 +176,7 @@ def test_interstate_wars_read_as_a_list_change() -> None:
         entities=(),
         attributes=(("transition", "added"), ("member", "war:1")),
     )
-    assert describe_event(event).endswith('list list: +"war:1"')
+    assert describe_event(event).startswith('list list: +"war:1"')
 
 
 @pytest.mark.parametrize("pair", PAIRS)
