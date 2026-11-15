@@ -10,7 +10,7 @@ from .text import attribute_label, attribute_text, subject_label
 def _transaction_recorded(event: Event) -> str:
     """The label is a mission or operation template name read from the ledger, never a reading of what it did."""
     return (
-        f"{subject_label(event)} ledger records a {attribute_text(event, 'label')} charge: "
+        f"{subject_label(event)} ledger charge: {attribute_text(event, 'label')}, "
         f"{attribute_label(event, 'amount')} {attribute_text(event, 'resource')} "
         f"(dated {attribute_text(event, 'recorded_on')})"
     )

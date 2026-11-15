@@ -2,6 +2,7 @@
 
 from tests.analyzers.support import AFTER, BEFORE, analyze, federation_ref, named, nation_ref, snapshot, state
 from tinarrative.analyzers.politics import FederationAnalyzer
+from tinarrative.kinds import describe_event
 from tinarrative.kinds.federations import APPEARED, MEMBERS_CHANGED, NATION_FEDERATION_CHANGED, RENAMED
 from tinarrative.model.entities import EntityDomain
 from tinarrative.model.events import Confidence, SourceRole
@@ -115,3 +116,13 @@ def test_a_federation_name_set_alone_is_a_rename_by_that_field() -> None:
     (event,) = analyze(ANALYZER, before, after)
     assert sources(event) == [(SourceRole.PRIMARY, "federation:80", "federationName")]
     assert dict(event.attributes) == {"transition": "set", "before": None, "after": "Formal"}
+
+
+def test_presence_lines_lead_with_the_federation_and_what_happened() -> None:
+    gone = snapshot(BEFORE, federation(BEFORE, "20", "21"), nation(BEFORE, "20", "80"), nation(BEFORE, "21", "80"))
+    born = snapshot(AFTER, federation(AFTER, "20", "21"), nation(AFTER, "20", "80"), nation(AFTER, "21", "80"))
+    (appeared,) = analyze(ANALYZER, snapshot(BEFORE), born)
+    (disappeared,) = analyze(ANALYZER, gone, snapshot(AFTER))
+    members = "(members Fixture nation 20 (nation:20), Fixture nation 21 (nation:21))"
+    assert describe_event(appeared) == f"Fixture federation 80 (federation:80) appeared {members}"
+    assert describe_event(disappeared) == f"Fixture federation 80 (federation:80) disappeared {members}"

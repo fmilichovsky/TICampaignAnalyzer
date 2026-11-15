@@ -73,7 +73,7 @@ Analyzer results:
 
 Councilor:
 
-- Fixture Councilor 100 (councilor:100) (Fixture Servants (faction:16)) detaining faction: null -> Fixture Servants (faction:16)
+- Fixture Councilor 100 (councilor:100) detaining faction: null -> Fixture Servants (faction:16) (faction Fixture Servants (faction:16))
 
 12 objective analyzer results omitted: not cited by a listed narrative event.
 

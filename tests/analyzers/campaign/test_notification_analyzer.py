@@ -61,10 +61,7 @@ def test_a_queue_that_appears_is_one_presence_event_not_one_per_entry() -> None:
     )
     event = only(events, "notification.queue_appeared")
     assert len(events) == 1 and event.attribute("side") == "after"
-    assert (
-        describe_event(event)
-        == f"Fixture notification queue {KEY} (notification queue:{KEY}) is present only in the after snapshot"
-    )
+    assert describe_event(event) == f"Fixture notification queue {KEY} (notification queue:{KEY}) appeared"
 
 
 def test_an_unchanged_log_yields_nothing_and_a_singleton_field_change_is_literal() -> None:
