@@ -149,6 +149,18 @@ def test_ranking_orders_by_org_share_then_skills_then_xp_then_id() -> None:
     }
 
 
+def test_trait_skill_points_can_change_the_councilor_rank() -> None:
+    snap = _world(
+        _councilor("110", "2", attributes=freeze({"Persuasion": 10})),
+        _councilor("111", "2", attributes=freeze({"Persuasion": 9}), traitTemplateNames=("HardTarget",)),
+    )
+
+    dossier = _build(snap, CouncilorSettings(rivals_per_faction=5))
+
+    assert _ids(dossier) == ["councilor:111", "councilor:110"]
+    assert [entry["prominence"]["skill_sum"] for entry in dossier["councilors"]] == [11, 10]
+
+
 def test_the_org_share_follows_the_tier_exponent() -> None:
     snap = _world(
         _org("70", 3),
