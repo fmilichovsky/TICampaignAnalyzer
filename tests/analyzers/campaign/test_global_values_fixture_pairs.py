@@ -55,7 +55,7 @@ def test_war_presence_cites_the_interstate_wars_entry_as_corroboration() -> None
 def test_campaign_events_are_described_literally() -> None:
     lines = {describe_event(event) for event in run_analyzers(CAMPAIGN_ANALYZERS, *fixture_pair(*PAIR))}
     assert lines == {
-        f"Fixture Resistance (faction:15) has global milestone FirstBaseOnLuna recorded (in {SINGLETON})",
+        f"FirstBaseOnLuna global milestone for Fixture Resistance (faction:15) (in {SINGLETON})",
         f"earthAtmosphericCO2_ppm: 420.0 -> 421.5 (in {SINGLETON})",
         f"narrative event event_FixtureSecond listed as triggered once per campaign (in {SINGLETON})",
         "narrative event event_FixtureTarget listed as triggered for [Fixture Resistance (faction:15)] "

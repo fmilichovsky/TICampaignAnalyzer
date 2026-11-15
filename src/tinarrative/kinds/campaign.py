@@ -29,7 +29,7 @@ def _in(event: Event) -> str:
 def _milestone_recorded(event: Event) -> str:
     milestone = attribute_text(event, "milestone")
     faction = attribute_label(event, "faction")
-    return f"{faction} has global milestone {milestone} recorded{_in(event)}"
+    return f"{milestone} global milestone for {faction}{_in(event)}"
 
 
 def _milestone_changed(event: Event) -> str:
@@ -247,7 +247,7 @@ NOTIFICATION_ENTRY_CHANGED = EventKind(
 
 
 def _first_milestone(event: Event) -> str:
-    return f"{role(event, Role.ACTOR)} recorded the campaign milestone {attribute_text(event, 'milestone')}"
+    return f"{attribute_text(event, 'milestone')} campaign milestone for {role(event, Role.ACTOR)}"
 
 
 FIRST_MILESTONE = narrative_kind(
