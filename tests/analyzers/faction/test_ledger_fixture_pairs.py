@@ -19,10 +19,8 @@ def test_ledger_pair_yields_the_allow_listed_entries_inside_the_interval() -> No
         "2031-06-01T00:00:00",
     ]
     assert {describe_event(event) for event in events} == {
-        "Fixture Resistance (faction:15) ledger records a Stabilize charge: -16.0 Influence "
-        "(dated 2031-04-15T00:00:00)",
-        "Fixture Resistance (faction:15) ledger records a Ship Construction charge: -100.0 Metals "
-        "(dated 2031-06-01T00:00:00)",
+        "Fixture Resistance (faction:15) ledger charge: Stabilize, -16.0 Influence (dated 2031-04-15T00:00:00)",
+        "Fixture Resistance (faction:15) ledger charge: Ship Construction, -100.0 Metals (dated 2031-06-01T00:00:00)",
     }
     # Operation charges, the pruned Coup list, and the earlier-day Crackdown charge are not events; the
     # pruned entry stays visible in the diff.
