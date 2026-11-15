@@ -102,7 +102,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Stances in place of faction names (#399).
   - [x] Public phrasing for missions (#400).
   - [x] Public aliases for faction-reward organizations (#302).
-  - [ ] Plain phrases for jargon trait labels (#401).
+  - [x] Plain phrases for jargon trait labels (#401).
   - [ ] Numbers as words (#402).
 - [x] Diplomatic realignments as narrative events (#173).
 - [ ] Slim down narrative package (#267):

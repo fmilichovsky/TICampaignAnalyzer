@@ -40,7 +40,7 @@ article is set by Shape alone.
   - `gender`: `male`, `female` or null.  Pronouns come from it alone: he and
     him, she and her, and when it is null use the name and write around
     pronouns.  Never infer a pronoun from the name.
-  - `traits`: short labels by kind.  `temperament` is manner and
+  - `traits`: short descriptions by kind.  `temperament` is manner and
     character; `expertise` is professional standing and the field it lies
     in; `reputation` is public image, renown and wealth; `circumstance` is
     the person's present situation, stated soberly; `affiliation` is the
