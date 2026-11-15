@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Stake calibration</title>
+<link rel="stylesheet" href="style.css">
+<script>window.TI_CALIBRATION = { campaigns: {} };</script>
+<script src="index.js"></script>
+<script src="status.js"></script>
+<script src="replay.js"></script>
+<script src="readout.js"></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="banner" id="banner" role="status" hidden>
+  <p class="banner-text" id="banner-text"></p>
+  <button type="button" class="banner-action" id="banner-action" hidden>Reload</button>
+</div>
+
+<header class="bar">
+  <h1 class="bar-title">Stake calibration</h1>
+  <div class="bar-group" role="group" aria-labelledby="campaigns-label">
+    <span class="bar-label" id="campaigns-label">Campaigns</span>
+    <span class="bar-toggles" id="campaigns"></span>
+  </div>
+  <button type="button" class="bar-button clamp" id="clamp" role="switch" aria-checked="true" aria-label="Clamp the stake's scale">
+    <span class="clamp-track" aria-hidden="true"><span class="clamp-knob"></span></span>
+    <span>Clamp</span> <span class="clamp-state" id="clamp-state">on</span>
+  </button>
+  <span class="bar-spacer"></span>
+  <span class="bar-key" id="table-key"></span>
+  <button type="button" class="bar-button" id="reset">Reset to the code's</button>
+  <button type="button" class="bar-button bar-primary" id="copy">Copy readout</button>
+  <span class="visually-hidden" id="copy-status" aria-live="polite"></span>
+</header>
+
+<main class="layout" id="layout" aria-busy="true">
+  <section class="column column-left" aria-label="The focused measure">
+    <div class="chips" id="chips" role="group" aria-label="Focused measure"></div>
+
+    <div class="control">
+      <div class="control-row">
+        <label class="control-label" for="ref-value">Reference</label>
+        <input class="ref-value" id="ref-value" type="text" inputmode="decimal" spellcheck="false" autocomplete="off"
+               aria-describedby="ref-error">
+        <button type="button" class="quiet-button" id="ref-code">Code's</button>
+        <span class="control-window" id="ref-window"></span>
+        <span class="control-spacer"></span>
+        <label class="control-label" for="type-filter">Type</label>
+        <select class="type-filter" id="type-filter"></select>
+      </div>
+      <p class="ref-error" id="ref-error" aria-live="polite"></p>
+      <div class="slider-track">
+        <input class="slider" id="ref-slider" type="range" aria-label="Reference share, log scale">
+      </div>
+    </div>
+
+    <figure class="chart" id="chart-figure">
+      <svg class="chart-svg" id="chart" tabindex="0" role="img" aria-label="Share distribution"></svg>
+      <figcaption class="legend">
+        <span class="legend-item"><i class="swatch swatch-drop"></i>Drops a level</span>
+        <span class="legend-item"><i class="swatch swatch-keep"></i>Keeps its level</span>
+        <span class="legend-item"><i class="swatch swatch-rise"></i>Rises a level</span>
+        <span class="legend-item"><i class="swatch swatch-cut"></i>Cut-off</span>
+        <span class="legend-spacer"></span>
+        <span class="legend-readout" id="chart-readout"></span>
+      </figcaption>
+    </figure>
+
+    <section class="cutoffs" aria-labelledby="cutoffs-title">
+      <div class="section-head">
+        <h2 class="section-title" id="cutoffs-title">Cut-offs</h2>
+        <span class="cutoff-chips" id="cutoff-chips" role="group" aria-label="Cut-offs shown"></span>
+      </div>
+      <div class="cutoff-pair">
+        <article class="tide" id="tide-0"></article>
+        <article class="tide" id="tide-1"></article>
+      </div>
+    </section>
+
+    <section class="counts" aria-labelledby="counts-title">
+      <div class="section-head">
+        <h2 class="section-title" id="counts-title">Level counts</h2>
+        <span class="level-key" id="level-key"></span>
+      </div>
+      <div class="counts-list" id="counts"></div>
+    </section>
+
+    <section class="references" aria-labelledby="references-title">
+      <h2 class="section-title" id="references-title">References</h2>
+      <table class="reference-table">
+        <thead><tr><th scope="col">Measure</th><th scope="col" class="num">Reference</th><th scope="col" class="num">Code's</th><th scope="col" class="num">Stakes</th></tr></thead>
+        <tbody id="references"></tbody>
+      </table>
+      <h3 class="subsection-title">Drafts</h3>
+      <p class="drafts" id="drafts"></p>
+    </section>
+  </section>
+
+  <section class="column column-right" aria-label="What changes">
+    <dl class="totals" id="totals">
+      <div class="total"><dt>Events moving level</dt><dd id="total-moved"></dd></div>
+      <div class="total"><dt>Narrator package</dt><dd id="total-package"></dd></div>
+      <div class="total"><dt>Groups changing members</dt><dd id="total-members"></dd></div>
+    </dl>
+
+    <section class="members" aria-labelledby="members-title">
+      <div class="section-head">
+        <h2 class="section-title" id="members-title">Members</h2>
+        <span class="section-note" id="members-note"></span>
+      </div>
+      <div class="verdicts" id="verdicts"></div>
+    </section>
+
+    <section class="moves" aria-labelledby="moves-title">
+      <div class="section-head">
+        <h2 class="section-title" id="moves-title">What moves</h2>
+        <span class="section-note" id="moves-note"></span>
+      </div>
+      <div class="moves-head" aria-hidden="true">
+        <span>Type</span><span>Change</span><span class="num">Events</span><span class="num">Via cited</span><span></span>
+      </div>
+      <div class="moves-list" id="moves"></div>
+      <p class="empty" id="moves-empty" hidden>Nothing moves at these references.</p>
+    </section>
+  </section>
+</main>
+
+<div class="fatal" id="fatal" hidden>
+  <h1 class="fatal-title" id="fatal-title"></h1>
+  <p class="fatal-text" id="fatal-text"></p>
+</div>
+
+<div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="pop-title" hidden></div>
+</body>
+</html>

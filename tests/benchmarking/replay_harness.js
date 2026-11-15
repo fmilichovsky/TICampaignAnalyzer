@@ -1,8 +1,9 @@
-// Runs replay.js over a calibration table the way a file:// page does, for tests/benchmarking/browser_replay.py.
+// Runs replay.js and readout.js over a calibration table the way a file:// page does, for
+// tests/benchmarking/browser_replay.py. readout.js is read from beside replay.js.
 //
 // node replay_harness.js <replay.js> <table directory>
-// stdin: a JSON list of requests ({op: "replay" | "decode", hash}, {op: "encode", state}, {op: "log10" | "round",
-// values}); stdout: a JSON list of {ok: <JSON.stringify(result)>} or {error: {name, message}}, one per request.
+// stdin: a JSON list of requests ({op: "replay" | "decode" | "readout", hash}, {op: "encode", state},
+// {op: "log10" | "round", values}); stdout: a JSON list of {ok: <JSON.stringify(result)>} or {error: {name, message}}, one per request.
 "use strict";
 
 const fs = require("fs");
@@ -28,12 +29,23 @@ if (added.length !== 1 || added[0] !== "TICalibrationReplay") {
   throw new Error(`replay.js must add exactly the global TICalibrationReplay, not ${added.join(", ")}`);
 }
 const api = context.TICalibrationReplay;
+const loaded = new Set(Object.getOwnPropertyNames(context));
+load(context, path.join(path.dirname(replayPath), "readout.js"));
+const readoutGlobals = Object.getOwnPropertyNames(context).filter((name) => !loaded.has(name));
+if (readoutGlobals.length !== 1 || readoutGlobals[0] !== "TICalibrationReadout") {
+  throw new Error(`readout.js must add exactly the global TICalibrationReadout, not ${readoutGlobals.join(", ")}`);
+}
+const readout = context.TICalibrationReadout;
 const tables = {};
 for (const name of index.campaigns) tables[name] = context.TI_CALIBRATION.campaigns[name].events;
 
 const operations = {
   replay: (request) => api.replay(index, tables, api.decodeState(request.hash, index)),
   decode: (request) => api.decodeState(request.hash, index),
+  readout: (request) => {
+    const result = api.replay(index, tables, api.decodeState(request.hash, index));
+    return { paragraph: readout.sharedParagraph(index, result), snippet: readout.snippet(index, result) };
+  },
   encode: (request) => api.encodeState(request.state, index),
   log10: (request) => request.values.map(api.log10),
   round: (request) => request.values.map(api.roundHalfEven),

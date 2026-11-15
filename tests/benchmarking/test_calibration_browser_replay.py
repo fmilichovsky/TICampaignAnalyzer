@@ -8,7 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.benchmarking.browser_replay import assert_replays_agree, js_json, run_harness, state_object
+from tests.benchmarking.browser_replay import (
+    assert_readouts_agree,
+    assert_replays_agree,
+    js_json,
+    run_harness,
+    state_object,
+)
 from tests.benchmarking.calibration_golden import GOLDEN
 from tests.benchmarking.calibration_support import INVALID_HASHES
 from tinarrative.benchmarking.calibration.replay import (
@@ -62,6 +68,11 @@ STATES = [
 
 def test_replay_js_writes_the_json_of_replay_py_for_every_state() -> None:
     assert_replays_agree(GOLDEN, STATES)
+
+
+def test_readout_js_writes_the_paragraph_and_snippet_of_readout_py_for_every_state() -> None:
+    every_measure = replace(CODE, references={measure: value * 2 for measure, value in CODE.references.items()})
+    assert_readouts_agree(GOLDEN, [*STATES, every_measure])
 
 
 def test_a_state_hash_round_trips_between_the_codecs() -> None:
