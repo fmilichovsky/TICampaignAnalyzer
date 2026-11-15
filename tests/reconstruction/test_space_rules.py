@@ -321,8 +321,8 @@ def test_a_launch_is_a_minor_appearance_with_projected_dates_and_establishes_not
     assert appeared.attribute("projected_completion") == AFTER_INTERVAL
     assert appeared.significance is Significance.MINOR
     assert describe_event(appeared) == (
-        "Fixture space object 56 (space object:56) (faction Fixture faction 15 (faction:15)) is present only in "
-        f"the after snapshot; core projected to arrive 2031-07-30T00:00:00 and complete {AFTER_INTERVAL}"
+        "Fixture space object 56 (space object:56) appeared (faction Fixture faction 15 (faction:15)); "
+        f"core projected to arrive 2031-07-30T00:00:00 and complete {AFTER_INTERVAL}"
     )
 
 
@@ -335,8 +335,8 @@ def test_a_completed_core_establishes_the_hab_on_its_completion_date() -> None:
     assert ids((event.attribute("body"),)) == ["space body:904"]
     assert event.constituents == ("hab.core_completed_changed/space object:56",)
     assert lines_of(landed())["hab.established/space object:56"] == (
-        "Fixture space object 56 (space object:56) (Fixture faction 15 (faction:15)) became operational at "
-        "space body:904",
+        "Fixture space object 56 (space object:56) became operational at "
+        "space body:904 (faction Fixture faction 15 (faction:15))",
         Significance.MAJOR,
     )
 
@@ -559,14 +559,13 @@ def test_lines_name_the_reading_and_significance_ranks_it() -> None:
         "hab, the first of any faction there)"
     )
     assert lines_of(unique_destruction())["hab.destroyed/space object:70"] == (
-        f'Fixture space object 70 (space object:70) (type "Base" at space body:900) was '
-        f"destroyed by Fixture faction 15 (faction:15) on {IN_INTERVAL}",
+        f"Fixture space object 70 (space object:70) was destroyed by Fixture faction 15 (faction:15) "
+        f'on {IN_INTERVAL} (type "Base" at space body:900)',
         Significance.MINOR,
     )
     assert lines_of(ambiguous_destruction(2))["hab.destroyed/space object:72"][0] == (
-        'Fixture space object 72 (space object:72) (type "Base" at space body:900) was '
-        "destroyed by Fixture faction 15 (faction:15): "
-        "one of 2 recorded destructions for 2 vanished habs"
+        "Fixture space object 72 (space object:72) was destroyed by Fixture faction 15 (faction:15) "
+        '(type "Base" at space body:900): one of 2 recorded destructions for 2 vanished habs'
     )
     assert lines_of(battle(winners=(PLAYER,)))["faction.battle_outcome/faction:15/faction:16"] == (
         "Fixture faction 15 (faction:15) inflicted 4 kills on Fixture faction 16 (faction:16), "

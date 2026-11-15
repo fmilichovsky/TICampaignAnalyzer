@@ -77,13 +77,13 @@ EXPECTED_INTERVAL_ASSETS = {
     "Fixture Army (army:110) (Fixture Resistance (faction:15)) region: Fixture North "
     "(region:40) -> Fixture South (region:42)",
     "Fixture Army (army:110) (Fixture Resistance (faction:15)) strength: 3.5 -> 2.0",
-    "Fixture Fleet 121 (fleet:121) (faction Fixture Resistance (faction:15)) is present only in the after snapshot",
-    "Fixture Fleet 120 (fleet:120) (Fixture Resistance (faction:15)) docked location: null "
-    "-> Fixture Hab 140 (space object:140)",
-    "Fixture Fleet 120 (fleet:120) (Fixture Resistance (faction:15)) orbit: space object:61 -> null",
+    "Fixture Fleet 121 (fleet:121) appeared (faction Fixture Resistance (faction:15))",
+    "Fixture Fleet 120 (fleet:120) docked location: null "
+    "-> Fixture Hab 140 (space object:140) (faction Fixture Resistance (faction:15))",
+    "Fixture Fleet 120 (fleet:120) orbit: space object:61 -> null (faction Fixture Resistance (faction:15))",
     "Fixture Fleet 120 (fleet:120) ships list: [Fixture Ship 130 (ship:130), Fixture Ship "
     '131 (ship:131)] -> unknown (unresolved_reference, raw=[{"value": 130}, {"value": 999}])',
-    "Fixture Hab 140 (space object:140) (Fixture Resistance (faction:15)) tier: 1 -> 2",
+    "Fixture Hab 140 (space object:140) tier: 1 -> 2 (faction Fixture Resistance (faction:15))",
     "Fixture Northland Union (nation:20) armies list: -Fixture Army (army:110)",
     "Fixture Southland (nation:21) armies list: +Fixture Army (army:110)",
     "Fixture Ship 131 (ship:131) fleet: Fixture Fleet 120 (fleet:120) -> unknown "
@@ -94,11 +94,11 @@ EXPECTED_INTERVAL_ASSETS = {
 }
 
 EXPECTED_ASSETS = {
-    "Fixture Resistance (faction:15) records a hab destruction dated 2032-05-20T00:00:00: "
-    'type "Base" (hab Fixture HabState 141 (space object:141)) at Fixture Body (space body:50) '
-    "by Fixture Servants (faction:16)",
-    "Fixture Resistance (faction:15) records a hab destruction dated 2032-06-02T00:00:00: "
-    'type "Base" at unknown (unresolved_reference, raw={"value": 998}) by null',
+    "Fixture HabState 141 (space object:141) destroyed by Fixture Servants (faction:16) at "
+    'Fixture Body (space body:50) (type "Base", dated 2032-05-20T00:00:00, '
+    "recorded by Fixture Resistance (faction:15))",
+    'hab destroyed at unknown (unresolved_reference, raw={"value": 998}) '
+    '(type "Base", dated 2032-06-02T00:00:00, recorded by Fixture Resistance (faction:15))',
     "Fixture Megafauna (army:112) appeared (megafauna, faction Fixture Servants (faction:16), "
     "region Fixture East (region:41))",
     "Fixture ArmyState 111 (army:111) (Fixture Servants (faction:16)) destroyed flag: false -> true",
@@ -110,28 +110,25 @@ EXPECTED_ASSETS = {
     "North (region:40) -> Fixture South (region:42)",
     "Fixture ArmyState 110 (army:110) (Fixture Resistance (faction:15)) strength: 3.5 -> 2.0",
     'Fixture ArmyState 111 (army:111) (Fixture Servants (faction:16)) type: "FixtureInfantry" -> "FixtureArmor"',
-    "Fixture SpaceFleetState 122 (fleet:122) (faction Fixture Resistance (faction:15)) is "
-    "present only in the after snapshot",
-    "Fixture SpaceFleetState 120 (fleet:120) (Fixture Resistance (faction:15)) docked "
-    "location: null -> Fixture HabState 140 (space object:140)",
+    "Fixture SpaceFleetState 122 (fleet:122) appeared (faction Fixture Resistance (faction:15))",
+    "Fixture SpaceFleetState 120 (fleet:120) docked "
+    "location: null -> Fixture HabState 140 (space object:140) (faction Fixture Resistance (faction:15))",
     "Fixture SpaceFleetState 121 (fleet:121) faction: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)",
-    "Fixture SpaceFleetState 121 (fleet:121) (Fixture Servants (faction:16)) in-combat flag: false -> true",
-    "Fixture SpaceFleetState 120 (fleet:120) (Fixture Resistance (faction:15)) orbit: "
-    "space object:60 -> space object:62",
-    "Fixture SpaceFleetState 120 (fleet:120) (Fixture Resistance (faction:15)) parent "
-    'fleet: null -> unknown (unresolved_reference, raw={"value": 999})',
-    "Fixture HabState 141 (space object:141) (faction Fixture Resistance (faction:15)) is "
-    "absent from the after snapshot",
+    "Fixture SpaceFleetState 121 (fleet:121) in-combat flag: false -> true (faction Fixture Servants (faction:16))",
+    "Fixture SpaceFleetState 120 (fleet:120) orbit: "
+    "space object:60 -> space object:62 (faction Fixture Resistance (faction:15))",
+    "Fixture SpaceFleetState 120 (fleet:120) parent "
+    'fleet: null -> unknown (unresolved_reference, raw={"value": 999}) (faction Fixture Resistance (faction:15))',
+    "Fixture HabState 141 (space object:141) disappeared (faction Fixture Resistance (faction:15))",
     "Fixture HabState 140 (space object:140) dockedFleets list: +Fixture SpaceFleetState 121 (fleet:121)",
     "Fixture HabState 140 (space object:140) faction: Fixture Servants (faction:16) -> Fixture Resistance (faction:15)",
-    "Fixture HabState 140 (space object:140) (Fixture Resistance (faction:15)) tier: 1 -> 2",
-    "Fixture HabState 140 (space object:140) (Fixture Resistance (faction:15)) under-assault flag: false -> true",
+    "Fixture HabState 140 (space object:140) tier: 1 -> 2 (faction Fixture Resistance (faction:15))",
+    "Fixture HabState 140 (space object:140) under-assault flag: false -> true "
+    "(faction Fixture Resistance (faction:15))",
     "Fixture Northland (nation:20) armies list: -Fixture ArmyState 110 (army:110)",
     "Fixture Southland (nation:21) armies list: +Fixture ArmyState 110 (army:110)",
-    "Fixture SpaceShipState 133 (ship:133) (fleet Fixture SpaceFleetState 122 (fleet:122)) "
-    "is present only in the after snapshot",
-    "Fixture SpaceShipState 132 (ship:132) (fleet Fixture SpaceFleetState 121 (fleet:121)) "
-    "is absent from the after snapshot",
+    "Fixture SpaceShipState 133 (ship:133) appeared in fleet Fixture SpaceFleetState 122 (fleet:122)",
+    "Fixture SpaceShipState 132 (ship:132) disappeared from fleet Fixture SpaceFleetState 121 (fleet:121)",
     "Fixture SpaceShipState 131 (ship:131) fleet: Fixture SpaceFleetState 121 (fleet:121) "
     "-> Fixture SpaceFleetState 120 (fleet:120)",
     "Fixture SpaceShipState 130 (ship:130) (fleet Fixture SpaceFleetState 120 (fleet:120)) "
