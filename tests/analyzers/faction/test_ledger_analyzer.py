@@ -69,7 +69,7 @@ def test_an_allow_listed_entry_inside_the_interval_is_record_dated_and_cites_the
     assert event.attribute("label") == "Coup" and event.attribute("amount") == -4.0
     assert event.attribute("faction_kinds") is not None
     assert describe_event(event) == (
-        "Fixture faction 15 (faction:15) ledger records a Coup charge: -4.0 Operations (dated 2031-04-15T00:00:00)"
+        "Fixture faction 15 (faction:15) ledger charge: Coup, -4.0 Operations (dated 2031-04-15T00:00:00)"
     )
 
 
