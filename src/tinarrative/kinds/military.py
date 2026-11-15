@@ -8,18 +8,29 @@ from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule, Stake
 from .narrative import count, narrative_kind, role
-from .text import TRANSITION, attribute_label, contextual, list_changed, subject_label
+from .text import TRANSITION, attribute_label, contextual, list_changed, subject_label, transition_label
 
 
-def _presence(event: Event) -> str:
-    faction = next((ref for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.FACTION), None)
+def _presence(verb: str) -> Callable[[Event], str]:
+    """``<army> <verb> (megafauna, faction <f>, region <r>)``; a missing faction or region is left out."""
+
+    def describe(event: Event) -> str:
+        details = ["megafauna"] if event.attribute("megafauna") is True else []
+        for label, domain in (("faction", EntityDomain.FACTION), ("region", EntityDomain.REGION)):
+            ref = next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
+            if ref is not None:
+                details.append(f"{label} {ref.label()}")
+        text = f"{subject_label(event)} {verb}"
+        return f"{text} ({', '.join(details)})" if details else text
+
+    return describe
+
+
+def _faction_changed(event: Event) -> str:
+    """``<army> faction: <before> -> <after> (in <region>)``: the new owner leads, the region follows."""
     region = next((ref for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.REGION), None)
-    faction_name = faction.label() if faction is not None else "null"
-    region_name = region.label() if region is not None else "null"
-    present = event.attribute("side") == "after"
-    status = "is present only in the after snapshot" if present else "is absent from the after snapshot"
-    text = f"{subject_label(event)} (faction {faction_name}, region {region_name}) {status}"
-    return text + " (megafauna)" if event.attribute("megafauna") is True else text
+    text = f"{subject_label(event)} {transition_label(event, 'faction')}"
+    return f"{text} (in {region.label()})" if region is not None else text
 
 
 REGION_CHANGED = EventKind(
@@ -32,7 +43,7 @@ REGION_CHANGED = EventKind(
 )
 FACTION_CHANGED = EventKind(
     "army.faction_changed",
-    contextual("faction", EntityDomain.REGION, "in "),
+    _faction_changed,
     Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
@@ -80,7 +91,7 @@ HOME_REGION_CHANGED = EventKind(
 )
 APPEARED = EventKind(
     "army.appeared",
-    _presence,
+    _presence("appeared"),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
@@ -89,7 +100,7 @@ APPEARED = EventKind(
 )
 DISAPPEARED = EventKind(
     "army.disappeared",
-    _presence,
+    _presence("disappeared"),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
