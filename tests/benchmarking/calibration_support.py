@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from tinarrative.benchmarking.calibration.table import layers
+from tinarrative.benchmarking.calibration.replay import default_state, replay
+from tinarrative.benchmarking.calibration.table import build_index, layers
 from tinarrative.model.events import SCORE_BANDS, Significance
 
 ROW_FIELDS = {
@@ -41,3 +42,18 @@ def check_rows(rows: list[dict[str, Any]]) -> None:
             assert cited in by_id
             other = by_id[cited]
             assert (layer_of.get(other["type"], 0) if other["tier"] == "narrative" else 0) < own
+
+
+def check_parity(rows: list[dict[str, Any]]) -> None:
+    """At the code's references with the clamp on, the replay is the pipeline: every score and level, every group."""
+    index = build_index(["campaign"], key="", extracted_at="")
+    result = replay(index, {"campaign": rows}, default_state(index))
+    oracle = {row["id"]: (row["score"], row["level"]) for row in rows}
+    campaign = result["campaigns"]["campaign"]
+
+    assert {event["id"]: (event["score"], event["level"]) for event in campaign["events"]} == oracle
+    assert all(member["verdict"] == "keeps_members" for member in campaign["members"])
+    assert result["totals"]["events_moved"] == 0
+    assert result["totals"]["package"]["change"] == 0
+    assert result["totals"]["members_changed"] == 0
+    assert result["moves"] == []
