@@ -1,8 +1,20 @@
 # Terra Invicta Narrative Save Analyzer
 
 `tinarrative` reconstructs a readable campaign history from Terra Invicta save
-snapshots. It keeps observed state changes separate from inferred events and
-narrative presentation.
+snapshots. Most of the work happens in a repeatable, deterministic process that
+constructs a filtered, ranked and partially interpreted package.
+The package gets fed to an LLM to tie them together, wrap them in a readable story,
+and justify how the general public would realistically perceive the events.
+
+- Most of the work happens locally without LLMs.
+- Narrative layer (LLM interaction) supports multiple API providers (OpenAI, Anthropic, OpenRouter, Local Ollama).
+
+## Quick start
+
+1. Obtain an API key for an LLM provider.
+1. Set up the local CLI - see [Development](#development).
+1. Try out the [`narrate`](docs/commands/narrate.md) or [`councilors`](docs/commands/councilors.md) command
+against your Terra Invicta save directory.
 
 ## Commands
 
@@ -25,7 +37,6 @@ Maintainer tooling:
 - [`benchmark`](docs/commands/benchmark.md): maintain the sample campaigns and measure package size and runtime.
 
 Options, saves, campaigns and exit codes shared by the commands are in the [command reference](docs/commands/README.md).
-Add `--log-level debug` before the command to see what the parser decided; see the [debugging guide](docs/debugging.md).
 
 ## Development
 
