@@ -413,7 +413,7 @@ def test_takeovers_of_several_small_nations_by_one_faction_form_a_wave() -> None
     assert wave.attribute("nations") == (NORTH, SOUTH, EAST) and wave.attribute("count") == 3
     assert wave.roles == ((Role.ACTOR, SERVANTS), (Role.TARGET, NORTH), (Role.TARGET, SOUTH), (Role.TARGET, EAST))
     assert (wave.significance, wave.significance_basis) == (Significance.MAJOR, None)
-    assert describe_event(wave).startswith(f"{SERVANTS.label()} took control of ")
+    assert describe_event(wave).startswith(f"{SERVANTS.label()} took control in quick succession ")
 
 
 def test_fewer_takeovers_than_the_minimum_are_no_wave() -> None:
@@ -845,7 +845,8 @@ def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> 
     ]  # type: ignore[union-attr]
     assert len(shift_ids(lifecycle)) == 1
     assert describe_event(lifecycle) == (
-        "Union (federation:60) members [Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
+        "Union (federation:60) members: net +Southland (nation:21), -Northland (nation:20); "
+        "[Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
     )
 
 
