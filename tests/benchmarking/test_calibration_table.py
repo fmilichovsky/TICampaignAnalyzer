@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from tests.benchmarking.calibration_support import check_rows
 from tests.fixtures import fixture_path
 from tinarrative.benchmarking.calibration.table import (
     CalibrationTableError,
+    _row,
     build_index,
     extract_all,
     extract_campaign,
@@ -21,8 +23,12 @@ from tinarrative.benchmarking.calibration.table import (
     write_campaign,
 )
 from tinarrative.benchmarking.manifest import MANIFEST, extractable_campaigns, prefix_of
-from tinarrative.narrative import default_member_gates
+from tinarrative.config import DEFAULT_SETTINGS
+from tinarrative.kinds.registry import kind_for
+from tinarrative.model.events import SIGNIFICANCE_ORDER
+from tinarrative.narrative import NARRATIVE_RULES, default_member_gates
 from tinarrative.narrative.measures import MEASURES
+from tinarrative.narrative.significance import narrative_level
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
 SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
@@ -99,6 +105,8 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
     assert {gate["member_type"] for gate in index["member_gates"]} == {
         gate.member_type for gate in default_member_gates().values()
     }
+    emitted = {rule.name: sorted(rule.emitted_types) for rule in NARRATIVE_RULES}
+    assert all(gate["group_types"] == emitted[gate["rule"]] for gate in index["member_gates"])
     assert index["layers"] and min(index["layers"].values()) >= 1
     assert index["constants"]["score_min"] == 0
     assert index["constants"]["score_max"] == 100
@@ -120,3 +128,15 @@ def test_extraction_writes_the_index_and_skips_a_prefix_campaign(tmp_path: Path)
     assert names == ["politics"]
     assert read_index(out / "index.js")["campaigns"] == ["politics"]
     check_rows(read_campaign(out / "tables" / "politics.js")["events"])
+
+
+def test_a_narrative_row_without_a_stake_keeps_its_own_base_when_cited_events_raise_its_level() -> None:
+    intervals = list(run_sequence(plan_sequence([survey(path) for path in saves()]), inferred=True))
+    event = next(item for item in narrative_events(intervals) if item.significance_basis is None)
+    own = narrative_level(kind_for(event.event_type), event, DEFAULT_SETTINGS.narrative.geopolitics)
+    top = SIGNIFICANCE_ORDER[-1]
+    # Through the row seam: no fixture has a stake-less narrative event that its cited events raise.
+    raised = _row(replace(event, significance=top, score=top.band[1]), "narrative")
+
+    assert own is not top
+    assert raised["base"] == own.base

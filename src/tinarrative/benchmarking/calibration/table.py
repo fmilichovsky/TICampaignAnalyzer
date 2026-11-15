@@ -10,12 +10,14 @@ from pathlib import Path
 from typing import Any, Final
 
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
+from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.chronology import interval_of
 from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
+from tinarrative.narrative.significance import narrative_level
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
@@ -62,13 +64,23 @@ def _row(event: Event, tier: str) -> dict[str, Any]:
         "interval": event.intervals[0] if narrative else interval_of(event.id),
         "date": event.date if isinstance(event.date, str) else None,
         "label": describe_event(event),
-        "base": basis.base if basis is not None else event.significance.base,
+        "base": basis.base if basis is not None else _own_base(event, narrative),
         "stakes": [{"measure": basis.measure.value, "share": basis.share}] if basis is not None else [],
         "entities": [{"id": str(ref.entity_id), "label": ref.label()} for ref in event.entities],
         "cited": list(event.constituents) if narrative else [],
         "score": event.score,
         "level": event.significance.value,
     }
+
+
+def _own_base(event: Event, narrative: bool) -> int:
+    """The base of a row without a basis; a narrative event's level may have been raised by the events it cites."""
+    if not narrative:
+        return event.significance.base
+    kind = kind_for(event.event_type)
+    if kind is None:
+        raise CalibrationTableError(f"event type {event.event_type} is declared by no kind")
+    return narrative_level(kind, event, DEFAULT_SETTINGS.narrative.geopolitics).base
 
 
 def layers() -> dict[str, int]:
@@ -89,6 +101,7 @@ def layers() -> dict[str, int]:
 
 def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dict[str, Any]:
     """The ``index.js`` document: what the rows cannot say about themselves, from the registry and the rules."""
+    rules = {rule.name: rule for rule in NARRATIVE_RULES}
     return {
         "schema_version": SCHEMA_VERSION,
         "campaigns": list(campaigns),
@@ -98,6 +111,7 @@ def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dic
         "member_gates": [
             {
                 "rule": name,
+                "group_types": sorted(rules[name].emitted_types),
                 "member_type": gate.member_type,
                 "admitted_levels": [level.value for level in SIGNIFICANCE_ORDER if level in gate.admitted_levels],
                 "minimum": gate.minimum,
