@@ -9,6 +9,7 @@ import sys
 import textwrap
 import threading
 import time
+import webbrowser
 from collections.abc import Callable, Sequence
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -217,6 +218,16 @@ EXIT_CODES: dict[str, ExitCodes] = {
             EXIT_USAGE_ERROR,
             f"usage error, a sample that does not match {MANIFEST}, an unknown measure, campaign or type, an invalid "
             "--state, a measure given twice, or a failed extraction (status.js says failed; the old table stays).",
+        ),
+        (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
+        (EXIT_OUTPUT_ERROR, "--out cannot be written."),
+    ),
+    "benchmark calibrate open": (
+        (EXIT_SUCCESS, "the page was written and its table is current; a browser that cannot be opened only warns."),
+        (
+            EXIT_USAGE_ERROR,
+            f"usage error, a sample that does not match {MANIFEST}, or a failed extraction (status.js says failed; "
+            "the old table stays, and an old page was already opened).",
         ),
         (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
         (EXIT_OUTPUT_ERROR, "--out cannot be written."),
@@ -727,11 +738,8 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
             progress.finish("measurement")
 
 
-def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
-    """Refresh the calibration cache, replay it for the requested state and print the readout."""
-    command = "tinarrative benchmark calibrate report"
-    samples = cast(Path, args.samples)
-    out = cast(Path, args.out)
+def _calibration_samples_error(command: str, samples: Path) -> int | None:
+    """The exit code when ``samples`` cannot be calibrated against, after printing why; None when it can."""
     try:
         if not samples.is_dir():
             raise OSError(f"{samples}: not a directory")
@@ -742,8 +750,76 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
     errors = verify_samples(samples)
     for sample_error in errors:
         print(f"{command}: {sample_error}", file=sys.stderr)
-    if errors:
+    return EXIT_USAGE_ERROR if errors else None
+
+
+def _run_benchmark_calibrate_open(args: argparse.Namespace) -> int:
+    """Write the calibration page into the cache directory, open it, and keep its table current.
+
+    A stale table is shown at once and rebuilt behind the page, which polls ``status.js``; with no table, the table is
+    built first.
+    """
+    command = "tinarrative benchmark calibrate open"
+    samples = cast(Path, args.samples)
+    out = cast(Path, args.out)
+    failed = _calibration_samples_error(command, samples)
+    if failed is not None:
+        return failed
+    try:
+        page = calibration_cache.write_page(out).resolve()
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    shown = False
+
+    def show() -> None:
+        nonlocal shown
+        if shown:
+            return
+        shown = True
+        print(page, flush=True)
+        if not args.no_open:
+            _open_page(command, page)
+
+    def stale(found: calibration_cache.CacheCheck) -> None:
+        if found.existing is not None:
+            show()
+            print(
+                f"{command}: Rebuilding the calibration table in {out}; the page shows the old one...", file=sys.stderr
+            )
+        else:
+            print(f"{command}: Extracting the calibration table in {out}...", file=sys.stderr)
+
+    try:
+        calibration_cache.refresh(samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale)
+    except calibration_cache.CalibrationCacheError as error:
+        print(f"{command}: {error}", file=sys.stderr)
         return EXIT_USAGE_ERROR
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    show()
+    return EXIT_SUCCESS
+
+
+def _open_page(command: str, page: Path) -> None:
+    """Open ``page`` in the default browser; a browser that cannot be opened is a warning, not a failure."""
+    try:
+        opened = webbrowser.open(page.as_uri())
+    except webbrowser.Error:
+        opened = False
+    if not opened:
+        print(f"{command}: warning: cannot open a browser; open {page} by hand.", file=sys.stderr)
+
+
+def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
+    """Refresh the calibration cache, replay it for the requested state and print the readout."""
+    command = "tinarrative benchmark calibrate report"
+    samples = cast(Path, args.samples)
+    out = cast(Path, args.out)
+    failed = _calibration_samples_error(command, samples)
+    if failed is not None:
+        return failed
 
     def stale(found: calibration_cache.CacheCheck) -> None:
         what = "Rebuilding" if found.existing is not None else "Extracting"
@@ -2371,21 +2447,23 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     summary = "Replay the stake calibration table for other references."
     calibrate = commands.add_parser("calibrate", help=summary, description=summary)
     calibrate_commands = calibrate.add_subparsers(dest="calibrate_command", metavar="OPERATION", required=True)
+    opened = _add_command(
+        calibrate_commands,
+        "open",
+        "Write the stake calibration page, open it in the browser and keep its table current.",
+        "benchmark calibrate open",
+    )
+    _add_calibration_cache_arguments(opened)
+    opened.add_argument("--no-open", action="store_true", help="Print the page path without opening a browser.")
+    opened.set_defaults(handler=_run_benchmark_calibrate_open)
+
     report = _add_command(
         calibrate_commands,
         "report",
         "Refresh the calibration cache and print the readout of a calibration state.",
         "benchmark calibrate report",
     )
-    _add_samples_argument(report)
-    report.add_argument(
-        "--out",
-        type=Path,
-        default=CALIBRATION_OUT_DIR,
-        metavar="PATH",
-        help="The calibration cache directory (default %(default)s).",
-    )
-    report.add_argument("--rebuild", action="store_true", help="Rebuild the cache even when it is fresh.")
+    _add_calibration_cache_arguments(report)
     report.add_argument(
         "--reference",
         action="append",
@@ -2412,6 +2490,18 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     _add_format_argument(report)
     report.set_defaults(handler=_run_benchmark_calibrate)
+
+
+def _add_calibration_cache_arguments(parser: argparse.ArgumentParser) -> None:
+    _add_samples_argument(parser)
+    parser.add_argument(
+        "--out",
+        type=Path,
+        default=CALIBRATION_OUT_DIR,
+        metavar="PATH",
+        help="The calibration cache directory (default %(default)s).",
+    )
+    parser.add_argument("--rebuild", action="store_true", help="Rebuild the cache even when it is fresh.")
 
 
 def _add_python_argument(parser: argparse.ArgumentParser) -> None:

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.benchmarking.browser_replay import assert_replays_agree
+from tests.benchmarking.browser_replay import assert_readouts_agree, assert_replays_agree
 from tests.benchmarking.calibration_support import check_parity, check_rows
 from tinarrative.benchmarking.calibration.replay import default_state, load
 
@@ -25,7 +25,7 @@ def test_a_sample_campaign_extracts_to_consistent_rows_that_replay_to_the_pipeli
 
 
 @pytest.mark.browser_replay
-def test_replay_js_writes_the_json_of_replay_py_on_a_sample_campaign(calibration_table: Path) -> None:
+def test_replay_js_and_readout_js_match_python_on_a_sample_campaign(calibration_table: Path) -> None:
     index, tables = load(calibration_table)
     [rows] = tables.values()
     code = default_state(index)
@@ -48,3 +48,4 @@ def test_replay_js_writes_the_json_of_replay_py_on_a_sample_campaign(calibration
     ]
 
     assert_replays_agree(calibration_table, states)
+    assert_readouts_agree(calibration_table, states)

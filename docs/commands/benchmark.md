@@ -218,6 +218,53 @@ tinarrative benchmark runtime report build/runtime.json --out build/runtime.md
 | 4 | The runtime JSON cannot be read or is not a runtime file, or the report cannot be written. |
 <!-- end generated -->
 
+## `benchmark calibrate open`
+
+<!-- generated: synopsis benchmark calibrate open -->
+```
+tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [--no-open]
+```
+<!-- end generated -->
+
+Writes the stake calibration page into `--out`, prints its path and opens it in the default browser. The page is a
+static file that works from disk with no network: pick a measure, slide its reference, and see the three totals,
+which event types change level (What moves), which takeover waves lose members, the level counts per type, and the
+real events on each side of each cut-off. Hover a row, a bar or a segment for its six largest events; click it for
+the full list. The URL hash holds the whole state, so a reloaded page comes back as it was, and **Copy readout**
+copies the snippet, the shared paragraph and the hash, ready for `report --state`.
+
+The page uses the same cache as `report`. A fresh cache opens at once. A stale one opens the old page at once,
+then rebuilds behind it: the page shows a banner while `status.js` says `rebuilding` and offers a reload when the
+new table is ready, or shows the message when the rebuild failed. With no cache, the table is built first. The
+page files are copied from the package on every run. When no browser can be opened, the command warns, still prints
+the path and exits 0.
+
+```sh
+# Build the table if needed and open the page.
+tinarrative benchmark calibrate open
+
+# Print the page path only, for a browser on another machine or a script.
+tinarrative benchmark calibrate open --no-open
+```
+
+<!-- generated: options benchmark calibrate open -->
+| Option | Meaning |
+| --- | --- |
+| `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
+| `--out PATH` | The calibration cache directory (default build/calibration). |
+| `--rebuild` | Rebuild the cache even when it is fresh. |
+| `--no-open` | Print the page path without opening a browser. |
+<!-- end generated -->
+
+<!-- generated: exit-codes benchmark calibrate open -->
+| Code | When |
+| --- | --- |
+| 0 | The page was written and its table is current; a browser that cannot be opened only warns. |
+| 2 | Usage error, a sample that does not match samples.json, or a failed extraction (status.js says failed; the old table stays, and an old page was already opened). |
+| 4 | --samples is not a directory or its samples.json cannot be read. |
+| 9 | --out cannot be written. |
+<!-- end generated -->
+
 ## `benchmark calibrate report`
 
 <!-- generated: synopsis benchmark calibrate report -->

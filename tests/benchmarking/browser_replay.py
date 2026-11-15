@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from tinarrative.benchmarking.calibration.readout import shared_paragraph, snippet
 from tinarrative.benchmarking.calibration.replay import ReplayState, encode_state, js_number, load, replay
 
 HARNESS = Path(__file__).with_name("replay_harness.js")
@@ -92,6 +93,19 @@ def assert_replays_agree(directory: Path, states: Sequence[ReplayState]) -> None
         expected = js_json(replay(index, tables, state))
         if answer["ok"] != expected:
             pytest.fail(f"replay.js differs from replay.py for #{text}: {_first_difference(answer['ok'], expected)}")
+
+
+def assert_readouts_agree(directory: Path, states: Sequence[ReplayState]) -> None:
+    """For every state, ``readout.js`` writes the shared paragraph and the snippet of ``readout.py`` byte for byte."""
+    index, tables = load(directory)
+    hashes = [encode_state(state, index) for state in states]
+    answers = run_harness(directory, [{"op": "readout", "hash": text} for text in hashes])
+    for state, text, answer in zip(states, hashes, answers, strict=True):
+        assert "ok" in answer, f"readout.js rejected #{text}: {answer}"
+        result = replay(index, tables, state)
+        expected = js_json({"paragraph": shared_paragraph(index, result), "snippet": snippet(index, result)})
+        if answer["ok"] != expected:
+            pytest.fail(f"readout.js differs from readout.py for #{text}: {_first_difference(answer['ok'], expected)}")
 
 
 def _first_difference(actual: str, expected: str) -> str:
