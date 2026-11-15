@@ -80,14 +80,6 @@
       </div>
     </section>
 
-    <section class="counts" aria-labelledby="counts-title">
-      <div class="section-head">
-        <h2 class="section-title" id="counts-title">Level counts</h2>
-        <span class="level-key" id="level-key"></span>
-      </div>
-      <div class="counts-list" id="counts"></div>
-    </section>
-
     <section class="references" aria-labelledby="references-title">
       <h2 class="section-title" id="references-title">References</h2>
       <table class="reference-table">
@@ -114,16 +106,21 @@
       <div class="verdicts" id="verdicts"></div>
     </section>
 
-    <section class="moves" aria-labelledby="moves-title">
+    <section class="counts" aria-labelledby="counts-title">
       <div class="section-head">
-        <h2 class="section-title" id="moves-title">What moves</h2>
-        <span class="section-note" id="moves-note"></span>
+        <h2 class="section-title" id="counts-title">Level counts</h2>
+        <span class="order" id="count-order" role="group" aria-label="Row order">
+          <button type="button" class="order-option" data-order="events" aria-pressed="true" title="Types with the most staked events first; rows never move">By events</button>
+          <button type="button" class="order-option" data-order="moves" aria-pressed="false" title="Types with the most events changing level first, once the reference settles">By moves</button>
+        </span>
+        <span class="section-note" id="counts-note"></span>
       </div>
-      <div class="moves-head" aria-hidden="true">
-        <span>Type</span><span>Change</span><span class="num">Events</span><span class="num">Via cited</span><span></span>
+      <div class="counts-head">
+        <span class="level-key" id="level-key"></span>
+        <span class="num">Events</span>
+        <span class="flow-keys" id="flow-keys"></span>
       </div>
-      <div class="moves-list" id="moves"></div>
-      <p class="empty" id="moves-empty" hidden>Nothing moves at these references.</p>
+      <div class="counts-list" id="counts"></div>
     </section>
   </section>
 </main>
