@@ -206,6 +206,7 @@ def _candidates(
         if now is None or recruited is None or (now - recruited).days < settings.min_tenure_days:
             continue
         skills = _skills(state)
+        trait_skills = _trait_skills(state.get("traitTemplateNames"))
         orgs = _orgs(lookup, state)
         candidates.append(
             _Candidate(
@@ -213,7 +214,11 @@ def _candidates(
                 faction=lookup.resolve(faction) or faction,
                 tenure_days=(now - recruited).days,
                 org_share=total(org_shares, (org.org_id for org in orgs)),
-                skill_sum=sum(skills.values()),
+                skill_sum=sum(
+                    min(SKILL_CAP, max(0, skills.get(name, 0) + trait_skills.get(name, 0)))
+                    for name in SKILLS
+                    if name in skills or name in trait_skills
+                ),
                 org_skill_sum=sum(_org_skills(orgs).values()),
                 xp=_int(state.get("XP")),
             )
