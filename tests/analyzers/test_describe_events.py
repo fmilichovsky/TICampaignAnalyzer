@@ -73,8 +73,8 @@ EXPECTED_POLITICS = {
 }
 
 EXPECTED_INTERVAL_ASSETS = {
-    "Fixture Megafauna (army:112) (faction Fixture Servants (faction:16), region Fixture "
-    "East (region:41)) is present only in the after snapshot (megafauna)",
+    "Fixture Megafauna (army:112) appeared (megafauna, faction Fixture Servants (faction:16), "
+    "region Fixture East (region:41))",
     "Fixture Army (army:110) (Fixture Resistance (faction:15)) region: Fixture North "
     "(region:40) -> Fixture South (region:42)",
     "Fixture Army (army:110) (Fixture Resistance (faction:15)) strength: 3.5 -> 2.0",
@@ -100,13 +100,13 @@ EXPECTED_ASSETS = {
     "by Fixture Servants (faction:16)",
     "Fixture Resistance (faction:15) records a hab destruction dated 2032-06-02T00:00:00: "
     'type "Base" at unknown (unresolved_reference, raw={"value": 998}) by null',
-    "Fixture Megafauna (army:112) (faction Fixture Servants (faction:16), region Fixture "
-    "East (region:41)) is present only in the after snapshot (megafauna)",
+    "Fixture Megafauna (army:112) appeared (megafauna, faction Fixture Servants (faction:16), "
+    "region Fixture East (region:41))",
     "Fixture ArmyState 111 (army:111) (Fixture Servants (faction:16)) destroyed flag: false -> true",
-    "Fixture ArmyState 113 (army:113) (faction Fixture Resistance (faction:15), region "
-    "Fixture East (region:41)) is absent from the after snapshot",
-    "Fixture ArmyState 111 (army:111) (in Fixture North (region:40)) faction: Fixture "
-    "Resistance (faction:15) -> Fixture Servants (faction:16)",
+    "Fixture ArmyState 113 (army:113) disappeared (faction Fixture Resistance (faction:15), "
+    "region Fixture East (region:41))",
+    "Fixture ArmyState 111 (army:111) faction: Fixture Resistance (faction:15) -> "
+    "Fixture Servants (faction:16) (in Fixture North (region:40))",
     "Fixture ArmyState 110 (army:110) (Fixture Resistance (faction:15)) region: Fixture "
     "North (region:40) -> Fixture South (region:42)",
     "Fixture ArmyState 110 (army:110) (Fixture Resistance (faction:15)) strength: 3.5 -> 2.0",
