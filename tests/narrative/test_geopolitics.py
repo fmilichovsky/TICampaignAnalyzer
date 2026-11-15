@@ -413,7 +413,7 @@ def test_takeovers_of_several_small_nations_by_one_faction_form_a_wave() -> None
     assert wave.attribute("nations") == (NORTH, SOUTH, EAST) and wave.attribute("count") == 3
     assert wave.roles == ((Role.ACTOR, SERVANTS), (Role.TARGET, NORTH), (Role.TARGET, SOUTH), (Role.TARGET, EAST))
     assert (wave.significance, wave.significance_basis) == (Significance.MAJOR, None)
-    assert describe_event(wave).startswith(f"{SERVANTS.label()} took control of ")
+    assert describe_event(wave).startswith(f"{SERVANTS.label()} took control in quick succession ")
 
 
 def test_fewer_takeovers_than_the_minimum_are_no_wave() -> None:

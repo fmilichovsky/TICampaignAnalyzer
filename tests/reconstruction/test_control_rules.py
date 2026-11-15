@@ -229,7 +229,7 @@ def test_an_executive_seat_changing_hands_is_the_executive_scope_only() -> None:
     assert event.constituents == ("control_point.controller_changed/control point:9",)
     assert [str(ref.entity_id) for ref in event.entities] == ["nation:20", "faction:15", "faction:16"]
     assert describe_event(event) == (
-        "Fixture nation 20 (nation:20) executive control changed: "
+        "Fixture nation 20 (nation:20) executive control: "
         "Fixture faction 15 (faction:15) -> Fixture faction 16 (faction:16)"
     )
 
@@ -288,7 +288,7 @@ def test_a_plurality_tie_has_no_holder_and_stays_major() -> None:
     assert [str(ref.entity_id) for ref in event.entities] == ["nation:20", "faction:15"]
     lines = lines_of(plurality_tie())
     assert lines[event.id] == (
-        "Fixture nation 20 (nation:20) plurality control changed: Fixture faction 15 (faction:15) -> null",
+        "Fixture nation 20 (nation:20) plurality control: Fixture faction 15 (faction:15) -> null",
         Significance.MAJOR,
     )
 

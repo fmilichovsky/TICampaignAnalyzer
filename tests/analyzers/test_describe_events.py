@@ -11,17 +11,17 @@ from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
 from tinarrative.model.values import Unknown
 
 EXPECTED_INTERVAL = {
-    "Fixture CP 9 (control point:9) (Fixture Northland Union (nation:20)) controller: null "
-    "-> Fixture Resistance (faction:15)",
-    "Fixture CP 12 (control point:12) (Fixture Southland (nation:21), controller Fixture "
-    "Servants (faction:16)) is absent from the after snapshot",
-    "Fixture Councilor 102 (councilor:102) (faction Fixture Resistance (faction:15)) is "
-    "present only in the after snapshot",
-    "Fixture Councilor 101 (councilor:101) (faction null) is absent from the after snapshot",
-    "Fixture Councilor 100 (councilor:100) (Fixture Resistance (faction:15)) location: "
+    "Fixture CP 9 (control point:9) controller: null -> Fixture Resistance (faction:15); "
+    "nation Fixture Northland Union (nation:20)",
+    "Fixture CP 12 (control point:12) disappeared (nation Fixture Southland (nation:21), "
+    "controller Fixture Servants (faction:16))",
+    "Fixture Councilor 102 (councilor:102) appeared (faction Fixture Resistance (faction:15))",
+    "Fixture Councilor 101 (councilor:101) disappeared",
+    "Fixture Councilor 100 (councilor:100) location: "
     'Fixture North (region:40) -> unknown (unresolved_reference, raw={"$type": '
-    '"PavonisInteractive.TerraInvicta.TIRegionState", "value": 999})',
-    "Fixture Resistance (faction:15) councilors list: -Fixture Councilor 101 (councilor:101)",
+    '"PavonisInteractive.TerraInvicta.TIRegionState", "value": 999}) '
+    "(faction Fixture Resistance (faction:15))",
+    "Fixture Resistance (faction:15) councilors: removed Fixture Councilor 101 (councilor:101)",
     "Fixture Federation (federation:80) members: +Fixture Northland Union (nation:20)",
     "Fixture Northland Union (nation:20) and Fixture Southland (nation:21): allies entry "
     "removed (listed by Fixture Northland Union (nation:20) only)",
@@ -44,24 +44,24 @@ EXPECTED_POLITICS = {
     "Fixture Northland (nation:20) records an executive change dated 2032-02-15T00:00:00: "
     "new executive Fixture Resistance (faction:15) (previously Fixture Servants "
     "(faction:16))",
-    "Fixture CP 10 (control point:10) (Fixture Northland (nation:20)) controller: Fixture "
-    "Resistance (faction:15) -> null",
-    "Fixture CP 9 (control point:9) (Fixture Northland (nation:20)) controller: Fixture "
-    "Servants (faction:16) -> Fixture Resistance (faction:15); loss recorded by Fixture "
+    "Fixture CP 10 (control point:10) controller: Fixture Resistance (faction:15) -> null; "
+    "nation Fixture Northland (nation:20)",
+    "Fixture CP 9 (control point:9) controller: Fixture Servants (faction:16) -> Fixture "
+    "Resistance (faction:15); nation Fixture Northland (nation:20); loss recorded by Fixture "
     "Servants (faction:16) on 2032-02-15T00:00:00",
     "Fixture CP 11 (control point:11) nation: Fixture Southland (nation:21) -> Fixture Northland (nation:20)",
-    "Fixture Councilor 100 (councilor:100) (Fixture Servants (faction:16)) detaining "
-    "faction: null -> Fixture Servants (faction:16)",
+    "Fixture Councilor 100 (councilor:100) detaining faction: null -> Fixture Servants "
+    "(faction:16) (faction Fixture Servants (faction:16))",
     "Fixture Councilor 100 (councilor:100) faction: Fixture Resistance (faction:15) -> Fixture Servants (faction:16)",
     "Fixture Councilor 102 (councilor:102) faction: Fixture Servants (faction:16) -> null",
-    "Fixture Councilor 101 (councilor:101) (null) location: Fixture North (region:40) -> "
-    "Fixture Hab 140 (space object:140)",
-    'Fixture Councilor 100 (councilor:100) (Fixture Servants (faction:16)) status: "Available" -> "FixtureStatusB"',
-    "Fixture Resistance (faction:15) councilors list: [Fixture Councilor 100 "
+    "Fixture Councilor 101 (councilor:101) location: Fixture North (region:40) -> Fixture Hab 140 (space object:140)",
+    'Fixture Councilor 100 (councilor:100) status: "Available" -> "FixtureStatusB" '
+    "(faction Fixture Servants (faction:16))",
+    "Fixture Resistance (faction:15) councilors: [Fixture Councilor 100 "
     '(councilor:100)] -> unknown (unresolved_reference, raw=[{"value": 999}])',
     "Fixture Eastland (nation:22) breakaway parent: null -> Fixture Northland (nation:20)",
     "Fixture Northland (nation:20) capital: Fixture North (region:40) -> Fixture East (region:41)",
-    "Fixture Eastland (nation:22) controlPoints list: +Fixture CP 10 (control point:10)",
+    "Fixture Eastland (nation:22) control points: added Fixture CP 10 (control point:10)",
     "Fixture Northland (nation:20) and Fixture Southland (nation:21): rivals entry removed "
     "(listed by Fixture Northland (nation:20) only)",
     "Fixture Northland (nation:20) and Fixture Southland (nation:21): wars entry added (listed by both)",
