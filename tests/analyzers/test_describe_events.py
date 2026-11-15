@@ -145,17 +145,16 @@ EXPECTED_ASSETS = {
 }
 
 EXPECTED_WARS = {
-    "Fixture War 92 (war:92) (Fixture Nation 23 (nation:23), Fixture Nation 25 "
-    "(nation:25)) is present only in the after snapshot; start date 2032-02-20T00:00:00",
+    "Fixture War 92 (war:92) appeared; start date 2032-02-20T00:00:00; nations Fixture Nation 23 "
+    "(nation:23), Fixture Nation 25 (nation:25)",
     'Fixture War 90 (war:90) date of last fighting: "2031-12-10T00:00:00" -> "2032-03-15T00:00:00"',
     "Fixture Grand Federation (federation:80) members: +Fixture Nation 20 (nation:20)",
     "Fixture Grand Federation (federation:80) members: -Fixture Nation 25 (nation:25)",
     'Fixture Grand Federation (federation:80) renamed: "Fixture Federation" -> "Fixture Grand Federation"',
     "Fixture Nation 21 (nation:21) and Fixture Nation 24 (nation:24): wars entry added "
     "(listed by Fixture Nation 24 (nation:24) only)",
-    "Fixture War 90 (war:90) attacking side: +Fixture Nation 22 (nation:22)",
-    "Fixture War 91 (war:91) (Fixture Nation 22 (nation:22), Fixture Nation 23 "
-    "(nation:23)) is absent from the after snapshot",
+    "Fixture Nation 22 (nation:22) added to the attacking side of Fixture War 90 (war:90)",
+    "Fixture War 91 (war:91) disappeared; nations Fixture Nation 22 (nation:22), Fixture Nation 23 (nation:23)",
 }
 
 
@@ -199,3 +198,35 @@ def test_unknown_event_types_fall_back_to_type_and_entities_and_escape_non_ascii
     plain = Event(**{**event.__dict__, "event_type": "nation.capital_changed", "attributes": (("after", "café"),)})
     described = describe_event(plain)
     assert described.isascii() and json.loads(described.split("-> ")[1]) == "café"
+
+
+def _war_event(event_type: str, *attributes: tuple[str, object]) -> Event:
+    war = state(EntityDomain.WAR, "90", AFTER)
+    return Event(
+        id="x",
+        event_type=event_type,
+        status=EventStatus.OBJECTIVE,
+        confidence=Confidence.HIGH,
+        date=Unknown(),
+        date_basis=DateBasis.INTERVAL,
+        not_before=Unknown(),
+        sources=(),
+        entities=(war.ref,),
+        attributes=attributes,  # type: ignore[arg-type]
+    )
+
+
+def test_war_membership_lines_lead_with_the_member_and_the_movement() -> None:
+    member = state(EntityDomain.NATION, "23", AFTER).ref
+    removed = _war_event("war.alliance_changed", ("side", "defending"), ("member", member), ("transition", "removed"))
+    assert describe_event(removed) == (
+        "Fixture nation 23 (nation:23) removed from the defending side of Fixture war 90 (war:90)"
+    )
+    listed = _war_event("war.attacking_alliance_changed", ("transition", "added"), ("member", member))
+    assert describe_event(listed) == (
+        "Fixture nation 23 (nation:23) added to the attacking alliance list of Fixture war 90 (war:90)"
+    )
+    unresolved = _war_event(
+        "war.defending_alliance_changed", ("transition", "unresolved"), ("before", "a"), ("after", "b")
+    )
+    assert describe_event(unresolved) == 'Fixture war 90 (war:90) defending alliance list: "a" -> "b"'
