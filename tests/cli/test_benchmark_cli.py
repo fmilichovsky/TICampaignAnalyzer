@@ -126,3 +126,20 @@ def test_metrics_defaults_resolve_from_the_working_directory() -> None:
     assert args.samples.resolve() == Path.cwd() / "benchmarks" / "samples"
     assert args.matrix.resolve() == Path.cwd() / "benchmarks" / "matrix.toml"
     assert args.config.resolve() == Path.cwd() / "benchmarks" / "config.toml"
+
+
+def test_refresh_keeps_prefix_of(tmp_path: Path, monkeypatch) -> None:
+    samples = tmp_path / "samples"
+    samples.mkdir()
+    monkeypatch.setattr(cli, "BENCHMARK_SAMPLES_DIR", samples)
+    first = fixture_path("io", "terra_invicta_json_v1", "campaign_assets.json")
+    second = fixture_path("io", "terra_invicta_json_v1", "politics_before.json")
+    assert run_cli(["benchmark", "sample", "fixture", str(first), "--description", "Short."])[0] == 0
+    manifest_path = samples / "samples.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["campaigns"]["fixture"]["prefix_of"] = "longer"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    assert run_cli(["benchmark", "sample", "fixture", str(second)])[0] == 0
+
+    assert json.loads(manifest_path.read_text(encoding="utf-8"))["campaigns"]["fixture"]["prefix_of"] == "longer"

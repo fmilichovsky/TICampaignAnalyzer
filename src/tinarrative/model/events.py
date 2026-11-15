@@ -108,7 +108,7 @@ class SignificanceBasis:
         return {
             "base": self.base,
             "measure": self.measure.value,
-            "share": self.share,
+            "share": float(f"{self.share:.6g}"),
             "scale": self.scale,
             "entities": [to_jsonable(ref) for ref in self.entities],
         }

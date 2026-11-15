@@ -149,7 +149,11 @@ def test_an_army_event_scales_with_its_nations_power_share(
 
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
+        base=Significance.MAJOR.base,
+        measure=StakeMeasure.POWER,
+        share=pytest.approx(0.4),
+        scale=SCALE_MAX,
+        entities=(NORTH,),
     )
     assert micro.significance is Significance.MINOR
 

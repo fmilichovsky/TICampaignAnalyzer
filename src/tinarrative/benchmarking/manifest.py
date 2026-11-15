@@ -68,7 +68,8 @@ def update_samples(samples: Path) -> dict[str, Any]:
     """The manifest for the files under ``samples``, keeping the limit and the descriptions of the current one."""
     path = samples / MANIFEST
     current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
-    descriptions = {name: entry.get("description", "") for name, entry in current.get("campaigns", {}).items()}
+    previous = current.get("campaigns", {})
+    descriptions = {name: entry.get("description", "") for name, entry in previous.items()}
     campaigns: dict[str, Any] = {}
     for campaign, files in sample_files(samples).items():
         entries = {}
@@ -76,8 +77,25 @@ def update_samples(samples: Path) -> dict[str, Any]:
             with lzma.open(file) as handle:
                 raw = sum(len(block) for block in iter(lambda: handle.read(1 << 20), b""))
             entries[file.name] = {"sha256": sha256_file(file), "bytes": file.stat().st_size, "raw_bytes": raw}
-        campaigns[campaign] = {"description": descriptions.get(campaign, ""), "files": entries}
+        campaigns[campaign] = {"description": descriptions.get(campaign, "")}
+        if isinstance(prefix := previous.get(campaign, {}).get("prefix_of"), str):
+            campaigns[campaign]["prefix_of"] = prefix
+        campaigns[campaign]["files"] = entries
     return {"max_file_bytes": current.get("max_file_bytes", 5_000_000), "campaigns": campaigns}
+
+
+def extractable_campaigns(samples: Path) -> dict[str, list[Path]]:
+    """The campaigns worth extracting: every sample campaign that is not a ``prefix_of`` another."""
+    manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
+    prefixes = {name for name, entry in manifest["campaigns"].items() if entry.get("prefix_of")}
+    return {name: files for name, files in sample_files(samples).items() if name not in prefixes}
+
+
+def prefix_of(samples: Path, campaign: str) -> str | None:
+    """The campaign ``campaign`` is a leading slice of, or None."""
+    manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
+    value = manifest["campaigns"].get(campaign, {}).get("prefix_of")
+    return value if isinstance(value, str) else None
 
 
 def sha256_file(path: Path) -> str:

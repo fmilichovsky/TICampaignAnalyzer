@@ -2,6 +2,7 @@
   "max_file_bytes": 5000000,
   "campaigns": {
     "protectorate-short": {
+      "prefix_of": "protectorate",
       "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political narrative events that needs several chapters.",
       "files": {
         "Protectorate00087_2026-2-13.json.xz": {
