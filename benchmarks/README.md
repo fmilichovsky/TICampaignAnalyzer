@@ -173,3 +173,6 @@ code only. The next pull requests measure against the new samples from then on.
 A campaign that is a leading slice of another carries `"prefix_of": "<other campaign>"` in `samples.json`. A refresh
 keeps the field, as it keeps the description, and the calibration table extraction skips such a campaign, because its
 events are already in the longer one.
+
+The samples also feed the stake calibration: `tinarrative benchmark calibrate report` replays their events at other
+stake references ([command page](../docs/commands/benchmark.md#benchmark-calibrate-report)).

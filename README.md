@@ -34,7 +34,8 @@ Analysis and debugging:
 Maintainer tooling:
 
 - [`unknowns`](docs/commands/unknowns.md): find save structures the parser does not describe yet.
-- [`benchmark`](docs/commands/benchmark.md): maintain the sample campaigns and measure package size and runtime.
+- [`benchmark`](docs/commands/benchmark.md): maintain the sample campaigns, measure package size and runtime, and
+  calibrate the stake references.
 
 Options, saves, campaigns and exit codes shared by the commands are in the [command reference](docs/commands/README.md).
 

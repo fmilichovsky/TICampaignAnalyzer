@@ -1,7 +1,7 @@
 # `tinarrative benchmark`
 
-Maintainer tooling for the real sample campaigns in `benchmarks/`: import them, and measure how big the narrator
-packages are and how long `events` takes. Pull requests get both measurements automatically; what they measure is in
+Maintainer tooling for the real sample campaigns in `benchmarks/`: import them, measure how big the narrator
+packages are and how long `events` takes, and calibrate the stake references against them. Pull requests get both measurements automatically; what they measure is in
 [benchmarks/README.md](../../benchmarks/README.md). Run these commands from the repository root.
 
 ## `benchmark sample`
@@ -216,4 +216,60 @@ tinarrative benchmark runtime report build/runtime.json --out build/runtime.md
 | 0 | The report was written. |
 | 2 | Usage error. |
 | 4 | The runtime JSON cannot be read or is not a runtime file, or the report cannot be written. |
+<!-- end generated -->
+
+## `benchmark calibrate report`
+
+<!-- generated: synopsis benchmark calibrate report -->
+```
+tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
+                                       [--reference MEASURE=VALUE] [--campaign NAME]
+                                       [--type EVENT_TYPE] [--clamp {on,off}] [--state HASH]
+                                       [--format {text,json}]
+```
+<!-- end generated -->
+
+Replays the stake calibration table of the sample campaigns at other references and prints what would change: which
+events move level, how the narrator package grows or shrinks, which takeover waves lose members, and the events
+nearest each cut-off. It ends with the changed references written as measure registry entries, ready to paste.
+
+The table is cached in `--out` and rebuilt only when the package or `samples.json` changed, or with `--rebuild`; a
+rebuild takes a few seconds per campaign. `status.js` in `--out` says whether the table is fresh, rebuilding or
+failed. A failed rebuild keeps the previous table.
+
+`--state` takes the URL hash of the calibration page, so a state explored there can be read here in full; the other
+flags override what it sets.
+
+```sh
+# What would a lower power reference do?
+tinarrative benchmark calibrate report --reference power=0.002
+
+# Two measures, one campaign, as JSON.
+tinarrative benchmark calibrate report --reference power=0.002,hab=0.03 --campaign resist --format json
+
+# A state copied from the calibration page, with the clamp turned off.
+tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
+```
+
+<!-- generated: options benchmark calibrate report -->
+| Option | Meaning |
+| --- | --- |
+| `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
+| `--out PATH` | The calibration cache directory (default build/calibration). |
+| `--rebuild` | Rebuild the cache even when it is fresh. |
+| `--reference MEASURE=VALUE` | A measure's reference share; comma-separated, repeatable (default: the code's). |
+| `--campaign NAME` | Replay only these sample campaigns; comma-separated, repeatable (default: every one). |
+| `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
+| `--clamp on\|off` | Clamp the stake's scale, as the page's toggle (default on). |
+| `--state HASH` | A calibration page's URL hash; the other flags override what it sets. |
+| `--format text\|json` | Report format (default text). |
+<!-- end generated -->
+
+<!-- generated: exit-codes benchmark calibrate report -->
+| Code | When |
+| --- | --- |
+| 0 | The readout was printed. |
+| 2 | Usage error, a sample that does not match samples.json, an unknown measure, campaign or type, an invalid --state, a measure given twice, or a failed extraction (status.js says failed; the old table stays). |
+| 4 | --samples is not a directory or its samples.json cannot be read. |
+| 9 | --out cannot be written. |
 <!-- end generated -->
