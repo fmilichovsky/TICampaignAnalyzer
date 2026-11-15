@@ -1,25 +1,20 @@
 # Terra Invicta Narrative Save Analyzer
 
 `tinarrative` reconstructs a readable campaign history from Terra Invicta save
-snapshots. It keeps observed state changes separate from inferred events and
-narrative presentation.
+snapshots. Most of the work happens in a repeatable, deterministic process that
+constructs a filtered, ranked and partially interpreted package.
+The package gets fed to an LLM to tie them together, wrap them in a readable story,
+and justify how the general public would realistically perceive the events.
 
-## Development
+- Most of the work happens locally without LLMs.
+- Narrative layer (LLM interaction) supports multiple API providers (OpenAI, Anthropic, OpenRouter, Local Ollama).
 
-Requires Python 3.11 or newer. Work inside a project-local virtual environment
-so the pinned development tools don't mix with other Python installs:
+## Quick start
 
-```sh
-python3 -m venv .venv            # once per clone
-source .venv/bin/activate        # once per shell session
-make install                     # once, and again after changing dependencies
-tinarrative --help
-```
-
-Activation puts `.venv/bin` first on `PATH`, so `python`, `tinarrative`, and the
-`make` targets below all use the environment's interpreter. Run `deactivate` to
-leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
-`.venv/` directory is ignored by git; delete and recreate it to start fresh.
+1. Obtain an API key for an LLM provider.
+1. Set up the local CLI - see [Development](#development).
+1. Try out the [`narrate`](docs/commands/narrate.md) or [`councilors`](docs/commands/councilors.md) command
+against your Terra Invicta save directory.
 
 ## Commands
 
@@ -42,7 +37,23 @@ Maintainer tooling:
 - [`benchmark`](docs/commands/benchmark.md): maintain the sample campaigns and measure package size and runtime.
 
 Options, saves, campaigns and exit codes shared by the commands are in the [command reference](docs/commands/README.md).
-Add `--log-level debug` before the command to see what the parser decided; see the [debugging guide](docs/debugging.md).
+
+## Development
+
+Requires Python 3.11 or newer. Work inside a project-local virtual environment
+so the pinned development tools don't mix with other Python installs:
+
+```sh
+python3 -m venv .venv            # once per clone
+source .venv/bin/activate        # once per shell session
+make install                     # once, and again after changing dependencies
+tinarrative --help
+```
+
+Activation puts `.venv/bin` first on `PATH`, so `python`, `tinarrative`, and the
+`make` targets below all use the environment's interpreter. Run `deactivate` to
+leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
+`.venv/` directory is ignored by git; delete and recreate it to start fresh.
 
 ## Testing
 
