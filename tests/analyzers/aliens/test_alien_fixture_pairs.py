@@ -48,4 +48,4 @@ def test_megafauna_army_appears_marked_and_region_lines_describe_the_fields() ->
         "SouthPlain (region:41) alien facility built: false -> true",
         "EastHills (region:42) landing present: false -> true",
     }
-    assert describe_event(army).endswith("(megafauna)")
+    assert "(megafauna, " in describe_event(army)

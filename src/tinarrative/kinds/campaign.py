@@ -10,8 +10,6 @@ from .narrative import narrative_kind, role
 from .text import (
     attribute_label,
     attribute_text,
-    list_changed,
-    plain,
     render_event_value,
     subject_label,
     transition_label,
@@ -19,73 +17,99 @@ from .text import (
 
 
 def _side_presence(event: Event) -> str:
-    status = (
-        "is present only in the after snapshot"
-        if event.attribute("side") == "after"
-        else "is absent from the after snapshot"
-    )
+    status = "appeared" if event.attribute("side") == "after" else "disappeared"
     return f"{subject_label(event)} {status}"
+
+
+def _in(event: Event) -> str:
+    """The singleton or queue the line is about, last: it names the container, not what happened."""
+    return f" (in {subject_label(event)})"
 
 
 def _milestone_recorded(event: Event) -> str:
     milestone = attribute_text(event, "milestone")
     faction = attribute_label(event, "faction")
-    return f"{subject_label(event)} records global milestone {milestone} for {faction}"
+    return f"{milestone} global milestone for {faction}{_in(event)}"
 
 
 def _milestone_changed(event: Event) -> str:
     label = f"global milestone {attribute_text(event, 'milestone')} faction"
-    return f"{subject_label(event)} {transition_label(event, label)}"
+    return f"{transition_label(event, label)}{_in(event)}"
+
+
+def _nuclear_strikes(event: Event) -> str:
+    return f"{transition_label(event, 'nuclear strikes')}{_in(event)}"
 
 
 def _sea_level_rise(event: Event) -> str:
-    return f"{subject_label(event)} sea level rise {attribute_label(event, 'stage')} flag set"
+    return f"sea level rise stage {attribute_label(event, 'stage')} flag set{_in(event)}"
 
 
 def _narrative_event(event: Event) -> str:
     name = attribute_text(event, "narrative_event")
     if event.attribute("scope") == "target":
-        return (
-            f"{subject_label(event)} lists narrative event {name} as triggered for {attribute_label(event, 'targets')}"
-        )
-    return f"{subject_label(event)} lists narrative event {name} as triggered once per campaign"
+        return f"narrative event {name} listed as triggered for {attribute_label(event, 'targets')}{_in(event)}"
+    return f"narrative event {name} listed as triggered once per campaign{_in(event)}"
 
 
 def _global_value(event: Event) -> str:
     if isinstance(event.attribute("transition"), Unknown):
         return (
-            f"{subject_label(event)} {attribute_text(event, 'field')} records changed: "
+            f"{attribute_text(event, 'field')} records changed: "
             f"{event.attribute('added')} added, {event.attribute('removed')} removed, "
-            f"{event.attribute('changed')} changed"
+            f"{event.attribute('changed')} changed{_in(event)}"
         )
     field = attribute_text(event, "field")
-    return f"{subject_label(event)} {transition_label(event, field)}"
+    return f"{transition_label(event, field)}{_in(event)}"
+
+
+def _interstate_wars(event: Event) -> str:
+    field = event.sources[0].change.field if event.sources else "list"
+    transition = event.attribute("transition")
+    if transition == "unresolved":
+        return f"{transition_label(event, f'{field} list')}{_in(event)}"
+    sign = "+" if transition == "added" else "-"
+    return f"{field} list: {sign}{attribute_label(event, 'member')}{_in(event)}"
+
+
+def _about(event: Event) -> str:
+    """`` about <subject>``; a null subject says nothing and is left out."""
+    subject = event.attribute("subject")
+    return "" if subject is None else f" about {render_event_value(subject)}"
+
+
+def _date(event: Event) -> str:
+    return event.date if isinstance(event.date, str) else render_value(event.date)
 
 
 def _notification(event: Event) -> str:
-    date = event.date if isinstance(event.date, str) else render_value(event.date)
-    subject = render_event_value(event.attribute("subject"))
-    return f"{subject_label(event)} logs {attribute_text(event, 'template')} dated {date} about {subject}"
+    template = attribute_text(event, "template")
+    return f"{template} logged{_about(event)}, dated {_date(event)}{_in(event)}"
 
 
 def _notification_removed(event: Event) -> str:
-    subject = render_event_value(event.attribute("subject"))
     template = attribute_text(event, "template")
     date = attribute_text(event, "logged_on")
-    return f"{subject_label(event)} no longer lists {template} dated {date} about {subject}"
+    return f"{template} no longer listed{_about(event)}, dated {date}{_in(event)}"
 
 
 def _notification_changed(event: Event) -> str:
-    before = render_event_value(event.attribute("before_subject"))
-    subject = render_event_value(event.attribute("subject"))
+    # Fields that changed lead; unchanged pairs and null-to-null ones follow or are left out.
+    pairs = [
+        ("outcome", event.attribute("before_outcome"), event.attribute("outcome")),
+        ("subject", event.attribute("before_subject"), event.attribute("subject")),
+    ]
+    shown = [
+        (name, render_event_value(before), render_event_value(after))
+        for name, before, after in pairs
+        if not (before is None and after is None)
+    ]
+    shown.sort(key=lambda item: item[1] == item[2])
+    parts = ", ".join(f"{name} {before} -> {after}" for name, before, after in shown)
+    parts = f": {parts}" if parts else ""
     template = attribute_text(event, "template")
     date = attribute_text(event, "logged_on")
-    before_outcome = attribute_label(event, "before_outcome")
-    outcome = attribute_label(event, "outcome")
-    return (
-        f"{subject_label(event)} entry {template} dated {date} changed: subject {before} -> {subject}, "
-        f"outcome {before_outcome} -> {outcome}"
-    )
+    return f"{template} entry changed{parts}; dated {date}{_in(event)}"
 
 
 GLOBAL_VALUES_APPEARED = EventKind(
@@ -119,7 +143,7 @@ GLOBAL_MILESTONE_CHANGED = EventKind(
 )
 NUCLEAR_STRIKES_CHANGED = EventKind(
     "campaign.nuclear_strikes_changed",
-    plain("nuclear strikes"),
+    _nuclear_strikes,
     Significance.CAMPAIGN_DEFINING,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
@@ -150,7 +174,7 @@ GLOBAL_VALUE_CHANGED = EventKind(
 )
 INTERSTATE_WARS_CHANGED = EventKind(
     "campaign.interstate_wars_changed",
-    list_changed,
+    _interstate_wars,
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
@@ -223,7 +247,7 @@ NOTIFICATION_ENTRY_CHANGED = EventKind(
 
 
 def _first_milestone(event: Event) -> str:
-    return f"{role(event, Role.ACTOR)} recorded the campaign milestone {attribute_text(event, 'milestone')}"
+    return f"{attribute_text(event, 'milestone')} campaign milestone for {role(event, Role.ACTOR)}"
 
 
 FIRST_MILESTONE = narrative_kind(

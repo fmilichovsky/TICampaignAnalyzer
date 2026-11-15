@@ -6,15 +6,7 @@ from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Rule
 from ..model.values import Unknown
 from .narrative import has_role, narrative_kind, role
-from .text import attribute_label, attribute_text, list_changed, plain, subject_label, transition_label
-
-
-def _presence(event: Event) -> str:
-    return (
-        "is present only in the after snapshot"
-        if event.attribute("side") == "after"
-        else "is absent from the after snapshot"
-    )
+from .text import attribute_label, attribute_text, plain, subject_label, transition_label
 
 
 def _technology_completed(event: Event) -> str:
@@ -25,7 +17,17 @@ def _technology_completed(event: Event) -> str:
 
 
 def _technology_presence(event: Event) -> str:
-    return f"{subject_label(event)} (finished {attribute_label(event, 'finished')}) {_presence(event)}"
+    """``<tech> appeared, finished <flag>``: the type name already says the side, so the snapshot mechanics go."""
+    verb = "appeared" if event.attribute("side") == "after" else "disappeared"
+    return f"{subject_label(event)} {verb}, finished {attribute_label(event, 'finished')}"
+
+
+def _finished_techs_changed(event: Event) -> str:
+    """The subject is the technology and the member is its own name, so the member is not repeated."""
+    if event.attribute("transition") == "unresolved":
+        return f"{subject_label(event)} {transition_label(event, 'research finished techs list')}"
+    verb = "added to" if event.attribute("transition") == "added" else "removed from"
+    return f"{subject_label(event)} {verb} the research finished techs list"
 
 
 def _project_completed(event: Event) -> str:
@@ -35,7 +37,9 @@ def _project_completed(event: Event) -> str:
 def _finished_projects_changed(event: Event) -> str:
     if isinstance(event.attribute("member"), Unknown):
         return f"{subject_label(event)} {transition_label(event, 'finished project list')}"
-    return f"{subject_label(event)} finished project list: -{attribute_label(event, 'member')}"
+    return (
+        f"{subject_label(event)} had project {attribute_label(event, 'member')} removed from its finished project list"
+    )
 
 
 TECHNOLOGY_COMPLETED = EventKind(
@@ -71,7 +75,7 @@ TECHNOLOGY_DISAPPEARED = EventKind(
 )
 RESEARCH_FINISHED_TECHS_CHANGED = EventKind(
     "research.finished_techs_changed",
-    list_changed,
+    _finished_techs_changed,
     Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),

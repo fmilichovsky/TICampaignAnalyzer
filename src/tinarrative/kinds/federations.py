@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from ..model.entities import EntityDomain
+from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Stake
 from .narrative import count, narrative_kind, role
-from .text import attribute_label, list_changed, plain, presence, subject_label
+from .text import attribute_label, list_changed, plain, subject_label
 
 BOOKKEEPING = EvidenceRole.BOOKKEEPING
 EVIDENCE = EvidenceRole.EVIDENCE
@@ -17,8 +17,12 @@ def _side_list(event: Event) -> str:
     return nations or "no nations"
 
 
-def _presence(event: Event) -> str:
-    return f"{subject_label(event)} (members {_side_list(event)}) {presence(event)}"
+def _appeared(event: Event) -> str:
+    return f"{subject_label(event)} appeared (members {_side_list(event)})"
+
+
+def _disappeared(event: Event) -> str:
+    return f"{subject_label(event)} disappeared (members {_side_list(event)})"
 
 
 def _members_changed(event: Event) -> str:
@@ -32,8 +36,8 @@ def _renamed(event: Event) -> str:
     return f"{subject_label(event)} renamed: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
 
 
-APPEARED = EventKind("federation.appeared", _presence, Significance.MAJOR, EVIDENCE, frozenset({"side"}))
-DISAPPEARED = EventKind("federation.disappeared", _presence, Significance.MAJOR, EVIDENCE, frozenset({"side"}))
+APPEARED = EventKind("federation.appeared", _appeared, Significance.MAJOR, EVIDENCE, frozenset({"side"}))
+DISAPPEARED = EventKind("federation.disappeared", _disappeared, Significance.MAJOR, EVIDENCE, frozenset({"side"}))
 MEMBERS_CHANGED = EventKind(
     "federation.members_changed",
     _members_changed,
@@ -60,11 +64,21 @@ NATION_FEDERATION_CHANGED = EventKind(
 )
 
 
+def _net_change(event: Event) -> str:
+    initial = event.attribute("members_initial")
+    final = event.attribute("members_final")
+    if not isinstance(initial, tuple) or not isinstance(final, tuple):
+        return "net change unknown"
+    joined = [f"+{item.label()}" for item in final if item not in initial and isinstance(item, EntityRef)]
+    left = [f"-{item.label()}" for item in initial if item not in final and isinstance(item, EntityRef)]
+    return "net " + ", ".join(joined + left) if joined or left else "no net change"
+
+
 def _lifecycle(event: Event) -> str:
     changes = event.attribute("member_changes")
     number = len(changes) if isinstance(changes, tuple) else 0
     return (
-        f"{role(event, Role.ACTOR)} members {attribute_label(event, 'members_initial')} -> "
+        f"{role(event, Role.ACTOR)} members: {_net_change(event)}; {attribute_label(event, 'members_initial')} -> "
         f"{attribute_label(event, 'members_final')} ({count(number, 'member change')})"
     )
 

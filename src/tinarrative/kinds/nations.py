@@ -21,7 +21,6 @@ from .text import (
     list_changed,
     name,
     plain,
-    presence,
     refs,
     region_count,
     regions,
@@ -45,32 +44,42 @@ def _relation_changed(event: Event) -> str:
 
 
 def _executive_change(event: Event) -> str:
-    text = (
-        f"{subject_label(event)} records an executive change dated {attribute_text(event, 'recorded_on')}: "
-        f"new executive {attribute_label(event, 'new_executive')}"
-    )
+    """``<nation> new executive <faction>[ (previously <faction>)]; change recorded <date>``."""
+    text = f"{subject_label(event)} new executive {attribute_label(event, 'new_executive')}"
     previous = event.attribute("previous_executive")
     if not isinstance(previous, Unknown):
         text += f" (previously {render_event_value(previous)})"
-    return text
+    return f"{text}; change recorded {attribute_text(event, 'recorded_on')}"
 
 
-def _presence(event: Event) -> str:
-    return f"{subject_label(event)} {presence(event)}"
+def _presence(verb: str) -> Callable[[Event], str]:
+    """``<nation> appeared`` / ``<nation> disappeared``; the snapshot side is what the type name already says."""
+
+    def describe(event: Event) -> str:
+        return f"{subject_label(event)} {verb}"
+
+    return describe
 
 
 def _claims_changed(label: str) -> Callable[[Event], str]:
-    """``<nation> <label> list: +[regions] -[regions]``, an empty side left out; an unresolved list as a transition."""
+    """``<nation> <label> list +<n>/-<m>: +[regions] -[regions]``, an empty side left out; unresolved as a transition.
+
+    The counts lead so the size of the change reads before the (possibly long) region lists.
+    """
 
     def describe(event: Event) -> str:
         if not isinstance(event.attribute("transition"), Unknown):
             return f"{subject_label(event)} {transition_label(event, f'{label} list')}"
+        counts = "/".join(
+            f"{sign}{len(value) if isinstance(value := event.attribute(key), tuple) else '?'}"
+            for sign, key in (("+", "added"), ("-", "removed"))
+        )
         parts = [
             f"{sign}{attribute_label(event, key)}"
             for sign, key in (("+", "added"), ("-", "removed"))
             if event.attribute(key)
         ]
-        return f"{subject_label(event)} {label} list: {' '.join(parts)}"
+        return f"{subject_label(event)} {label} list {counts}: {' '.join(parts)}"
 
     return describe
 
@@ -215,7 +224,7 @@ EXECUTIVE_CHANGE_RECORDED = EventKind(
 )
 APPEARED = EventKind(
     "nation.appeared",
-    _presence,
+    _presence("appeared"),
     Significance.CAMPAIGN_DEFINING,
     BOOKKEEPING,
     required=frozenset({"side", "population"}),
@@ -223,7 +232,7 @@ APPEARED = EventKind(
 )
 DISAPPEARED = EventKind(
     "nation.disappeared",
-    _presence,
+    _presence("disappeared"),
     Significance.CAMPAIGN_DEFINING,
     EVIDENCE,
     required=frozenset({"side", "population"}),
@@ -507,12 +516,17 @@ def _space_defences_established(event: Event) -> str:
 
 
 def _ranking_changed(event: Event) -> str:
-    text = f"Top {attribute_label(event, 'top')} by {attribute_text(event, 'metric')} changed"
-    if has_role(event, Role.BENEFICIARY):
-        text += f": entered {role(event, Role.BENEFICIARY)}"
-    if has_role(event, Role.LOSER):
-        text += f"; left {role(event, Role.LOSER)}"
-    return text
+    """``<entrants> entered the top <n> by <metric>[; <leavers> left it]``; the bare change when nobody is named."""
+    scope = f"the top {attribute_label(event, 'top')} by {attribute_text(event, 'metric')}"
+    entered = has_role(event, Role.BENEFICIARY)
+    left = has_role(event, Role.LOSER)
+    if entered and left:
+        return f"{role(event, Role.BENEFICIARY)} entered {scope}; {role(event, Role.LOSER)} left it"
+    if entered:
+        return f"{role(event, Role.BENEFICIARY)} entered {scope}"
+    if left:
+        return f"{role(event, Role.LOSER)} left {scope}"
+    return f"Top {attribute_label(event, 'top')} by {attribute_text(event, 'metric')} changed"
 
 
 EXPANSION = narrative_kind(
