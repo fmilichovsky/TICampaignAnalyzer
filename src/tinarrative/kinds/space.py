@@ -4,7 +4,7 @@ them."""
 from __future__ import annotations
 
 from ..diff.render import render_value
-from ..model.entities import EntityDomain
+from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, Stake, Template
 from ..model.values import FrozenMap, Unknown
@@ -118,48 +118,76 @@ def _battle_outcome(event: Event) -> str:
 
 def _destruction_recorded(event: Event) -> str:
     hab = next((value for name, value in event.attributes if name == "hab"), None)
-    what = "a hab destruction" if hab is None else f"destruction of {_attr(event, 'hab')}"
+    what = "hab" if hab is None else _attr(event, "hab")
     destroyer = event.attribute("destroyer")
     by = "" if destroyer is None else f" by {_attr(event, 'destroyer')}"
     return (
-        f"{_subject(event)} records {what}{by} at {_attr(event, 'space_body')} "
-        f"(type {_attr(event, 'hab_type')}, dated {_text(event, 'recorded_on')})"
+        f"{what} destroyed{by} at {_attr(event, 'space_body')} "
+        f"(type {_attr(event, 'hab_type')}, dated {_text(event, 'recorded_on')}, recorded by {_subject(event)})"
     )
 
 
-def _combat_sides(event: Event) -> str:
+def _combat_side(side: object) -> tuple[EntityId | None, str]:
+    """The faction id (when it is a resolved reference) and ``<faction> (<n> ships)`` of one side."""
+    if not (isinstance(side, tuple) and len(side) == 2 and isinstance(side[1], FrozenMap)):
+        return None, render_event_value(side)  # type: ignore[arg-type]
+    ships = sum(count for _, count in side[1].items if isinstance(count, int))
+    ref = side[0]
+    entity_id = ref.entity_id if isinstance(ref, EntityRef) else None
+    return entity_id, f"{render_event_value(ref)} ({ships} {'ship' if ships == 1 else 'ships'})"
+
+
+def _combat_head(event: Event) -> str:
+    """``<side> wins|loses against <others>``, from the recording faction's side when it is one."""
     sides = event.attribute("sides")
-    if not isinstance(sides, tuple):
-        return render_event_value(sides)
-    parts: list[str] = []
-    for side in sides:
-        if not (isinstance(side, tuple) and len(side) == 2 and isinstance(side[1], FrozenMap)):
-            parts.append(render_event_value(side))
-            continue
-        ships = sum(count for _, count in side[1].items if isinstance(count, int))
-        parts.append(f"{render_event_value(side[0])} ({ships} {'ship' if ships == 1 else 'ships'})")
-    return " vs ".join(parts) if parts else "no sides"
+    winner = event.attribute("winner")
+    if not isinstance(sides, tuple) or not sides:
+        text = "no sides" if isinstance(sides, tuple) else render_event_value(sides)
+        return text if winner is None else f"{text}; winner {render_event_value(winner)}"
+    parsed = [_combat_side(side) for side in sides]
+    winner_id = winner.entity_id if isinstance(winner, EntityRef) else None
+    ids = [entity_id for entity_id, _ in parsed]
+    subject_id = event.entities[0].entity_id if event.entities else None
+    decided = winner_id is not None and winner_id in ids
+    if decided and subject_id in ids:
+        lead = ids.index(subject_id)
+        verb = "wins" if winner_id == subject_id else "loses"
+    elif decided:
+        lead = ids.index(winner_id)
+        verb = "wins"
+    else:
+        lead, verb = 0, None
+    others = " and ".join(text for index, (_, text) in enumerate(parsed) if index != lead)
+    if verb is None:
+        text = " vs ".join(text for _, text in parsed)
+        return text if winner is None else f"{text}; winner {render_event_value(winner)}"
+    return f"{parsed[lead][1]} {verb}" + (f" against {others}" if others else "")
 
 
-def _combat_line(event: Event, verb: str) -> str:
+def _combat_line(event: Event, prefix: str) -> str:
     recorded_on = event.attribute("recorded_on")
     dated = "undated" if recorded_on is None else f"dated {_text(event, 'recorded_on')}"
-    winner = event.attribute("winner")
     hab_faction = event.attribute("hab_faction")
-    text = f"{_subject(event)} {verb} a combat entry: {_combat_sides(event)}"
-    if winner is not None:
-        text += f", winner {_attr(event, 'winner')}"
+    text = f"{prefix}{_combat_head(event)}"
+    if event.entities and not _combat_head_names_subject(event):
+        text += f"; recorded by {_subject(event)}"
     if hab_faction is not None:
         text += f"; hab faction {_attr(event, 'hab_faction')}"
     return f"{text}; attacks {_attr(event, 'attack_count')} ({dated})"
 
 
+def _combat_head_names_subject(event: Event) -> bool:
+    sides = event.attribute("sides")
+    subject_id = event.entities[0].entity_id
+    return isinstance(sides, tuple) and any(_combat_side(side)[0] == subject_id for side in sides)
+
+
 def _combat_recorded(event: Event) -> str:
-    return _combat_line(event, "records")
+    return _combat_line(event, "")
 
 
 def _combat_entry_removed(event: Event) -> str:
-    return _combat_line(event, "no longer lists")
+    return _combat_line(event, "entry removed: ")
 
 
 TRANSITION = frozenset({"transition", "before", "after"})

@@ -95,10 +95,11 @@ EXPECTED_INTERVAL_ASSETS = {
 }
 
 EXPECTED_ASSETS = {
-    "Fixture Resistance (faction:15) records destruction of Fixture HabState 141 (space object:141) "
-    'by Fixture Servants (faction:16) at Fixture Body (space body:50) (type "Base", dated 2032-05-20T00:00:00)',
-    "Fixture Resistance (faction:15) records a hab destruction at "
-    'unknown (unresolved_reference, raw={"value": 998}) (type "Base", dated 2032-06-02T00:00:00)',
+    "Fixture HabState 141 (space object:141) destroyed by Fixture Servants (faction:16) at "
+    'Fixture Body (space body:50) (type "Base", dated 2032-05-20T00:00:00, '
+    "recorded by Fixture Resistance (faction:15))",
+    'hab destroyed at unknown (unresolved_reference, raw={"value": 998}) '
+    '(type "Base", dated 2032-06-02T00:00:00, recorded by Fixture Resistance (faction:15))',
     "Fixture Megafauna (army:112) (faction Fixture Servants (faction:16), region Fixture "
     "East (region:41)) is present only in the after snapshot (megafauna)",
     "Fixture ArmyState 111 (army:111) (Fixture Servants (faction:16)) destroyed flag: false -> true",

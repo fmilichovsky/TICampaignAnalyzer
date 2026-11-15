@@ -78,19 +78,14 @@ def test_lines_name_sides_and_winner_but_never_design_or_hull_names() -> None:
     events = run_analyzers(ALL_ANALYZERS, *fixture_pair(*PAIR))
     lines = sorted(describe_event(event) for event in events)
     assert lines == [
-        "Fixture Aliens (faction:16) records a combat entry: Fixture Aliens "
-        "(faction:16) (2 ships) vs Fixture Servants (faction:17) (1 ship), "
-        "winner Fixture Aliens (faction:16); hab faction Fixture Servants (faction:17); attacks 1 (undated)",
-        "Fixture Resistance (faction:15) no longer lists a combat entry: Fixture "
-        "Resistance (faction:15) (1 ship) vs Fixture Aliens (faction:16) (1 ship), "
-        "winner Fixture Aliens (faction:16); attacks 0 (undated)",
-        "Fixture Resistance (faction:15) records a combat entry: Fixture Aliens "
-        "(faction:16) (2 ships) vs Fixture Servants (faction:17) (1 ship), "
-        "winner Fixture Aliens (faction:16); hab faction Fixture Servants (faction:17); attacks 1 (undated)",
-        "Fixture Resistance (faction:15) records a combat entry: Fixture Resistance (faction:15) (1 ship), "
-        "winner Fixture Resistance (faction:15); attacks 0 (undated)",
-        "Fixture Resistance (faction:15) records a combat entry: Fixture Resistance (faction:15) (1 ship), "
-        "winner Fixture Resistance (faction:15); attacks 0 (undated)",
+        "Fixture Aliens (faction:16) (2 ships) wins against Fixture Servants (faction:17) (1 ship); "
+        "hab faction Fixture Servants (faction:17); attacks 1 (undated)",
+        "Fixture Aliens (faction:16) (2 ships) wins against Fixture Servants (faction:17) (1 ship); "
+        "recorded by Fixture Resistance (faction:15); hab faction Fixture Servants (faction:17); attacks 1 (undated)",
+        "Fixture Resistance (faction:15) (1 ship) wins; attacks 0 (undated)",
+        "Fixture Resistance (faction:15) (1 ship) wins; attacks 0 (undated)",
+        "entry removed: Fixture Resistance (faction:15) (1 ship) loses against Fixture Aliens (faction:16) (1 ship); "
+        "attacks 0 (undated)",
     ]
     text = " ".join(lines)
     assert "Fixture Design" not in text and "FixtureEscort" not in text
