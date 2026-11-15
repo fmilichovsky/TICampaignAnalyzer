@@ -47,10 +47,10 @@ def test_a_dated_entry_is_dated_by_the_record_and_the_owner_is_named_once() -> N
     )
     assert [str(ref.entity_id) for ref in event.entities] == ["faction:15", "faction:16"]
     assert describe_event(event) == (
-        "Fixture faction 15 (faction:15) records a combat entry (dated 2032-02-01T00:00:00): "
+        "Fixture faction 15 (faction:15) records a combat entry: "
         "Fixture faction 15 (faction:15) (2 ships) vs Fixture faction 16 (faction:16) (2 "
-        "ships); "
-        "winner Fixture faction 16 (faction:16), hab faction null, attacks 0"
+        "ships), winner Fixture faction 16 (faction:16); "
+        "attacks 0 (dated 2032-02-01T00:00:00)"
     )
 
 
@@ -61,8 +61,8 @@ def test_unresolved_sides_or_winner_give_low_confidence_and_stay_literal() -> No
     assert [str(ref.entity_id) for ref in event.entities] == ["faction:15"]
     assert event.attribute("sides") == gone
     assert describe_event(event).startswith(
-        "Fixture faction 15 (faction:15) records a combat entry (undated): "
-        'unknown (unresolved_reference, raw=[{"value": 999}]); winner unknown'
+        "Fixture faction 15 (faction:15) records a combat entry: "
+        'unknown (unresolved_reference, raw=[{"value": 999}]), winner unknown'
     )
 
 
@@ -72,7 +72,7 @@ def test_a_removed_entry_is_interval_dated_and_cites_the_earlier_save() -> None:
     assert event.date_basis is DateBasis.INTERVAL
     (source,) = event.sources
     assert source.entry is not None and source.entry.save_id == BEFORE and source.entry.path.endswith("/CombatLogs/0")
-    assert describe_event(event).startswith("Fixture faction 15 (faction:15) no longer lists a combat entry (undated)")
+    assert describe_event(event).startswith("Fixture faction 15 (faction:15) no longer lists a combat entry: ")
 
 
 def test_attack_count_is_the_list_length_or_the_literal_value() -> None:

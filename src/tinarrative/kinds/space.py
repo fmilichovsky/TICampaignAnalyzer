@@ -6,7 +6,7 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Stake
+from ..model.kinds import EventKind, EvidenceRole, Stake, Template
 from ..model.values import FrozenMap, Unknown
 from .narrative import count as _count
 from .narrative import narrative_kind, role
@@ -21,6 +21,7 @@ from .text import (
     list_changed,
     plain,
     render_event_value,
+    transition_label,
 )
 from .text import (
     refs as _refs,
@@ -30,14 +31,35 @@ from .text import (
 )
 
 
-def _presence(event: Event, domain: EntityDomain, label: str) -> str:
+def _context(event: Event, domain: EntityDomain) -> str | None:
     ref = next((ref for ref in event.entities[1:] if ref.entity_id.domain is domain), None)
-    status = (
-        "is present only in the after snapshot"
-        if event.attribute("side") == "after"
-        else "is absent from the after snapshot"
-    )
-    return f"{_subject(event)} ({label} {ref.label() if ref is not None else 'null'}) {status}"
+    return ref.label() if ref is not None else None
+
+
+def _presence(event: Event, domain: EntityDomain, label: str) -> str:
+    """``<subject> appeared (<label> <context>)``; a missing context is left out."""
+    verb = "appeared" if event.attribute("side") == "after" else "disappeared"
+    context = _context(event, domain)
+    return f"{_subject(event)} {verb}" + (f" ({label} {context})" if context is not None else "")
+
+
+def _ship_presence(event: Event) -> str:
+    """``<ship> appeared in fleet <fleet>`` or ``<ship> disappeared from fleet <fleet>``."""
+    after = event.attribute("side") == "after"
+    fleet = _context(event, EntityDomain.FLEET)
+    where = "" if fleet is None else f" {'in' if after else 'from'} fleet {fleet}"
+    return f"{_subject(event)} {'appeared' if after else 'disappeared'}{where}"
+
+
+def _trailing(label: str, domain: EntityDomain, prefix: str = "faction ") -> Template:
+    """``<subject> <label>: before -> after (<prefix><context>)``: the transition leads, the owner trails."""
+
+    def describe(event: Event) -> str:
+        text = f"{_subject(event)} {transition_label(event, label)}"
+        context = _context(event, domain)
+        return text if context is None else f"{text} ({prefix}{context})"
+
+    return describe
 
 
 def _hab_presence(event: Event) -> str:
@@ -49,9 +71,9 @@ def _hab_presence(event: Event) -> str:
 
 
 def _hab_established(event: Event) -> str:
-    faction = next((ref for ref in event.entities[1:] if ref.entity_id.domain is EntityDomain.FACTION), None)
-    label = faction.label() if faction is not None else "null"
-    return f"{_subject(event)} ({label}) became operational at {_attr(event, 'body')}"
+    faction = _context(event, EntityDomain.FACTION)
+    owner = "" if faction is None else f" (faction {faction})"
+    return f"{_subject(event)} became operational at {_attr(event, 'body')}{owner}"
 
 
 def _first_hab_on_body(event: Event) -> str:
@@ -71,10 +93,12 @@ def _hab_destroyed(event: Event) -> str:
             else render_event_value(destroyers)
         )
         return (
-            f"{_subject(event)} {where} was destroyed by {names}: one of "
+            f"{_subject(event)} was destroyed by {names} {where}: one of "
             f"{_attr(event, 'candidates')} recorded destructions for {_attr(event, 'vanished')} vanished habs"
         )
-    return f"{_subject(event)} {where} was destroyed by {_attr(event, 'destroyer')} on {_text(event, 'recorded_on')}"
+    by = "" if event.attribute("destroyer") is None else f" by {_attr(event, 'destroyer')}"
+    on = "" if event.attribute("recorded_on") is None else f" on {_text(event, 'recorded_on')}"
+    return f"{_subject(event)} was destroyed{by}{on} {where}"
 
 
 def _battle_outcome(event: Event) -> str:
@@ -93,10 +117,13 @@ def _battle_outcome(event: Event) -> str:
 
 
 def _destruction_recorded(event: Event) -> str:
-    named = f" (hab {_attr(event, 'hab')})" if any(name == "hab" for name, _ in event.attributes) else ""
+    hab = next((value for name, value in event.attributes if name == "hab"), None)
+    what = "a hab destruction" if hab is None else f"destruction of {_attr(event, 'hab')}"
+    destroyer = event.attribute("destroyer")
+    by = "" if destroyer is None else f" by {_attr(event, 'destroyer')}"
     return (
-        f"{_subject(event)} records a hab destruction dated {_text(event, 'recorded_on')}: "
-        f"type {_attr(event, 'hab_type')}{named} at {_attr(event, 'space_body')} by {_attr(event, 'destroyer')}"
+        f"{_subject(event)} records {what}{by} at {_attr(event, 'space_body')} "
+        f"(type {_attr(event, 'hab_type')}, dated {_text(event, 'recorded_on')})"
     )
 
 
@@ -117,11 +144,14 @@ def _combat_sides(event: Event) -> str:
 def _combat_line(event: Event, verb: str) -> str:
     recorded_on = event.attribute("recorded_on")
     dated = "undated" if recorded_on is None else f"dated {_text(event, 'recorded_on')}"
-    return (
-        f"{_subject(event)} {verb} a combat entry ({dated}): {_combat_sides(event)}; "
-        f"winner {_attr(event, 'winner')}, hab faction {_attr(event, 'hab_faction')}, "
-        f"attacks {_attr(event, 'attack_count')}"
-    )
+    winner = event.attribute("winner")
+    hab_faction = event.attribute("hab_faction")
+    text = f"{_subject(event)} {verb} a combat entry: {_combat_sides(event)}"
+    if winner is not None:
+        text += f", winner {_attr(event, 'winner')}"
+    if hab_faction is not None:
+        text += f"; hab faction {_attr(event, 'hab_faction')}"
+    return f"{text}; attacks {_attr(event, 'attack_count')} ({dated})"
 
 
 def _combat_recorded(event: Event) -> str:
@@ -145,35 +175,35 @@ FLEET_FACTION_CHANGED = EventKind(
 )
 FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     "fleet.docked_location_changed",
-    contextual("docked location", EntityDomain.FACTION),
+    _trailing("docked location", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 FLEET_ORBIT_CHANGED = EventKind(
     "fleet.orbit_changed",
-    contextual("orbit", EntityDomain.FACTION),
+    _trailing("orbit", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 FLEET_BARYCENTER_CHANGED = EventKind(
     "fleet.barycenter_changed",
-    contextual("barycenter", EntityDomain.FACTION),
+    _trailing("barycenter", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 FLEET_PARENT_CHANGED = EventKind(
     "fleet.parent_fleet_changed",
-    contextual("parent fleet", EntityDomain.FACTION),
+    _trailing("parent fleet", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 FLEET_IN_COMBAT_CHANGED = EventKind(
     "fleet.in_combat_changed",
-    contextual("in-combat flag", EntityDomain.FACTION),
+    _trailing("in-combat flag", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
@@ -220,7 +250,7 @@ SHIP_LAST_REFIT_CHANGED = EventKind(
 )
 SHIP_APPEARED = EventKind(
     "ship.appeared",
-    lambda event: _presence(event, EntityDomain.FLEET, "fleet"),
+    _ship_presence,
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
@@ -228,7 +258,7 @@ SHIP_APPEARED = EventKind(
 )
 SHIP_DISAPPEARED = EventKind(
     "ship.disappeared",
-    lambda event: _presence(event, EntityDomain.FLEET, "fleet"),
+    _ship_presence,
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
@@ -253,42 +283,42 @@ HAB_FACTION_CHANGED = EventKind(
 )
 HAB_TYPE_CHANGED = EventKind(
     "hab.type_changed",
-    contextual("type", EntityDomain.FACTION),
+    _trailing("type", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 HAB_TIER_CHANGED = EventKind(
     "hab.tier_changed",
-    contextual("tier", EntityDomain.FACTION),
+    _trailing("tier", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 HAB_IN_COMBAT_CHANGED = EventKind(
     "hab.in_combat_changed",
-    contextual("in-combat flag", EntityDomain.FACTION),
+    _trailing("in-combat flag", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 HAB_UNDER_ASSAULT_CHANGED = EventKind(
     "hab.under_assault_changed",
-    contextual("under-assault flag", EntityDomain.FACTION),
+    _trailing("under-assault flag", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     "hab.under_bombardment_changed",
-    contextual("under-bombardment flag", EntityDomain.FACTION),
+    _trailing("under-bombardment flag", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
 )
 HAB_CORE_COMPLETED_CHANGED = EventKind(
     "hab.core_completed_changed",
-    contextual("core-completed flag", EntityDomain.FACTION),
+    _trailing("core-completed flag", EntityDomain.FACTION),
     Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
