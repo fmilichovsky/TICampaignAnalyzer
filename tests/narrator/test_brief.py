@@ -135,17 +135,18 @@ def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> N
 
 
 def test_an_aliased_organization_carries_its_public_alias_and_never_the_game_name() -> None:
-    entry = copy.deepcopy(ENTRY)
     game_name = "Fixture Game Name"
     plain = ENTRY["orgs"][0]
-    entry["orgs"] = [{**plain, "name": game_name, "template": "CooperateSpecial", "origin": "faction"}, plain]
+    for template, alias in ORG_ALIASES.items():
+        entry = copy.deepcopy(ENTRY)
+        entry["orgs"] = [{**plain, "name": game_name, "template": template, "origin": "faction"}, plain]
 
-    brief = councilor_brief(DOSSIER, entry)
+        brief = councilor_brief(DOSSIER, entry)
 
-    orgs = brief["councilor"]["orgs"]
-    assert orgs[0]["name"] == ORG_ALIASES["CooperateSpecial"]
-    assert orgs[1]["name"] == plain["name"]
-    assert game_name not in json.dumps(brief)
+        orgs = brief["councilor"]["orgs"]
+        assert orgs[0]["name"] == alias
+        assert orgs[1]["name"] == plain["name"]
+        assert game_name not in json.dumps(brief)
 
 
 def test_every_alias_key_is_a_named_organization_template() -> None:
