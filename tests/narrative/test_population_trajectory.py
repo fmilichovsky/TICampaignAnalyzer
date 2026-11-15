@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import pytest
+
 from tests.narrative.support import atomic, nation, nation_row, powers, situation
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
@@ -160,6 +162,10 @@ def test_a_backstory_trajectory_is_closed_before_the_last_interval_and_scales_wi
     assert great.attribute("before_sequence") is True and great.attribute("ratio") == 0.6 and not great.open
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
+        base=Significance.MAJOR.base,
+        measure=StakeMeasure.POWER,
+        share=pytest.approx(0.4),
+        scale=SCALE_MAX,
+        entities=(NORTH,),
     )
     assert micro.significance is Significance.MINOR

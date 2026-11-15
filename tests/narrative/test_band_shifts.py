@@ -223,7 +223,7 @@ def test_a_shift_scales_with_its_nations_power_share_and_a_landless_nation_dilut
     assert great.significance_basis is not None and micro.significance_basis is not None
     level = Significance.of(great.significance_basis.base)
     assert great.significance_basis == SignificanceBasis(
-        base=level.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
+        base=level.base, measure=StakeMeasure.POWER, share=pytest.approx(0.4), scale=SCALE_MAX, entities=(NORTH,)
     )
     assert great.significance.rank == level.rank + 1
     assert micro.significance_basis.scale == SCALE_MIN and micro.significance.rank == level.rank - 1

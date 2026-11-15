@@ -379,7 +379,11 @@ def test_a_takeover_scales_with_its_nations_power_share_before_it() -> None:
     great, micro = takeovers[NORTH], takeovers[SOUTH]
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
+        base=Significance.MAJOR.base,
+        measure=StakeMeasure.POWER,
+        share=pytest.approx(0.4),
+        scale=SCALE_MAX,
+        entities=(NORTH,),
     )
     assert micro.significance_basis is not None and micro.significance_basis.scale == SCALE_MIN
     assert micro.significance.rank < Significance.MAJOR.rank
@@ -856,7 +860,10 @@ def test_a_federation_lifecycle_scales_with_every_nation_that_was_a_member() -> 
     )
 
     assert lifecycle.significance_basis is not None
-    assert lifecycle.significance_basis.entities == (NORTH, SOUTH) and lifecycle.significance_basis.share == 0.15
+    assert lifecycle.significance_basis.entities == (
+        NORTH,
+        SOUTH,
+    ) and lifecycle.significance_basis.share == pytest.approx(0.15)
     assert lifecycle.score > Significance.MAJOR.base
 
 
@@ -946,7 +953,11 @@ def test_an_expansion_scales_with_the_population_share_of_every_region_it_gained
 
     basis = expansion.significance_basis
     assert basis is not None
-    assert (basis.measure, basis.share, basis.entities) == (StakeMeasure.POPULATION, 0.1, (EAST_REGION, SOUTH_REGION))
+    assert (basis.measure, basis.share, basis.entities) == (
+        StakeMeasure.POPULATION,
+        pytest.approx(0.1),
+        (EAST_REGION, SOUTH_REGION),
+    )
 
 
 def test_a_cession_is_a_transfer_no_reading_or_war_explains_with_allies_as_context() -> None:
@@ -1214,7 +1225,7 @@ def test_a_release_is_scaled_by_the_new_nations_power_share_read_after_it_appear
     large, micro = release(100.0), release(0.1)
 
     assert large.significance_basis is not None and micro.significance_basis is not None
-    assert large.significance_basis.entities == (EAST,) and large.significance_basis.share == 0.1
+    assert large.significance_basis.entities == (EAST,) and large.significance_basis.share == pytest.approx(0.1)
     assert large.significance_basis.scale > 0 and micro.significance_basis.scale == SCALE_MIN
     assert large.score == micro.score == Significance.MAJOR.base  # the independence it cites sets the floor
 
@@ -1225,7 +1236,7 @@ def test_a_breakaway_is_scaled_by_the_power_share_of_the_nation_that_broke_away(
     breakaway = only(built([independence(K1, False)], situations), "nation.breakaway")
 
     assert breakaway.significance_basis is not None
-    assert (breakaway.significance_basis.entities, breakaway.significance_basis.share) == ((EAST,), 0.1)
+    assert (breakaway.significance_basis.entities, breakaway.significance_basis.share) == ((EAST,), pytest.approx(0.1))
 
 
 # --- nation.claims_declared --------------------------------------------------------------------------------------

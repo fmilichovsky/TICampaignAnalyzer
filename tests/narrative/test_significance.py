@@ -32,8 +32,16 @@ from tinarrative.kinds import KINDS
 from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
 from tinarrative.kinds.nations import BAND_SHIFTS, POPULATION_COLLAPSE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
-from tinarrative.model.events import SIGNIFICANCE_ORDER, Confidence, DateBasis, Event, EventStatus, Significance
-from tinarrative.model.kinds import Rule, Stake
+from tinarrative.model.events import (
+    SIGNIFICANCE_ORDER,
+    Confidence,
+    DateBasis,
+    Event,
+    EventStatus,
+    Significance,
+    SignificanceBasis,
+)
+from tinarrative.model.kinds import Rule, Stake, StakeMeasure
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
@@ -578,6 +586,13 @@ def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None
         "scale": -10,
     }
     assert "significance_basis" not in bare_event("nation.rank_changed").to_dict()
+
+
+def test_the_basis_keeps_the_unrounded_share_and_the_json_rounds_it() -> None:
+    basis = SignificanceBasis(base=0, measure=StakeMeasure.POWER, share=0.123456789, scale=0, entities=())
+
+    assert basis.share == 0.123456789
+    assert basis.to_dict()["share"] == 0.123457
 
 
 def narrative_level(event_type: str, **attributes: Observed) -> Significance:

@@ -169,3 +169,7 @@ add or refresh a campaign manually:
 
 A pull request that changes the samples or the matrix measures both sides with the new ones, so its report compares
 code only. The next pull requests measure against the new samples from then on.
+
+A campaign that is a leading slice of another carries `"prefix_of": "<other campaign>"` in `samples.json`. A refresh
+keeps the field, as it keeps the description, and the calibration table extraction skips such a campaign, because its
+events are already in the longer one.

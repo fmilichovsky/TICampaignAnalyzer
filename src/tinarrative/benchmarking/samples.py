@@ -262,7 +262,11 @@ def _updated_manifest(
 ) -> dict[str, Any]:
     """Replace one campaign entry while preserving the other manifest entries."""
     campaigns = dict(existing_campaigns)
-    campaigns[name] = {"description": description, "files": entries}
+    entry: dict[str, Any] = {"description": description, "files": entries}
+    previous = existing_campaigns.get(name)
+    if isinstance(previous, dict) and isinstance(previous.get("prefix_of"), str):
+        entry = {"description": description, "prefix_of": previous["prefix_of"], "files": entries}
+    campaigns[name] = entry
     return {"max_file_bytes": max_file_bytes, "campaigns": campaigns}
 
 

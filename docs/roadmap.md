@@ -81,7 +81,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
 - [ ] Stake calibration dashboard (#446):
   - [x] Stake measure registry, no nuclear bonus (#458).
   - [x] Public rule layers and the takeover wave member gate (#459).
-  - [ ] Calibration table extraction (#460).
+  - [x] Calibration table extraction (#460).
   - [ ] Calibration replay in Python, with pipeline parity (#461).
   - [ ] Calibration replay in the browser, with parity against Python (#462).
   - [ ] `benchmark calibrate report` and the calibration cache (#463).

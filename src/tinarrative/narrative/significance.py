@@ -719,7 +719,7 @@ def _scaled(
     return SignificanceBasis(
         base=level.base,
         measure=measure,
-        share=float(f"{share:.6g}"),
+        share=share,
         scale=_scale(share, MEASURES[measure].reference),
         entities=entities,
     )

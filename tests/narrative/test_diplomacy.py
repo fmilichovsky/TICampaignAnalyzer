@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from tests.narrative.support import atomic, faction, nation, nation_row, powered, situation, with_rest
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
@@ -204,7 +206,11 @@ def test_a_realignment_scales_with_its_nations_power_share_alone() -> None:
     [item] = great
     assert item.significance is Significance.CAMPAIGN_DEFINING
     assert item.significance_basis == SignificanceBasis(
-        base=Significance.MAJOR.base, measure=StakeMeasure.POWER, share=0.4, scale=SCALE_MAX, entities=(NORTH,)
+        base=Significance.MAJOR.base,
+        measure=StakeMeasure.POWER,
+        share=pytest.approx(0.4),
+        scale=SCALE_MAX,
+        entities=(NORTH,),
     )
     assert [item.significance for item in micro] == [Significance.MINOR]
 
