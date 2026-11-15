@@ -13,7 +13,7 @@ from tinarrative.benchmarking.manifest import decompress_samples, extractable_ca
 from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
-from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event
+from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event, Significance
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.chronology import interval_of
 from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
@@ -33,6 +33,10 @@ INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 SUFFIX: Final = ";"
 SCORE_MIN: Final = 0
 SCORE_MAX: Final = 100
+NEIGHBOURS: Final = 5
+"""Events the calibration page lists on each side of a cut-off."""
+PACKAGE_LEVEL: Final = Significance.MAJOR.value
+"""The lowest level of a narrative event the narrator package carries."""
 
 
 class CalibrationTableError(ValueError):
@@ -124,6 +128,8 @@ def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dic
             "scale_max": SCALE_MAX,
             "score_min": SCORE_MIN,
             "score_max": SCORE_MAX,
+            "neighbours": NEIGHBOURS,
+            "package_level": PACKAGE_LEVEL,
         },
         "measures": {
             measure.value: {"reference": spec.reference, "label": spec.label, "description": spec.description}

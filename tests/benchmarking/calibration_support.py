@@ -1,7 +1,8 @@
-"""Shared invariants of a calibration table, checked on the fixture sequence and on the sample campaigns."""
+"""Shared invariants of a calibration table, and the hand-built rows the replay tests and the golden table use."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 
 from tinarrative.benchmarking.calibration.replay import default_state, replay
@@ -57,3 +58,118 @@ def check_parity(rows: list[dict[str, Any]]) -> None:
     assert result["totals"]["package"]["change"] == 0
     assert result["totals"]["members_changed"] == 0
     assert result["moves"] == []
+
+
+# --- Hand-built rows ---------------------------------------------------------------------------------------
+
+INDEX = build_index(["one", "two"], key="", extracted_at="")
+CONSTANTS = INDEX["constants"]
+POWER = INDEX["measures"]["power"]["reference"]
+POPULATION = INDEX["measures"]["population"]["reference"]
+GATE = INDEX["member_gates"][0]
+GROUP = GATE["group_types"][0]
+MEMBER = GATE["member_type"]
+CODE = default_state(INDEX)
+
+
+def base(level: str) -> int:
+    low, high = CONSTANTS["level_bands"][level]
+    return (low + high) // 2
+
+
+def row(
+    id: str,
+    type: str = "atomic.thing",
+    *,
+    tier: str = "atomic",
+    level: str = "minor",
+    stakes: tuple[tuple[str, float], ...] = (),
+    cited: tuple[str, ...] = (),
+    entities: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    return {
+        "id": id,
+        "type": type,
+        "tier": tier,
+        "interval": "i",
+        "date": None,
+        "label": id,
+        "base": base(level),
+        "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
+        "entities": [{"id": entity, "label": entity} for entity in entities],
+        "cited": list(cited),
+        "score": base(level),
+        "level": level,
+    }
+
+
+def with_oracle(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The rows with the code's replay as their oracle, as extraction would record it."""
+    events = replay(INDEX, {"one": rows}, replace(CODE, campaigns=("one",)))["campaigns"]["one"]["events"]
+    by_id = {event["id"]: event for event in events}
+    return [{**item, "score": by_id[item["id"]]["score"], "level": by_id[item["id"]]["level"]} for item in rows]
+
+
+def power(scale: float) -> tuple[tuple[str, float], ...]:
+    return (("power", POWER * 10 ** (scale / 10)),)
+
+
+def chain() -> list[dict[str, Any]]:
+    """A population-staked atomic row, cited by a power-staked layer 1 row, up a 3-deep narrative chain."""
+    layers = INDEX["layers"]
+    first, second, third = (next(name for name, number in layers.items() if number == n) for n in (1, 2, 3))
+    return with_oracle(
+        [
+            row("land", stakes=(("population", POPULATION * 10),)),
+            row("deal", first, tier="narrative", level="trivial", stakes=power(-10), cited=("land",)),
+            row("grow", second, tier="narrative", level="trivial", cited=("deal",)),
+            row("arc", third, tier="narrative", level="trivial", cited=("grow",)),
+        ]
+    )
+
+
+def members(faction: str, scales: list[float]) -> list[dict[str, Any]]:
+    """A group of the gate over one member per scale, each taking its own nation."""
+    group_members = [
+        row(
+            f"{faction}-{number}",
+            MEMBER,
+            tier="narrative",
+            level="major",
+            stakes=power(scale),
+            entities=(faction, f"{faction}-nation-{number}"),
+        )
+        for number, scale in enumerate(scales)
+    ]
+    nations = tuple(f"{faction}-nation-{number}" for number in range(len(scales)))
+    group = row(
+        f"{faction}-group",
+        GROUP,
+        tier="narrative",
+        level="major",
+        cited=tuple(item["id"] for item in group_members),
+        entities=(faction, *nations),
+    )
+    return [*group_members, group]
+
+
+INVALID_HASHES = [
+    ("speed=1", "unknown state hash key 'speed'"),
+    ("clamp=off&clamp=on", "'clamp' is repeated"),
+    ("clamp", "not key=value"),
+    ("clamp=maybe", "on or off"),
+    ("ref=warp:0.1", "unknown measure 'warp'"),
+    ("ref=power:0.1,power:0.2", "'power' is repeated"),
+    ("ref=power:0", "positive number"),
+    ("ref=power:-1", "positive number"),
+    ("ref=power:1e999", "positive number"),
+    ("ref=power:1_0", "positive number"),
+    ("ref=power", "measure:number"),
+    ("ref=", "lists no reference"),
+    ("campaigns=three", "unknown campaign"),
+    ("campaigns=one,one", "repeated"),
+    ("types=war.arc,war.arc", "repeated"),
+    ("types=", "lists no type"),
+    ("focus=warp", "unknown focus measure"),
+]
+"""State hashes both codecs reject, with the start of the Python error."""
