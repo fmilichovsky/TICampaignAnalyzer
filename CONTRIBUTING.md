@@ -1,8 +1,10 @@
 # Contributing
 
-The standards every change follows, whoever writes it. Setup and commands are in the [README](README.md#development);
-test mechanics are in [docs/testing.md](docs/testing.md). A change is done when `make check` passes.
+Contributions are always welcome. You can either:
+- Try out the tool as a user, provide feedback through Issues or Discussions.
+- Pick up specific tickets out of Issues and submit Pull Requests for them.
 
+Every change in this repo should follow the following basic standards.
 When a standard here can be checked mechanically, a test enforces it and the standard names that test.
 
 ## Code
@@ -79,5 +81,4 @@ Each fact has exactly one home. Point to it; do not restate it.
 
 ## Pull requests
 
-- Small and focused, matching one roadmap item.
-- A new pipeline stage comes with `tests/<stage>/` coverage and its roadmap checkbox.
+- Small and focused, matching one roadmap item or linked to a specific issue.
