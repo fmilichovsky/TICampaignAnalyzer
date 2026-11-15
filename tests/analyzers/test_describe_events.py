@@ -89,7 +89,7 @@ EXPECTED_INTERVAL_ASSETS = {
     "Fixture Southland (nation:21) armies list: +Fixture Army (army:110)",
     "Fixture Ship 131 (ship:131) fleet: Fixture Fleet 120 (fleet:120) -> unknown "
     '(unresolved_reference, raw={"value": 999})',
-    "technology:FixtureTechC (finished false) is present only in the after snapshot",
+    "technology:FixtureTechC appeared, finished false",
     "technology:FixtureTechB is listed as finished",
     'Fixture Resistance (faction:15) lists project "Project_Fixture" as finished',
 }
@@ -138,10 +138,10 @@ EXPECTED_ASSETS = {
     "Fixture SpaceShipState 130 (ship:130) (fleet Fixture SpaceFleetState 120 (fleet:120)) "
     'last refit date: null -> {"day": 1, "hour": 0, "millisecond": 0, "minute": 0, "month": 5, '
     '"second": 0, "year": 2032}',
-    "technology:FixtureTechE (finished false) is present only in the after snapshot",
+    "technology:FixtureTechE appeared, finished false",
     "technology:FixtureTechB is listed as finished",
     "technology:FixtureTechC is listed as finished (no earlier research state)",
-    "technology:FixtureTechD (finished true) is absent from the after snapshot",
+    "technology:FixtureTechD disappeared, finished true",
 }
 
 EXPECTED_WARS = {
@@ -199,3 +199,46 @@ def test_unknown_event_types_fall_back_to_type_and_entities_and_escape_non_ascii
     plain = Event(**{**event.__dict__, "event_type": "nation.capital_changed", "attributes": (("after", "café"),)})
     described = describe_event(plain)
     assert described.isascii() and json.loads(described.split("-> ")[1]) == "café"
+
+
+def _technology_event(event_type: str, entity_domain: EntityDomain, key: str, *attributes: tuple[str, object]) -> Event:
+    ref = state(entity_domain, key, AFTER).ref
+    return Event(
+        id="x",
+        event_type=event_type,
+        status=EventStatus.OBJECTIVE,
+        confidence=Confidence.HIGH,
+        date=Unknown(),
+        date_basis=DateBasis.INTERVAL,
+        not_before=Unknown(),
+        sources=(),
+        entities=(ref,),
+        attributes=attributes,  # type: ignore[arg-type]
+    )
+
+
+def test_finished_list_changes_lead_with_the_entity_and_the_outcome() -> None:
+    tech = EntityDomain.TECHNOLOGY
+    added = _technology_event("research.finished_techs_changed", tech, "7", ("transition", "added"))
+    removed = _technology_event("research.finished_techs_changed", tech, "7", ("transition", "removed"))
+    assert describe_event(added).endswith("added to the research finished techs list")
+    assert describe_event(removed).endswith("removed from the research finished techs list")
+    faction = EntityDomain.FACTION
+    project = _technology_event(
+        "faction.finished_project_names_changed",
+        faction,
+        "15",
+        ("member", "Project_Fixture"),
+        ("transition", "removed"),
+    )
+    assert describe_event(project).endswith('had project "Project_Fixture" removed from its finished project list')
+    unresolved = _technology_event(
+        "faction.finished_project_names_changed",
+        faction,
+        "15",
+        ("transition", "unresolved"),
+        ("before", ("A",)),
+        ("after", ("B",)),
+        ("member", Unknown()),
+    )
+    assert describe_event(unresolved).endswith('finished project list: ["A"] -> ["B"]')
