@@ -1,4 +1,4 @@
-"""Public groups and display names for councilor trait templates."""
+"""Public groups and the game's display names for councilor trait templates; the councilor brief rewords them."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ _BY_GROUP: dict[str, tuple[tuple[str, str], ...]] = {
         ("CombatAstronaut", "Combat Astronaut"),
         ("Expert", "Expert"),
         ("Veteran", "Veteran"),
-        ("Streetwise", "Street Smart"),
+        ("Streetwise", "Streetwise"),
     ),
     "reputation": (
         ("Affluent", "Affluent"),
@@ -141,7 +141,7 @@ _BY_GROUP: dict[str, tuple[tuple[str, str], ...]] = {
     "affiliation": (
         ("Government", "Government"),
         ("Criminal", "Criminal"),
-        ("Crew", "Security Detail"),
+        ("Crew", "Crew"),
     ),
     "implant": (
         ("LoyaltyMonitor", "Loyalty Monitor"),

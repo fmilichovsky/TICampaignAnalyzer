@@ -46,6 +46,34 @@ ORG_ALIASES = {
 """A public-facing name for the faction-reward organizations whose game names read badly in an article, by
 ``templateName``. It replaces ``name`` in the brief only; the dossier keeps the game name (ADR-0020)."""
 
+TRAIT_PHRASES = {
+    "Marked": "under surveillance worldwide",
+    "Connected": "influential through back channels",
+    "LoneWolf": "a loner",
+    "Government": "holds official government status",
+    "Criminal": "involved in crime",
+    "Crew": "keeps a crew of loyal bodyguards",
+    "Streetwise": "street smart",
+    "Counselor": "appeals to common ground",
+    "Martyr": "would be mourned as a martyr",
+    "NonGrata": "wanted in rival nations",
+    "Delinquent": "known for refusing to pay debts",
+    "Indebted": "deeply in debt",
+    "Declining": "slowed by age",
+    "FamilyTies": "close family ties at home",
+    "Pollyanna": "relentlessly optimistic",
+    "Transparent": "says exactly what they mean",
+    "Striver": "dedicated to self-improvement",
+    "Apocalyptic": "expects the end of humanity",
+    "Chekist": "a political-police background",
+    "IronHand": "hard on dissent",
+    "Expert": "an oft-quoted expert",
+    "Pariah": "unpopular at home",
+}
+"""A plain phrase for each trait whose game label a model would quote as a term or misread, by template name. It
+holds only what the public would see of the game's description (``TITraitTemplate.description.<template>``); every
+other trait reaches the brief as its display name in lower case."""
+
 DETENTION_LINES = {"set": "detained", "cleared": "released", "changed": "transferred to other captors"}
 """A detention milestone by its transition; the captor is never named."""
 
@@ -260,14 +288,18 @@ def _traits(value: Mapping[str, Any]) -> dict[str, list[str]]:
     for group, templates in value.items():
         if not isinstance(group, str) or not isinstance(templates, list):
             continue
-        names = [
-            TRAITS.get(template, (group, _CAMEL.sub(" ", template)))[1]
-            for template in templates
-            if isinstance(template, str)
-        ]
+        names = [_trait(template) for template in templates if isinstance(template, str)]
         if names:
             result[group] = names
     return result
+
+
+def _trait(template: str) -> str:
+    phrase = TRAIT_PHRASES.get(template)
+    if phrase is not None:
+        return phrase
+    catalogued = TRAITS.get(template)
+    return (catalogued[1] if catalogued is not None else _CAMEL.sub(" ", template)).lower()
 
 
 def _policy_influence(value: Mapping[str, Any]) -> dict[str, Any]:

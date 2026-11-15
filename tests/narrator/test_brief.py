@@ -16,10 +16,12 @@ from tinarrative.narrator.brief import (
     NAMED_AUDIT_KEYS,
     ORG_ALIASES,
     ORG_AUDIT_KEYS,
+    TRAIT_PHRASES,
     VISIBILITY_AUDIT_KEYS,
     councilor_brief,
     stance_of,
 )
+from tinarrative.trait_names import KEPT_GROUPS, TRAITS
 
 ENTRY: dict[str, Any] = {
     "id": "councilor:1",
@@ -122,7 +124,7 @@ def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> N
         assert councilor[key] == ENTRY[key]
     assert councilor["visibility"] == {"level": "private"}
     assert councilor["profession"] == "diplomat"
-    assert councilor["traits"] == {"reputation": ["Famous"]}
+    assert councilor["traits"] == {"reputation": ["famous"]}
     assert councilor["policy_influence"] == {
         "focus": "focused",
         "causes": [{"cause": "education and research", "strength": "leading"}],
@@ -153,6 +155,22 @@ def test_every_alias_key_is_a_named_organization_template() -> None:
     assert set(ORG_ALIASES) <= set(NAMED_ORG_CATEGORIES)
 
 
+def test_a_phrased_trait_carries_its_phrase_and_never_the_game_label() -> None:
+    entry = {**ENTRY, "traits": {"circumstance": ["Marked", "Indebted"], "temperament": ["ExpectsVictory"]}}
+
+    brief = councilor_brief(DOSSIER, entry)
+
+    assert brief["councilor"]["traits"] == {
+        "circumstance": ["under surveillance worldwide", "deeply in debt"],
+        "temperament": ["loss averse"],
+    }
+    assert "Marked" not in json.dumps(brief)
+
+
+def test_every_trait_phrase_is_for_a_kept_catalogued_trait() -> None:
+    assert all(TRAITS[template][0] in KEPT_GROUPS for template in TRAIT_PHRASES)
+
+
 def test_the_brief_leaves_the_dossier_untouched() -> None:
     before = copy.deepcopy(DOSSIER)
 
@@ -175,7 +193,7 @@ def test_unfamiliar_game_names_are_split_into_public_words() -> None:
     councilor = councilor_brief(DOSSIER, entry)["councilor"]
 
     assert councilor["profession"] == "deep sea diver"
-    assert councilor["traits"] == {"other": ["Foo Bar"]}
+    assert councilor["traits"] == {"other": ["foo bar"]}
     assert councilor["policy_influence"] == {
         "focus": "broad",
         "causes": [{"cause": "newBonus", "strength": "modest"}],
