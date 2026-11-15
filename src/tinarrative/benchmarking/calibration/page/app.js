@@ -489,6 +489,7 @@
     },
 
     buildTides() {
+      this.tideView = [0, 1].map(() => ({ items: [], hover: null, focus: null }));
       for (const slot of [0, 1]) {
         const tide = $(`tide-${slot}`);
         tide.append(
@@ -503,7 +504,34 @@
         for (let row = 0; row < 11; row += 1) {
           list.append(el("li", { class: row === 5 ? "tide-cut" : "event event-compact event-blank" }));
         }
-        tide.append(list);
+        const readout = el("p", { class: "tide-readout" });
+        tide.append(list, readout);
+        // The readout follows the row under the pointer and keeps it while the pointer stays in the tide, so its
+        // type can be reached; leaving the tide falls back to the focused row, then to the tide's type mix.
+        const rowOf = (target) => {
+          const row = target instanceof Element ? target.closest(".tide-rows > li") : null;
+          return row && list.contains(row) ? [...list.children].indexOf(row) : null;
+        };
+        list.addEventListener("pointerover", (event) => {
+          const at = rowOf(event.target);
+          if (at === null || at === 5 || at === this.tideView[slot].hover) return;
+          this.tideView[slot].hover = at;
+          this.renderReadout(slot);
+        });
+        tide.addEventListener("pointerleave", () => {
+          this.tideView[slot].hover = null;
+          this.renderReadout(slot);
+        });
+        list.addEventListener("focusin", (event) => {
+          this.tideView[slot].focus = rowOf(event.target);
+          this.tideView[slot].hover = null;
+          this.renderReadout(slot);
+        });
+        list.addEventListener("focusout", (event) => {
+          if (list.contains(event.relatedTarget)) return;
+          this.tideView[slot].focus = null;
+          this.renderReadout(slot);
+        });
       }
     },
 
@@ -968,6 +996,8 @@
         caption.textContent = slot === 0 ? "No lower cut-off" : "No upper cut-off";
         rows.forEach((row, i) => (i === 5 ? row.replaceChildren() : this.fillEventRow(row, null, { compact: true })));
         tide.classList.add("tide-empty");
+        this.tideView[slot].items = [];
+        this.renderReadout(slot);
         return;
       }
       tide.classList.remove("tide-empty");
@@ -982,12 +1012,71 @@
       const above = [...cutoff.above].sort((a, b) => b.share - a.share);
       const below = [...cutoff.below].sort((a, b) => b.share - a.share);
       const neighbours = this.index.constants.neighbours;
+      const items = new Array(11).fill(null);
       for (let i = 0; i < 5; i += 1) {
         const top = above[i - (Math.min(5, neighbours) - above.length)];
-        this.fillEventRow(rows[i], top ? this.tideItem(top) : null, { compact: true });
-        this.fillEventRow(rows[6 + i], below[i] ? this.tideItem(below[i]) : null, { compact: true });
+        items[i] = top ? this.tideItem(top) : null;
+        items[6 + i] = below[i] ? this.tideItem(below[i]) : null;
       }
+      items.forEach((item, i) => i === 5 || this.fillEventRow(rows[i], item, { compact: true }));
       rows[5].replaceChildren(el("span", { class: "tide-cut-label", text: `${cutoff.above.length} above · ${cutoff.below.length} below shown` }));
+      this.tideView[slot].items = items;
+      this.renderReadout(slot);
+    },
+
+    // The line under a tide: the type of the row in hand, or the types of all its rows, most common first.
+    renderReadout(slot) {
+      const view = this.tideView[slot];
+      const tide = $(`tide-${slot}`);
+      const readout = tide.querySelector(".tide-readout");
+      const rows = tide.querySelectorAll(".tide-rows > li");
+      const at = view.hover !== null ? view.hover : view.focus;
+      const item = at !== null ? view.items[at] : null;
+      rows.forEach((row, i) => row.classList.toggle("event-current", item !== null && i === at));
+      if (item) {
+        const date = typeof item.row.date === "string" ? item.row.date.slice(0, 10) : "";
+        readout.removeAttribute("title");
+        readout.replaceChildren(
+          this.typeButton(item.row.type),
+          el("span", { class: "readout-meta", text: [`score ${item.score}`, `${item.campaign} ${date}`.trim()].join(" · ") }),
+        );
+        return;
+      }
+      const counts = new Map();
+      for (const entry of view.items) if (entry) counts.set(entry.row.type, (counts.get(entry.row.type) || 0) + 1);
+      const types = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+      if (!types.length) {
+        readout.removeAttribute("title");
+        readout.replaceChildren();
+        return;
+      }
+      readout.title = types.map(([type, count]) => `${type} ×${count}`).join("\n");
+      const parts = types.map(([type, count]) =>
+        el("span", { class: "readout-type" }, this.typeButton(type), el("span", { class: "readout-count num", text: `×${count}` })),
+      );
+      readout.replaceChildren(...parts);
+      // Keep whole entries only; what does not fit is counted at the end and listed in the line's tooltip.
+      let shown = parts.length;
+      while (shown > 1 && readout.scrollWidth > readout.clientWidth) {
+        shown -= 1;
+        readout.replaceChildren(...parts.slice(0, shown), el("span", { class: "readout-more", text: `+${plural(parts.length - shown, "type")}` }));
+      }
+    },
+
+    // A type that filters the page when clicked, and shows when it is the filter.
+    typeButton(type) {
+      const only = this.state.types.length === 1 && this.state.types[0] === type;
+      return el("button", {
+        type: "button",
+        class: "event-type",
+        text: type,
+        title: only ? "Show every type" : `Filter by ${type}`,
+        "aria-pressed": String(only),
+        onclick: (event) => {
+          event.stopPropagation();
+          this.setType(type);
+        },
+      });
     },
 
     // A cut-off neighbour as the shared row reads it.
@@ -1352,9 +1441,9 @@
     },
 
     // One event row, wherever the page lists events: the share (or —), the level dot, the label, the cited badge,
-    // the level change, campaign and date, then the type ID and any note. A compact row keeps to one line for the
-    // tide tables and shows its type over the label on hover or focus; a list row sets the type under the label,
-    // unless the list is of one type. The row is the target a later event inspector opens from (#490).
+    // the level change, campaign and date, then the type ID and any note. A list row sets the type under the label,
+    // unless the list is of one type. A compact row keeps to one line for the tide tables and leaves its type to the
+    // readout under the tide, so clicking anywhere on it opens the event: the inspector's hook (#490).
     eventRow(item, options) {
       return this.fillEventRow(el("li"), item, options);
     },
@@ -1372,19 +1461,8 @@
       const label = labelOf(row);
       const moved = level !== row.level;
       const dimmed = this.state.types.length > 0 && !this.state.types.includes(row.type);
-      const only = this.state.types.length === 1 && this.state.types[0] === row.type;
-      const type = el("button", {
-        type: "button",
-        class: "event-type",
-        text: row.type,
-        title: only ? "Show every type" : `Filter by ${row.type}`,
-        "aria-pressed": String(only),
-        hidden: !showType,
-        onclick: (event) => {
-          event.stopPropagation();
-          this.setType(row.type);
-        },
-      });
+      const type = compact ? null : this.typeButton(row.type);
+      if (type && !showType) type.hidden = true;
       const sub = compact ? [] : [showType ? type : null, item.note ? el("span", { class: "event-note", text: item.note }) : null].filter(Boolean);
       node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}`;
       node.tabIndex = 0;
@@ -1407,7 +1485,7 @@
         ...[
           el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No stake of its own" }),
           levelDot(level),
-          el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), compact || !showType ? type : null),
+          el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), showType ? null : type),
           item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null,
           el("span", { class: `event-change${moved ? " moved" : ""}`, text: moved ? `${levelShort(row.level)}→${levelShort(level)}` : levelShort(level) }),
           el("span", { class: "event-meta", text: `${compact ? item.campaign.slice(0, 4) : item.campaign} ${shortDate(row.date)}` }),

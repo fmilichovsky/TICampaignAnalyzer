@@ -390,6 +390,24 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
   margin-top: -1px;
 }
 .tide-cut-label { color: var(--rise-ink); font-size: 11px; padding-left: 8.4ch; }
+/* Under each tide: the type of the row in hand, or the tide's types, most common first. Its height is fixed. */
+.tide-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  height: 22px;
+  margin: 0;
+  padding: 4px 0 0 8.4ch;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.tide-readout .event-type { flex: none; max-width: none; }
+.readout-type { display: inline-flex; flex: none; align-items: baseline; gap: 3px; }
+.readout-count, .readout-more { flex: none; }
+.readout-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .tide-empty .tide-figure { color: var(--ink-3); }
 
 .badge {
@@ -570,12 +588,12 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
   transition: background-color 120ms ease-out;
 }
 .events .event:last-child { border-bottom: 0; }
-.event:not(.event-blank):hover { background: var(--band); }
+.event:not(.event-blank):hover, .event-current { background: var(--band); }
 .event:focus-visible { outline-offset: -2px; }
 .event-compact { height: 23px; min-height: 0; }
 .event-share { font-weight: 600; text-align: right; }
 .dim .event-share { font-weight: 400; }
-.event-main { position: relative; display: flex; align-items: center; min-width: 0; }
+.event-main { display: flex; align-items: center; min-width: 0; }
 .event-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .event-change { color: var(--ink-3); font-size: 11.5px; }
 .event-change.moved { color: var(--ink); font-weight: 600; }
@@ -610,24 +628,6 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
 .event-type:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .event-type[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
 .event-type[hidden] { display: none; }
-
-/* On one line the type waits behind the label: hover or focus sets it over the label's end. */
-.event-compact .event-type {
-  position: absolute;
-  right: 0;
-  padding: 0 5px;
-  border: 1px solid var(--rule-strong);
-  border-radius: 2px;
-  background: var(--surface);
-  font-size: 11px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease-out;
-}
-.event-compact:hover .event-type, .event-compact:focus-within .event-type {
-  opacity: 1;
-  pointer-events: auto;
-}
 
 .pop {
   position: fixed;
