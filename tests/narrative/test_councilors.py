@@ -181,7 +181,8 @@ def test_no_loyalty_anywhere() -> None:
     dossier = _build(snap)
     assert loyalty_keys(dossier) == []
     assert dossier["councilors"][0]["skills"] == {"Persuasion": 3, "Investigation": 2}
-    assert dossier["councilors"][0]["traits"] == {}
+    assert dossier["councilors"][0]["traits"] == {"implant": ["LoyaltyMonitor"]}
+    assert dossier["councilors"][0]["trait_skills"] == {}
 
 
 def test_portrait_facts() -> None:
@@ -213,7 +214,7 @@ def test_org_nation_is_the_current_nation_of_its_home_region() -> None:
     assert [org["nation"] for org in orgs] == ["Fixture nation 20", None, None, None]
 
 
-def test_org_skills_add_to_personal_skills_up_to_the_cap() -> None:
+def test_org_skills_sum_the_org_bonuses_without_a_cap() -> None:
     snap = _world(
         _org("70", 2, persuasion=3, science=2, command=0),
         _org("71", 1, persuasion=2, administration=5, security=4),
@@ -226,8 +227,8 @@ def test_org_skills_add_to_personal_skills_up_to_the_cap() -> None:
     )
     entry = _build(snap)["councilors"][0]
     assert entry["skills"] == {"Persuasion": 3, "Investigation": 2, "Administration": 22, "Security": 25}
-    assert entry["org_skills"] == {"Persuasion": 5, "Administration": 3, "Science": 2}
-    assert entry["prominence"]["org_skill_sum"] == 10
+    assert entry["org_skills"] == {"Persuasion": 5, "Administration": 5, "Science": 2, "Security": 4}
+    assert entry["prominence"]["org_skill_sum"] == 16
     assert loyalty_keys(entry) == []
 
 
@@ -279,7 +280,7 @@ def test_policy_influence_focus_is_the_effective_number_of_causes() -> None:
     assert focus["councilor:102"] == 1.0
 
 
-def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:
+def test_traits_are_grouped_template_names_with_the_withheld_groups_after_the_public_ones() -> None:
     templates = ("Wealthy", "Averse", "Datajack", "PhysicistII", "SecondWave", "FooBar", "Government", "Paranoid")
     entry = _build(_world(_councilor("100", "1", traitTemplateNames=templates)))["councilors"][0]
     assert entry["traits"] == {
@@ -287,9 +288,33 @@ def test_traits_are_grouped_display_names_without_the_hidden_ones() -> None:
         "expertise": ["PhysicistII"],
         "reputation": ["Wealthy"],
         "affiliation": ["Government"],
+        "hidden": ["SecondWave"],
+        "implant": ["Datajack"],
         "other": ["FooBar"],
     }
-    assert list(entry["traits"]) == ["temperament", "expertise", "reputation", "affiliation", "other"]
+    assert list(entry["traits"]) == [
+        "temperament",
+        "expertise",
+        "reputation",
+        "affiliation",
+        "hidden",
+        "implant",
+        "other",
+    ]
+
+
+def test_trait_skills_sum_the_unconditional_trait_points_of_every_group_but_implants() -> None:
+    templates = ("Averse", "Datajack", "PhysicistII", "SecondWave", "Paranoid", "Pacifist", "Crew")
+    entry = _build(_world(_councilor("100", "1", traitTemplateNames=templates)))["councilors"][0]
+    assert entry["skills"] == {"Persuasion": 3, "Investigation": 2}
+    assert entry["trait_skills"] == {
+        "Persuasion": -2,
+        "Investigation": 2,
+        "Espionage": 3,
+        "Command": -3,
+        "Science": 1,
+        "Security": 8,
+    }
 
 
 def _visibility(espionage: int, traits: tuple[str, ...], *orgs: Any) -> dict[str, Any]:
@@ -330,10 +355,10 @@ def test_visibility_always_revealed_is_never_shadow_and_low_profile_never_public
     assert _visibility(25, ("Undercover", "Firebrand"))["concealment"] == 22
 
 
-def test_visibility_low_profile_traits_stay_out_of_the_traits() -> None:
+def test_visibility_low_profile_traits_are_hidden_traits() -> None:
     councilor = _councilor("100", "1", traitTemplateNames=("LowProfile", "Undercover", "Famous"))
     entry = _build(_world(councilor))["councilors"][0]
-    assert entry["traits"] == {"reputation": ["Famous"]}
+    assert entry["traits"] == {"reputation": ["Famous"], "hidden": ["LowProfile", "Undercover"]}
 
 
 def test_profession_is_plain_language_and_unknown_types_are_split_into_words() -> None:

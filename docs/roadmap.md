@@ -95,7 +95,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Enrich package data (#243).
   - [x] Fix councilor mission detection (#281).
   - [x] Public visibility in councilor articles (#284).
-- [ ] Sharpen councilor articles (#395):
+- [x] Sharpen councilor articles (#395):
   - [x] One home per subject across sections (#396).
   - [x] Councilor brief without audit fields (#397).
   - [x] Move dossier wording and banding into the brief (#398).
@@ -103,7 +103,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Public phrasing for missions (#400).
   - [x] Public aliases for faction-reward organizations (#302).
   - [x] Plain phrases for jargon trait labels (#401).
-  - [ ] Numbers as words (#402).
+  - [x] Numbers as words (#402).
 - [x] Diplomatic realignments as narrative events (#173).
 - [ ] Slim down narrative package (#267):
   - [x] Exclude relations and default values (#268).

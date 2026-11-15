@@ -6,9 +6,12 @@ from __future__ import annotations
 import copy
 import json
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
+from tinarrative.narrative.councilors import SKILLS
 from tinarrative.narrative.org_catalog import NAMED_ORG_CATEGORIES
+from tinarrative.narrator import brief as brief_module
 from tinarrative.narrator.brief import (
     AUDIT_KEYS,
     HEADER_KEYS,
@@ -16,12 +19,14 @@ from tinarrative.narrator.brief import (
     NAMED_AUDIT_KEYS,
     ORG_ALIASES,
     ORG_AUDIT_KEYS,
+    ORG_SKILL_BANDS,
+    SKILL_BANDS,
     TRAIT_PHRASES,
     VISIBILITY_AUDIT_KEYS,
     councilor_brief,
     stance_of,
 )
-from tinarrative.trait_names import KEPT_GROUPS, TRAITS
+from tinarrative.trait_names import KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
 
 ENTRY: dict[str, Any] = {
     "id": "councilor:1",
@@ -31,8 +36,9 @@ ENTRY: dict[str, Any] = {
     "profession": "Diplomat",
     "gender": "female",
     "traits": {"reputation": ["Famous"]},
-    "skills": {"Persuasion": 9},
-    "org_skills": {"Science": 2},
+    "skills": {"Persuasion": 9, "Science": 3},
+    "trait_skills": {"Persuasion": 1},
+    "org_skills": {"Science": 6, "Command": 2},
     "xp": 12,
     "born": "1990-01-01T00:00:00",
     "age": 44,
@@ -120,8 +126,11 @@ def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> N
 
     kept = set(ENTRY) - AUDIT_KEYS - {"faction", "missions"}
     assert [key for key in councilor if key in kept] == [key for key in ENTRY if key in kept]
-    for key in kept - {"visibility", "orgs", "career", "home", "policy_influence", "profession", "traits"}:
+    banded = {"skills", "org_skills"}
+    for key in kept - banded - {"visibility", "orgs", "career", "home", "policy_influence", "profession", "traits"}:
         assert councilor[key] == ENTRY[key]
+    assert councilor["skills"] == {"Persuasion": "notable"}
+    assert councilor["org_skills"] == {"Science": "considerable"}
     assert councilor["visibility"] == {"level": "private"}
     assert councilor["profession"] == "diplomat"
     assert councilor["traits"] == {"reputation": ["famous"]}
@@ -130,9 +139,10 @@ def test_the_brief_passes_every_other_value_through_as_the_dossier_has_it() -> N
         "causes": [{"cause": "education and research", "strength": "leading"}],
     }
     org = councilor["orgs"][0]
-    assert {key: org[key] for key in ("name", "tier", "nation", "origin", "category")} == {
-        key: ENTRY["orgs"][0][key] for key in ("name", "tier", "nation", "origin", "category")
+    assert {key: org[key] for key in ("name", "nation", "origin", "category")} == {
+        key: ENTRY["orgs"][0][key] for key in ("name", "nation", "origin", "category")
     }
+    assert org["size"] == "mid-sized" and "tier" not in org
     assert councilor["home"]["nation"] == {"name": ENTRY["home"]["nation"]["name"]}
 
 
@@ -356,25 +366,121 @@ def test_missions_become_activities_placed_by_nation_or_by_region() -> None:
     )
 
     assert activities == [
-        "advising the government of China and Kazakhstan",
-        "being nearby when prominent figures died suddenly in Lisbon, Portugal and Madrid, Spain",
+        {"activity": "advising the government of China and Kazakhstan", "frequency": "frequently"},
+        {
+            "activity": "being nearby when prominent figures died suddenly in Lisbon, Portugal and Madrid, Spain",
+            "frequency": "repeatedly",
+        },
     ]
     brief = councilor_brief(DOSSIER, ENTRY)
     assert "missions" not in brief["councilor"]
-    assert brief["councilor"]["activities"] == ["advising the government of China"]
+    assert brief["councilor"]["activities"] == [
+        {"activity": "advising the government of China", "frequency": "repeatedly"}
+    ]
 
 
 def test_an_unphrased_type_is_dropped_and_a_single_sighting_only_stands_alone() -> None:
     assert _activities(_mission("Close the Gate", 4, ("Oslo", "Norway"))) is None
     assert _activities(_mission("Purge", 1, ("Oslo", "Norway"))) == [
-        "pushing for changes of leadership in government posts in Oslo, Norway"
+        {"activity": "pushing for changes of leadership in government posts in Oslo, Norway", "frequency": "once"}
     ]
     activities = _activities(
         _mission("Close the Gate", 4, ("Oslo", "Norway")),
         _mission("Public Campaign", 3, ("Lima", "Peru")),
         _mission("Purge", 1, ("Oslo", "Norway")),
     )
-    assert activities == ["public campaigning in Peru"]
+    assert activities == [{"activity": "public campaigning in Peru", "frequency": "repeatedly"}]
     assert "Close the Gate" not in json.dumps(
         councilor_brief(DOSSIER, {**ENTRY, "missions": {"types": [_mission("Close the Gate", 4)]}})
     )
+
+
+def _strengths(skills: dict[str, int], traits: dict[str, int] | None = None) -> object:
+    entry = {**ENTRY, "skills": skills, "trait_skills": traits or {}}
+    return councilor_brief(DOSSIER, entry)["councilor"].get("skills")
+
+
+def test_personal_ability_is_banded_from_its_floor_and_ordinary_is_left_out() -> None:
+    expected = {7: None, 8: "notable", 11: "notable", 12: "strong", 16: "strong", 17: "exceptional", 22: "world-class"}
+    for value, band in expected.items():
+        assert _strengths({"Science": value}) == ({"Science": band} if band else None)
+    assert [word for _, word in SKILL_BANDS] == ["world-class", "exceptional", "strong", "notable"]
+
+
+def test_trait_points_count_toward_personal_ability_within_the_game_range() -> None:
+    assert _strengths({"Administration": 7}, {"Administration": 5}) == {"Administration": "strong"}
+    assert _strengths({"Security": 9}, {"Security": -10}) is None
+    assert _strengths({"Espionage": 24}, {"Espionage": 5}) == {"Espionage": "world-class"}
+    assert _strengths({}, {"Command": 8}) == {"Command": "notable"}
+
+
+def test_at_most_three_strengths_strongest_first_and_ties_in_game_order() -> None:
+    skills = {"Persuasion": 9, "Investigation": 21, "Espionage": 12, "Administration": 14, "Security": 9}
+
+    assert _strengths(skills) == {
+        "Investigation": "exceptional",
+        "Administration": "strong",
+        "Espionage": "strong",
+    }
+    assert list(_strengths({"Security": 9, "Persuasion": 9}) or {}) == [
+        "Persuasion",
+        "Security",
+    ]
+
+
+def test_organization_bonuses_are_banded_on_their_own_scale_uncapped() -> None:
+    expected = {4: None, 5: "considerable", 10: "large", 16: "vast", 30: "vast"}
+    for value, band in expected.items():
+        councilor = councilor_brief(DOSSIER, {**ENTRY, "org_skills": {"Administration": value}})["councilor"]
+        assert councilor.get("org_skills") == ({"Administration": band} if band else None)
+    assert [word for _, word in ORG_SKILL_BANDS] == ["vast", "large", "considerable"]
+
+
+def test_strengths_carry_the_game_attribute_names_for_the_prompt_to_describe() -> None:
+    skills = dict.fromkeys(SKILLS, 20)
+    councilor = councilor_brief(DOSSIER, {**ENTRY, "skills": skills, "trait_skills": {}, "org_skills": skills})
+    assert set(councilor["councilor"]["skills"]) <= set(SKILLS)
+    assert set(councilor["councilor"]["org_skills"]) <= set(SKILLS)
+
+
+def test_the_prompt_describes_every_attribute() -> None:
+    prompt = (Path(brief_module.__file__).parent / "councilor_prompt.md").read_text(encoding="utf-8")
+    assert all(f"    - {name}: " in prompt for name in SKILLS)
+
+
+def test_organization_tiers_become_sizes() -> None:
+    plain = ENTRY["orgs"][0]
+    for tier, size in {1: "small", 2: "mid-sized", 3: "large", 4: "large"}.items():
+        entry = {**ENTRY, "orgs": [{**plain, "tier": tier}]}
+        assert councilor_brief(DOSSIER, entry)["councilor"]["orgs"][0]["size"] == size
+    assert "size" not in councilor_brief(DOSSIER, {**ENTRY, "orgs": [{**plain, "tier": None}]})["councilor"]["orgs"][0]
+
+
+def test_the_brief_carries_no_number_but_age_and_tenure() -> None:
+    entry = {**ENTRY, "missions": {"types": [_mission("Advise", 7, ("Beijing", "China"))]}}
+
+    numbers = [path for path in _numbers(councilor_brief(DOSSIER, entry)["councilor"])]
+
+    assert numbers == [("age",), ("tenure_years",)]
+
+
+def _numbers(value: object, path: tuple[str, ...] = ()) -> Iterator[tuple[str, ...]]:
+    if isinstance(value, bool):
+        return
+    if isinstance(value, (int, float)):
+        yield path
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _numbers(item, (*path, key))
+    elif isinstance(value, list):
+        for item in value:
+            yield from _numbers(item, path)
+
+
+def test_withheld_trait_groups_never_reach_the_brief() -> None:
+    entry = {**ENTRY, "traits": {"reputation": ["Famous"], "implant": ["Datajack"], "hidden": ["Corrupt"]}}
+
+    traits = councilor_brief(DOSSIER, entry)["councilor"]["traits"]
+
+    assert traits == {"reputation": ["famous"]}
+    assert WITHHELD_GROUPS == {"implant", "hidden"}

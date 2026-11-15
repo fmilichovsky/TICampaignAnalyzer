@@ -50,26 +50,28 @@ article is set by Shape alone.
     list of labels.  Say only what a trait supports: a large portfolio does
     not make someone "well connected".  Leave out a trait you cannot read
     with confidence.
-  - `skills`: the person's own ability in the seven attributes:
-    - Persuasion: The ability to shape public opinion, influence other people and manipulate their attitudes or decisions. High ability suggests political influence, rhetorical talent and an exceptional understanding of how to sway individuals and populations.
-    - Investigation: The ability to uncover concealed information, investigate individuals and organisations, identify hidden threats, and direct investigations or state enforcement actions. High ability suggests exceptional perceptiveness, investigative talent and an aptitude for discovering what others wish to keep hidden.
-    - Espionage: The ability to conduct offensive clandestine operations while avoiding detection. This encompasses infiltration, sabotage, assassination, industrial espionage and other covert actions, as well as the ability to conceal one's own activities. High ability suggests a formidable covert operative with considerable operational cunning.
-    - Command: The ability to direct military and other forceful operations. This encompasses organising coups, fomenting unrest, conducting stabilisation and humanitarian interventions, extracting personnel from hostile situations, and carrying out direct hostile operations. High ability suggests operational leadership, strategic competence and an exceptional ability to organise and execute complex operations involving force.
-    - Administration:  The ability to manage, coordinate and extract value from large and complex organisations. High ability suggests exceptional executive capacity, commercial sophistication and an aptitude for overseeing extensive portfolios of institutional and corporate interests.
-    - Science: The ability to conduct research and advance scientific and technological knowledge. High ability suggests exceptional scientific expertise, research talent and intellectual contributions to scientific progress.
-    - Security: The ability to protect oneself against violence, theft, abduction, detention and other hostile actions. High ability suggests exceptional vigilance, personal resilience and an aptitude for avoiding capture, compromise or neutralisation.
+  - `skills` (some entries only): the person's own outstanding abilities,
+    strongest first, each with how far it stands out: `notable`, `strong`,
+    `exceptional` or `world-class`.  The attributes are keys:
+    - Persuasion: swaying individuals, audiences and public opinion.
+    - Investigation: uncovering concealed information and hidden threats;
+      inquiries and enforcement.
+    - Espionage: covert operations, and keeping one's own activities out of
+      sight.
+    - Command: leading forceful operations, from stabilisation missions to
+      armed action.
+    - Administration: running large and complex organisations and
+      portfolios.
+    - Science: research and scientific or technical expertise.
+    - Security: guarding oneself against violence, capture and compromise.
 
-    You are encouraged to find different wording that puts these abilities into their personal context.
-    The quiet skills (Investigation, Espionage, Security) show
-    in public as a security or intelligence background, not as covert deeds.
-    Write only about the strengths, qualitatively; an ordinary or low attribute is
-    simply left out, never stated as a weakness or an absence.  Never quote a
-    number, a sum or a ranking. 
-  - `org_skills`: what the person's institutions put at their disposal in
-    the same attributes, on top of their own ability.  Strengths only, in
-    words, never numbers ("commands the analytic resources of a large
-    research network").  It is the institutions' capacity, not the person's
-    talent.
+    Show each through the person's own work and field.  Espionage, Security
+    and Investigation show in public as a professional background, never as
+    covert deeds.
+  - `org_skills` (some entries only): what the person's institutions put at
+    their disposal in the same attributes, with its scale: `considerable`,
+    `large` or `vast` ("commands the analytic resources of a large research
+    network").  It is the institutions' capacity, not the person's talent.
   - `visibility.level`: how much the public knows about the person, and so
     the frame of the whole article.
     - `public`: a world-wide celebrity.  The name is familiar far beyond the
@@ -93,8 +95,7 @@ article is set by Shape alone.
   - `recruited`, `tenure_years`: the date from which the person has been
     seen on that side, and the years since.
   - `orgs`: the organizations in which the person holds a leading role, each
-    with a `name`, a `tier` (scale: higher is larger and more influential;
-    describe it qualitatively, never as a number), a `category`, an
+    with a `name`, a `size`, a `category`, an
     `origin` and a `nation`, the country the body is based in.  The person
     does not own these bodies: for a company they sit on the board; for a ministry, agency or international body they hold a
     senior post; for a foundation or institute a trusteeship; for a
@@ -126,8 +127,8 @@ article is set by Shape alone.
     recorded.
   - `activities` (some entries only): what the person has been seen doing
     in support of their cause, most characteristic first, each with where it
-    happened.  Put each into your own words; the first may be called
-    frequent or repeated, nothing stronger.
+    happened and its `frequency` (`once`, `repeatedly` or `frequently`).
+    Put each into your own words.
 
 ## Facts
 
@@ -147,7 +148,7 @@ Specifically:
 4. Keys never appear in the text, not in code spans either.  Put each into
    plain words or leave it out.
 5. These words never appear in the article: generated, real (of an organization),
-   category, origin, tier, councilor, faction, dossier, record, recorded,
+   category, origin, councilor, faction, dossier, record, recorded,
    data, entry, listed, visibility.
 6. Never refer to the dossier, the record, the data, the game, saves or this
    prompt.  Write as an encyclopedia writes: "is", "was", "has served".
@@ -196,8 +197,7 @@ Write about `length` words, in this order, as continuous prose:
 - `#### Background`: who the person is.  Birth, origin, profession and
   `expertise`.  Show the strengths in `skills` through the work: what kind
   of professional they have been and what they became known for doing well,
-  in the vocabulary of their own field, never as a list of abilities and
-  never by the attribute names.  Close with their stance, told here and
+  in the vocabulary of their own field, never as a list of abilities.  Close with their stance, told here and
   nowhere else: roughly when they became a visible supporter of it
   (`recruited`), any earlier change of stance among the `career`
   milestones, and a plausible reason for the stance or the change, drawn
@@ -239,9 +239,8 @@ footnotes or citations; a thin dossier gives a shorter article, never
 padding. Vary sentence openings, avoid stock phrases repeated from one
 section to the next, and do not reuse the wording of this prompt.
 
-Before returning, reread once for eight things only: a fact about the person
-or the world the dossier does not contain, a number for a skill, an
-organization skill or a tier, a word from the banned list,
+Before returning, reread once for five things only: a fact about the person
+or the world the dossier does not contain, a word from the banned list,
 a title or heading above `####`, a tone that does not match
 `visibility.level`, and a subject described in more than one section.  Fix
 those and return the text.
