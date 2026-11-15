@@ -231,9 +231,11 @@ static file that works from disk with no network: pick a measure, slide its refe
 which takeover waves lose members, the level counts per type, and the real events on each side of each cut-off.
 Level counts also shows what moves: a band under each bar marks the events that rose or dropped into a level, and
 the exact changes stand beside it. Its rows are ordered by events, or by moves once the reference settles. Hover a
-bar, a segment, a band or a change for its six largest events; click it for the full list. The URL hash holds the
-whole state, so a reloaded page comes back as it was, and **Copy readout**
-copies the snippet, the shared paragraph and the hash, ready for `report --state`.
+bar, a segment, a band or a change for its six largest events; click it for the full list. Every list of events
+uses the same row: share, level, label, the level change, campaign and date, and the event type. Lists of several
+types show the type under the label; the cut-off rows show it on hover or focus. Click a type to filter by it. The
+URL hash holds the whole state, so a reloaded page comes back as it was, and **Copy readout** copies the snippet,
+the shared paragraph and the hash, ready for `report --state`.
 
 The page uses the same cache as `report`. A fresh cache opens at once. A stale one opens the old page at once,
 then rebuilds behind it: the page shows a banner while `status.js` says `rebuilding` and offers a reload when the

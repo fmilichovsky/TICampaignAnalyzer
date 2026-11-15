@@ -501,7 +501,7 @@
         );
         const list = el("ol", { class: "tide-rows" });
         for (let row = 0; row < 11; row += 1) {
-          list.append(el("li", { class: row === 5 ? "tide-cut" : "tide-row" }));
+          list.append(el("li", { class: row === 5 ? "tide-cut" : "event event-compact event-blank" }));
         }
         tide.append(list);
       }
@@ -966,7 +966,7 @@
       if (!cutoff) {
         figure.textContent = "—";
         caption.textContent = slot === 0 ? "No lower cut-off" : "No upper cut-off";
-        rows.forEach((row, i) => (i === 5 ? row.replaceChildren() : this.fillTideRow(row, null)));
+        rows.forEach((row, i) => (i === 5 ? row.replaceChildren() : this.fillEventRow(row, null, { compact: true })));
         tide.classList.add("tide-empty");
         return;
       }
@@ -983,35 +983,28 @@
       const below = [...cutoff.below].sort((a, b) => b.share - a.share);
       const neighbours = this.index.constants.neighbours;
       for (let i = 0; i < 5; i += 1) {
-        this.fillTideRow(rows[i], above[i - (Math.min(5, neighbours) - above.length)] || null, cutoff);
-        this.fillTideRow(rows[6 + i], below[i] || null, cutoff);
+        const top = above[i - (Math.min(5, neighbours) - above.length)];
+        this.fillEventRow(rows[i], top ? this.tideItem(top) : null, { compact: true });
+        this.fillEventRow(rows[6 + i], below[i] ? this.tideItem(below[i]) : null, { compact: true });
       }
       rows[5].replaceChildren(el("span", { class: "tide-cut-label", text: `${cutoff.above.length} above · ${cutoff.below.length} below shown` }));
     },
 
-    fillTideRow(row, item, cutoff) {
-      if (!item) {
-        row.className = "tide-row tide-row-blank";
-        row.replaceChildren(el("span", { class: "tide-share", text: "" }), el("span", { class: "tide-label", text: " " }));
-        row.removeAttribute("title");
-        return;
-      }
-      const table = this.tables[item.campaign];
-      const tableRow = table[this.positions[item.campaign].get(item.id)];
-      const dimmed = this.state.types.length > 0 && !this.state.types.includes(item.type);
-      row.className = `tide-row${dimmed ? " dim" : ""}`;
-      const moved = item.level !== item.oracle_level;
-      row.replaceChildren(
-        ...[
-        el("span", { class: "tide-share", text: fmt(item.share) }),
-        levelDot(item.level),
-        el("span", { class: "tide-label", text: tableRow ? labelOf(tableRow) : item.id }),
-        item.decisive ? null : this.citedBadge(item.campaign, tableRow, item.decided_by),
-        el("span", { class: `tide-change${moved ? " moved" : ""}`, text: moved ? `${levelShort(item.oracle_level)}→${levelShort(item.level)}` : levelShort(item.level) }),
-        el("span", { class: "tide-meta", text: `${item.campaign.slice(0, 4)} ${shortDate(tableRow && tableRow.date)}` }),
-        ].filter(Boolean),
-      );
-      row.title = `${tableRow ? labelOf(tableRow) : item.id}\n${item.type} · share ${item.share} · score ${item.score} · ${levelName(item.level)} (code: ${levelName(item.oracle_level)})\n${item.campaign} ${tableRow && tableRow.date ? tableRow.date.slice(0, 10) : ""}`;
+    // A cut-off neighbour as the shared row reads it.
+    tideItem(neighbour) {
+      const position = this.positions[neighbour.campaign].get(neighbour.id);
+      const row = this.tables[neighbour.campaign][position] || {
+        id: neighbour.id, type: neighbour.type, label: neighbour.id, level: neighbour.oracle_level, date: null, stakes: [],
+      };
+      return {
+        campaign: neighbour.campaign,
+        row,
+        level: neighbour.level,
+        decidedBy: neighbour.decided_by,
+        share: neighbour.share,
+        measure: this.focus,
+        score: neighbour.score,
+      };
     },
 
     citedBadge(campaign, row, decidedBy) {
@@ -1250,19 +1243,19 @@
 
     countList(type, level, full) {
       const items = this.typeEvents(type, (from, to) => to === level);
-      return { title: `${type} · ${levelName(level)}`, note: plural(items.length, "event"), items, full };
+      return { type, title: `${type} · ${levelName(level)}`, note: plural(items.length, "event"), items, full };
     },
 
     moveList(type, from, to, full) {
       const items = this.typeEvents(type, (was, now) => was === from && now === to);
-      return { title: `${type} · ${levelName(from)} → ${levelName(to)}`, note: plural(items.length, "event"), items, full };
+      return { type, title: `${type} · ${levelName(from)} → ${levelName(to)}`, note: plural(items.length, "event"), items, full };
     },
 
     arrivalList(type, level, direction, full) {
       const at = this.levels.indexOf(level);
       const rose = direction === "rise";
       const items = this.typeEvents(type, (was, now) => now === level && was !== level && this.levels.indexOf(was) < at === rose);
-      return { title: `${type} · ${rose ? "rose" : "dropped"} to ${levelName(level)}`, note: plural(items.length, "event"), items, full };
+      return { type, title: `${type} · ${rose ? "rose" : "dropped"} to ${levelName(level)}`, note: plural(items.length, "event"), items, full };
     },
 
     // --- References and drafts --------------------------------------------------------------------------------
@@ -1354,22 +1347,79 @@
         decidedBy: event ? event.decided_by : row.id,
         share: stake ? stake.share : null,
         measure: stake ? stake.measure : null,
+        score: event ? event.score : row.score,
       };
     },
 
-    eventLine(item) {
-      const moved = item.level !== item.row.level;
-      return el(
-        "li",
-        { class: "event", title: `${labelOf(item.row)}\n${item.row.id}` },
-        el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure ? `${item.measure} share ${item.share}` : "No stake of its own" }),
-        levelDot(item.level),
-        el("span", { class: "event-label", text: labelOf(item.row) }),
-        item.decidedBy !== item.row.id ? this.citedBadge(item.campaign, item.row, item.decidedBy) : null,
-        el("span", { class: `event-change${moved ? " moved" : ""}`, text: moved ? `${levelShort(item.row.level)}→${levelShort(item.level)}` : levelShort(item.level) }),
-        el("span", { class: "event-meta", text: `${item.campaign} ${shortDate(item.row.date)}` }),
-        item.note ? el("span", { class: "event-note", text: item.note }) : null,
+    // One event row, wherever the page lists events: the share (or —), the level dot, the label, the cited badge,
+    // the level change, campaign and date, then the type ID and any note. A compact row keeps to one line for the
+    // tide tables and shows its type over the label on hover or focus; a list row sets the type under the label,
+    // unless the list is of one type. The row is the target a later event inspector opens from (#490).
+    eventRow(item, options) {
+      return this.fillEventRow(el("li"), item, options);
+    },
+
+    fillEventRow(node, item, { compact = false, showType = true } = {}) {
+      node.onclick = null;
+      node.onkeydown = null;
+      if (!item) {
+        node.className = `event${compact ? " event-compact" : ""} event-blank`;
+        node.replaceChildren();
+        for (const name of ["title", "tabindex", "data-type", "data-id", "data-campaign"]) node.removeAttribute(name);
+        return node;
+      }
+      const { row, level } = item;
+      const label = labelOf(row);
+      const moved = level !== row.level;
+      const dimmed = this.state.types.length > 0 && !this.state.types.includes(row.type);
+      const only = this.state.types.length === 1 && this.state.types[0] === row.type;
+      const type = el("button", {
+        type: "button",
+        class: "event-type",
+        text: row.type,
+        title: only ? "Show every type" : `Filter by ${row.type}`,
+        "aria-pressed": String(only),
+        hidden: !showType,
+        onclick: (event) => {
+          event.stopPropagation();
+          this.setType(row.type);
+        },
+      });
+      const sub = compact ? [] : [showType ? type : null, item.note ? el("span", { class: "event-note", text: item.note }) : null].filter(Boolean);
+      node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}`;
+      node.tabIndex = 0;
+      node.dataset.type = row.type;
+      node.dataset.id = row.id;
+      node.dataset.campaign = item.campaign;
+      node.title = [
+        label,
+        `${row.type} · share ${item.share === null ? "—" : item.share}${item.score === undefined ? "" : ` · score ${item.score}`} · ${levelName(level)} (code: ${levelName(row.level)})`,
+        `${item.campaign} ${typeof row.date === "string" ? row.date.slice(0, 10) : ""}`.trim(),
+        row.id,
+      ].join("\n");
+      node.onclick = () => this.openEvent(node, item);
+      node.onkeydown = (event) => {
+        if (event.target !== node || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        this.openEvent(node, item);
+      };
+      node.replaceChildren(
+        ...[
+          el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No stake of its own" }),
+          levelDot(level),
+          el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), compact || !showType ? type : null),
+          item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null,
+          el("span", { class: `event-change${moved ? " moved" : ""}`, text: moved ? `${levelShort(row.level)}→${levelShort(level)}` : levelShort(level) }),
+          el("span", { class: "event-meta", text: `${compact ? item.campaign.slice(0, 4) : item.campaign} ${shortDate(row.date)}` }),
+          sub.length ? el("span", { class: "event-sub" }, ...sub) : null,
+        ].filter(Boolean),
       );
+      return node;
+    },
+
+    // The hook the event inspector (#490) listens for; nothing opens yet.
+    openEvent(node, item) {
+      node.dispatchEvent(new CustomEvent("ti-event-open", { bubbles: true, detail: { campaign: item.campaign, id: item.row.id } }));
     },
 
     // --- Copy -------------------------------------------------------------------------------------------------
@@ -1449,7 +1499,9 @@
       el("span", { class: "list-note", text: list.note }),
       list.full && onClose ? el("button", { type: "button", class: "quiet-button list-close", text: "Close", onclick: onClose }) : null,
     );
-    const items = el("ol", { class: `events${list.full ? " events-full" : ""}` }, ...shown.map((item) => App.eventLine(item)));
+    // A list of one type names it in the title, so its rows leave the type out.
+    const options = { showType: !list.type };
+    const items = el("ol", { class: `events${list.full ? " events-full" : ""}` }, ...shown.map((item) => App.eventRow(item, options)));
     const footer = rest > 0 ? el("p", { class: "list-more", text: `+${rest} more · click for the full list` }) : null;
     return el("div", { class: "list" }, head, items, footer);
   }
