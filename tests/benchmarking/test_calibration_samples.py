@@ -1,26 +1,50 @@
-"""The calibration table extracts every sample campaign with a consistent row schema, and replays to the pipeline."""
+"""The calibration table extracts every sample campaign with a consistent row schema, replays to the pipeline, and
+replays the same in the browser."""
 
 from __future__ import annotations
 
+from collections import Counter
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from tests.benchmarking.browser_replay import assert_replays_agree
 from tests.benchmarking.calibration_support import check_parity, check_rows
-from tests.samples import SAMPLES, save_paths
-from tinarrative.benchmarking.calibration.table import extract_campaign
-from tinarrative.benchmarking.manifest import prefix_of
+from tinarrative.benchmarking.calibration.replay import default_state, load
 
 pytestmark = pytest.mark.samples
 
 
-def test_a_sample_campaign_extracts_to_consistent_rows_that_replay_to_the_pipeline(
-    sample_campaign: Path, request: pytest.FixtureRequest
-) -> None:
-    if prefix_of(SAMPLES, request.node.callspec.params["sample_campaign"]) is not None:
-        pytest.skip("a prefix campaign is never extracted")
-
-    rows = extract_campaign(save_paths(sample_campaign))
+def test_a_sample_campaign_extracts_to_consistent_rows_that_replay_to_the_pipeline(calibration_table: Path) -> None:
+    _, tables = load(calibration_table)
+    [rows] = tables.values()
 
     check_rows(rows)
     check_parity(rows)
+
+
+@pytest.mark.browser_replay
+def test_replay_js_writes_the_json_of_replay_py_on_a_sample_campaign(calibration_table: Path) -> None:
+    index, tables = load(calibration_table)
+    [rows] = tables.values()
+    code = default_state(index)
+    references = code.references
+
+    def moved(**factors: float) -> dict[str, float]:
+        return {**references, **{measure: references[measure] * factor for measure, factor in factors.items()}}
+
+    others = {measure: 10**-0.5 for measure in references if measure != "power"}
+    common = Counter(row["type"] for row in rows if row["tier"] == "narrative").most_common(1)[0][0]
+    states = [
+        code,
+        replace(code, references={**references, "power": 0.002}),
+        replace(code, references=moved(power=10**0.5)),
+        replace(code, references=moved(power=10**-0.5)),
+        replace(code, references=moved(**others)),
+        replace(code, clamp=False),
+        replace(code, clamp=False, references=moved(power=10**-2)),
+        replace(code, types=(common,)),
+    ]
+
+    assert_replays_agree(calibration_table, states)

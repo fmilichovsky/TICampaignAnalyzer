@@ -2,15 +2,33 @@
 
 from __future__ import annotations
 
+import math
+import random
 from dataclasses import replace
 from typing import Any
 
 import pytest
 
-from tests.benchmarking.calibration_support import check_parity
+from tests.benchmarking.calibration_support import (
+    CODE,
+    CONSTANTS,
+    GATE,
+    GROUP,
+    INDEX,
+    INVALID_HASHES,
+    MEMBER,
+    POPULATION,
+    POWER,
+    base,
+    chain,
+    check_parity,
+    members,
+    power,
+    row,
+    with_oracle,
+)
 from tests.fixtures import fixture_path
 from tinarrative.benchmarking.calibration.replay import (
-    NEIGHBOURS,
     Replay,
     ReplayError,
     ReplayState,
@@ -18,58 +36,11 @@ from tinarrative.benchmarking.calibration.replay import (
     _js_number,
     cutoff_offsets,
     decode_state,
-    default_state,
     encode_state,
+    portable_log10,
     replay,
 )
-from tinarrative.benchmarking.calibration.table import build_index, extract_campaign
-
-INDEX = build_index(["one", "two"], key="", extracted_at="")
-CONSTANTS = INDEX["constants"]
-POWER = INDEX["measures"]["power"]["reference"]
-POPULATION = INDEX["measures"]["population"]["reference"]
-GATE = INDEX["member_gates"][0]
-GROUP = GATE["group_types"][0]
-MEMBER = GATE["member_type"]
-CODE = default_state(INDEX)
-
-
-def base(level: str) -> int:
-    low, high = CONSTANTS["level_bands"][level]
-    return (low + high) // 2
-
-
-def row(
-    id: str,
-    type: str = "atomic.thing",
-    *,
-    tier: str = "atomic",
-    level: str = "minor",
-    stakes: tuple[tuple[str, float], ...] = (),
-    cited: tuple[str, ...] = (),
-    entities: tuple[str, ...] = (),
-) -> dict[str, Any]:
-    return {
-        "id": id,
-        "type": type,
-        "tier": tier,
-        "interval": "i",
-        "date": None,
-        "label": id,
-        "base": base(level),
-        "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
-        "entities": [{"id": entity, "label": entity} for entity in entities],
-        "cited": list(cited),
-        "score": base(level),
-        "level": level,
-    }
-
-
-def with_oracle(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The rows with the code's replay as their oracle, as extraction would record it."""
-    events = replay(INDEX, {"one": rows}, replace(CODE, campaigns=("one",)))["campaigns"]["one"]["events"]
-    by_id = {event["id"]: event for event in events}
-    return [{**item, "score": by_id[item["id"]]["score"], "level": by_id[item["id"]]["level"]} for item in rows]
+from tinarrative.benchmarking.calibration.table import extract_campaign
 
 
 def run(rows: list[dict[str, Any]], **changes: Any) -> Replay:
@@ -79,10 +50,6 @@ def run(rows: list[dict[str, Any]], **changes: Any) -> Replay:
 
 def events(result: Replay) -> dict[str, dict[str, Any]]:
     return {event["id"]: dict(event) for event in result["campaigns"]["one"]["events"]}
-
-
-def power(scale: float) -> tuple[tuple[str, float], ...]:
-    return (("power", POWER * 10 ** (scale / 10)),)
 
 
 def test_the_replay_at_the_code_references_is_the_pipeline_on_the_fixture_sequence() -> None:
@@ -123,20 +90,6 @@ def test_a_stake_with_several_candidates_takes_the_highest_scale() -> None:
     assert events(run(rows))["both"]["score"] == base("minor") + 10
 
 
-def chain() -> list[dict[str, Any]]:
-    """A population-staked atomic row, cited by a power-staked layer 1 row, up a 3-deep narrative chain."""
-    layers = INDEX["layers"]
-    first, second, third = (next(name for name, number in layers.items() if number == n) for n in (1, 2, 3))
-    return with_oracle(
-        [
-            row("land", stakes=(("population", POPULATION * 10),)),
-            row("deal", first, tier="narrative", level="trivial", stakes=power(-10), cited=("land",)),
-            row("grow", second, tier="narrative", level="trivial", cited=("deal",)),
-            row("arc", third, tier="narrative", level="trivial", cited=("grow",)),
-        ]
-    )
-
-
 def test_a_cited_row_of_another_measure_decides_the_level_down_the_chain() -> None:
     rows = chain()
     lowered = {**CODE.references, "population": POPULATION / 10**0.5}
@@ -170,31 +123,6 @@ def test_a_citation_of_an_unknown_row_is_rejected() -> None:
 
     with pytest.raises(ReplayError, match="gone"):
         run(rows)
-
-
-def members(faction: str, scales: list[float]) -> list[dict[str, Any]]:
-    """A group of the gate over one member per scale, each taking its own nation."""
-    group_members = [
-        row(
-            f"{faction}-{number}",
-            MEMBER,
-            tier="narrative",
-            level="major",
-            stakes=power(scale),
-            entities=(faction, f"{faction}-nation-{number}"),
-        )
-        for number, scale in enumerate(scales)
-    ]
-    nations = tuple(f"{faction}-nation-{number}" for number in range(len(scales)))
-    group = row(
-        f"{faction}-group",
-        GROUP,
-        tier="narrative",
-        level="major",
-        cited=tuple(item["id"] for item in group_members),
-        entities=(faction, *nations),
-    )
-    return [*group_members, group]
 
 
 def test_each_member_verdict_follows_the_admitted_levels_and_the_minimum() -> None:
@@ -289,18 +217,28 @@ def test_without_the_clamp_further_cut_offs_appear_only_where_data_lies_beyond_t
 
 def test_a_cut_off_lists_the_nearest_events_on_each_side_and_flags_those_a_cited_row_decided() -> None:
     low = cutoff_offsets(CONSTANTS, clamp=True)[0]
-    rows = [row(f"near-{n}", stakes=power(10 * low - 0.1 * (n + 1))) for n in range(NEIGHBOURS + 2)]
+    rows = [row(f"near-{n}", stakes=power(10 * low - 0.1 * (n + 1))) for n in range(CONSTANTS["neighbours"] + 2)]
     rows.append(row("inside", stakes=power(10 * low + 0.1)))
     rows.extend(chain())
 
     cutoff = run(rows)["cutoffs"]["power"][0]
 
-    assert [item["id"] for item in cutoff["below"]] == [f"near-{n}" for n in range(NEIGHBOURS)]
+    assert [item["id"] for item in cutoff["below"]] == [f"near-{n}" for n in range(CONSTANTS["neighbours"])]
     assert cutoff["above"][0]["id"] == "inside"
     deal = next(item for item in cutoff["above"] if item["id"] == "deal")
     assert deal["decisive"] is False
     assert deal["decided_by"] == "land"
     assert all(item["distance"] >= 0 for item in cutoff["below"] + cutoff["above"])
+
+
+def test_the_portable_log10_is_within_an_ulp_of_the_platform_and_exact_on_powers_of_ten() -> None:
+    rng = random.Random(461)
+    values = [10 ** rng.uniform(-300, 300) for _ in range(20000)] + [5e-324, 1e-310, 1.0, 1 + 2**-30]
+
+    assert all(abs(portable_log10(value) - math.log10(value)) <= math.ulp(math.log10(value)) for value in values)
+    assert [portable_log10(10.0**power) for power in range(-20, 23)] == list(range(-20, 23))
+    assert portable_log10(0.0) == -math.inf
+    assert math.isnan(portable_log10(-1.0))
 
 
 # --- State codec ----------------------------------------------------------------------------------------
@@ -350,28 +288,7 @@ def test_a_number_is_written_as_javascript_writes_it(value: float, text: str) ->
     assert _js_number(value) == text
 
 
-@pytest.mark.parametrize(
-    ("text", "message"),
-    [
-        ("speed=1", "unknown state hash key 'speed'"),
-        ("clamp=off&clamp=on", "'clamp' is repeated"),
-        ("clamp", "not key=value"),
-        ("clamp=maybe", "on or off"),
-        ("ref=warp:0.1", "unknown measure 'warp'"),
-        ("ref=power:0.1,power:0.2", "'power' is repeated"),
-        ("ref=power:0", "positive number"),
-        ("ref=power:-1", "positive number"),
-        ("ref=power:1e999", "positive number"),
-        ("ref=power:1_0", "positive number"),
-        ("ref=power", "measure:number"),
-        ("ref=", "lists no reference"),
-        ("campaigns=three", "unknown campaign"),
-        ("campaigns=one,one", "repeated"),
-        ("types=war.arc,war.arc", "repeated"),
-        ("types=", "lists no type"),
-        ("focus=warp", "unknown focus measure"),
-    ],
-)
+@pytest.mark.parametrize(("text", "message"), INVALID_HASHES)
 def test_an_invalid_hash_fails_with_a_clear_error(text: str, message: str) -> None:
     with pytest.raises(ReplayStateError, match=message):
         decode_state(text, INDEX)

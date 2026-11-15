@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 import re
+import struct
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -15,13 +16,8 @@ from pathlib import Path
 from typing import Any, Final, Literal, TypedDict
 
 from tinarrative.benchmarking.calibration.table import read_campaign, read_index
-from tinarrative.model.events import Significance
 
 SCHEMA_VERSION: Final = 1
-NEIGHBOURS: Final = 5
-"""Events listed on each side of a cut-off."""
-PACKAGE_LEVEL: Final = Significance.MAJOR.value
-"""The lowest level of a narrative event the narrator package carries."""
 STATE_KEYS: Final = ("ref", "clamp", "campaigns", "types", "focus")
 """The hash keys, in the order ``encode_state`` writes them."""
 
@@ -99,7 +95,7 @@ class Totals(TypedDict):
     events_moved: int
     """Rows whose level differs from the oracle's; a group that falls apart is not counted."""
     package: Package
-    """Narrative rows at ``PACKAGE_LEVEL`` or above."""
+    """Narrative rows at the index's ``package_level`` or above."""
     members_changed: int
     """Groups that lose members or fall apart."""
 
@@ -231,7 +227,7 @@ def replay(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], state:
             }
             for name in state.campaigns
         },
-        "totals": _totals(every, levels),
+        "totals": _totals(every, levels, constants["package_level"]),
         "moves": _moves(every, levels),
         "cutoffs": {measure: _cutoffs(measure, state, constants, selected) for measure in index["measures"]},
     }
@@ -335,7 +331,7 @@ def _scale(share: float, reference: float, clamp: bool, constants: Mapping[str, 
     low, high = int(constants["scale_min"]), int(constants["scale_max"])
     if share <= 0:
         return low if clamp else None
-    scale = round(10 * math.log10(share / reference))
+    scale = round(10 * portable_log10(share / reference))
     return max(low, min(high, scale)) if clamp else scale
 
 
@@ -375,8 +371,8 @@ def _level_counts(items: Sequence[_Scored], levels: Sequence[str]) -> dict[str, 
     }
 
 
-def _totals(items: Sequence[_Scored], levels: Sequence[str]) -> Totals:
-    package = levels[levels.index(PACKAGE_LEVEL) :]
+def _totals(items: Sequence[_Scored], levels: Sequence[str], package_level: str) -> Totals:
+    package = levels[levels.index(package_level) :]
     narrative = [item for item in items if item.row["tier"] == "narrative"]
     replayed = sum(1 for item in narrative if item.level in package and not _fallen(item))
     baseline = sum(1 for item in narrative if item.row["level"] in package)
@@ -449,21 +445,21 @@ def _cutoffs(
         above: list[Neighbour] = []
         for name, item, share in candidates:
             side = below if share < cut or (share == cut and offset > 0) else above
-            side.append(_neighbour(name, item, share, abs(math.log10(share / cut))))
+            side.append(_neighbour(name, item, share, abs(portable_log10(share / cut))))
         result.append(
             {
                 "offset": offset,
                 "share": cut,
-                "below": _nearest(below, state.campaigns),
-                "above": _nearest(above, state.campaigns),
+                "below": _nearest(below, state.campaigns, constants["neighbours"]),
+                "above": _nearest(above, state.campaigns, constants["neighbours"]),
             }
         )
     return result
 
 
-def _nearest(side: list[Neighbour], campaigns: Sequence[str]) -> list[Neighbour]:
+def _nearest(side: list[Neighbour], campaigns: Sequence[str], neighbours: int) -> list[Neighbour]:
     ranked = sorted(side, key=lambda item: (item["distance"], campaigns.index(item["campaign"]), item["id"]))
-    return ranked[:NEIGHBOURS]
+    return ranked[:neighbours]
 
 
 def _candidate(row: Row, measure: str) -> float | None:
@@ -485,9 +481,108 @@ def _neighbour(campaign: str, item: _Scored, share: float, distance: float) -> N
     }
 
 
+# --- Portable log10 ---------------------------------------------------------------------------------------
+# fdlibm 5.3's __ieee754_log10 and __ieee754_log, from basic IEEE operations only. Every libm (and every JavaScript
+# engine) rounds log10 its own way, so ``replay.js`` carries the same port: the two replays then agree to the bit on
+# every machine. It stays within 1 ulp of a correctly rounded log10.
+
+_TWO54: Final = 1.80143985094819840000e16
+_LN2_HI: Final = 6.93147180369123816490e-01
+_LN2_LO: Final = 1.90821492927058770002e-10
+_LG = (
+    6.666666666666735130e-01,
+    3.999999999940941908e-01,
+    2.857142874366239149e-01,
+    2.222219843214978396e-01,
+    1.818357216161805012e-01,
+    1.531383769920937332e-01,
+    1.479819860511658591e-01,
+)
+_IVLN10: Final = 4.34294481903251816668e-01
+_LOG10_2HI: Final = 3.01029995663611771306e-01
+_LOG10_2LO: Final = 3.69423907715893078616e-13
+
+
+def _words(x: float) -> tuple[int, int]:
+    """The signed high and the unsigned low 32-bit word of ``x``."""
+    bits: int = struct.unpack("<q", struct.pack("<d", x))[0]
+    return bits >> 32, bits & 0xFFFFFFFF
+
+
+def _with_high(x: float, high: int) -> float:
+    """``x`` with its high word replaced."""
+    _, low = _words(x)
+    result: float = struct.unpack("<d", struct.pack("<Q", ((high & 0xFFFFFFFF) << 32) | low))[0]
+    return result
+
+
+def _log(x: float) -> float:
+    """fdlibm's ``__ieee754_log`` for a positive normal ``x``, as ``portable_log10`` calls it."""
+    hx, _ = _words(x)
+    k = (hx >> 20) - 1023
+    hx &= 0x000FFFFF
+    i = (hx + 0x95F64) & 0x100000
+    x = _with_high(x, hx | (i ^ 0x3FF00000))
+    k += i >> 20
+    f = x - 1.0
+    if (0x000FFFFF & (2 + hx)) < 3:
+        if f == 0.0:
+            if k == 0:
+                return 0.0
+            dk = float(k)
+            return dk * _LN2_HI + dk * _LN2_LO
+        r = f * f * (0.5 - 0.33333333333333333 * f)
+        if k == 0:
+            return f - r
+        dk = float(k)
+        return dk * _LN2_HI - ((r - dk * _LN2_LO) - f)
+    lg1, lg2, lg3, lg4, lg5, lg6, lg7 = _LG
+    s = f / (2.0 + f)
+    dk = float(k)
+    z = s * s
+    i = hx - 0x6147A
+    w = z * z
+    j = 0x6B851 - hx
+    t1 = w * (lg2 + w * (lg4 + w * lg6))
+    t2 = z * (lg1 + w * (lg3 + w * (lg5 + w * lg7)))
+    i |= j
+    r = t2 + t1
+    if i > 0:
+        hfsq = 0.5 * f * f
+        if k == 0:
+            return f - (hfsq - s * (hfsq + r))
+        return dk * _LN2_HI - ((hfsq - (s * (hfsq + r) + dk * _LN2_LO)) - f)
+    if k == 0:
+        return f - s * (f - r)
+    return dk * _LN2_HI - ((s * (f - r) - dk * _LN2_LO) - f)
+
+
+def portable_log10(x: float) -> float:
+    """``log10(x)`` computed the same way in ``replay.js``: ``-inf`` at 0, NaN below, ``x`` for inf and NaN."""
+    hx, lx = _words(x)
+    k = 0
+    if hx < 0x00100000:
+        if ((hx & 0x7FFFFFFF) | lx) == 0:
+            return -math.inf
+        if hx < 0:
+            return math.nan
+        k -= 54
+        x *= _TWO54
+        hx, _ = _words(x)
+    if hx >= 0x7FF00000:
+        return x + x
+    k += (hx >> 20) - 1023
+    i = 1 if k < 0 else 0
+    hx = (hx & 0x000FFFFF) | ((0x3FF - i) << 20)
+    y = float(k + i)
+    x = _with_high(x, hx)
+    z = y * _LOG10_2LO + _IVLN10 * _log(x)
+    return z + y * _LOG10_2HI
+
+
 # --- State codec ------------------------------------------------------------------------------------------
 
-_NUMBER = re.compile(r"(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?")
+_NUMBER = re.compile(r"(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?", re.ASCII)
 _NAME = re.compile(r"[A-Za-z0-9._-]+")
 
 

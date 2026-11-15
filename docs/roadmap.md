@@ -83,7 +83,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Public rule layers and the takeover wave member gate (#459).
   - [x] Calibration table extraction (#460).
   - [x] Calibration replay in Python, with pipeline parity (#461).
-  - [ ] Calibration replay in the browser, with parity against Python (#462).
+  - [x] Calibration replay in the browser, with parity against Python (#462).
   - [ ] `benchmark calibrate report` and the calibration cache (#463).
   - [ ] Calibration page and `benchmark calibrate open` (#464).
   - [ ] Draft stakes: declaration, scoring seam and shadow rows (#465).

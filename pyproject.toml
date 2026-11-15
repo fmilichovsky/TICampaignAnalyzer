@@ -47,9 +47,10 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-addopts = ["--strict-markers", "-m", "not samples", "-p", "no:cacheprovider"]
+addopts = ["--strict-markers", "-m", "not samples and not browser_replay", "-p", "no:cacheprovider"]
 markers = [
   "samples: test reads the committed benchmark campaigns in benchmarks/samples/; excluded from the default run, run with make samples",
+  "browser_replay: test runs replay.js in Node; excluded from the default run, run with make browser-replay-check",
 ]
 
 [tool.hatch.build.targets.wheel]

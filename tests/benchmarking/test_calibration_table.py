@@ -110,6 +110,8 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
     assert index["layers"] and min(index["layers"].values()) >= 1
     assert index["constants"]["score_min"] == 0
     assert index["constants"]["score_max"] == 100
+    assert index["constants"]["neighbours"] == 5
+    assert index["constants"]["package_level"] in index["constants"]["level_bands"]
 
 
 def test_extraction_writes_the_index_and_skips_a_prefix_campaign(tmp_path: Path) -> None:
