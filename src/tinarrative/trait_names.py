@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 KEPT_GROUPS = ("temperament", "expertise", "reputation", "circumstance", "affiliation")
-"""The groups a dossier carries, in the order it lists them; an uncatalogued trait follows them as ``other``."""
+"""The groups the public can see, in the order the dossier lists them; the withheld groups and then ``other`` (an
+uncatalogued trait) follow them."""
 WITHHELD_GROUPS = frozenset({"implant", "hidden"})
-"""The groups a dossier never carries: the public cannot see them."""
+"""The groups the councilor brief never carries: the public cannot see them. The dossier keeps them for audit."""
 
 _BY_GROUP: dict[str, tuple[tuple[str, str], ...]] = {
     "temperament": (

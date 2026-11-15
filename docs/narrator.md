@@ -69,13 +69,14 @@ councilor brief per request, the dossier's date and one councilor's entry
 without the dossier's audit fields, and asks for
 a neutral encyclopedia entry: a lead, then background, career and public
 profile, at the length `councilors.article_words` sets. Its rules answer the
-brief's shape: keys become prose, skills and tiers are described
-qualitatively and never as numbers, pronouns come from the dossier's gender,
+brief's shape: keys become prose, the brief carries abilities, organization
+sizes and activity frequencies already as words (strengths only, an ordinary
+ability is absent), pronouns come from the dossier's gender,
 organizations are leading roles rather than possessions and only the significant
 ones are named, the faction reaches the model only as a stance, an outlook the
 public places the person in rather than a membership, explained by the prompt's
 own stance briefs, a list of giveaway words is banned from the text, and loyalty
-or hidden allegiance is never mentioned (the dossier never carries it either). The
+or hidden allegiance is never mentioned (neither the dossier nor the brief carries it). The
 dossier's visibility level frames the article as a celebrity's, a private person's or a
 near-rumor's. As with the history prompt, stable
 geography is allowed and campaign facts from outside the dossier are not. That

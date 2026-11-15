@@ -8,3 +8,4 @@ save.
 | --- | --- | --- | --- |
 | [factions/](factions/) | [Factions: Human Factions](https://wiki.hoodedhorse.com/Terra_Invicta/Factions#Human_Factions) | 2026-10-20 | One file per human faction (ideology, goal, leader, relations); cleaned up and split, faithful to the source in content |
 | [org-names.txt](org-names.txt) | [TIOrgTemplate_EN](https://wiki.hoodedhorse.com/Terra_Invicta/TIOrgTemplate_EN) | 2026-11-10 | The organization display names (`TIOrgTemplate.displayName.<templateName>=<name>`), copied as-is with the game's own `//` comments |
+| [trait-templates.csv](trait-templates.csv) | [TITraitTemplate_CSV](https://wiki.hoodedhorse.com/Terra_Invicta/TITraitTemplate_CSV) | 2026-11-15 | The councilor trait templates as the wiki exports them, columns in its own order; the dossier's `SKILL_MODS`, `DETECTION_BONUS` and `EASILY_VISIBLE` are read from it by hand |

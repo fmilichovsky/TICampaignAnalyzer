@@ -12,11 +12,12 @@ from collections.abc import Mapping
 from typing import Any
 
 from ..analyzers.politics.councilors import DETAINING_FACTION_CHANGED, FACTION_CHANGED
-from ..trait_names import TRAITS
+from ..narrative.councilors import SKILLS
+from ..trait_names import TRAITS, WITHHELD_GROUPS
 
 HEADER_KEYS = ("as_of",)
 """The dossier header the brief keeps; ``source``, ``player_faction``, ``factions`` and ``selection`` are audit data."""
-AUDIT_KEYS = frozenset({"id", "player", "xp", "prominence"})
+AUDIT_KEYS = frozenset({"id", "player", "xp", "prominence", "trait_skills"})
 """Entry fields the brief drops."""
 VISIBILITY_AUDIT_KEYS = frozenset({"concealment", "easily_visible", "low_profile"})
 ORG_AUDIT_KEYS = frozenset({"id", "template", "basis"})
@@ -73,6 +74,22 @@ TRAIT_PHRASES = {
 """A plain phrase for each trait whose game label a model would quote as a term or misread, by template name. It
 holds only what the public would see of the game's description (``TITraitTemplate.description.<template>``); every
 other trait reaches the brief as its display name in lower case."""
+
+SKILL_BANDS = ((22, "world-class"), (17, "exceptional"), (12, "strong"), (8, "notable"))
+"""A personal ability (attribute plus trait points, 0-25) by its floor; below the lowest it is ordinary and left out.
+Fixed, so an early-game councilor reads plainer than a late-game one. Calibrated on the private Protectorate (2026,
+2032) and Resist (2046) campaigns: a fresh councilor's best attribute is about 8-13, a veteran's up to 25."""
+ORG_SKILL_BANDS = ((16, "vast"), (10, "large"), (5, "considerable"))
+"""What the councilor's organizations put at their disposal, by the floor of the summed bonus; most bonuses are 0
+and late-game Administration bonuses run 10-24."""
+STRENGTHS_MAX = 3
+"""The most strengths of each kind the brief lists, strongest first."""
+ORG_SIZES = ((3, "large"), (2, "mid-sized"), (1, "small"))
+"""An organization's size by the floor of its tier; the saves show tiers 1-3."""
+FREQUENCIES = ((5, "frequently"), (2, "repeatedly"), (1, "once"))
+"""How often an activity was seen, by the floor of its successes in the logged sample. Five in the window is
+frequent even with full log coverage; a single success reaches the brief only as the councilor's one activity."""
+SKILL_MAX = 25
 
 DETENTION_LINES = {"set": "detained", "cleared": "released", "changed": "transferred to other captors"}
 """A detention milestone by its transition; the captor is never named."""
@@ -241,6 +258,13 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
             value = _profession(value)
         elif key == "traits" and isinstance(value, Mapping):
             value = _traits(value)
+        elif key in ("skills", "org_skills"):
+            strengths = (
+                _strengths(_personal(entry), SKILL_BANDS) if key == "skills" else _strengths(value, ORG_SKILL_BANDS)
+            )
+            if strengths:
+                councilor[key] = strengths
+            continue
         elif key == "policy_influence" and isinstance(value, Mapping):
             value = _policy_influence(value)
         elif key == "missions":
@@ -267,9 +291,51 @@ def councilor_brief(dossier: Mapping[str, Any], entry: Mapping[str, Any]) -> dic
     return {**{key: dossier.get(key) for key in HEADER_KEYS}, "councilor": councilor}
 
 
+def _personal(entry: Mapping[str, Any]) -> dict[str, int]:
+    """The attribute plus the traits' points, within the game's 0-25: the ability the game shows."""
+    skills, traits = entry.get("skills"), entry.get("trait_skills")
+    skills = skills if isinstance(skills, Mapping) else {}
+    traits = traits if isinstance(traits, Mapping) else {}
+    return {
+        name: max(0, min(SKILL_MAX, _int(skills.get(name)) + _int(traits.get(name))))
+        for name in SKILLS
+        if name in skills or name in traits
+    }
+
+
+def _strengths(values: object, bands: tuple[tuple[int, str], ...]) -> dict[str, str]:
+    """The strongest attributes that reach a band, at most ``STRENGTHS_MAX``, as game name to band word; the councilor
+    prompt describes each attribute, so the model words it rather than copying a phrase."""
+    if not isinstance(values, Mapping):
+        return {}
+    ranked = sorted(((name, _int(values[name])) for name in SKILLS if name in values), key=lambda i: -i[1])
+    found: dict[str, str] = {}
+    for name, value in ranked:
+        word = _band(value, bands)
+        if word is None or len(found) == STRENGTHS_MAX:
+            break
+        found[name] = word
+    return found
+
+
+def _band(value: int, bands: tuple[tuple[int, str], ...]) -> str | None:
+    return next((word for floor, word in bands if value >= floor), None)
+
+
+def _int(value: object) -> int:
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
 def _org(org: Mapping[str, Any]) -> dict[str, Any]:
-    """``org`` without audit fields and under its public alias, when it has one."""
-    kept = _without(org, ORG_AUDIT_KEYS)
+    """``org`` without audit fields, its tier as a size and under its public alias, when it has one."""
+    kept: dict[str, Any] = {}
+    for key, value in _without(org, ORG_AUDIT_KEYS).items():
+        if key == "tier":
+            size = _band(value, ORG_SIZES) if isinstance(value, int) and not isinstance(value, bool) else None
+            if size is not None:
+                kept["size"] = size
+            continue
+        kept[key] = value
     template = org.get("template")
     alias = ORG_ALIASES.get(template) if isinstance(template, str) else None
     if alias is not None:
@@ -286,7 +352,7 @@ def _profession(value: object) -> str | None:
 def _traits(value: Mapping[str, Any]) -> dict[str, list[str]]:
     result: dict[str, list[str]] = {}
     for group, templates in value.items():
-        if not isinstance(group, str) or not isinstance(templates, list):
+        if not isinstance(group, str) or group in WITHHELD_GROUPS or not isinstance(templates, list):
             continue
         names = [_trait(template) for template in templates if isinstance(template, str)]
         if names:
@@ -322,8 +388,9 @@ def _policy_influence(value: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _activities(missions: Mapping[str, Any]) -> list[str]:
-    """The phrased mission types in rank order, each with its places; a type seen once only when it stands alone."""
+def _activities(missions: Mapping[str, Any]) -> list[dict[str, str]]:
+    """The phrased mission types in rank order, each with its places and how often it was seen; a type seen once only
+    when it stands alone."""
     phrased = [
         (MISSION_PHRASES[item["mission"]], item)
         for item in missions.get("types", ())
@@ -331,7 +398,14 @@ def _activities(missions: Mapping[str, Any]) -> list[str]:
     ]
     if len(phrased) > 1:
         phrased = [(phrase, item) for phrase, item in phrased if item.get("count") != 1]
-    return [_activity(phrase, preposition, _places(item, scope)) for (phrase, preposition, scope), item in phrased]
+    activities = []
+    for (phrase, preposition, scope), item in phrased:
+        activity = {"activity": _activity(phrase, preposition, _places(item, scope))}
+        frequency = _band(_int(item.get("count")), FREQUENCIES)
+        if frequency is not None:
+            activity["frequency"] = frequency
+        activities.append(activity)
+    return activities
 
 
 def _places(item: Mapping[str, Any], scope: str) -> list[str]:

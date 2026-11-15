@@ -25,8 +25,8 @@ from .prominence import organization_shares, total
 from .trait_catalog import (
     DETECTION_BONUS,
     EASILY_VISIBLE,
-    ESPIONAGE_MODS,
     LOW_PROFILE,
+    SKILL_MODS,
 )
 
 CAREER_EVENT_TYPES = frozenset(
@@ -35,7 +35,8 @@ CAREER_EVENT_TYPES = frozenset(
 SKILLS = ("Persuasion", "Investigation", "Espionage", "Command", "Administration", "Science", "Security")
 """The councilor attributes a dossier carries; ``Loyalty`` and ``ApparentLoyalty`` are never emitted."""
 SKILL_CAP = 25
-"""The game's limit on a councilor attribute: personal value and organization bonuses together."""
+"""The game's limit on the attribute a mission uses: personal value and organization bonuses together. Organizations
+keep adding above it, so ``org_skills`` is not capped; only what the game would use is."""
 POLICY_FIELDS = (
     "economyBonus",
     "welfareBonus",
@@ -213,7 +214,7 @@ def _candidates(
                 tenure_days=(now - recruited).days,
                 org_share=total(org_shares, (org.org_id for org in orgs)),
                 skill_sum=sum(skills.values()),
-                org_skill_sum=sum(_org_skills(orgs, skills).values()),
+                org_skill_sum=sum(_org_skills(orgs).values()),
                 xp=_int(state.get("XP")),
             )
         )
@@ -260,7 +261,8 @@ def _entry(
         "gender": _gender(state.get("gender")),
         "traits": _traits(state.get("traitTemplateNames")),
         "skills": skills,
-        "org_skills": _org_skills(orgs, skills),
+        "trait_skills": _trait_skills(state.get("traitTemplateNames")),
+        "org_skills": _org_skills(orgs),
         "xp": candidate.xp,
         "born": to_jsonable(state.get("dateBorn")),
         "age": None if born is None or now is None else _years(now, born),
@@ -269,7 +271,7 @@ def _entry(
         "tenure_years": round(candidate.tenure_days / DAYS_PER_YEAR, 1),
         "orgs": [_org_entry(lookup, org) for org in orgs],
         "policy_influence": _policy_influence(orgs),
-        "visibility": _visibility(state.get("traitTemplateNames"), skills, _org_skills(orgs, skills)),
+        "visibility": _visibility(state.get("traitTemplateNames"), skills, _org_skills(orgs)),
         "prominence": {
             "org_share": float(f"{candidate.org_share:.{SHARE_DIGITS}g}"),
             "skill_sum": candidate.skill_sum,
@@ -284,15 +286,27 @@ def _entry(
 
 
 def _traits(value: Observed) -> dict[str, list[str]]:
-    """Game template names of the public traits by group."""
+    """Game template names of all traits by group; the councilor brief withholds the groups the public cannot see."""
     grouped: dict[str, list[str]] = {}
-    for template in value if isinstance(value, tuple) else ():
-        if not isinstance(template, str) or not template:
-            continue
+    for template in _templates(value):
         group, _ = TRAITS.get(template, ("other", template))
-        if group not in WITHHELD_GROUPS:
-            grouped.setdefault(group, []).append(template)
-    return {group: grouped[group] for group in (*KEPT_GROUPS, "other") if group in grouped}
+        grouped.setdefault(group, []).append(template)
+    return {group: grouped[group] for group in (*KEPT_GROUPS, *sorted(WITHHELD_GROUPS), "other") if group in grouped}
+
+
+def _templates(value: Observed) -> list[str]:
+    return [item for item in value if isinstance(item, str) and item] if isinstance(value, tuple) else []
+
+
+def _trait_skills(value: Observed) -> dict[str, int]:
+    """The attribute points the councilor's traits add on top of ``skills`` (``SKILL_MODS``); a zero sum is left out."""
+    templates = _templates(value)
+    found: dict[str, int] = {}
+    for name in SKILLS:
+        points = sum(SKILL_MODS.get(template, {}).get(name, 0) for template in templates)
+        if points:
+            found[name] = points
+    return found
 
 
 def _visibility(value: Observed, skills: Mapping[str, int], org_skills: Mapping[str, int]) -> dict[str, Any]:
@@ -301,9 +315,9 @@ def _visibility(value: Observed, skills: Mapping[str, int], org_skills: Mapping[
     The score (``concealment``) is the espionage the game detects against plus the traits' detection bonuses, those
     of public profile weighted up. The flags preserve the two traits that adjust its interpretation.
     """
-    templates = [item for item in value if isinstance(item, str)] if isinstance(value, tuple) else []
+    templates = _templates(value)
     espionage = skills.get("Espionage", 0) + org_skills.get("Espionage", 0)
-    espionage = min(SKILL_CAP, espionage + sum(ESPIONAGE_MODS.get(template, 0) for template in templates))
+    espionage = min(SKILL_CAP, espionage + _trait_skills(value).get("Espionage", 0))
     concealment = espionage + sum(_visibility_weight(template) for template in templates)
     return {
         "concealment": concealment,
@@ -353,17 +367,16 @@ def _orgs(lookup: Lookup, state: EntityState) -> list[_Org]:
     return found
 
 
-def _org_skills(orgs: list[_Org], skills: Mapping[str, int]) -> dict[str, int]:
-    """The skill bonuses of the councilor's organizations, capped so that ``skills`` plus them never exceed the cap.
+def _org_skills(orgs: list[_Org]) -> dict[str, int]:
+    """The summed skill bonuses of the councilor's organizations, uncapped: what they put at the councilor's disposal.
 
     ``attributes`` leaves organization bonuses out, so the two add up.
     """
     found: dict[str, int] = {}
     for name in SKILLS:
         bonus = sum(_int(org.state.get(name.lower())) for org in orgs if org.state is not None)
-        capped = min(bonus, max(0, SKILL_CAP - skills.get(name, 0)))
-        if capped:
-            found[name] = capped
+        if bonus:
+            found[name] = bonus
     return found
 
 
