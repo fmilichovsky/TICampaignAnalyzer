@@ -845,7 +845,8 @@ def test_a_federation_lifecycle_lists_its_member_timeline_and_is_objective() -> 
     ]  # type: ignore[union-attr]
     assert len(shift_ids(lifecycle)) == 1
     assert describe_event(lifecycle) == (
-        "Union (federation:60) members [Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
+        "Union (federation:60) members: net +Southland (nation:21), -Northland (nation:20); "
+        "[Northland (nation:20)] -> [Southland (nation:21)] (2 member changes)"
     )
 
 
