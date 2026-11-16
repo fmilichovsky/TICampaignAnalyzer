@@ -226,30 +226,10 @@ tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [
 ```
 <!-- end generated -->
 
-Writes the stake calibration page into `--out`, prints its path and opens it in the default browser. The page is a
-static file that works from disk with no network: pick a measure, slide its reference, and see the three totals,
-which takeover waves lose members, the level counts per type, and the real events on each side of each cut-off.
-Level counts also shows what moves: a band under each bar marks the events that rose or dropped into a level, and
-the exact changes stand beside it. Its rows are ordered by events, or by moves once the reference settles. Hover a
-bar, a segment, a band or a change for its six largest events; click it for the full list. Every list of events
-uses the same row: share, level, label, the level change, campaign and date, and the event type. Lists of several
-types show the type under the label. Under each cut-off, a line lists the types of its rows, or the type of the row
-under the pointer or in focus. Click a type to filter by it. Click an event row, or press Enter on it, to open the
-event inspector: a drawer on the right with the full label, type, tier, campaign, date, interval and event ID; the
-level now against the code's, the score and the base; every stake, with the focused measure in bold and its share set against the current reference and window; the entities;
-and, for a narrative event, its cited constituents. When a cited event sets the level, the inspector names it with
-its stake. The level, score and deciding event follow the slider. A cited or deciding event opens in the inspector
-when you click it, and **Back** returns along the way you came. A full list stays open beside the inspector, with the
-inspected row marked, so you can open its events one after another. **Close** or Escape closes the inspector and
-returns focus to the row, or to what opened the list. The inspected event is not part of the URL hash. The
-URL hash holds the whole state, so a reloaded page comes back as it was, and **Copy readout** copies the snippet,
-the shared paragraph and the hash, ready for `report --state`.
-
-The page uses the same cache as `report`. A fresh cache opens at once. A stale one opens the old page at once,
-then rebuilds behind it: the page shows a banner while `status.js` says `rebuilding` and offers a reload when the
-new table is ready, or shows the message when the rebuild failed. With no cache, the table is built first. The
-page files are copied from the package on every run. When no browser can be opened, the command warns, still prints
-the path and exits 0.
+Opens the stake calibration page: a static page, working from disk, for choosing the stake references of the
+measures against the sample campaigns. Slide a measure's reference to see which events change significance level,
+how the narrator package and the takeover waves change, and which events sit nearest each cut-off; open an event to
+see why it has its level. The page's URL hash holds the explored state, which `report --state` reads.
 
 ```sh
 # Build the table if needed and open the page.
@@ -292,12 +272,10 @@ Replays the stake calibration table of the sample campaigns at other references 
 events move level, how the narrator package grows or shrinks, which takeover waves lose members, and the events
 nearest each cut-off. It ends with the changed references written as measure registry entries, ready to paste.
 
-The table is cached in `--out` and rebuilt only when the package or `samples.json` changed, or with `--rebuild`; a
-rebuild takes a few seconds per campaign. `status.js` in `--out` says whether the table is fresh, rebuilding or
-failed. A failed rebuild keeps the previous table.
+The table is cached in `--out`, shared with the page, and rebuilt when the package or `samples.json` changed, or
+with `--rebuild`.
 
-`--state` takes the URL hash of the calibration page, so a state explored there can be read here in full; the other
-flags override what it sets.
+`--state` reads a state explored on the calibration page; the other flags override it.
 
 ```sh
 # What would a lower power reference do?
