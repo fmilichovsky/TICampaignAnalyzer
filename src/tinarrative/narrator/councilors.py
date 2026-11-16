@@ -13,11 +13,12 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
-from .assembly import KEPT_FINISHES, SENT_WITH, provider_lines, sent_settings, timestamp
+from .assembly import provider_lines, sent_settings, timestamp
 from .brief import councilor_brief
 from .request import digest, render_request
 from .request import prompt_version as _prompt_version
 from .request import system_prompt as _system_prompt
+from .run_directory import KEPT_FINISHES, SENT_WITH
 
 PROMPT_FILE = "councilor_prompt.md"
 ARTICLE_KEYS = ("councilor", "length")
