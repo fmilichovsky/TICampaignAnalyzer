@@ -6,6 +6,7 @@ from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event
 from ..model.kinds import Template
+from ..model.plain import plain_timestamp
 from ..model.values import Observed
 
 TRANSITION = frozenset({"transition", "before", "after"})
@@ -32,7 +33,7 @@ def attribute_label(event: Event, name: str) -> str:
 def attribute_text(event: Event, name: str) -> str:
     """A date, relation name or transition label as plain text; anything else like a value."""
     value = event.attribute(name)
-    return value if isinstance(value, str) else render_event_value(value)
+    return plain_timestamp(value) if isinstance(value, str) else render_event_value(value)
 
 
 def transition_label(event: Event, label: str) -> str:

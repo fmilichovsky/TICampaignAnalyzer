@@ -10,17 +10,26 @@ its status.
 from __future__ import annotations
 
 from ..model.events import Event
+from ..model.plain import plain_rendering
 from .registry import KINDS, kind_for
 
 NOTIFICATION_PREFIX = "notification."
 """The types whose names come from the game's log templates."""
 
 
-def describe_event(event: Event) -> str:
+def describe_event(event: Event, *, plain: bool = False) -> str:
     """Deterministic ASCII text from the type's kind; a type no kind declares falls back to the type and its entities.
 
     ``notification.<template>`` types share one template, since the log template set is open-ended.
+
+    ``plain`` renders for a reader instead of an audit: entities by name only, dates without a time, an unresolved
+    reference as ``unknown`` and the notification queue left out. The default form is the one the Markdown outputs use.
     """
+    with plain_rendering(plain):
+        return _describe(event)
+
+
+def _describe(event: Event) -> str:
     kind = kind_for(event.event_type)
     if kind is None:
         entities = ", ".join(ref.label() for ref in event.entities)

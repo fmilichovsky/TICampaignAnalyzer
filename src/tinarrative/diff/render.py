@@ -7,19 +7,22 @@ from collections import Counter
 
 from ..model.changes import ChangeKind, MapDetail, MembershipDetail, RecordsDetail, StateChange, StateDiff
 from ..model.entities import EntityRef
+from ..model.plain import is_plain, plain_timestamp
 from ..model.values import Observed, Unknown, to_jsonable
 
 
 def render_value(value: Observed) -> str:
     """One-line text for a normalized value: references as ``domain:key``, unknowns with their reason."""
     if isinstance(value, Unknown):
-        if value.raw is None:
+        if value.raw is None or is_plain():
             return f"unknown ({value.reason.value})"
         return f"unknown ({value.reason.value}, raw={render_value(value.raw)})"
     if isinstance(value, EntityRef):
         return str(value.entity_id)
     if isinstance(value, tuple):
         return "[" + ", ".join(render_value(item) for item in value) + "]"
+    if isinstance(value, str):
+        value = plain_timestamp(value)
     return json.dumps(to_jsonable(value), sort_keys=True, ensure_ascii=True)
 
 
