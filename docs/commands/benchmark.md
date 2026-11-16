@@ -277,10 +277,9 @@ with `--rebuild`.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
-The table also scores the draft stakes declared in `DRAFT_STAKES` (`tinarrative.benchmarking.calibration.drafts`):
-each one tries a stake on existing narrative event types before a kind declares it. Its rows sit beside the real
-events and never change their levels, and the state holds a base level for each draft. A draft that names an unknown
-or non-narrative event type, or repeats a name, fails the rebuild.
+The table also scores any draft stakes, stakes tried on existing event types before a kind declares them, beside the
+real events and without changing their levels; the state holds a base level for each draft. A draft that cannot be
+scored fails the rebuild.
 
 ```sh
 # What would a lower power reference do?
