@@ -12,8 +12,8 @@ import time
 import webbrowser
 from collections.abc import Callable, Sequence
 from contextlib import closing
-from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta
+from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, TypeAlias, cast
 
@@ -59,10 +59,10 @@ from .narrative import build_dossier, narrative_rules
 from .narrator.assembly import assemble, parse_plan, stored_chapter
 from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
 from .narrator.councilors import article_requests, assemble_articles, missing, request_sha256
-from .narrator.providers import CompletionRequest, Endpoint, ProviderError, complete, completion_request, endpoint
-from .narrator.rate_limit import RateLimiter, estimate_tokens
+from .narrator.providers import Endpoint, endpoint
 from .narrator.request import AUDIENCES, CITATIONS, STYLES
 from .narrator.run_directory import RunDirectory, RunDirectoryWriteError
+from .narrator.send_run import SendItem, SendOutcome, SendReporter, send_run
 from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
@@ -1107,7 +1107,7 @@ def _run_councilors(args: argparse.Namespace) -> int:
         tier_exponent=settings.narrative.significance.tier_exponent,
     )
     items = [
-        _SendItem(index, f"article {index}", request, request_sha256(request), note=f" ({entry['name']})")
+        SendItem(index, request, request_sha256(request), {}, "article", entry["name"])
         for (index, request), entry in zip(article_requests(dossier), dossier["councilors"], strict=True)
     ]
     sys.stdout.write(_dossier_summary(dossier))
@@ -1121,19 +1121,21 @@ def _run_councilors(args: argparse.Namespace) -> int:
         sys.stdout.write("Nothing written; give --output DIR for the dossier and the requests.\n")
     sys.stdout.flush()
     code = EXIT_SUCCESS
-    outcomes: list[_Outcome] = []
+    outcomes: list[SendOutcome] = []
     if target is not None and output is not None:
-        outcomes, code = _send(
-            items,
-            narrator,
-            target,
-            output,
-            host=args.host,
-            command="councilors",
-            noun="article",
-            force=bool(args.force),
-            stop_on_failure=False,
-        )
+        try:
+            outcomes = send_run(
+                items,
+                narrator,
+                target,
+                output,
+                host=args.host,
+                reporter=_CliSendReporter("councilors", "article", args.host),
+                force=bool(args.force),
+            )
+        except RunDirectoryWriteError as error:
+            return _run_directory_write_failed(error, "councilors")
+        code = EXIT_PROVIDER_ERROR if any(outcome.record is None for outcome in outcomes) else EXIT_SUCCESS
         if code != EXIT_OUTPUT_ERROR:
             assembled = _write_articles(output, dossier, outcomes, narrator, target, host=args.host)
             if assembled != EXIT_SUCCESS:
@@ -1156,7 +1158,7 @@ def _run_councilors(args: argparse.Namespace) -> int:
 def _write_articles(
     directory: Path,
     dossier: dict[str, Any],
-    outcomes: Sequence[_Outcome],
+    outcomes: Sequence[SendOutcome],
     narrator: NarratorSettings,
     target: Endpoint,
     *,
@@ -1396,17 +1398,20 @@ def _run_narrate(args: argparse.Namespace) -> int:
     sent = kept = 0
     code = EXIT_SUCCESS
     if target is not None and output is not None:
-        outcomes, code = _send(
-            _chapter_items(plan),
-            narrator,
-            target,
-            output,
-            host=args.host,
-            command="narrate",
-            noun="chapter",
-            force=bool(args.force),
-            stop_on_failure=True,
-        )
+        try:
+            outcomes = send_run(
+                _chapter_items(plan),
+                narrator,
+                target,
+                output,
+                host=args.host,
+                reporter=_CliSendReporter("narrate", "chapter", args.host),
+                force=bool(args.force),
+                stop_on_failure=True,
+            )
+        except RunDirectoryWriteError as error:
+            return _run_directory_write_failed(error)
+        code = EXIT_PROVIDER_ERROR if any(outcome.record is None for outcome in outcomes) else EXIT_SUCCESS
         sent = sum(outcome.record is not None and not outcome.kept for outcome in outcomes)
         kept = sum(outcome.kept for outcome in outcomes)
         if code == EXIT_SUCCESS:
@@ -1495,240 +1500,83 @@ def _resolve_narrator(
     return narrator
 
 
-class _RateLimitStatus:
-    """Show and clear the expected retry time on one terminal line."""
-
-    def __init__(self) -> None:
-        self.width = 0
-
-    def wait(self, seconds: float, now: datetime) -> None:
-        if not sys.stderr.isatty():
-            return
-        expected = (now.astimezone() + timedelta(seconds=seconds)).strftime("%H:%M:%S")
-        label = f"tinarrative: rate limit wait; next attempt expected at {expected}"
-        sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
-        sys.stderr.flush()
-        self.width = len(label)
-
-    def clear(self) -> None:
-        if not sys.stderr.isatty():
-            return
-        sys.stderr.write("\r" + " " * self.width + "\r")
-        sys.stderr.flush()
-        self.width = 0
-
-
-@dataclass(frozen=True)
-class _SendItem:
-    """One request of a ``--send`` run: ``label`` names it in messages, ``note`` ends its stdout line and ``extra``
-    members follow ``finish`` in its response record."""
-
-    index: int
-    label: str
-    request: dict[str, Any]
-    request_sha256: str
-    extra: dict[str, Any] = field(default_factory=dict)
-    note: str = ""
-
-
-@dataclass(frozen=True)
-class _Outcome:
-    """``record`` is the stored or new response; without one, ``finish`` and ``error`` say why."""
-
-    item: _SendItem
-    record: dict[str, Any] | None
-    kept: bool
-    finish: str | None
-    error: str | None
-
-
-def _chapter_items(plan: ChapterPlan) -> list[_SendItem]:
+def _chapter_items(plan: ChapterPlan) -> list[SendItem]:
     return [
-        _SendItem(
+        SendItem(
             planned.index,
-            f"chapter {planned.index}",
             planned.request,
             planned.request_sha256,
             {"estimate": planned.estimate},
-            f" (estimate {planned.estimate})",
+            "chapter",
+            str(planned.estimate),
         )
         for planned in plan.chapters
     ]
 
 
-def _send(
-    items: Sequence[_SendItem],
-    settings: NarratorSettings,
-    target: Endpoint,
-    directory: Path,
-    *,
-    host: Host,
-    command: str,
-    noun: str,
-    force: bool,
-    stop_on_failure: bool,
-) -> tuple[list[_Outcome], int]:
-    """Send the items in order and write each completed one to ``responses/NN.json``; an item whose stored
-    response was made from the same request is kept unless ``force``. A failure stops the run when
-    ``stop_on_failure``, else the next item is sent. Returns the outcomes and the exit code."""
-    run_directory = RunDirectory(directory)
-    count = len(items)
-    try:
-        responses = run_directory.prepare_responses(count)
-    except RunDirectoryWriteError as error:
-        return [], _run_directory_write_failed(error, command)
-    transport = host.transport
-    outcomes: list[_Outcome] = []
-    stopped = False
-    prepared: list[tuple[_SendItem, CompletionRequest, dict[str, Any] | None, int]] = []
-    impossible: list[tuple[_SendItem, int]] = []
-    for item in items:
-        request = completion_request(item.request, settings)
-        sent_with = run_directory.sent_with(
-            target.provider, request.model, request.max_output_tokens, request.temperature
-        )
-        stored = (
-            None
-            if force
-            else run_directory.kept_response(
-                item.index,
-                count,
-                request_sha256=item.request_sha256,
-                sent_with=sent_with,
-            )
-        )
-        reserved = estimate_tokens(request.system, request.user, settings.chars_per_token, request.max_output_tokens)
-        if stored is None and settings.tokens_per_minute is not None and reserved > settings.tokens_per_minute:
-            impossible.append((item, reserved))
-        prepared.append((item, request, stored, reserved))
+class _CliSendReporter(SendReporter):
+    def __init__(self, command: str, noun: str, host: Host) -> None:
+        self.command = command
+        self.noun = noun
+        self.host = host
+        self.width = 0
 
-    if impossible:
-        offending = {item.index: reserved for item, reserved in impossible}
-        for item, _, stored, _ in prepared:
-            if stored is not None:
-                finish, _, _ = RunDirectory.response_progress(stored)
-                outcomes.append(_Outcome(item, stored, True, finish, None))
-                continue
-            if item.index in offending:
-                reason = (
-                    f"estimated request reservation {offending[item.index]} tokens exceeds "
-                    f"tokens_per_minute {settings.tokens_per_minute}"
-                )
-            else:
-                reason = "not sent because another request exceeds tokens_per_minute"
-            outcomes.append(_Outcome(item, None, False, "error", reason))
-            print(f"tinarrative {command}: {item.label}: {target.provider}: {reason}", file=sys.stderr)
-        return outcomes, EXIT_PROVIDER_ERROR
+    def kept(self, outcome: SendOutcome, tokens: tuple[int | None, int | None]) -> None:
+        item = outcome.item
+        sys.stdout.write(_render_sent(item, "kept", outcome.finish or "", *tokens))
+        sys.stdout.flush()
 
-    status = _RateLimitStatus()
-    limiter = RateLimiter(
-        settings.requests_per_minute,
-        settings.tokens_per_minute,
-        clock=host.monotonic,
-        sleep=host.sleep,
-        on_wait=lambda seconds: status.wait(seconds, host.now()),
-        on_ready=status.clear,
-    )
-    for item, request, stored, reserved in prepared:
-        if stored is not None:
-            finish, input_tokens, output_tokens = RunDirectory.response_progress(stored)
-            outcomes.append(_Outcome(item, stored, True, finish, None))
-            logger.info("%s kept %s", command, fields(**{noun: item.index}, provider=target.provider, finish=finish))
-            sys.stdout.write(_render_sent(item, "kept", finish, input_tokens, output_tokens))
-            sys.stdout.flush()
-            continue
-        failure: tuple[str, str] | None = None
-        try:
-
-            def before_attempt(reservation: int = reserved) -> None:
-                limiter.acquire(reservation)
-
-            completion = complete(
-                request,
-                target,
-                transport,
-                sleep=host.sleep,
-                now=host.now,
-                before_attempt=before_attempt,
-                chapter=item.index,
-            )
-        except ProviderError as error:
-            logger.info(
-                "%s send failed %s",
-                command,
-                fields(**{noun: item.index}, provider=target.provider, kind=error.kind, status=error.status),
-            )
-            failure = ("error", str(error))
-        else:
-            if completion.finish in ("length", "refused", "empty"):
-                logger.info(
-                    "%s send failed %s",
-                    command,
-                    fields(**{noun: item.index}, provider=target.provider, finish=completion.finish),
-                )
-                reason = {
-                    "length": f"the completion stopped at max_output_tokens {request.max_output_tokens}; raise "
-                    "llm.max_output_tokens or give --max-output-tokens",
-                    "refused": "the model refused the request",
-                    "empty": "the completion has no text; run the command again to send it again",
-                }[completion.finish]
-                failure = (completion.finish, reason)
-        if failure is not None:
-            print(f"tinarrative {command}: {item.label}: {target.provider}: {failure[1]}", file=sys.stderr)
-            outcomes.append(_Outcome(item, None, False, failure[0], failure[1]))
-            if stop_on_failure:
-                stopped = True
-                break
-            continue
-        record = run_directory.response_record(
-            index=item.index,
-            request_sha256=item.request_sha256,
-            sent_with=sent_with,
-            reported_model=completion.model,
-            finish=completion.finish,
-            extra=item.extra,
-            input_tokens=completion.input_tokens,
-            output_tokens=completion.output_tokens,
-            text=completion.text,
-        )
-        try:
-            run_directory.write_response(item.index, count, record)
-        except RunDirectoryWriteError as error:
-            return outcomes, _run_directory_write_failed(error, command)
-        outcomes.append(_Outcome(item, record, False, completion.finish, None))
-        logger.info(
-            "%s sent %s",
-            command,
-            fields(
-                **{noun: item.index},
-                provider=target.provider,
-                finish=completion.finish,
-                input_tokens=completion.input_tokens,
-                output_tokens=completion.output_tokens,
-                **item.extra,
-                characters=len(completion.text),
-            ),
-        )
+    def sent(self, outcome: SendOutcome) -> None:
+        item, record = outcome.item, outcome.record
+        assert record is not None
         sys.stdout.write(
-            _render_sent(item, "sent", completion.finish, completion.input_tokens, completion.output_tokens)
+            _render_sent(item, "sent", outcome.finish or "", record["input_tokens"], record["output_tokens"])
         )
         sys.stdout.flush()
-    failed = any(outcome.record is None for outcome in outcomes)
-    if not stopped:
+
+    def failed(self, outcome: SendOutcome, provider: str) -> None:
+        reason = outcome.error or "request failed"
+        if outcome.finish == "length":
+            reason += "; raise llm.max_output_tokens or give --max-output-tokens"
+        elif outcome.finish == "empty":
+            reason += "; run the command again to send it again"
+        print(
+            f"tinarrative {self.command}: {self.noun} {outcome.item.index}: {provider}: {reason}",
+            file=sys.stderr,
+        )
+
+    def waiting(self, seconds: float) -> None:
+        if not sys.stderr.isatty():
+            return
+        expected = (self.host.now().astimezone() + timedelta(seconds=seconds)).strftime("%H:%M:%S")
+        label = f"tinarrative: rate limit wait; next attempt expected at {expected}"
+        sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
+        sys.stderr.flush()
+        self.width = len(label)
+
+    def ready(self) -> None:
+        if sys.stderr.isatty():
+            sys.stderr.write("\r" + " " * self.width + "\r")
+            sys.stderr.flush()
+            self.width = 0
+
+    def summary(self, outcomes: Sequence[SendOutcome], responses: Path, stopped: bool) -> None:
+        if stopped:
+            return
         sent = sum(outcome.record is not None and not outcome.kept for outcome in outcomes)
         kept = sum(outcome.kept for outcome in outcomes)
         stored_line = f", kept {kept} stored" if kept else ""
         sys.stdout.write(f"Wrote {_count(sent, 'response')} to {responses}{stored_line}.\n")
         sys.stdout.flush()
-    return outcomes, EXIT_PROVIDER_ERROR if failed else EXIT_SUCCESS
 
 
-def _render_sent(item: _SendItem, verb: str, finish: str, input_tokens: int | None, output_tokens: int | None) -> str:
+def _render_sent(item: SendItem, verb: str, finish: str, input_tokens: int | None, output_tokens: int | None) -> str:
     used = (
         f"{'?' if input_tokens is None else input_tokens} input and "
         f"{'?' if output_tokens is None else output_tokens} output tokens"
     )
-    return f"- {item.index} {verb}: {finish}, {used}{item.note}\n"
+    note = f" (estimate {item.subject})" if item.tag == "chapter" else (f" ({item.subject})" if item.subject else "")
+    return f"- {item.index} {verb}: {finish}, {used}{note}\n"
 
 
 _FINDINGS = {

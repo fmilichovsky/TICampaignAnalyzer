@@ -180,7 +180,7 @@ Tracking #249.
 - [ ] Narrator send run: the narrator owns its run directory (#337):
   - [x] Host: one bundle for clock, sleep and HTTP (#338).
   - [x] Run directory: layout and response record (#339).
-  - [ ] Send run into the narrator (#340).
+  - [x] Send run into the narrator (#340).
   - [ ] Step functions per product (#341).
 - [x] Exclusive constituents: rule order keeps narrative events from re-telling each other's events (#344):
   - [x] Explained events: rules declare their explainers (#345).
