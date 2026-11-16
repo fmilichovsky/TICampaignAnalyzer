@@ -723,5 +723,234 @@
         "above": []
       }
     ]
-  }
+  },
+  "drafts": [
+    {
+      "name": "held",
+      "label": "Held share",
+      "issue": 1,
+      "measures": [
+        "power",
+        "population"
+      ],
+      "base": "minor",
+      "own_base": "minor",
+      "events": 3,
+      "ruled": 1,
+      "floored": 2,
+      "level_counts": {
+        "replay": {
+          "trivial": 0,
+          "minor": 2,
+          "major": 1,
+          "campaign_defining": 0
+        },
+        "baseline": {
+          "trivial": 0,
+          "minor": 2,
+          "major": 1,
+          "campaign_defining": 0
+        }
+      },
+      "cutoffs": {
+        "power": [
+          {
+            "offset": -1.25,
+            "share": 0.0005623413251903491,
+            "below": [],
+            "above": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:deal",
+                "type": "nation.cession",
+                "share": 0.001,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.003981071705534972,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:grow",
+                "type": "nation.expansion",
+                "share": 0.015848931924611138,
+                "score": 64,
+                "level": "major",
+                "code_level": "major",
+                "decided_by": "draft:held:grow",
+                "decisive": true,
+                "ruled": true
+              }
+            ]
+          },
+          {
+            "offset": 1.25,
+            "share": 0.1778279410038923,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:grow",
+                "type": "nation.expansion",
+                "share": 0.015848931924611138,
+                "score": 64,
+                "level": "major",
+                "code_level": "major",
+                "decided_by": "draft:held:grow",
+                "decisive": true,
+                "ruled": true
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.003981071705534972,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:deal",
+                "type": "nation.cession",
+                "share": 0.001,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          }
+        ],
+        "population": [
+          {
+            "offset": -1.25,
+            "share": 0.0005623413251903491,
+            "below": [],
+            "above": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.019952623149688795,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ]
+          },
+          {
+            "offset": 1.25,
+            "share": 0.1778279410038923,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.019952623149688795,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "moved",
+      "label": "Moved share",
+      "issue": 2,
+      "measures": [
+        "population"
+      ],
+      "base": "trivial",
+      "own_base": "trivial",
+      "events": 1,
+      "ruled": 0,
+      "floored": 1,
+      "level_counts": {
+        "replay": {
+          "trivial": 0,
+          "minor": 1,
+          "major": 0,
+          "campaign_defining": 0
+        },
+        "baseline": {
+          "trivial": 0,
+          "minor": 1,
+          "major": 0,
+          "campaign_defining": 0
+        }
+      },
+      "cutoffs": {
+        "population": [
+          {
+            "offset": -1.25,
+            "share": 0.0005623413251903491,
+            "below": [],
+            "above": [
+              {
+                "campaign": "alpha",
+                "id": "draft:moved:deal",
+                "type": "nation.cession",
+                "share": 0.15848931924611134,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ]
+          },
+          {
+            "offset": 1.25,
+            "share": 0.1778279410038923,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:moved:deal",
+                "type": "nation.cession",
+                "share": 0.15848931924611134,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          }
+        ]
+      }
+    }
+  ]
 }

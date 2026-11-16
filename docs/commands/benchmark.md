@@ -277,8 +277,8 @@ with `--rebuild`.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
-The table also scores any draft stakes, stakes tried on existing event types before a kind declares them, beside the
-real events and without changing their levels; the state holds a base level for each draft. A draft that cannot be
+The table also scores any [draft stakes](#draft-stakes) beside the real events, without changing their levels; the
+state holds a base level for each draft, and its own section of the readout reports each one. A draft that cannot be
 scored fails the rebuild.
 
 ```sh
@@ -314,3 +314,42 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
 | 4 | --samples is not a directory or its samples.json cannot be read. |
 | 9 | --out cannot be written. |
 <!-- end generated -->
+
+### Draft stakes
+
+A draft stake is a stake tried on the events of existing narrative types before a kind declares it. Its rows are
+scored beside the real events and never enter their counts, totals, moves or cut-offs, so a draft changes no real
+panel or readout section.
+
+On the page, each draft with a candidate on the focused measure has a panel under the cut-offs, marked `draft #N`
+with its issue; two drafts on the same measure sit side by side. A panel holds:
+
+- a base selector: the level the draft's rows start from. `own` marks the draft's own base. A row marked `ruled` is
+  decided by its kind's context rule, so the base does not apply to it. The chosen base goes into the URL hash
+  (`base=<draft>:<level>`).
+- the level counts of its rows at that base, each with its change against the draft's own base;
+- how many of its rows a cited event sets instead of the draft's own stake;
+- its own rows nearest the two cut-offs the tide tables show, badged `draft #N` and, where it applies, `ruled`. A
+  row opens the event it shadows in the inspector.
+
+The readout's Draft stakes section reports the same numbers, with every draft's nearest rows at every cut-off of its
+measures, and the summary paragraph names every draft with its issue, so a draft left behind after its issue closed
+still shows.
+
+#### Adding a draft
+
+One small PR:
+
+1. If the stake needs a measure the code does not have, add it: a `StakeMeasure` member, its `MeasureSpec` entry in
+   `MEASURES` (`narrative/measures.py`) and the branch that reads its shares in `narrative/significance.py`.
+2. Add a `DraftStake` to `DRAFT_STAKES` in `benchmarking/calibration/drafts.py`: a slug `name`, a `label`, the
+   `issue` it calibrates for, the existing narrative `event_types` it is tried on, one `NarrativeScaling` per
+   candidate (the highest scale wins) and, if its types' kinds do not share one, a `base`.
+3. Run `tinarrative benchmark calibrate open`, which rebuilds the table, and calibrate the draft's reference and base
+   on the page.
+
+#### Graduating a draft
+
+One PR as well: add a `Stake` member, move the draft's scaling into `NARRATIVE_STAKE_IMPLEMENTATIONS`, set `stake=`
+(and `base=` if the calibrated base differs) on the kinds of the draft's types, write the calibrated reference into
+the measure's registry entry, and delete the draft from `DRAFT_STAKES`.

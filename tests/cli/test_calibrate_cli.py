@@ -219,6 +219,14 @@ def test_an_invalid_draft_stake_is_a_usage_error(paths: tuple[Path, Path], monke
     assert "ghost" in stderr
 
 
+def test_a_state_naming_an_unknown_draft_is_a_usage_error(paths: tuple[Path, Path]) -> None:
+    code, stdout, stderr = report(paths, "--state", "base=ghost:major")
+
+    assert code == cli.EXIT_USAGE_ERROR
+    assert stdout == ""
+    assert "unknown draft stake 'ghost'" in stderr
+
+
 @pytest.mark.parametrize("broken", ["missing", "no-manifest"])
 def test_unreadable_samples_are_an_input_error(paths: tuple[Path, Path], broken: str) -> None:
     samples, _ = paths

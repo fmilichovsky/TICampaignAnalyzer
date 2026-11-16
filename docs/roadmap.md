@@ -87,7 +87,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] `benchmark calibrate report` and the calibration cache (#463).
   - [x] Calibration page and `benchmark calibrate open` (#464).
   - [x] Draft stakes: declaration, scoring seam and shadow rows (#465).
-  - [ ] Draft stakes in the readout and on the page (#466).
+  - [x] Draft stakes in the readout and on the page (#466).
 - [x] Councilor profiles (#222):
   - [x] Missions and councilor dates (#228).
   - [x] Dossier and dry run (#229).
