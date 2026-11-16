@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import time
 from collections import deque
 from collections.abc import Callable
 
@@ -18,8 +17,8 @@ class RateLimiter:
         requests_per_minute: int | None,
         tokens_per_minute: int | None,
         *,
-        clock: Callable[[], float] = time.monotonic,
-        sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float],
+        sleep: Callable[[float], None],
         on_wait: Callable[[float], None] | None = None,
         on_ready: Callable[[], None] | None = None,
     ) -> None:

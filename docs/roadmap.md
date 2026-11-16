@@ -178,7 +178,7 @@ Tracking #249.
   - [ ] The choice and the analysis step (#334).
   - [ ] Thin the command-line tests (#335).
 - [ ] Narrator send run: the narrator owns its run directory (#337):
-  - [ ] Host: one bundle for clock, sleep and HTTP (#338).
+  - [x] Host: one bundle for clock, sleep and HTTP (#338).
   - [ ] Run directory: layout and response record (#339).
   - [ ] Send run into the narrator (#340).
   - [ ] Step functions per product (#341).

@@ -1,15 +1,13 @@
-"""The HTTP transport of the providers: one JSON POST behind a small protocol, so tests replace it with a fake.
-
-Standard library only, as the project keeps no runtime dependencies. An HTTP error status is a response like any
-other; only a missing response is an exception.
-"""
+"""Process-edge resources used by commands that send provider requests."""
 
 from __future__ import annotations
 
+import time
 import urllib.error
 import urllib.request
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from email.message import Message
 from typing import Protocol
 
@@ -56,3 +54,18 @@ class UrllibTransport:
 
 def _headers(message: Message) -> dict[str, str]:
     return {name.lower(): value for name, value in message.items()}
+
+
+@dataclass(frozen=True)
+class Host:
+    """Clock, wait and HTTP resources supplied at the process edge."""
+
+    now: Callable[[], datetime]
+    monotonic: Callable[[], float]
+    sleep: Callable[[float], None]
+    transport: Transport
+
+    @classmethod
+    def real(cls) -> Host:
+        """Build the standard library resources for a real command run."""
+        return cls(lambda: datetime.now(UTC), time.monotonic, time.sleep, UrllibTransport())

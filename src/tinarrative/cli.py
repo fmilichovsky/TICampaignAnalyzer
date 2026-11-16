@@ -13,7 +13,7 @@ import webbrowser
 from collections.abc import Callable, Sequence
 from contextlib import closing
 from dataclasses import dataclass, field
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, TypeAlias, cast
 
@@ -40,6 +40,7 @@ from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
 from .grouping import CampaignGroup, group_saves, listing_document, render_listing, select_campaign
+from .host import Host
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_discovery import SaveInput, expand_inputs
 from .io.save_loader import load_raw_save, load_save
@@ -61,7 +62,6 @@ from .narrator.councilors import article_requests, assemble_articles, missing, r
 from .narrator.providers import CompletionRequest, Endpoint, ProviderError, complete, completion_request, endpoint
 from .narrator.rate_limit import RateLimiter, estimate_tokens
 from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
-from .narrator.transport import Transport, UrllibTransport
 from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
@@ -1130,13 +1130,14 @@ def _run_councilors(args: argparse.Namespace) -> int:
             narrator,
             target,
             output,
+            host=args.host,
             command="councilors",
             noun="article",
             force=bool(args.force),
             stop_on_failure=False,
         )
         if code != EXIT_OUTPUT_ERROR:
-            assembled = _write_articles(output, dossier, outcomes, narrator, target)
+            assembled = _write_articles(output, dossier, outcomes, narrator, target, host=args.host)
             if assembled != EXIT_SUCCESS:
                 code = assembled
     logger.info(
@@ -1160,6 +1161,8 @@ def _write_articles(
     outcomes: Sequence[_Outcome],
     narrator: NarratorSettings,
     target: Endpoint,
+    *,
+    host: Host,
 ) -> int:
     """Assemble ``councilors.md`` and ``manifest.json`` from the run's outcomes; a failed article is listed in the
     manifest with its finish and the reason, and the missing ones are summed up in one stderr line."""
@@ -1175,7 +1178,9 @@ def _write_articles(
             stored[outcome.item.index] = outcome.record
         elif outcome.error is not None:
             stored[outcome.item.index] = {**sent_with, "finish": outcome.finish, "error": outcome.error}
-    markdown, manifest = assemble_articles(dossier, stored, generated=_now(), version=__version__, sent_with=sent_with)
+    markdown, manifest = assemble_articles(
+        dossier, stored, generated=host.now(), version=__version__, sent_with=sent_with
+    )
     for name, text in (
         ("councilors.md", markdown),
         ("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"),
@@ -1300,7 +1305,7 @@ def _run_narrate(args: argparse.Namespace) -> int:
         if given:
             print(f"tinarrative narrate: --assemble reads DIR only; drop {', '.join(given)}", file=sys.stderr)
             return EXIT_USAGE_ERROR
-        return _assemble(assembled)
+        return _assemble(assembled, host=args.host)
     if args.force and not args.send:
         print("tinarrative narrate: --force re-sends chapters, so it needs --send", file=sys.stderr)
         return EXIT_USAGE_ERROR
@@ -1402,6 +1407,7 @@ def _run_narrate(args: argparse.Namespace) -> int:
             narrator,
             target,
             output,
+            host=args.host,
             command="narrate",
             noun="chapter",
             force=bool(args.force),
@@ -1410,7 +1416,7 @@ def _run_narrate(args: argparse.Namespace) -> int:
         sent = sum(outcome.record is not None and not outcome.kept for outcome in outcomes)
         kept = sum(outcome.kept for outcome in outcomes)
         if code == EXIT_SUCCESS:
-            code = _assemble(output)
+            code = _assemble(output, host=args.host)
     logger.info(
         "narrate done %s",
         fields(
@@ -1495,25 +1501,16 @@ def _resolve_narrator(
     return narrator
 
 
-def _transport() -> Transport:
-    """The HTTP transport of ``narrate --send``; tests replace it with a fake."""
-    return UrllibTransport()
-
-
-def _sleep(seconds: float) -> None:
-    time.sleep(seconds)
-
-
 class _RateLimitStatus:
     """Show and clear the expected retry time on one terminal line."""
 
     def __init__(self) -> None:
         self.width = 0
 
-    def wait(self, seconds: float) -> None:
+    def wait(self, seconds: float, now: datetime) -> None:
         if not sys.stderr.isatty():
             return
-        expected = (datetime.now().astimezone() + timedelta(seconds=seconds)).strftime("%H:%M:%S")
+        expected = (now.astimezone() + timedelta(seconds=seconds)).strftime("%H:%M:%S")
         label = f"tinarrative: rate limit wait; next attempt expected at {expected}"
         sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
         sys.stderr.flush()
@@ -1525,11 +1522,6 @@ class _RateLimitStatus:
         sys.stderr.write("\r" + " " * self.width + "\r")
         sys.stderr.flush()
         self.width = 0
-
-
-def _now() -> datetime:
-    """The generation time of an assembled history; tests replace it."""
-    return datetime.now(UTC)
 
 
 @dataclass(frozen=True)
@@ -1576,6 +1568,7 @@ def _send(
     target: Endpoint,
     directory: Path,
     *,
+    host: Host,
     command: str,
     noun: str,
     force: bool,
@@ -1591,7 +1584,7 @@ def _send(
         _remove_stale(responses, {_chapter_file(item.index, count) for item in items})
     except OSError as error:
         return [], _output_failed(responses, error, command)
-    transport = _transport()
+    transport = host.transport
     outcomes: list[_Outcome] = []
     stopped = False
     prepared: list[tuple[_SendItem, CompletionRequest, Path, dict[str, Any] | None, int]] = []
@@ -1626,8 +1619,9 @@ def _send(
     limiter = RateLimiter(
         settings.requests_per_minute,
         settings.tokens_per_minute,
-        sleep=_sleep,
-        on_wait=status.wait,
+        clock=host.monotonic,
+        sleep=host.sleep,
+        on_wait=lambda seconds: status.wait(seconds, host.now()),
         on_ready=status.clear,
     )
     for item, request, path, stored, reserved in prepared:
@@ -1651,7 +1645,8 @@ def _send(
                 request,
                 target,
                 transport,
-                sleep=_sleep,
+                sleep=host.sleep,
+                now=host.now,
                 before_attempt=before_attempt,
                 chapter=item.index,
             )
@@ -1770,7 +1765,7 @@ _FINDINGS = {
 }
 
 
-def _assemble(directory: Path) -> int:
+def _assemble(directory: Path, *, host: Host) -> int:
     """Assemble ``history.md`` and ``manifest.json`` from the plan, requests and responses written to ``directory``;
     audit findings are summed up in one stderr line."""
     try:
@@ -1791,7 +1786,7 @@ def _assemble(directory: Path) -> int:
     except ValueError as error:
         print(f"tinarrative narrate: {directory}: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
-    assembly = assemble(chapters, plan, generated=_now(), version=__version__)
+    assembly = assemble(chapters, plan, generated=host.now(), version=__version__)
     for name, text in (
         ("history.md", assembly.history),
         ("manifest.json", json.dumps(assembly.manifest, ensure_ascii=False, indent=2) + "\n"),
@@ -2600,10 +2595,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, *, host: Host | None = None) -> int:
     """Run the command-line interface and return a stable process exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
+    args.host = Host.real() if host is None else host
     level = _resolve_log_level(parser, args)
     configure_logging(level, timing=os.environ.get(TIMING_ENV_VAR, "").strip() not in ("", "0"))
     if not hasattr(args, "handler"):
