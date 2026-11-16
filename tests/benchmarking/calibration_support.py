@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
 from tinarrative.benchmarking.calibration.replay import default_state, replay
-from tinarrative.benchmarking.calibration.table import build_index, layers
+from tinarrative.benchmarking.calibration.table import build_index, layers, type_kinds
+from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, Significance
 
 ROW_FIELDS = {
@@ -17,6 +19,7 @@ ROW_FIELDS = {
     "date",
     "label",
     "base",
+    "rule",
     "stakes",
     "entities",
     "cited",
@@ -31,8 +34,10 @@ def check_rows(rows: list[dict[str, Any]]) -> None:
     by_id = {row["id"]: row for row in rows}
     assert len(by_id) == len(rows)
     layer_of = layers()
+    kinds = type_kinds(row["type"] for row in rows)
     for row in rows:
         assert set(row) == ROW_FIELDS
+        assert row["rule"] in {None, kinds[row["type"]]["rule"]}
         assert row["tier"] in {"atomic", "reconstructed", "narrative"}
         low, high = SCORE_BANDS[Significance(row["level"])]
         assert low <= row["score"] <= high
@@ -47,7 +52,7 @@ def check_rows(rows: list[dict[str, Any]]) -> None:
 
 def check_parity(rows: list[dict[str, Any]]) -> None:
     """At the code's references with the clamp on, the replay is the pipeline: every score and level, every group."""
-    index = build_index(["campaign"], key="", extracted_at="")
+    index = build_index(["campaign"], key="", extracted_at="", kinds=type_kinds(row["type"] for row in rows))
     result = replay(index, {"campaign": rows}, default_state(index))
     oracle = {row["id"]: (row["score"], row["level"]) for row in rows}
     campaign = result["campaigns"]["campaign"]
@@ -62,7 +67,7 @@ def check_parity(rows: list[dict[str, Any]]) -> None:
 
 # --- Hand-built rows ---------------------------------------------------------------------------------------
 
-INDEX = build_index(["one", "two"], key="", extracted_at="")
+INDEX = build_index(["one", "two"], key="", extracted_at="", kinds={})
 CONSTANTS = INDEX["constants"]
 POWER = INDEX["measures"]["power"]["reference"]
 POPULATION = INDEX["measures"]["population"]["reference"]
@@ -95,12 +100,27 @@ def row(
         "date": None,
         "label": id,
         "base": base(level),
+        "rule": None,
         "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
         "entities": [{"id": entity, "name": None} for entity in entities],
         "cited": list(cited),
         "score": base(level),
         "level": level,
     }
+
+
+def synthetic_kinds(tables: Mapping[str, Sequence[dict[str, Any]]]) -> dict[str, dict[str, Any]]:
+    """The ``kinds`` map of hand-built rows: a declared type's code base level and rule, and for a type no kind
+    declares, its first row's level and no rule."""
+    types = {item["type"] for rows in tables.values() for item in rows}
+    declared = type_kinds(event_type for event_type in types if kind_for(event_type) is not None)
+    synthetic = {
+        item["type"]: {"base": item["level"], "rule": None}
+        for rows in reversed(list(tables.values()))
+        for item in reversed(rows)
+        if item["type"] not in declared
+    }
+    return dict(sorted({**synthetic, **declared}.items()))
 
 
 def with_oracle(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

@@ -20,6 +20,7 @@ from tests.benchmarking.calibration_support import (
     members,
     power,
     row,
+    synthetic_kinds,
     with_oracle,
 )
 from tests.fixtures import FIXTURES_ROOT
@@ -31,7 +32,12 @@ CAMPAIGNS = ("alpha", "beta")
 
 
 def golden_index() -> dict[str, Any]:
-    return build_index(list(CAMPAIGNS), key="golden", extracted_at="2026-01-01T00:00:00+00:00")
+    return build_index(
+        list(CAMPAIGNS),
+        key="golden",
+        extracted_at="2026-01-01T00:00:00+00:00",
+        kinds=synthetic_kinds(golden_tables()),
+    )
 
 
 def spread() -> list[dict[str, Any]]:

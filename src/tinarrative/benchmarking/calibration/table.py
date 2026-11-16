@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
@@ -27,7 +27,7 @@ from tinarrative.sequence import (
     survey_all,
 )
 
-SCHEMA_VERSION: Final = 1
+SCHEMA_VERSION: Final = 2
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -70,6 +70,7 @@ def _row(event: Event, tier: str) -> dict[str, Any]:
         "date": event.date if isinstance(event.date, str) else None,
         "label": describe_event(event, plain=True),
         "base": basis.base if basis is not None else _own_base(event, narrative),
+        "rule": None if event.context_rule is None else event.context_rule.value,
         "stakes": [{"measure": basis.measure.value, "share": basis.share}] if basis is not None else [],
         "entities": [{"id": str(ref.entity_id), "name": ref.name or None} for ref in event.entities],
         "cited": list(event.constituents) if narrative else [],
@@ -104,8 +105,25 @@ def layers() -> dict[str, int]:
     }
 
 
-def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dict[str, Any]:
-    """The ``index.js`` document: what the rows cannot say about themselves, from the registry and the rules."""
+def type_kinds(types: Iterable[str]) -> dict[str, dict[str, Any]]:
+    """The ``kinds`` map of the index: each distinct type's code base level and context rule (``None`` for none),
+    sorted by type; ``CalibrationTableError`` for a type no kind declares."""
+    kinds: dict[str, dict[str, Any]] = {}
+    for event_type in sorted(set(types)):
+        kind = kind_for(event_type)
+        if kind is None:
+            raise CalibrationTableError(f"event type {event_type} is declared by no kind")
+        kinds[event_type] = {"base": kind.base.value, "rule": None if kind.rule is None else kind.rule.value}
+    return kinds
+
+
+def build_index(
+    campaigns: Sequence[str], *, key: str, extracted_at: str, kinds: Mapping[str, Mapping[str, Any]]
+) -> dict[str, Any]:
+    """The ``index.js`` document: what the rows cannot say about themselves, from the registry and the rules.
+
+    ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold.
+    """
     rules = {rule.name: rule for rule in NARRATIVE_RULES}
     return {
         "schema_version": SCHEMA_VERSION,
@@ -136,6 +154,7 @@ def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dic
             measure.value: {"reference": spec.reference, "label": spec.label, "description": spec.description}
             for measure, spec in MEASURES.items()
         },
+        "kinds": {event_type: dict(kind) for event_type, kind in kinds.items()},
         "drafts": [],
     }
 
@@ -182,13 +201,15 @@ def extract_all(samples: Path, directory: Path, *, key: str, now: datetime | Non
     """Extract every campaign that is not a ``prefix_of`` another into ``directory``; the campaigns extracted."""
     stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
     names: list[str] = []
+    types: set[str] = set()
     for name, files in extractable_campaigns(samples).items():
         with tempfile.TemporaryDirectory(prefix="calibration-") as scratch:
             decompress_samples(files, Path(scratch))
             rows = extract_campaign(sorted(Path(scratch).iterdir()))
         write_campaign(directory, name, rows)
         names.append(name)
-    write_index(directory, build_index(names, key=key, extracted_at=stamp))
+        types.update(row["type"] for row in rows)
+    write_index(directory, build_index(names, key=key, extracted_at=stamp, kinds=type_kinds(types)))
     return names
 
 

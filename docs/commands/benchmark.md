@@ -328,7 +328,7 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
 | Code | When |
 | --- | --- |
 | 0 | The readout was printed. |
-| 2 | Usage error, a sample that does not match samples.json, an unknown measure, campaign or type, an invalid --state, a measure given twice, or a failed extraction (status.js says failed; the old table stays). |
+| 2 | Usage error, a sample that does not match samples.json, an unknown measure, campaign or type, an invalid --state, a measure given twice, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
 | 4 | --samples is not a directory or its samples.json cannot be read. |
 | 9 | --out cannot be written. |
 <!-- end generated -->
