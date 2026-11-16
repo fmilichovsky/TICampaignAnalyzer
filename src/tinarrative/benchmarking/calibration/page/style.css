@@ -244,7 +244,24 @@ button:disabled { cursor: default; }
   .bar { flex-wrap: wrap; padding-top: 8px; padding-bottom: 8px; }
 }
 
-section + section, .control + .chart, .chart + section { margin-top: 22px; }
+section + section, .control + .chart, .dial + section { margin-top: 22px; }
+
+/* The dial: the reference control and the chart. Where the window is tall enough to leave room under it, it stays
+   under the header bar while the column scrolls; a rule marks its edge once the column runs beneath it. */
+.dial { background: var(--ground); }
+@media (min-width: 721px) and (min-height: 700px) {
+  .dial {
+    position: sticky;
+    top: var(--bar-height, 48px);
+    z-index: 5;
+    margin: 0 -24px 0 -20px;
+    padding: 0 24px 8px 20px;
+    border-bottom: 1px solid transparent;
+    transition: border-color 150ms ease-out;
+  }
+  .dial.dial-stuck { border-bottom-color: var(--rule-strong); }
+  .dial + section { margin-top: 14px; }
+}
 .column-right > section { margin-top: 26px; }
 
 .section-head { display: flex; align-items: baseline; gap: 12px; justify-content: space-between; margin-bottom: 8px; }
@@ -453,6 +470,9 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
   align-items: center;
 }
 .order { display: inline-flex; flex: none; margin-right: auto; }
+.view-switch .order-option { height: 24px; font-size: 13px; }
+.view-count { color: var(--ink-3); font-weight: 400; }
+.order-option[aria-pressed="true"] .view-count { color: var(--ink-2); }
 .order-option {
   height: 22px;
   padding: 0 8px;
@@ -637,7 +657,14 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
   }
   .base-option { padding: 0 9px; }
 }
+.draft-tide { container-type: inline-size; min-width: 0; }
 .draft-tide .tide-figure { font-size: 15px; }
+/* A draft row carries its badges, so a narrow tide gives its campaign and date to the label; both stay in the row's
+   tooltip and the inspector. */
+@container (max-width: 420px) {
+  .draft-tide .event-meta { display: none; }
+  .draft-tide .event { grid-template-columns: 7.4ch minmax(0, 1fr) auto 46px; }
+}
 .draft-tide .empty { margin: 6px 0 0; color: var(--ink-3); font-size: 12px; }
 .event-badges { grid-column: 3; display: inline-flex; gap: 3px; }
 

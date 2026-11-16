@@ -24,6 +24,7 @@
   const POP_MIN_WIDTH = 320;
   const RESORT_DELAY = 400;
   const ORDER_KEY = "ti-calibration-count-order";
+  const VIEW_KEY = "ti-calibration-under-chart";
   const STATUS_POLL = 2000;
   const STATUS_GRACE = 20000;
   const SLIDER_STEP = 0.01;
@@ -236,6 +237,7 @@
     countExtras: [],
     countStatic: [],
     countOrder: "events",
+    view: "cutoffs",
 
     init(index, tables, drafts) {
       this.index = index;
@@ -442,6 +444,15 @@
         button.setAttribute("aria-pressed", String(button.dataset.order === this.countOrder));
         button.addEventListener("click", () => this.setCountOrder(button.dataset.order));
       }
+      try {
+        if (window.localStorage.getItem(VIEW_KEY) === "drafts") this.view = "drafts";
+      } catch (error) {
+        // As for the count order: without storage the choice lasts for this visit.
+      }
+      for (const button of document.querySelectorAll("#view-switch .order-option")) {
+        button.addEventListener("click", () => this.setView(button.dataset.view));
+      }
+      this.buildDial();
 
       const verdicts = $("verdicts");
       for (const [verdict, label, help] of VERDICTS) {
@@ -503,6 +514,25 @@
         this.renderChart();
         Pop.leave();
       });
+    },
+
+    // The reference control and the chart stay under the header bar while the column scrolls, so the cut-offs or
+    // the drafts below can be read with the slider in reach. The bar's height (it wraps on narrow screens) sets
+    // where they stick, and a rule marks the edge only once the column runs under them.
+    buildDial() {
+      const bar = document.querySelector(".bar");
+      const dial = $("dial");
+      const measure = () => {
+        document.documentElement.style.setProperty("--bar-height", `${Math.round(bar.getBoundingClientRect().height)}px`);
+        mark();
+      };
+      const mark = () => {
+        const top = parseFloat(getComputedStyle(dial).top);
+        dial.classList.toggle("dial-stuck", Number.isFinite(top) && window.scrollY > 0 && dial.getBoundingClientRect().top <= top + 0.5);
+      };
+      new ResizeObserver(measure).observe(bar);
+      window.addEventListener("scroll", mark, { passive: true });
+      measure();
     },
 
     alignSlider() {
@@ -1013,7 +1043,9 @@
           ),
         );
       } else {
-        chips.replaceChildren(el("span", { class: "section-note", text: "Five events on each side of each cut-off" }));
+        const drafts = this.view === "drafts" && this.index.drafts.some((draft) => draft.measures.includes(this.focus));
+        const note = drafts ? "Not counted in any real panel" : "Five events on each side of each cut-off";
+        chips.replaceChildren(el("span", { class: "section-note", text: note }));
       }
       [0, 1].forEach((slot) => this.renderTide($(`tide-${slot}`), shown[slot] || null, slot));
     },
@@ -1430,22 +1462,48 @@
       return rows;
     },
 
+    setView(view) {
+      if (view === this.view) return;
+      this.view = view;
+      try {
+        window.localStorage.setItem(VIEW_KEY, view);
+      } catch (error) {
+        // See build(): without storage the choice is kept for this visit.
+      }
+      Pop.close();
+      this.renderTides();
+      this.renderDrafts();
+    },
+
+    // Under the chart sits one of two readings of the same cut-offs: the real events nearest them, or the drafts on
+    // the focused measure. A measure no draft stakes shows the real ones and keeps the chosen view for the next.
+    renderView(count) {
+      const drafts = this.view === "drafts" && count > 0;
+      $("view-switch").hidden = count === 0;
+      $("cutoffs-title").classList.toggle("visually-hidden", count > 0);
+      $("view-count").textContent = count ? String(count) : "";
+      for (const button of document.querySelectorAll("#view-switch .order-option")) {
+        button.setAttribute("aria-pressed", String((button.dataset.view === "drafts") === drafts));
+      }
+      $("cutoff-pair").hidden = drafts;
+      $("draft-panels").hidden = !drafts;
+      return drafts;
+    },
+
     renderDrafts() {
       const focus = this.focus;
-      const section = $("draft-stakes");
       const drafts = this.index.drafts.filter((draft) => draft.measures.includes(focus));
+      if (!this.renderView(drafts.length)) return;
       const sizes = drafts.map((draft) => {
         const rows = this.draftRowsOn(draft, focus);
         return { draft, rows, slots: Math.min(this.index.constants.neighbours, rows.filter((item) => item.staked).length) };
       });
       const key = `${focus}|${this.state.campaigns.join(",")}|${this.state.types.join(",")}|${sizes.map((item) => `${item.draft.name}:${item.slots}`).join(",")}`;
-      section.hidden = drafts.length === 0;
       if (key !== this.draftLayout) {
         this.draftLayout = key;
         this.draftView = sizes.map((item) => this.draftPanel(item.draft, item.slots));
         $("draft-panels").replaceChildren(...this.draftView.map((view) => view.panel));
         $("draft-panels").classList.toggle("draft-pair", drafts.length > 1);
-        $("drafts-note").textContent = `${plural(drafts.length, "draft")} on ${this.index.measures[focus].label} · not counted in any real panel`;
       }
       sizes.forEach((item, i) => this.fillDraft(this.draftView[i], item.rows));
     },

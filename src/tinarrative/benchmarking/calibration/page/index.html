@@ -40,6 +40,7 @@
   <section class="column column-left" aria-label="The focused measure">
     <div class="chips" id="chips" role="group" aria-label="Focused measure"></div>
 
+    <div class="dial" id="dial">
     <div class="control">
       <div class="control-row">
         <label class="control-label" for="ref-value">Reference</label>
@@ -68,24 +69,22 @@
         <span class="legend-readout" id="chart-readout"></span>
       </figcaption>
     </figure>
+    </div>
 
     <section class="cutoffs" aria-labelledby="cutoffs-title">
       <div class="section-head">
         <h2 class="section-title" id="cutoffs-title">Cut-offs</h2>
+        <span class="order view-switch" id="view-switch" role="group" aria-label="Shown under the chart" hidden>
+          <button type="button" class="order-option" data-view="cutoffs" aria-pressed="true" aria-controls="cutoff-pair" title="The real events nearest each cut-off">Cut-offs</button>
+          <button type="button" class="order-option" data-view="drafts" aria-pressed="false" aria-controls="draft-panels" title="The draft stakes on this measure, at the same cut-offs">Draft stakes <span class="view-count" id="view-count"></span></button>
+        </span>
         <span class="cutoff-chips" id="cutoff-chips" role="group" aria-label="Cut-offs shown"></span>
       </div>
-      <div class="cutoff-pair">
+      <div class="cutoff-pair" id="cutoff-pair">
         <article class="tide" id="tide-0"></article>
         <article class="tide" id="tide-1"></article>
       </div>
-    </section>
-
-    <section class="draft-stakes" id="draft-stakes" aria-labelledby="drafts-title" hidden>
-      <div class="section-head">
-        <h2 class="section-title" id="drafts-title">Draft stakes</h2>
-        <span class="section-note" id="drafts-note"></span>
-      </div>
-      <div class="draft-panels" id="draft-panels"></div>
+      <div class="draft-panels" id="draft-panels" aria-label="Draft stakes" hidden></div>
     </section>
 
     <section class="references" aria-labelledby="references-title">
