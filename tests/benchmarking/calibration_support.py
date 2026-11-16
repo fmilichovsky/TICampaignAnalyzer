@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from typing import Any
 
+from tinarrative.benchmarking.calibration.drafts import ROW_PREFIX, DraftStake, draft_row_id
 from tinarrative.benchmarking.calibration.replay import default_state, replay
 from tinarrative.benchmarking.calibration.table import build_index, layers
 from tinarrative.model.events import SCORE_BANDS, Significance
+from tinarrative.model.kinds import Stake, StakeMeasure
+from tinarrative.narrative.significance import NARRATIVE_STAKE_IMPLEMENTATIONS, NarrativeScaling
 
 ROW_FIELDS = {
     "id",
@@ -25,12 +29,23 @@ ROW_FIELDS = {
 }
 
 
-def check_rows(rows: list[dict[str, Any]]) -> None:
-    """Every row has the schema, a score inside its level's band, and cites only rows of an earlier layer."""
+def check_rows(rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = ()) -> None:
+    """Every row has the schema, a score inside its level's band, and cites only rows of an earlier layer; a draft
+    row is a narrative row with ``ruled``, cites only real rows and is cited by none."""
     assert rows
     by_id = {row["id"]: row for row in rows}
     assert len(by_id) == len(rows)
+    assert not any(row["id"].startswith(ROW_PREFIX) for row in rows)
+    assert not any(cited.startswith(ROW_PREFIX) for row in rows for cited in row["cited"])
     layer_of = layers()
+    for draft in drafts:
+        assert set(draft) == ROW_FIELDS | {"ruled"}
+        assert draft["id"].startswith(ROW_PREFIX) and draft["tier"] == "narrative"
+        assert isinstance(draft["ruled"], bool)
+        low, high = SCORE_BANDS[Significance(draft["level"])]
+        assert low <= draft["score"] <= high
+        own = layer_of[draft["type"]]
+        assert all(cited in by_id and layer_of.get(by_id[cited]["type"], 0) < own for cited in draft["cited"])
     for row in rows:
         assert set(row) == ROW_FIELDS
         assert row["tier"] in {"atomic", "reconstructed", "narrative"}
@@ -45,14 +60,20 @@ def check_rows(rows: list[dict[str, Any]]) -> None:
             assert (layer_of.get(other["type"], 0) if other["tier"] == "narrative" else 0) < own
 
 
-def check_parity(rows: list[dict[str, Any]]) -> None:
-    """At the code's references with the clamp on, the replay is the pipeline: every score and level, every group."""
-    index = build_index(["campaign"], key="", extracted_at="")
-    result = replay(index, {"campaign": rows}, default_state(index))
+def check_parity(
+    rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = (), declared: Sequence[DraftStake] = ()
+) -> None:
+    """At the code's references with the clamp on and each draft's own base, the replay is the pipeline: every score
+    and level, every group, every draft row of the ``declared`` drafts."""
+    index = build_index(["campaign"], key="", extracted_at="", drafts=declared)
+    result = replay(index, {"campaign": rows}, default_state(index), {"campaign": drafts})
     oracle = {row["id"]: (row["score"], row["level"]) for row in rows}
     campaign = result["campaigns"]["campaign"]
 
     assert {event["id"]: (event["score"], event["level"]) for event in campaign["events"]} == oracle
+    assert [(event["id"], event["score"], event["level"]) for event in campaign["drafts"]] == [
+        (draft["id"], draft["score"], draft["level"]) for draft in drafts
+    ]
     assert all(member["verdict"] == "keeps_members" for member in campaign["members"])
     assert result["totals"]["events_moved"] == 0
     assert result["totals"]["package"]["change"] == 0
@@ -153,6 +174,77 @@ def members(faction: str, scales: list[float]) -> list[dict[str, Any]]:
     return [*group_members, group]
 
 
+FIRST, SECOND, THIRD = (next(name for name, number in INDEX["layers"].items() if number == n) for n in (1, 2, 3))
+"""A narrative type of each of the first three layers."""
+ACTOR = NARRATIVE_STAKE_IMPLEMENTATIONS[Stake.ACTOR]
+DRAFTS = (
+    DraftStake(
+        name="held",
+        label="Held share",
+        issue=1,
+        event_types=(FIRST, SECOND, THIRD),
+        scalings=(ACTOR, NarrativeScaling(StakeMeasure.POPULATION, ACTOR.entities)),
+        base=Significance.MINOR,
+    ),
+    DraftStake(
+        name="moved",
+        label="Moved share",
+        issue=2,
+        event_types=(FIRST,),
+        scalings=(NarrativeScaling(StakeMeasure.POPULATION, ACTOR.entities),),
+        base=Significance.TRIVIAL,
+    ),
+)
+"""Two fixture draft stakes on the chain's types, side by side on its first layer."""
+DRAFT_INDEX = build_index(["one"], key="", extracted_at="", drafts=DRAFTS)
+
+
+def draft_row(
+    name: str,
+    of: dict[str, Any],
+    *,
+    level: str | None = None,
+    stakes: tuple[tuple[str, float], ...] = (),
+    ruled: bool = False,
+) -> dict[str, Any]:
+    """The shadow row of draft ``name`` for the real row ``of``: its type and citations, at the draft's base (or at
+    ``level`` when ``ruled``); the oracle is set by ``with_draft_oracle``."""
+    draft = next(draft for draft in DRAFT_INDEX["drafts"] if draft["name"] == name)
+    shadow = row(
+        draft_row_id(name, of["id"]),
+        of["type"],
+        tier="narrative",
+        level=level if ruled and level is not None else draft["base"],
+        stakes=stakes,
+        cited=tuple(of["cited"]),
+    )
+    return {**shadow, "ruled": ruled}
+
+
+def with_draft_oracle(
+    index: dict[str, Any], rows: list[dict[str, Any]], drafts: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """The draft rows with the code's replay as their oracle, as extraction would record it."""
+    state = replace(default_state(index), campaigns=(index["campaigns"][0],))
+    result = replay(index, {index["campaigns"][0]: rows}, state, {index["campaigns"][0]: drafts})
+    by_id = {event["id"]: event for event in result["campaigns"][index["campaigns"][0]]["drafts"]}
+    return [{**item, "score": by_id[item["id"]]["score"], "level": by_id[item["id"]]["level"]} for item in drafts]
+
+
+def drafted() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The chain and its draft rows: one floored by its cited row, one ruled, one with two candidates, and a second
+    draft beside the first on the chain's first layer."""
+    rows = chain()
+    land, deal, grow, arc = rows
+    shadows = [
+        draft_row("held", deal, stakes=power(-10)),
+        draft_row("held", grow, level="major", stakes=power(2), ruled=True),
+        draft_row("held", arc, stakes=(*power(-4), ("population", POPULATION * 10**0.3))),
+        draft_row("moved", deal, stakes=(("population", POPULATION * 10**1.2),)),
+    ]
+    return rows, with_draft_oracle(DRAFT_INDEX, rows, shadows)
+
+
 INVALID_HASHES = [
     ("speed=1", "unknown state hash key 'speed'"),
     ("clamp=off&clamp=on", "'clamp' is repeated"),
@@ -171,5 +263,8 @@ INVALID_HASHES = [
     ("types=war.arc,war.arc", "repeated"),
     ("types=", "lists no type"),
     ("focus=warp", "unknown focus measure"),
+    ("base=", "lists no base"),
+    ("base=held", "draft:level"),
+    ("base=nobody:major", "unknown draft stake 'nobody'"),
 ]
 """State hashes both codecs reject, with the start of the Python error."""

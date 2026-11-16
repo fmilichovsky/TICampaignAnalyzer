@@ -13,7 +13,8 @@ import pytest
 
 from tests.benchmark_support import synthetic_samples
 from tinarrative import cli
-from tinarrative.benchmarking.calibration import table
+from tinarrative.benchmarking.calibration import drafts, table
+from tinarrative.benchmarking.calibration.drafts import DraftStake
 from tinarrative.benchmarking.calibration.replay import load
 from tinarrative.benchmarking.manifest import MANIFEST
 
@@ -105,7 +106,7 @@ def test_references_accumulate_over_commas_and_repeats(paths: tuple[Path, Path])
 
 def test_campaign_type_and_clamp_flags_reach_the_state(paths: tuple[Path, Path]) -> None:
     samples, out = paths
-    index, tables = load(out)
+    index, tables, _ = load(out)
     types = sorted({row["type"] for rows in tables.values() for row in rows})[:2]
 
     document = report_json(paths, "--campaign", index["campaigns"][0], "--type", ",".join(types), "--clamp", "off")
@@ -193,6 +194,17 @@ def test_a_failed_extraction_is_a_usage_error_and_keeps_the_old_table(
     assert "the pipeline broke" in stderr
     assert (out / "index.js").read_bytes() == before
     assert table.read_status(out / "status.js")["state"] == "failed"
+
+
+def test_an_invalid_draft_stake_is_a_usage_error(paths: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    invalid = DraftStake(name="ghost", label="Ghost", issue=1, event_types=("nation.ghost",), scalings=())
+    monkeypatch.setattr(drafts, "DRAFT_STAKES", (invalid,))
+
+    code, stdout, stderr = report(paths, "--rebuild")
+
+    assert code == cli.EXIT_USAGE_ERROR
+    assert stdout == ""
+    assert "ghost" in stderr
 
 
 @pytest.mark.parametrize("broken", ["missing", "no-manifest"])

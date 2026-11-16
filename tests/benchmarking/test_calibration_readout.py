@@ -28,7 +28,7 @@ from tinarrative.benchmarking.calibration.replay import (
 )
 
 READOUT = GOLDEN.parent / "readout"
-INDEX, TABLES = load(GOLDEN)
+INDEX, TABLES, DRAFTS = load(GOLDEN)
 CODE = default_state(INDEX)
 POWER = CODE.references["power"]
 
@@ -52,7 +52,7 @@ SECTIONS = [
 @pytest.mark.parametrize("name", list(STATES))
 def test_the_readouts_of_the_golden_states_are_current(name: str, assert_golden: AssertGolden) -> None:
     state = STATES[name]
-    result = replay(INDEX, TABLES, state)
+    result = replay(INDEX, TABLES, state, DRAFTS)
     state_hash = encode_state(state, INDEX)
 
     assert_golden(shared_paragraph(INDEX, result) + "\n" + snippet(INDEX, result) + "\n", READOUT / f"{name}.txt")
@@ -83,7 +83,7 @@ def test_the_paragraph_and_the_snippet_are_ascii_and_name_only_changed_reference
 
 def test_the_json_readout_holds_only_the_edges() -> None:
     state = STATES["lower"]
-    result = replay(INDEX, TABLES, state)
+    result = replay(INDEX, TABLES, state, DRAFTS)
     document = render_json(INDEX, TABLES, result, state_hash=encode_state(state, INDEX))
     fallen = {
         (name, member["id"])

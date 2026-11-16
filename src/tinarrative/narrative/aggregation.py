@@ -155,6 +155,13 @@ def interval_reports(situations: Sequence[SituationReport]) -> dict[str, tuple[S
     return {keys[index]: (situations[index - 1], situations[index]) for index in range(1, len(situations))}
 
 
+def report_stakes(situations: Sequence[SituationReport], significance: SignificanceSettings) -> dict[str, ReportStakes]:
+    """The stakes of each interval's two reports, keyed as ``interval_reports`` keys them."""
+    return {
+        key: ReportStakes(before, after, significance) for key, (before, after) in interval_reports(situations).items()
+    }
+
+
 def present_in(report: SituationReport, ref: EntityRef) -> bool:
     listed = (
         *(nation.nation for nation in report.nations),
@@ -183,10 +190,7 @@ class NarrativeBuilder:
         self._situations = tuple(situations)
         self._last = self._situations[-1] if self._situations else None
         self._geopolitics = geopolitics
-        self._stakes = {
-            key: ReportStakes(before, after, significance)
-            for key, (before, after) in interval_reports(self._situations).items()
-        }
+        self._stakes = report_stakes(self._situations, significance)
 
     def scoring_with(self, geopolitics: GeopoliticsSettings) -> NarrativeBuilder:
         """This builder, scoring by the rule's own settings and sharing its measured stakes. TODO(#362): goes with

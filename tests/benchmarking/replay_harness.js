@@ -37,13 +37,17 @@ if (readoutGlobals.length !== 1 || readoutGlobals[0] !== "TICalibrationReadout")
 }
 const readout = context.TICalibrationReadout;
 const tables = {};
-for (const name of index.campaigns) tables[name] = context.TI_CALIBRATION.campaigns[name].events;
+const drafts = {};
+for (const name of index.campaigns) {
+  tables[name] = context.TI_CALIBRATION.campaigns[name].events;
+  drafts[name] = context.TI_CALIBRATION.campaigns[name].drafts;
+}
 
 const operations = {
-  replay: (request) => api.replay(index, tables, api.decodeState(request.hash, index)),
+  replay: (request) => api.replay(index, tables, api.decodeState(request.hash, index), drafts),
   decode: (request) => api.decodeState(request.hash, index),
   readout: (request) => {
-    const result = api.replay(index, tables, api.decodeState(request.hash, index));
+    const result = api.replay(index, tables, api.decodeState(request.hash, index), drafts);
     return { paragraph: readout.sharedParagraph(index, result), snippet: readout.snippet(index, result) };
   },
   encode: (request) => api.encodeState(request.state, index),

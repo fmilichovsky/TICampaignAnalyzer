@@ -299,6 +299,11 @@ failed. A failed rebuild keeps the previous table.
 `--state` takes the URL hash of the calibration page, so a state explored there can be read here in full; the other
 flags override what it sets.
 
+The table also scores the draft stakes declared in `DRAFT_STAKES` (`tinarrative.benchmarking.calibration.drafts`):
+each one tries a stake on existing narrative event types before a kind declares it. Its rows sit beside the real
+events and never change their levels, and the state holds a base level for each draft. A draft that names an unknown
+or non-narrative event type, or repeats a name, fails the rebuild.
+
 ```sh
 # What would a lower power reference do?
 tinarrative benchmark calibrate report --reference power=0.002

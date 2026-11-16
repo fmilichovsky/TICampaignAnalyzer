@@ -4,26 +4,30 @@ from __future__ import annotations
 
 import json
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
+from tinarrative.benchmarking.calibration import drafts as draft_stakes
+from tinarrative.benchmarking.calibration.drafts import DraftStake, draft_base, draft_row_id, validate_drafts
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
 from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event, Significance
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
+from tinarrative.narrative.aggregation import report_stakes
 from tinarrative.narrative.chronology import interval_of
 from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
-from tinarrative.narrative.significance import narrative_level
+from tinarrative.narrative.significance import ReportStakes, narrative_level, score_narrative
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
     narrative_events,
     plan_sequence,
     run_sequence,
+    situations,
     survey_all,
 )
 
@@ -44,8 +48,17 @@ class CalibrationTableError(ValueError):
     """A calibration table file that does not follow the wrapper contract, or a campaign that cannot be extracted."""
 
 
-def extract_campaign(saves: Sequence[Path]) -> list[dict[str, Any]]:
-    """One row per finished event of a campaign, from a separate in-process run at code defaults."""
+def declared_drafts(drafts: Sequence[DraftStake] | None = None) -> tuple[DraftStake, ...]:
+    """``drafts``, else the declared ``DRAFT_STAKES``, validated (``DraftStakeError``)."""
+    chosen = tuple(draft_stakes.DRAFT_STAKES if drafts is None else drafts)
+    validate_drafts(chosen)
+    return chosen
+
+
+def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftStake] | None = None) -> dict[str, Any]:
+    """The campaign document from a separate in-process run at code defaults: one row per finished event, and one
+    shadow row per draft stake and event of its types (``drafts``, by default the declared ones)."""
+    chosen = declared_drafts(drafts)
     outcomes = list(survey_all(list(saves)))
     failures = [outcome for outcome in outcomes if isinstance(outcome, SurveyFailure)]
     if failures:
@@ -53,10 +66,53 @@ def extract_campaign(saves: Sequence[Path]) -> list[dict[str, Any]]:
     refs = [outcome for outcome in outcomes if isinstance(outcome, SaveRef)]
     plan = plan_sequence(refs)
     intervals = list(run_sequence(plan, inferred=True))
+    narrative = narrative_events(intervals)
     rows = [_row(event, "atomic") for interval in intervals for event in interval.objective]
     rows.extend(_row(event, "reconstructed") for interval in intervals for event in interval.inferred or ())
-    rows.extend(_row(event, "narrative") for event in narrative_events(intervals))
-    return rows
+    rows.extend(_row(event, "narrative") for event in narrative)
+    by_id = {event.id: event for interval in intervals for event in interval.events()}
+    by_id.update((event.id, event) for event in narrative)
+    stakes = report_stakes(situations(intervals), DEFAULT_SETTINGS.narrative.significance)
+    shadows = [
+        _draft_row(draft, event, by_id, stakes)
+        for draft in chosen
+        for event in narrative
+        if event.event_type in draft.event_types
+    ]
+    return {"events": rows, "drafts": shadows}
+
+
+def _draft_row(
+    draft: DraftStake, event: Event, by_id: Mapping[str, Event], stakes: Mapping[str, ReportStakes]
+) -> dict[str, Any]:
+    """The event scored by the draft's candidates, each as the pipeline would score it; the score is the highest
+    of the candidates with a share, as the replay takes it."""
+    kind = kind_for(event.event_type)
+    if kind is None:
+        raise CalibrationTableError(f"event type {event.event_type} is declared by no kind")
+    cited = [by_id[item] for item in event.constituents]
+    first, last = stakes.get(event.intervals[0]), stakes.get(event.intervals[-1])
+    base = draft_base(draft)
+    geopolitics = DEFAULT_SETTINGS.narrative.geopolitics
+    results = [
+        score_narrative(kind, event, cited, geopolitics, scaling=scaling, base=base, stakes=first, last=last)
+        for scaling in draft.scalings
+    ]
+    scored = [result for result in results if result.basis is not None]
+    score = max(result.score for result in scored) if scored else results[0].score
+    return {
+        **_row(event, "narrative"),
+        "id": draft_row_id(draft.name, event.id),
+        "base": results[0].level.base,
+        "stakes": [
+            {"measure": result.basis.measure.value, "share": result.basis.share}
+            for result in scored
+            if result.basis is not None
+        ],
+        "score": score,
+        "level": Significance.of(score).value,
+        "ruled": results[0].ruled,
+    }
 
 
 def _row(event: Event, tier: str) -> dict[str, Any]:
@@ -104,8 +160,12 @@ def layers() -> dict[str, int]:
     }
 
 
-def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dict[str, Any]:
-    """The ``index.js`` document: what the rows cannot say about themselves, from the registry and the rules."""
+def build_index(
+    campaigns: Sequence[str], *, key: str, extracted_at: str, drafts: Sequence[DraftStake] | None = None
+) -> dict[str, Any]:
+    """The ``index.js`` document: what the rows cannot say about themselves, from the registry, the rules and the
+    draft stakes (``drafts``, by default the declared ones)."""
+    chosen = declared_drafts(drafts)
     rules = {rule.name: rule for rule in NARRATIVE_RULES}
     return {
         "schema_version": SCHEMA_VERSION,
@@ -136,15 +196,25 @@ def build_index(campaigns: Sequence[str], *, key: str, extracted_at: str) -> dic
             measure.value: {"reference": spec.reference, "label": spec.label, "description": spec.description}
             for measure, spec in MEASURES.items()
         },
-        "drafts": [],
+        "drafts": [
+            {
+                "name": draft.name,
+                "label": draft.label,
+                "issue": draft.issue,
+                "base": draft_base(draft).value,
+                "measures": list(dict.fromkeys(scaling.measure.value for scaling in draft.scalings)),
+            }
+            for draft in chosen
+        ],
     }
 
 
-def write_campaign(directory: Path, name: str, rows: Sequence[dict[str, Any]]) -> Path:
-    """Write ``tables/<name>.js`` under ``directory``: JSON in the one-line wrapper."""
+def write_campaign(directory: Path, name: str, document: Mapping[str, Any]) -> Path:
+    """Write ``tables/<name>.js`` under ``directory``: the campaign document (``events``, ``drafts``) as JSON in the
+    one-line wrapper."""
     path = directory / "tables" / f"{name}.js"
     path.parent.mkdir(parents=True, exist_ok=True)
-    document = {"events": list(rows), "drafts": []}
+    document = {"events": list(document["events"]), "drafts": list(document["drafts"])}
     path.write_text(f'{CAMPAIGN_PREFIX}{name}"] = {_dumps(document)}{SUFFIX}\n', encoding="utf-8")
     return path
 
@@ -181,14 +251,15 @@ def read_status(path: Path) -> dict[str, Any]:
 def extract_all(samples: Path, directory: Path, *, key: str, now: datetime | None = None) -> list[str]:
     """Extract every campaign that is not a ``prefix_of`` another into ``directory``; the campaigns extracted."""
     stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
+    chosen = declared_drafts()
     names: list[str] = []
     for name, files in extractable_campaigns(samples).items():
         with tempfile.TemporaryDirectory(prefix="calibration-") as scratch:
             decompress_samples(files, Path(scratch))
-            rows = extract_campaign(sorted(Path(scratch).iterdir()))
-        write_campaign(directory, name, rows)
+            document = extract_campaign(sorted(Path(scratch).iterdir()), chosen)
+        write_campaign(directory, name, document)
         names.append(name)
-    write_index(directory, build_index(names, key=key, extracted_at=stamp))
+    write_index(directory, build_index(names, key=key, extracted_at=stamp, drafts=chosen))
     return names
 
 

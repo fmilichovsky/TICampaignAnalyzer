@@ -52,6 +52,7 @@ from tinarrative.narrative.significance import (
     STAKE_IMPLEMENTATIONS,
     NarrativeContextRule,
     narrative_score,
+    score_narrative,
 )
 
 COUNCILOR = EntityDomain.COUNCILOR
@@ -629,6 +630,32 @@ def test_a_population_collapse_is_campaign_defining_after_nuked_regions_or_nucle
         is Significance.CAMPAIGN_DEFINING
     )
     assert narrative_level(kind, nuked_regions=(), nuclear_strikes=True) is Significance.CAMPAIGN_DEFINING
+
+
+def test_a_given_base_applies_only_where_the_context_rule_defers() -> None:
+    kind = KINDS[POPULATION_COLLAPSE.event_type]
+    calm = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
+    struck = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=True)
+
+    deferred = score_narrative(kind, calm, (), GeopoliticsSettings(), scaling=None, base=Significance.TRIVIAL)
+    ruled = score_narrative(kind, struck, (), GeopoliticsSettings(), scaling=None, base=Significance.TRIVIAL)
+
+    assert (deferred.level, deferred.score, deferred.ruled) == (Significance.TRIVIAL, Significance.TRIVIAL.base, False)
+    assert (ruled.level, ruled.ruled) == (Significance.CAMPAIGN_DEFINING, True)
+    assert ruled.score == Significance.CAMPAIGN_DEFINING.base
+
+
+def test_the_kinds_own_scaling_and_base_score_an_event_as_narrative_score_does() -> None:
+    kind = KINDS[POPULATION_COLLAPSE.event_type]
+    event = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
+    top = Significance.CAMPAIGN_DEFINING
+    cited = replace(bare_event("nation.rank_changed"), significance=top, score=top.band[1])
+
+    scored = score_narrative(kind, event, (cited,), GeopoliticsSettings(), scaling=None, base=kind.base)
+
+    assert (scored.score, scored.basis) == narrative_score(kind, event, (cited,), GeopoliticsSettings())
+    assert scored.score == cited.score
+    assert scored.level is kind.base
 
 
 def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:

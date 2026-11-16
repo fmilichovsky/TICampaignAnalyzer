@@ -11,15 +11,17 @@ from typing import Any
 
 from tests.benchmarking.calibration_support import (
     CONSTANTS,
+    DRAFTS,
     GATE,
     MEMBER,
     POPULATION,
     POWER,
     base,
-    chain,
+    drafted,
     members,
     power,
     row,
+    with_draft_oracle,
     with_oracle,
 )
 from tests.fixtures import FIXTURES_ROOT
@@ -31,7 +33,7 @@ CAMPAIGNS = ("alpha", "beta")
 
 
 def golden_index() -> dict[str, Any]:
-    return build_index(list(CAMPAIGNS), key="golden", extracted_at="2026-01-01T00:00:00+00:00")
+    return build_index(list(CAMPAIGNS), key="golden", extracted_at="2026-01-01T00:00:00+00:00", drafts=DRAFTS)
 
 
 def spread() -> list[dict[str, Any]]:
@@ -49,9 +51,10 @@ def spread() -> list[dict[str, Any]]:
     ]
 
 
-def golden_tables() -> dict[str, list[dict[str, Any]]]:
-    """The rows of each golden campaign, with the code's replay as their oracle."""
+def golden_tables() -> dict[str, dict[str, Any]]:
+    """The document of each golden campaign, its rows and draft rows with the code's replay as their oracle."""
     minimum = GATE["minimum"]
+    chain_rows, shadows = drafted()
     top = (CONSTANTS["level_bands"]["campaign_defining"][0] - base("major")) - 1
     window = cutoff_offsets(CONSTANTS, clamp=True)
     further = [offset for offset in cutoff_offsets(CONSTANTS, clamp=False) if offset not in window]
@@ -67,7 +70,7 @@ def golden_tables() -> dict[str, list[dict[str, Any]]]:
         row("inside", "atomic.near", stakes=power(10 * low + 0.2)),
         row("far-low", "atomic.far", stakes=power(10 * max(o for o in further if o < 0) - 1)),
         row("far-high", "atomic.far", level="trivial", stakes=power(10 * min(o for o in further if o > 0) + 1)),
-        *chain(),
+        *chain_rows,
         *members("kept", [0.0] * minimum),
         *members("shrunk", [top, *([0.0] * minimum)]),
         *members("gone", [top, *([0.0] * (minimum - 1))]),
@@ -80,4 +83,9 @@ def golden_tables() -> dict[str, list[dict[str, Any]]]:
         row("quiet", "atomic.plain", level="trivial"),
         *spread(),
     ]
-    return {"alpha": with_oracle(alpha), "beta": with_oracle(beta)}
+    alpha = with_oracle(alpha)
+    index = {**golden_index(), "campaigns": ["alpha"]}
+    return {
+        "alpha": {"events": alpha, "drafts": with_draft_oracle(index, alpha, shadows)},
+        "beta": {"events": with_oracle(beta), "drafts": []},
+    }

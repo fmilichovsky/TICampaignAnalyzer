@@ -12,6 +12,8 @@ import pytest
 from tests.benchmarking.calibration_support import (
     CODE,
     CONSTANTS,
+    DRAFT_INDEX,
+    DRAFTS,
     GATE,
     GROUP,
     INDEX,
@@ -22,6 +24,7 @@ from tests.benchmarking.calibration_support import (
     base,
     chain,
     check_parity,
+    drafted,
     members,
     power,
     row,
@@ -35,6 +38,7 @@ from tinarrative.benchmarking.calibration.replay import (
     ReplayStateError,
     cutoff_offsets,
     decode_state,
+    default_state,
     encode_state,
     js_number,
     portable_log10,
@@ -58,7 +62,7 @@ def test_the_replay_at_the_code_references_is_the_pipeline_on_the_fixture_sequen
         for name in ("politics_before.json", "politics_after.json", "politics_reverted.json")
     ]
 
-    check_parity(extract_campaign(saves))
+    check_parity(extract_campaign(saves)["events"])
 
 
 def test_the_clamp_bounds_the_scale_and_a_zero_share_takes_the_lowest_scale() -> None:
@@ -301,3 +305,107 @@ def test_a_state_that_misses_a_measure_or_names_an_unknown_campaign_is_rejected(
         replay(INDEX, {"one": [], "two": []}, replace(CODE, references=missing))
     with pytest.raises(ReplayStateError, match="unknown campaign"):
         replay(INDEX, {"one": []}, CODE)
+
+
+def run_drafts(**changes: Any) -> Replay:
+    rows, shadows = drafted()
+    state = replace(default_state(DRAFT_INDEX), **changes)
+    return replay(DRAFT_INDEX, {"one": rows}, state, {"one": shadows})
+
+
+def draft_events(result: Replay) -> dict[str, dict[str, Any]]:
+    return {event["id"]: dict(event) for event in result["campaigns"]["one"]["drafts"]}
+
+
+def test_the_draft_rows_replay_to_their_oracle_at_each_drafts_own_base() -> None:
+    rows, shadows = drafted()
+
+    check_parity(rows, shadows, DRAFTS)
+
+
+def test_the_base_selector_moves_the_drafts_own_rows_and_skips_the_ruled_ones() -> None:
+    rows, shadows = drafted()
+    ruled = {row["id"] for row in shadows if row["ruled"]}
+    held = {row["id"] for row in shadows if row["id"].startswith("draft:held:")}
+    code = draft_events(run_drafts())
+
+    raised = draft_events(run_drafts(bases={"held": "major", "moved": "trivial"}))
+
+    assert ruled and ruled < held
+    assert all(raised[id]["score"] == code[id]["score"] for id in ruled)
+    assert all(raised[id]["score"] > code[id]["score"] for id in held - ruled)
+    assert all(raised[id] == code[id] for id in raised if id not in held)
+
+
+def test_draft_rows_never_change_the_real_rows_counts_or_totals() -> None:
+    rows, _ = drafted()
+    alone = replay(DRAFT_INDEX, {"one": rows}, default_state(DRAFT_INDEX))
+    beside = run_drafts(bases={"held": "campaign_defining", "moved": "campaign_defining"})
+
+    for key in ("events", "level_counts", "members"):
+        assert beside["campaigns"]["one"][key] == alone["campaigns"]["one"][key]  # type: ignore[literal-required]
+    assert (beside["totals"], beside["moves"]) == (alone["totals"], alone["moves"])
+    assert alone["campaigns"]["one"]["drafts"] == []
+
+
+def test_each_draft_counts_its_levels_at_its_base_and_the_levels_its_cited_floor_sets() -> None:
+    result = run_drafts()
+    shadows = draft_events(result)
+
+    for name, summary in result["drafts"].items():
+        own = [event for id, event in shadows.items() if id.startswith(f"draft:{name}:")]
+        assert sum(summary["level_counts"]["replay"].values()) == len(own)
+        assert summary["level_counts"]["replay"] == summary["level_counts"]["baseline"]
+        assert summary["floored"] == sum(event["decided_by"] != event["id"] for event in own)
+    assert result["drafts"]["held"]["floored"] > 0
+    assert run_drafts(bases={"held": "major", "moved": "trivial"})["drafts"]["held"]["floored"] == 0
+
+
+def test_a_drafts_rows_are_its_own_neighbours_at_each_cut_off_and_tagged_with_it() -> None:
+    result = run_drafts()
+    alone = replay(DRAFT_INDEX, {"one": drafted()[0]}, default_state(DRAFT_INDEX))
+
+    for measure, cutoffs in result["cutoffs"].items():
+        plain = {cutoff["offset"]: cutoff for cutoff in alone["cutoffs"][measure]}
+        for cutoff in cutoffs:
+            if cutoff["offset"] in plain:
+                same = plain[cutoff["offset"]]
+                assert (cutoff["below"], cutoff["above"]) == (same["below"], same["above"])
+            assert all(item["draft"] is None for item in (*cutoff["below"], *cutoff["above"]))
+            for name, sides in cutoff["drafts"].items():
+                tagged = [*sides["below"], *sides["above"]]
+                assert all(item["draft"] == name and item["id"].startswith(f"draft:{name}:") for item in tagged)
+    assert any(
+        item
+        for cutoff in result["cutoffs"]["population"]
+        for side in cutoff["drafts"]["moved"].values()
+        for item in side
+    )
+
+
+def test_a_draft_row_of_no_declared_draft_is_rejected() -> None:
+    rows, shadows = drafted()
+
+    with pytest.raises(ReplayError, match="no declared draft stake"):
+        replay(INDEX, {"one": rows}, replace(CODE, campaigns=("one",)), {"one": shadows})
+
+
+def test_a_state_needs_one_level_base_per_draft() -> None:
+    with pytest.raises(ReplayStateError, match="a base for exactly the draft stakes"):
+        run_drafts(bases={"held": "major"})
+    with pytest.raises(ReplayStateError, match="must be a level"):
+        run_drafts(bases={"held": "huge", "moved": "minor"})
+
+
+def test_the_draft_bases_round_trip_through_the_hash() -> None:
+    code = default_state(DRAFT_INDEX)
+    state = replace(code, bases={**code.bases, "moved": "major"})
+
+    text = encode_state(state, DRAFT_INDEX)
+
+    assert text == "base=moved:major"
+    assert decode_state(text, DRAFT_INDEX) == state
+    assert encode_state(code, DRAFT_INDEX) == ""
+    for bad, message in [("base=held:huge", "must be a level"), ("base=held:major,held:minor", "repeated")]:
+        with pytest.raises(ReplayStateError, match=message):
+            decode_state(bad, DRAFT_INDEX)

@@ -17,16 +17,17 @@ pytestmark = pytest.mark.samples
 
 
 def test_a_sample_campaign_extracts_to_consistent_rows_that_replay_to_the_pipeline(calibration_table: Path) -> None:
-    _, tables = load(calibration_table)
+    _, tables, drafts = load(calibration_table)
     [rows] = tables.values()
+    [shadows] = drafts.values()
 
-    check_rows(rows)
+    check_rows(rows, shadows)
     check_parity(rows)
 
 
 @pytest.mark.browser_replay
 def test_replay_js_and_readout_js_match_python_on_a_sample_campaign(calibration_table: Path) -> None:
-    index, tables = load(calibration_table)
+    index, tables, _ = load(calibration_table)
     [rows] = tables.values()
     code = default_state(index)
     references = code.references

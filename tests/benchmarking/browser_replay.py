@@ -80,29 +80,30 @@ def state_object(state: ReplayState) -> dict[str, Any]:
         "campaigns": list(state.campaigns),
         "types": list(state.types),
         "focus": state.focus,
+        "bases": dict(state.bases),
     }
 
 
 def assert_replays_agree(directory: Path, states: Sequence[ReplayState]) -> None:
     """For every state, ``replay.js`` (fed the Python hash) writes exactly the JSON of ``replay.py``."""
-    index, tables = load(directory)
+    index, tables, drafts = load(directory)
     hashes = [encode_state(state, index) for state in states]
     answers = run_harness(directory, [{"op": "replay", "hash": text} for text in hashes])
     for state, text, answer in zip(states, hashes, answers, strict=True):
         assert "ok" in answer, f"replay.js rejected #{text}: {answer}"
-        expected = js_json(replay(index, tables, state))
+        expected = js_json(replay(index, tables, state, drafts))
         if answer["ok"] != expected:
             pytest.fail(f"replay.js differs from replay.py for #{text}: {_first_difference(answer['ok'], expected)}")
 
 
 def assert_readouts_agree(directory: Path, states: Sequence[ReplayState]) -> None:
     """For every state, ``readout.js`` writes the shared paragraph and the snippet of ``readout.py`` byte for byte."""
-    index, tables = load(directory)
+    index, tables, drafts = load(directory)
     hashes = [encode_state(state, index) for state in states]
     answers = run_harness(directory, [{"op": "readout", "hash": text} for text in hashes])
     for state, text, answer in zip(states, hashes, answers, strict=True):
         assert "ok" in answer, f"readout.js rejected #{text}: {answer}"
-        result = replay(index, tables, state)
+        result = replay(index, tables, state, drafts)
         expected = js_json({"paragraph": shared_paragraph(index, result), "snippet": snippet(index, result)})
         if answer["ok"] != expected:
             pytest.fail(f"readout.js differs from readout.py for #{text}: {_first_difference(answer['ok'], expected)}")

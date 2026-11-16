@@ -20,6 +20,10 @@
     "types": [
       "atomic.thing"
     ],
+    "bases": {
+      "held": "minor",
+      "moved": "trivial"
+    },
     "focus": null
   },
   "totals": {

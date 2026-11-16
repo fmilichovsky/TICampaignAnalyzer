@@ -13,15 +13,15 @@ from tinarrative.benchmarking.calibration.table import write_campaign, write_ind
 
 def test_the_golden_calibration_table_is_current(assert_golden: AssertGolden, tmp_path: Path) -> None:
     write_index(tmp_path, golden_index())
-    for name, rows in golden_tables().items():
-        write_campaign(tmp_path, name, rows)
+    for name, document in golden_tables().items():
+        write_campaign(tmp_path, name, document)
 
     for path in sorted(tmp_path.rglob("*.js")):
         assert_golden(path.read_text(encoding="utf-8"), GOLDEN / path.relative_to(tmp_path))
 
 
 def test_the_golden_table_moves_members_and_cut_offs_when_the_state_changes() -> None:
-    index, tables = load(GOLDEN)
+    index, tables, _ = load(GOLDEN)
     code = default_state(index)
     power = code.references["power"]
 
