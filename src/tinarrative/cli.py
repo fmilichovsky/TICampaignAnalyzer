@@ -217,7 +217,8 @@ EXIT_CODES: dict[str, ExitCodes] = {
         (
             EXIT_USAGE_ERROR,
             f"usage error, a sample that does not match {MANIFEST}, an unknown measure, campaign or type, an invalid "
-            "--state, a measure given twice, or a failed extraction (status.js says failed; the old table stays).",
+            "--state, a measure given twice, a table at another schema version (run with --rebuild), or a failed "
+            "extraction (status.js says failed; the old table stays).",
         ),
         (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
         (EXIT_OUTPUT_ERROR, "--out cannot be written."),

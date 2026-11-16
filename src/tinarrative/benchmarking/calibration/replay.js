@@ -6,7 +6,7 @@
 (function (root) {
   "use strict";
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
   const STATE_KEYS = ["ref", "clamp", "campaigns", "types", "focus"];
 
   class ReplayError extends Error {

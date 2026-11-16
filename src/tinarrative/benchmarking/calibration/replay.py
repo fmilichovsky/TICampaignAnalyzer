@@ -15,9 +15,9 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any, Final, Literal, TypedDict
 
+from tinarrative.benchmarking.calibration.table import SCHEMA_VERSION as SCHEMA_VERSION
 from tinarrative.benchmarking.calibration.table import read_campaign, read_index
 
-SCHEMA_VERSION: Final = 1
 STATE_KEYS: Final = ("ref", "clamp", "campaigns", "types", "focus")
 """The hash keys, in the order ``encode_state`` writes them."""
 
@@ -182,8 +182,14 @@ def default_state(index: Mapping[str, Any]) -> ReplayState:
 
 
 def load(directory: Path) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
-    """The index and the rows of every campaign of a calibration table directory."""
+    """The index and the rows of every campaign of a calibration table directory; ``ReplayError`` for a table at
+    another schema version, with the rebuild hint."""
     index = read_index(directory / "index.js")
+    if index.get("schema_version") != SCHEMA_VERSION:
+        raise ReplayError(
+            f"index.js has schema {index.get('schema_version')}; this replay reads schema {SCHEMA_VERSION}. "
+            "Run tinarrative benchmark calibrate report --rebuild."
+        )
     tables = {name: read_campaign(directory / "tables" / f"{name}.js")["events"] for name in index["campaigns"]}
     return index, tables
 

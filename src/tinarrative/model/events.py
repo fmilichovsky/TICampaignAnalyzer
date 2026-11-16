@@ -18,7 +18,7 @@ from .evidence import SourceLocation
 from .values import FieldValue, Observed, Unknown, to_jsonable
 
 if TYPE_CHECKING:
-    from .kinds import StakeMeasure  # the kind contract builds on events
+    from .kinds import Rule, StakeMeasure  # the kind contract builds on events
 
 
 class EventStatus(StrEnum):
@@ -197,9 +197,10 @@ class Event:
 
     ``not_before`` is the date of the interval's earlier snapshot; it and ``date`` may be ``Unknown``.
     ``significance`` and ``score`` are set by the narrative stage; analyzers leave the defaults. A score left
-    ``UNSCORED`` becomes the level's base, and one outside the level's band raises ``ValueError``. Only a narrative
-    event has non-empty ``intervals``; for every other event the span, ``open`` and ``roles``
-    fields keep their defaults.
+    ``UNSCORED`` becomes the level's base, and one outside the level's band raises ``ValueError``. The stage also sets
+    ``context_rule``, the kind's context rule when it decided the level (``None`` when the base level stood); it is not
+    part of ``to_dict``. Only a narrative event has non-empty ``intervals``; for every other event the span, ``open``
+    and ``roles`` fields keep their defaults.
     """
 
     id: str
@@ -215,6 +216,7 @@ class Event:
     significance: Significance = Significance.MINOR
     score: int = UNSCORED
     significance_basis: SignificanceBasis | None = None
+    context_rule: Rule | None = None
     constituents: tuple[str, ...] = ()
     start: Observed = None
     start_basis: DateBasis | None = None

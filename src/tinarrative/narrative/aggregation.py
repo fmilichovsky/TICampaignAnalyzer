@@ -257,10 +257,12 @@ class NarrativeBuilder:
             intervals=intervals,
             roles=role_list,
         )
-        score, basis = narrative_score(
+        score, basis, rule = narrative_score(
             kind, event, cited, self._geopolitics, self._stakes.get(intervals[0]), self._stakes.get(intervals[-1])
         )
-        return replace(event, significance=Significance.of(score), score=score, significance_basis=basis)
+        return replace(
+            event, significance=Significance.of(score), score=score, significance_basis=basis, context_rule=rule
+        )
 
     def _open(self, anchor: EntityRef | None) -> bool:
         return anchor is not None and self._last is not None and present_in(self._last, anchor)
