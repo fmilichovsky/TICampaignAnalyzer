@@ -12,7 +12,7 @@
   const SVG = "http://www.w3.org/2000/svg";
 
   const LEVEL_NAMES = { trivial: "trivial", minor: "minor", major: "major", campaign_defining: "campaign defining" };
-  const LEVEL_SHORT = { trivial: "T", minor: "Mi", major: "M", campaign_defining: "CD" };
+  const LEVEL_RANKS = ["trivial", "minor", "major", "campaign_defining"];
   const VERDICTS = [
     ["keeps_members", "Keeps members", "Groups whose members all stay admitted."],
     ["loses_members", "Loses members", "Groups that lose members but keep enough distinct ones to stand."],
@@ -66,11 +66,20 @@
   // Some save strings keep JSON escapes such as \u00e3; show the character they stand for.
   const labelOf = (row) => row.label.replace(/\\u([0-9a-fA-F]{4})/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
   const levelName = (level) => LEVEL_NAMES[level] || level.replace(/_/g, " ");
-  const levelShort = (level) => LEVEL_SHORT[level] || level;
   const shortDate = (date) => (typeof date === "string" ? date.slice(0, 7) : "");
 
-  function levelDot(level) {
-    return el("i", { class: `dot lv-${level}`, title: levelName(level), "aria-hidden": "true" });
+  // A level drawn as a gauge of four rising bars: as many filled as the level's rank, in the level's colour from
+  // the Level counts bars. It reads without a key; the key beside Level counts names each one.
+  function levelGauge(level) {
+    const rank = LEVEL_RANKS.indexOf(level) + 1;
+    const bars = LEVEL_RANKS.map((_, i) => el("b", { class: i < rank ? "on" : null }));
+    return el("i", { class: `gauge gauge-${level}`, title: levelName(level), "aria-hidden": "true" }, ...bars);
+  }
+
+  // A change of level: the old gauge, an arrow in the rise or drop colour, the new gauge.
+  function levelMove(from, to) {
+    const direction = LEVEL_RANKS.indexOf(to) > LEVEL_RANKS.indexOf(from) ? "rise" : "drop";
+    return [levelGauge(from), el("span", { class: `move-arrow ${direction}`, text: "→" }), levelGauge(to)];
   }
 
   // --- Boot --------------------------------------------------------------------------------------------------
@@ -407,7 +416,10 @@
 
       const levelKey = $("level-key");
       for (const level of this.levels) {
-        levelKey.append(el("span", { class: "level-key-item" }, levelDot(level), levelName(level)));
+        // Each key item ties the three faces of a level together: its bar pattern, its gauge and its name.
+        levelKey.append(
+          el("span", { class: "level-key-item" }, el("i", { class: `level-swatch lv-${level}`, "aria-hidden": "true" }), levelGauge(level), levelName(level)),
+        );
       }
       for (const [direction, label] of [["rise", "rose"], ["drop", "dropped"]]) {
         $("flow-keys").append(el("span", { class: "level-key-item" }, el("i", { class: `flow-key ${direction}` }), label));
@@ -1284,7 +1296,7 @@
             onfocus: (event) => Pop.hover(event.currentTarget, () => make(false)),
             onblur: () => Pop.leave(),
           },
-          el("span", { class: "change-path", text: `${levelShort(move.from_level)}→${levelShort(move.to_level)}` }),
+          el("span", { class: "change-path" }, ...levelMove(move.from_level, move.to_level)),
           el("span", { class: "change-count" }),
           el("span", { class: "change-via" }),
         );
@@ -1444,10 +1456,10 @@
       };
     },
 
-    // One event row, wherever the page lists events: the share (or —), the level dot, the label, the cited badge,
-    // the level change, campaign and date, then the type ID and any note. A list row sets the type under the label,
-    // unless the list is of one type. A compact row keeps to one line for the tide tables and leaves its type to the
-    // readout under the tide, so clicking anywhere on it opens the event: the inspector's hook (#490).
+    // One event row, wherever the page lists events: the share (or —), the label, the cited badge, the level gauge
+    // (old gauge → new one when it moved), campaign and date, then the type ID and any note. A list row sets the type
+    // under the label, unless the list is of one type. A compact row keeps to one line for the tide tables and leaves
+    // its type to the readout under the tide, so clicking anywhere on it opens the event: the inspector's hook (#490).
     eventRow(item, options) {
       return this.fillEventRow(el("li"), item, options);
     },
@@ -1488,10 +1500,14 @@
       node.replaceChildren(
         ...[
           el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No stake of its own" }),
-          levelDot(level),
           el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), showType ? null : type),
           item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null,
-          el("span", { class: `event-change${moved ? " moved" : ""}`, text: moved ? `${levelShort(row.level)}→${levelShort(level)}` : levelShort(level) }),
+          el(
+            "span",
+            { class: `event-change${moved ? " moved" : ""}`, title: moved ? `${levelName(row.level)} → ${levelName(level)}` : levelName(level) },
+            ...(moved ? levelMove(row.level, level) : [levelGauge(level)]),
+            el("span", { class: "visually-hidden", text: moved ? `${levelName(row.level)} to ${levelName(level)}` : levelName(level) }),
+          ),
           el("span", { class: "event-meta", text: `${compact ? item.campaign.slice(0, 4) : item.campaign} ${shortDate(row.date)}` }),
           sub.length ? el("span", { class: "event-sub" }, ...sub) : null,
         ].filter(Boolean),
@@ -1921,7 +1937,7 @@
       const score = replayed ? replayed.score : row.score;
       const decidedBy = replayed ? replayed.decided_by : row.id;
 
-      parts.level.value.replaceChildren(levelDot(level), levelName(level));
+      parts.level.value.replaceChildren(levelGauge(level), levelName(level));
       const rank = (name) => App.levels.indexOf(name);
       const moved = level !== row.level;
       parts.level.note.className = `ins-note${moved ? (rank(level) > rank(row.level) ? " rise" : " drop") : ""}`;
