@@ -125,6 +125,12 @@ A stake tried on the events of an existing event type before its kind declares o
 first. It is scored beside the real events and never changes their scores.
 _Avoid_: design series, series builder
 
+**Calibration state**:
+What a replay of the calibration table is asked: a reference per stake measure, a base level per event type, the
+clamp, the enabled campaigns and a type filter. Each reference and base level is either the code's or one being
+tried; a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
+_Avoid_: scenario, what-if, trial base level
+
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
 the arc's two ends, so a share never exceeds one.
