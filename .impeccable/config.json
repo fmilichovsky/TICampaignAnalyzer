@@ -1,3 +1,18 @@
 {
-  "buildPath": "code"
+  "buildPath": "code",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "src/tinarrative/benchmarking/calibration/page/index.html"
+        ],
+        "createdAt": "2026-11-16T00:07:31.708Z",
+        "reason": "Claude decided: .inspector-bar is a 40px flex strip with align-items:center, so its 26px buttons sit 7px clear of the border-bottom when rendered; the static scan reads the hidden drawer without layout"
+      }
+    ]
+  }
 }

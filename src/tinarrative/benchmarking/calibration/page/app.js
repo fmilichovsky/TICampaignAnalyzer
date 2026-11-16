@@ -20,6 +20,8 @@
     ["could_become_member", "Could join", "Events that would now be admitted as members; the rule is not re-run."],
   ];
   const DIGEST_ROWS = 6;
+  const POP_WIDTH = 480;
+  const POP_MIN_WIDTH = 320;
   const RESORT_DELAY = 400;
   const ORDER_KEY = "ti-calibration-count-order";
   const STATUS_POLL = 2000;
@@ -446,6 +448,7 @@
       this.buildChart();
       this.buildTides();
       this.buildReferences();
+      Inspector.init();
     },
 
     buildChart() {
@@ -644,6 +647,7 @@
       if (options.from === "slider") this.writeHashSoon();
       else this.writeHash();
       Pop.refresh();
+      Inspector.refresh();
     },
 
     renderHeader() {
@@ -1464,7 +1468,7 @@
       const type = compact ? null : this.typeButton(row.type);
       if (type && !showType) type.hidden = true;
       const sub = compact ? [] : [showType ? type : null, item.note ? el("span", { class: "event-note", text: item.note }) : null].filter(Boolean);
-      node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}`;
+      node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}${Inspector.shows(item.campaign, row.id) ? " event-open" : ""}`;
       node.tabIndex = 0;
       node.dataset.type = row.type;
       node.dataset.id = row.id;
@@ -1495,9 +1499,9 @@
       return node;
     },
 
-    // The hook the event inspector (#490) listens for; nothing opens yet.
+    // Every event row opens the inspector; a row inside the inspector swaps it to that event.
     openEvent(node, item) {
-      node.dispatchEvent(new CustomEvent("ti-event-open", { bubbles: true, detail: { campaign: item.campaign, id: item.row.id } }));
+      Inspector.open(node, item.campaign, item.row.id);
     },
 
     // --- Copy -------------------------------------------------------------------------------------------------
@@ -1642,10 +1646,26 @@
       pop.querySelector(".list-title").id = "pop-title";
       pop.classList.toggle("pop-pinned", this.pinned);
       pop.hidden = false;
+      this.place();
+    },
+
+    // Beside its anchor, and clear of an open inspector so a pinned list stays usable next to it; when the drawer
+    // leaves too little room (it takes the whole screen at phone width), the list closes instead.
+    place() {
+      const pop = $("pop");
+      if (pop.hidden || !this.anchor) return;
+      const drawer = $("inspector");
+      const edge = drawer.hidden ? window.innerWidth : drawer.getBoundingClientRect().left;
+      const room = edge - 24;
+      if (!drawer.hidden && room < POP_MIN_WIDTH) {
+        this.close();
+        return;
+      }
+      pop.style.width = drawer.hidden ? "" : `${Math.min(POP_WIDTH, room)}px`;
       const box = this.anchor.getBoundingClientRect();
       const width = pop.offsetWidth;
       const height = pop.offsetHeight;
-      let left = Math.min(window.innerWidth - width - 12, Math.max(12, box.left));
+      const left = Math.min(edge - width - 12, Math.max(12, box.left));
       let top = box.bottom + 6;
       if (top + height > window.innerHeight - 12) top = Math.max(12, box.top - height - 6);
       pop.style.left = `${left}px`;
@@ -1653,11 +1673,306 @@
     },
   };
 
+  // --- The event inspector: one drawer for the event a row opened. -------------------------------------------
+  //
+  // Page state only, never in the hash. The parts that the reference cannot change are built once per event; level,
+  // score, decided-by and the cited rows are refilled in place on every render, so focus inside the drawer survives
+  // the slider. Cited and decided-by rows swap the drawer to that event, and Back walks the chain.
+
+  const Inspector = {
+    chain: [],
+    returnTo: null,
+    parts: null,
+
+    get current() {
+      return this.chain[this.chain.length - 1] || null;
+    },
+
+    shows(campaign, id) {
+      const current = this.current;
+      return current !== null && current.campaign === campaign && current.id === id;
+    },
+
+    init() {
+      $("inspector-close").addEventListener("click", () => this.close());
+      $("inspector-back").addEventListener("click", () => this.back());
+      const place = () => this.place();
+      window.addEventListener("scroll", place, { passive: true });
+      window.addEventListener("resize", () => {
+        this.place();
+        Pop.place();
+      });
+    },
+
+    open(node, campaign, id) {
+      const panel = $("inspector");
+      if (panel.contains(node)) {
+        this.go(campaign, id);
+        return;
+      }
+      // A pinned list stays open beside the drawer, so the next event is one click away. Its rows are rebuilt as the
+      // page renders, so focus returns to the row by its event, or to what opened the list.
+      if ($("pop").contains(node)) {
+        this.returnTo = { campaign, id, anchor: Pop.anchor instanceof Element ? Pop.anchor : $("chart") };
+      } else {
+        this.returnTo = node;
+      }
+      this.chain = [{ campaign, id }];
+      this.show();
+      Pop.place();
+    },
+
+    go(campaign, id) {
+      if (!this.shows(campaign, id)) this.chain.push({ campaign, id });
+      this.show();
+    },
+
+    back() {
+      if (this.chain.length < 2) return;
+      this.chain.pop();
+      this.show();
+    },
+
+    close() {
+      const panel = $("inspector");
+      if (panel.hidden) return;
+      panel.hidden = true;
+      this.chain = [];
+      this.parts = null;
+      $("inspector-body").replaceChildren();
+      this.mark();
+      let restore = this.returnTo;
+      this.returnTo = null;
+      if (restore && !(restore instanceof Element)) {
+        const row = [...$("pop").querySelectorAll(".event[data-id]")].find(
+          (node) => node.dataset.id === restore.id && node.dataset.campaign === restore.campaign,
+        );
+        restore = row || restore.anchor;
+      }
+      if (restore && document.contains(restore)) restore.focus({ preventScroll: true });
+    },
+
+    place() {
+      const panel = $("inspector");
+      if (panel.hidden) return;
+      // Under the header bar; at phone width the bar wraps tall, so the drawer takes the whole screen.
+      const below = Math.round(document.querySelector(".bar").getBoundingClientRect().bottom);
+      panel.style.top = `${window.innerWidth <= 720 ? 0 : Math.max(0, below)}px`;
+    },
+
+    show() {
+      const panel = $("inspector");
+      panel.hidden = false;
+      this.place();
+      this.build();
+      this.refresh();
+      this.mark();
+      $("inspector-body").scrollTop = 0;
+      $("inspector-title").focus({ preventScroll: true });
+    },
+
+    // Flag the row of the inspected event wherever a list shows it.
+    mark() {
+      for (const node of document.querySelectorAll(".event[data-id]")) {
+        node.classList.toggle("event-open", this.shows(node.dataset.campaign, node.dataset.id));
+      }
+    },
+
+    rowOf(campaign, id) {
+      const positions = App.positions[campaign];
+      const position = positions ? positions.get(id) : undefined;
+      return position === undefined ? null : { position, row: App.tables[campaign][position] };
+    },
+
+    build() {
+      const { campaign, id } = this.current;
+      const body = $("inspector-body");
+      const back = $("inspector-back");
+      back.hidden = this.chain.length < 2;
+      if (this.chain.length > 1) {
+        const previous = this.chain[this.chain.length - 2];
+        const found = this.rowOf(previous.campaign, previous.id);
+        back.title = `Back to ${found ? labelOf(found.row) : previous.id}`;
+      }
+      const found = this.rowOf(campaign, id);
+      if (!found) {
+        this.parts = null;
+        body.replaceChildren(
+          el("h2", { class: "inspector-title", id: "inspector-title", tabindex: "-1", text: id }),
+          el("p", { class: "ins-empty", text: `This event is not in the ${campaign} table.` }),
+        );
+        return;
+      }
+      const { position, row } = found;
+      const date = typeof row.date === "string" ? row.date.slice(0, 10) : "no date";
+      const interval = typeof row.interval === "string" ? row.interval.slice(0, 10) : null;
+
+      const figure = (label) => {
+        const value = el("span", { class: "ins-value" });
+        const note = el("span", { class: "ins-note" });
+        return { node: el("div", { class: "ins-figure" }, el("dt", { text: label }), el("dd", {}, value, note)), value, note };
+      };
+      const level = figure("Level now");
+      level.value.classList.add("ins-level");
+      const score = figure("Score");
+      const base = figure("Base");
+      base.value.textContent = String(row.base);
+      base.note.textContent = "before stakes";
+
+      const decided = el("li");
+      const decidedSection = el(
+        "section",
+        { class: "ins-section", "aria-labelledby": "ins-decided" },
+        el("h3", { class: "ins-head", id: "ins-decided", text: "Level set by" }),
+        el("p", { class: "ins-lead", text: "A cited event sets this event's level, not its own stake." }),
+        el("ol", { class: "events" }, decided),
+      );
+
+      const stakeRows = row.stakes.map((stake) => {
+        const spec = App.index.measures[stake.measure];
+        const compare = el("span", { class: "ins-compare" });
+        const tr = el(
+          "tr",
+          {},
+          el("th", { scope: "row" }, el("span", { class: "ins-measure", text: spec ? spec.label : stake.measure }), compare),
+          el("td", { class: "num", text: fmt(stake.share), title: String(stake.share) }),
+        );
+        return { tr, compare, measure: stake.measure, share: Number(stake.share) };
+      });
+
+      const entities = (row.entities || []).map((entity) => {
+        // Until entities carry a name of their own (#491), the label is "Name (domain:key)"; show the name once.
+        const label = entity.name || entity.label || entity.id;
+        const suffix = ` (${entity.id})`;
+        const name = !entity.name && label.endsWith(suffix) ? label.slice(0, -suffix.length) : label;
+        return el("tr", {}, el("th", { scope: "row" }, name, el("span", { class: "ins-entity-id", text: entity.id })));
+      });
+
+      const cited = (row.cited || []).map((citedId) => ({ id: citedId, node: el("li"), found: this.rowOf(campaign, citedId) }));
+
+      const off = el("p", { class: "ins-off" });
+      body.replaceChildren(...[
+        el("h2", { class: "inspector-title", id: "inspector-title", tabindex: "-1", text: labelOf(row) }),
+        el(
+          "p",
+          { class: "ins-meta" },
+          App.typeButton(row.type),
+          el("span", { class: "ins-tier", text: row.tier }),
+          el("span", { text: campaign }),
+          el("span", { text: date, title: typeof row.date === "string" ? row.date : "" }),
+          interval ? el("span", { text: `interval to ${interval}`, title: `The interval keyed by its later save, ${row.interval}` }) : null,
+        ),
+        el("p", { class: "ins-id", text: row.id, title: "Event ID" }),
+        off,
+        el("dl", { class: "ins-figures" }, level.node, score.node, base.node),
+        decidedSection,
+        el(
+          "section",
+          { class: "ins-section", "aria-labelledby": "ins-stakes" },
+          el("h3", { class: "ins-head", id: "ins-stakes" }, "Stakes", el("span", { class: "ins-count", text: String(row.stakes.length) })),
+          stakeRows.length
+            ? el("table", { class: "ins-table" }, el("tbody", {}, ...stakeRows.map((item) => item.tr)))
+            : el("p", { class: "ins-empty", text: "No stakes: the base sets the score." }),
+        ),
+        el(
+          "section",
+          { class: "ins-section", "aria-labelledby": "ins-entities" },
+          el("h3", { class: "ins-head", id: "ins-entities" }, "Entities", el("span", { class: "ins-count", text: String(entities.length) })),
+          entities.length
+            ? el("table", { class: "ins-table ins-entities" }, el("tbody", {}, ...entities))
+            : el("p", { class: "ins-empty", text: "No entities." }),
+        ),
+        row.tier === "narrative" || cited.length
+          ? el(
+              "section",
+              { class: "ins-section", "aria-labelledby": "ins-cited" },
+              el("h3", { class: "ins-head", id: "ins-cited" }, "Cited constituents", el("span", { class: "ins-count", text: String(cited.length) })),
+              cited.length
+                ? el("ol", { class: "events" }, ...cited.map((item) => item.node))
+                : el("p", { class: "ins-empty", text: "Cites no events." }),
+            )
+          : null,
+      ].filter(Boolean));
+      this.parts = { campaign, id, position, row, level, score, decided, decidedSection, stakeRows, cited, off };
+    },
+
+    // The focused stake against the current reference, written as the tide captions write a cut-off, and which side
+    // of the window around the reference the share falls on.
+    compareText(share) {
+      if (!(share > 0)) return "no share";
+      const reference = App.state.references[App.focus];
+      const ratio = share / reference;
+      const [low, high] = App.windowEdges();
+      const side = share < reference * Math.pow(10, low) ? "below the window" : share > reference * Math.pow(10, high) ? "above the window" : "in the window";
+      const factor = fmt(ratio >= 1 ? ratio : 1 / ratio);
+      return `${factor === "1" ? "at the reference" : `reference ${ratio >= 1 ? "×" : "÷"} ${factor}`} · ${side}`;
+    },
+
+    // The values the replay decides, from the current result; a campaign switched off falls back to the code's.
+    refresh() {
+      const parts = this.parts;
+      if (!parts || $("inspector").hidden) return;
+      const { campaign, position, row } = parts;
+      const result = App.result;
+      const replayed = result.campaigns[campaign] ? result.campaigns[campaign].events[position] : null;
+      parts.off.hidden = replayed !== null;
+      parts.off.textContent = `${campaign} is switched off, so these are the code's values.`;
+      const level = replayed ? replayed.level : row.level;
+      const score = replayed ? replayed.score : row.score;
+      const decidedBy = replayed ? replayed.decided_by : row.id;
+
+      parts.level.value.replaceChildren(levelDot(level), levelName(level));
+      const rank = (name) => App.levels.indexOf(name);
+      const moved = level !== row.level;
+      parts.level.note.className = `ins-note${moved ? (rank(level) > rank(row.level) ? " rise" : " drop") : ""}`;
+      parts.level.note.textContent = moved ? `${rank(level) > rank(row.level) ? "rose" : "dropped"} from ${levelName(row.level)}` : "as the code's";
+      parts.score.value.textContent = String(score);
+      parts.score.note.textContent = score === row.score ? "as the code's" : `code's ${row.score}`;
+
+      const decider = decidedBy !== row.id ? this.rowOf(campaign, decidedBy) : null;
+      parts.decidedSection.hidden = decidedBy === row.id;
+      if (decider) App.fillEventRow(parts.decided, App.eventItem(campaign, decider.position, result), {});
+      else if (decidedBy !== row.id) parts.decided.replaceChildren(el("span", { class: "ins-entity-id", text: decidedBy }));
+
+      for (const item of parts.stakeRows) {
+        const focused = item.measure === App.focus;
+        item.tr.classList.toggle("focused", focused);
+        item.compare.hidden = !focused;
+        if (focused) item.compare.textContent = this.compareText(item.share);
+      }
+      for (const item of parts.cited) {
+        if (item.found) App.fillEventRow(item.node, App.eventItem(campaign, item.found.position, result), {});
+        else item.node.replaceChildren(el("span", { class: "ins-entity-id", text: `${item.id} (not in the table)` }));
+      }
+      // Keep the inspector's own type button in step with the filter, in place so it keeps focus.
+      const type = document.querySelector("#inspector-body .ins-meta .event-type");
+      if (type) {
+        const only = App.state.types.length === 1 && App.state.types[0] === row.type;
+        type.setAttribute("aria-pressed", String(only));
+        type.title = only ? "Show every type" : `Filter by ${row.type}`;
+      }
+    },
+  };
+
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !$("pop").hidden) Pop.close(true);
+    if (event.key !== "Escape") return;
+    // Escape closes what holds focus first: the inspector, then a list beside it.
+    const target = event.target;
+    if (!$("inspector").hidden && target instanceof Element && $("inspector").contains(target)) {
+      Inspector.close();
+      return;
+    }
+    if (!$("pop").hidden) {
+      Pop.close(true);
+      return;
+    }
+    // A text field or a select keeps Escape for itself.
+    if (target instanceof Element && target.matches("input:not([type=range]), select, textarea")) return;
+    if (!$("inspector").hidden) Inspector.close();
   });
   document.addEventListener("pointerdown", (event) => {
-    if (Pop.pinned && !$("pop").contains(event.target)) Pop.close();
+    // Working in the inspector keeps the list it was opened from.
+    if (Pop.pinned && !$("pop").contains(event.target) && !$("inspector").contains(event.target)) Pop.close();
   });
   window.addEventListener("scroll", () => Pop.pinned || $("pop").hidden || Pop.close(), { passive: true });
 
