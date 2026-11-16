@@ -29,10 +29,10 @@ PAIRS = sorted(path.name.removesuffix("_before.json") for path in FIXTURE_DIR.gl
 KIND = EventKind(
     "fixture.kind_checked",
     lambda event: event.id,
-    None,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"before", "after"}),
     optional=frozenset({"note"}),
+    base=None,
 )
 
 

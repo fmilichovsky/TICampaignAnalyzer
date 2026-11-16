@@ -51,59 +51,65 @@ def _alliance_list(side: str) -> Template:
 APPEARED = EventKind(
     "war.appeared",
     _presence("appeared"),
-    Significance.MAJOR,
     EVIDENCE,
     frozenset({"side"}),
     optional=frozenset({"started_on"}),
+    base=Significance.MAJOR,
 )
-DISAPPEARED = EventKind("war.disappeared", _presence("disappeared"), Significance.MAJOR, EVIDENCE, frozenset({"side"}))
+DISAPPEARED = EventKind(
+    "war.disappeared", _presence("disappeared"), EVIDENCE, frozenset({"side"}), base=Significance.MAJOR
+)
 ALLIANCE_CHANGED = EventKind(
-    "war.alliance_changed", _alliance_changed, Significance.MAJOR, EVIDENCE, frozenset({"side", "member", "transition"})
+    "war.alliance_changed",
+    _alliance_changed,
+    EVIDENCE,
+    frozenset({"side", "member", "transition"}),
+    base=Significance.MAJOR,
 )
 ATTACKER_CHANGED = EventKind(
     "war.attacker_changed",
     plain("attacker"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
+    base=Significance.MINOR,
 )
 DEFENDER_CHANGED = EventKind(
     "war.defender_changed",
     plain("defender"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
+    base=Significance.MINOR,
 )
 LAST_FIGHTING_CHANGED = EventKind(
     "war.last_fighting_changed",
     plain("date of last fighting"),
-    Significance.MINOR,
     EVIDENCE,
     required=frozenset({"transition", "before", "after"}),
+    base=Significance.MINOR,
 )
 ATTACKING_ALLIANCE_CHANGED = EventKind(
     "war.attacking_alliance_changed",
     _alliance_list("attacking"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 DEFENDING_ALLIANCE_CHANGED = EventKind(
     "war.defending_alliance_changed",
     _alliance_list("defending"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 NATION_WARS_CHANGED = EventKind(
     "nation.wars_changed",
     list_changed,
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 
 

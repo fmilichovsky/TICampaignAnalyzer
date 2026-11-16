@@ -191,96 +191,96 @@ AMBIGUITY = frozenset({"ambiguous", ALTERNATIVES})
 REGION_NATION_CHANGED = EventKind(
     "region.nation_changed",
     plain("nation"),
-    Significance.MAJOR,
     EVIDENCE,
     required=TRANSITION,
     stake=Stake.TERRITORY,
+    base=Significance.MAJOR,
 )
 CAPITAL_CHANGED = EventKind(
-    "nation.capital_changed", plain("capital"), Significance.MINOR, BOOKKEEPING, required=TRANSITION
+    "nation.capital_changed", plain("capital"), BOOKKEEPING, required=TRANSITION, base=Significance.MINOR
 )
 RELATION_CHANGED = EventKind(
     "nation.relation_changed",
     _relation_changed,
-    Significance.MINOR,
     EVIDENCE,
     required=frozenset({"relation", "transition", "reciprocal"}),
     optional=frozenset({"listed_by"}),
     rule=Rule.RELATION_CHANGED,
     stake=Stake.BELLIGERENTS,
+    base=Significance.MINOR,
 )
 BREAKAWAY_PARENT_CHANGED = EventKind(
-    "nation.breakaway_parent_changed", plain("breakaway parent"), Significance.MINOR, BOOKKEEPING, required=TRANSITION
+    "nation.breakaway_parent_changed",
+    plain("breakaway parent"),
+    BOOKKEEPING,
+    required=TRANSITION,
+    base=Significance.MINOR,
 )
 EXECUTIVE_CHANGE_RECORDED = EventKind(
     "nation.executive_change_recorded",
     _executive_change,
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"new_executive", "recorded_on", "cause"}),
     optional=frozenset({"previous_executive", "previous_recorded_on", "previous_cause"}),
     rule=Rule.EXECUTIVE_CHANGE,
     stake=Stake.NATION,
+    base=Significance.MINOR,
 )
 APPEARED = EventKind(
     "nation.appeared",
     _presence("appeared"),
-    Significance.CAMPAIGN_DEFINING,
     BOOKKEEPING,
     required=frozenset({"side", "population"}),
     stake=Stake.NATION,
+    base=Significance.CAMPAIGN_DEFINING,
 )
 DISAPPEARED = EventKind(
     "nation.disappeared",
     _presence("disappeared"),
-    Significance.CAMPAIGN_DEFINING,
     EVIDENCE,
     required=frozenset({"side", "population"}),
     stake=Stake.NATION,
+    base=Significance.CAMPAIGN_DEFINING,
 )
 CLAIMS_CHANGED = EventKind(
     "nation.claims_changed",
     _claims_changed("claims"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset(),
     optional=TRANSITION | {"added", "removed", "added_owners"},
     rule=Rule.CLAIMS_CHANGED,
     stake=Stake.NATION,
+    base=Significance.MINOR,
 )
 HOSTILE_CLAIMS_CHANGED = EventKind(
     "nation.hostile_claims_changed",
     _claims_changed("hostile claims"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset(),
     optional=TRANSITION | {"added", "removed", "added_owners"},
+    base=Significance.MINOR,
 )
-RENAMED = EventKind("nation.renamed", _renamed, Significance.MAJOR, EVIDENCE, required=TRANSITION)
+RENAMED = EventKind("nation.renamed", _renamed, EVIDENCE, required=TRANSITION, base=Significance.MAJOR)
 UNREST_ATTEMPTS_CHANGED = EventKind(
     "nation.unrest_attempts_changed",
     _unrest_attempts_changed,
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"before", "after"}),
     optional=frozenset({"transition", "faction"}),
+    base=Significance.MINOR,
 )
 NEW_GOVERNMENT_RECORDED = EventKind(
     "nation.new_government_recorded",
     _new_government_recorded,
-    Significance.MINOR,
     BOOKKEEPING,
     required=TRANSITION,
+    base=Significance.MINOR,
 )
 NUCLEAR_PROGRAM_CHANGED = EventKind(
-    "nation.nuclear_program_changed", plain("nuclear program"), Significance.MINOR, EVIDENCE, required=TRANSITION
+    "nation.nuclear_program_changed", plain("nuclear program"), EVIDENCE, required=TRANSITION, base=Significance.MINOR
 )
 POLICY_CHANGED = EventKind(
-    "nation.policy_changed",
-    _policy_changed,
-    Significance.MINOR,
-    BOOKKEEPING,
-    required=TRANSITION | {"policy"},
+    "nation.policy_changed", _policy_changed, BOOKKEEPING, required=TRANSITION | {"policy"}, base=Significance.MINOR
 )
 
 LIST_FIELDS = ("regions", "breakaways", "allies", "rivals")
@@ -291,10 +291,10 @@ def _list_changed_kind(field: str) -> EventKind:
     return EventKind(
         f"nation.{field}_changed",
         list_changed,
-        Significance.MINOR,
         BOOKKEEPING,
         required=frozenset({"transition"}),
         optional=frozenset({"member", "before", "after"}),
+        base=Significance.MINOR,
     )
 
 
@@ -304,17 +304,16 @@ LIST_CHANGED: Mapping[str, EventKind] = MappingProxyType({field: _list_changed_k
 BAND_CROSSED = EventKind(
     "nation.band_crossed",
     _band_crossed,
-    Significance.TRIVIAL,
     EVIDENCE,
     required=frozenset(
         {"statistic", "before", "after", "from_band", "to_band", "bands_crossed", "margin", "interval_days"}
     ),
     optional=frozenset({"causes", "rest_value_share"}),
+    base=Significance.TRIVIAL,
 )
 PCGDP_TREND = EventKind(
     "nation.pcgdp_trend",
     _pcgdp_trend,
-    Significance.TRIVIAL,
     EVIDENCE,
     required=frozenset(
         {
@@ -328,30 +327,30 @@ PCGDP_TREND = EventKind(
             "before_sequence",
         }
     ),
+    base=Significance.TRIVIAL,
 )
 STATISTIC_SHIFTED = EventKind(
     "nation.statistic_shifted",
     _statistic_shifted,
-    Significance.TRIVIAL,
     EVIDENCE,
     required=frozenset({"statistic", "before", "after", "relative_change", "interval_days"}),
     optional=frozenset({"causes", "key"}),
     stake=Stake.NATION,
+    base=Significance.TRIVIAL,
 )
 POPULATION_CHANGED = EventKind(
     "nation.population_changed",
     _population_changed,
-    Significance.MINOR,
     EVIDENCE,
     required=frozenset(
         {"direction", "before", "after", "residual", "relative_change", "interval_days", "nuked_regions", "causes"}
     ),
     rule=Rule.POPULATION_CHANGED,
+    base=Significance.MINOR,
 )
 SPACE_ASSETS_CHANGED = EventKind(
     "nation.space_assets_changed",
     _space_assets_changed,
-    Significance.MINOR,
     EVIDENCE,
     required=frozenset(
         {
@@ -368,58 +367,59 @@ SPACE_ASSETS_CHANGED = EventKind(
         }
     ),
     rule=Rule.SPACE_ASSETS_CHANGED,
+    base=Significance.MINOR,
 )
 RANK_CHANGED = EventKind(
     "nation.rank_changed",
     _rank_changed,
-    Significance.TRIVIAL,
     BOOKKEEPING,
     required=frozenset({"metric", "before_rank", "after_rank", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 
 TERRITORY_GAINED = EventKind(
     "nation.territory_gained",
     _territory_gained,
-    Significance.MINOR,
     EVIDENCE,
     required=frozenset({"regions", "region_count", "population", "counterparts", "territory_causes"}),
     stake=Stake.TERRITORY,
+    base=Significance.MINOR,
 )
 TERRITORY_LOST = EventKind(
     "nation.territory_lost",
     _territory_lost,
-    Significance.MINOR,
     EVIDENCE,
     required=frozenset({"regions", "region_count", "population", "counterparts", "territory_causes"}),
     stake=Stake.TERRITORY,
+    base=Significance.MINOR,
 )
 INDEPENDENCE = EventKind(
     "nation.independence",
     _independence,
-    Significance.MAJOR,
     EVIDENCE,
     required=frozenset({"parents", "signals", "independence_causes", "released"}),
     optional=frozenset({"release_causes", "releasing_nation", "releasing_basis", "releasing_executive_faction"})
     | AMBIGUITY,
     stake=Stake.TERRITORY,
+    base=Significance.MAJOR,
 )
 UNIFICATION = EventKind(
     "nation.unification",
     _unification,
-    Significance.MAJOR,
     EVIDENCE,
     required=frozenset({"unified", "unifying_faction", "bases", "executive_since"}),
     optional=AMBIGUITY,
     stake=Stake.TERRITORY,
+    base=Significance.MAJOR,
 )
 ANNEXATION = EventKind(
     "nation.annexation",
     _annexation,
-    Significance.MAJOR,
     EVIDENCE,
     required=frozenset({"regions", "region_count", "signals"}),
     optional=AMBIGUITY,
     stake=Stake.TERRITORY,
+    base=Significance.MAJOR,
 )
 
 # --- Narrative events ---------------------------------------------------------------------------------------------

@@ -105,125 +105,129 @@ def _nation_control_changed(event: Event) -> str:
 CONTROL_POINT_CONTROLLER_CHANGED = EventKind(
     "control_point.controller_changed",
     _controller_changed,
-    Significance.MAJOR,
     BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"loss_recorded_on"}),
     stake=Stake.CONTROL_POINT,
+    base=Significance.MAJOR,
 )
 CONTROL_POINT_NATION_CHANGED = EventKind(
-    "control_point.nation_changed", plain("nation"), Significance.MINOR, BOOKKEEPING, TRANSITION
+    "control_point.nation_changed", plain("nation"), BOOKKEEPING, TRANSITION, base=Significance.MINOR
 )
 CONTROL_POINT_APPEARED = EventKind(
-    "control_point.appeared", _control_point_presence, Significance.MINOR, BOOKKEEPING, frozenset({"side"})
+    "control_point.appeared", _control_point_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.MINOR
 )
 CONTROL_POINT_DISAPPEARED = EventKind(
-    "control_point.disappeared", _control_point_presence, Significance.MINOR, BOOKKEEPING, frozenset({"side"})
+    "control_point.disappeared", _control_point_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.MINOR
 )
 CONTROL_POINT_LOSS_RECORDED = EventKind(
     "control_point.loss_recorded",
     _loss_recorded,
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"recorded_on"}),
     optional=frozenset({"previous_recorded_on"}),
+    base=Significance.MINOR,
 )
 FACTION_CONTROL_POINTS_CHANGED = EventKind(
     "faction.control_points_changed",
     _members("control points"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 NATION_CONTROL_POINTS_CHANGED = EventKind(
     "nation.control_points_changed",
     _members("control points"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 
 COUNCILOR_FACTION_CHANGED = EventKind(
-    "councilor.faction_changed", plain("faction"), Significance.MAJOR, EVIDENCE, TRANSITION, stake=Stake.LEFT_FACTION
+    "councilor.faction_changed",
+    plain("faction"),
+    EVIDENCE,
+    TRANSITION,
+    stake=Stake.LEFT_FACTION,
+    base=Significance.MAJOR,
 )
 COUNCILOR_STATUS_CHANGED = EventKind(
-    "councilor.status_changed", _councilor_field("status"), Significance.MINOR, EVIDENCE, TRANSITION
+    "councilor.status_changed", _councilor_field("status"), EVIDENCE, TRANSITION, base=Significance.MINOR
 )
 COUNCILOR_LOCATION_CHANGED = EventKind(
-    "councilor.location_changed", _councilor_field("location"), Significance.TRIVIAL, EVIDENCE, TRANSITION
+    "councilor.location_changed", _councilor_field("location"), EVIDENCE, TRANSITION, base=Significance.TRIVIAL
 )
 COUNCILOR_DETAINING_FACTION_CHANGED = EventKind(
     "councilor.detaining_faction_changed",
     _councilor_field("detaining faction"),
-    Significance.MAJOR,
     EVIDENCE,
     TRANSITION,
+    base=Significance.MAJOR,
 )
 COUNCILOR_APPEARED = EventKind(
     "councilor.appeared",
     _councilor_presence,
-    Significance.MINOR,
     EVIDENCE,
     frozenset({"side"}),
     rule=Rule.COUNCILOR_PRESENCE,
+    base=Significance.MINOR,
 )
 COUNCILOR_DISAPPEARED = EventKind(
     "councilor.disappeared",
     _councilor_presence,
-    Significance.MINOR,
     EVIDENCE,
     frozenset({"side"}),
     rule=Rule.COUNCILOR_PRESENCE,
+    base=Significance.MINOR,
 )
 FACTION_COUNCILORS_CHANGED = EventKind(
     "faction.councilors_changed",
     _members("councilors"),
-    Significance.MINOR,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 
 ORGANIZATION_APPEARED = EventKind(
-    "organization.appeared", _organization_presence, Significance.TRIVIAL, BOOKKEEPING, frozenset({"side"})
+    "organization.appeared", _organization_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.TRIVIAL
 )
 ORGANIZATION_DISAPPEARED = EventKind(
-    "organization.disappeared", _organization_presence, Significance.TRIVIAL, BOOKKEEPING, frozenset({"side"})
+    "organization.disappeared", _organization_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.TRIVIAL
 )
 ORGANIZATION_ASSIGNED_COUNCILOR_CHANGED = EventKind(
     "organization.assigned_councilor_changed",
     plain("assigned councilor"),
-    Significance.MAJOR,
     BOOKKEEPING,
     TRANSITION,
     stake=Stake.ORGANIZATION,
+    base=Significance.MAJOR,
 )
 ORGANIZATION_FACTION_ORBIT_CHANGED = EventKind(
-    "organization.faction_orbit_changed", plain("faction orbit"), Significance.MINOR, BOOKKEEPING, TRANSITION
+    "organization.faction_orbit_changed", plain("faction orbit"), BOOKKEEPING, TRANSITION, base=Significance.MINOR
 )
 COUNCILOR_ORGS_CHANGED = EventKind(
     "councilor.orgs_changed",
     _members("organizations"),
-    Significance.TRIVIAL,
     EVIDENCE,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
     "faction.unassigned_orgs_changed",
     _members("unassigned organizations"),
-    Significance.TRIVIAL,
     BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 
 NATION_CONTROL_CHANGED = EventKind(
     "faction.nation_control_changed",
     _nation_control_changed,
-    Significance.MAJOR,
     BOOKKEEPING,
     required=frozenset(
         {
@@ -243,6 +247,7 @@ NATION_CONTROL_CHANGED = EventKind(
         }
     ),
     stake=Stake.NATION,
+    base=Significance.MAJOR,
 )
 
 

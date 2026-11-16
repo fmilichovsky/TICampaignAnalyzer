@@ -36,101 +36,101 @@ def _faction_changed(event: Event) -> str:
 REGION_CHANGED = EventKind(
     "army.region_changed",
     contextual("region", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MINOR,
 )
 FACTION_CHANGED = EventKind(
     "army.faction_changed",
     _faction_changed,
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MAJOR,
 )
 DESTROYED_CHANGED = EventKind(
     "army.destroyed_changed",
     contextual("destroyed flag", EntityDomain.FACTION),
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MAJOR,
 )
 STRENGTH_CHANGED = EventKind(
     "army.strength_changed",
     contextual("strength", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MINOR,
 )
 TYPE_CHANGED = EventKind(
     "army.type_changed",
     contextual("type", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MINOR,
 )
 DEPLOYMENT_TYPE_CHANGED = EventKind(
     "army.deployment_type_changed",
     contextual("deployment type", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MINOR,
 )
 HOME_REGION_CHANGED = EventKind(
     "army.home_region_changed",
     contextual("home region", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
+    base=Significance.MINOR,
 )
 APPEARED = EventKind(
     "army.appeared",
     _presence("appeared"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
     optional=frozenset({"deployment_type", "megafauna", "home_nation"}),
     rule=Rule.ARMY_PRESENCE,
+    base=Significance.MINOR,
 )
 DISAPPEARED = EventKind(
     "army.disappeared",
     _presence("disappeared"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
     optional=frozenset({"deployment_type", "megafauna", "home_nation"}),
     rule=Rule.ARMY_PRESENCE,
+    base=Significance.MINOR,
 )
 
 FACTION_ARMIES_CHANGED = EventKind(
     "faction.armies_changed",
     list_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 NATION_ARMIES_CHANGED = EventKind(
     "nation.armies_changed",
     list_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 REGION_ARMIES_CHANGED = EventKind(
     "region.armies_changed",
     list_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 
 

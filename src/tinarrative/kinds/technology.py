@@ -45,58 +45,58 @@ def _finished_projects_changed(event: Event) -> str:
 TECHNOLOGY_COMPLETED = EventKind(
     "technology.completed",
     _technology_completed,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset(),
     optional=frozenset({"side", "transition", "before", "after", "completions"}),
     rule=Rule.COMPLETION,
+    base=Significance.MINOR,
 )
 TECHNOLOGY_FINISHED_CHANGED = EventKind(
     "technology.finished_changed",
     plain("finished"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"before", "after"}),
+    base=Significance.MINOR,
 )
 TECHNOLOGY_APPEARED = EventKind(
     "technology.appeared",
     _technology_presence,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side", "finished"}),
+    base=Significance.TRIVIAL,
 )
 TECHNOLOGY_DISAPPEARED = EventKind(
     "technology.disappeared",
     _technology_presence,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side", "finished"}),
+    base=Significance.TRIVIAL,
 )
 RESEARCH_FINISHED_TECHS_CHANGED = EventKind(
     "research.finished_techs_changed",
     _finished_techs_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.TRIVIAL,
 )
 FACTION_PROJECT_COMPLETED = EventKind(
     "faction.project_completed",
     _project_completed,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset({"project"}),
     optional=frozenset({"completions"}),
     rule=Rule.COMPLETION,
+    base=Significance.MINOR,
 )
 FACTION_FINISHED_PROJECT_NAMES_CHANGED = EventKind(
     "faction.finished_project_names_changed",
     _finished_projects_changed,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after", "count"}),
+    base=Significance.MINOR,
 )
 
 

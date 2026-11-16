@@ -119,70 +119,70 @@ def _notification_changed(event: Event) -> str:
 GLOBAL_VALUES_APPEARED = EventKind(
     "campaign.global_values_appeared",
     _side_presence,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
+    base=Significance.MINOR,
 )
 GLOBAL_VALUES_DISAPPEARED = EventKind(
     "campaign.global_values_disappeared",
     _side_presence,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
+    base=Significance.MINOR,
 )
 # Campaign-wide firsts, nuclear use and climate stages are what a history reports.
 GLOBAL_MILESTONE_RECORDED = EventKind(
     "campaign.global_milestone_recorded",
     _milestone_recorded,
-    Significance.CAMPAIGN_DEFINING,
     EvidenceRole.EVIDENCE,
     required=frozenset({"milestone", "faction"}),
+    base=Significance.CAMPAIGN_DEFINING,
 )
 GLOBAL_MILESTONE_CHANGED = EventKind(
     "campaign.global_milestone_changed",
     _milestone_changed,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"milestone", "transition", "before", "after"}),
+    base=Significance.MINOR,
 )
 NUCLEAR_STRIKES_CHANGED = EventKind(
     "campaign.nuclear_strikes_changed",
     _nuclear_strikes,
-    Significance.CAMPAIGN_DEFINING,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
+    base=Significance.CAMPAIGN_DEFINING,
 )
 SEA_LEVEL_RISE_TRIGGERED = EventKind(
     "campaign.sea_level_rise_triggered",
     _sea_level_rise,
-    Significance.CAMPAIGN_DEFINING,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"stage", "transition", "before", "after"}),
+    base=Significance.CAMPAIGN_DEFINING,
 )
 # A once-per-campaign narrative event.
 NARRATIVE_EVENT_TRIGGERED = EventKind(
     "campaign.narrative_event_triggered",
     _narrative_event,
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"narrative_event", "scope"}),
     optional=frozenset({"targets"}),
+    base=Significance.MAJOR,
 )
 GLOBAL_VALUE_CHANGED = EventKind(
     "campaign.global_value_changed",
     _global_value,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"field"}),
     optional=frozenset({"transition", "before", "after", "added", "removed", "changed"}),
+    base=Significance.MINOR,
 )
 INTERSTATE_WARS_CHANGED = EventKind(
     "campaign.interstate_wars_changed",
     _interstate_wars,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MINOR,
 )
 
 _BEFORE_ENTRY = frozenset(
@@ -199,54 +199,54 @@ _BEFORE_ENTRY = frozenset(
 NOTIFICATION_ENTRY = EventKind(
     "notification.*",
     _notification,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset(
         {"template", "summary", "outcome", "subject", "alien_related", "news_feed_factions", "summary_log_factions"}
     ),
+    base=Significance.MINOR,
 )
 NOTIFICATION_UNKNOWN_TEMPLATE = EventKind(
     "notification.unknown_template",
     _notification,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required,
+    base=Significance.MINOR,
 )
 NOTIFICATION_QUEUE_APPEARED = EventKind(
     "notification.queue_appeared",
     _side_presence,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset({"side"}),
+    base=Significance.MINOR,
 )
 NOTIFICATION_QUEUE_DISAPPEARED = EventKind(
     "notification.queue_disappeared",
     _side_presence,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset({"side"}),
+    base=Significance.MINOR,
 )
 NOTIFICATION_QUEUE_VALUE_CHANGED = EventKind(
     "notification.queue_value_changed",
     _global_value,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset({"field"}),
     optional=GLOBAL_VALUE_CHANGED.optional,
+    base=Significance.MINOR,
 )
 NOTIFICATION_ENTRY_REMOVED = EventKind(
     "notification.entry_removed",
     _notification_removed,
-    Significance.TRIVIAL,
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"},
+    base=Significance.TRIVIAL,
 )
 NOTIFICATION_ENTRY_CHANGED = EventKind(
     "notification.entry_changed",
     _notification_changed,
-    Significance.TRIVIAL,
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"} | _BEFORE_ENTRY,
+    base=Significance.TRIVIAL,
 )
 
 

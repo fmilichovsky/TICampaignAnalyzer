@@ -31,7 +31,6 @@ def narrative_kind(
     return EventKind(
         event_type,
         template,
-        base,
         EvidenceRole.BOOKKEEPING,
         required,
         optional,
@@ -40,6 +39,7 @@ def narrative_kind(
         narrative=True,
         digests_members=digests_members,
         exclusive_constituents=exclusive_constituents,
+        base=base,
     )
 
 

@@ -36,31 +36,31 @@ def _renamed(event: Event) -> str:
     return f"{subject_label(event)} renamed: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
 
 
-APPEARED = EventKind("federation.appeared", _appeared, Significance.MAJOR, EVIDENCE, frozenset({"side"}))
-DISAPPEARED = EventKind("federation.disappeared", _disappeared, Significance.MAJOR, EVIDENCE, frozenset({"side"}))
+APPEARED = EventKind("federation.appeared", _appeared, EVIDENCE, frozenset({"side"}), base=Significance.MAJOR)
+DISAPPEARED = EventKind("federation.disappeared", _disappeared, EVIDENCE, frozenset({"side"}), base=Significance.MAJOR)
 MEMBERS_CHANGED = EventKind(
     "federation.members_changed",
     _members_changed,
-    Significance.MAJOR,
     EVIDENCE,
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
+    base=Significance.MAJOR,
 )
 RENAMED = EventKind(
     "federation.renamed",
     _renamed,
-    Significance.MAJOR,
     EVIDENCE,
     required=frozenset({"transition", "before", "after"}),
     optional=frozenset({"federation_name_before", "federation_name_after"}),
+    base=Significance.MAJOR,
 )
 NATION_FEDERATION_CHANGED = EventKind(
     "nation.federation_changed",
     plain("federation"),
-    Significance.MAJOR,
     BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     stake=Stake.NATION,
+    base=Significance.MAJOR,
 )
 
 
