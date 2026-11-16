@@ -6,7 +6,6 @@ The API key, request text and response text are never logged.
 from __future__ import annotations
 
 import json
-import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -14,8 +13,8 @@ from email.utils import parsedate_to_datetime
 from typing import Any
 
 from ..config import NarratorSettings
+from ..host import HttpResponse, Transport, TransportError
 from ..log import fields, get_logger
-from .transport import HttpResponse, Transport, TransportError
 
 logger = get_logger(__name__)
 
@@ -122,7 +121,8 @@ def complete(
     target: Endpoint,
     transport: Transport,
     *,
-    sleep: Callable[[float], None] = time.sleep,
+    sleep: Callable[[float], None],
+    now: Callable[[], datetime],
     before_attempt: Callable[[], None] | None = None,
     chapter: int | None = None,
 ) -> Completion:
@@ -165,7 +165,7 @@ def complete(
             retried = response.status in RETRIED_STATUSES or response.status >= 500
             if not retried or attempt >= MAX_ATTEMPTS:
                 raise _status_error(response)
-            hinted = _retry_after(response.headers)
+            hinted = _retry_after(response.headers, now())
             wait = _backoff(attempt) if hinted is None else hinted
         logger.info("provider retry %s", fields(provider=target.provider, chapter=chapter, attempt=attempt, wait=wait))
         sleep(wait)
@@ -341,7 +341,7 @@ def _json(body: bytes) -> Any:
         return None
 
 
-def _retry_after(headers: Mapping[str, str]) -> float | None:
+def _retry_after(headers: Mapping[str, str], now: datetime) -> float | None:
     """Accepts seconds or an HTTP date; capped at ``MAX_WAIT_SECONDS``."""
     value = headers.get("retry-after")
     if value is None:
@@ -355,7 +355,7 @@ def _retry_after(headers: Mapping[str, str]) -> float | None:
             return None
         if moment.tzinfo is None:
             moment = moment.replace(tzinfo=UTC)
-        seconds = (moment - datetime.now(UTC)).total_seconds()
+        seconds = (moment - now).total_seconds()
     return min(max(seconds, 0.0), MAX_WAIT_SECONDS)
 
 

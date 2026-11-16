@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from tests.fake_host import FakeHost
 from tests.fixtures import FIXTURES_ROOT
 from tests.narrative.support import loyalty_keys
 from tinarrative.cli import (
@@ -23,8 +24,8 @@ from tinarrative.cli import (
     EXIT_USAGE_ERROR,
     main,
 )
+from tinarrative.host import HttpResponse
 from tinarrative.narrator.councilors import build_article_request, request_sha256
-from tinarrative.narrator.transport import HttpResponse
 
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
 SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
@@ -134,13 +135,10 @@ class FakeTransport:
 
 
 @pytest.fixture
-def transport(monkeypatch: pytest.MonkeyPatch) -> FakeTransport:
+def host(monkeypatch: pytest.MonkeyPatch) -> FakeHost:
     fake = FakeTransport()
-    monkeypatch.setattr("tinarrative.cli._transport", lambda: fake)
-    monkeypatch.setattr("tinarrative.cli._sleep", lambda seconds: None)
-    monkeypatch.setattr("tinarrative.cli._now", lambda: datetime(2026, 10, 22, 9, 0, tzinfo=UTC))
     monkeypatch.setenv("TEST_NARRATOR_KEY", KEY)
-    return fake
+    return FakeHost(fake, now=datetime(2026, 10, 22, 9, 0, tzinfo=UTC))
 
 
 @pytest.fixture
@@ -159,8 +157,11 @@ SEND_SAVE = "politics_before.json"
 """The fixture save whose dossier selects two councilors of two factions."""
 
 
-def _send(tmp_path: Path, config: str, *options: str) -> int:
-    return main(["councilors", SEND_SAVE, "--config", config, "--output", str(tmp_path / "out"), "--send", *options])
+def _send(tmp_path: Path, config: str, *options: str, host: FakeHost | None = None) -> int:
+    return main(
+        ["councilors", SEND_SAVE, "--config", config, "--output", str(tmp_path / "out"), "--send", *options],
+        host=None if host is None else host.bundle(),
+    )
 
 
 def _read(path: Path) -> Any:
@@ -190,15 +191,15 @@ def test_a_dry_run_writes_one_request_per_councilor(
 
 
 def test_send_writes_responses_articles_and_manifest(
-    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
+    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], sending: str
 ) -> None:
-    assert _send(tmp_path, sending) == EXIT_SUCCESS
+    assert _send(tmp_path, sending, host=host) == EXIT_SUCCESS
 
     out = tmp_path / "out"
     dossier = _read(out / "dossier.json")
     names = [entry["name"] for entry in dossier["councilors"]]
     responses = sorted((out / "responses").iterdir())
-    assert len(responses) == len(names) == len(transport.calls)
+    assert len(responses) == len(names) == len(host.transport.calls)
     first = _read(responses[0])
     assert first == {
         "index": 1,
@@ -213,7 +214,7 @@ def test_send_writes_responses_articles_and_manifest(
         "output_tokens": 300,
         "text": "Profile 1.\n\n#### Background\n\nBorn.\n",
     }
-    url, headers, body = transport.calls[0]
+    url, headers, body = host.transport.calls[0]
     assert url == "https://api.anthropic.com/v1/messages"
     assert headers["x-api-key"] == KEY
     assert body["system"] == _read(out / "requests" / "01.json")["system"]
@@ -244,16 +245,16 @@ def test_send_writes_responses_articles_and_manifest(
     ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]
 )
 def test_a_failed_article_is_skipped_and_the_run_exits_10_at_the_end(
-    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str, stop: str, message: str
+    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], sending: str, stop: str, message: str
 ) -> None:
-    transport.stops = ["end_turn", stop]
+    host.transport.stops = ["end_turn", stop]
 
-    assert _send(tmp_path, sending) == EXIT_PROVIDER_ERROR
+    assert _send(tmp_path, sending, host=host) == EXIT_PROVIDER_ERROR
 
     out = tmp_path / "out"
     dossier = _read(out / "dossier.json")
     names = [entry["name"] for entry in dossier["councilors"]]
-    assert len(transport.calls) == len(names)
+    assert len(host.transport.calls) == len(names)
     assert "02.json" not in [path.name for path in (out / "responses").iterdir()]
     assert len(list((out / "responses").iterdir())) == len(names) - 1
     articles = (out / "councilors.md").read_text(encoding="utf-8")
@@ -271,19 +272,19 @@ def test_a_failed_article_is_skipped_and_the_run_exits_10_at_the_end(
 
 
 def test_a_rerun_reuses_the_stored_responses(
-    tmp_path: Path, transport: FakeTransport, capsys: pytest.CaptureFixture[str], sending: str
+    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], sending: str
 ) -> None:
-    transport.stops = ["end_turn", "max_tokens"]
-    assert _send(tmp_path, sending) == EXIT_PROVIDER_ERROR
+    host.transport.stops = ["end_turn", "max_tokens"]
+    assert _send(tmp_path, sending, host=host) == EXIT_PROVIDER_ERROR
     out = tmp_path / "out"
     count = len(_read(out / "dossier.json")["councilors"])
     first = (out / "responses" / "01.json").read_bytes()
     capsys.readouterr()
 
-    assert _send(tmp_path, sending) == EXIT_SUCCESS
+    assert _send(tmp_path, sending, host=host) == EXIT_SUCCESS
 
     captured = capsys.readouterr()
-    assert len(transport.calls) == count + 1
+    assert len(host.transport.calls) == count + 1
     assert "- 1 kept: complete, 2001 input and 300 output tokens" in captured.out
     assert f"- 2 sent: complete, {2000 + count + 1} input and 300 output tokens" in captured.out
     assert f"Wrote 1 response to {out / 'responses'}, kept {count - 1} stored.\n" in captured.out
@@ -305,7 +306,7 @@ def test_a_rerun_reuses_the_stored_responses(
 def test_send_usage_errors_contact_nothing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    transport: FakeTransport,
+    host: FakeHost,
     capsys: pytest.CaptureFixture[str],
     settings: str,
     options: list[str],
@@ -320,5 +321,5 @@ def test_send_usage_errors_contact_nothing(
     captured = capsys.readouterr()
     assert f"tinarrative councilors: {message}" in captured.err
     assert captured.out == ""
-    assert transport.calls == []
+    assert host.transport.calls == []
     assert not (tmp_path / "out").exists()

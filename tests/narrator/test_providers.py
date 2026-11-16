@@ -11,7 +11,9 @@ from typing import Any
 
 import pytest
 
+from tests.fake_host import FakeHost
 from tinarrative.config import NarratorSettings
+from tinarrative.host import HttpResponse, TransportError
 from tinarrative.narrator.providers import (
     MAX_ATTEMPTS,
     Completion,
@@ -23,7 +25,6 @@ from tinarrative.narrator.providers import (
     endpoint,
 )
 from tinarrative.narrator.rate_limit import RateLimiter
-from tinarrative.narrator.transport import HttpResponse, TransportError
 
 REQUEST = CompletionRequest(system="SYSTEM", user="USER", model="some-model", max_output_tokens=900)
 
@@ -89,9 +90,30 @@ def ollama_response(done_reason: str = "stop") -> dict[str, Any]:
     }
 
 
-def send(transport: FakeTransport, provider: str, request: CompletionRequest = REQUEST, **kwargs: Any) -> Completion:
-    waits: list[float] = kwargs.pop("waits", [])
-    return complete(request, target(provider, **kwargs), transport, sleep=waits.append)
+def send(
+    transport: FakeTransport,
+    provider: str,
+    request: CompletionRequest = REQUEST,
+    *,
+    now: datetime | None = None,
+    **kwargs: Any,
+) -> Completion:
+    waits: list[float] | None = kwargs.pop("waits", None)
+    host = FakeHost(transport, now=datetime(2030, 1, 1, tzinfo=UTC) if now is None else now)
+    original_sleep = host.sleep
+
+    def sleep(seconds: float) -> None:
+        original_sleep(seconds)
+        if waits is not None:
+            waits.append(seconds)
+
+    return complete(
+        request,
+        target(provider, **kwargs),
+        host.transport,
+        sleep=sleep,
+        now=host.now,
+    )
 
 
 # Wire formats
@@ -329,38 +351,32 @@ def test_a_success_without_a_completion_is_an_invalid_response(provider: str, bo
 
 def test_a_rate_limit_waits_as_retry_after_asks() -> None:
     transport = FakeTransport(ok({}, 429, **{"retry-after": "7"}), ok(anthropic_response()))
-    waits: list[float] = []
-    limiter_waits: list[float] = []
-    clock = [0.0]
-
-    def rate_sleep(seconds: float) -> None:
-        limiter_waits.append(seconds)
-        clock[0] += seconds
-
-    limiter = RateLimiter(1, None, clock=lambda: clock[0], sleep=rate_sleep)
+    host = FakeHost(transport)
+    limiter = RateLimiter(1, None, clock=host.monotonic, sleep=host.sleep)
 
     completion = complete(
         REQUEST,
         target("anthropic"),
-        transport,
-        sleep=waits.append,
+        host.transport,
+        sleep=host.sleep,
+        now=host.now,
         before_attempt=lambda: limiter.acquire(1),
     )
 
     assert completion.finish == "complete"
-    assert waits == [7.0]
+    assert host.waits == [7.0, 53.0]
     assert len(transport.calls) == 2
-    assert limiter_waits == [60.0]
 
 
 def test_retry_after_as_a_date_and_capped() -> None:
-    later = format_datetime(datetime.now(UTC) + timedelta(seconds=30), usegmt=True)
+    now = datetime(2030, 1, 1, tzinfo=UTC)
+    later = format_datetime(now + timedelta(seconds=30), usegmt=True)
     transport = FakeTransport(
         ok({}, 429, **{"retry-after": later}), ok({}, 529, **{"retry-after": "3600"}), ok(anthropic_response())
     )
     waits: list[float] = []
 
-    send(transport, "anthropic", waits=waits)
+    send(transport, "anthropic", waits=waits, now=now)
 
     assert 20 < waits[0] <= 30
     assert waits[1] == 60.0
