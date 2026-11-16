@@ -44,7 +44,7 @@ def saves() -> list[Path]:
 
 @pytest.fixture(scope="module")
 def rows() -> list[dict]:
-    return extract_campaign(saves())
+    return extract_campaign(saves())["events"]
 
 
 def test_every_event_becomes_a_row_with_its_own_score_and_level(rows: list[dict]) -> None:
@@ -67,7 +67,7 @@ def test_a_stake_row_keeps_the_unrounded_share(rows: list[dict]) -> None:
 
 
 def test_a_campaign_file_round_trips_exactly(tmp_path: Path, rows: list[dict]) -> None:
-    path = write_campaign(tmp_path, "politics", rows)
+    path = write_campaign(tmp_path, "politics", {"events": rows, "drafts": []})
 
     assert path.read_text(encoding="utf-8").startswith('window.TI_CALIBRATION.campaigns["politics"] = {')
     assert read_campaign(path) == {"events": json.loads(json.dumps(rows)), "drafts": []}

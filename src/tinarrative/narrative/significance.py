@@ -54,6 +54,7 @@ __all__ = [
     "NARRATIVE_STAKE_IMPLEMENTATIONS",
     "NarrativeContextRule",
     "NarrativeScaling",
+    "NarrativeScore",
     "ReportStakes",
     "Scaling",
     "Significance",
@@ -61,9 +62,11 @@ __all__ = [
     "assign_significance",
     "in_top_n",
     "narrative_level",
+    "narrative_scaling",
     "narrative_score",
     "promoted_at_rank",
     "promoted_by_rank",
+    "score_narrative",
     "significance_of",
 ]
 
@@ -667,27 +670,35 @@ def _basis(event: Event, level: Significance, stakes: Stakes) -> SignificanceBas
 
 
 def _narrative_basis(
-    kind: EventKind,
+    scaling: NarrativeScaling,
     event: Event,
     cited: Sequence[Event],
     level: Significance,
     stakes: ReportStakes,
     last: ReportStakes,
 ) -> SignificanceBasis | None:
+    refs = _unique(scaling.entities(event, cited))
+    if scaling.net_move:
+        share = _nuclear_share(event, stakes, last)
+    else:
+        share = stakes.share(scaling.measure, (ref.entity_id for ref in refs))
+    if share is None:
+        return None
+    return _scaled(level, scaling.measure, share, refs)
+
+
+def narrative_scaling(kind: EventKind, event: Event) -> NarrativeScaling | None:
+    """The implementation of the kind's stake; ``None`` for a kind without one.
+
+    Raises ``ValueError`` for a stake that scales atomic events: a code bug.
+    """
     named = kind.stake
     if named is None:
         return None
-    stake = NARRATIVE_STAKE_IMPLEMENTATIONS.get(named)
-    if stake is None:
+    scaling = NARRATIVE_STAKE_IMPLEMENTATIONS.get(named)
+    if scaling is None:
         raise ValueError(f"stake {named} of {event.event_type} scales an atomic event")
-    refs = _unique(stake.entities(event, cited))
-    if stake.net_move:
-        share = _nuclear_share(event, stakes, last)
-    else:
-        share = stakes.share(stake.measure, (ref.entity_id for ref in refs))
-    if share is None:
-        return None
-    return _scaled(level, stake.measure, share, refs)
+    return scaling
 
 
 def _nuclear_share(event: Event, first: ReportStakes, last: ReportStakes) -> float | None:
@@ -784,6 +795,52 @@ def _narrative_decision(
     return (kind.base, None) if decided is None else (decided, kind.rule)
 
 
+@dataclass(frozen=True)
+class NarrativeScore:
+    """A narrative event scored against one scaling and base (``score_narrative``)."""
+
+    score: int
+    basis: SignificanceBasis | None
+    rule: Rule | None
+    """The kind's context rule that decided ``level``; ``None`` when the given base stood."""
+    level: Significance
+    """The level the own score starts from, before the stake moves it."""
+
+    @property
+    def ruled(self) -> bool:
+        """The kind's context rule decided ``level``; the given base did not apply."""
+        return self.rule is not None
+
+
+def score_narrative(
+    kind: EventKind,
+    event: Event,
+    cited: Iterable[Event],
+    geopolitics: GeopoliticsSettings,
+    *,
+    scaling: NarrativeScaling | None,
+    base: Significance,
+    stakes: ReportStakes | None = None,
+    last: ReportStakes | None = None,
+) -> NarrativeScore:
+    """The event scored against ``scaling`` and ``base`` instead of its kind's own: ``narrative_score`` with the
+    stake and the base level given. The kind's context rule still decides first; ``base`` applies only where it
+    defers.
+
+    Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
+    """
+    cited = tuple(cited)
+    decided, rule = _narrative_decision(kind, event, geopolitics)
+    level = base if rule is None else decided
+    basis = (
+        _narrative_basis(scaling, event, cited, level, stakes, last or stakes)
+        if scaling is not None and stakes is not None
+        else None
+    )
+    own = level.base if basis is None else _clamped(basis)
+    return NarrativeScore(max([own, *(item.score for item in cited)]), basis, rule, level)
+
+
 def narrative_score(
     kind: EventKind,
     event: Event,
@@ -801,11 +858,9 @@ def narrative_score(
     Raises ``ValueError`` for a kind whose context rule judges atomic events, or whose stake scales atomic events:
     each is a code bug.
     """
-    cited = tuple(cited)
-    level, rule = _narrative_decision(kind, event, geopolitics)
-    basis = _narrative_basis(kind, event, cited, level, stakes, last or stakes) if stakes is not None else None
-    own = level.base if basis is None else _clamped(basis)
-    return max([own, *(item.score for item in cited)]), basis, rule
+    scaling = narrative_scaling(kind, event) if stakes is not None else None
+    scored = score_narrative(kind, event, cited, geopolitics, scaling=scaling, base=kind.base, stakes=stakes, last=last)
+    return scored.score, scored.basis, scored.rule
 
 
 def assign_significance(

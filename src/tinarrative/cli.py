@@ -835,7 +835,7 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_OUTPUT_ERROR
     try:
-        index, tables = calibration_replay.load(out)
+        index, tables, drafts = calibration_replay.load(out)
         state = (
             calibration_replay.decode_state(cast(str, args.state), index)
             if args.state is not None
@@ -849,7 +849,7 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
             types=cast("list[str] | None", args.type) or [],
             clamp=cast("str | None", args.clamp),
         )
-        result = calibration_replay.replay(index, tables, state)
+        result = calibration_replay.replay(index, tables, state, drafts)
     except (calibration_replay.ReplayError, CalibrationTableError) as error:
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_USAGE_ERROR

@@ -277,6 +277,10 @@ with `--rebuild`.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
+The table also scores any draft stakes, stakes tried on existing event types before a kind declares them, beside the
+real events and without changing their levels; the state holds a base level for each draft. A draft that cannot be
+scored fails the rebuild.
+
 ```sh
 # What would a lower power reference do?
 tinarrative benchmark calibrate report --reference power=0.002

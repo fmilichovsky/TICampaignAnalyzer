@@ -6,8 +6,9 @@
 (function (root) {
   "use strict";
 
-  const SCHEMA_VERSION = 2;
-  const STATE_KEYS = ["ref", "clamp", "campaigns", "types", "focus"];
+  const SCHEMA_VERSION = 3;
+  const STATE_KEYS = ["ref", "clamp", "campaigns", "types", "base", "focus"];
+  const DRAFT_PREFIX = "draft:";
 
   class ReplayError extends Error {
     constructor(message) {
@@ -24,6 +25,14 @@
   }
 
   const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+
+  // The draft stake of a draft row id ("draft:<name>:<event id>"); "" for a real row (drafts.py's draft_name).
+  function draftName(id) {
+    if (!id.startsWith(DRAFT_PREFIX)) return "";
+    const rest = id.slice(DRAFT_PREFIX.length);
+    const colon = rest.indexOf(":");
+    return colon < 0 ? rest : rest.slice(0, colon);
+  }
   const repr = (value) => (typeof value === "string" ? `'${value}'` : String(value));
   const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 
@@ -142,10 +151,17 @@
   function defaultState(index) {
     const references = {};
     for (const [name, measure] of Object.entries(index.measures)) references[name] = Number(measure.reference);
-    return { references, clamp: true, campaigns: [...index.campaigns], types: [], focus: null };
+    const bases = {};
+    for (const draft of index.drafts) bases[draft.name] = draft.base;
+    return { references, clamp: true, campaigns: [...index.campaigns], types: [], focus: null, bases };
   }
 
-  function replay(index, tables, state) {
+  // Draft rows (campaign -> rows) are optional; a state without bases takes each draft's own.
+  function replay(index, tables, state, drafts) {
+    drafts = drafts || {};
+    if (!state.bases || Object.keys(state.bases).length === 0) {
+      state = Object.assign({}, state, { bases: defaultState(index).bases });
+    }
     validate(index, tables, state);
     const constants = index.constants;
     const levels = Object.keys(constants.level_bands);
@@ -157,27 +173,31 @@
     }));
     const types = new Set(state.types);
     const scored = {};
+    const shadows = {};
     const selected = {};
+    const shadowed = {};
+    const chosen = (item) => types.size === 0 || types.has(item.row.type);
     for (const name of state.campaigns) {
-      scored[name] = replayCampaign(index, tables[name], state, gates);
-      selected[name] = scored[name].filter((item) => types.size === 0 || types.has(item.row.type));
+      [scored[name], shadows[name]] = replayCampaign(index, tables[name], has(drafts, name) ? drafts[name] : [], state, gates);
+      selected[name] = scored[name].filter(chosen);
+      shadowed[name] = shadows[name].filter(chosen);
     }
     const every = state.campaigns.flatMap((name) => selected[name]);
     const campaigns = {};
     for (const name of state.campaigns) {
       campaigns[name] = {
-        events: scored[name].map((item) => ({
-          id: item.row.id,
-          score: item.score,
-          level: item.level,
-          decided_by: item.decidedBy,
-        })),
+        events: scored[name].map(eventResult),
         level_counts: levelCounts(selected[name], levels),
         members: selected[name].filter((item) => item.member !== null).map((item) => item.member),
+        drafts: shadows[name].map(eventResult),
       };
     }
     const cutoffs = {};
-    for (const measure of Object.keys(index.measures)) cutoffs[measure] = measureCutoffs(measure, state, constants, selected);
+    for (const measure of Object.keys(index.measures)) {
+      cutoffs[measure] = measureCutoffs(measure, state, index, selected, shadowed);
+    }
+    const bases = {};
+    for (const draft of index.drafts) bases[draft.name] = state.bases[draft.name];
     return {
       schema_version: SCHEMA_VERSION,
       state: {
@@ -185,14 +205,18 @@
         clamp: state.clamp,
         campaigns: [...state.campaigns],
         types: [...state.types],
+        bases,
         focus: state.focus,
       },
       campaigns,
       totals: totals(every, levels, constants.package_level),
       moves: moves(every, levels),
       cutoffs,
+      drafts: draftResults(index, state, shadowed, levels),
     };
   }
+
+  const eventResult = (item) => ({ id: item.row.id, score: item.score, level: item.level, decided_by: item.decidedBy });
 
   function validate(index, tables, state) {
     const measures = Object.keys(index.measures);
@@ -219,18 +243,27 @@
     if (state.focus !== null && !measures.includes(state.focus)) {
       throw new ReplayStateError(`unknown focus measure ${repr(state.focus)}`);
     }
+    const names = index.drafts.map((draft) => draft.name);
+    const based = Object.keys(state.bases);
+    if (compareTuples([...based].sort(compare), [...names].sort(compare)) !== 0 || based.length !== names.length) {
+      throw new ReplayStateError(`the state needs a base for exactly the draft stakes ${names.join(", ") || "(none)"}`);
+    }
+    for (const [name, level] of Object.entries(state.bases)) {
+      if (!has(index.constants.level_bands, level)) {
+        throw new ReplayStateError(`the base of draft stake ${name} must be a level, not ${repr(level)}`);
+      }
+    }
   }
 
-  function replayCampaign(index, rows, state, gates) {
+  // The rows and the draft rows rescored; a draft row may cite only real rows of an earlier layer.
+  function replayCampaign(index, rows, shadows, state, gates) {
     const constants = index.constants;
     const bands = Object.entries(constants.level_bands).map(([level, [low, high]]) => ({ level, low, high }));
     const layer = (row) => (row.tier === "narrative" ? Number(has(index.layers, row.type) ? index.layers[row.type] : 0) : 0);
     const byId = new Map(rows.map((row) => [row.id, row]));
     const done = new Map();
-    const ordered = rows
-      .map((row, position) => ({ row, position, layer: layer(row) }))
-      .sort((a, b) => a.layer - b.layer || a.position - b.position);
-    for (const { row, layer: ownLayer } of ordered) {
+    const settle = (row, base) => {
+      const ownLayer = layer(row);
       for (const cited of row.cited) {
         if (!byId.has(cited)) throw new ReplayError(`${row.id} cites ${cited}, which is not a row of its campaign`);
         if (layer(byId.get(cited)) >= ownLayer) {
@@ -246,7 +279,7 @@
           .map((item) => item.row.id);
         citedRows = citedRows.filter((item) => !lost.includes(item.row.id));
       }
-      const own = ownScore(row, state, constants);
+      const own = ownScore(row, base, state, constants);
       let best = null;
       for (const item of citedRows) if (best === null || item.score > best.score) best = item;
       let score = own;
@@ -258,8 +291,12 @@
       const level = bands.find((band) => band.low <= score && score <= band.high).level;
       const item = { row, score, level, decidedBy, member: null };
       if (gate !== null) item.member = groupVerdict(row, gate, citedRows, lost);
-      done.set(row.id, item);
-    }
+      return item;
+    };
+    const ordered = rows
+      .map((row, position) => ({ row, position, layer: layer(row) }))
+      .sort((a, b) => a.layer - b.layer || a.position - b.position);
+    for (const { row } of ordered) done.set(row.id, settle(row, row.base));
     for (const item of done.values()) {
       const gate = gates.find((candidate) => item.row.type === candidate.memberType) || null;
       if (gate !== null && !gate.admitted.has(item.row.level) && gate.admitted.has(item.level)) {
@@ -275,11 +312,23 @@
         };
       }
     }
-    return rows.map((row) => done.get(row.id));
+    const drafted = shadows.map((row) => {
+      const name = draftName(row.id);
+      if (!has(state.bases, name)) throw new ReplayError(`${row.id} is a row of no declared draft stake`);
+      const item = settle(row, row.ruled ? row.base : levelBase(constants, state.bases[name]));
+      item.member = null;
+      return item;
+    });
+    return [rows.map((row) => done.get(row.id)), drafted];
   }
 
-  function ownScore(row, state, constants) {
-    const base = row.base;
+  // The midpoint of the level's band (replay.py's _level_base).
+  function levelBase(constants, level) {
+    const [low, high] = constants.level_bands[level];
+    return Math.floor((low + high) / 2);
+  }
+
+  function ownScore(row, base, state, constants) {
     if (row.stakes.length === 0) return base;
     const scales = row.stakes
       .map((stake) => scale(stake.share, state.references[stake.measure], state.clamp, constants))
@@ -352,6 +401,24 @@
     };
   }
 
+  function draftResults(index, state, shadowed, levels) {
+    const every = state.campaigns.flatMap((name) => shadowed[name]);
+    const result = {};
+    for (const draft of index.drafts) {
+      const own = every.filter((item) => draftName(item.row.id) === draft.name);
+      const replayCounts = {};
+      const baselineCounts = {};
+      for (const level of levels) replayCounts[level] = own.filter((item) => item.level === level).length;
+      for (const level of levels) baselineCounts[level] = own.filter((item) => item.row.level === level).length;
+      result[draft.name] = {
+        base: state.bases[draft.name],
+        level_counts: { replay: replayCounts, baseline: baselineCounts },
+        floored: own.filter((item) => item.decidedBy !== item.row.id).length,
+      };
+    }
+    return result;
+  }
+
   function moves(items, levels) {
     const groups = new Map();
     for (const item of items) {
@@ -393,34 +460,47 @@
     return result.sort((a, b) => a - b);
   }
 
-  function measureCutoffs(measure, state, constants, selected) {
+  function measureCutoffs(measure, state, index, selected, shadowed) {
+    const constants = index.constants;
     const reference = state.references[measure];
-    const candidates = [];
-    for (const name of state.campaigns) {
-      for (const item of selected[name]) {
-        const share = candidate(item.row, measure);
-        if (share !== null && share > 0) candidates.push({ name, item, share });
+    const candidates = (groups) => {
+      const found = [];
+      for (const name of state.campaigns) {
+        for (const item of groups[name]) {
+          const share = candidate(item.row, measure);
+          if (share !== null && share > 0) found.push({ name, item, share });
+        }
       }
-    }
+      return found;
+    };
+    const real = candidates(selected);
+    const drafted = candidates(shadowed);
     const window = cutoffOffsets(constants, true);
     const result = [];
     for (const offset of cutoffOffsets(constants, state.clamp)) {
       const cut = reference * Math.pow(10, offset);
-      if (!window.includes(offset) && !candidates.some(({ share }) => (offset < 0 ? share < cut : share > cut))) continue;
-      const below = [];
-      const above = [];
-      for (const { name, item, share } of candidates) {
-        const side = share < cut || (share === cut && offset > 0) ? below : above;
-        side.push(neighbour(name, item, share, Math.abs(log10(share / cut))));
+      const beyond = ({ share }) => (offset < 0 ? share < cut : share > cut);
+      if (!window.includes(offset) && !real.some(beyond) && !drafted.some(beyond)) continue;
+      const [below, above] = sides(real, cut, offset, state.campaigns, constants.neighbours);
+      const drafts = {};
+      for (const draft of index.drafts) {
+        const own = drafted.filter(({ item }) => draftName(item.row.id) === draft.name);
+        const [draftBelow, draftAbove] = sides(own, cut, offset, state.campaigns, constants.neighbours);
+        drafts[draft.name] = { below: draftBelow, above: draftAbove };
       }
-      result.push({
-        offset,
-        share: cut,
-        below: nearest(below, state.campaigns, constants.neighbours),
-        above: nearest(above, state.campaigns, constants.neighbours),
-      });
+      result.push({ offset, share: cut, below, above, drafts });
     }
     return result;
+  }
+
+  function sides(candidates, cut, offset, campaigns, count) {
+    const below = [];
+    const above = [];
+    for (const { name, item, share } of candidates) {
+      const side = share < cut || (share === cut && offset > 0) ? below : above;
+      side.push(neighbour(name, item, share, Math.abs(log10(share / cut))));
+    }
+    return [nearest(below, campaigns, count), nearest(above, campaigns, count)];
   }
 
   function nearest(side, campaigns, neighbours) {
@@ -445,6 +525,7 @@
       oracle_level: item.row.level,
       decided_by: item.decidedBy,
       decisive: item.decidedBy === item.row.id,
+      draft: draftName(item.row.id) || null,
     };
   }
 
@@ -467,6 +548,10 @@
       fields.push(`campaigns=${campaigns.join(",")}`);
     }
     if (state.types.length > 0) fields.push(`types=${[...state.types].sort(compare).join(",")}`);
+    const bases = Object.keys(fallback.bases)
+      .filter((name) => state.bases && has(state.bases, name) && state.bases[name] !== fallback.bases[name])
+      .map((name) => `${name}:${state.bases[name]}`);
+    if (bases.length > 0) fields.push(`base=${bases.join(",")}`);
     if (state.focus !== null) fields.push(`focus=${state.focus}`);
     return fields.join("&");
   }
@@ -504,6 +589,8 @@
         state.campaigns = index.campaigns.filter((name) => names.includes(name));
       } else if (key === "types") {
         state.types = parseNames(value, "type", false).sort(compare);
+      } else if (key === "base") {
+        Object.assign(state.bases, decodeBases(value, index));
       } else {
         if (!has(index.measures, value)) throw new ReplayStateError(`unknown focus measure ${repr(value)} in the state hash`);
         state.focus = value;
@@ -533,6 +620,28 @@
       references[measure] = parsed;
     }
     return references;
+  }
+
+  function decodeBases(value, index) {
+    const names = index.drafts.map((draft) => draft.name);
+    const levels = Object.keys(index.constants.level_bands);
+    const bases = {};
+    if (!value) throw new ReplayStateError("state hash key 'base' lists no base");
+    for (const item of value.split(",")) {
+      const separator = item.indexOf(":");
+      if (separator < 0) throw new ReplayStateError(`state hash base ${repr(item)} is not draft:level`);
+      const name = item.slice(0, separator);
+      const level = item.slice(separator + 1);
+      if (!names.includes(name)) {
+        throw new ReplayStateError(`unknown draft stake ${repr(name)} in the state hash (known: ${names.join(", ") || "(none)"})`);
+      }
+      if (has(bases, name)) throw new ReplayStateError(`draft stake ${repr(name)} is repeated in the state hash`);
+      if (!levels.includes(level)) {
+        throw new ReplayStateError(`the base of draft stake ${name} must be a level (${levels.join(", ")}), not ${repr(level)}`);
+      }
+      bases[name] = level;
+    }
+    return bases;
   }
 
   function parseNames(value, what, allowEmpty) {

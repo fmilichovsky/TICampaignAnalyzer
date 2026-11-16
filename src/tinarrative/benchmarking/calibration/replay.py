@@ -10,15 +10,16 @@ import re
 import struct
 from collections import Counter
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any, Final, Literal, TypedDict
 
+from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.table import SCHEMA_VERSION as SCHEMA_VERSION
 from tinarrative.benchmarking.calibration.table import read_campaign, read_index
 
-STATE_KEYS: Final = ("ref", "clamp", "campaigns", "types", "focus")
+STATE_KEYS: Final = ("ref", "clamp", "campaigns", "types", "base", "focus")
 """The hash keys, in the order ``encode_state`` writes them."""
 
 Row = Mapping[str, Any]
@@ -37,9 +38,11 @@ class ReplayStateError(ReplayError):
 
 @dataclass(frozen=True)
 class ReplayState:
-    """What the replay is asked: a reference per measure, the clamp, the enabled campaigns, a type filter and the focus.
+    """What the replay is asked: a reference per measure, the clamp, the enabled campaigns, a type filter, a base
+    level per draft stake and the focus.
 
-    ``types`` empty means every type. ``focus`` is the page's focused measure; the output does not depend on it.
+    ``types`` empty means every type. ``bases`` empty means each draft's own base. ``focus`` is the page's focused
+    measure; the output does not depend on it.
     """
 
     references: Mapping[str, float]
@@ -47,6 +50,7 @@ class ReplayState:
     campaigns: tuple[str, ...]
     types: tuple[str, ...] = ()
     focus: str | None = None
+    bases: Mapping[str, str] = field(default_factory=dict)
 
 
 class EventResult(TypedDict):
@@ -83,6 +87,8 @@ class CampaignResult(TypedDict):
     events: list[EventResult]
     level_counts: dict[str, LevelCounts]
     members: list[MemberResult]
+    drafts: list[EventResult]
+    """The draft rows, in table order."""
 
 
 class Package(TypedDict):
@@ -122,6 +128,13 @@ class Neighbour(TypedDict):
     decided_by: str
     decisive: bool
     """The row's own score set its score."""
+    draft: str | None
+    """The draft stake of a draft row; ``None`` for a real one."""
+
+
+class Sides(TypedDict):
+    below: list[Neighbour]
+    above: list[Neighbour]
 
 
 class Cutoff(TypedDict):
@@ -130,6 +143,16 @@ class Cutoff(TypedDict):
     share: float
     below: list[Neighbour]
     above: list[Neighbour]
+    drafts: dict[str, Sides]
+    """Each draft's own nearest rows, apart from the real ones."""
+
+
+class DraftResult(TypedDict):
+    base: str
+    level_counts: LevelCounts
+    """The draft's rows at each level, at ``base`` and at its oracle."""
+    floored: int
+    """Rows whose score a cited row set instead of the draft's own stake."""
 
 
 class StateResult(TypedDict):
@@ -137,17 +160,19 @@ class StateResult(TypedDict):
     clamp: bool
     campaigns: list[str]
     types: list[str]
+    bases: dict[str, str]
     focus: str | None
 
 
 class Replay(TypedDict):
     """The replay of a calibration table for one state.
 
-    ``campaigns`` follow the index order, and ``events`` and ``members`` the table order; ``level_counts`` keys are
-    sorted types, each with every level in band order. ``moves`` are sorted by count descending, then type, then the
-    from and to levels in band order. ``cutoffs`` hold every measure in index order, each ascending by offset;
-    neighbours are nearest first, then by campaign order and id. Scores and counts are integers, shares, offsets and
-    distances plain floats.
+    ``campaigns`` follow the index order, and ``events``, ``members`` and ``drafts`` the table order; ``level_counts``
+    keys are sorted types, each with every level in band order. The top-level ``drafts`` follow the index order;
+    draft rows never enter the real counts, totals, moves or neighbours. ``moves`` are sorted by count descending,
+    then type, then the from and to levels in band order. ``cutoffs`` hold every measure in index order, each
+    ascending by offset; neighbours are nearest first, then by campaign order and id. Scores and counts are integers,
+    shares, offsets and distances plain floats.
     """
 
     schema_version: int
@@ -156,6 +181,7 @@ class Replay(TypedDict):
     totals: Totals
     moves: list[Move]
     cutoffs: dict[str, list[Cutoff]]
+    drafts: dict[str, DraftResult]
 
 
 @dataclass(frozen=True)
@@ -176,30 +202,46 @@ class _Scored:
 
 
 def default_state(index: Mapping[str, Any]) -> ReplayState:
-    """The code's references, the clamp on and every campaign: the state whose replay is the pipeline."""
+    """The code's references, the clamp on, every campaign and each draft's own base: the state whose replay is the
+    pipeline."""
     references = {name: float(measure["reference"]) for name, measure in index["measures"].items()}
-    return ReplayState(references=references, clamp=True, campaigns=tuple(index["campaigns"]))
+    bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
+    return ReplayState(references=references, clamp=True, campaigns=tuple(index["campaigns"]), bases=bases)
 
 
-def load(directory: Path) -> tuple[dict[str, Any], dict[str, list[dict[str, Any]]]]:
-    """The index and the rows of every campaign of a calibration table directory; ``ReplayError`` for a table at
-    another schema version, with the rebuild hint."""
+Tables = dict[str, list[dict[str, Any]]]
+
+
+def load(directory: Path) -> tuple[dict[str, Any], Tables, Tables]:
+    """The index, the rows and the draft rows of every campaign of a calibration table directory; ``ReplayError`` for
+    a table at another schema version, with the rebuild hint."""
     index = read_index(directory / "index.js")
     if index.get("schema_version") != SCHEMA_VERSION:
         raise ReplayError(
             f"index.js has schema {index.get('schema_version')}; this replay reads schema {SCHEMA_VERSION}. "
             "Run tinarrative benchmark calibrate report --rebuild."
         )
-    tables = {name: read_campaign(directory / "tables" / f"{name}.js")["events"] for name in index["campaigns"]}
-    return index, tables
+    documents = {name: read_campaign(directory / "tables" / f"{name}.js") for name in index["campaigns"]}
+    tables = {name: document["events"] for name, document in documents.items()}
+    drafts = {name: document["drafts"] for name, document in documents.items()}
+    return index, tables, drafts
 
 
-def replay(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], state: ReplayState) -> Replay:
-    """Rescore the rows of the enabled campaigns for ``state`` (``Replay`` describes the output).
+def replay(
+    index: Mapping[str, Any],
+    tables: Mapping[str, Sequence[Row]],
+    state: ReplayState,
+    drafts: Mapping[str, Sequence[Row]] | None = None,
+) -> Replay:
+    """Rescore the rows of the enabled campaigns, and their ``drafts`` rows, for ``state`` (``Replay`` describes the
+    output). A state without ``bases`` takes each draft's own.
 
-    Raises ``ReplayStateError`` for a state that names a measure, campaign or type the table does not have, and
-    ``ReplayError`` for a table whose citations do not run to earlier layers.
+    Raises ``ReplayStateError`` for a state that names a measure, campaign, type, draft or level the table does not
+    have, and ``ReplayError`` for a table whose citations do not run to earlier layers or a draft row of no declared
+    draft.
     """
+    drafts = drafts or {}
+    state = _with_bases(index, state)
     _validate(index, tables, state)
     constants = index["constants"]
     levels = list(constants["level_bands"])
@@ -208,9 +250,15 @@ def replay(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], state:
         for gate in index["member_gates"]
     ]
     types = frozenset(state.types)
-    scored = {name: _replay_campaign(index, tables[name], state, gates) for name in state.campaigns}
+    scored: dict[str, list[_Scored]] = {}
+    shadows: dict[str, list[_Scored]] = {}
+    for name in state.campaigns:
+        scored[name], shadows[name] = _replay_campaign(index, tables[name], drafts.get(name, ()), state, gates)
     selected = {
         name: [item for item in items if not types or item.row["type"] in types] for name, items in scored.items()
+    }
+    shadowed = {
+        name: [item for item in items if not types or item.row["type"] in types] for name, items in shadows.items()
     }
     every = [item for items in selected.values() for item in items]
     return {
@@ -220,23 +268,33 @@ def replay(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], state:
             "clamp": state.clamp,
             "campaigns": list(state.campaigns),
             "types": list(state.types),
+            "bases": {draft["name"]: state.bases[draft["name"]] for draft in index["drafts"]},
             "focus": state.focus,
         },
         "campaigns": {
             name: {
-                "events": [
-                    {"id": item.row["id"], "score": item.score, "level": item.level, "decided_by": item.decided_by}
-                    for item in scored[name]
-                ],
+                "events": [_event(item) for item in scored[name]],
                 "level_counts": _level_counts(selected[name], levels),
                 "members": [item.member for item in selected[name] if item.member is not None],
+                "drafts": [_event(item) for item in shadows[name]],
             }
             for name in state.campaigns
         },
         "totals": _totals(every, levels, constants["package_level"]),
         "moves": _moves(every, levels),
-        "cutoffs": {measure: _cutoffs(measure, state, constants, selected) for measure in index["measures"]},
+        "cutoffs": {measure: _cutoffs(measure, state, index, selected, shadowed) for measure in index["measures"]},
+        "drafts": _drafts(index, state, shadowed, levels),
     }
+
+
+def _event(item: _Scored) -> EventResult:
+    return {"id": item.row["id"], "score": item.score, "level": item.level, "decided_by": item.decided_by}
+
+
+def _with_bases(index: Mapping[str, Any], state: ReplayState) -> ReplayState:
+    if state.bases:
+        return state
+    return replace(state, bases=default_state(index).bases)
 
 
 def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], state: ReplayState) -> None:
@@ -255,11 +313,18 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
         raise ReplayStateError(f"unknown event type(s) in the filter: {', '.join(unknown)}")
     if state.focus is not None and state.focus not in measures:
         raise ReplayStateError(f"unknown focus measure {state.focus!r}")
+    names = [draft["name"] for draft in index["drafts"]]
+    if sorted(state.bases) != sorted(names):
+        raise ReplayStateError(f"the state needs a base for exactly the draft stakes {', '.join(names) or '(none)'}")
+    for name, level in state.bases.items():
+        if level not in index["constants"]["level_bands"]:
+            raise ReplayStateError(f"the base of draft stake {name} must be a level, not {level!r}")
 
 
 def _replay_campaign(
-    index: Mapping[str, Any], rows: Sequence[Row], state: ReplayState, gates: Sequence[_Gate]
-) -> list[_Scored]:
+    index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row], state: ReplayState, gates: Sequence[_Gate]
+) -> tuple[list[_Scored], list[_Scored]]:
+    """The rows and the draft rows rescored; a draft row may cite only real rows of an earlier layer."""
     constants = index["constants"]
     layer_of = index["layers"]
     bands = [(level, low, high) for level, (low, high) in constants["level_bands"].items()]
@@ -269,7 +334,8 @@ def _replay_campaign(
 
     by_id = {row["id"]: row for row in rows}
     done: dict[str, _Scored] = {}
-    for row in sorted(rows, key=layer):
+
+    def settle(row: Row, base: int) -> _Scored:
         own_layer = layer(row)
         for cited in row["cited"]:
             if cited not in by_id:
@@ -286,7 +352,7 @@ def _replay_campaign(
                 if item.row["type"] == gate.member_type and item.level not in gate.admitted
             ]
             cited_rows = [item for item in cited_rows if item.row["id"] not in lost]
-        own = _own_score(row, state, constants)
+        own = _own_score(row, base, state, constants)
         best = max(cited_rows, key=lambda item: item.score, default=None)
         if best is None or own >= best.score:
             score, decided_by = own, row["id"]
@@ -296,7 +362,10 @@ def _replay_campaign(
         item = _Scored(row, score, level, decided_by)
         if gate is not None:
             item.member = _group_verdict(row, gate, cited_rows, lost)
-        done[row["id"]] = item
+        return item
+
+    for row in sorted(rows, key=layer):
+        done[row["id"]] = settle(row, row["base"])
     for item in done.values():
         member_gate = next((gate for gate in gates if item.row["type"] == gate.member_type), None)
         if (
@@ -314,12 +383,25 @@ def _replay_campaign(
                 "minimum": member_gate.minimum,
                 "stale_stake": False,
             }
-    return [done[row["id"]] for row in rows]
+    drafted: list[_Scored] = []
+    for row in shadows:
+        name = draft_name(row["id"])
+        if name not in state.bases:
+            raise ReplayError(f"{row['id']} is a row of no declared draft stake")
+        item = settle(row, row["base"] if row["ruled"] else _level_base(constants, state.bases[name]))
+        item.member = None
+        drafted.append(item)
+    return [done[row["id"]] for row in rows], drafted
 
 
-def _own_score(row: Row, state: ReplayState, constants: Mapping[str, Any]) -> int:
-    """The base moved by the highest candidate scale, inside the score bound."""
-    base: int = row["base"]
+def _level_base(constants: Mapping[str, Any], level: str) -> int:
+    """The midpoint of the level's band: the score of an event whose base alone decides its level."""
+    low, high = constants["level_bands"][level]
+    return (int(low) + int(high)) // 2
+
+
+def _own_score(row: Row, base: int, state: ReplayState, constants: Mapping[str, Any]) -> int:
+    """``base`` moved by the highest candidate scale, inside the score bound."""
     if not row["stakes"]:
         return base
     scales = [
@@ -393,6 +475,27 @@ def _totals(items: Sequence[_Scored], levels: Sequence[str], package_level: str)
     }
 
 
+def _drafts(
+    index: Mapping[str, Any], state: ReplayState, shadowed: Mapping[str, Sequence[_Scored]], levels: Sequence[str]
+) -> dict[str, DraftResult]:
+    every = [item for items in shadowed.values() for item in items]
+    result: dict[str, DraftResult] = {}
+    for draft in index["drafts"]:
+        name = draft["name"]
+        own = [item for item in every if draft_name(item.row["id"]) == name]
+        replayed = Counter(item.level for item in own)
+        baseline = Counter(item.row["level"] for item in own)
+        result[name] = {
+            "base": state.bases[name],
+            "level_counts": {
+                "replay": {level: replayed[level] for level in levels},
+                "baseline": {level: baseline[level] for level in levels},
+            },
+            "floored": sum(1 for item in own if item.decided_by != item.row["id"]),
+        }
+    return result
+
+
 def _moves(items: Sequence[_Scored], levels: Sequence[str]) -> list[Move]:
     counts: Counter[tuple[str, str, str]] = Counter()
     via: Counter[tuple[str, str, str]] = Counter()
@@ -430,37 +533,53 @@ def cutoff_offsets(constants: Mapping[str, Any], *, clamp: bool) -> list[float]:
 
 
 def _cutoffs(
-    measure: str, state: ReplayState, constants: Mapping[str, Any], selected: Mapping[str, Sequence[_Scored]]
+    measure: str,
+    state: ReplayState,
+    index: Mapping[str, Any],
+    selected: Mapping[str, Sequence[_Scored]],
+    shadowed: Mapping[str, Sequence[_Scored]],
 ) -> list[Cutoff]:
+    constants = index["constants"]
     reference = state.references[measure]
-    candidates = [
-        (name, item, share)
-        for name, items in selected.items()
-        for item in items
-        if (share := _candidate(item.row, measure)) is not None and share > 0
-    ]
+
+    def candidates(groups: Mapping[str, Sequence[_Scored]]) -> list[tuple[str, _Scored, float]]:
+        return [
+            (name, item, share)
+            for name, items in groups.items()
+            for item in items
+            if (share := _candidate(item.row, measure)) is not None and share > 0
+        ]
+
+    real = candidates(selected)
+    drafted = candidates(shadowed)
+    names = [draft["name"] for draft in index["drafts"]]
     window = cutoff_offsets(constants, clamp=True)
     result: list[Cutoff] = []
     for offset in cutoff_offsets(constants, clamp=state.clamp):
         cut = reference * 10**offset
         if offset not in window and not any(
-            (share < cut) if offset < 0 else (share > cut) for _, _, share in candidates
+            (share < cut) if offset < 0 else (share > cut) for _, _, share in (*real, *drafted)
         ):
             continue
-        below: list[Neighbour] = []
-        above: list[Neighbour] = []
-        for name, item, share in candidates:
-            side = below if share < cut or (share == cut and offset > 0) else above
-            side.append(_neighbour(name, item, share, abs(portable_log10(share / cut))))
-        result.append(
-            {
-                "offset": offset,
-                "share": cut,
-                "below": _nearest(below, state.campaigns, constants["neighbours"]),
-                "above": _nearest(above, state.campaigns, constants["neighbours"]),
-            }
-        )
+        below, above = _sides(real, cut, offset, state.campaigns, constants["neighbours"])
+        drafts: dict[str, Sides] = {}
+        for name in names:
+            own = [entry for entry in drafted if draft_name(entry[1].row["id"]) == name]
+            draft_below, draft_above = _sides(own, cut, offset, state.campaigns, constants["neighbours"])
+            drafts[name] = {"below": draft_below, "above": draft_above}
+        result.append({"offset": offset, "share": cut, "below": below, "above": above, "drafts": drafts})
     return result
+
+
+def _sides(
+    candidates: Sequence[tuple[str, _Scored, float]], cut: float, offset: float, campaigns: Sequence[str], count: int
+) -> tuple[list[Neighbour], list[Neighbour]]:
+    below: list[Neighbour] = []
+    above: list[Neighbour] = []
+    for name, item, share in candidates:
+        side = below if share < cut or (share == cut and offset > 0) else above
+        side.append(_neighbour(name, item, share, abs(portable_log10(share / cut))))
+    return _nearest(below, campaigns, count), _nearest(above, campaigns, count)
 
 
 def _nearest(side: list[Neighbour], campaigns: Sequence[str], neighbours: int) -> list[Neighbour]:
@@ -484,6 +603,7 @@ def _neighbour(campaign: str, item: _Scored, share: float, distance: float) -> N
         "oracle_level": item.row["level"],
         "decided_by": item.decided_by,
         "decisive": item.decided_by == item.row["id"],
+        "draft": draft_name(item.row["id"]) or None,
     }
 
 
@@ -597,7 +717,8 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
 
     ``&``-separated ``key=value`` fields, only those that differ from ``default_state``, in the order of
     ``STATE_KEYS``: ``ref=<measure>:<number>,...`` (index order), ``clamp=off``, ``campaigns=<name>,...`` (index
-    order; empty for none), ``types=<type>,...`` (sorted) and ``focus=<measure>``. A number is written as JavaScript's
+    order; empty for none), ``types=<type>,...`` (sorted), ``base=<draft>:<level>,...`` (index order) and
+    ``focus=<measure>``. A number is written as JavaScript's
     ``String(number)`` writes it, so both codecs give the same bytes.
     """
     default = default_state(index)
@@ -616,6 +737,13 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
         fields.append("campaigns=" + ",".join(campaigns))
     if state.types:
         fields.append("types=" + ",".join(sorted(state.types)))
+    bases = [
+        f"{name}:{state.bases[name]}"
+        for name in default.bases
+        if name in state.bases and state.bases[name] != default.bases[name]
+    ]
+    if bases:
+        fields.append("base=" + ",".join(bases))
     if state.focus is not None:
         fields.append(f"focus={state.focus}")
     return "&".join(fields)
@@ -624,8 +752,9 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
 def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
     """The state of a URL hash written by ``encode_state``; a leading ``#`` and any key order are accepted.
 
-    Raises ``ReplayStateError`` for an unknown or repeated key, an unknown or repeated measure, campaign or type, a
-    reference that is not a positive number, or a clamp other than ``on`` or ``off``. Type names are checked against
+    Raises ``ReplayStateError`` for an unknown or repeated key, an unknown or repeated measure, campaign, type or
+    draft, a reference that is not a positive number, a base that is not a level, or a clamp other than ``on`` or
+    ``off``. Type names are checked against
     the rows by ``replay``.
     """
     default = default_state(index)
@@ -633,13 +762,14 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
     clamp = default.clamp
     campaigns = default.campaigns
     types: tuple[str, ...] = ()
+    bases = dict(default.bases)
     focus: str | None = None
     body = text[1:] if text.startswith("#") else text
     seen: set[str] = set()
-    for field in body.split("&") if body else ():
-        key, separator, value = field.partition("=")
+    for part in body.split("&") if body else ():
+        key, separator, value = part.partition("=")
         if not separator:
-            raise ReplayStateError(f"state hash field {field!r} is not key=value")
+            raise ReplayStateError(f"state hash field {part!r} is not key=value")
         if key not in STATE_KEYS:
             raise ReplayStateError(f"unknown state hash key {key!r} (known: {', '.join(STATE_KEYS)})")
         if key in seen:
@@ -660,11 +790,37 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
             campaigns = tuple(name for name in index["campaigns"] if name in names)
         elif key == "types":
             types = tuple(sorted(_names(value, "type", allow_empty=False)))
+        elif key == "base":
+            bases.update(_decode_bases(value, index))
         else:
             if value not in index["measures"]:
                 raise ReplayStateError(f"unknown focus measure {value!r} in the state hash")
             focus = value
-    return ReplayState(references=references, clamp=clamp, campaigns=campaigns, types=types, focus=focus)
+    return ReplayState(references=references, clamp=clamp, campaigns=campaigns, types=types, focus=focus, bases=bases)
+
+
+def _decode_bases(value: str, index: Mapping[str, Any]) -> dict[str, str]:
+    names = [draft["name"] for draft in index["drafts"]]
+    levels = list(index["constants"]["level_bands"])
+    bases: dict[str, str] = {}
+    if not value:
+        raise ReplayStateError("state hash key 'base' lists no base")
+    for item in value.split(","):
+        name, separator, level = item.partition(":")
+        if not separator:
+            raise ReplayStateError(f"state hash base {item!r} is not draft:level")
+        if name not in names:
+            raise ReplayStateError(
+                f"unknown draft stake {name!r} in the state hash (known: {', '.join(names) or '(none)'})"
+            )
+        if name in bases:
+            raise ReplayStateError(f"draft stake {name!r} is repeated in the state hash")
+        if level not in levels:
+            raise ReplayStateError(
+                f"the base of draft stake {name} must be a level ({', '.join(levels)}), not {level!r}"
+            )
+        bases[name] = level
+    return bases
 
 
 def _decode_references(value: str, index: Mapping[str, Any]) -> dict[str, float]:

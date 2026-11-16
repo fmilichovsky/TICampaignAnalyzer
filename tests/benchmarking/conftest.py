@@ -28,9 +28,9 @@ def calibration_tables(tmp_path_factory: pytest.TempPathFactory) -> TableFor:
     def table_for(name: str, saves: Path) -> Path:
         if name not in cache:
             directory = tmp_path_factory.mktemp(f"calibration-{name}")
-            rows = extract_campaign(save_paths(saves))
-            write_campaign(directory, name, rows)
-            kinds = type_kinds(row["type"] for row in rows)
+            document = extract_campaign(save_paths(saves))
+            write_campaign(directory, name, document)
+            kinds = type_kinds(row["type"] for row in document["events"])
             write_index(directory, build_index([name], key="samples", extracted_at="", kinds=kinds))
             cache[name] = directory
         return cache[name]

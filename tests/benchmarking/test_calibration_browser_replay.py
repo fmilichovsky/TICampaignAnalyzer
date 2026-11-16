@@ -16,7 +16,7 @@ from tests.benchmarking.browser_replay import (
     state_object,
 )
 from tests.benchmarking.calibration_golden import GOLDEN
-from tests.benchmarking.calibration_support import INVALID_HASHES
+from tests.benchmarking.calibration_support import FIRST, INVALID_HASHES
 from tinarrative.benchmarking.calibration.replay import (
     SCHEMA_VERSION,
     STATE_KEYS,
@@ -33,7 +33,7 @@ from tinarrative.benchmarking.calibration.table import write_campaign, write_ind
 
 pytestmark = pytest.mark.browser_replay
 
-INDEX, TABLES = load(GOLDEN)
+INDEX, TABLES, DRAFTS = load(GOLDEN)
 CODE = default_state(INDEX)
 
 
@@ -55,6 +55,9 @@ STATES = [
     replace(CODE, campaigns=()),
     replace(CODE, types=("atomic.near", "faction.takeover")),
     replace(CODE, focus="population"),
+    replace(CODE, bases={**CODE.bases, "held": "major"}),
+    replace(CODE, bases={"held": "trivial", "moved": "campaign_defining"}, references=moved(population=10**0.5)),
+    replace(CODE, bases={**CODE.bases, "moved": "major"}, clamp=False, campaigns=("alpha",), types=(FIRST,)),
     replace(
         CODE,
         references={**CODE.references, "power": 0.002},
@@ -109,9 +112,9 @@ def test_both_replays_reject_an_unknown_type_and_a_citation_out_of_layer_order(t
     deal["cited"] = ["grow"]
     write_index(tmp_path, INDEX)
     for name, rows in broken.items():
-        write_campaign(tmp_path, name, rows)
+        write_campaign(tmp_path, name, {"events": rows, "drafts": DRAFTS[name]})
     with pytest.raises(ReplayError, match="not in an earlier layer"):
-        replay(INDEX, broken, CODE)
+        replay(INDEX, broken, CODE, DRAFTS)
     [citation] = run_harness(tmp_path, [{"op": "replay", "hash": ""}])
     assert citation["error"]["name"] == "ReplayError"
 
@@ -138,3 +141,15 @@ def test_the_states_cover_every_field_of_the_hash() -> None:
     text = "&".join(encode_state(state, INDEX) for state in STATES)
 
     assert all(f"{key}=" in text for key in STATE_KEYS)
+
+
+@pytest.mark.parametrize(
+    ("text", "message"),
+    [("base=held:huge", "must be a level"), ("base=held:major,held:minor", "'held' is repeated")],
+)
+def test_both_codecs_reject_a_draft_base_that_is_not_one_level(text: str, message: str) -> None:
+    [answer] = run_harness(GOLDEN, [{"op": "decode", "hash": text}])
+
+    with pytest.raises(ReplayStateError, match=message):
+        decode_state(text, INDEX)
+    assert answer.get("error", {}).get("name") == "ReplayStateError"

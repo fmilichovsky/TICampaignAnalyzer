@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "key": "golden",
   "hash": "clamp=off&campaigns=beta&types=atomic.thing",
   "state": {
@@ -20,6 +20,10 @@
     "types": [
       "atomic.thing"
     ],
+    "bases": {
+      "held": "minor",
+      "moved": "trivial"
+    },
     "focus": null
   },
   "totals": {

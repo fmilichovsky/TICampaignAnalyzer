@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "key": "golden",
   "hash": "ref=power:0.006309573444801933,faction:1e-7",
   "state": {
@@ -19,6 +19,10 @@
       "beta"
     ],
     "types": [],
+    "bases": {
+      "held": "minor",
+      "moved": "trivial"
+    },
     "focus": null
   },
   "totals": {
