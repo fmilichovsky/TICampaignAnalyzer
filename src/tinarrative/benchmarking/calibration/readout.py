@@ -12,6 +12,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final
 
+from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.replay import (
     SCHEMA_VERSION,
     Neighbour,
@@ -87,7 +88,8 @@ def _items(values: Sequence[str]) -> list[str]:
 
 
 def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
-    """One paragraph: the references against the code's, the clamp, campaigns and types, the totals, the top moves."""
+    """One paragraph: the references against the code's, the clamp, campaigns and types, the totals, the top moves
+    and every draft stake with its issue, so a draft left behind after its issue closed still shows."""
     state = result["state"]
     code = index["measures"]
     changed = [
@@ -114,8 +116,36 @@ def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
         f"{'event' if package['replay'] == 1 else 'events'} at {index['constants']['package_level']} or above "
         f"({_signed(package['change'])}); "
         f"{_events(totals['members_changed'])} with members change. "
-        f"What moves: {moves}."
+        f"What moves: {moves}. "
+        f"Drafts: {_drafts(index, result)}."
     )
+
+
+def _drafts(index: Mapping[str, Any], result: Replay) -> str:
+    levels = list(index["constants"]["level_bands"])
+    parts = []
+    for draft in index["drafts"]:
+        own = result["drafts"][draft["name"]]
+        counts = own["level_counts"]
+        base = own["base"]
+        instead = "" if base == draft["base"] else f" instead of {draft['base']}"
+        shown = [
+            f"{level} {counts['replay'][level]}"
+            + (
+                f" {_signed(counts['replay'][level] - counts['baseline'][level])}"
+                if counts["replay"][level] != counts["baseline"][level]
+                else ""
+            )
+            for level in levels
+            if counts["replay"][level] or counts["baseline"][level]
+        ]
+        total = sum(counts["replay"].values())
+        parts.append(
+            f"{draft['name']} (#{draft['issue']}) at base {base}{instead}: {_events(total)}"
+            + (f" ({', '.join(shown)})" if shown else "")
+            + f", {own['floored']} set by a cited event"
+        )
+    return "; ".join(parts) or "none"
 
 
 def snippet(index: Mapping[str, Any], result: Replay) -> str:
@@ -146,8 +176,9 @@ def _signed(number: int) -> str:
 # --- Report formats ----------------------------------------------------------------------------------------
 
 
-def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str) -> str:
-    """The Markdown readout, in seven sections: state, summary, level counts, What moves, members, cut-offs, snippet."""
+def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, drafts: Tables | None = None) -> str:
+    """The Markdown readout, in eight sections: state, summary, level counts, What moves, members, cut-offs, draft
+    stakes, snippet. ``drafts`` are the draft rows of each campaign, which say which rows are ruled."""
     state = result["state"]
     levels = list(index["constants"]["level_bands"])
     lines = ["# Stake calibration readout", "", "## Calibration state", ""]
@@ -225,12 +256,118 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str) ->
                 "No event has this stake.",
             )
             lines.append("")
+    lines += ["## Draft stakes", ""]
+    lines += _draft_text(index, result, drafts or {})
     lines += ["## Snippet", "", "```python", snippet(index, result), "```", ""]
     return "\n".join(lines)
 
 
-def render_json(index: Mapping[str, Any], tables: Tables, result: Replay, *, state_hash: str) -> dict[str, Any]:
-    """The JSON readout: the state, the aggregates and only the edges (moved events and cut-off neighbours)."""
+def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> list[str]:
+    levels = list(index["constants"]["level_bands"])
+    summaries = draft_summaries(index, result, drafts)
+    if not summaries:
+        return ["No draft stakes are declared.", ""]
+    lines = _table(
+        ["Draft", "Label", "Issue", "Measures", "Base", "Own base", "Events", "Ruled", "Set by a cited event"],
+        [
+            f"| {item['name']} | {item['label']} | #{item['issue']} | {', '.join(item['measures'])} | {item['base']} "
+            f"| {item['own_base']} | {item['events']} | {item['ruled']} | {item['floored']} |"
+            for item in summaries
+        ],
+        "",
+    )
+    lines += ["", "Level counts at each draft's base, against its own:", ""]
+    lines += _table(
+        ["Draft", "Level", "Replay", "Own base", "Change"],
+        [
+            f"| {item['name']} | {level} | {replayed} | {baseline} | {_signed(replayed - baseline)} |"
+            for item in summaries
+            for level in levels
+            for replayed, baseline in [(item["level_counts"]["replay"][level], item["level_counts"]["baseline"][level])]
+            if replayed or baseline
+        ],
+        "No draft rows.",
+    )
+    lines.append("")
+    for item in summaries:
+        for measure, cutoffs in item["cutoffs"].items():
+            lines += [f"### {item['name']} on {measure}", ""]
+            if not cutoffs:
+                lines += ["No cut-off.", ""]
+            for cutoff in cutoffs:
+                lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {js_number(cutoff['offset'])}):", ""]
+                lines += _table(
+                    ["Side", "Campaign", "Event", "Share", "Score", "Level", "Own base level", "Decided by", "Ruled"],
+                    [_draft_neighbour_row("below", entry) for entry in cutoff["below"]]
+                    + [_draft_neighbour_row("above", entry) for entry in cutoff["above"]],
+                    "No row of this draft has this stake.",
+                )
+                lines.append("")
+    return lines
+
+
+def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) -> list[dict[str, Any]]:
+    """Each draft stake as the page's draft panel shows it, in index order: its base against its own, its rows'
+    levels, how many are ruled (their kind's context rule sets the level, so the base does not apply) or set by a
+    cited event, and its own nearest rows at every cut-off of its measures. Rows of the enabled campaigns and
+    types only."""
+    types = set(result["state"]["types"])
+    ruled = {
+        (name, row["id"]): bool(row["ruled"])
+        for name in result["state"]["campaigns"]
+        for row in drafts.get(name, ())
+        if not types or row["type"] in types
+    }
+    summaries = []
+    for draft in index["drafts"]:
+        name = draft["name"]
+        own = result["drafts"][name]
+        summaries.append(
+            {
+                "name": name,
+                "label": draft["label"],
+                "issue": draft["issue"],
+                "measures": list(draft["measures"]),
+                "base": own["base"],
+                "own_base": draft["base"],
+                "events": sum(own["level_counts"]["replay"].values()),
+                "ruled": sum(1 for (_, row_id), flag in ruled.items() if flag and draft_name(row_id) == name),
+                "floored": own["floored"],
+                "level_counts": own["level_counts"],
+                "cutoffs": {
+                    measure: [
+                        {
+                            "offset": cutoff["offset"],
+                            "share": cutoff["share"],
+                            "below": [_draft_neighbour(entry, ruled) for entry in cutoff["drafts"][name]["below"]],
+                            "above": [_draft_neighbour(entry, ruled) for entry in cutoff["drafts"][name]["above"]],
+                        }
+                        for cutoff in result["cutoffs"][measure]
+                    ]
+                    for measure in draft["measures"]
+                },
+            }
+        )
+    return summaries
+
+
+def _draft_neighbour(item: Neighbour, ruled: Mapping[tuple[str, str], bool]) -> dict[str, Any]:
+    return {**_neighbour(item), "ruled": ruled.get((item["campaign"], item["id"]), False)}
+
+
+def _draft_neighbour_row(side: str, item: Mapping[str, Any]) -> str:
+    decided = "own" if item["decisive"] else f"`{item['decided_by']}`"
+    return (
+        f"| {side} | {item['campaign']} | `{item['id']}` | {item['share']:.3g} | {item['score']} | {item['level']} "
+        f"| {item['code_level']} | {decided} | {'yes' if item['ruled'] else 'no'} |"
+    )
+
+
+def render_json(
+    index: Mapping[str, Any], tables: Tables, result: Replay, *, state_hash: str, drafts: Tables | None = None
+) -> dict[str, Any]:
+    """The JSON readout: the state, the aggregates, only the edges (moved events and cut-off neighbours) and the
+    draft stakes (``draft_summaries`` of the ``drafts`` rows)."""
     levels = list(index["constants"]["level_bands"])
     types = set(result["state"]["types"])
     moved: list[dict[str, Any]] = []
@@ -278,6 +415,7 @@ def render_json(index: Mapping[str, Any], tables: Tables, result: Replay, *, sta
             ]
             for measure, cutoffs in result["cutoffs"].items()
         },
+        "drafts": draft_summaries(index, result, drafts or {}),
     }
 
 

@@ -21,7 +21,7 @@
 
 ## Summary
 
-References: every measure at the code's. Clamp off. Campaigns: beta. Types: atomic.thing. 0 events move level; the narrator package goes from 0 to 0 events at major or above (0); 0 events with members change. What moves: nothing.
+References: every measure at the code's. Clamp off. Campaigns: beta. Types: atomic.thing. 0 events move level; the narrator package goes from 0 to 0 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 0 events, 0 set by a cited event; moved (#2) at base trivial: 0 events, 0 set by a cited event.
 
 ## Level counts
 
@@ -127,6 +127,47 @@ No event has this stake.
 Cut-off at share 0.178 (offset 1.25):
 
 No event has this stake.
+
+## Draft stakes
+
+| Draft | Label | Issue | Measures | Base | Own base | Events | Ruled | Set by a cited event |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| held | Held share | #1 | power, population | minor | minor | 0 | 0 | 0 |
+| moved | Moved share | #2 | population | trivial | trivial | 0 | 0 | 0 |
+
+Level counts at each draft's base, against its own:
+
+No draft rows.
+
+### held on power
+
+Cut-off at share 0.000562 (offset -1.25):
+
+No row of this draft has this stake.
+
+Cut-off at share 0.178 (offset 1.25):
+
+No row of this draft has this stake.
+
+### held on population
+
+Cut-off at share 0.000562 (offset -1.25):
+
+No row of this draft has this stake.
+
+Cut-off at share 0.178 (offset 1.25):
+
+No row of this draft has this stake.
+
+### moved on population
+
+Cut-off at share 0.000562 (offset -1.25):
+
+No row of this draft has this stake.
+
+Cut-off at share 0.178 (offset 1.25):
+
+No row of this draft has this stake.
 
 ## Snippet
 

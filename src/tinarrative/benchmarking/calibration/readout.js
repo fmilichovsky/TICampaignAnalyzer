@@ -15,7 +15,32 @@
     return `${item.type} ${item.from_level} -> ${item.to_level} ${item.count}${via}`;
   }
 
-  // One paragraph: the references against the code's, the clamp, campaigns and types, the totals, the top moves.
+  // Every draft stake with its issue, its base and its rows' levels (readout.py's _drafts).
+  function drafts(index, result) {
+    const levels = Object.keys(index.constants.level_bands);
+    const parts = index.drafts.map((draft) => {
+      const own = result.drafts[draft.name];
+      const counts = own.level_counts;
+      const instead = own.base === draft.base ? "" : ` instead of ${draft.base}`;
+      const shown = levels
+        .filter((level) => counts.replay[level] || counts.baseline[level])
+        .map(
+          (level) =>
+            `${level} ${counts.replay[level]}` +
+            (counts.replay[level] !== counts.baseline[level] ? ` ${signed(counts.replay[level] - counts.baseline[level])}` : ""),
+        );
+      const total = levels.reduce((sum, level) => sum + counts.replay[level], 0);
+      return (
+        `${draft.name} (#${draft.issue}) at base ${own.base}${instead}: ${events(total)}` +
+        (shown.length ? ` (${shown.join(", ")})` : "") +
+        `, ${own.floored} set by a cited event`
+      );
+    });
+    return parts.join("; ") || "none";
+  }
+
+  // One paragraph: the references against the code's, the clamp, campaigns and types, the totals, the top moves
+  // and every draft stake with its issue.
   function sharedParagraph(index, result) {
     const state = result.state;
     const code = index.measures;
@@ -40,7 +65,8 @@
       `${pkg.replay === 1 ? "event" : "events"} at ${index.constants.package_level} or above ` +
       `(${signed(pkg.change)}); ` +
       `${events(totals.members_changed)} with members change. ` +
-      `What moves: ${moves}.`
+      `What moves: ${moves}. ` +
+      `Drafts: ${drafts(index, result)}.`
     );
   }
 

@@ -21,7 +21,7 @@
 
 ## Summary
 
-References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 8 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2.
+References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 8 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
 
 ## Level counts
 
@@ -190,6 +190,67 @@ No event has this stake.
 Cut-off at share 0.178 (offset 1.25):
 
 No event has this stake.
+
+## Draft stakes
+
+| Draft | Label | Issue | Measures | Base | Own base | Events | Ruled | Set by a cited event |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| held | Held share | #1 | power, population | minor | minor | 3 | 1 | 2 |
+| moved | Moved share | #2 | population | trivial | trivial | 1 | 0 | 1 |
+
+Level counts at each draft's base, against its own:
+
+| Draft | Level | Replay | Own base | Change |
+| --- | --- | --- | --- | --- |
+| held | minor | 2 | 2 | 0 |
+| held | major | 1 | 1 | 0 |
+| moved | minor | 1 | 1 | 0 |
+
+### held on power
+
+Cut-off at share 0.000355 (offset -1.25):
+
+| Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| above | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
+| above | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
+| above | alpha | `draft:held:grow` | 0.0158 | 66 | major | major | own | yes |
+
+Cut-off at share 0.112 (offset 1.25):
+
+| Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| below | alpha | `draft:held:grow` | 0.0158 | 66 | major | major | own | yes |
+| below | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
+| below | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
+
+### held on population
+
+Cut-off at share 0.000562 (offset -1.25):
+
+| Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| above | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+
+Cut-off at share 0.178 (offset 1.25):
+
+| Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| below | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+
+### moved on population
+
+Cut-off at share 0.000562 (offset -1.25):
+
+| Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| above | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
+
+Cut-off at share 0.178 (offset 1.25):
+
+| Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| below | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
 
 ## Snippet
 

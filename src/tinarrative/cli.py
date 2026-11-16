@@ -855,10 +855,10 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
         return EXIT_USAGE_ERROR
     state_hash = calibration_replay.encode_state(state, index)
     if args.format == "json":
-        document = calibration_readout.render_json(index, tables, result, state_hash=state_hash)
+        document = calibration_readout.render_json(index, tables, result, state_hash=state_hash, drafts=drafts)
         sys.stdout.write(json.dumps(document, indent=2) + "\n")
     else:
-        sys.stdout.write(calibration_readout.render_text(index, result, state_hash=state_hash))
+        sys.stdout.write(calibration_readout.render_text(index, result, state_hash=state_hash, drafts=drafts))
     return EXIT_SUCCESS
 
 

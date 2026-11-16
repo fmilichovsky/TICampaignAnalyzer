@@ -546,7 +546,100 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
 .reference-table tr.focused { color: var(--ink); }
 .reference-table tr.focused th { font-weight: 600; }
 .reference-table tr.changed .ref-current { color: var(--rise-ink); font-weight: 600; }
-.drafts { margin: 0; color: var(--ink-2); }
+.drafts { margin: 0; padding: 0; list-style: none; }
+.draft-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 25px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+}
+.draft-line-label { color: var(--ink); }
+.draft-line-meta { color: var(--ink-3); font-size: 12px; }
+.draft-line-base { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; white-space: nowrap; }
+.draft-line.changed .draft-line-base { color: var(--rise-ink); font-weight: 600; }
+
+/* --- Draft stakes: one panel per draft on the focused measure, two side by side; sized per focus, never by the
+   slider. A draft is marked by its issue badge and a dashed frame, so it never reads as a real panel. --- */
+
+.draft-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.draft-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 720px) {
+  .draft-pair { grid-template-columns: minmax(0, 1fr); }
+}
+.draft {
+  container-type: inline-size;
+  min-width: 0;
+  padding: 10px 12px 12px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 3px;
+}
+.draft-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.draft-title { margin: 0; font-size: 13px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.draft-name { margin-left: auto; color: var(--ink-3); font-size: 11.5px; white-space: nowrap; }
+.badge-draft { border-style: dashed; border-color: var(--ink-3); color: var(--ink); cursor: default; }
+.badge-ruled { border-color: var(--drop); color: var(--drop-ink); }
+
+.draft-base { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.base-options { display: flex; flex-wrap: wrap; min-width: 0; }
+.base-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  margin: 0 -1px -1px 0;
+  padding: 0 8px;
+  border: 1px solid var(--rule-strong);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background-color 150ms ease-out;
+}
+.base-option:first-child { border-radius: 3px 0 0 3px; }
+.base-option:last-child { border-radius: 0 3px 3px 0; }
+.base-option:hover { background: var(--surface); }
+.base-option[aria-pressed="true"] { position: relative; border-color: var(--ink); background: var(--surface); color: var(--ink); font-weight: 600; }
+.base-own { color: var(--ink-3); font-size: 10.5px; font-weight: 400; }
+
+.draft-note {
+  margin: 6px 0 0;
+  overflow: hidden;
+  color: var(--ink-3);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.draft-bar { margin-top: 10px; }
+.draft-bar .segment { color: var(--ink); }
+.draft-figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 6px 0 0; }
+.draft-figure { min-width: 0; padding-right: 6px; }
+.draft-figure + .draft-figure { padding-left: 8px; border-left: 1px solid var(--rule); }
+.draft-figure dt { display: flex; align-items: center; gap: 4px; overflow: hidden; color: var(--ink-2); font-size: 11.5px; white-space: nowrap; }
+.draft-figure dd { display: flex; align-items: baseline; gap: 5px; margin: 1px 0 0; }
+.draft-count { font-size: 17px; font-weight: 600; line-height: 1.2; }
+.draft-figure-empty .draft-count { color: var(--ink-3); font-weight: 400; }
+
+.draft-tides { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 12px; }
+@container (min-width: 560px) {
+  .draft-tides { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+}
+/* A narrow panel, one of a pair, names its levels by gauge alone, as the level key beside Level counts reads them;
+   the name stays for screen readers and in the tooltip. */
+@container (max-width: 440px) {
+  .draft .level-name {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .base-option { padding: 0 9px; }
+}
+.draft-tide .tide-figure { font-size: 15px; }
+.draft-tide .empty { margin: 6px 0 0; color: var(--ink-3); font-size: 12px; }
+.event-badges { grid-column: 3; display: inline-flex; gap: 3px; }
 
 /* --- Totals --- */
 

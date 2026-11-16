@@ -135,8 +135,12 @@
     loadTables(index.campaigns)
       .then(() => {
         const tables = {};
-        for (const name of index.campaigns) tables[name] = DATA.campaigns[name].events;
-        App.init(index, tables);
+        const drafts = {};
+        for (const name of index.campaigns) {
+          tables[name] = DATA.campaigns[name].events;
+          drafts[name] = DATA.campaigns[name].drafts || [];
+        }
+        App.init(index, tables, drafts);
       })
       .catch((error) => fatal("The table could not be read.", `${error.message} Run tinarrative benchmark calibrate open --rebuild.`));
   }
@@ -207,6 +211,9 @@
   const App = {
     index: null,
     tables: null,
+    drafts: null,
+    draftView: null,
+    draftLayout: "",
     measures: [],
     levels: [],
     positions: {},
@@ -230,9 +237,10 @@
     countStatic: [],
     countOrder: "events",
 
-    init(index, tables) {
+    init(index, tables, drafts) {
       this.index = index;
       this.tables = tables;
+      this.drafts = drafts;
       this.measures = Object.keys(index.measures);
       this.levels = Object.keys(index.constants.level_bands);
       this.prepare();
@@ -287,7 +295,7 @@
     readHash(hash) {
       try {
         const state = Replay.decodeState(hash || "", this.index);
-        Replay.replay(this.index, this.tables, state);
+        Replay.replay(this.index, this.tables, state, this.drafts);
         this.hashError = "";
         return state;
       } catch (error) {
@@ -570,9 +578,24 @@
           ),
         );
       }
-      const drafts = this.index.drafts || [];
-      $("drafts").textContent =
-        drafts.length === 0 ? "No draft stakes are declared in this table." : `${plural(drafts.length, "draft stake")} declared.`;
+      const drafts = this.index.drafts;
+      const list = $("drafts");
+      if (drafts.length === 0) {
+        list.replaceChildren(el("li", { class: "draft-line", text: "No draft stakes are declared in this table." }));
+        return;
+      }
+      list.replaceChildren(
+        ...drafts.map((draft) =>
+          el(
+            "li",
+            { class: "draft-line", "data-draft": draft.name },
+            el("span", { class: "badge badge-draft", text: `draft #${draft.issue}` }),
+            el("span", { class: "draft-line-label", text: draft.label }),
+            el("span", { class: "draft-line-meta", text: draft.measures.join(", ") }),
+            el("span", { class: "draft-line-base" }),
+          ),
+        ),
+      );
     },
 
     // --- State changes ------------------------------------------------------------------------------------
@@ -625,11 +648,11 @@
     },
 
     compute() {
-      this.result = Replay.replay(this.index, this.tables, this.state);
+      this.result = Replay.replay(this.index, this.tables, this.state, this.drafts);
       this.full =
         this.state.types.length === 0
           ? this.result
-          : Replay.replay(this.index, this.tables, Object.assign({}, this.state, { types: [] }));
+          : Replay.replay(this.index, this.tables, Object.assign({}, this.state, { types: [] }), this.drafts);
       this.lookup = null;
     },
 
@@ -652,6 +675,7 @@
       this.renderControl(options);
       this.renderChart();
       this.renderTides();
+      this.renderDrafts();
       this.renderCounts(options);
       this.renderReferences();
       this.renderTotals();
@@ -1001,6 +1025,7 @@
       const last = this.chosenCuts[this.focus] ? this.chosenCuts[this.focus][1] : shown[1];
       this.chosenCuts[this.focus] = [shown.includes(last) ? last : shown[1], offset];
       this.renderTides();
+      this.renderDrafts();
     },
 
     renderTide(tide, cutoff, slot) {
@@ -1376,6 +1401,199 @@
         row.classList.toggle("changed", changed);
         row.classList.toggle("focused", measure === this.focus);
       }
+      for (const line of document.querySelectorAll("#drafts .draft-line[data-draft]")) {
+        const draft = this.index.drafts.find((item) => item.name === line.dataset.draft);
+        const base = this.state.bases[draft.name];
+        const cell = line.querySelector(".draft-line-base");
+        cell.replaceChildren(levelGauge(base), base === draft.base ? `base ${levelName(base)}` : `base ${levelName(base)}, own ${levelName(draft.base)}`);
+        line.classList.toggle("changed", base !== draft.base);
+      }
+    },
+
+    // --- Draft stakes -----------------------------------------------------------------------------------------
+    //
+    // Each draft with a candidate on the focused measure gets a panel: its base selector, its rows' levels at that
+    // base against its own, how many rows a cited event or the kind's context rule decides, and its own rows nearest
+    // the two cut-offs the tides show. Its rows never enter the real panels. A panel's size is fixed per focus,
+    // campaigns and types, so nothing grows while a reference slides.
+
+    draftRowsOn(draft, measure) {
+      const types = new Set(this.state.types);
+      const rows = [];
+      for (const name of this.state.campaigns) {
+        for (const row of this.drafts[name] || []) {
+          if (Replay.draftName(row.id) !== draft.name) continue;
+          if (types.size && !types.has(row.type)) continue;
+          rows.push({ campaign: name, row, staked: row.stakes.some((stake) => stake.measure === measure && stake.share > 0) });
+        }
+      }
+      return rows;
+    },
+
+    renderDrafts() {
+      const focus = this.focus;
+      const section = $("draft-stakes");
+      const drafts = this.index.drafts.filter((draft) => draft.measures.includes(focus));
+      const sizes = drafts.map((draft) => {
+        const rows = this.draftRowsOn(draft, focus);
+        return { draft, rows, slots: Math.min(this.index.constants.neighbours, rows.filter((item) => item.staked).length) };
+      });
+      const key = `${focus}|${this.state.campaigns.join(",")}|${this.state.types.join(",")}|${sizes.map((item) => `${item.draft.name}:${item.slots}`).join(",")}`;
+      section.hidden = drafts.length === 0;
+      if (key !== this.draftLayout) {
+        this.draftLayout = key;
+        this.draftView = sizes.map((item) => this.draftPanel(item.draft, item.slots));
+        $("draft-panels").replaceChildren(...this.draftView.map((view) => view.panel));
+        $("draft-panels").classList.toggle("draft-pair", drafts.length > 1);
+        $("drafts-note").textContent = `${plural(drafts.length, "draft")} on ${this.index.measures[focus].label} · not counted in any real panel`;
+      }
+      sizes.forEach((item, i) => this.fillDraft(this.draftView[i], item.rows));
+    },
+
+    draftPanel(draft, slots) {
+      const titleId = `draft-title-${draft.name}`;
+      const bases = this.levels.map((level) => {
+        const own = level === draft.base;
+        return el(
+          "button",
+          {
+            type: "button",
+            class: "base-option",
+            "data-level": level,
+            "aria-pressed": "false",
+            title: own ? `${levelName(level)}: the draft's own base` : `Try ${levelName(level)} as the base`,
+            onclick: () => {
+              this.state.bases = Object.assign({}, this.state.bases, { [draft.name]: level });
+              this.update({});
+            },
+          },
+          levelGauge(level),
+          el("span", { class: "level-name", text: levelName(level) }),
+          own ? el("span", { class: "base-own", text: "own" }) : null,
+        );
+      });
+      const segments = this.levels.map((level) => el("span", { class: `segment lv-${level}` }));
+      const figures = this.levels.map((level) => {
+        const count = el("span", { class: "draft-count" });
+        const change = el("span", { class: "figure-change" });
+        return {
+          node: el("div", { class: "draft-figure" }, el("dt", {}, levelGauge(level), el("span", { class: "level-name", text: levelName(level) })), el("dd", {}, count, change)),
+          count,
+          change,
+        };
+      });
+      const tides = [0, 1].map(() => {
+        const figure = el("span", { class: "tide-figure" });
+        const caption = el("span", { class: "tide-caption" });
+        const rows = [];
+        for (let i = 0; i < slots * 2 + 1; i += 1) rows.push(el("li", { class: i === slots ? "tide-cut" : "event event-compact event-blank" }));
+        const node = el(
+          "div",
+          { class: "draft-tide" },
+          el("header", { class: "tide-head" }, figure, caption),
+          slots ? el("ol", { class: "tide-rows" }, ...rows) : el("p", { class: "empty", text: "No row of this draft has a share here." }),
+        );
+        return { node, figure, caption, rows, slots };
+      });
+      const ruled = el("p", { class: "draft-note" });
+      const floored = el("p", { class: "draft-note" });
+      const panel = el(
+        "article",
+        { class: "draft", "data-draft": draft.name, "aria-labelledby": titleId },
+        el(
+          "header",
+          { class: "draft-head" },
+          el("span", { class: "badge badge-draft", text: `draft #${draft.issue}`, title: `A draft stake, calibrated for issue #${draft.issue}` }),
+          el("h3", { class: "draft-title", id: titleId, text: draft.label }),
+          el("span", { class: "draft-name", text: draft.name }),
+        ),
+        el(
+          "div",
+          { class: "draft-base", role: "group", "aria-label": `Base level of ${draft.label}` },
+          el("span", { class: "control-label", text: "Base" }),
+          el("span", { class: "base-options" }, ...bases),
+        ),
+        ruled,
+        el("div", { class: "count-bar draft-bar", "aria-hidden": "true" }, ...segments),
+        el("dl", { class: "draft-figures" }, ...figures.map((item) => item.node)),
+        floored,
+        el("div", { class: "draft-tides" }, ...tides.map((tide) => tide.node)),
+      );
+      return { draft, panel, bases, segments, figures, tides, ruled, floored };
+    },
+
+    fillDraft(view, rows) {
+      const { draft } = view;
+      const result = this.result.drafts[draft.name];
+      const base = this.state.bases[draft.name];
+      for (const button of view.bases) button.setAttribute("aria-pressed", String(button.dataset.level === base));
+      const counts = result.level_counts;
+      const total = this.levels.reduce((sum, level) => sum + counts.replay[level], 0);
+      this.levels.forEach((level, i) => {
+        const n = counts.replay[level];
+        const was = counts.baseline[level];
+        view.segments[i].style.flexBasis = total ? `${(n / total) * 100}%` : "0%";
+        view.segments[i].hidden = n === 0;
+        view.segments[i].textContent = n / Math.max(1, total) > 0.12 ? String(n) : "";
+        const figure = view.figures[i];
+        figure.count.textContent = String(n);
+        figure.change.textContent = n === was ? "" : signed(n - was);
+        figure.change.classList.toggle("moved", n !== was);
+        figure.node.title = `${levelName(level)}: ${n} at base ${levelName(base)}, ${was} at its own base ${levelName(draft.base)}`;
+        figure.node.classList.toggle("draft-figure-empty", n === 0 && was === 0);
+      });
+      const ruled = rows.filter((item) => item.row.ruled).length;
+      view.ruled.textContent = ruled ? `${ruled} of ${plural(rows.length, "row")} ruled; the base does not apply to them` : `No row ruled; the base applies to ${rows.length === 1 ? "it" : `all ${rows.length}`}`;
+      view.ruled.title = "A ruled row's level is set by its kind's context rule, so a base tried here leaves it as it is.";
+      view.floored.textContent = `${result.floored} of ${plural(total, "row")} set by a cited event, not this stake`;
+      view.floored.title = "A cited event's score is the floor of the row's own, so this stake cannot move these rows.";
+
+      const shown = this.shownCutoffs();
+      view.tides.forEach((tide, slot) => {
+        const cutoff = shown[slot] || null;
+        if (!cutoff) {
+          tide.figure.textContent = "—";
+          tide.caption.textContent = slot === 0 ? "No lower cut-off" : "No upper cut-off";
+          tide.rows.forEach((node, i) => (i === tide.slots ? node.replaceChildren() : this.fillEventRow(node, null, { compact: true })));
+          tide.node.classList.add("tide-empty");
+          return;
+        }
+        tide.node.classList.remove("tide-empty");
+        const sides = cutoff.drafts[draft.name] || { below: [], above: [] };
+        tide.figure.textContent = fmt(cutoff.share);
+        tide.figure.title = String(cutoff.share);
+        tide.caption.textContent = `${sides.above.length} above · ${sides.below.length} below`;
+        const above = [...sides.above].sort((a, b) => b.share - a.share);
+        const below = [...sides.below].sort((a, b) => b.share - a.share);
+        for (let i = 0; i < tide.slots; i += 1) {
+          const top = above[i - (tide.slots - above.length)];
+          this.fillEventRow(tide.rows[i], top ? this.draftItem(draft, top) : null, { compact: true });
+          this.fillEventRow(tide.rows[tide.slots + 1 + i], below[i] ? this.draftItem(draft, below[i]) : null, { compact: true });
+        }
+        if (tide.slots) tide.rows[tide.slots].replaceChildren(el("span", { class: "tide-cut-label", text: `cut-off ${fmt(cutoff.share)}` }));
+      });
+    },
+
+    // A draft row nearest a cut-off: it reads as the event it shadows and opens it, with the draft's badges.
+    draftItem(draft, neighbour) {
+      const row = (this.drafts[neighbour.campaign] || []).find((item) => item.id === neighbour.id);
+      // A draft row's id is draft:<name>:<the id of the event it shadows> (drafts.py's draft_row_id).
+      const shadowed = neighbour.id.slice(`draft:${draft.name}:`.length);
+      const badges = [el("span", { class: "badge badge-draft", text: `draft #${draft.issue}`, title: `A row of the draft stake ${draft.label} (#${draft.issue})` })];
+      if (row && row.ruled) {
+        badges.push(el("span", { class: "badge badge-ruled", text: "ruled", title: "Its kind's context rule sets the level; the draft's base does not apply." }));
+      }
+      return {
+        campaign: neighbour.campaign,
+        row: row || { id: neighbour.id, type: neighbour.type, label: shadowed, level: neighbour.oracle_level, date: null, stakes: [] },
+        level: neighbour.level,
+        decidedBy: neighbour.decided_by,
+        share: neighbour.share,
+        measure: this.focus,
+        score: neighbour.score,
+        badges,
+        opens: shadowed,
+      };
     },
 
     // --- Totals and members -----------------------------------------------------------------------------------
@@ -1480,10 +1698,11 @@
       const type = compact ? null : this.typeButton(row.type);
       if (type && !showType) type.hidden = true;
       const sub = compact ? [] : [showType ? type : null, item.note ? el("span", { class: "event-note", text: item.note }) : null].filter(Boolean);
-      node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}${Inspector.shows(item.campaign, row.id) ? " event-open" : ""}`;
+      const opens = item.opens || row.id;
+      node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}${Inspector.shows(item.campaign, opens) ? " event-open" : ""}`;
       node.tabIndex = 0;
       node.dataset.type = row.type;
-      node.dataset.id = row.id;
+      node.dataset.id = opens;
       node.dataset.campaign = item.campaign;
       node.title = [
         label,
@@ -1501,7 +1720,9 @@
         ...[
           el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No stake of its own" }),
           el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), showType ? null : type),
-          item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null,
+          item.badges || item.decidedBy !== row.id
+            ? el("span", { class: "event-badges" }, ...(item.badges || []), item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null)
+            : null,
           el(
             "span",
             { class: `event-change${moved ? " moved" : ""}`, title: moved ? `${levelName(row.level)} → ${levelName(level)}` : levelName(level) },
@@ -1517,7 +1738,7 @@
 
     // Every event row opens the inspector; a row inside the inspector swaps it to that event.
     openEvent(node, item) {
-      Inspector.open(node, item.campaign, item.row.id);
+      Inspector.open(node, item.campaign, item.opens || item.row.id);
     },
 
     // --- Copy -------------------------------------------------------------------------------------------------

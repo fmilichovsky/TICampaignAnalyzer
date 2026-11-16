@@ -213,5 +213,108 @@
         "above": []
       }
     ]
-  }
+  },
+  "drafts": [
+    {
+      "name": "held",
+      "label": "Held share",
+      "issue": 1,
+      "measures": [
+        "power",
+        "population"
+      ],
+      "base": "minor",
+      "own_base": "minor",
+      "events": 0,
+      "ruled": 0,
+      "floored": 0,
+      "level_counts": {
+        "replay": {
+          "trivial": 0,
+          "minor": 0,
+          "major": 0,
+          "campaign_defining": 0
+        },
+        "baseline": {
+          "trivial": 0,
+          "minor": 0,
+          "major": 0,
+          "campaign_defining": 0
+        }
+      },
+      "cutoffs": {
+        "power": [
+          {
+            "offset": -1.25,
+            "share": 0.0005623413251903491,
+            "below": [],
+            "above": []
+          },
+          {
+            "offset": 1.25,
+            "share": 0.1778279410038923,
+            "below": [],
+            "above": []
+          }
+        ],
+        "population": [
+          {
+            "offset": -1.25,
+            "share": 0.0005623413251903491,
+            "below": [],
+            "above": []
+          },
+          {
+            "offset": 1.25,
+            "share": 0.1778279410038923,
+            "below": [],
+            "above": []
+          }
+        ]
+      }
+    },
+    {
+      "name": "moved",
+      "label": "Moved share",
+      "issue": 2,
+      "measures": [
+        "population"
+      ],
+      "base": "trivial",
+      "own_base": "trivial",
+      "events": 0,
+      "ruled": 0,
+      "floored": 0,
+      "level_counts": {
+        "replay": {
+          "trivial": 0,
+          "minor": 0,
+          "major": 0,
+          "campaign_defining": 0
+        },
+        "baseline": {
+          "trivial": 0,
+          "minor": 0,
+          "major": 0,
+          "campaign_defining": 0
+        }
+      },
+      "cutoffs": {
+        "population": [
+          {
+            "offset": -1.25,
+            "share": 0.0005623413251903491,
+            "below": [],
+            "above": []
+          },
+          {
+            "offset": 1.25,
+            "share": 0.1778279410038923,
+            "below": [],
+            "above": []
+          }
+        ]
+      }
+    }
+  ]
 }

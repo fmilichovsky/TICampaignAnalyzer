@@ -45,6 +45,7 @@ SECTIONS = [
     "What moves",
     "Member verdicts",
     "Cut-offs",
+    "Draft stakes",
     "Snippet",
 ]
 
@@ -56,18 +57,19 @@ def test_the_readouts_of_the_golden_states_are_current(name: str, assert_golden:
     state_hash = encode_state(state, INDEX)
 
     assert_golden(shared_paragraph(INDEX, result) + "\n" + snippet(INDEX, result) + "\n", READOUT / f"{name}.txt")
-    assert_golden(render_text(INDEX, result, state_hash=state_hash), READOUT / f"{name}.md")
-    document = render_json(INDEX, TABLES, result, state_hash=state_hash)
+    assert_golden(render_text(INDEX, result, state_hash=state_hash, drafts=DRAFTS), READOUT / f"{name}.md")
+    document = render_json(INDEX, TABLES, result, state_hash=state_hash, drafts=DRAFTS)
     assert_golden(json.dumps(document, indent=2) + "\n", READOUT / f"{name}.json")
 
 
 @pytest.mark.parametrize("name", list(STATES))
-def test_the_text_readout_has_its_seven_sections_in_order(name: str) -> None:
-    result = replay(INDEX, TABLES, STATES[name])
-    text = render_text(INDEX, result, state_hash=encode_state(STATES[name], INDEX))
+def test_the_text_readout_has_its_eight_sections_in_order(name: str) -> None:
+    result = replay(INDEX, TABLES, STATES[name], DRAFTS)
+    text = render_text(INDEX, result, state_hash=encode_state(STATES[name], INDEX), drafts=DRAFTS)
+    drafted = [f"{draft['name']} on {measure}" for draft in INDEX["drafts"] for measure in draft["measures"]]
 
     assert re.findall(r"^## (.+)$", text, re.MULTILINE) == SECTIONS
-    assert re.findall(r"^### (.+)$", text, re.MULTILINE) == list(INDEX["measures"])
+    assert re.findall(r"^### (.+)$", text, re.MULTILINE) == [*INDEX["measures"], *drafted]
 
 
 def test_the_paragraph_and_the_snippet_are_ascii_and_name_only_changed_references() -> None:
@@ -119,11 +121,51 @@ def test_the_json_readout_holds_only_the_edges() -> None:
         "members",
         "moved",
         "cutoffs",
+        "drafts",
     }
     edges = changed | {(item["campaign"], item["id"]) for item in neighbours}
     assert set(oracle) - edges, "an event that neither moved nor sits by a cut-off stays out"
     assert all(member["verdict"] != "keeps_members" for member in document["members"])
     assert {"falls_apart", "loses_members"} <= {member["verdict"] for member in document["members"]}
+
+
+def test_the_draft_section_names_every_draft_and_its_own_rows_only() -> None:
+    state = replace(CODE, bases={**CODE.bases, "held": "major"})
+    result = replay(INDEX, TABLES, state, DRAFTS)
+    document = render_json(INDEX, TABLES, result, state_hash=encode_state(state, INDEX), drafts=DRAFTS)
+    paragraph = shared_paragraph(INDEX, result)
+    held, moved = document["drafts"]
+    rows = {row["id"]: row for row in DRAFTS["alpha"]}
+
+    assert [(item["name"], item["issue"]) for item in document["drafts"]] == [("held", 1), ("moved", 2)]
+    assert "Drafts: held (#1) at base major instead of minor: 3 events" in paragraph
+    assert "moved (#2) at base trivial: 1 event" in paragraph
+    assert (held["base"], held["own_base"], moved["base"]) == ("major", "minor", "trivial")
+    assert held["events"] == sum(held["level_counts"]["baseline"].values()) == 3
+    assert held["ruled"] == sum(1 for row in rows.values() if row["ruled"] and row["id"].startswith("draft:held:"))
+    assert held["level_counts"] != replay(INDEX, TABLES, CODE, DRAFTS)["drafts"]["held"]["level_counts"]
+    for item in document["drafts"]:
+        assert list(item["cutoffs"]) == item["measures"]
+        entries = [
+            entry
+            for cutoffs in item["cutoffs"].values()
+            for cutoff in cutoffs
+            for entry in [*cutoff["below"], *cutoff["above"]]
+        ]
+        assert entries
+        assert all(entry["id"].startswith(f"draft:{item['name']}:") for entry in entries)
+        assert all(entry["ruled"] is rows[entry["id"]]["ruled"] for entry in entries)
+    real = [entry for cutoffs in document["cutoffs"].values() for cutoff in cutoffs for entry in cutoff["below"]]
+    assert not any(entry["id"].startswith("draft:") for entry in real)
+
+
+def test_a_table_without_drafts_says_so() -> None:
+    bare = {**INDEX, "drafts": []}
+    result = replay(bare, TABLES, replace(CODE, bases={}))
+
+    assert shared_paragraph(bare, result).endswith(" Drafts: none.")
+    assert "No draft stakes are declared." in render_text(bare, result, state_hash="")
+    assert render_json(bare, TABLES, result, state_hash="")["drafts"] == []
 
 
 def test_the_level_counts_sum_the_enabled_campaigns() -> None:
