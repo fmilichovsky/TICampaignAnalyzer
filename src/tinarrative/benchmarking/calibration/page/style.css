@@ -25,6 +25,7 @@
   --drop-ink: #7f6119;
   --keep: #bfcad3;
   --band: #e6ecee;
+  --row-hover: #e1e8ec;
   --focus: #1f5f99;
   --info-ground: #e3edf4;
   --error-ground: #f6e2ec;
@@ -58,6 +59,7 @@
     --drop-ink: #dcbb6c;
     --keep: #4c5b69;
     --band: #16212c;
+    --row-hover: #1f2d3b;
     --focus: #7db7e8;
     --info-ground: #11253a;
     --error-ground: #3a1529;
@@ -588,7 +590,15 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
   transition: background-color 120ms ease-out;
 }
 .events .event:last-child { border-bottom: 0; }
-.event:not(.event-blank):hover, .event-current { background: var(--band); }
+.event:not(.event-blank):hover, .event-current { background: var(--row-hover); }
+/* A row that opens the inspector says so: a pointer, and its label underlined like the page's other links. */
+.event[tabindex] { cursor: pointer; }
+.event[tabindex]:hover .event-label, .event[tabindex]:focus-visible .event-label {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
 .event:focus-visible { outline-offset: -2px; }
 .event-compact { height: 23px; min-height: 0; }
 .event-share { font-weight: 600; text-align: right; }
@@ -642,6 +652,142 @@ section + section, .control + .chart, .chart + section { margin-top: 22px; }
 }
 .pop-pinned { pointer-events: auto; }
 .pop-pinned .events-full { max-height: min(340px, 55vh); }
+
+/* --- The event inspector: a fixed drawer over the right column, so the slider and the tides keep their place. --- */
+
+.inspector {
+  position: fixed;
+  top: 48px;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 100vw);
+  background: var(--surface);
+  border-left: 1px solid var(--rule-strong);
+  box-shadow: -10px 0 28px rgba(16, 24, 36, 0.1);
+}
+.inspector-bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.inspector-name { color: var(--ink-3); font-size: 12px; }
+.inspector-spacer { flex: 1; }
+.inspector-body {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 16px 32px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.inspector-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+.inspector-title:focus { outline: none; }
+.inspector-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 1px; }
+.ins-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin: 6px 0 0;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.ins-meta .event-type { font-size: 12px; color: var(--ink); }
+.ins-tier { padding: 0 4px; border: 1px solid var(--rule-strong); border-radius: 2px; font-size: 10.5px; line-height: 15px; }
+.ins-id { margin: 3px 0 0; color: var(--ink-3); font-size: 11.5px; overflow-wrap: anywhere; user-select: all; }
+.ins-off { margin: 12px 0 0; padding: 6px 8px; background: var(--info-ground); border-radius: 3px; color: var(--ink-2); font-size: 12px; }
+
+/* Level, score and base sit in fixed columns, as the totals do; only the figures change while the slider moves. */
+.ins-figures {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+  margin: 16px 0 0;
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule);
+}
+.ins-figure { min-width: 0; padding: 8px 12px 9px; }
+.ins-figure:first-child { padding-left: 0; }
+.ins-figure + .ins-figure { border-left: 1px solid var(--rule); }
+.ins-figure dt { color: var(--ink-2); font-size: 12px; }
+.ins-figure dd { margin: 2px 0 0; }
+.ins-value { display: flex; align-items: center; gap: 6px; min-height: 24px; font-size: 19px; font-weight: 600; line-height: 1.25; }
+.ins-level { font-size: 15px; line-height: 1.25; }
+.ins-value .dot { width: 10px; height: 10px; }
+.ins-note { display: block; color: var(--ink-3); font-size: 11.5px; }
+.ins-note.rise { color: var(--rise-ink); font-weight: 600; }
+.ins-note.drop { color: var(--drop-ink); font-weight: 600; }
+
+.ins-section { margin-top: 20px; }
+.ins-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--rule-strong);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ins-count { color: var(--ink-3); font-size: 12px; font-weight: 400; }
+.ins-lead { margin: 6px 0 4px; color: var(--ink-2); font-size: 12px; }
+.ins-empty { margin: 6px 0 0; color: var(--ink-3); font-size: 12px; }
+/* In the drawer the shared row gives its label the first line, wrapped, and sets the rest under it. */
+.ins-section .events .event {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 6px;
+  padding: 3px 0 4px;
+  border-bottom: 1px solid var(--rule);
+}
+.ins-section .events .event:last-child { border-bottom: 0; }
+.ins-section .event .event-share { flex: none; width: 7.4ch; }
+.ins-section .event .dot { align-self: flex-start; margin-top: 6px; }
+.ins-section .event .event-main { flex: 1 1 calc(100% - 7.4ch - 26px); }
+.ins-section .event .event-label {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.ins-section .event .event-main + * { margin-left: calc(7.4ch + 20px); }
+.ins-section .event .event-sub { flex-basis: 100%; margin-top: 0; padding: 0 0 0 calc(7.4ch + 20px); }
+
+.ins-table { width: 100%; border-collapse: collapse; }
+.ins-table th, .ins-table td { height: 25px; padding: 0 8px 0 0; border-bottom: 1px solid var(--rule); text-align: left; font-weight: 400; }
+.ins-table tr:last-child th, .ins-table tr:last-child td { border-bottom: 0; }
+.ins-table .num { padding-right: 0; text-align: right; font-weight: 600; }
+.ins-table tbody tr { color: var(--ink-2); }
+.ins-table tr.focused { color: var(--ink); }
+.ins-table tr.focused th { font-weight: 600; }
+.ins-compare { display: block; margin-top: -2px; padding-bottom: 4px; color: var(--ink-2); font-size: 11.5px; font-weight: 400; line-height: 15px; }
+.ins-table tr.focused th { padding-top: 4px; }
+.ins-entity-id { margin-left: 6px; color: var(--ink-3); font-size: 11.5px; overflow-wrap: anywhere; }
+.ins-entities th { font-weight: 400; color: var(--ink); }
+
+/* The row in the inspector, wherever a list shows it. */
+.event.event-open { background: var(--row-hover); outline: 1px solid var(--ink-3); outline-offset: -1px; }
+.event.event-open .event-label { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 720px) {
+  .inspector { width: 100vw; border-left: 0; }
+}
 
 /* --- Nothing to show --- */
 

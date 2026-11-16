@@ -234,7 +234,14 @@ the exact changes stand beside it. Its rows are ordered by events, or by moves o
 bar, a segment, a band or a change for its six largest events; click it for the full list. Every list of events
 uses the same row: share, level, label, the level change, campaign and date, and the event type. Lists of several
 types show the type under the label. Under each cut-off, a line lists the types of its rows, or the type of the row
-under the pointer or in focus. Click a type to filter by it. The
+under the pointer or in focus. Click a type to filter by it. Click an event row, or press Enter on it, to open the
+event inspector: a drawer on the right with the full label, type, tier, campaign, date, interval and event ID; the
+level now against the code's, the score and the base; every stake, with the focused measure in bold and its share set against the current reference and window; the entities;
+and, for a narrative event, its cited constituents. When a cited event sets the level, the inspector names it with
+its stake. The level, score and deciding event follow the slider. A cited or deciding event opens in the inspector
+when you click it, and **Back** returns along the way you came. A full list stays open beside the inspector, with the
+inspected row marked, so you can open its events one after another. **Close** or Escape closes the inspector and
+returns focus to the row, or to what opened the list. The inspected event is not part of the URL hash. The
 URL hash holds the whole state, so a reloaded page comes back as it was, and **Copy readout** copies the snippet,
 the shared paragraph and the hash, ready for `report --state`.
 
