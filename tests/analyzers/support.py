@@ -53,7 +53,13 @@ RESEARCH_ID = 150
 
 def fixture_kind(event_type: str) -> EventKind:
     """A throwaway minor, bookkeeping kind without attributes, for tests of what every kind shares."""
-    return EventKind(event_type, lambda event: event.id, Significance.MINOR, EvidenceRole.BOOKKEEPING, frozenset())
+    return EventKind(
+        event_type,
+        lambda event: event.id,
+        EvidenceRole.BOOKKEEPING,
+        frozenset(),
+        base=Significance.MINOR,
+    )
 
 
 def ref(domain: EntityDomain, key: str) -> EntityRef:

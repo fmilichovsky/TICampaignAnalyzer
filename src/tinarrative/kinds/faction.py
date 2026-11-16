@@ -21,9 +21,9 @@ def _transaction_recorded(event: Event) -> str:
 TRANSACTION_RECORDED = EventKind(
     "faction.transaction_recorded",
     _transaction_recorded,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     required=frozenset({"label", "resource", "amount", "recorded_on"}),
+    base=Significance.MINOR,
 )
 
 KINDS = (TRANSACTION_RECORDED,)

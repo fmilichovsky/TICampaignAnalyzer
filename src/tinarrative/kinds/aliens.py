@@ -23,31 +23,31 @@ def _crashdown(event: Event) -> str:
 CRASHDOWN_CHANGED = EventKind(
     "region.crashdown_changed",
     _crashdown,
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"crashdown_time"}),
+    base=Significance.MAJOR,
 )
 LANDING_CHANGED = EventKind(
     "region.landing_changed",
     plain("landing present"),
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
+    base=Significance.MAJOR,
 )
 ALIEN_FACILITY_CHANGED = EventKind(
     "region.alien_facility_changed",
     plain("alien facility built"),
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
+    base=Significance.MAJOR,
 )
 XENOFORMING_CHANGED = EventKind(
     "region.xenoforming_changed",
     plain("xenoforming level"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
+    base=Significance.MINOR,
 )
 
 KINDS = (CRASHDOWN_CHANGED, LANDING_CHANGED, ALIEN_FACILITY_CHANGED, XENOFORMING_CHANGED)

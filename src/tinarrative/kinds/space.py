@@ -196,226 +196,225 @@ _LIST_OPTIONAL = frozenset({"member", "before", "after"})
 FLEET_FACTION_CHANGED = EventKind(
     "fleet.faction_changed",
     plain("faction"),
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     stake=Stake.FLEET,
+    base=Significance.MAJOR,
 )
 FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     "fleet.docked_location_changed",
     _trailing("docked location", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 FLEET_ORBIT_CHANGED = EventKind(
     "fleet.orbit_changed",
     _trailing("orbit", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 FLEET_BARYCENTER_CHANGED = EventKind(
     "fleet.barycenter_changed",
     _trailing("barycenter", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 FLEET_PARENT_CHANGED = EventKind(
     "fleet.parent_fleet_changed",
     _trailing("parent fleet", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 FLEET_IN_COMBAT_CHANGED = EventKind(
     "fleet.in_combat_changed",
     _trailing("in-combat flag", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 FLEET_APPEARED = EventKind(
     "fleet.appeared",
     lambda event: _presence(event, EntityDomain.FACTION, "faction"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
+    base=Significance.MINOR,
 )
 FLEET_DISAPPEARED = EventKind(
     "fleet.disappeared",
     lambda event: _presence(event, EntityDomain.FACTION, "faction"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
+    base=Significance.MINOR,
 )
 FACTION_FLEETS_CHANGED = EventKind(
     "faction.fleets_changed",
     list_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     frozenset({"transition"}),
     _LIST_OPTIONAL,
+    base=Significance.TRIVIAL,
 )
 HAB_DOCKED_FLEETS_CHANGED = EventKind(
     "hab.docked_fleets_changed",
     list_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     frozenset({"transition"}),
     _LIST_OPTIONAL,
+    base=Significance.TRIVIAL,
 )
 SHIP_FLEET_CHANGED = EventKind(
-    "ship.fleet_changed", plain("fleet"), Significance.TRIVIAL, EvidenceRole.BOOKKEEPING, TRANSITION
+    "ship.fleet_changed", plain("fleet"), EvidenceRole.BOOKKEEPING, TRANSITION, base=Significance.TRIVIAL
 )
 SHIP_LAST_REFIT_CHANGED = EventKind(
     "ship.last_refit_date_changed",
     contextual("last refit date", EntityDomain.FLEET, "fleet "),
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.TRIVIAL,
 )
 SHIP_APPEARED = EventKind(
     "ship.appeared",
     _ship_presence,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     frozenset({"hull"}),
+    base=Significance.MINOR,
 )
 SHIP_DISAPPEARED = EventKind(
     "ship.disappeared",
     _ship_presence,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     frozenset({"hull"}),
+    base=Significance.MINOR,
 )
 FLEET_SHIPS_CHANGED = EventKind(
     "fleet.ships_changed",
     list_changed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     frozenset({"transition"}),
     _LIST_OPTIONAL,
+    base=Significance.TRIVIAL,
 )
 
 HAB_FACTION_CHANGED = EventKind(
     "hab.faction_changed",
     plain("faction"),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     stake=Stake.HAB,
+    base=Significance.MINOR,
 )
 HAB_TYPE_CHANGED = EventKind(
     "hab.type_changed",
     _trailing("type", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 HAB_TIER_CHANGED = EventKind(
     "hab.tier_changed",
     _trailing("tier", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 HAB_IN_COMBAT_CHANGED = EventKind(
     "hab.in_combat_changed",
     _trailing("in-combat flag", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 HAB_UNDER_ASSAULT_CHANGED = EventKind(
     "hab.under_assault_changed",
     _trailing("under-assault flag", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     "hab.under_bombardment_changed",
     _trailing("under-bombardment flag", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 HAB_CORE_COMPLETED_CHANGED = EventKind(
     "hab.core_completed_changed",
     _trailing("core-completed flag", EntityDomain.FACTION),
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
+    base=Significance.MINOR,
 )
 HAB_APPEARED = EventKind(
     "hab.appeared",
     _hab_presence,
-    Significance.MINOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     frozenset({"core_completed", "projected_arrival", "projected_completion"}),
     stake=Stake.HAB,
+    base=Significance.MINOR,
 )
 HAB_DISAPPEARED = EventKind(
     "hab.disappeared",
     lambda event: _presence(event, EntityDomain.FACTION, "faction"),
-    Significance.MAJOR,
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
+    base=Significance.MAJOR,
 )
 FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     "faction.hab_destruction_recorded",
     _destruction_recorded,
-    Significance.MAJOR,
     EvidenceRole.EVIDENCE,
     frozenset({"hab_type", "space_body", "destroyer", "recorded_on"}),
     frozenset({"hab", "owner"}),
+    base=Significance.MAJOR,
 )
 FACTION_COMBAT_RECORDED = EventKind(
     "faction.combat_recorded",
     _combat_recorded,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on"}),
     stake=Stake.COMBAT,
+    base=Significance.MINOR,
 )
 FACTION_COMBAT_ENTRY_REMOVED = EventKind(
     "faction.combat_entry_removed",
     _combat_entry_removed,
-    Significance.TRIVIAL,
     EvidenceRole.BOOKKEEPING,
     frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on"}),
+    base=Significance.TRIVIAL,
 )
 
 HAB_ESTABLISHED = EventKind(
-    "hab.established", _hab_established, Significance.MAJOR, EvidenceRole.EVIDENCE, frozenset({"faction", "body"})
+    "hab.established", _hab_established, EvidenceRole.EVIDENCE, frozenset({"faction", "body"}), base=Significance.MAJOR
 )
 FACTION_FIRST_HAB_ON_BODY = EventKind(
     "faction.first_hab_on_body",
     _first_hab_on_body,
-    Significance.MAJOR,
     EvidenceRole.EVIDENCE,
     frozenset({"body", "habs", "hab_count", "first_of_any_faction", "milestones"}),
     stake=Stake.HAB,
+    base=Significance.MAJOR,
 )
 HAB_DESTROYED = EventKind(
     "hab.destroyed",
     _hab_destroyed,
-    Significance.MINOR,
     EvidenceRole.EVIDENCE,
     frozenset({"hab_type", "body", "signals", "ambiguous"}),
     frozenset({"destroyer", "recorded_on", "destroyers", "recorded_dates", "candidates", "vanished"}),
     stake=Stake.HAB,
+    base=Significance.MINOR,
 )
 # TODO(#303): not scaled until the attribution problems of combat and destruction records are settled.
 FACTION_BATTLE_OUTCOME = EventKind(
     "faction.battle_outcome",
     _battle_outcome,
-    Significance.MAJOR,
     EvidenceRole.EVIDENCE,
     frozenset(
         {
@@ -430,6 +429,7 @@ FACTION_BATTLE_OUTCOME = EventKind(
             "signals",
         }
     ),
+    base=Significance.MAJOR,
 )
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from .events import Event, Significance
@@ -108,7 +108,7 @@ class EventKind:
 
     event_type: str
     template: Template
-    base: Significance
+    base: Significance = field(kw_only=True)
     evidence: EvidenceRole
     required: frozenset[str]
     optional: frozenset[str] = frozenset()
