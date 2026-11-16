@@ -56,12 +56,13 @@ from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .narrative import build_dossier, narrative_rules
-from .narrator.assembly import KEPT_FINISHES, assemble, parse_plan, stored_chapter
+from .narrator.assembly import assemble, parse_plan, stored_chapter
 from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
 from .narrator.councilors import article_requests, assemble_articles, missing, request_sha256
 from .narrator.providers import CompletionRequest, Endpoint, ProviderError, complete, completion_request, endpoint
 from .narrator.rate_limit import RateLimiter, estimate_tokens
-from .narrator.request import AUDIENCES, CITATIONS, STYLES, render_request
+from .narrator.request import AUDIENCES, CITATIONS, STYLES
+from .narrator.run_directory import RunDirectory, RunDirectoryWriteError
 from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
@@ -1112,12 +1113,9 @@ def _run_councilors(args: argparse.Namespace) -> int:
     sys.stdout.write(_dossier_summary(dossier))
     if output is not None:
         try:
-            output.mkdir(parents=True, exist_ok=True)
-            text = json.dumps(dossier, indent=2, ensure_ascii=False) + "\n"
-            (output / "dossier.json").write_text(text, encoding="utf-8", newline="\n")
-            _write_requests(output, items)
-        except OSError as error:
-            return _output_failed(output, error, "councilors")
+            RunDirectory(output).write_dossier(dossier, [(item.index, item.request) for item in items])
+        except RunDirectoryWriteError as error:
+            return _output_failed(output, error.error, "councilors")
         sys.stdout.write(f"Wrote dossier.json and {_count(len(items), 'request')} to {output}.\n")
     else:
         sys.stdout.write("Nothing written; give --output DIR for the dossier and the requests.\n")
@@ -1166,29 +1164,23 @@ def _write_articles(
 ) -> int:
     """Assemble ``councilors.md`` and ``manifest.json`` from the run's outcomes; a failed article is listed in the
     manifest with its finish and the reason, and the missing ones are summed up in one stderr line."""
-    sent_with = {
-        "provider": target.provider,
-        "model": narrator.model,
-        "max_output_tokens": narrator.max_output_tokens,
-        "temperature": narrator.temperature,
-    }
+    run_directory = RunDirectory(directory)
+    sent_with = run_directory.sent_with(
+        target.provider, narrator.model, narrator.max_output_tokens, narrator.temperature
+    )
     stored: dict[int, dict[str, Any]] = {}
     for outcome in outcomes:
         if outcome.record is not None:
             stored[outcome.item.index] = outcome.record
         elif outcome.error is not None:
-            stored[outcome.item.index] = {**sent_with, "finish": outcome.finish, "error": outcome.error}
+            stored[outcome.item.index] = run_directory.failure_record(sent_with, outcome.finish, outcome.error)
     markdown, manifest = assemble_articles(
         dossier, stored, generated=host.now(), version=__version__, sent_with=sent_with
     )
-    for name, text in (
-        ("councilors.md", markdown),
-        ("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"),
-    ):
-        try:
-            (directory / name).write_text(text, encoding="utf-8", newline="\n")
-        except OSError as error:
-            return _output_failed(directory / name, error, "councilors")
+    try:
+        run_directory.write_articles(markdown, json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+    except RunDirectoryWriteError as error:
+        return _run_directory_write_failed(error, "councilors")
     absent = missing(manifest)
     total = len(manifest["articles"])
     logger.info("councilors assembled %s", fields(articles=total, written=total - len(absent), missing=len(absent)))
@@ -1197,7 +1189,7 @@ def _write_articles(
     if absent:
         print(
             f"tinarrative councilors: {len(absent)} of {_count(total, 'article')} missing; see "
-            f"{directory / 'manifest.json'}",
+            f"{run_directory.manifest_path}",
             file=sys.stderr,
         )
     return EXIT_SUCCESS
@@ -1394,9 +1386,11 @@ def _run_narrate(args: argparse.Namespace) -> int:
         )
     if output is not None:
         try:
-            _write_narration(output, plan)
-        except OSError as error:
-            return _output_failed(output, error)
+            RunDirectory(output).write_plan(
+                plan.to_dict(), [(item.index, item.request) for item in _chapter_items(plan)]
+            )
+        except RunDirectoryWriteError as error:
+            return _output_failed(output, error.error)
     sys.stdout.write(_render_plan(plan, output))
     sys.stdout.flush()
     sent = kept = 0
@@ -1577,32 +1571,43 @@ def _send(
     """Send the items in order and write each completed one to ``responses/NN.json``; an item whose stored
     response was made from the same request is kept unless ``force``. A failure stops the run when
     ``stop_on_failure``, else the next item is sent. Returns the outcomes and the exit code."""
-    responses = directory / "responses"
+    run_directory = RunDirectory(directory)
     count = len(items)
     try:
-        responses.mkdir(exist_ok=True)
-        _remove_stale(responses, {_chapter_file(item.index, count) for item in items})
-    except OSError as error:
-        return [], _output_failed(responses, error, command)
+        responses = run_directory.prepare_responses(count)
+    except RunDirectoryWriteError as error:
+        return [], _run_directory_write_failed(error, command)
     transport = host.transport
     outcomes: list[_Outcome] = []
     stopped = False
-    prepared: list[tuple[_SendItem, CompletionRequest, Path, dict[str, Any] | None, int]] = []
+    prepared: list[tuple[_SendItem, CompletionRequest, dict[str, Any] | None, int]] = []
     impossible: list[tuple[_SendItem, int]] = []
     for item in items:
         request = completion_request(item.request, settings)
-        path = responses / _chapter_file(item.index, count)
-        stored = None if force else _stored(path, item.request_sha256, request, target.provider)
+        sent_with = run_directory.sent_with(
+            target.provider, request.model, request.max_output_tokens, request.temperature
+        )
+        stored = (
+            None
+            if force
+            else run_directory.kept_response(
+                item.index,
+                count,
+                request_sha256=item.request_sha256,
+                sent_with=sent_with,
+            )
+        )
         reserved = estimate_tokens(request.system, request.user, settings.chars_per_token, request.max_output_tokens)
         if stored is None and settings.tokens_per_minute is not None and reserved > settings.tokens_per_minute:
             impossible.append((item, reserved))
-        prepared.append((item, request, path, stored, reserved))
+        prepared.append((item, request, stored, reserved))
 
     if impossible:
         offending = {item.index: reserved for item, reserved in impossible}
-        for item, _, _, stored, _ in prepared:
+        for item, _, stored, _ in prepared:
             if stored is not None:
-                outcomes.append(_Outcome(item, stored, True, stored["finish"], None))
+                finish, _, _ = RunDirectory.response_progress(stored)
+                outcomes.append(_Outcome(item, stored, True, finish, None))
                 continue
             if item.index in offending:
                 reason = (
@@ -1624,15 +1629,12 @@ def _send(
         on_wait=lambda seconds: status.wait(seconds, host.now()),
         on_ready=status.clear,
     )
-    for item, request, path, stored, reserved in prepared:
+    for item, request, stored, reserved in prepared:
         if stored is not None:
-            outcomes.append(_Outcome(item, stored, True, stored["finish"], None))
-            logger.info(
-                "%s kept %s", command, fields(**{noun: item.index}, provider=target.provider, finish=stored["finish"])
-            )
-            sys.stdout.write(
-                _render_sent(item, "kept", stored["finish"], stored.get("input_tokens"), stored.get("output_tokens"))
-            )
+            finish, input_tokens, output_tokens = RunDirectory.response_progress(stored)
+            outcomes.append(_Outcome(item, stored, True, finish, None))
+            logger.info("%s kept %s", command, fields(**{noun: item.index}, provider=target.provider, finish=finish))
+            sys.stdout.write(_render_sent(item, "kept", finish, input_tokens, output_tokens))
             sys.stdout.flush()
             continue
         failure: tuple[str, str] | None = None
@@ -1678,24 +1680,21 @@ def _send(
                 stopped = True
                 break
             continue
-        record = {
-            "index": item.index,
-            "request_sha256": item.request_sha256,
-            "provider": target.provider,
-            "model": request.model,
-            "max_output_tokens": request.max_output_tokens,
-            "temperature": request.temperature,
-            "reported_model": completion.model,
-            "finish": completion.finish,
-            **item.extra,
-            "input_tokens": completion.input_tokens,
-            "output_tokens": completion.output_tokens,
-            "text": completion.text,
-        }
+        record = run_directory.response_record(
+            index=item.index,
+            request_sha256=item.request_sha256,
+            sent_with=sent_with,
+            reported_model=completion.model,
+            finish=completion.finish,
+            extra=item.extra,
+            input_tokens=completion.input_tokens,
+            output_tokens=completion.output_tokens,
+            text=completion.text,
+        )
         try:
-            path.write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="\n")
-        except OSError as error:
-            return outcomes, _output_failed(path, error, command)
+            run_directory.write_response(item.index, count, record)
+        except RunDirectoryWriteError as error:
+            return outcomes, _run_directory_write_failed(error, command)
         outcomes.append(_Outcome(item, record, False, completion.finish, None))
         logger.info(
             "%s sent %s",
@@ -1724,31 +1723,6 @@ def _send(
     return outcomes, EXIT_PROVIDER_ERROR if failed else EXIT_SUCCESS
 
 
-def _stored(path: Path, request_sha256: str, request: CompletionRequest, provider: str) -> dict[str, Any] | None:
-    """The response stored at ``path`` when it was made from the same request: the same request file and the same
-    provider, model, output limit and temperature, with a finish that is kept and a non-blank text."""
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    sent_with = {
-        "request_sha256": request_sha256,
-        "provider": provider,
-        "model": request.model,
-        "max_output_tokens": request.max_output_tokens,
-        "temperature": request.temperature,
-    }
-    if (
-        not isinstance(record, dict)
-        or any(record.get(key) != value for key, value in sent_with.items())
-        or record.get("finish") not in KEPT_FINISHES
-        or not isinstance(record.get("text"), str)
-        or not record["text"].strip()
-    ):
-        return None
-    return record
-
-
 def _render_sent(item: _SendItem, verb: str, finish: str, input_tokens: int | None, output_tokens: int | None) -> str:
     used = (
         f"{'?' if input_tokens is None else input_tokens} input and "
@@ -1768,15 +1742,17 @@ _FINDINGS = {
 def _assemble(directory: Path, *, host: Host) -> int:
     """Assemble ``history.md`` and ``manifest.json`` from the plan, requests and responses written to ``directory``;
     audit findings are summed up in one stderr line."""
+    run_directory = RunDirectory(directory)
     try:
-        plan = parse_plan((directory / "plan.json").read_bytes())
+        plan = parse_plan(run_directory.read_plan())
         count = len(plan["chapters"])
         chapters = []
         for entry in plan["chapters"]:
-            name = _chapter_file(entry["index"], count)
             chapters.append(
                 stored_chapter(
-                    entry, _read_optional(directory / "requests" / name), _read_optional(directory / "responses" / name)
+                    entry,
+                    run_directory.read_optional(run_directory.request_path(entry["index"], count)),
+                    run_directory.read_response(entry["index"], count),
                 )
             )
     except OSError as error:
@@ -1787,14 +1763,11 @@ def _assemble(directory: Path, *, host: Host) -> int:
         print(f"tinarrative narrate: {directory}: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
     assembly = assemble(chapters, plan, generated=host.now(), version=__version__)
-    for name, text in (
-        ("history.md", assembly.history),
-        ("manifest.json", json.dumps(assembly.manifest, ensure_ascii=False, indent=2) + "\n"),
-    ):
-        try:
-            (directory / name).write_text(text, encoding="utf-8", newline="\n")
-        except OSError as error:
-            return _output_failed(directory / name, error)
+    try:
+        manifest = json.dumps(assembly.manifest, ensure_ascii=False, indent=2) + "\n"
+        run_directory.write_history(assembly.history, manifest)
+    except RunDirectoryWriteError as error:
+        return _run_directory_write_failed(error)
     findings = assembly.findings
     audit = assembly.manifest["audit"]
     logger.info(
@@ -1810,22 +1783,18 @@ def _assemble(directory: Path, *, host: Host) -> int:
     sys.stdout.flush()
     if findings:
         summary = ", ".join(f"{number} {_FINDINGS[kind][number != 1]}" for kind, number in findings.items())
-        print(f"tinarrative narrate: citation audit: {summary}; see {directory / 'manifest.json'}", file=sys.stderr)
+        print(f"tinarrative narrate: citation audit: {summary}; see {run_directory.manifest_path}", file=sys.stderr)
     return EXIT_SUCCESS
-
-
-def _read_optional(path: Path) -> bytes | None:
-    """The bytes of ``path``, or ``None`` when it does not exist."""
-    try:
-        return path.read_bytes()
-    except FileNotFoundError:
-        return None
 
 
 def _output_failed(path: Path, error: OSError, command: str = "narrate") -> int:
     logger.debug("output failed %s", fields(output=safe_path(path), error=type(error).__name__))
     print(f"tinarrative {command}: cannot write {path}: {error.strerror or error}", file=sys.stderr)
     return EXIT_OUTPUT_ERROR
+
+
+def _run_directory_write_failed(error: RunDirectoryWriteError, command: str = "narrate") -> int:
+    return _output_failed(error.path, error.error, command)
 
 
 def _read_package(source: str) -> object | int:
@@ -1875,37 +1844,6 @@ def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settin
     )
     package: object = json.loads(json.dumps(document))
     return package
-
-
-def _write_narration(directory: Path, plan: ChapterPlan) -> None:
-    """``plan.json`` and ``requests/NN.json``."""
-    _write_requests(directory, _chapter_items(plan))
-    text = json.dumps(plan.to_dict(), ensure_ascii=False, indent=2) + "\n"
-    (directory / "plan.json").write_text(text, encoding="utf-8", newline="\n")
-
-
-def _write_requests(directory: Path, items: Sequence[_SendItem]) -> None:
-    """``requests/NN.json``; numbered requests left from a longer run are removed."""
-    requests = directory / "requests"
-    requests.mkdir(parents=True, exist_ok=True)
-    written: set[str] = set()
-    for item in items:
-        name = _chapter_file(item.index, len(items))
-        (requests / name).write_text(render_request(item.request), encoding="utf-8", newline="\n")
-        written.add(name)
-    _remove_stale(requests, written)
-
-
-def _chapter_file(index: int, count: int) -> str:
-    """A chapter's request or response file name: two digits, more when there are more chapters."""
-    return f"{index:0{max(2, len(str(count)))}d}.json"
-
-
-def _remove_stale(directory: Path, kept: set[str]) -> None:
-    """Remove the numbered files of ``directory`` that are not ``kept``; other files are left alone."""
-    for stale in sorted(directory.glob("*.json")):
-        if stale.stem.isdigit() and stale.name not in kept:
-            stale.unlink()
 
 
 def _render_plan(plan: ChapterPlan, output: Path | None) -> str:

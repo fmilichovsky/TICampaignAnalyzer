@@ -16,14 +16,10 @@ from typing import Any
 
 from .chapters import PLANNER_KEYS, SIGNIFICANCE
 from .request import chapter_package
+from .run_directory import SENT_WITH
 
 UNCITED_FROM = "major"
 """The lowest significance the audit expects a footnote to cite."""
-KEPT_FINISHES = ("complete", "other")
-"""``length``, ``refused`` and ``empty`` completions are never written, nor is a kept finish with a blank text."""
-SENT_WITH = ("provider", "model", "max_output_tokens", "temperature")
-"""With the request file, these response members reconstruct the request that was sent."""
-
 _DEFINITION = re.compile(r"^ {0,3}\[\^([^\]\n]+)\]:[ \t]*(.*?)\s*$")
 _REFERENCE = re.compile(r"\[\^([^\]\n]+)\](?!:)")
 _NOTES_HEADING = re.compile(
