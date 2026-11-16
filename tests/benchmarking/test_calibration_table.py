@@ -14,6 +14,7 @@ from tests.benchmarking.calibration_support import check_rows
 from tests.fixtures import fixture_path
 from tests.narrative.support import atomic, nation
 from tinarrative.benchmarking.calibration.table import (
+    SCHEMA_VERSION,
     CalibrationTableError,
     _row,
     build_index,
@@ -21,10 +22,12 @@ from tinarrative.benchmarking.calibration.table import (
     extract_campaign,
     read_campaign,
     read_index,
+    type_kinds,
     write_campaign,
 )
 from tinarrative.benchmarking.manifest import MANIFEST, extractable_campaigns, prefix_of
 from tinarrative.config import DEFAULT_SETTINGS
+from tinarrative.kinds import KINDS
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SIGNIFICANCE_ORDER
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates
@@ -52,6 +55,7 @@ def test_every_event_becomes_a_row_with_its_own_score_and_level(rows: list[dict]
     assert sorted(row["id"] for row in rows) == sorted(event.id for event in events)
     expected = {event.id: (event.score, event.significance.value) for event in events}
     assert {row["id"]: (row["score"], row["level"]) for row in rows} == expected
+    assert {row["id"]: row["rule"] for row in rows} == {event.id: event.context_rule for event in events}
     check_rows(rows)
 
 
@@ -88,7 +92,7 @@ def test_a_malformed_wrapper_fails_with_a_clear_error(tmp_path: Path, text: str)
 
 
 def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
-    index = build_index(["politics"], key="k1", extracted_at="2030-01-01T00:00:00+00:00")
+    index = build_index(["politics"], key="k1", extracted_at="2030-01-01T00:00:00+00:00", kinds={})
 
     assert set(index) == {
         "schema_version",
@@ -99,8 +103,10 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
         "member_gates",
         "constants",
         "measures",
+        "kinds",
         "drafts",
     }
+    assert index["schema_version"] == SCHEMA_VERSION
     assert index["key"] == "k1"
     assert set(index["measures"]) == {measure.value for measure in MEASURES}
     assert {gate["member_type"] for gate in index["member_gates"]} == {
@@ -129,8 +135,24 @@ def test_extraction_writes_the_index_and_skips_a_prefix_campaign(tmp_path: Path)
     names = extract_all(samples, out, key="k", now=datetime(2030, 1, 1, tzinfo=UTC))
 
     assert names == ["politics"]
-    assert read_index(out / "index.js")["campaigns"] == ["politics"]
-    check_rows(read_campaign(out / "tables" / "politics.js")["events"])
+    index = read_index(out / "index.js")
+    events = read_campaign(out / "tables" / "politics.js")["events"]
+    assert index["campaigns"] == ["politics"]
+    assert set(index["kinds"]) == {row["type"] for row in events}
+    check_rows(events)
+
+
+def test_the_kinds_map_holds_each_types_code_base_level_and_rule() -> None:
+    ruled, plain = KINDS["councilor.appeared"], KINDS["faction.transaction_recorded"]
+    kinds = type_kinds([ruled.event_type, plain.event_type, ruled.event_type])
+
+    assert ruled.rule is not None and plain.rule is None
+    assert kinds == {
+        ruled.event_type: {"base": ruled.base.value, "rule": ruled.rule.value},
+        plain.event_type: {"base": plain.base.value, "rule": None},
+    }
+    with pytest.raises(CalibrationTableError, match="no.such"):
+        type_kinds(["no.such"])
 
 
 def test_a_narrative_row_without_a_stake_keeps_its_own_base_when_cited_events_raise_its_level() -> None:

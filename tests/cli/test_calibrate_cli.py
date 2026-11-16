@@ -93,6 +93,18 @@ def test_a_fresh_cache_is_reused_and_rebuild_forces_an_extraction(
     assert "Rebuilding the calibration table" in stderr
 
 
+def test_a_table_at_an_older_schema_is_refused_with_the_rebuild_hint(paths: tuple[Path, Path]) -> None:
+    _, out = paths
+    index = table.read_index(out / "index.js")
+    table.write_index(out, {**index, "schema_version": table.SCHEMA_VERSION - 1})
+
+    code, stdout, stderr = report(paths)
+
+    assert (code, stdout) == (cli.EXIT_USAGE_ERROR, "")
+    assert f"schema {table.SCHEMA_VERSION - 1}" in stderr
+    assert "--rebuild" in stderr
+
+
 def test_references_accumulate_over_commas_and_repeats(paths: tuple[Path, Path]) -> None:
     document = report_json(paths, "--reference", "power=0.002,hab=0.03", "--reference", "battle=0.001")
 

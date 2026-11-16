@@ -122,6 +122,19 @@ def test_a_councilor_whose_faction_is_unknown_defers_to_the_base_level() -> None
     assert event.event_type == "councilor.disappeared" and event.significance is KINDS["councilor.disappeared"].base
 
 
+def test_the_pass_names_the_context_rule_only_where_it_decided_the_level() -> None:
+    decided = classified(
+        CouncilorAnalyzer(), snapshot(BEFORE, state(COUNCILOR, "100", BEFORE, faction=None)), snapshot(AFTER)
+    )
+    unknown = Unknown(UnknownReason.UNRESOLVED_REFERENCE, raw=999)
+    deferred = classified(
+        CouncilorAnalyzer(), snapshot(BEFORE, state(COUNCILOR, "100", BEFORE, faction=unknown)), snapshot(AFTER)
+    )
+    assert [event.context_rule for event in decided] == [Rule.COUNCILOR_PRESENCE]
+    assert [event.context_rule for event in deferred] == [None]
+    assert "context_rule" not in decided[0].to_dict()
+
+
 def test_a_presence_event_without_a_subject_or_side_falls_back_to_the_base_level() -> None:
     lookup = empty_lookup()
     base = KINDS["councilor.disappeared"].base
@@ -653,7 +666,7 @@ def test_the_kinds_own_scaling_and_base_score_an_event_as_narrative_score_does()
 
     scored = score_narrative(kind, event, (cited,), GeopoliticsSettings(), scaling=None, base=kind.base)
 
-    assert (scored.score, scored.basis) == narrative_score(kind, event, (cited,), GeopoliticsSettings())
+    assert (scored.score, scored.basis, scored.rule) == narrative_score(kind, event, (cited,), GeopoliticsSettings())
     assert scored.score == cited.score
     assert scored.level is kind.base
 
@@ -666,6 +679,22 @@ def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:
     }
     assert narrative_level("nation.space_program_growth", **measures, entered_top=True) is Significance.MAJOR
     assert narrative_level("nation.space_program_growth", **measures, entered_top=False) is Significance.MINOR
+
+
+def test_a_narrative_score_names_the_context_rule_only_where_it_decided_the_level() -> None:
+    kind = KINDS["nation.space_program_growth"]
+    measures = {
+        f"{metric}_{measure}": None
+        for metric in ("boost", "mission_control")
+        for measure in ("before", "after", "territory_share", "rank")
+    }
+
+    def rule(entered: bool) -> Rule | None:
+        event = bare_event(kind.event_type, **measures, entered_top=entered)
+        return narrative_score(kind, event, (), GeopoliticsSettings())[2]
+
+    assert rule(True) is Rule.ENTERED_TOP
+    assert rule(False) is None
 
 
 def test_a_technology_milestone_takes_its_curated_tier() -> None:

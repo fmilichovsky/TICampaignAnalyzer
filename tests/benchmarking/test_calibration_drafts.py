@@ -89,7 +89,7 @@ def test_a_shadow_row_takes_the_draft_base_its_candidates_with_a_share_and_the_c
     assert {row["base"] for row in rows} == {Significance.MINOR.base}
     assert any(len(row["stakes"]) == 2 for row in rows)
     assert all(stake["measure"] == StakeMeasure.POPULATION.value for row in rows for stake in row["stakes"])
-    index = build_index(["politics"], key="", extracted_at="", drafts=(TERRITORY,))
+    index = build_index(["politics"], key="", extracted_at="", kinds={}, drafts=(TERRITORY,))
     result = replay(index, {"politics": drafted["events"]}, default_state(index), {"politics": rows})
     assert any(event["decided_by"] != event["id"] for event in result["campaigns"]["politics"]["drafts"])
 
@@ -110,7 +110,7 @@ def test_two_drafts_on_one_type_sit_side_by_side_and_leave_the_real_rows_alone(
 def test_the_declared_drafts_are_read_when_extraction_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(drafts, "DRAFT_STAKES", (CESSION_ONLY,))
 
-    index = build_index(["politics"], key="", extracted_at="")
+    index = build_index(["politics"], key="", extracted_at="", kinds={})
 
     assert index["drafts"] == [
         {
@@ -124,7 +124,7 @@ def test_the_declared_drafts_are_read_when_extraction_runs(monkeypatch: pytest.M
 
 
 def test_the_index_lists_each_measure_of_a_draft_once_in_scaling_order() -> None:
-    index = build_index(["politics"], key="", extracted_at="", drafts=(TERRITORY,))
+    index = build_index(["politics"], key="", extracted_at="", kinds={}, drafts=(TERRITORY,))
 
     assert index["drafts"][0]["measures"] == [REGIONS.measure.value, StakeMeasure.POWER.value]
     assert len(TERRITORY.scalings) == 3

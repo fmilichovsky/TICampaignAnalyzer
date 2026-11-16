@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
 from tinarrative.benchmarking.calibration.drafts import ROW_PREFIX, DraftStake, draft_row_id
 from tinarrative.benchmarking.calibration.replay import default_state, replay
-from tinarrative.benchmarking.calibration.table import build_index, layers
+from tinarrative.benchmarking.calibration.table import build_index, layers, type_kinds
+from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, Significance
 from tinarrative.model.kinds import Stake, StakeMeasure
 from tinarrative.narrative.significance import NARRATIVE_STAKE_IMPLEMENTATIONS, NarrativeScaling
@@ -21,6 +22,7 @@ ROW_FIELDS = {
     "date",
     "label",
     "base",
+    "rule",
     "stakes",
     "entities",
     "cited",
@@ -38,16 +40,19 @@ def check_rows(rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = ()
     assert not any(row["id"].startswith(ROW_PREFIX) for row in rows)
     assert not any(cited.startswith(ROW_PREFIX) for row in rows for cited in row["cited"])
     layer_of = layers()
+    kinds = type_kinds(row["type"] for row in rows)
     for draft in drafts:
         assert set(draft) == ROW_FIELDS | {"ruled"}
         assert draft["id"].startswith(ROW_PREFIX) and draft["tier"] == "narrative"
         assert isinstance(draft["ruled"], bool)
+        assert draft["ruled"] is (draft["rule"] is not None)
         low, high = SCORE_BANDS[Significance(draft["level"])]
         assert low <= draft["score"] <= high
         own = layer_of[draft["type"]]
         assert all(cited in by_id and layer_of.get(by_id[cited]["type"], 0) < own for cited in draft["cited"])
     for row in rows:
         assert set(row) == ROW_FIELDS
+        assert row["rule"] in {None, kinds[row["type"]]["rule"]}
         assert row["tier"] in {"atomic", "reconstructed", "narrative"}
         low, high = SCORE_BANDS[Significance(row["level"])]
         assert low <= row["score"] <= high
@@ -65,7 +70,8 @@ def check_parity(
 ) -> None:
     """At the code's references with the clamp on and each draft's own base, the replay is the pipeline: every score
     and level, every group, every draft row of the ``declared`` drafts."""
-    index = build_index(["campaign"], key="", extracted_at="", drafts=declared)
+    kinds = type_kinds(row["type"] for row in rows)
+    index = build_index(["campaign"], key="", extracted_at="", kinds=kinds, drafts=declared)
     result = replay(index, {"campaign": rows}, default_state(index), {"campaign": drafts})
     oracle = {row["id"]: (row["score"], row["level"]) for row in rows}
     campaign = result["campaigns"]["campaign"]
@@ -83,7 +89,7 @@ def check_parity(
 
 # --- Hand-built rows ---------------------------------------------------------------------------------------
 
-INDEX = build_index(["one", "two"], key="", extracted_at="")
+INDEX = build_index(["one", "two"], key="", extracted_at="", kinds={})
 CONSTANTS = INDEX["constants"]
 POWER = INDEX["measures"]["power"]["reference"]
 POPULATION = INDEX["measures"]["population"]["reference"]
@@ -116,12 +122,27 @@ def row(
         "date": None,
         "label": id,
         "base": base(level),
+        "rule": None,
         "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
         "entities": [{"id": entity, "name": None} for entity in entities],
         "cited": list(cited),
         "score": base(level),
         "level": level,
     }
+
+
+def synthetic_kinds(tables: Mapping[str, Sequence[dict[str, Any]]]) -> dict[str, dict[str, Any]]:
+    """The ``kinds`` map of hand-built rows: a declared type's code base level and rule, and for a type no kind
+    declares, its first row's level and no rule."""
+    types = {item["type"] for rows in tables.values() for item in rows}
+    declared = type_kinds(event_type for event_type in types if kind_for(event_type) is not None)
+    synthetic = {
+        item["type"]: {"base": item["level"], "rule": None}
+        for rows in reversed(list(tables.values()))
+        for item in reversed(rows)
+        if item["type"] not in declared
+    }
+    return dict(sorted({**synthetic, **declared}.items()))
 
 
 def with_oracle(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -196,7 +217,7 @@ DRAFTS = (
     ),
 )
 """Two fixture draft stakes on the chain's types, side by side on its first layer."""
-DRAFT_INDEX = build_index(["one"], key="", extracted_at="", drafts=DRAFTS)
+DRAFT_INDEX = build_index(["one"], key="", extracted_at="", kinds={}, drafts=DRAFTS)
 
 
 def draft_row(

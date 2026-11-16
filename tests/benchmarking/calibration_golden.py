@@ -21,6 +21,7 @@ from tests.benchmarking.calibration_support import (
     members,
     power,
     row,
+    synthetic_kinds,
     with_draft_oracle,
     with_oracle,
 )
@@ -33,7 +34,13 @@ CAMPAIGNS = ("alpha", "beta")
 
 
 def golden_index() -> dict[str, Any]:
-    return build_index(list(CAMPAIGNS), key="golden", extracted_at="2026-01-01T00:00:00+00:00", drafts=DRAFTS)
+    return build_index(
+        list(CAMPAIGNS),
+        key="golden",
+        extracted_at="2026-01-01T00:00:00+00:00",
+        kinds=synthetic_kinds({name: document["events"] for name, document in golden_tables().items()}),
+        drafts=DRAFTS,
+    )
 
 
 def spread() -> list[dict[str, Any]]:
@@ -84,7 +91,7 @@ def golden_tables() -> dict[str, dict[str, Any]]:
         *spread(),
     ]
     alpha = with_oracle(alpha)
-    index = {**golden_index(), "campaigns": ["alpha"]}
+    index = build_index(["alpha"], key="", extracted_at="", kinds={}, drafts=DRAFTS)
     return {
         "alpha": {"events": alpha, "drafts": with_draft_oracle(index, alpha, shadows)},
         "beta": {"events": with_oracle(beta), "drafts": []},

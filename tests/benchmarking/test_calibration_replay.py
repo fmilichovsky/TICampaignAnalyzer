@@ -318,9 +318,14 @@ def draft_events(result: Replay) -> dict[str, dict[str, Any]]:
 
 
 def test_the_draft_rows_replay_to_their_oracle_at_each_drafts_own_base() -> None:
-    rows, shadows = drafted()
+    _, shadows = drafted()
 
-    check_parity(rows, shadows, DRAFTS)
+    replayed = draft_events(run_drafts())
+
+    assert {id: (event["score"], event["level"]) for id, event in replayed.items()} == {
+        row["id"]: (row["score"], row["level"]) for row in shadows
+    }
+    assert [draft["name"] for draft in DRAFT_INDEX["drafts"]] == [draft.name for draft in DRAFTS]
 
 
 def test_the_base_selector_moves_the_drafts_own_rows_and_skips_the_ruled_ones() -> None:

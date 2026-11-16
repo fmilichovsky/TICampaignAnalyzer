@@ -751,16 +751,17 @@ def _kind(event: Event) -> EventKind:
     return kind
 
 
-def _base(event: Event) -> Significance:
-    return _kind(event).base
-
-
 def significance_of(event: Event, lookup: Lookup) -> Significance:
     """The kind's context rule, else its base level: the level before the stake scales the score.
 
     Raises ``ValueError`` for a type no kind declares, or a narrative-event kind, scored by ``narrative_score``: each
     is a code bug, as every emitter passes a kind and narrative events are not ranked here.
     """
+    return _decision(event, lookup)[0]
+
+
+def _decision(event: Event, lookup: Lookup) -> tuple[Significance, Rule | None]:
+    """``significance_of`` and the context rule that decided it, ``None`` when the base level stood."""
     kind = _kind(event)
     if kind.narrative:
         raise ValueError(f"event type {event.event_type} is a narrative event, scored when it is built")
@@ -769,17 +770,8 @@ def significance_of(event: Event, lookup: Lookup) -> Significance:
             raise ValueError(f"rule {kind.rule} of {event.event_type} judges a narrative event")
         decided = rule(event, lookup)
         if decided is not None:
-            return decided
-    return _base(event)
-
-
-def _narrative_rule_level(kind: EventKind, event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
-    if kind.rule is None:
-        return None
-    rule = RULE_IMPLEMENTATIONS[kind.rule]
-    if not isinstance(rule, NarrativeContextRule):
-        raise ValueError(f"rule {kind.rule} of {event.event_type} judges an atomic event")
-    return rule.judge(event, geopolitics)
+            return decided, kind.rule
+    return kind.base, None
 
 
 def narrative_level(kind: EventKind, event: Event, geopolitics: GeopoliticsSettings) -> Significance:
@@ -787,8 +779,20 @@ def narrative_level(kind: EventKind, event: Event, geopolitics: GeopoliticsSetti
 
     Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
     """
-    decided = _narrative_rule_level(kind, event, geopolitics)
-    return kind.base if decided is None else decided
+    return _narrative_decision(kind, event, geopolitics)[0]
+
+
+def _narrative_decision(
+    kind: EventKind, event: Event, geopolitics: GeopoliticsSettings
+) -> tuple[Significance, Rule | None]:
+    """``narrative_level`` and the context rule that decided it, ``None`` when the base level stood."""
+    if kind.rule is None:
+        return kind.base, None
+    rule = RULE_IMPLEMENTATIONS[kind.rule]
+    if not isinstance(rule, NarrativeContextRule):
+        raise ValueError(f"rule {kind.rule} of {event.event_type} judges an atomic event")
+    decided = rule.judge(event, geopolitics)
+    return (kind.base, None) if decided is None else (decided, kind.rule)
 
 
 @dataclass(frozen=True)
@@ -797,10 +801,15 @@ class NarrativeScore:
 
     score: int
     basis: SignificanceBasis | None
-    ruled: bool
-    """The kind's context rule decided ``level``; the given base did not apply."""
+    rule: Rule | None
+    """The kind's context rule that decided ``level``; ``None`` when the given base stood."""
     level: Significance
     """The level the own score starts from, before the stake moves it."""
+
+    @property
+    def ruled(self) -> bool:
+        """The kind's context rule decided ``level``; the given base did not apply."""
+        return self.rule is not None
 
 
 def score_narrative(
@@ -821,15 +830,15 @@ def score_narrative(
     Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
     """
     cited = tuple(cited)
-    decided = _narrative_rule_level(kind, event, geopolitics)
-    level = base if decided is None else decided
+    decided, rule = _narrative_decision(kind, event, geopolitics)
+    level = base if rule is None else decided
     basis = (
         _narrative_basis(scaling, event, cited, level, stakes, last or stakes)
         if scaling is not None and stakes is not None
         else None
     )
     own = level.base if basis is None else _clamped(basis)
-    return NarrativeScore(max([own, *(item.score for item in cited)]), basis, decided is not None, level)
+    return NarrativeScore(max([own, *(item.score for item in cited)]), basis, rule, level)
 
 
 def narrative_score(
@@ -839,8 +848,9 @@ def narrative_score(
     geopolitics: GeopoliticsSettings,
     stakes: ReportStakes | None = None,
     last: ReportStakes | None = None,
-) -> tuple[int, SignificanceBasis | None]:
-    """The score and its basis: the higher of the kind's own score and the highest score among the ``cited`` events
+) -> tuple[int, SignificanceBasis | None, Rule | None]:
+    """The score, its basis and the context rule that decided the own level (``None`` when the base level stood):
+    the higher of the kind's own score and the highest score among the ``cited`` events
     (ADR-0011). The own score is the kind's context-rule level, else its base level, moved by its stake as an atomic
     event's is; ``stakes`` are the reports of the event's first interval, and without them there is no basis. ``last``
     are the reports of its last interval (by default the first's), read only by the nuclear share.
@@ -850,7 +860,7 @@ def narrative_score(
     """
     scaling = narrative_scaling(kind, event) if stakes is not None else None
     scored = score_narrative(kind, event, cited, geopolitics, scaling=scaling, base=kind.base, stakes=stakes, last=last)
-    return scored.score, scored.basis
+    return scored.score, scored.basis, scored.rule
 
 
 def assign_significance(
@@ -864,7 +874,7 @@ def assign_significance(
     """Each event gets its score (its level's base, moved by its stake when the type has one) and the level
     of that score; keeps the given order. ``evidence`` are the events a reconstructed one may cite for its stake."""
     stakes = Stakes(before, after, settings, evidence)
-    assigned = tuple(_ranked(event, significance_of(event, stakes.lookup), stakes) for event in events)
+    assigned = tuple(_ranked(event, *_decision(event, stakes.lookup), stakes) for event in events)
     if logger.isEnabledFor(logging.DEBUG):
         counts = Counter(event.significance.value for event in assigned)
         logger.debug(
@@ -878,9 +888,9 @@ def assign_significance(
     return assigned
 
 
-def _ranked(event: Event, level: Significance, stakes: Stakes) -> Event:
+def _ranked(event: Event, level: Significance, rule: Rule | None, stakes: Stakes) -> Event:
     basis = _basis(event, level, stakes)
     if basis is None:
-        return replace(event, significance=level, score=level.base, significance_basis=None)
+        return replace(event, significance=level, score=level.base, significance_basis=None, context_rule=rule)
     score = _clamped(basis)
-    return replace(event, significance=Significance.of(score), score=score, significance_basis=basis)
+    return replace(event, significance=Significance.of(score), score=score, significance_basis=basis, context_rule=rule)
