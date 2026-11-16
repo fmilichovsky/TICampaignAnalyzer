@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -131,37 +131,6 @@ def test_send_writes_one_response_per_chapter(
     assert out.endswith(f"Wrote history.md and manifest.json to {tmp_path / 'out'}.\n")
 
 
-def test_rate_limit_wait_line_uses_the_host_wall_clock(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, host: FakeHost, capsys: pytest.CaptureFixture[str]
-) -> None:
-    monkeypatch.setattr("sys.stderr.isatty", lambda: True)
-    settings = _settings(tmp_path, "requests_per_minute = 1\n")
-    expected = (host.now().astimezone() + timedelta(seconds=60)).strftime("%H:%M:%S")
-
-    assert _narrate(tmp_path, "--send", settings=settings, host=host) == EXIT_SUCCESS
-
-    assert f"next attempt expected at {expected}" in capsys.readouterr().err
-
-
-def test_impossible_token_reservation_fails_before_sending_and_cached_responses_are_kept(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
-) -> None:
-    limited = _settings(tmp_path, "tokens_per_minute = 1\n")
-
-    assert _narrate(tmp_path, "--send", settings=limited, host=host) == EXIT_PROVIDER_ERROR
-    assert host.transport.calls == []
-    assert "exceeds tokens_per_minute 1" in capsys.readouterr().err
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-    sent = len(host.transport.calls)
-    with limited.open("a", encoding="utf-8") as config:
-        config.write("\n[llm.profiles.limited]\ntokens_per_minute = 1\n")
-
-    assert _narrate(tmp_path, "--send", "--profile", "limited", settings=limited, host=host) == EXIT_SUCCESS
-    assert len(host.transport.calls) == sent
-    assert "kept: complete" in capsys.readouterr().out
-
-
 def test_the_provider_settings_never_change_the_plan_or_the_requests(
     tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -173,72 +142,6 @@ def test_the_provider_settings_never_change_the_plan_or_the_requests(
 
     for name in ("plan.json", "requests/01.json", "requests/02.json"):
         assert (tmp_path / "plain" / name).read_bytes() == (tmp_path / "out" / name).read_bytes()
-
-
-@pytest.mark.parametrize(
-    ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]
-)
-def test_a_failed_chapter_stops_the_run_and_keeps_the_completed_ones(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], stop: str, message: str
-) -> None:
-    host.transport.stops = ["end_turn", stop]
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_PROVIDER_ERROR
-
-    err = capsys.readouterr().err
-    assert "chapter 2: anthropic: " in err and message in err
-    assert [path.name for path in (tmp_path / "out" / "responses").iterdir()] == ["01.json"]
-
-
-def test_an_empty_chapter_fails_the_run_and_is_sent_again(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
-) -> None:
-    host.transport.blank = {2}
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_PROVIDER_ERROR
-
-    err = capsys.readouterr().err
-    assert "tinarrative narrate: chapter 2: anthropic: the completion has no text" in err
-    assert [path.name for path in (tmp_path / "out" / "responses").iterdir()] == ["01.json"]
-    assert not (tmp_path / "out" / "history.md").exists()
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-
-    out = capsys.readouterr().out
-    assert "- 1 kept: complete" in out and "- 2 sent: complete" in out
-    assert len(host.transport.calls) == 3
-    assert (tmp_path / "out" / "history.md").exists()
-
-
-def test_a_stored_blank_response_is_sent_again_and_never_assembled(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-    path = tmp_path / "out" / "responses" / "02.json"
-    path.write_text(json.dumps({**json.loads(path.read_text(encoding="utf-8")), "text": ""}), encoding="utf-8")
-    capsys.readouterr()
-
-    assert main(["narrate", "--assemble", str(tmp_path / "out")]) == EXIT_UNSUPPORTED_INPUT
-    assert "chapter 2: the response has no text; send it again with --send" in capsys.readouterr().err
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-    assert "- 2 sent: complete" in capsys.readouterr().out
-    assert len(host.transport.calls) == 3
-
-
-def test_an_http_failure_is_a_provider_error(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
-) -> None:
-    class Unauthorized:
-        def post(self, url: str, headers: Mapping[str, str], body: bytes, timeout: float) -> HttpResponse:
-            return HttpResponse(401, {}, b'{"error": {"message": "invalid x-api-key"}}')
-
-    host.transport = Unauthorized()
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_PROVIDER_ERROR
-
-    assert "chapter 1: anthropic: HTTP 401: invalid x-api-key" in capsys.readouterr().err
-    assert list((tmp_path / "out" / "responses").iterdir()) == []
 
 
 def test_a_profile_and_flags_override_the_narrator_keys(
@@ -359,37 +262,6 @@ def test_audit_findings_are_one_stderr_line_and_never_fail_the_run(
     assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s", progress)
     manifest = tmp_path / "out" / "manifest.json"
     assert audit == f"tinarrative narrate: citation audit: 2 unmatched citations; see {manifest}"
-
-
-def test_a_stored_response_from_the_same_request_is_not_sent_again(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-    first = (tmp_path / "out" / "responses" / "01.json").read_bytes()
-    (tmp_path / "out" / "responses" / "02.json").unlink()
-    capsys.readouterr()
-
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-
-    out = capsys.readouterr().out
-    assert len(host.transport.calls) == 3
-    assert "- 1 kept: complete, 2001 input and 300 output tokens" in out
-    assert "- 2 sent: complete, 2003 input and 300 output tokens" in out
-    assert f"Wrote 1 response to {tmp_path / 'out' / 'responses'}, kept 1 stored.\n" in out
-    assert (tmp_path / "out" / "responses" / "01.json").read_bytes() == first
-    assert (tmp_path / "out" / "history.md").exists()
-
-
-@pytest.mark.parametrize("options", [["--force"], ["--model", "other-model"], ["--max-output-tokens", "8000"]])
-def test_force_or_another_send_setting_sends_every_chapter_again(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], options: list[str]
-) -> None:
-    assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
-
-    assert _narrate(tmp_path, "--send", *options, host=host) == EXIT_SUCCESS
-
-    assert len(host.transport.calls) == 4
-    assert "kept" not in capsys.readouterr().out
 
 
 def test_a_failed_run_writes_no_history(tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]) -> None:

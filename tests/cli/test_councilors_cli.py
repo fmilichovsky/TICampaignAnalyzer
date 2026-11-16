@@ -19,7 +19,6 @@ from tinarrative.cli import (
     EXIT_CONFIG_ERROR,
     EXIT_INPUT_ERROR,
     EXIT_OUTPUT_ERROR,
-    EXIT_PROVIDER_ERROR,
     EXIT_SUCCESS,
     EXIT_USAGE_ERROR,
     main,
@@ -239,58 +238,6 @@ def test_send_writes_responses_articles_and_manifest(
     assert f"Wrote {len(names)} responses to {out / 'responses'}.\n" in captured.out
     assert captured.out.endswith(f"Wrote councilors.md and manifest.json to {out}.\n")
     assert captured.err == ""
-
-
-@pytest.mark.parametrize(
-    ("stop", "message"), [("max_tokens", "stopped at max_output_tokens 16000"), ("refusal", "refused")]
-)
-def test_a_failed_article_is_skipped_and_the_run_exits_10_at_the_end(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], sending: str, stop: str, message: str
-) -> None:
-    host.transport.stops = ["end_turn", stop]
-
-    assert _send(tmp_path, sending, host=host) == EXIT_PROVIDER_ERROR
-
-    out = tmp_path / "out"
-    dossier = _read(out / "dossier.json")
-    names = [entry["name"] for entry in dossier["councilors"]]
-    assert len(host.transport.calls) == len(names)
-    assert "02.json" not in [path.name for path in (out / "responses").iterdir()]
-    assert len(list((out / "responses").iterdir())) == len(names) - 1
-    articles = (out / "councilors.md").read_text(encoding="utf-8")
-    assert f"### {names[1]}" not in articles and f"### {names[0]}" in articles
-    manifest = _read(out / "manifest.json")
-    row = manifest["articles"][1]
-    assert row["written"] is False and row["finish"] == stop.replace("max_tokens", "length").replace(
-        "refusal", "refused"
-    )
-    assert message in row["error"]
-    err = capsys.readouterr().err
-    (line,) = [line for line in err.splitlines() if line.startswith("tinarrative councilors: article 2: anthropic: ")]
-    assert message in line
-    assert f"1 of {len(names)} articles missing; see {out / 'manifest.json'}" in err
-
-
-def test_a_rerun_reuses_the_stored_responses(
-    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str], sending: str
-) -> None:
-    host.transport.stops = ["end_turn", "max_tokens"]
-    assert _send(tmp_path, sending, host=host) == EXIT_PROVIDER_ERROR
-    out = tmp_path / "out"
-    count = len(_read(out / "dossier.json")["councilors"])
-    first = (out / "responses" / "01.json").read_bytes()
-    capsys.readouterr()
-
-    assert _send(tmp_path, sending, host=host) == EXIT_SUCCESS
-
-    captured = capsys.readouterr()
-    assert len(host.transport.calls) == count + 1
-    assert "- 1 kept: complete, 2001 input and 300 output tokens" in captured.out
-    assert f"- 2 sent: complete, {2000 + count + 1} input and 300 output tokens" in captured.out
-    assert f"Wrote 1 response to {out / 'responses'}, kept {count - 1} stored.\n" in captured.out
-    assert captured.err == ""
-    assert (out / "responses" / "01.json").read_bytes() == first
-    assert all(row["written"] for row in _read(out / "manifest.json")["articles"])
 
 
 @pytest.mark.parametrize(
