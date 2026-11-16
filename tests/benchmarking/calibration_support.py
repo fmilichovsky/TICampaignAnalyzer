@@ -96,7 +96,7 @@ def row(
         "label": id,
         "base": base(level),
         "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
-        "entities": [{"id": entity, "label": entity} for entity in entities],
+        "entities": [{"id": entity, "name": None} for entity in entities],
         "cited": list(cited),
         "score": base(level),
         "level": level,

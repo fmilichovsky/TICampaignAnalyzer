@@ -12,6 +12,7 @@ import pytest
 from tests.benchmark_support import synthetic_samples
 from tests.benchmarking.calibration_support import check_rows
 from tests.fixtures import fixture_path
+from tests.narrative.support import atomic, nation
 from tinarrative.benchmarking.calibration.table import (
     CalibrationTableError,
     _row,
@@ -142,3 +143,14 @@ def test_a_narrative_row_without_a_stake_keeps_its_own_base_when_cited_events_ra
 
     assert own is not top
     assert raised["base"] == own.base
+
+
+def test_a_row_lists_its_entities_as_id_and_name_or_null() -> None:
+    # Through the row seam: the plain label itself is covered in tests/kinds/test_plain_lines.py.
+    named, unnamed = nation("20", "Northland"), nation("21")
+    event = atomic(
+        "nation.appeared/nation:20", "2032-01-01T00:00:00", entities=(named, unnamed), attributes=(("side", "after"),)
+    )
+    row = _row(event, "atomic")
+
+    assert row["entities"] == [{"id": "nation:20", "name": "Northland"}, {"id": "nation:21", "name": None}]

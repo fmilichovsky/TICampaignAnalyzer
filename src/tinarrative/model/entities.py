@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+from .plain import is_plain
+
 
 class EntityDomain(StrEnum):
     FACTION = "faction"
@@ -86,8 +88,10 @@ class EntityRef:
     def label(self) -> str:
         """``Name (nation:3857)``: the display name with the ID kept for audit; the bare ID without a name.
 
+        In the plain form (:func:`plain_rendering`) the name alone.
+
         A name-keyed entity whose name is its key (a technology) is not repeated.
         """
         if not self.name or self.name == self.entity_id.key:
             return str(self.entity_id)
-        return f"{self.name} ({self.entity_id})"
+        return self.name if is_plain() else f"{self.name} ({self.entity_id})"

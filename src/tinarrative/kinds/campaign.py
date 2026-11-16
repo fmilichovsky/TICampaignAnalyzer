@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from ..diff.render import render_value
+from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole
+from ..model.plain import is_plain, plain_timestamp
 from ..model.values import Unknown
 from .narrative import narrative_kind, role
 from .text import (
@@ -23,6 +25,8 @@ def _side_presence(event: Event) -> str:
 
 def _in(event: Event) -> str:
     """The singleton or queue the line is about, last: it names the container, not what happened."""
+    if is_plain() and event.entities and event.entities[0].entity_id.domain is EntityDomain.NOTIFICATION_QUEUE:
+        return ""  # the queue is glue: an ID with no content of its own
     return f" (in {subject_label(event)})"
 
 
@@ -79,7 +83,7 @@ def _about(event: Event) -> str:
 
 
 def _date(event: Event) -> str:
-    return event.date if isinstance(event.date, str) else render_value(event.date)
+    return plain_timestamp(event.date) if isinstance(event.date, str) else render_value(event.date)
 
 
 def _notification(event: Event) -> str:
