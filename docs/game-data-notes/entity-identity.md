@@ -50,7 +50,8 @@ Observed on 2026-10-01 in one private mid-campaign save (aggregate figures only)
 | control point | `TIControlPoint` | numeric ID | `in-save-id` | `templateName` |
 | mission control facility | `TIMissionControlFacilityState` | numeric ID | `in-save-id` | none |
 | councilor | `TICouncilorState` | numeric ID | `in-save-id` | none |
-| army | `TIArmyState`, `TIMegafaunaArmyState` | numeric ID | `in-save-id` | none |
+| launch facility | `TILaunchFacilityState` | numeric ID | `in-save-id` | none |
+| army | `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | numeric ID | `in-save-id` | none |
 | fleet | `TISpaceFleetState` | numeric ID | `in-save-id` | none |
 | ship | `TISpaceShipState` | numeric ID | `in-save-id` | none |
 | space body | `TISpaceBodyState` | numeric ID | `in-save-id` | `templateName` |

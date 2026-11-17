@@ -24,6 +24,7 @@ The work items derived from this page are listed under the reconstruction item i
 | `TIGlobalValuesState` | Yes (`global values` domain) | campaign-wide firsts, interstate war list, nuclear and climate counters, narrative-event bookkeeping, serialized build version | scalars drift; `interstateWars` mirrors `TIWarState` presence |
 | Five `TIRegion*State` alien substates | Yes (`region alien state` domain) | crashdowns (record-dated), landings, facilities, xenoforming levels | `xenoformingLevel` changed in 13–14 regions per older interval |
 | `TIMegafaunaArmyState` | Yes (army domain) | megafauna spawn and removal | 0 or 1 per save; one removed, one added across the older intervals |
+| `TIAlienArmyState` | Yes (army domain) | alien invasion armies appearing, moving and losing strength | 3 in one Protectorate save of build 1.0.53b, absent from every other save (2026-11-17); the notification log announces the spawn as `LogAlienArmySpawned` |
 | `TIOrgState` | Yes (`organization` domain) | notable councilors, hostile takeovers | `assignedCouncilor` changed on 60–83 orgs per older interval |
 | `TINotificationQueueState` | Yes (`notification queue` domain, `notificationSummaryQueue` record) | the game's own dated event log, player-centric | rolling five-year window with further pruning; subjects of kept entries rewritten |
 | `TIFactionState.CombatLogs` | Yes (`CombatLogs` record) | space battles: sides, hull classes, winner | undated; grows mostly by appending |

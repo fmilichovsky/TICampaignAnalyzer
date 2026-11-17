@@ -337,6 +337,17 @@
       "version_assumption": "Observed JSON envelope and observed field names.",
       "sha256": "d36043a6f5d493d74d6063926c8fc90bfc0e91adb62bcece07b2c5cdba156737",
       "purpose": "Normalize mission control facilities, their region back-references, region facility references, and typed mission targets."
+    },
+    {
+      "path": "alien_armies_and_launch_facilities.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/domain-field-map.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "401e5d09ef9aa61258368a7189bb59e7092eec68bb3e970b3d707f0ebb4ca225",
+      "purpose": "Normalize alien armies into the army domain with typed army references from a region and a faction, launch facilities with their region back-reference, and a launch facility as a typed mission target."
     }
   ]
 }

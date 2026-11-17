@@ -574,6 +574,41 @@ def test_mission_control_facility_references_preserve_null_and_unresolved_states
     assert by_id(snapshot.regions, "11").get("missionControlFacility") == unresolved(999)
 
 
+def test_alien_armies_join_the_army_domain_and_resolve_typed_army_references() -> None:
+    snapshot, report = collect(load_raw_save(fixture_path(*FIXTURE_SET, "alien_armies_and_launch_facilities.json")))
+    assert keys(report) == []
+    army = by_id(snapshot.armies, "31")
+    assert army.ref.entity_id == EntityId(EntityDomain.ARMY, "31")
+    assert army.ref.state_type == "TIAlienArmyState"
+    assert army.get("armyType") == "AlienInvader"
+    assert army.get("deploymentType") == "Naval"
+    assert army.get("strength") == 0.75
+    assert army.get("faction") == ref(EntityDomain.FACTION, "30", "TIFactionState")
+    assert army.get("currentRegion") == ref(EntityDomain.REGION, "10", "TIRegionState")
+    alien_army = ref(EntityDomain.ARMY, "31", "TIAlienArmyState")
+    assert by_id(snapshot.regions, "10").get("armies") == (alien_army,)
+    assert by_id(snapshot.factions, "30").get("armies") == (alien_army,)
+    assert "spawning" not in dict(army.fields)
+
+
+def test_launch_facilities_are_entities_and_resolve_as_mission_targets() -> None:
+    snapshot, report = collect(load_raw_save(fixture_path(*FIXTURE_SET, "alien_armies_and_launch_facilities.json")))
+    assert keys(report) == []
+    facility = by_id(snapshot.launch_facilities, "20")
+    assert facility.ref.entity_id == EntityId(EntityDomain.LAUNCH_FACILITY, "20")
+    assert facility.get("spaceFacilityType") == "launchFacility"
+    assert facility.get("region") == ref(EntityDomain.REGION, "10", "TIRegionState")
+    assert by_id(snapshot.missions, "12").get("target") == ref(
+        EntityDomain.LAUNCH_FACILITY, "20", "TILaunchFacilityState"
+    )
+
+
+def test_first_bombardment_strike_is_acknowledged_not_reported() -> None:
+    hab = pair(40, firstBombardmentStrike=False, **{"$type": STATE_PREFIX + "TIHabState"})
+    _, report = collect(fragment_raw({STATE_PREFIX + "TIHabState": [hab]}))
+    assert [key for key in keys(report) if key[2] == "firstBombardmentStrike"] == []
+
+
 CORE_FIELDS = DERIVED_FIELDS["TIHabState"]
 PRIOR = {"year": 2040, "month": 2, "day": 20, "hour": 6, "minute": 0, "second": 0, "millisecond": 250}
 

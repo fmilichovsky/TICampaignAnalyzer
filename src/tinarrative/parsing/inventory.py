@@ -25,6 +25,7 @@ _PREFIXED_SHORT_TYPES: tuple[str, ...] = (
     "TIRegionXenoformingState",
     "TIArmyState",
     "TIMegafaunaArmyState",
+    "TIAlienArmyState",
     "TICouncilorState",
     "TIOrgState",
     "TIFederationState",

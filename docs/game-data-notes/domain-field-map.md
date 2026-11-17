@@ -13,7 +13,8 @@ This is a field-level handoff for normalizers and analyzers ([ADR-0007](../adr/0
 | Control points | `TIControlPoint` | `nation`, `faction`, `benefitsDisabled`, `defended`, `crackdownExpiration`, `defendExpiration`, `controlPointType`, `positionInNation`, `controlPointPriorities` |
 | Regions | `TIRegionState` | `nation`, `leadOccupier`, `occupations` (pair map, see below), `populationInMillions`, `alienFacility`, `alienActivity`, `xenoforming`, `isBeingAnnexed`, `annexingArmy`, `adjacencies`, `armies`, `abductions`, `alienCrashdown`, `alienLanding`, `boostFacility`, `missionControlFacility`, `spaceDefenseFacility`, `spaceFacilities`, `originalColony`, `annexationBeginDate`, `annexationDaysLeft`, `antiSpaceDefenses`, `boostPerYear_dekatons`, `missionControl`, `numSTOFighters`, `isCounterfiring`, `nuclearDetonations`, `underBombardment` (the region's own flag, distinct from the hab field of the same name), `colonyRegion`, `permanentlyDecolonized`, `coreEconomicRegion`, `oilRegion`, `resourceRegion`, `oceanType` |
 | Mission control facilities | `TIMissionControlFacilityState` | `region`, `spaceFacilityType` |
-| Armies | `TIArmyState`, `TIMegafaunaArmyState` | `currentRegion`, `faction`, `homeRegion`, `strength`, `destroyed`, `armyType`, `deploymentType` |
+| Launch facilities | `TILaunchFacilityState` | `region`, `spaceFacilityType` |
+| Armies | `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `currentRegion`, `faction`, `homeRegion`, `strength`, `destroyed`, `armyType`, `deploymentType` |
 | Councilors | `TICouncilorState` | `faction`, `location`, `homeRegion`, `detainingFaction`, `recruitDate`, `attributes`, `orgs`, `status`, `XP`, `typeTemplateName`, `traitTemplateNames`, `gender`, `dateBorn` (componentized dates normalized to ISO text) |
 | Missions | `TIMissionState` | `councilor`, `target` (typed reference, see below), `missionOutcome` (`None` or `Aborted`), `resources`; `startTime`, `resolveTime` (always `null`) and `resolveTimeAssigned` are acknowledged `runtime_internal` |
 | Organizations | `TIOrgState` | `assignedCouncilor`, `factionOrbit`, `homeRegion`, `tier`, `applyingBonuses`, `takeoverDefense`, `XPModifier`, `projectCapacityGranted`, the costs (`costMoney`, `costInfluence`, `costOps`, `costBoost`), the monthly incomes and mission-control income, and the attribute and priority bonuses; the presentation fields `orgIconPath`, `orgIconTemplateName` and `displayNameWithArticle` are acknowledged `ui_cache` |
@@ -116,7 +117,7 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TIRegionState` | `leadOccupier` | reference or `null`; set on one region in 24 private saves, fully occupied by the same nation (2026-11-07) | `TINationState` |
 | `TIRegionState` | `occupations[].Key` | pair-map key reference (`{}` when empty; `Value` a fraction of the region, 0 to 1; non-empty on one or two regions in eleven of 24 private saves of two campaigns, each with one occupier; 2026-11-07) | `TINationState` |
 | `TINationState` | `controlPoints` | list of references | `TIControlPoint` |
-| `TINationState`, `TIRegionState`, `TIFactionState` | `armies` | list of references; megafauna elements carry `$type` | `TIArmyState`, `TIMegafaunaArmyState` |
+| `TINationState`, `TIRegionState`, `TIFactionState` | `armies` | list of references; megafauna and alien elements carry `$type` | `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` |
 | `TIRegionState` | `nation` | reference | `TINationState` |
 | `TIRegionState` | `alienFacility`, `alienActivity`, `xenoforming` | reference; resolves in every region of eight private saves (2026-10-15) | `TIRegionAlienFacilityState`, `TIRegionAlienActivityState`, `TIRegionXenoformingState` |
 | `TIRegionState` | `annexingArmy` | `null` in every inspected region | not observed |
@@ -124,6 +125,8 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TIRegionState` | `boostFacility`, `missionControlFacility`, `spaceDefenseFacility` | reference, one per region (observed 2026-10-14, five saves) | `TILaunchFacilityState`, `TIMissionControlFacilityState`, `TISpaceDefensesFacilityState` |
 | `TIMissionControlFacilityState` | `region` | reference; resolves to its owning region (observed 2026-11-06, Protectorate and Resist saves) | `TIRegionState` |
 | `TIMissionControlFacilityState` | `spaceFacilityType` | string; `displayName` is the common display-name field (observed 2026-11-06, Protectorate and Resist saves) | — |
+| `TILaunchFacilityState` | `region` | reference; resolves to its owning region (observed 2026-11-17, Protectorate and Resist saves) | `TIRegionState` |
+| `TILaunchFacilityState` | `spaceFacilityType` | string (`launchFacility`) (observed 2026-11-17, Protectorate and Resist saves) | — |
 | `TIRegionState` | `alienCrashdown`, `alienLanding` | reference, one per region (observed 2026-10-14, five saves) | `TIRegionUFOCrashdownState`, `TIRegionUFOLandingState` |
 | the five `TIRegion*State` alien sub-states | `region` | reference; every entry's back-reference resolves and names the region whose forward field points at it (2026-10-15, eight private saves) | `TIRegionState` |
 | `TIRegionAlienActivityState` | `alienMissionsDetected[].Key` | pair-map key reference (`{}` when empty; non-empty on 94 of 363 regions in the older campaign, never in the newer; every `Value` an empty list; 2026-10-15) | `TIFactionState` |
@@ -145,10 +148,10 @@ Observed on 2026-10-09 in one private complete save (the same source saves; stru
 | `TICouncilorState` | `orgs` | list of references | `TIOrgState` |
 | `TICouncilorState` | `activeMission` | reference or `null` | `TIMissionState` |
 | `TIMissionState` | `councilor` | reference | `TICouncilorState` |
-| `TIMissionState` | `target` | typed reference (`$type`, 2026-11-03, Protectorate and Resist saves) | `TINationState`, `TICouncilorState`, `TIRegionState`, `TIControlPoint`, `TIOrgState`, `TIHabState`, `TISpaceShipState`, a region alien state or `TIMissionControlFacilityState` |
+| `TIMissionState` | `target` | typed reference (`$type`, 2026-11-03, Protectorate and Resist saves) | `TINationState`, `TICouncilorState`, `TIRegionState`, `TIControlPoint`, `TIOrgState`, `TIHabState`, `TISpaceShipState`, a region alien state, `TIMissionControlFacilityState` or `TILaunchFacilityState` (one `SabotageFacilities` mission, in progress, in one Resist save of build 1.0.28; 2026-11-17) |
 | `TICouncilorState` | `agentForFaction`, `completedMission` | `null` in every inspected councilor | not observed |
-| `TIArmyState`, `TIMegafaunaArmyState` | `currentRegion`, `homeRegion`, `priorRegion` | reference | `TIRegionState` |
-| `TIArmyState`, `TIMegafaunaArmyState` | `faction` | reference | `TIFactionState` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `currentRegion`, `homeRegion`, `priorRegion` | reference | `TIRegionState` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `faction` | reference | `TIFactionState` |
 | `TIArmyState`, `TIMegafaunaArmyState` | `operationTarget` | `null` in every inspected army | not observed |
 | `TIArmyState`, `TIMegafaunaArmyState` | `currentOperations` | empty list in every inspected army; copied raw (`normalize-raw`), element targets are not resolved | not observed |
 | `TIArmyState`, `TIMegafaunaArmyState` | `destinationSeaDate`, `embarkDate` | `null` in every inspected army; the non-null shape (hypothesis: a date) is unobserved, so both are copied raw | — |
@@ -279,7 +282,8 @@ TIFactionState        -> factions
 TINationState         -> nations
 TIRegionState         -> regions
 TIArmyState +
-TIMegafaunaArmyState  -> armies
+TIMegafaunaArmyState +
+TIAlienArmyState      -> armies
 TICouncilorState      -> councilors
 TIOrgState            -> organizations
 TISpaceFleetState     -> fleets
@@ -314,10 +318,10 @@ Every `Value` object also carries the serializer members `$type`, `ID`, `finderS
 | `TICouncilorState` | `ai_internal` | `autofailMissionsValue` |
 | `TICouncilorState` | `ui_cache` | `appearanceTemplateName`, `everBeenAvailable`, `familyName`, `learnedMissionsTemplateNames`, `locationIllustration`, `missionsExcludedFromDefenseMode`, `permanentAssignment`, `permanentDefenseMode`, `personalName`, `repeatOrder`, `voiceTemplateName` |
 | `TICouncilorState` | `runtime_internal` | `imBeingTargeted`, `possibleFaction`, `preMissionPhaseLocation`, `priorMissionTarget`, `targetedLastTurn` |
-| `TIArmyState`, `TIMegafaunaArmyState` | `derived_cache` | `controlPointIdx` |
-| `TIArmyState`, `TIMegafaunaArmyState` | `ai_internal` | `AI_targetEnemyRegion` |
-| `TIArmyState`, `TIMegafaunaArmyState` | `ui_cache` | `displayNameWithArticle` |
-| `TIArmyState`, `TIMegafaunaArmyState` | `runtime_internal` | `armyDamageEventName`, `armyOperationCompleteEventName`, `armyStatusUpdateEventName`, `createdFromTemplate` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `derived_cache` | `controlPointIdx` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `ai_internal` | `AI_targetEnemyRegion` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `ui_cache` | `displayNameWithArticle` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `runtime_internal` | `armyDamageEventName`, `armyOperationCompleteEventName`, `armyStatusUpdateEventName`, `createdFromTemplate` |
 | `TISpaceFleetState` | `vector` | `_epoch_JYears`, `_fleetTrajectoryData`, `_meanAnomalyAtEpoch_Rad`, `_rnd_rotationOffset_Deg`, `bombardmentAltitude_km`, `dockOffset`, `epoch_DateTime`, `firstHitFromBombardmentRun` |
 | `TISpaceFleetState` | `derived_history` | `Logs` |
 | `TISpaceFleetState` | `stale_references` | `unreachableLocations` |
@@ -335,6 +339,7 @@ Every `Value` object also carries the serializer members `$type`, `ID`, `finderS
 | `TIHabState` | `ai_internal` | `HabSchematicAssignedDate`, `habSchematic`, `habSchematicTemplateName` |
 | `TIHabState` | `ui_cache` | `connStruct`, `customHabIconResource`, `ringStruct` |
 | `TIHabState` | `runtime_internal` | `_dockedShipAbovePositions`, `createdFromTemplate` |
+| `TIHabState` | `runtime_internal` | `firstBombardmentStrike` (boolean; `false` on every hab, 11 to 86 per save, in six Resist saves of build RC13a; absent from every other sample save; 2026-11-17) |
 | `TIMetadataState` | `ui_cache` | `lastCompletedObjectiveArtPath`, `lastCompletedObjectiveName`, `playerFactionGradientPath`, `playerFactionIconPath` |
 | `TIMetadataState` | `runtime_internal` | `alienProgressionSpeed`, `averageMonthlyEvents`, `controlPointMaintenanceFreebieBonus`, `controlPointMaintenanceFreebieBonusAI`, `customDifficulty`, `miningProductivityMultiplier`, `missionControlBonus`, `missionControlBonusAI`, `nationalIPMultiplier`, `requiredDLC`, `researchSpeedMultiplier` |
 | `TIGlobalResearchState` | `runtime_internal` | `useHarshTree` |
@@ -349,8 +354,9 @@ Every `Value` object also carries the serializer members `$type`, `ID`, `finderS
 | `TIRegionState` | `runtime_internal` | `alienFacility`, `alienActivity`, `abductions`, `alienCrashdown`, `alienLanding`, `boostFacility`, `spaceDefenseFacility`, `originalColony`, `annexationBeginDate`, `isCounterfiring`, `colonyRegion`, `oceanType` |
 | `TICouncilorState` | `runtime_internal` | `agentForFaction`, `priorLocation`, `detainedReleaseDate`, `activeMission`, `completedMission`, `ancestry`, `assassinations`, `knowsIveBeenSeenBy`, `priorMissionTemplateName`, `protectingTarget` |
 | `TIMissionState` | `runtime_internal` | `missionOutcome`, `resources` |
-| `TIArmyState`, `TIMegafaunaArmyState` | `runtime_internal` | `priorRegion`, `operationTarget`, `destinationQueue`, `currentOperations`, `destinationSeaDate`, `embarkDate`, `huntingXenofauna` |
+| `TIArmyState`, `TIMegafaunaArmyState`, `TIAlienArmyState` | `runtime_internal` | `priorRegion`, `operationTarget`, `destinationQueue`, `currentOperations`, `destinationSeaDate`, `embarkDate`, `huntingXenofauna` |
 | `TIMegafaunaArmyState` | `runtime_internal` | `bonusTechLevel` |
+| `TIAlienArmyState` | `runtime_internal` | `spawning` |
 | `TISpaceFleetState` | `vector` | `trajectory`, `globalPosition` |
 | `TISpaceFleetState` | `derived_cache` | `inAccelerationPhase`, `inDecelerationPhase`, `homeport`, `combatState`, `displayNameByFaction`, `currentOperations`, `huntingXenofauna`, `unavailableForOperations`, `bombardmentTargetBracketStatus`, `endBombardmentReason`, `timeOfLastFireMission` |
 | `TISpaceFleetState` | `runtime_internal` | `bombardmentTarget` |
