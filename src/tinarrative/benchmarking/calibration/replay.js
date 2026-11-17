@@ -719,6 +719,7 @@
     decodeState,
     cutoffOffsets,
     draftName,
+    levelBase,
     log10,
     roundHalfEven,
   });

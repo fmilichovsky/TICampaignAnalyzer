@@ -96,6 +96,35 @@
       <h3 class="subsection-title">Drafts</h3>
       <ul class="drafts" id="drafts"></ul>
     </section>
+
+    <section class="bases" id="bases-section" aria-labelledby="bases-title">
+      <div class="section-head">
+        <h2 class="section-title" id="bases-title">Base levels</h2>
+        <span class="section-note" id="bases-note"></span>
+      </div>
+      <div class="bases-tools">
+        <input class="bases-find" id="bases-find" type="search" placeholder="Find a type" spellcheck="false" autocomplete="off"
+               aria-label="Find an event type" aria-controls="bases">
+        <span class="order" id="bases-show" role="group" aria-label="Types shown">
+          <button type="button" class="order-option" data-show="all" aria-pressed="true" aria-controls="bases">All <span class="view-count" id="bases-all"></span></button>
+          <button type="button" class="order-option" data-show="switched" aria-pressed="false" aria-controls="bases">Switched <span class="view-count" id="bases-switched"></span></button>
+        </span>
+      </div>
+      <div class="bases-scroll">
+        <table class="reference-table base-table">
+          <thead><tr>
+            <th scope="col">Type</th>
+            <th scope="col">Base level</th>
+            <th scope="col">Code's</th>
+            <th scope="col" class="num" title="The type's events in the campaigns shown">Events</th>
+            <th scope="col" class="num" title="Events whose level the kind's context rule decided; a switched base does not apply to them">Ruled</th>
+            <th scope="col" class="num" title="Events of the type at another level than the code's, at this state">Moving</th>
+          </tr></thead>
+          <tbody id="bases"></tbody>
+        </table>
+        <p class="empty bases-empty" id="bases-empty" hidden></p>
+      </div>
+    </section>
   </section>
 
   <section class="column column-right" aria-label="What changes">

@@ -554,6 +554,22 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .count-row.dim .count-bars { opacity: 0.42; }
 .count-row.dim .count-total, .count-row.dim .change-count { color: var(--ink-2); font-weight: 400; }
 .count-row-chosen .type-button { font-weight: 600; }
+.count-type { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.count-base {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  padding: 0 3px;
+  border: 1px solid var(--rise);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--rise-ink);
+  font-size: 10.5px;
+  line-height: 1;
+}
+.count-base:hover { background: var(--surface); }
 .count-divider { margin: 0; padding: 12px 0 4px; border-bottom: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; }
 
 /* --- References and drafts --- */
@@ -579,6 +595,57 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .draft-line-meta { color: var(--ink-3); font-size: 12px; }
 .draft-line-base { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; white-space: nowrap; }
 .draft-line.changed .draft-line-base { color: var(--rise-ink); font-weight: 600; }
+
+/* --- Base levels: one row per event type in a fixed order, scrolling inside a fixed height; the code's level is
+   marked under its button, and a switched row takes the rise ink as a changed reference does. --- */
+
+.bases-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.bases-tools .order { margin-right: 0; }
+.bases-find {
+  flex: 0 1 22ch;
+  min-width: 14ch;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--surface);
+}
+.bases-find::placeholder { color: var(--ink-3); }
+.bases-scroll {
+  max-height: 380px;
+  margin-top: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.base-table { margin-top: 0; }
+.base-table thead th { position: sticky; top: 0; z-index: 1; background: var(--ground); box-shadow: inset 0 -1px 0 var(--rule-strong); border-bottom: 0; }
+.base-table tbody tr:last-child th, .base-table tbody tr:last-child td { border-bottom: 0; }
+.base-table th[scope="row"] { max-width: 0; width: 100%; }
+.base-table .type-button { display: block; max-width: 100%; color: inherit; }
+.base-table .type-button[aria-pressed="true"] { font-weight: 600; }
+.base-table td { white-space: nowrap; }
+.base-table .num { min-width: 5.5ch; }
+.base-table .base-options { flex-wrap: nowrap; }
+.base-table .base-option { height: 20px; padding: 0 6px; }
+.base-table .level-name, .ins-base .level-name {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.base-option.base-code { box-shadow: inset 0 -2px 0 var(--ink-3); }
+.base-code-cell { color: var(--ink-3); font-size: 12px; }
+.base-code-cell .gauge { margin-right: 5px; }
+.base-table td.moved { color: var(--ink); font-weight: 600; }
+.base-table tr.changed { color: var(--ink); }
+.base-table tr.changed .type-button { color: var(--rise-ink); font-weight: 600; }
+.base-table tr.changed .base-option[aria-pressed="true"] { border-color: var(--rise); }
+.base-table tr.focused .type-button { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.base-row-flash { animation: base-flash 1200ms cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes base-flash { from { background: var(--row-hover); } to { background: transparent; } }
+.bases-empty { padding: 0 0 4px; }
 
 /* --- Draft stakes: one panel per draft on the focused measure, two side by side; sized per focus, never by the
    slider. A draft is marked by its issue badge and a dashed frame, so it never reads as a real panel. --- */
@@ -870,6 +937,16 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .ins-note { display: block; color: var(--ink-3); font-size: 11.5px; }
 .ins-note.rise { color: var(--rise-ink); font-weight: 600; }
 .ins-note.drop { color: var(--drop-ink); font-weight: 600; }
+.ins-note.moved { color: var(--rise-ink); font-weight: 600; }
+
+/* The type's base level, under the figures: the four buttons, whether it is the code's, and a ruled event's note. */
+.ins-base { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; }
+.ins-base-label { color: var(--ink-2); font-size: 12px; }
+.ins-base .base-option { padding: 0 7px; }
+.ins-base-code { color: var(--ink-3); font-size: 11.5px; }
+.ins-base-code.moved { color: var(--rise-ink); font-weight: 600; }
+.ins-ruled { flex-basis: 100%; margin: 0; color: var(--ink-3); font-size: 12px; }
+.ins-ruled-on { padding: 6px 8px; border-radius: 3px; background: var(--info-ground); color: var(--ink-2); }
 
 .ins-section { margin-top: 20px; }
 .ins-head {
@@ -951,4 +1028,5 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
   .members { order: 6; }
   .counts { order: 7; }
   .references { order: 8; margin-top: 30px; }
+  .bases { order: 9; margin-top: 30px; }
 }
