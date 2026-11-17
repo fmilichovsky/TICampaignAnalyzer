@@ -13,6 +13,7 @@ class EntityDomain(StrEnum):
     NATION = "nation"
     REGION = "region"
     MISSION_CONTROL_FACILITY = "mission control facility"
+    LAUNCH_FACILITY = "launch facility"
     CONTROL_POINT = "control point"
     COUNCILOR = "councilor"
     MISSION = "mission"
