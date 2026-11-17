@@ -217,9 +217,10 @@ EXIT_CODES: dict[str, ExitCodes] = {
         (EXIT_SUCCESS, "the readout was printed."),
         (
             EXIT_USAGE_ERROR,
-            f"usage error, a sample that does not match {MANIFEST}, an unknown measure, campaign or type, an invalid "
-            "--state, a measure given twice, a table at another schema version (run with --rebuild), or a failed "
-            "extraction (status.js says failed; the old table stays).",
+            f"usage error, a sample that does not match {MANIFEST}, an unknown measure, campaign or type, a base "
+            "level that is not a level, an invalid --state, a measure or switched type given twice, a table at "
+            "another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old "
+            "table stays).",
         ),
         (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
         (EXIT_OUTPUT_ERROR, "--out cannot be written."),
@@ -849,6 +850,7 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
             campaigns=cast("list[str] | None", args.campaign) or [],
             types=cast("list[str] | None", args.type) or [],
             clamp=cast("str | None", args.clamp),
+            bases=cast("list[str] | None", args.base) or [],
         )
         result = calibration_replay.replay(index, tables, state, drafts)
     except (calibration_replay.ReplayError, CalibrationTableError) as error:
@@ -2266,6 +2268,12 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     report.add_argument(
         "--clamp", choices=("on", "off"), help="Clamp the stake's scale, as the page's toggle (default on)."
+    )
+    report.add_argument(
+        "--base",
+        action="append",
+        metavar="TYPE=LEVEL",
+        help="Try a base level on an event type; comma-separated, repeatable (default: the code's).",
     )
     report.add_argument(
         "--state", metavar="HASH", help="A calibration page's URL hash; the other flags override what it sets."

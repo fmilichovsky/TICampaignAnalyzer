@@ -81,6 +81,7 @@ def state_object(state: ReplayState) -> dict[str, Any]:
         "types": list(state.types),
         "focus": state.focus,
         "bases": dict(state.bases),
+        "type_bases": dict(state.type_bases),
     }
 
 

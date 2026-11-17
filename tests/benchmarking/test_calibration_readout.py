@@ -205,8 +205,26 @@ def test_flags_override_the_state_and_accumulate() -> None:
         ({"campaigns": ["gamma"]}, "unknown campaign"),
         ({"campaigns": ["alpha", "alpha"]}, "given twice"),
         ({"types": ["atomic.thing,atomic.thing"]}, "given twice"),
+        ({"bases": ["atomic.thing"]}, "TYPE=LEVEL"),
+        ({"bases": ["atomic.none=major"]}, "unknown event type 'atomic.none'"),
+        ({"bases": ["atomic.thing=huge"]}, "must be a level"),
+        ({"bases": ["atomic.thing=major", "atomic.thing=minor"]}, "'atomic.thing' is given twice"),
     ],
 )
 def test_invalid_flags_fail_with_a_clear_error(flags: dict[str, Any], message: str) -> None:
     with pytest.raises(ReplayStateError, match=re.escape(message)):
         override_state(CODE, INDEX, **flags)
+
+
+def test_base_flags_switch_types_and_a_switch_to_the_codes_level_clears_it() -> None:
+    code_level = INDEX["kinds"]["atomic.thing"]["base"]
+    switched = replace(CODE, type_bases={"atomic.thing": "campaign_defining", "atomic.near": "major"})
+
+    state = override_state(switched, INDEX, bases=[f"atomic.thing={code_level},atomic.far=trivial"])
+
+    assert state.type_bases == {"atomic.far": "trivial", "atomic.near": "major"}
+    cleared = override_state(
+        switched, INDEX, bases=[f"atomic.thing={code_level}", f"atomic.near={INDEX['kinds']['atomic.near']['base']}"]
+    )
+    assert cleared == CODE
+    assert encode_state(cleared, INDEX) == ""

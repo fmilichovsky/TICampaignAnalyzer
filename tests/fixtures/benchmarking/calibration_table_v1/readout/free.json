@@ -24,6 +24,7 @@
       "held": "minor",
       "moved": "trivial"
     },
+    "type_bases": {},
     "focus": null
   },
   "totals": {
@@ -41,13 +42,13 @@
       "replay": {
         "trivial": 0,
         "minor": 1,
-        "major": 1,
+        "major": 2,
         "campaign_defining": 0
       },
       "baseline": {
         "trivial": 0,
         "minor": 1,
-        "major": 1,
+        "major": 2,
         "campaign_defining": 0
       }
     }
@@ -70,6 +71,17 @@
             "level": "major",
             "code_level": "major",
             "decided_by": "lean",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "judged",
+            "type": "atomic.thing",
+            "share": 0.015848931924611138,
+            "score": 64,
+            "level": "major",
+            "code_level": "major",
+            "decided_by": "judged",
             "decisive": true
           },
           {
@@ -98,6 +110,17 @@
             "level": "minor",
             "code_level": "minor",
             "decided_by": "atomic",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "judged",
+            "type": "atomic.thing",
+            "share": 0.015848931924611138,
+            "score": 64,
+            "level": "major",
+            "code_level": "major",
+            "decided_by": "judged",
             "decisive": true
           },
           {

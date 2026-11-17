@@ -14,6 +14,7 @@ from tests.benchmarking.calibration_support import (
     CONSTANTS,
     DRAFT_INDEX,
     DRAFTS,
+    FIRST,
     GATE,
     GROUP,
     INDEX,
@@ -28,6 +29,7 @@ from tests.benchmarking.calibration_support import (
     members,
     power,
     row,
+    synthetic_kinds,
     with_oracle,
 )
 from tests.fixtures import fixture_path
@@ -44,7 +46,7 @@ from tinarrative.benchmarking.calibration.replay import (
     portable_log10,
     replay,
 )
-from tinarrative.benchmarking.calibration.table import extract_campaign
+from tinarrative.benchmarking.calibration.table import build_index, extract_campaign
 
 
 def run(rows: list[dict[str, Any]], **changes: Any) -> Replay:
@@ -414,3 +416,138 @@ def test_the_draft_bases_round_trip_through_the_hash() -> None:
     for bad, message in [("base=held:huge", "must be a level"), ("base=held:major,held:minor", "repeated")]:
         with pytest.raises(ReplayStateError, match=message):
             decode_state(bad, DRAFT_INDEX)
+
+
+# --- Base levels -------------------------------------------------------------------------------------------
+
+
+def based_rows() -> list[dict[str, Any]]:
+    """The chain on an atomic type whose rule decides one row, beside a takeover group and a second atomic row."""
+    return [
+        *chain(),
+        *with_oracle([row("ruled", level="major", rule="judged"), row("quiet", "atomic.plain", level="trivial")]),
+        *members("kept", [0.0] * GATE["minimum"]),
+    ]
+
+
+def based_index(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    return build_index(["one"], key="", extracted_at="", kinds=synthetic_kinds({"one": rows}), drafts=DRAFTS)
+
+
+def run_based(rows: list[dict[str, Any]], **changes: Any) -> Replay:
+    index = based_index(rows)
+    return replay(index, {"one": rows}, replace(default_state(index), **changes))
+
+
+def based_events(result: Replay) -> dict[str, dict[str, Any]]:
+    return {event["id"]: dict(event) for event in result["campaigns"]["one"]["events"]}
+
+
+def test_switching_an_atomic_type_moves_its_rule_free_rows_and_the_narrative_events_citing_them() -> None:
+    rows = based_rows()
+    code = based_events(run_based(rows))
+
+    raised = based_events(run_based(rows, type_bases={"atomic.thing": "campaign_defining"}))
+    lowered = based_events(run_based(rows, type_bases={"atomic.thing": "trivial"}))
+
+    assert raised["land"]["score"] == min(
+        CONSTANTS["score_max"], code["land"]["score"] + base("campaign_defining") - base("minor")
+    )
+    assert raised["land"]["level"] == "campaign_defining"
+    assert all(raised[id]["score"] >= raised["land"]["score"] for id in ("deal", "grow", "arc"))
+    assert all(raised[id]["decided_by"] == "land" for id in ("deal", "grow", "arc"))
+    assert lowered["land"]["score"] < code["land"]["score"]
+    assert raised["ruled"] == lowered["ruled"] == code["ruled"]
+    assert raised["quiet"] == code["quiet"]
+
+
+def test_switching_a_narrative_type_moves_its_own_start_and_a_higher_cited_row_still_decides() -> None:
+    rows = based_rows()
+    code = based_events(run_based(rows))
+    assert code["deal"]["decided_by"] == "land"
+
+    raised = based_events(run_based(rows, type_bases={FIRST: "campaign_defining"}))
+    lowered = based_events(run_based(rows, type_bases={FIRST: "trivial"}))
+
+    assert raised["deal"]["decided_by"] == "deal"
+    assert raised["deal"]["score"] > code["deal"]["score"]
+    assert raised["grow"]["score"] >= raised["deal"]["score"]
+    assert lowered["deal"] == code["deal"]
+    assert raised["land"] == code["land"]
+
+
+def test_switching_the_member_type_re_runs_the_member_gate() -> None:
+    rows = based_rows()
+
+    result = run_based(rows, type_bases={MEMBER: "campaign_defining"})
+
+    [group] = result["campaigns"]["one"]["members"]
+    assert group["verdict"] == "falls_apart"
+    assert result["totals"]["members_changed"] == 1
+
+
+def test_a_switch_applies_whatever_the_type_filter_selects() -> None:
+    rows = based_rows()
+    switched = {"atomic.thing": "campaign_defining"}
+
+    filtered = run_based(rows, types=(FIRST,), type_bases=switched)
+    every = run_based(rows, type_bases=switched)
+
+    assert based_events(filtered) == based_events(every)
+    assert set(filtered["campaigns"]["one"]["level_counts"]) == {FIRST}
+    assert based_events(filtered)["deal"]["level"] == "campaign_defining"
+
+
+def test_a_switch_to_the_codes_level_is_no_switch() -> None:
+    rows = based_rows()
+    index = based_index(rows)
+    code = default_state(index)
+    back = replace(code, type_bases={"atomic.thing": index["kinds"]["atomic.thing"]["base"]})
+
+    assert encode_state(back, index) == ""
+    assert decode_state(f"base=atomic.thing:{back.type_bases['atomic.thing']}", index) == code
+    assert run_based(rows, type_bases=back.type_bases) == run_based(rows)
+    assert run_based(rows)["state"]["type_bases"] == {}
+
+
+def test_a_draft_row_on_a_switched_type_starts_from_the_tried_level_unless_its_own_base_is_switched() -> None:
+    rows, shadows = drafted()
+    index = based_index(rows)
+    code = default_state(index)
+
+    def drafts(**changes: Any) -> dict[str, dict[str, Any]]:
+        result = replay(index, {"one": rows}, replace(code, **changes), {"one": shadows})
+        return {event["id"]: dict(event) for event in result["campaigns"]["one"]["drafts"]}
+
+    own = drafts()
+    switched = drafts(type_bases={FIRST: "campaign_defining"})
+    both = drafts(type_bases={FIRST: "campaign_defining"}, bases={**code.bases, "moved": "minor"})
+    moved_only = drafts(bases={**code.bases, "moved": "minor"})
+
+    deal = f"draft:moved:{rows[1]['id']}"
+    assert switched[deal]["score"] > own[deal]["score"]
+    assert switched[deal]["level"] == "campaign_defining"
+    assert both[deal] == moved_only[deal]
+
+
+def test_the_type_bases_round_trip_through_the_hash_sorted_after_the_drafts() -> None:
+    rows = based_rows()
+    index = based_index(rows)
+    code = default_state(index)
+    state = replace(
+        code, bases={**code.bases, "moved": "major"}, type_bases={FIRST: "campaign_defining", "atomic.thing": "trivial"}
+    )
+
+    text = encode_state(state, index)
+
+    assert text == f"base=moved:major,atomic.thing:trivial,{FIRST}:campaign_defining"
+    assert decode_state(text, index) == replace(state, type_bases=dict(sorted(state.type_bases.items())))
+
+
+def test_a_state_switching_an_unknown_type_or_to_no_level_is_rejected() -> None:
+    rows = based_rows()
+
+    with pytest.raises(ReplayStateError, match="unknown event type"):
+        run_based(rows, type_bases={"atomic.none": "major"})
+    with pytest.raises(ReplayStateError, match="must be a level"):
+        run_based(rows, type_bases={"atomic.thing": "huge"})

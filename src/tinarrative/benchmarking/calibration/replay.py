@@ -39,10 +39,11 @@ class ReplayStateError(ReplayError):
 @dataclass(frozen=True)
 class ReplayState:
     """What the replay is asked: a reference per measure, the clamp, the enabled campaigns, a type filter, a base
-    level per draft stake and the focus.
+    level per draft stake, the base levels tried on event types and the focus.
 
-    ``types`` empty means every type. ``bases`` empty means each draft's own base. ``focus`` is the page's focused
-    measure; the output does not depend on it.
+    ``types`` empty means every type. ``bases`` empty means each draft's own base. ``type_bases`` holds the switched
+    types; a type absent, or at the code's base level (the index's ``kinds``), keeps the code's. ``focus`` is the
+    page's focused measure; the output does not depend on it.
     """
 
     references: Mapping[str, float]
@@ -51,6 +52,7 @@ class ReplayState:
     types: tuple[str, ...] = ()
     focus: str | None = None
     bases: Mapping[str, str] = field(default_factory=dict)
+    type_bases: Mapping[str, str] = field(default_factory=dict)
 
 
 class EventResult(TypedDict):
@@ -161,6 +163,8 @@ class StateResult(TypedDict):
     campaigns: list[str]
     types: list[str]
     bases: dict[str, str]
+    type_bases: dict[str, str]
+    """The switched types only, sorted."""
     focus: str | None
 
 
@@ -269,6 +273,7 @@ def replay(
             "campaigns": list(state.campaigns),
             "types": list(state.types),
             "bases": {draft["name"]: state.bases[draft["name"]] for draft in index["drafts"]},
+            "type_bases": switched_types(state, index),
             "focus": state.focus,
         },
         "campaigns": {
@@ -284,6 +289,16 @@ def replay(
         "moves": _moves(every, levels),
         "cutoffs": {measure: _cutoffs(measure, state, index, selected, shadowed) for measure in index["measures"]},
         "drafts": _drafts(index, state, shadowed, levels),
+    }
+
+
+def switched_types(state: ReplayState, index: Mapping[str, Any]) -> dict[str, str]:
+    """The types of ``state.type_bases`` away from the code's base level, sorted by type."""
+    kinds = index["kinds"]
+    return {
+        event_type: level
+        for event_type, level in sorted(state.type_bases.items())
+        if event_type not in kinds or level != kinds[event_type]["base"]
     }
 
 
@@ -319,6 +334,12 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
     for name, level in state.bases.items():
         if level not in index["constants"]["level_bands"]:
             raise ReplayStateError(f"the base of draft stake {name} must be a level, not {level!r}")
+    unswitchable = sorted(set(state.type_bases) - set(index["kinds"]))
+    if unswitchable:
+        raise ReplayStateError(f"unknown event type(s) in the base levels: {', '.join(unswitchable)}")
+    for event_type, level in state.type_bases.items():
+        if level not in index["constants"]["level_bands"]:
+            raise ReplayStateError(f"the base level of {event_type} must be a level, not {level!r}")
 
 
 def _replay_campaign(
@@ -334,6 +355,23 @@ def _replay_campaign(
 
     by_id = {row["id"]: row for row in rows}
     done: dict[str, _Scored] = {}
+    switched = switched_types(state, index)
+    own_bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
+
+    def start(row: Row) -> int:
+        """The row's base, or the tried base level of its type where no context rule decided."""
+        if row["rule"] is None and row["type"] in switched:
+            return _level_base(constants, switched[row["type"]])
+        return int(row["base"])
+
+    def draft_start(row: Row, name: str) -> int:
+        """A ruled draft row's own base; else the draft's switched base, its type's tried level or its own base."""
+        if row["ruled"]:
+            return int(row["base"])
+        level = state.bases[name]
+        if level == own_bases.get(name) and row["type"] in switched:
+            level = switched[row["type"]]
+        return _level_base(constants, level)
 
     def settle(row: Row, base: int) -> _Scored:
         own_layer = layer(row)
@@ -365,7 +403,7 @@ def _replay_campaign(
         return item
 
     for row in sorted(rows, key=layer):
-        done[row["id"]] = settle(row, row["base"])
+        done[row["id"]] = settle(row, start(row))
     for item in done.values():
         member_gate = next((gate for gate in gates if item.row["type"] == gate.member_type), None)
         if (
@@ -388,7 +426,7 @@ def _replay_campaign(
         name = draft_name(row["id"])
         if name not in state.bases:
             raise ReplayError(f"{row['id']} is a row of no declared draft stake")
-        item = settle(row, row["base"] if row["ruled"] else _level_base(constants, state.bases[name]))
+        item = settle(row, draft_start(row, name))
         item.member = None
         drafted.append(item)
     return [done[row["id"]] for row in rows], drafted
@@ -717,8 +755,9 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
 
     ``&``-separated ``key=value`` fields, only those that differ from ``default_state``, in the order of
     ``STATE_KEYS``: ``ref=<measure>:<number>,...`` (index order), ``clamp=off``, ``campaigns=<name>,...`` (index
-    order; empty for none), ``types=<type>,...`` (sorted), ``base=<draft>:<level>,...`` (index order) and
-    ``focus=<measure>``. A number is written as JavaScript's
+    order; empty for none), ``types=<type>,...`` (sorted), ``base=<name>:<level>,...`` (the switched drafts in index
+    order, then the switched event types sorted) and ``focus=<measure>``. A draft name is a slug and an event type
+    holds a dot, so the two never meet. A number is written as JavaScript's
     ``String(number)`` writes it, so both codecs give the same bytes.
     """
     default = default_state(index)
@@ -742,6 +781,7 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
         for name in default.bases
         if name in state.bases and state.bases[name] != default.bases[name]
     ]
+    bases += [f"{event_type}:{level}" for event_type, level in switched_types(state, index).items()]
     if bases:
         fields.append("base=" + ",".join(bases))
     if state.focus is not None:
@@ -753,9 +793,9 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
     """The state of a URL hash written by ``encode_state``; a leading ``#`` and any key order are accepted.
 
     Raises ``ReplayStateError`` for an unknown or repeated key, an unknown or repeated measure, campaign, type or
-    draft, a reference that is not a positive number, a base that is not a level, or a clamp other than ``on`` or
-    ``off``. Type names are checked against
-    the rows by ``replay``.
+    draft, a base naming no draft or event type of the index's ``kinds``, a reference that is not a positive number,
+    a base that is not a level, or a clamp other than ``on`` or ``off``. The filter's type names are checked against
+    the rows by ``replay``. A type switched to its code's base level is dropped.
     """
     default = default_state(index)
     references = dict(default.references)
@@ -763,6 +803,7 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
     campaigns = default.campaigns
     types: tuple[str, ...] = ()
     bases = dict(default.bases)
+    type_bases: dict[str, str] = {}
     focus: str | None = None
     body = text[1:] if text.startswith("#") else text
     seen: set[str] = set()
@@ -791,36 +832,46 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
         elif key == "types":
             types = tuple(sorted(_names(value, "type", allow_empty=False)))
         elif key == "base":
-            bases.update(_decode_bases(value, index))
+            drafts, type_bases = _decode_bases(value, index)
+            bases.update(drafts)
         else:
             if value not in index["measures"]:
                 raise ReplayStateError(f"unknown focus measure {value!r} in the state hash")
             focus = value
-    return ReplayState(references=references, clamp=clamp, campaigns=campaigns, types=types, focus=focus, bases=bases)
+    state = ReplayState(references=references, clamp=clamp, campaigns=campaigns, types=types, focus=focus, bases=bases)
+    return replace(state, type_bases=switched_types(replace(state, type_bases=type_bases), index))
 
 
-def _decode_bases(value: str, index: Mapping[str, Any]) -> dict[str, str]:
+def _decode_bases(value: str, index: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
+    """The draft bases and the event types' base levels of a ``base`` value."""
     names = [draft["name"] for draft in index["drafts"]]
     levels = list(index["constants"]["level_bands"])
     bases: dict[str, str] = {}
+    type_bases: dict[str, str] = {}
     if not value:
         raise ReplayStateError("state hash key 'base' lists no base")
     for item in value.split(","):
         name, separator, level = item.partition(":")
         if not separator:
-            raise ReplayStateError(f"state hash base {item!r} is not draft:level")
-        if name not in names:
+            raise ReplayStateError(f"state hash base {item!r} is not draft:level or type:level")
+        if name in bases or name in type_bases:
+            raise ReplayStateError(f"{name!r} is repeated in the state hash's base levels")
+        if name in names:
+            if level not in levels:
+                raise ReplayStateError(
+                    f"the base of draft stake {name} must be a level ({', '.join(levels)}), not {level!r}"
+                )
+            bases[name] = level
+        elif name in index["kinds"]:
+            if level not in levels:
+                raise ReplayStateError(f"the base level of {name} must be a level ({', '.join(levels)}), not {level!r}")
+            type_bases[name] = level
+        else:
             raise ReplayStateError(
-                f"unknown draft stake {name!r} in the state hash (known: {', '.join(names) or '(none)'})"
+                f"unknown draft stake or event type {name!r} in the state hash "
+                f"(drafts: {', '.join(names) or '(none)'}; types: the index's kinds)"
             )
-        if name in bases:
-            raise ReplayStateError(f"draft stake {name!r} is repeated in the state hash")
-        if level not in levels:
-            raise ReplayStateError(
-                f"the base of draft stake {name} must be a level ({', '.join(levels)}), not {level!r}"
-            )
-        bases[name] = level
-    return bases
+    return bases, type_bases
 
 
 def _decode_references(value: str, index: Mapping[str, Any]) -> dict[str, float]:
