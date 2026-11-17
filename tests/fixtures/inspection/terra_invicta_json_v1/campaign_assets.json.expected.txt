@@ -53,6 +53,10 @@ identity:
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none
     TIMissionControlFacilityState: absent
+  launch facility: confidence=in-save-id
+    id_source: gamestates/<type>[].Key.value == Value.ID.value
+    secondary_key: none
+    TILaunchFacilityState: absent
   control point: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: Value.templateName
@@ -70,6 +74,7 @@ identity:
     secondary_key: none
     TIArmyState: 2 entries, ids 110..111, key==id 2, mismatch 0, missing 0, duplicate 0
     TIMegafaunaArmyState: 1 entries, ids 112..112, key==id 1, mismatch 0, missing 0, duplicate 0
+    TIAlienArmyState: absent
   fleet: confidence=in-save-id
     id_source: gamestates/<type>[].Key.value == Value.ID.value
     secondary_key: none

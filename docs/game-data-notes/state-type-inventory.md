@@ -32,6 +32,7 @@ PavonisInteractive.TerraInvicta.TIRegionUFOLandingState
 PavonisInteractive.TerraInvicta.TIRegionXenoformingState
 PavonisInteractive.TerraInvicta.TIArmyState
 PavonisInteractive.TerraInvicta.TIMegafaunaArmyState
+PavonisInteractive.TerraInvicta.TIAlienArmyState
 PavonisInteractive.TerraInvicta.TICouncilorState
 PavonisInteractive.TerraInvicta.TIOrgState
 PavonisInteractive.TerraInvicta.TIFederationState

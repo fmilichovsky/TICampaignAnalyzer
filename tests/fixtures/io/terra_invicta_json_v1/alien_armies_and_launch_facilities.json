@@ -1,0 +1,122 @@
+{
+  "currentID": {"value": 40},
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIRegionState": [
+      {
+        "Key": {"value": 10},
+        "Value": {
+          "ID": {"value": 10},
+          "templateName": "FixtureRegion",
+          "displayName": "Fixture Region",
+          "archived": false,
+          "exists": true,
+          "armies": [
+            {"value": 31, "$type": "PavonisInteractive.TerraInvicta.TIAlienArmyState"}
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TIRegionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {"value": 30},
+        "Value": {
+          "ID": {"value": 30},
+          "templateName": "FixtureAliens",
+          "displayName": "Fixture Aliens",
+          "archived": false,
+          "exists": true,
+          "armies": [
+            {"value": 31, "$type": "PavonisInteractive.TerraInvicta.TIAlienArmyState"}
+          ],
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIAlienArmyState": [
+      {
+        "Key": {"value": 31},
+        "Value": {
+          "ID": {"value": 31},
+          "displayName": "Fixture Alien Army",
+          "displayNameWithArticle": "the Fixture Alien Army",
+          "templateName": null,
+          "archived": false,
+          "exists": true,
+          "faction": {"value": 30},
+          "currentRegion": {"value": 10},
+          "homeRegion": {"value": 10},
+          "priorRegion": {"value": 10},
+          "strength": 0.75,
+          "destroyed": false,
+          "armyType": "AlienInvader",
+          "deploymentType": "Naval",
+          "spawning": false,
+          "embarkDate": null,
+          "destinationSeaDate": null,
+          "huntingXenofauna": false,
+          "controlPointIdx": -1,
+          "createdFromTemplate": false,
+          "currentOperations": [],
+          "destinationQueue": [],
+          "operationTarget": null,
+          "AI_targetEnemyRegion": null,
+          "armyDamageEventName": "VisualizeArmyDamage31",
+          "armyOperationCompleteEventName": "ArmyOperationComplete31",
+          "armyStatusUpdateEventName": "ArmyStatusUpdate31",
+          "finderSortOverride": -1,
+          "gameStateSubjectCreated": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIAlienArmyState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TILaunchFacilityState": [
+      {
+        "Key": {"value": 20},
+        "Value": {
+          "ID": {"value": 20},
+          "templateName": "FixtureLaunchFacility",
+          "displayName": "Fixture Launch Facility",
+          "archived": false,
+          "exists": true,
+          "spaceFacilityType": "launchFacility",
+          "region": {"value": 10},
+          "finderSortOverride": 0,
+          "gameStateSubjectCreated": true,
+          "$type": "PavonisInteractive.TerraInvicta.TILaunchFacilityState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TICouncilorState": [
+      {
+        "Key": {"value": 11},
+        "Value": {
+          "ID": {"value": 11},
+          "templateName": "FixtureCouncilor",
+          "displayName": "Fixture Councilor",
+          "archived": false,
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TICouncilorState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIMissionState": [
+      {
+        "Key": {"value": 12},
+        "Value": {
+          "ID": {"value": 12},
+          "templateName": "SabotageFacilities",
+          "displayName": "Sabotage Facilities",
+          "archived": false,
+          "exists": true,
+          "councilor": {"value": 11},
+          "target": {
+            "value": 20,
+            "$type": "PavonisInteractive.TerraInvicta.TILaunchFacilityState"
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIMissionState"
+        }
+      }
+    ]
+  }
+}

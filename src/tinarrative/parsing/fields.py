@@ -147,6 +147,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     "TIMissionState": COMMON_FIELDS + ("councilor", "target"),
     "TIArmyState": _ARMY_FIELDS,
     "TIMegafaunaArmyState": _ARMY_FIELDS,
+    "TIAlienArmyState": _ARMY_FIELDS,
     "TISpaceFleetState": COMMON_FIELDS
     + (
         "ships",
@@ -209,6 +210,7 @@ ENTITY_FIELDS: dict[str, tuple[str, ...]] = {
     "TISpaceBodyState": COMMON_FIELDS + ("barycenter",),
     "TILagrangePointState": COMMON_FIELDS + ("barycenter", "secondaryObject"),
     "TIMissionControlFacilityState": COMMON_FIELDS + ("region", "spaceFacilityType"),
+    "TILaunchFacilityState": COMMON_FIELDS + ("region", "spaceFacilityType"),
     "TIHabState": COMMON_FIELDS
     + (
         "faction",
@@ -301,6 +303,7 @@ _MISSION_TARGET = (
             EntityDomain.SHIP,
             EntityDomain.REGION_ALIEN_STATE,
             EntityDomain.MISSION_CONTROL_FACILITY,
+            EntityDomain.LAUNCH_FACILITY,
         )
     ),
     False,
@@ -357,6 +360,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     "TIArmyState": _ARMY_REFERENCES,
     "TIMegafaunaArmyState": _ARMY_REFERENCES,
+    "TIAlienArmyState": _ARMY_REFERENCES,
     "TIWarState": {
         "attacker": _NATION,
         "defender": _NATION,
@@ -376,6 +380,7 @@ REFERENCE_FIELDS: dict[str, dict[str, tuple[ExpectedDomains, bool]]] = {
     },
     **{state_type: {"region": _REGION} for state_type in REGION_ALIEN_STATE_TYPES},
     "TIMissionControlFacilityState": {"region": _REGION},
+    "TILaunchFacilityState": {"region": _REGION},
     "TISpaceFleetState": {
         "ships": (EntityDomain.SHIP, True),
         "parentFleet": (EntityDomain.FLEET, False),
@@ -450,11 +455,13 @@ NORMALIZED_DOMAINS: tuple[tuple[EntityDomain, str, str], ...] = (
         "TIMissionControlFacilityState",
         "mission_control_facilities",
     ),
+    (EntityDomain.LAUNCH_FACILITY, "TILaunchFacilityState", "launch_facilities"),
     (EntityDomain.CONTROL_POINT, "TIControlPoint", "control_points"),
     (EntityDomain.COUNCILOR, "TICouncilorState", "councilors"),
     (EntityDomain.MISSION, "TIMissionState", "missions"),
     (EntityDomain.ARMY, "TIArmyState", "armies"),
     (EntityDomain.ARMY, "TIMegafaunaArmyState", "armies"),
+    (EntityDomain.ARMY, "TIAlienArmyState", "armies"),
     (EntityDomain.FLEET, "TISpaceFleetState", "fleets"),
     (EntityDomain.SHIP, "TISpaceShipState", "ships"),
     (EntityDomain.SPACE_OBJECT, "TIHabState", "habs"),
@@ -1005,6 +1012,22 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
         ),
     )
     | _ARMY_ACKNOWLEDGED,
+    "TIAlienArmyState": _reasons(
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            (
+                "priorRegion",
+                "operationTarget",
+                "destinationQueue",
+                "currentOperations",
+                "destinationSeaDate",
+                "embarkDate",
+                "huntingXenofauna",
+                "spawning",
+            ),
+        ),
+    )
+    | _ARMY_ACKNOWLEDGED,
     "TISpaceFleetState": _reasons(
         (UnsupportedReason.VECTOR, ("trajectory", "globalPosition")),
         (
@@ -1132,7 +1155,10 @@ ACKNOWLEDGED_FIELDS: dict[str, dict[str, UnsupportedReason]] = {
                 "globalPosition",
             ),
         ),
-        (UnsupportedReason.RUNTIME_INTERNAL, ("habSite", "coreDefended", "coreDefendExpiration")),
+        (
+            UnsupportedReason.RUNTIME_INTERNAL,
+            ("habSite", "coreDefended", "coreDefendExpiration", "firstBombardmentStrike"),
+        ),
         (
             UnsupportedReason.VECTOR,
             (
