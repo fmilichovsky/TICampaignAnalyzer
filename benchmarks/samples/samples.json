@@ -33,7 +33,7 @@
       }
     },
     "resist-short": {
-      "prefix_of": "resist",
+      "prefix_of": "resist-long",
       "description": "Resistance campaign, late game: 5 saves from 2045-08 to 2046-10; large saves, few narrative events, fits one chapter at the default budget. Technically a suffix rather than a prefix of 'resist' - abusing the field for exclusion in calibration.",
       "files": {
         "Resistsave00079_2045-8-1.json.xz": {
