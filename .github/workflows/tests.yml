@@ -48,7 +48,7 @@ jobs:
   samples:
     runs-on: ubuntu-latest
     env:
-      SAMPLE_CAMPAIGNS: protectorate-short,resist
+      SAMPLE_CAMPAIGNS: resist-short,protectorate
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
