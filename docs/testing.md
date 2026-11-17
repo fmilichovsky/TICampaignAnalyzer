@@ -6,9 +6,14 @@ How to run and maintain the test suite. What a good test is, and the fixture rul
 ## Running
 
 `make check` runs the suite with formatting, linting and type checking; CI runs the same. Tests marked `samples`
-read the committed benchmark campaigns and are excluded from it; `make samples` runs them, and so does the `samples`
-job in CI. By default, `make samples` tests all campaigns. Set `SAMPLE_CAMPAIGNS` to a comma-separated list of
-exact campaign names to run a subset, for example `make samples SAMPLE_CAMPAIGNS=protectorate-short,resist`.
+read the committed benchmark campaigns and are excluded from it. There are two ways to run them:
+
+- `make samples-fast` runs them on the short campaign `protectorate-short` only. Pull request CI runs it, and it is
+  the one sample run agents do locally.
+- `make samples` runs them on every campaign. Pushes to `main` run it in CI.
+
+By default, `make samples` tests all campaigns. Set `SAMPLE_CAMPAIGNS` to a comma-separated list of exact campaign
+names to run a subset, for example `make samples SAMPLE_CAMPAIGNS=protectorate-short,resist`.
 
 `TINARRATIVE_REAL_SAVE_DIRECTORY` names a directory of private saves, possibly of several campaigns. With it set,
 the suite also scans them for unknown structures
@@ -25,7 +30,8 @@ only place the project uses it; install the LTS from [nodejs.org](https://nodejs
 - `make browser-replay-check` runs them on the golden table in `tests/fixtures/benchmarking/calibration_table_v1/`,
   and fails with an install hint when `node` is missing. CI runs it in the `browser-replay` job.
 - `make browser-replay-samples` runs the same comparison on the benchmark campaigns (`SAMPLE_CAMPAIGNS` selects
-  them, as for `make samples`). The `samples` job in CI runs it after `make samples`.
+  them, as for `make samples`). The `samples` job in CI runs it after the sample tests: on pull requests with
+  `SAMPLE_CAMPAIGNS=protectorate-short`, on pushes to `main` over every campaign.
 
 `tests/benchmarking/replay_harness.js` runs `replay.js` and the table's wrapper files as classic scripts in a `vm`
 context, as a `file://` page does. The Python side, in `tests/benchmarking/browser_replay.py`, sends it states and

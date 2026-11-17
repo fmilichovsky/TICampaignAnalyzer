@@ -165,7 +165,7 @@ add or refresh a campaign manually:
 3. Run `tinarrative benchmark sample <campaign> <save-directory>` (or list the selected save files). Supply
    `--description` to write the campaign description; otherwise add one to `samples.json` if it is missing.
 4. Review the campaign's runs in `matrix.toml` and add entries where needed. Run
-   `tinarrative benchmark metrics samples` until it reports nothing, then `make samples`.
+   `tinarrative benchmark metrics samples` until it reports nothing, then `make samples-fast`.
 
 A pull request that changes the samples or the matrix measures both sides with the new ones, so its report compares
 code only. The next pull requests measure against the new samples from then on.
