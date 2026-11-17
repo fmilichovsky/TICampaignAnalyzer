@@ -38,6 +38,7 @@ from .aggregation import Join, NarrativeBuilder
 from .chronology import interval_of
 from .milestones import PROJECT_COMPLETED, TECHNOLOGY_COMPLETED, completed_template, milestone_of
 from .rulekit import (
+    Run,
     anchored,
     by_type,
     chained,
@@ -141,7 +142,7 @@ class SpaceCampaignRule:
         situations: Sequence[SituationReport],
         build: NarrativeBuilder,
         pair: tuple[EntityId, EntityId],
-        run: list[Event],
+        run: Run,
     ) -> Event:
         killer_id, victim_id = pair
         killer = run[0].entities[0]
@@ -187,7 +188,7 @@ class SpaceCampaignRule:
         kind = _kind(run[0], victim)
         return build.event(
             space_kinds.SPACE_CAMPAIGN,
-            id_parts=[killer_id, victim_id],
+            id_parts=[killer_id, victim_id, *run.discriminator],
             constituents=constituents,
             roles=[(Role.ACTOR, killer), (Role.TARGET, victim), *((Role.BODY, body) for body in bodies)],
             join=Join.HEURISTIC,
@@ -269,7 +270,7 @@ class ColonisationWaveRule:
                 built.append(
                     build.event(
                         space_kinds.COLONISATION_WAVE,
-                        id_parts=[faction_id],
+                        id_parts=[faction_id, *run.discriminator],
                         constituents=_dedupe([*run, *attached]),
                         roles=[(Role.ACTOR, faction), *((Role.BODY, ref) for ref in body_refs)],
                         join=Join.ENTITY,

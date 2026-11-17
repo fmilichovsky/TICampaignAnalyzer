@@ -37,6 +37,7 @@ from .rulekit import (
     NATION_ARMIES_CHANGED,
     STATISTIC_SHIFTED,
     DatedEvents,
+    Run,
     anchored,
     army_home,
     bounded_shifts,
@@ -452,7 +453,7 @@ class TakeoverWaveRule:
                 built.append(
                     build.event(
                         control_kinds.TAKEOVER_WAVE,
-                        id_parts=[faction_id],
+                        id_parts=[faction_id, *run.discriminator],
                         id_interval=interval_of(run[0].id),
                         constituents=run,
                         roles=[(Role.ACTOR, faction), *((Role.TARGET, nation) for nation in nations)],
@@ -903,7 +904,7 @@ class ExpansionRule:
         self,
         stream: EventStream,
         build: NarrativeBuilder,
-        run: list[Event],
+        run: Run,
         aggregates: Sequence[Event],
         last: str | None,
     ) -> Event:
@@ -942,7 +943,7 @@ class ExpansionRule:
         shifts = metric_shifts(stream, [gainer.entity_id, *loser_ids], intervals_of(constituents))
         return build.event(
             nation_kinds.EXPANSION,
-            id_parts=[gainer.entity_id],
+            id_parts=[gainer.entity_id, *run.discriminator],
             constituents=constituents,
             roles=roles,
             join=Join.HEURISTIC,

@@ -257,6 +257,27 @@ def test_the_wave_window_is_configurable() -> None:
     assert len(of_type(built(stream, colonisation_window_days=2000), "faction.colonisation_wave")) == 1
 
 
+def test_two_waves_starting_in_one_long_interval_get_distinct_ids_and_the_first_keeps_its_own() -> None:
+    def on(body: EntityRef, date: str) -> Event:
+        return replace(first_hab(K3, body), date=date, date_basis=DateBasis.RECORD)
+
+    venus = ref(EntityDomain.SPACE_BODY, "4", "Venus")
+    stream = [
+        on(LUNA, "2032-08-01T00:00:00"),
+        on(MARS, "2032-09-01T00:00:00"),
+        on(CERES, "2034-03-01T00:00:00"),
+        on(venus, "2034-04-01T00:00:00"),
+    ]
+
+    waves = of_type(built(stream), "faction.colonisation_wave")
+
+    assert [wave.attribute("bodies") for wave in waves] == [(LUNA, MARS), (CERES, venus)]
+    assert [wave.id for wave in waves] == [
+        f"faction.colonisation_wave/{UNION.entity_id}@{K3}",
+        f"faction.colonisation_wave/{UNION.entity_id}/run2@{K3}",
+    ]
+
+
 # --- campaign.first_milestone ------------------------------------------------------------------------------------
 
 
