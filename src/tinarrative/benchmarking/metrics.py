@@ -306,6 +306,7 @@ def measure(
     label: str,
     chars_per_token: float,
     jobs: int = os.cpu_count() or 1,
+    sequential: bool = False,
     log: TextIO | None = sys.stderr,
     on_progress: Callable[[int], None] | None = None,
     on_campaign_complete: Callable[[Sequence[str]], None] | None = None,
@@ -329,11 +330,12 @@ def measure(
     started = time.perf_counter()
     measured: dict[str, Any] = {}
     cli = [python, "-m", "tinarrative.cli"]
-    serial = _serial(cli)
+    # Experiment (#331): one command at a time, each ``events`` run on its default workers.
+    serial = [] if sequential else _serial(cli)
     with (
         tempfile.TemporaryDirectory(prefix="package-metrics-") as scratch,
-        ThreadPoolExecutor(max_workers=jobs) as runs,
-        ThreadPoolExecutor(max_workers=max(len(found), 1)) as coordinators,
+        ThreadPoolExecutor(max_workers=1 if sequential else jobs) as runs,
+        ThreadPoolExecutor(max_workers=1 if sequential else max(len(found), 1)) as coordinators,
     ):
         # A campaign waits for its runs on a thread of its own, so it never holds one of the ``jobs`` slots.
         futures = {

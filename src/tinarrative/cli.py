@@ -722,6 +722,7 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
             label=cast(str, args.label),
             chars_per_token=cast(float, args.chars_per_token),
             jobs=cast("int | None", args.jobs) or os.cpu_count() or 1,
+            sequential=cast("bool", args.sequential),
             on_progress=lambda amount: progress_tracker.advance("Measuring runs", amount),
             on_campaign_complete=progress_tracker.report,
         )
@@ -2160,6 +2161,11 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     measure.add_argument(
         "--jobs", type=_positive_int, metavar="N", help="Commands run at once (default: the CPU count)."
+    )
+    measure.add_argument(
+        "--sequential",
+        action="store_true",
+        help="Run one command at a time, each events run on its default workers (experiment).",
     )
     measure.set_defaults(handler=_run_benchmark_metrics)
 
