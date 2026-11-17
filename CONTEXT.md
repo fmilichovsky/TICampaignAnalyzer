@@ -131,6 +131,11 @@ clamp, the enabled campaigns and a type filter. Each reference and base level is
 tried; a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
 _Avoid_: scenario, what-if, trial base level
 
+**Editorial direction**:
+What a campaign history is for, what it emphasizes and plays down, and what each significance level means to a
+reader. A calibration review judges the narrator package against it, and the narrator prompt implements it.
+_Avoid_: editorial stance (a stance is a councilor's public outlook), editorial policy, guidelines
+
 **Must-tell list**:
 The episodes one sample campaign's history has to contain, written by the dev up to a declared cut-off save. It is
 a review's anchor, read by the evaluation tooling only, and acknowledged to lean towards the player's faction.
