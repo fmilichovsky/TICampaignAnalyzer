@@ -1,0 +1,134 @@
+period view · resist-long · by year (span 19.6 years, narrate default)
+state  the code's state
+campaign  top-level 949 · rows 70491
+explained is FAKED (no flag before schema 4)
+
+2027   top-level 112
+                 top-level        member    cited only     explained         below
+  defining              17             0             1             0             0
+  major                 95            68           261             0           360
+  minor                  0             9           259             5          1264
+  trivial                0             0            39           154          1047
+
+2028   top-level 5
+                 top-level        member    cited only     explained         below
+  major                  5             1            26             0            74
+  minor                  0             0            15             0           295
+  trivial                0             0             2             0           308
+
+2029   top-level 41
+                 top-level        member    cited only     explained         below
+  defining               2             0             2             0             0
+  major                 39            46           178             0           231
+  minor                  0            12           318            10           949
+  trivial                0             0            21            71           646
+
+2030   top-level 33
+                 top-level        member    cited only     explained         below
+  defining               2             0             0             0             0
+  major                 31            29           165             0           215
+  minor                  0             6           289             5          1379
+  trivial                0             0            12            20           968
+
+2031   top-level 67
+                 top-level        member    cited only     explained         below
+  defining               4             0             3             0             0
+  major                 63            21           164             0           323
+  minor                  0            12           515             3          2723
+  trivial                0             0            52            18          1977
+
+2032   top-level 44
+                 top-level        member    cited only     explained         below
+  defining               1             0             0             0             0
+  major                 43            15           139             0           197
+  minor                  0             9           304             6          1639
+  trivial                0             0            31            25          1142
+
+2033   top-level 69
+                 top-level        member    cited only     explained         below
+  defining               2             0             0             0             0
+  major                 67             8           193             0           315
+  minor                  0             3           346             1          2773
+  trivial                0             0            45            28          1834
+
+2034   top-level 62
+                 top-level        member    cited only     explained         below
+  defining               5             0             1             0             0
+  major                 57             9           129             0           226
+  minor                  0             0           281             3          2231
+  trivial                0             0            34            24          1647
+
+2035   top-level 45
+                 top-level        member    cited only     explained         below
+  major                 45             3           111             0           306
+  minor                  0             2           202             4          3529
+  trivial                0             0            30             4          2207
+
+2036   top-level 65
+                 top-level        member    cited only     explained         below
+  defining               2             0             2             0             0
+  major                 63             5            88             0           163
+  minor                  0             7           244             2          2243
+  trivial                0             0            26            49          1623
+
+2037   top-level 50
+                 top-level        member    cited only     explained         below
+  defining               2             0             1             0             0
+  major                 48             4            90             0           131
+  minor                  0             2           218             3          1260
+  trivial                0             0            29            47           961
+
+2038   top-level 67
+                 top-level        member    cited only     explained         below
+  defining               8             0             1             0             0
+  major                 59            11           115             0           181
+  minor                  0             1           322             3          1203
+  trivial                0             0            32            46           790
+
+2039   top-level 42
+                 top-level        member    cited only     explained         below
+  major                 42             5           131             0           178
+  minor                  0             5           304             2          2285
+  trivial                0             0            33            20          1614
+
+2040   top-level 59
+                 top-level        member    cited only     explained         below
+  defining               2             0             1             0             0
+  major                 57             2           123             0           152
+  minor                  0             4           303             2          1383
+  trivial                0             0            35            60          1004
+
+2041   top-level 23
+                 top-level        member    cited only     explained         below
+  defining               1             0             0             0             0
+  major                 22             5            87             0           138
+  minor                  0             1           187             1          1608
+  trivial                0             0            12            11          1126
+
+2043   top-level 73
+                 top-level        member    cited only     explained         below
+  defining               3             0             1             0             0
+  major                 70             3           133             0           150
+  minor                  0             0           288             1          1245
+  trivial                0             0            29            42           840
+
+2044   top-level 40
+                 top-level        member    cited only     explained         below
+  defining               2             0             1             0             1
+  major                 38             3           124             0           228
+  minor                  0             3           307             7          2310
+  trivial                0             0            36            35          1729
+
+2045   top-level 35
+                 top-level        member    cited only     explained         below
+  defining               1             0             0             0             0
+  major                 34             0            65             0           164
+  minor                  0             0           132             5          1414
+  trivial                0             0            37            29          1136
+
+2046   top-level 17
+                 top-level        member    cited only     explained         below
+  major                 17             0            46             0           100
+  minor                  0             0            91             2          1525
+  trivial                0             0            11            15           922
+
