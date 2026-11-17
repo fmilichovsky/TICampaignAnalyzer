@@ -4,8 +4,8 @@
 MAIN_CHECKOUT := $(patsubst %/.git,%,$(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null))
 
 # Prefer an activated environment, then a Codex or project environment, then the main checkout's
-# (when run from a worktree without its own), then PATH.
-PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.venv-codex/bin/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(wildcard $(MAIN_CHECKOUT)/.venv/bin/python),$(MAIN_CHECKOUT)/.venv/bin/python,python))))
+# (when run from a worktree without its own), then this tree's .venv, which `make install` creates.
+PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.venv-codex/bin/python,$(if $(wildcard .venv/bin/python),.venv/bin/python,$(if $(wildcard $(MAIN_CHECKOUT)/.venv/bin/python),$(MAIN_CHECKOUT)/.venv/bin/python,.venv/bin/python))))
 
 # Run this tree's source whatever environment's editable install points elsewhere.
 export PYTHONPATH := $(CURDIR)/src$(if $(PYTHONPATH),:$(PYTHONPATH))
@@ -13,7 +13,17 @@ SAMPLE_CAMPAIGNS ?=
 
 .PHONY: install format lint typecheck test check docs samples samples-fast browser-replay-check browser-replay-samples require-node package-metrics runtime-metrics
 
-install:
+# Interpreter used to create .venv; override for a specific Python (3.11 or newer).
+BOOTSTRAP_PYTHON ?= python3
+
+# Only the project .venv is created on demand; an activated, Codex or main-checkout
+# environment, or a PYTHON the caller passed, is used as it is.
+$(CURDIR)/.venv/bin/python:
+	$(BOOTSTRAP_PYTHON) -m venv .venv
+
+# Creates .venv if there is no environment yet; no `source .venv/bin/activate` is needed,
+# since every target resolves the interpreter itself.
+install: $(if $(filter .venv/bin/python,$(PYTHON)),$(CURDIR)/.venv/bin/python)
 	$(PYTHON) -m pip install -e ".[dev]"
 
 format:

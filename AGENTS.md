@@ -36,7 +36,7 @@ before touching the model or pipeline.
 ## Commands
 
 ```sh
-make install      # install the pinned editable development environment
+make install      # create .venv if missing and install the pinned editable development environment; no activation needed
 make check        # format check + lint + strict mypy + pytest; run after install
 make samples-fast # the sample tests on the short campaign; the only sample run agents do locally, and only when a specific bug needs real samples. Full `make samples` runs in CI on main
 make docs         # regenerate the command-page references and the settings example values

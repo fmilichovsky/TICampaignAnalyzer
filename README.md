@@ -12,7 +12,7 @@ and justify how the general public would realistically perceive the events.
 ## Quick start
 
 1. Obtain an API key for an LLM provider.
-1. Set up the local CLI - see [Development](#development).
+1. Set up the local CLI with `make install` - see [Development](#development).
 1. Try out the [`narrate`](docs/commands/narrate.md) or [`councilors`](docs/commands/councilors.md) command
 against your Terra Invicta save directory.
 
@@ -41,20 +41,12 @@ Options, saves, campaigns and exit codes shared by the commands are in the [comm
 
 ## Development
 
-Requires Python 3.11 or newer. Work inside a project-local virtual environment
-so the pinned development tools don't mix with other Python installs:
+Requires Python 3.11 or newer.
 
 ```sh
-python3 -m venv .venv            # once per clone
-source .venv/bin/activate        # once per shell session
-make install                     # once, and again after changing dependencies
-tinarrative --help
+make install     # creates .venv if missing, then installs the pinned development tools; re-run after changing dependencies
+make check
 ```
-
-Activation puts `.venv/bin` first on `PATH`, so `python`, `tinarrative`, and the
-`make` targets below all use the environment's interpreter. Run `deactivate` to
-leave it. On Windows, activate with `.venv\Scripts\activate` instead. The
-`.venv/` directory is ignored by git; delete and recreate it to start fresh.
 
 ## Testing
 
