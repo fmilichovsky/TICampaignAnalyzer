@@ -1047,6 +1047,32 @@ def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes()
     )
 
 
+def test_a_cession_by_the_absorbing_nation_to_a_third_nation_is_not_part_of_its_merger() -> None:
+    reading = merged(K1, NORTH, SOUTH, SOUTH_REGION)
+    ceded = transfer(K1, EAST, NORTH, NORTH_REGION)
+    events = built([*reading, *ceded], plain(K0, K1))
+
+    merger, cession = only(events, "nation.merger"), only(events, "nation.cession")
+
+    assert set(merger.constituents) == {item.id for item in reading}
+    assert set(cession.constituents) == {item.id for item in ceded}
+    assert roles(cession) == [(Role.ACTOR, "nation:20"), (Role.BENEFICIARY, "nation:22"), (Role.LOCATION, "region:40")]
+
+
+def test_an_absorbed_nations_loss_to_a_third_nation_as_well_stays_with_the_merger() -> None:
+    reading = unification(K1, NORTH, SOUTH, not_before=PREVIOUS[K1], unifier=RESISTANCE)
+    territories = [
+        territory("nation.territory_gained", K1, NORTH, [SOUTH], [SOUTH_REGION]),
+        territory("nation.territory_lost", K1, SOUTH, [NORTH, EAST], [SOUTH_REGION, EAST_REGION]),
+    ]
+    third = territory("nation.territory_gained", K1, EAST, [SOUTH], [EAST_REGION])
+
+    events = built([reading, *territories, third], plain(K0, K1))
+
+    assert set(only(events, "nation.merger").constituents) == {reading.id, *(item.id for item in territories)}
+    assert of_type(events, "nation.cession") == []
+
+
 def test_absorbing_a_micro_state_ranks_below_absorbing_a_great_power_and_is_not_campaign_defining() -> None:
     def merger(weight: float) -> Event:
         situations = [powers(K0, (NORTH, 100.0), (SOUTH, weight)), powers(K1)]
