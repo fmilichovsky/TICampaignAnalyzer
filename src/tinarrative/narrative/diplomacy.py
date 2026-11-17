@@ -98,7 +98,7 @@ class DiplomaticRealignmentRule:
                 built.append(
                     build.event(
                         nation_kinds.DIPLOMATIC_REALIGNMENT,
-                        id_parts=[nation_id],
+                        id_parts=[nation_id, *run.discriminator],
                         constituents=run,
                         corroborating=context,
                         roles=roles,

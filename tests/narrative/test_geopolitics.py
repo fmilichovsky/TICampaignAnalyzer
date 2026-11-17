@@ -491,6 +491,24 @@ def test_a_takeover_after_the_window_starts_a_new_run() -> None:
     assert wave.attribute("nations") == (NORTH, SOUTH, EAST)
 
 
+def test_two_waves_starting_in_one_interval_get_distinct_ids_and_the_first_keeps_its_own() -> None:
+    def on(subject: EntityRef, date: str) -> Event:
+        return control(K1, "executive", RESISTANCE, SERVANTS, subject=subject, date=date, date_basis=DateBasis.RECORD)
+
+    targets = [nation(str(key)) for key in range(80, 86)]
+    early = [on(target, f"2032-01-0{day}T00:00:00") for day, target in enumerate(targets[:3], start=2)]
+    late = [on(target, f"2032-03-2{day}T00:00:00") for day, target in enumerate(targets[3:], start=2)]
+
+    settings = GeopoliticsSettings(takeover_wave_window_days=30)
+    waves = of_type(built([*early, *late], plain(K0, K1), settings), "faction.takeover_wave")
+
+    assert [wave.attribute("nations") for wave in waves] == [tuple(targets[:3]), tuple(targets[3:])]
+    assert [wave.id for wave in waves] == [
+        f"faction.takeover_wave/{SERVANTS.entity_id}@{K1}",
+        f"faction.takeover_wave/{SERVANTS.entity_id}/run2@{K1}",
+    ]
+
+
 @pytest.mark.parametrize(
     ("shares", "expected"),
     [([(SERVANTS, 2), (RESISTANCE, 1)], True), ([(SERVANTS, 3)], False)],
@@ -1045,6 +1063,32 @@ def test_a_merger_carries_the_absorbed_nations_losses_and_both_nations_changes()
     assert describe_event(merger) == (
         "Northland (nation:20) absorbed Southland (nation:21) by unification under Resistance (faction:15)"
     )
+
+
+def test_a_cession_by_the_absorbing_nation_to_a_third_nation_is_not_part_of_its_merger() -> None:
+    reading = merged(K1, NORTH, SOUTH, SOUTH_REGION)
+    ceded = transfer(K1, EAST, NORTH, NORTH_REGION)
+    events = built([*reading, *ceded], plain(K0, K1))
+
+    merger, cession = only(events, "nation.merger"), only(events, "nation.cession")
+
+    assert set(merger.constituents) == {item.id for item in reading}
+    assert set(cession.constituents) == {item.id for item in ceded}
+    assert roles(cession) == [(Role.ACTOR, "nation:20"), (Role.BENEFICIARY, "nation:22"), (Role.LOCATION, "region:40")]
+
+
+def test_an_absorbed_nations_loss_to_a_third_nation_as_well_stays_with_the_merger() -> None:
+    reading = unification(K1, NORTH, SOUTH, not_before=PREVIOUS[K1], unifier=RESISTANCE)
+    territories = [
+        territory("nation.territory_gained", K1, NORTH, [SOUTH], [SOUTH_REGION]),
+        territory("nation.territory_lost", K1, SOUTH, [NORTH, EAST], [SOUTH_REGION, EAST_REGION]),
+    ]
+    third = territory("nation.territory_gained", K1, EAST, [SOUTH], [EAST_REGION])
+
+    events = built([reading, *territories, third], plain(K0, K1))
+
+    assert set(only(events, "nation.merger").constituents) == {reading.id, *(item.id for item in territories)}
+    assert of_type(events, "nation.cession") == []
 
 
 def test_absorbing_a_micro_state_ranks_below_absorbing_a_great_power_and_is_not_campaign_defining() -> None:

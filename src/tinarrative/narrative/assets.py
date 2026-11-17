@@ -106,7 +106,7 @@ class MilitaryBuildupRule:
                 built.append(
                     build.event(
                         military_kinds.MILITARY_BUILDUP if after > before else military_kinds.DEMOBILIZATION,
-                        id_parts=[nation_id],
+                        id_parts=[nation_id, *run.discriminator],
                         constituents=run,
                         roles=[(Role.ACTOR, nation)],
                         join=Join.ENTITY,
@@ -220,7 +220,7 @@ class SpaceProgramGrowthRule:
                 built.append(
                     build.event(
                         nation_kinds.SPACE_PROGRAM_GROWTH,
-                        id_parts=[nation_id],
+                        id_parts=[nation_id, *run.discriminator],
                         constituents=run,
                         roles=[(Role.ACTOR, nation)],
                         join=Join.ENTITY,

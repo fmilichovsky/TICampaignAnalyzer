@@ -411,6 +411,17 @@ def test_duplicate_ids_and_duplicate_rule_names_are_programming_errors() -> None
         aggregate([changed(K1)], (), [RULE, GroupRule("changes", "nation.other")])
 
 
+def test_a_rule_emitting_one_id_twice_is_named_in_the_error() -> None:
+    class Twice(CitingRule):
+        def apply(
+            self, stream: Sequence[Event], situations: Sequence[SituationReport], build: NarrativeBuilder
+        ) -> list[Event]:
+            return super().apply(stream, situations, build) * 2
+
+    with pytest.raises(ValueError, match="narrative rule twice emitted duplicate event IDs"):
+        aggregate([changed(K1)], (), [Twice("twice", (changed(K1),))])
+
+
 def test_the_result_does_not_depend_on_stream_or_rule_order() -> None:
     stream = [changed(K1), changed(K2, FRANCE), changed(K3), changed(K3, FRANCE)]
     rules = [RULE, GroupRule("nested", ARC, reads=frozenset({ARC}))]
