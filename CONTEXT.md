@@ -155,6 +155,18 @@ What a campaign history is for, what it emphasizes and plays down, and what each
 reader. A calibration review judges the narrator package against it, and the narrator prompt implements it.
 _Avoid_: editorial stance (a stance is a councilor's public outlook), editorial policy, guidelines
 
+**Sample campaign**:
+A real campaign kept in the repository as consecutive whole saves, which the benchmarks measure and a calibration
+review judges against. A campaign that is a leading slice of another is not counted as a separate one. It may come
+without a recollection, and then has no must-tell list.
+_Avoid_: fixture (a fixture is edited test data), test campaign, benchmark save
+
+**Coverage**:
+How much the sample campaigns show of an event type or a stake measure: its occurrences in each one. It is thin
+when only one sample campaign shows it or the occurrences are few, and a calibration change resting on thin
+coverage is unconfirmed by the samples.
+_Avoid_: support, sample size
+
 **Must-tell list**:
 The episodes one sample campaign's history has to contain, written by the dev up to a declared cut-off save. It is
 a review's anchor, read by the evaluation tooling only, and acknowledged to lean towards the player's faction.
