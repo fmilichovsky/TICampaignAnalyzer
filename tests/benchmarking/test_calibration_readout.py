@@ -38,7 +38,8 @@ STATES: dict[str, ReplayState] = {
     "free": replace(CODE, clamp=False, campaigns=("beta",), types=("atomic.thing",)),
     "switched": replace(CODE, type_bases={"atomic.thing": "major", "atomic.far": "trivial"}),
 }
-"""The golden states: the code's, members falling apart under a lower power reference, and the clamp off."""
+"""The golden states: the code's, members falling apart under a lower power reference, the clamp off and two
+switched base levels."""
 SECTIONS = [
     "Calibration state",
     "Summary",
