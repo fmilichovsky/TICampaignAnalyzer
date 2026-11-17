@@ -45,10 +45,9 @@ jobs:
       - run: make install
       - run: make browser-replay-check
 
+  # Pull requests run the short campaign only; pushes to main run every campaign.
   samples:
     runs-on: ubuntu-latest
-    env:
-      SAMPLE_CAMPAIGNS: protectorate,resist-long
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -58,5 +57,15 @@ jobs:
         with:
           node-version: "24"
       - run: make install
-      - run: make samples
-      - run: make browser-replay-samples
+      - name: Sample tests (pull request, short campaign)
+        if: github.event_name == 'pull_request'
+        run: make samples-fast
+      - name: Sample tests (main, every campaign)
+        if: github.event_name != 'pull_request'
+        run: make samples
+      - name: Browser replay on samples (pull request, short campaign)
+        if: github.event_name == 'pull_request'
+        run: make browser-replay-samples SAMPLE_CAMPAIGNS=protectorate-short
+      - name: Browser replay on samples (main, every campaign)
+        if: github.event_name != 'pull_request'
+        run: make browser-replay-samples

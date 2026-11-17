@@ -11,7 +11,7 @@ PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.ve
 export PYTHONPATH := $(CURDIR)/src$(if $(PYTHONPATH),:$(PYTHONPATH))
 SAMPLE_CAMPAIGNS ?=
 
-.PHONY: install format lint typecheck test check docs samples browser-replay-check browser-replay-samples require-node package-metrics runtime-metrics
+.PHONY: install format lint typecheck test check docs samples samples-fast browser-replay-check browser-replay-samples require-node package-metrics runtime-metrics
 
 install:
 	$(PYTHON) -m pip install -e ".[dev]"
@@ -35,6 +35,13 @@ docs:
 	$(PYTHON) -m tinarrative.reference_docs
 
 # The tests that read the committed benchmark campaigns; see docs/testing.md.
+# samples-fast: the short campaign only, for pull request CI and local agent runs.
+# samples: every campaign (or SAMPLE_CAMPAIGNS), for pushes to main.
+SAMPLES_FAST_CAMPAIGNS := protectorate-short
+
+samples-fast:
+	$(PYTHON) -m pytest -m "samples and not browser_replay" --sample-campaigns "$(SAMPLES_FAST_CAMPAIGNS)"
+
 samples:
 	$(PYTHON) -m pytest -m "samples and not browser_replay" --sample-campaigns "$(SAMPLE_CAMPAIGNS)"
 
