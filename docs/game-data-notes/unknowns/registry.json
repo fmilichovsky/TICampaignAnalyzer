@@ -1,7 +1,92 @@
 {
   "schema_version": 1,
   "format": "terra_invicta_json_v1",
-  "last_scan": "2026-11-07",
+  "last_scan": "2026-11-17",
   "privacy_note": "Schema-level facts only: state-type names, field names, JSON shapes, counts and dates. Never values, player or file names, paths or hashes.",
-  "entries": []
+  "entries": [
+    {
+      "kind": "unexpected_reference_domain",
+      "state_type": "TIFactionState",
+      "field": "armies",
+      "detail": "TIAlienArmyState",
+      "shape": null,
+      "max_occurrences": 3,
+      "saves_seen": 1,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["1.0.53b"]
+    },
+    {
+      "kind": "unexpected_reference_domain",
+      "state_type": "TIMissionState",
+      "field": "target",
+      "detail": "TILaunchFacilityState",
+      "shape": null,
+      "max_occurrences": 1,
+      "saves_seen": 1,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["1.0.28"]
+    },
+    {
+      "kind": "unexpected_reference_domain",
+      "state_type": "TINationState",
+      "field": "armies",
+      "detail": "TIAlienArmyState",
+      "shape": null,
+      "max_occurrences": 3,
+      "saves_seen": 1,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["1.0.53b"]
+    },
+    {
+      "kind": "unexpected_reference_domain",
+      "state_type": "TINotificationQueueState",
+      "field": "notificationSummaryQueue.gotoGameState",
+      "detail": "TIAlienArmyState",
+      "shape": null,
+      "max_occurrences": 1,
+      "saves_seen": 1,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["1.0.53b"]
+    },
+    {
+      "kind": "unexpected_reference_domain",
+      "state_type": "TIRegionState",
+      "field": "armies",
+      "detail": "TIAlienArmyState",
+      "shape": null,
+      "max_occurrences": 3,
+      "saves_seen": 1,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["1.0.53b"]
+    },
+    {
+      "kind": "unknown_field",
+      "state_type": "TIHabState",
+      "field": "firstBombardmentStrike",
+      "detail": null,
+      "shape": {"types": ["boolean"], "object_keys": [], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
+      "max_occurrences": 86,
+      "saves_seen": 6,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["RC13a"]
+    },
+    {
+      "kind": "unknown_state_type",
+      "state_type": "TIAlienArmyState",
+      "field": null,
+      "detail": null,
+      "shape": {"types": ["object"], "object_keys": ["$type", "AI_targetEnemyRegion", "ID", "archived", "armyDamageEventName", "armyOperationCompleteEventName", "armyStatusUpdateEventName", "armyType", "controlPointIdx", "createdFromTemplate", "currentOperations", "currentRegion", "deploymentType", "destinationQueue", "destinationSeaDate", "destroyed", "displayName", "displayNameWithArticle", "embarkDate", "exists", "faction", "finderSortOverride", "gameStateSubjectCreated", "homeRegion", "huntingXenofauna", "operationTarget", "priorRegion", "spawning", "strength", "templateName"], "object_keys_omitted": false, "array_item_types": [], "array_item_keys": []},
+      "max_occurrences": 3,
+      "saves_seen": 1,
+      "first_seen": "2026-11-17",
+      "last_seen": "2026-11-17",
+      "game_versions": ["1.0.53b"]
+    }
+  ]
 }
