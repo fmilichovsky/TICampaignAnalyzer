@@ -44,11 +44,6 @@ package = "major"
 args = ["--max-input-tokens", "80000"]
 
 [[narrate]]
-id = "half-insider"
-package = "major"
-args = ["--period", "half", "--audience", "insider", "--style", "headlines", "--length", "3000"]
-
-[[narrate]]
 id = "minor"
 package = "minor"
 args = []
