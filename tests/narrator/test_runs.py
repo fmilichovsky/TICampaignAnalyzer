@@ -22,7 +22,7 @@ from tinarrative.host import HttpResponse
 from tinarrative.narrator.chapters import ChapterPlan
 from tinarrative.narrator.providers import Endpoint
 from tinarrative.narrator.run_directory import RunDirectory, RunDirectoryWriteError
-from tinarrative.narrator.runs import assemble_history, narrate_history, write_articles
+from tinarrative.narrator.runs import HistoryReadError, assemble_history, narrate_history, write_articles
 from tinarrative.narrator.send_run import SendOutcome
 
 TARGET = Endpoint("anthropic", "https://api.anthropic.com", "key", 10, 1000)
@@ -176,7 +176,7 @@ def test_assemble_history_works_from_a_run_directory_alone(tmp_path: Path) -> No
 
 
 def test_assemble_history_without_a_plan_is_unreadable(tmp_path: Path) -> None:
-    with pytest.raises(OSError, match="plan.json"):
+    with pytest.raises(HistoryReadError):
         assemble_history(tmp_path, host=FakeHost(ScriptedTransport(), now=NOW).bundle(), version="1")
 
 

@@ -21,6 +21,14 @@ from .send_run import SendItem, SendOutcome, SendReporter, send_run
 logger = get_logger(__name__)
 
 
+class HistoryReadError(Exception):
+    """The run directory cannot be read back for assembly; ``error`` is the ``OSError`` or ``ValueError``."""
+
+    def __init__(self, error: OSError | ValueError) -> None:
+        self.error = error
+        super().__init__(str(error))
+
+
 class RunReporter(SendReporter, Protocol):
     def written(self) -> None:
         """The plan or dossier and the requests are on disk; sending starts next."""
@@ -80,8 +88,8 @@ def narrate_history(
     """Write the plan and requests, send them stopping at the first failure, and assemble the history from the
     run directory only when every chapter succeeded.
 
-    Raises :class:`RunDirectoryWriteError` on a failed write and ``OSError`` or ``ValueError`` when the finished
-    run cannot be read back."""
+    Raises :class:`RunDirectoryWriteError` on a failed write and :class:`HistoryReadError` when the finished run
+    cannot be read back."""
     items = chapter_items(plan)
     RunDirectory(directory).write_plan(plan.to_dict(), [(item.index, item.request) for item in items])
     reporter.written()
@@ -96,19 +104,22 @@ def narrate_history(
 def assemble_history(directory: Path, *, host: Host, version: str) -> AssembledHistory:
     """Write ``history.md`` and ``manifest.json`` from what the run directory holds, nothing else.
 
-    Raises ``OSError`` or ``ValueError`` when the directory cannot be read and :class:`RunDirectoryWriteError` when
+    Raises :class:`HistoryReadError` when the directory cannot be read and :class:`RunDirectoryWriteError` when
     the history cannot be written."""
     run_directory = RunDirectory(directory)
-    plan = parse_plan(run_directory.read_plan())
-    count = len(plan["chapters"])
-    chapters = [
-        stored_chapter(
-            entry,
-            run_directory.read_optional(run_directory.request_path(entry["index"], count)),
-            run_directory.read_response(entry["index"], count),
-        )
-        for entry in plan["chapters"]
-    ]
+    try:
+        plan = parse_plan(run_directory.read_plan())
+        count = len(plan["chapters"])
+        chapters = [
+            stored_chapter(
+                entry,
+                run_directory.read_optional(run_directory.request_path(entry["index"], count)),
+                run_directory.read_response(entry["index"], count),
+            )
+            for entry in plan["chapters"]
+        ]
+    except (OSError, ValueError) as error:
+        raise HistoryReadError(error) from error
     assembly = assemble(chapters, plan, generated=host.now(), version=version)
     run_directory.write_history(assembly.history, json.dumps(assembly.manifest, ensure_ascii=False, indent=2) + "\n")
     audit = assembly.manifest["audit"]

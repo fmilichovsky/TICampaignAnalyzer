@@ -63,6 +63,7 @@ from .narrator.providers import Endpoint, endpoint
 from .narrator.request import AUDIENCES, CITATIONS, STYLES
 from .narrator.run_directory import RunDirectory, RunDirectoryWriteError
 from .narrator.runs import (
+    HistoryReadError,
     RunReporter,
     assemble_history,
     chapter_items,
@@ -1398,11 +1399,8 @@ def _run_narrate(args: argparse.Namespace) -> int:
             reporter.written()
     except RunDirectoryWriteError as error:
         return _run_directory_write_failed(error, output=None if reporter.is_written else output)
-    except OSError as error:
+    except HistoryReadError as error:
         return _history_unreadable(error, cast(Path, output))
-    except ValueError as error:
-        print(f"tinarrative narrate: {output}: {error}", file=sys.stderr)
-        return EXIT_UNSUPPORTED_INPUT
     logger.info(
         "narrate done %s",
         fields(
@@ -1571,21 +1569,22 @@ def _assemble(directory: Path, *, host: Host) -> int:
     """``narrate --assemble``: the history from what ``directory`` holds."""
     try:
         assembled = assemble_history(directory, host=host, version=__version__)
-    except OSError as error:
+    except HistoryReadError as error:
         return _history_unreadable(error, directory)
-    except ValueError as error:
-        print(f"tinarrative narrate: {directory}: {error}", file=sys.stderr)
-        return EXIT_UNSUPPORTED_INPUT
     except RunDirectoryWriteError as error:
         return _run_directory_write_failed(error)
     _report_history(directory, assembled.assembly)
     return EXIT_SUCCESS
 
 
-def _history_unreadable(error: OSError, directory: Path) -> int:
-    logger.debug("read failed %s", fields(output=safe_path(directory), error=type(error).__name__))
-    print(f"tinarrative narrate: cannot read {directory}: {error.strerror or error}", file=sys.stderr)
-    return EXIT_INPUT_ERROR
+def _history_unreadable(failure: HistoryReadError, directory: Path) -> int:
+    error = failure.error
+    if isinstance(error, OSError):
+        logger.debug("read failed %s", fields(output=safe_path(directory), error=type(error).__name__))
+        print(f"tinarrative narrate: cannot read {directory}: {error.strerror or error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    print(f"tinarrative narrate: {directory}: {error}", file=sys.stderr)
+    return EXIT_UNSUPPORTED_INPUT
 
 
 def _report_history(directory: Path, assembly: Assembly) -> None:
