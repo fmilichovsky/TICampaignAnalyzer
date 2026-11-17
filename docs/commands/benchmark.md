@@ -229,7 +229,9 @@ tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [
 Opens the stake calibration page: a static page, working from disk, for choosing the stake references of the
 measures against the sample campaigns. Slide a measure's reference to see which events change significance level,
 how the narrator package and the takeover waves change, and which events sit nearest each cut-off; open an event to
-see why it has its level. The page's URL hash holds the explored state, which `report --state` reads.
+see why it has its level. Base levels, under References, switches an event type's base level, as `report --base`
+does; the event inspector switches the type of the event it shows, and says when a context rule decided the event's
+level, so the switch passes it by. The page's URL hash holds the explored state, which `report --state` reads.
 
 ```sh
 # Build the table if needed and open the page.

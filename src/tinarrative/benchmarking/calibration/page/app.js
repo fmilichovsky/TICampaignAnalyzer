@@ -238,6 +238,11 @@
     countStatic: [],
     countOrder: "events",
     view: "cutoffs",
+    typeCounts: {},
+    baseOrder: [],
+    baseRows: new Map(),
+    basesShow: "all",
+    basesFind: "",
 
     init(index, tables, drafts) {
       this.index = index;
@@ -279,8 +284,20 @@
           }
         });
         this.positions[name] = positions;
+        const counts = new Map();
+        for (const row of rows) {
+          const entry = counts.get(row.type) || { events: 0, ruled: 0 };
+          entry.events += 1;
+          if (row.rule !== null) entry.ruled += 1;
+          counts.set(row.type, entry);
+        }
+        this.typeCounts[name] = counts;
       }
       this.allTypes = [...types].sort();
+      // The Base levels rows: every type the index can switch, most events in the whole table first. The order never
+      // changes, so a switch never moves a row.
+      const events = (type) => Object.values(this.typeCounts).reduce((sum, counts) => sum + ((counts.get(type) || {}).events || 0), 0);
+      this.baseOrder = Object.keys(this.index.kinds).sort((a, b) => events(b) - events(a) || (a < b ? -1 : 1));
       for (const measure of this.measures) {
         const code = Math.log10(this.index.measures[measure].reference);
         let low = code - 1.75;
@@ -479,6 +496,7 @@
       this.buildChart();
       this.buildTides();
       this.buildReferences();
+      this.buildBases();
       Inspector.init();
     },
 
@@ -648,6 +666,25 @@
       this.update({ resort: true, layout: true });
     },
 
+    // The base level the state tries for a type, or the code's.
+    typeBase(type) {
+      const tried = this.state.type_bases ? this.state.type_bases[type] : undefined;
+      return tried === undefined ? this.index.kinds[type].base : tried;
+    },
+
+    isSwitched(type) {
+      return Boolean(this.index.kinds[type]) && this.typeBase(type) !== this.index.kinds[type].base;
+    },
+
+    // Setting the code's level clears the switch, so the state and its hash are as if it was never made.
+    setTypeBase(type, level) {
+      const next = Object.assign({}, this.state.type_bases);
+      if (level === this.index.kinds[type].base) delete next[type];
+      else next[type] = level;
+      this.state.type_bases = next;
+      this.update({ resort: true });
+    },
+
     setType(type) {
       const only = this.state.types.length === 1 && this.state.types[0] === type;
       this.state.types = only ? [] : [type];
@@ -708,6 +745,7 @@
       this.renderDrafts();
       this.renderCounts(options);
       this.renderReferences();
+      this.renderBases();
       this.renderTotals();
       this.renderMembers();
       if (options.from === "slider") this.writeHashSoon();
@@ -1289,6 +1327,7 @@
         parts.row.classList.toggle("dim", dimmed);
         parts.row.classList.toggle("count-row-chosen", this.state.types.includes(type));
         parts.total.textContent = String(total);
+        this.fillSwitched(type, parts.switched);
         this.fillChanges(type, parts, typeMoves);
       }
 
@@ -1319,17 +1358,38 @@
       );
       const total = el("span", { class: "count-total num" });
       const changes = el("span", { class: "count-changes" });
+      // A switched type shows its tried base level after its name; the mark leads to its row in Base levels.
+      const switched = el("button", { type: "button", class: "count-base", hidden: true, onclick: () => this.revealBase(type) });
       const row = el(
         "div",
         { class: "count-row" },
-        el("button", { type: "button", class: "type-button", text: type, title: `Filter by ${type}`, onclick: () => this.setType(type) }),
+        el(
+          "span",
+          { class: "count-type" },
+          el("button", { type: "button", class: "type-button", text: type, title: `Filter by ${type}`, onclick: () => this.setType(type) }),
+          switched,
+        ),
         el("div", { class: "count-bars" }, el("div", { class: "count-bar" }, ...segments), el("div", { class: "count-flow", "aria-hidden": "true" }, ...flows.flat())),
         total,
         changes,
       );
-      const parts = { row, segments, flows, total, changes, chips: new Map() };
+      const parts = { row, segments, flows, total, changes, switched, chips: new Map() };
       this.countRows.set(type, parts);
       return row;
+    },
+
+    fillSwitched(type, mark) {
+      const on = this.isSwitched(type);
+      mark.hidden = !on;
+      if (!on) return;
+      const tried = this.typeBase(type);
+      if (mark.dataset.level !== tried) {
+        mark.dataset.level = tried;
+        mark.replaceChildren(el("span", { class: "count-base-label", text: "base" }), levelGauge(tried));
+      }
+      const text = `${type}: base level ${levelName(tried)}, the code's is ${levelName(this.index.kinds[type].base)}. Show it in Base levels.`;
+      mark.title = text;
+      mark.setAttribute("aria-label", text);
     },
 
     // The exact changes of one type, in the order their bands sit in the bar.
@@ -1440,6 +1500,146 @@
         cell.replaceChildren(levelGauge(base), base === draft.base ? `base ${levelName(base)}` : `base ${levelName(base)}, own ${levelName(draft.base)}`);
         line.classList.toggle("changed", base !== draft.base);
       }
+    },
+
+    // --- Base levels ------------------------------------------------------------------------------------------
+    //
+    // One row per event type: four buttons for its base level, the code's level beside them, its events, how many of
+    // them a context rule decided (a switch leaves those as they are) and how many sit at another level than the
+    // code's now. The rows are built once in a fixed order; finding a type or showing the switched ones only hides
+    // rows, and the list scrolls inside a fixed height.
+
+    // The four base buttons of a type, for a Base levels row or the inspector. The code's level carries a mark.
+    baseOptions(type, label) {
+      const code = this.index.kinds[type].base;
+      const buttons = this.levels.map((level) =>
+        el(
+          "button",
+          {
+            type: "button",
+            class: `base-option${level === code ? " base-code" : ""}`,
+            "data-level": level,
+            "aria-pressed": "false",
+            title: level === code ? `${levelName(level)}: the code's base level of ${type}` : `Try ${levelName(level)} as the base level of ${type}`,
+            onclick: () => this.setTypeBase(type, level),
+          },
+          levelGauge(level),
+          el("span", { class: "level-name", text: levelName(level) }),
+        ),
+      );
+      return { node: el("span", { class: "base-options", role: "group", "aria-label": label }, ...buttons), buttons };
+    },
+
+    syncBaseOptions(buttons, type) {
+      const tried = this.typeBase(type);
+      for (const button of buttons) button.setAttribute("aria-pressed", String(button.dataset.level === tried));
+    },
+
+    buildBases() {
+      const body = $("bases");
+      for (const type of this.baseOrder) {
+        const kind = this.index.kinds[type];
+        const options = this.baseOptions(type, `Base level of ${type}`);
+        const name = el("button", { type: "button", class: "type-button", text: type, onclick: () => this.setType(type) });
+        const cell = (title) => el("td", { class: "num", title });
+        const events = cell(null);
+        const ruled = cell(kind.rule ? `Decided by the ${kind.rule} context rule; a switched base does not apply to them` : "The kind has no context rule");
+        const moving = cell(null);
+        const row = el(
+          "tr",
+          { "data-type": type },
+          el("th", { scope: "row" }, name),
+          el("td", { class: "base-cell" }, options.node),
+          el("td", { class: "base-code-cell" }, levelGauge(kind.base), el("span", { text: levelName(kind.base) })),
+          events,
+          ruled,
+          moving,
+        );
+        this.baseRows.set(type, { row, name, buttons: options.buttons, events, ruled, moving });
+        body.append(row);
+      }
+      $("bases-all").textContent = String(this.baseOrder.length);
+      const find = $("bases-find");
+      find.addEventListener("input", () => {
+        this.basesFind = find.value.trim().toLowerCase();
+        this.renderBases();
+      });
+      find.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape" || find.value === "") return;
+        find.value = "";
+        this.basesFind = "";
+        this.renderBases();
+      });
+      for (const button of document.querySelectorAll("#bases-show .order-option")) {
+        button.addEventListener("click", () => {
+          this.basesShow = button.dataset.show;
+          this.renderBases();
+        });
+      }
+    },
+
+    renderBases() {
+      const moving = new Map();
+      for (const move of this.full.moves) moving.set(move.type, (moving.get(move.type) || 0) + move.count);
+      let switched = 0;
+      let shown = 0;
+      for (const [type, parts] of this.baseRows) {
+        const on = this.isSwitched(type);
+        if (on) switched += 1;
+        this.syncBaseOptions(parts.buttons, type);
+        const counts = { events: 0, ruled: 0 };
+        for (const name of this.state.campaigns) {
+          const entry = this.typeCounts[name].get(type);
+          if (entry) {
+            counts.events += entry.events;
+            counts.ruled += entry.ruled;
+          }
+        }
+        const moved = moving.get(type) || 0;
+        parts.events.textContent = String(counts.events);
+        parts.ruled.textContent = counts.ruled ? String(counts.ruled) : "–";
+        parts.moving.textContent = moved ? String(moved) : "–";
+        parts.moving.classList.toggle("moved", moved > 0);
+        const chosen = this.state.types.length === 1 && this.state.types[0] === type;
+        parts.name.setAttribute("aria-pressed", String(chosen));
+        parts.name.title = chosen ? "Show every type" : `Filter by ${type}`;
+        parts.row.classList.toggle("changed", on);
+        parts.row.classList.toggle("focused", this.state.types.includes(type));
+        const visible = (this.basesShow === "all" || on) && (!this.basesFind || type.toLowerCase().includes(this.basesFind));
+        parts.row.hidden = !visible;
+        if (visible) shown += 1;
+      }
+      $("bases-switched").textContent = String(switched);
+      for (const button of document.querySelectorAll("#bases-show .order-option")) {
+        button.setAttribute("aria-pressed", String(button.dataset.show === this.basesShow));
+      }
+      $("bases-note").textContent = switched ? `${switched} of ${plural(this.baseOrder.length, "type")} switched` : "Every type at the code's";
+      const empty = $("bases-empty");
+      empty.hidden = shown > 0;
+      if (shown === 0) {
+        empty.textContent =
+          this.basesShow === "switched" && switched === 0
+            ? "No type is switched; every type has the code's base level."
+            : `No ${this.basesShow === "switched" ? "switched " : ""}type matches “${this.basesFind}”.`;
+      }
+    },
+
+    // Bring a type's row into view in Base levels and put focus on its chosen level.
+    revealBase(type) {
+      const parts = this.baseRows.get(type);
+      if (!parts) return;
+      if (this.basesFind && !type.toLowerCase().includes(this.basesFind)) {
+        this.basesFind = "";
+        $("bases-find").value = "";
+      }
+      if (this.basesShow === "switched" && !this.isSwitched(type)) this.basesShow = "all";
+      this.renderBases();
+      parts.row.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      const chosen = parts.buttons.find((button) => button.getAttribute("aria-pressed") === "true") || parts.buttons[0];
+      chosen.focus({ preventScroll: true });
+      parts.row.classList.remove("base-row-flash");
+      void parts.row.offsetWidth;
+      parts.row.classList.add("base-row-flash");
     },
 
     // --- Draft stakes -----------------------------------------------------------------------------------------
@@ -1757,6 +1957,16 @@
       if (type && !showType) type.hidden = true;
       const sub = compact ? [] : [showType ? type : null, item.note ? el("span", { class: "event-note", text: item.note }) : null].filter(Boolean);
       const opens = item.opens || row.id;
+      // A real row of a switched type whose level a context rule decided: the switch passes it by, so say why.
+      const ruled =
+        !item.opens && row.rule && this.isSwitched(row.type)
+          ? el("span", {
+              class: "badge badge-ruled",
+              text: "ruled",
+              title: `The ${row.rule} context rule decided its level; the ${levelName(this.typeBase(row.type))} base level tried for ${row.type} does not apply.`,
+            })
+          : null;
+      const badges = [...(item.badges || []), ruled, item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null].filter(Boolean);
       node.className = `event${compact ? " event-compact" : ""}${dimmed ? " dim" : ""}${Inspector.shows(item.campaign, opens) ? " event-open" : ""}`;
       node.tabIndex = 0;
       node.dataset.type = row.type;
@@ -1778,9 +1988,7 @@
         ...[
           el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No stake of its own" }),
           el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), showType ? null : type),
-          item.badges || item.decidedBy !== row.id
-            ? el("span", { class: "event-badges" }, ...(item.badges || []), item.decidedBy !== row.id ? this.citedBadge(item.campaign, row, item.decidedBy) : null)
-            : null,
+          badges.length ? el("span", { class: "event-badges" }, ...badges) : null,
           el(
             "span",
             { class: `event-change${moved ? " moved" : ""}`, title: moved ? `${levelName(row.level)} → ${levelName(level)}` : levelName(level) },
@@ -2111,8 +2319,22 @@
       level.value.classList.add("ins-level");
       const score = figure("Score");
       const base = figure("Base");
-      base.value.textContent = String(row.base);
-      base.note.textContent = "before stakes";
+
+      // The type's base level, switchable here as in Base levels; a ruled event says the switch passes it by.
+      const kind = App.index.kinds[row.type];
+      const options = kind ? App.baseOptions(row.type, `Base level of ${row.type}`) : null;
+      const baseCode = el("span", { class: "ins-base-code" });
+      const ruled = kind && row.rule ? el("p", { class: "ins-ruled" }) : null;
+      const baseSection = options
+        ? el(
+            "div",
+            { class: "ins-base" },
+            el("span", { class: "ins-base-label", text: "Type's base level" }),
+            options.node,
+            baseCode,
+            ruled,
+          )
+        : null;
 
       const decided = el("li");
       const decidedSection = el(
@@ -2160,6 +2382,7 @@
         el("p", { class: "ins-id", text: row.id, title: "Event ID" }),
         off,
         el("dl", { class: "ins-figures" }, level.node, score.node, base.node),
+        baseSection,
         decidedSection,
         el(
           "section",
@@ -2188,7 +2411,7 @@
             )
           : null,
       ].filter(Boolean));
-      this.parts = { campaign, id, position, row, level, score, decided, decidedSection, stakeRows, cited, off };
+      this.parts = { campaign, id, position, row, level, score, base, baseButtons: options ? options.buttons : [], baseCode, ruled, decided, decidedSection, stakeRows, cited, off };
     },
 
     // The focused stake against the current reference, written as the tide captions write a cut-off, and which side
@@ -2223,6 +2446,26 @@
       parts.level.note.textContent = moved ? `${rank(level) > rank(row.level) ? "rose" : "dropped"} from ${levelName(row.level)}` : "as the code's";
       parts.score.value.textContent = String(score);
       parts.score.note.textContent = score === row.score ? "as the code's" : `code's ${row.score}`;
+
+      // The replay starts a rule-free row of a switched type from the tried level's base score.
+      const switched = App.isSwitched(row.type);
+      const tried = App.index.kinds[row.type] ? App.typeBase(row.type) : null;
+      const applies = switched && row.rule === null;
+      parts.base.value.textContent = String(applies ? Replay.levelBase(App.index.constants, tried) : row.base);
+      parts.base.note.textContent = applies ? `tried ${levelName(tried)}; code's ${row.base}` : "before stakes";
+      parts.base.note.classList.toggle("moved", applies);
+      if (parts.baseButtons.length) {
+        App.syncBaseOptions(parts.baseButtons, row.type);
+        const code = App.index.kinds[row.type].base;
+        parts.baseCode.textContent = switched ? `code's ${levelName(code)}` : `the code's`;
+        parts.baseCode.classList.toggle("moved", switched);
+      }
+      if (parts.ruled) {
+        parts.ruled.textContent = switched
+          ? `The ${row.rule} context rule decided this event's level, so the ${levelName(tried)} base level tried for ${row.type} does not apply to it.`
+          : `The ${row.rule} context rule decided this event's level, so a base level tried for ${row.type} would not apply to it.`;
+        parts.ruled.classList.toggle("ins-ruled-on", switched);
+      }
 
       const decider = decidedBy !== row.id ? this.rowOf(campaign, decidedBy) : null;
       parts.decidedSection.hidden = decidedBy === row.id;
