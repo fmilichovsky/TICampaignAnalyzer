@@ -8,8 +8,10 @@ from __future__ import annotations
 
 from bisect import bisect_left, bisect_right
 from collections import defaultdict
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import overload
 
 from ..analyzers.politics.bands import BANDS, band
 from ..kinds import nations as nation_kinds
@@ -100,7 +102,35 @@ def event_order(event: Event) -> tuple[str, tuple[str, int], str]:
     return (earliest(event) or "", interval_sort_key(intervals_of([event])[0]), event.id)
 
 
-def anchored(events: Iterable[Event], days: int) -> list[list[Event]]:
+@dataclass(frozen=True)
+class Run(Sequence[Event]):
+    """A run's members in date order, and the ``id_parts`` that keep its ID apart from the other runs of its group.
+
+    The discriminator is empty for the first run starting in an interval (the interval of its first member's ID) and
+    ``runN`` for the N-th: a run of a group is identified by that interval and its group. A rule citing events from
+    before that interval passes it as ``id_interval``.
+    """
+
+    members: tuple[Event, ...]
+    discriminator: tuple[str, ...] = ()
+
+    @overload
+    def __getitem__(self, index: int) -> Event: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> tuple[Event, ...]: ...
+
+    def __getitem__(self, index: int | slice) -> Event | tuple[Event, ...]:
+        return self.members[index]
+
+    def __len__(self) -> int:
+        return len(self.members)
+
+    def __iter__(self) -> Iterator[Event]:
+        return iter(self.members)
+
+
+def anchored(events: Iterable[Event], days: int) -> tuple[Run, ...]:
     """Bounded runs: each member within ``days`` of the run's first date."""
     runs: list[list[Event]] = []
     for event in sorted(events, key=event_order):
@@ -108,10 +138,10 @@ def anchored(events: Iterable[Event], days: int) -> list[list[Event]]:
             runs[-1].append(event)
         else:
             runs.append([event])
-    return runs
+    return _numbered(runs)
 
 
-def chained(events: Iterable[Event], days: int) -> list[list[Event]]:
+def chained(events: Iterable[Event], days: int) -> tuple[Run, ...]:
     """Unbounded runs: each member within ``days`` of the run's latest date, so a run can last years."""
     runs: list[list[Event]] = []
     for event in sorted(events, key=event_order):
@@ -119,7 +149,17 @@ def chained(events: Iterable[Event], days: int) -> list[list[Event]]:
             runs[-1].append(event)
         else:
             runs.append([event])
-    return runs
+    return _numbered(runs)
+
+
+def _numbered(runs: Sequence[Sequence[Event]]) -> tuple[Run, ...]:
+    started: dict[str, int] = defaultdict(int)
+    numbered = []
+    for members in runs:
+        key = interval_of(members[0].id)
+        started[key] += 1
+        numbered.append(Run(tuple(members), (f"run{started[key]}",) if started[key] > 1 else ()))
+    return tuple(numbered)
 
 
 def intervals_of(events: Iterable[Event]) -> list[str]:

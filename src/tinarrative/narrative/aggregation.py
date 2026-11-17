@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -218,7 +218,8 @@ class NarrativeBuilder:
         """The ID is qualified by ``id_interval``, else by the first interval.
 
         A rule passes ``id_interval`` when it may cite events from before its anchor: two events of one rule and one
-        ``id_parts`` could otherwise share the earliest cited interval.
+        ``id_parts`` could otherwise share the earliest cited interval. A run rule adds ``Run.discriminator`` to its
+        ``id_parts``: two runs of one group may start in one interval.
 
         A rule that overrides ``confidence``, ``open`` or ``starts_on`` documents why. ``corroborating`` events date
         only a start: they precede the effect they corroborate. A kind's attributes are checked by its constructor.
@@ -295,10 +296,10 @@ def aggregate(
     scales the narrative events' stakes.
 
     Narrative events already in ``stream`` are hidden from a rule that does not read their type, like those the rules
-    build. These programming errors raise ``ValueError``: a duplicate rule name or event ID, rules reading each other
-    in a cycle, a typed lookup of a narrative type the rule does not read, a narrative event of a type its rule does
-    not emit, a citation of an event the rule cannot see, and a citation of an exclusive constituent of a narrative
-    event of another kind, at any order.
+    build. These programming errors raise ``ValueError``: a duplicate rule name or event ID (naming the rule when one
+    rule repeats it), rules reading each other in a cycle, a typed lookup of a narrative type the rule does not read,
+    a narrative event of a type its rule does not emit, a citation of an event the rule cannot see, and a citation of
+    an exclusive constituent of a narrative event of another kind, at any order.
     """
     names = [rule.name for rule in rules]
     duplicated = sorted({name for name in names if names.count(name) > 1})
@@ -331,6 +332,7 @@ def aggregate(
             produced.append((rule, seen, _timed_apply(rule, seen, situations, build)))
         same_layer = {event.id for _, _, events in produced for event in events}
         for rule, seen, events in produced:
+            _check_unique(rule, events)
             for event in events:
                 _check(rule, event, seen, same_layer)
             logger.debug("narrative rule done %s", fields(rule=rule.name, layer=layer, events=len(events)))
@@ -416,6 +418,13 @@ def _timed_apply(
         raise ValueError(f"narrative rule {rule.name} {error}") from error
     timing.info("rule %s", fields(name=rule.name, seconds=round(time.perf_counter() - started, 4)))
     return events
+
+
+def _check_unique(rule: NarrativeRule, events: Sequence[Event]) -> None:
+    counts = Counter(event.id for event in events)
+    repeated = sorted(event_id for event_id, count in counts.items() if count > 1)
+    if repeated:
+        raise ValueError(f"narrative rule {rule.name} emitted duplicate event IDs: {repeated[:3]}")
 
 
 def _check(rule: NarrativeRule, event: Event, seen: EventStream, same_layer: set[str]) -> None:

@@ -376,7 +376,7 @@ class NuclearArcRule:
                 built.append(
                     build.event(
                         kind,
-                        id_parts=[nation_id],
+                        id_parts=[nation_id, *run.discriminator],
                         constituents=run,
                         corroborating=corroborating,
                         roles=[(Role.ACTOR, nation)],

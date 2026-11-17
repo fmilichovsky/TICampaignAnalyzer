@@ -491,6 +491,24 @@ def test_a_takeover_after_the_window_starts_a_new_run() -> None:
     assert wave.attribute("nations") == (NORTH, SOUTH, EAST)
 
 
+def test_two_waves_starting_in_one_interval_get_distinct_ids_and_the_first_keeps_its_own() -> None:
+    def on(subject: EntityRef, date: str) -> Event:
+        return control(K1, "executive", RESISTANCE, SERVANTS, subject=subject, date=date, date_basis=DateBasis.RECORD)
+
+    targets = [nation(str(key)) for key in range(80, 86)]
+    early = [on(target, f"2032-01-0{day}T00:00:00") for day, target in enumerate(targets[:3], start=2)]
+    late = [on(target, f"2032-03-2{day}T00:00:00") for day, target in enumerate(targets[3:], start=2)]
+
+    settings = GeopoliticsSettings(takeover_wave_window_days=30)
+    waves = of_type(built([*early, *late], plain(K0, K1), settings), "faction.takeover_wave")
+
+    assert [wave.attribute("nations") for wave in waves] == [tuple(targets[:3]), tuple(targets[3:])]
+    assert [wave.id for wave in waves] == [
+        f"faction.takeover_wave/{SERVANTS.entity_id}@{K1}",
+        f"faction.takeover_wave/{SERVANTS.entity_id}/run2@{K1}",
+    ]
+
+
 @pytest.mark.parametrize(
     ("shares", "expected"),
     [([(SERVANTS, 2), (RESISTANCE, 1)], True), ([(SERVANTS, 3)], False)],
