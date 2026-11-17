@@ -20,6 +20,7 @@ from tinarrative.benchmarking.calibration.replay import (
     ReplayState,
     ReplayStateError,
     js_number,
+    switched_types,
 )
 
 TOP_MOVES: Final = 5
@@ -37,12 +38,14 @@ def override_state(
     campaigns: Sequence[str] = (),
     types: Sequence[str] = (),
     clamp: str | None = None,
+    bases: Sequence[str] = (),
 ) -> ReplayState:
     """``state`` with the report's flags applied; each flag value is a comma-separated list, and repeats accumulate.
 
-    ``references`` override the named measures only; given ``campaigns`` or ``types`` replace the state's. Raises
-    ``ReplayStateError`` for an unknown or repeated measure or campaign and a reference that is not a positive number;
-    ``replay`` checks the types against the rows.
+    ``references`` override the named measures only; given ``campaigns`` or ``types`` replace the state's. ``bases``
+    (``TYPE=LEVEL``) switch the named event types only, and one at the code's base level clears its switch. Raises
+    ``ReplayStateError`` for an unknown or repeated measure, campaign or switched type, a reference that is not a
+    positive number and a base level that is not a level; ``replay`` checks the filter's types against the rows.
     """
     changed: dict[str, float] = {}
     for item in _items(references):
@@ -77,6 +80,24 @@ def override_state(
         state = replace(state, types=tuple(sorted(names)))
     if clamp is not None:
         state = replace(state, clamp=clamp == "on")
+    levels = list(index["constants"]["level_bands"])
+    tried: dict[str, str] = {}
+    for item in _items(bases):
+        event_type, separator, level = item.partition("=")
+        if not separator:
+            raise ReplayStateError(f"--base {item!r} is not TYPE=LEVEL")
+        if event_type not in index["kinds"]:
+            raise ReplayStateError(f"unknown event type {event_type!r} (known: the table's event types)")
+        if event_type in tried:
+            raise ReplayStateError(f"event type {event_type!r} is given twice")
+        if level not in levels:
+            raise ReplayStateError(
+                f"the base level of {event_type} must be a level ({', '.join(levels)}), not {level!r}"
+            )
+        tried[event_type] = level
+    if tried:
+        state = replace(state, type_bases={**state.type_bases, **tried})
+        state = replace(state, type_bases=switched_types(state, index))
     return state
 
 

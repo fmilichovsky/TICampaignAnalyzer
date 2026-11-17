@@ -86,6 +86,7 @@ def golden_tables() -> dict[str, dict[str, Any]]:
     beta = [
         row("atomic", "atomic.thing", stakes=power(3)),
         row("lean", "atomic.thing", level="major", stakes=power(-8)),
+        row("judged", "atomic.thing", level="major", stakes=power(2), rule="judged"),
         row("land", "atomic.other", stakes=(("population", POPULATION * 3),)),
         row("quiet", "atomic.plain", level="trivial"),
         *spread(),

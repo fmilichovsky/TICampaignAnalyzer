@@ -16,7 +16,7 @@ from tests.benchmarking.browser_replay import (
     state_object,
 )
 from tests.benchmarking.calibration_golden import GOLDEN
-from tests.benchmarking.calibration_support import FIRST, INVALID_HASHES
+from tests.benchmarking.calibration_support import FIRST, GROUP, INVALID_HASHES, MEMBER
 from tinarrative.benchmarking.calibration.replay import (
     SCHEMA_VERSION,
     STATE_KEYS,
@@ -58,6 +58,10 @@ STATES = [
     replace(CODE, bases={**CODE.bases, "held": "major"}),
     replace(CODE, bases={"held": "trivial", "moved": "campaign_defining"}, references=moved(population=10**0.5)),
     replace(CODE, bases={**CODE.bases, "moved": "major"}, clamp=False, campaigns=("alpha",), types=(FIRST,)),
+    replace(CODE, type_bases={"atomic.thing": "campaign_defining"}),
+    replace(CODE, type_bases={"atomic.thing": "trivial", FIRST: "campaign_defining"}, references=moved(power=10**0.5)),
+    replace(CODE, type_bases={MEMBER: "campaign_defining"}, types=(GROUP,)),
+    replace(CODE, type_bases={FIRST: "trivial"}, bases={**CODE.bases, "held": "major"}, clamp=False),
     replace(
         CODE,
         references={**CODE.references, "power": 0.002},
@@ -145,11 +149,26 @@ def test_the_states_cover_every_field_of_the_hash() -> None:
 
 @pytest.mark.parametrize(
     ("text", "message"),
-    [("base=held:huge", "must be a level"), ("base=held:major,held:minor", "'held' is repeated")],
+    [
+        ("base=held:huge", "must be a level"),
+        ("base=held:major,held:minor", "'held' is repeated"),
+        ("base=atomic.none:major", "unknown draft stake or event type 'atomic.none'"),
+        ("base=atomic.thing:huge", "the base level of atomic.thing must be a level"),
+        ("base=atomic.thing:major,atomic.thing:minor", "'atomic.thing' is repeated"),
+    ],
 )
-def test_both_codecs_reject_a_draft_base_that_is_not_one_level(text: str, message: str) -> None:
+def test_both_codecs_reject_a_base_that_is_not_one_level(text: str, message: str) -> None:
     [answer] = run_harness(GOLDEN, [{"op": "decode", "hash": text}])
 
     with pytest.raises(ReplayStateError, match=message):
         decode_state(text, INDEX)
     assert answer.get("error", {}).get("name") == "ReplayStateError"
+
+
+def test_a_type_switched_back_to_the_codes_level_decodes_to_the_default_state_in_both_codecs() -> None:
+    text = f"base={FIRST}:{INDEX['kinds'][FIRST]['base']}"
+
+    [answer] = run_harness(GOLDEN, [{"op": "decode", "hash": text}])
+
+    assert decode_state(text, INDEX) == CODE
+    assert answer["ok"] == js_json(state_object(CODE))

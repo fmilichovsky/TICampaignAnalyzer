@@ -153,7 +153,17 @@
     for (const [name, measure] of Object.entries(index.measures)) references[name] = Number(measure.reference);
     const bases = {};
     for (const draft of index.drafts) bases[draft.name] = draft.base;
-    return { references, clamp: true, campaigns: [...index.campaigns], types: [], focus: null, bases };
+    return { references, clamp: true, campaigns: [...index.campaigns], types: [], focus: null, bases, type_bases: {} };
+  }
+
+  // The types of state.type_bases away from the code's base level, sorted by type (replay.py's switched_types).
+  function switchedTypes(state, index) {
+    const switched = {};
+    const given = state.type_bases || {};
+    for (const type of Object.keys(given).sort(compare)) {
+      if (!has(index.kinds, type) || given[type] !== index.kinds[type].base) switched[type] = given[type];
+    }
+    return switched;
   }
 
   // Draft rows (campaign -> rows) are optional; a state without bases takes each draft's own.
@@ -206,6 +216,7 @@
         campaigns: [...state.campaigns],
         types: [...state.types],
         bases,
+        type_bases: switchedTypes(state, index),
         focus: state.focus,
       },
       campaigns,
@@ -253,6 +264,16 @@
         throw new ReplayStateError(`the base of draft stake ${name} must be a level, not ${repr(level)}`);
       }
     }
+    const typeBases = state.type_bases || {};
+    const unswitchable = Object.keys(typeBases).filter((type) => !has(index.kinds, type)).sort(compare);
+    if (unswitchable.length > 0) {
+      throw new ReplayStateError(`unknown event type(s) in the base levels: ${unswitchable.join(", ")}`);
+    }
+    for (const [type, level] of Object.entries(typeBases)) {
+      if (!has(index.constants.level_bands, level)) {
+        throw new ReplayStateError(`the base level of ${type} must be a level, not ${repr(level)}`);
+      }
+    }
   }
 
   // The rows and the draft rows rescored; a draft row may cite only real rows of an earlier layer.
@@ -262,6 +283,18 @@
     const layer = (row) => (row.tier === "narrative" ? Number(has(index.layers, row.type) ? index.layers[row.type] : 0) : 0);
     const byId = new Map(rows.map((row) => [row.id, row]));
     const done = new Map();
+    const switched = switchedTypes(state, index);
+    const ownBases = {};
+    for (const draft of index.drafts) ownBases[draft.name] = draft.base;
+    // The row's base, or the tried base level of its type where no context rule decided.
+    const start = (row) => (row.rule === null && has(switched, row.type) ? levelBase(constants, switched[row.type]) : row.base);
+    // A ruled draft row's own base; else the draft's switched base, its type's tried level or its own base.
+    const draftStart = (row, name) => {
+      if (row.ruled) return row.base;
+      let level = state.bases[name];
+      if (has(ownBases, name) && level === ownBases[name] && has(switched, row.type)) level = switched[row.type];
+      return levelBase(constants, level);
+    };
     const settle = (row, base) => {
       const ownLayer = layer(row);
       for (const cited of row.cited) {
@@ -296,7 +329,7 @@
     const ordered = rows
       .map((row, position) => ({ row, position, layer: layer(row) }))
       .sort((a, b) => a.layer - b.layer || a.position - b.position);
-    for (const { row } of ordered) done.set(row.id, settle(row, row.base));
+    for (const { row } of ordered) done.set(row.id, settle(row, start(row)));
     for (const item of done.values()) {
       const gate = gates.find((candidate) => item.row.type === candidate.memberType) || null;
       if (gate !== null && !gate.admitted.has(item.row.level) && gate.admitted.has(item.level)) {
@@ -315,7 +348,7 @@
     const drafted = shadows.map((row) => {
       const name = draftName(row.id);
       if (!has(state.bases, name)) throw new ReplayError(`${row.id} is a row of no declared draft stake`);
-      const item = settle(row, row.ruled ? row.base : levelBase(constants, state.bases[name]));
+      const item = settle(row, draftStart(row, name));
       item.member = null;
       return item;
     });
@@ -551,6 +584,7 @@
     const bases = Object.keys(fallback.bases)
       .filter((name) => state.bases && has(state.bases, name) && state.bases[name] !== fallback.bases[name])
       .map((name) => `${name}:${state.bases[name]}`);
+    for (const [type, level] of Object.entries(switchedTypes(state, index))) bases.push(`${type}:${level}`);
     if (bases.length > 0) fields.push(`base=${bases.join(",")}`);
     if (state.focus !== null) fields.push(`focus=${state.focus}`);
     return fields.join("&");
@@ -590,12 +624,15 @@
       } else if (key === "types") {
         state.types = parseNames(value, "type", false).sort(compare);
       } else if (key === "base") {
-        Object.assign(state.bases, decodeBases(value, index));
+        const [drafts, typeBases] = decodeBases(value, index);
+        Object.assign(state.bases, drafts);
+        state.type_bases = typeBases;
       } else {
         if (!has(index.measures, value)) throw new ReplayStateError(`unknown focus measure ${repr(value)} in the state hash`);
         state.focus = value;
       }
     }
+    state.type_bases = switchedTypes(state, index);
     return state;
   }
 
@@ -622,26 +659,39 @@
     return references;
   }
 
+  // The draft bases and the event types' base levels of a base value (replay.py's _decode_bases).
   function decodeBases(value, index) {
     const names = index.drafts.map((draft) => draft.name);
     const levels = Object.keys(index.constants.level_bands);
     const bases = {};
+    const typeBases = {};
     if (!value) throw new ReplayStateError("state hash key 'base' lists no base");
     for (const item of value.split(",")) {
       const separator = item.indexOf(":");
-      if (separator < 0) throw new ReplayStateError(`state hash base ${repr(item)} is not draft:level`);
+      if (separator < 0) throw new ReplayStateError(`state hash base ${repr(item)} is not draft:level or type:level`);
       const name = item.slice(0, separator);
       const level = item.slice(separator + 1);
-      if (!names.includes(name)) {
-        throw new ReplayStateError(`unknown draft stake ${repr(name)} in the state hash (known: ${names.join(", ") || "(none)"})`);
+      if (has(bases, name) || has(typeBases, name)) {
+        throw new ReplayStateError(`${repr(name)} is repeated in the state hash's base levels`);
       }
-      if (has(bases, name)) throw new ReplayStateError(`draft stake ${repr(name)} is repeated in the state hash`);
-      if (!levels.includes(level)) {
-        throw new ReplayStateError(`the base of draft stake ${name} must be a level (${levels.join(", ")}), not ${repr(level)}`);
+      if (names.includes(name)) {
+        if (!levels.includes(level)) {
+          throw new ReplayStateError(`the base of draft stake ${name} must be a level (${levels.join(", ")}), not ${repr(level)}`);
+        }
+        bases[name] = level;
+      } else if (has(index.kinds, name)) {
+        if (!levels.includes(level)) {
+          throw new ReplayStateError(`the base level of ${name} must be a level (${levels.join(", ")}), not ${repr(level)}`);
+        }
+        typeBases[name] = level;
+      } else {
+        throw new ReplayStateError(
+          `unknown draft stake or event type ${repr(name)} in the state hash ` +
+            `(drafts: ${names.join(", ") || "(none)"}; types: the index's kinds)`,
+        );
       }
-      bases[name] = level;
     }
-    return bases;
+    return [bases, typeBases];
   }
 
   function parseNames(value, what, allowEmpty) {

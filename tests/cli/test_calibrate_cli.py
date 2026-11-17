@@ -139,6 +139,28 @@ def test_explicit_flags_override_the_state_hash(paths: tuple[Path, Path]) -> Non
     assert report_json(paths, "--state", "clamp=off", "--clamp", "on")["state"]["clamp"] is True
 
 
+def test_base_flags_switch_event_types_and_override_the_state_hash(paths: tuple[Path, Path]) -> None:
+    _, out = paths
+    index, _, _ = load(out)
+    first, second = list(index["kinds"])[:2]
+    other = {level for level in index["constants"]["level_bands"] if level != index["kinds"][first]["base"]}
+    level = sorted(other)[0]
+    code = index["kinds"][second]["base"]
+
+    document = report_json(
+        paths,
+        "--state",
+        f"base={second}:{sorted(other)[-1]}",
+        "--base",
+        f"{first}={level}",
+        "--base",
+        f"{second}={code}",
+    )
+
+    assert document["state"]["type_bases"] == {first: level}
+    assert document["hash"] == f"base={first}:{level}"
+
+
 def test_the_json_readout_carries_the_state_aggregates_and_edges(paths: tuple[Path, Path]) -> None:
     _, out = paths
     document = report_json(paths)
@@ -159,6 +181,9 @@ def test_the_json_readout_carries_the_state_aggregates_and_edges(paths: tuple[Pa
         ["--type", "no.such_type"],
         ["--state", "speed=1"],
         ["--state", "ref=power:0.1,power:0.2"],
+        ["--base", "no.such_type=major"],
+        ["--base", "region.nation_changed=huge"],
+        ["--state", "base=no.such_type:major"],
     ],
 )
 def test_an_invalid_state_is_a_usage_error(paths: tuple[Path, Path], flags: list[str]) -> None:
@@ -224,7 +249,7 @@ def test_a_state_naming_an_unknown_draft_is_a_usage_error(paths: tuple[Path, Pat
 
     assert code == cli.EXIT_USAGE_ERROR
     assert stdout == ""
-    assert "unknown draft stake 'ghost'" in stderr
+    assert "unknown draft stake or event type 'ghost'" in stderr
 
 
 @pytest.mark.parametrize("broken", ["missing", "no-manifest"])

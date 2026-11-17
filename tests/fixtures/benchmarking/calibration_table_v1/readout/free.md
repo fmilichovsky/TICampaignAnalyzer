@@ -28,7 +28,7 @@ References: every measure at the code's. Clamp off. Campaigns: beta. Types: atom
 | Type | Level | Replay | Baseline | Change |
 | --- | --- | --- | --- | --- |
 | atomic.thing | minor | 1 | 1 | 0 |
-| atomic.thing | major | 1 | 1 | 0 |
+| atomic.thing | major | 2 | 2 | 0 |
 
 ## What moves
 
@@ -49,6 +49,7 @@ Cut-off at share 0.000562 (offset -1.25):
 | Side | Campaign | Event | Type | Share | Score | Level | Code level | Decided by |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | above | beta | `lean` | atomic.thing | 0.00158 | 54 | major | major | own |
+| above | beta | `judged` | atomic.thing | 0.0158 | 64 | major | major | own |
 | above | beta | `atomic` | atomic.thing | 0.02 | 40 | minor | minor | own |
 
 Cut-off at share 0.178 (offset 1.25):
@@ -56,6 +57,7 @@ Cut-off at share 0.178 (offset 1.25):
 | Side | Campaign | Event | Type | Share | Score | Level | Code level | Decided by |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | below | beta | `atomic` | atomic.thing | 0.02 | 40 | minor | minor | own |
+| below | beta | `judged` | atomic.thing | 0.0158 | 64 | major | major | own |
 | below | beta | `lean` | atomic.thing | 0.00158 | 54 | major | major | own |
 
 ### population

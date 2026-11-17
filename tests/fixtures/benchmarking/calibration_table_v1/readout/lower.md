@@ -41,7 +41,7 @@ References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.1428571
 | atomic.spread | campaign_defining | 6 | 6 | 0 |
 | atomic.thing | trivial | 1 | 1 | 0 |
 | atomic.thing | minor | 5 | 5 | 0 |
-| atomic.thing | major | 1 | 1 | 0 |
+| atomic.thing | major | 2 | 2 | 0 |
 | campaign.first_milestone | minor | 1 | 1 | 0 |
 | faction.takeover | major | 8 | 10 | -2 |
 | faction.takeover | campaign_defining | 3 | 1 | +2 |

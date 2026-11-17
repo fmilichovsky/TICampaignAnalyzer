@@ -41,7 +41,7 @@ References: every measure at the code's. Clamp on. Campaigns: alpha, beta. Types
 | atomic.spread | campaign_defining | 6 | 6 | 0 |
 | atomic.thing | trivial | 1 | 1 | 0 |
 | atomic.thing | minor | 5 | 5 | 0 |
-| atomic.thing | major | 1 | 1 | 0 |
+| atomic.thing | major | 2 | 2 | 0 |
 | campaign.first_milestone | minor | 1 | 1 | 0 |
 | faction.takeover | major | 10 | 10 | 0 |
 | faction.takeover | campaign_defining | 1 | 1 | 0 |

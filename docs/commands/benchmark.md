@@ -263,8 +263,8 @@ tinarrative benchmark calibrate open --no-open
 ```
 tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
                                        [--reference MEASURE=VALUE] [--campaign NAME]
-                                       [--type EVENT_TYPE] [--clamp {on,off}] [--state HASH]
-                                       [--format {text,json}]
+                                       [--type EVENT_TYPE] [--clamp {on,off}] [--base TYPE=LEVEL]
+                                       [--state HASH] [--format {text,json}]
 ```
 <!-- end generated -->
 
@@ -277,6 +277,9 @@ with `--rebuild`.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
+`--base TYPE=LEVEL` shows what changing an event type's base level would do. Events whose level a context rule
+decides keep it. `--base` applies even to types that `--type` leaves out of the count.
+
 The table also scores any [draft stakes](#draft-stakes) beside the real events, without changing their levels; the
 state holds a base level for each draft, and its own section of the readout reports each one. A draft that cannot be
 scored fails the rebuild.
@@ -287,6 +290,9 @@ tinarrative benchmark calibrate report --reference power=0.002
 
 # Two measures, one campaign, as JSON.
 tinarrative benchmark calibrate report --reference power=0.002,hab=0.03 --campaign resist --format json
+
+# What if nation changes were minor events?
+tinarrative benchmark calibrate report --base region.nation_changed=minor
 
 # A state copied from the calibration page, with the clamp turned off.
 tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
@@ -302,6 +308,7 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
 | `--campaign NAME` | Replay only these sample campaigns; comma-separated, repeatable (default: every one). |
 | `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
 | `--clamp on\|off` | Clamp the stake's scale, as the page's toggle (default on). |
+| `--base TYPE=LEVEL` | Try a base level on an event type; comma-separated, repeatable (default: the code's). |
 | `--state HASH` | A calibration page's URL hash; the other flags override what it sets. |
 | `--format text\|json` | Report format (default text). |
 <!-- end generated -->
@@ -310,7 +317,7 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
 | Code | When |
 | --- | --- |
 | 0 | The readout was printed. |
-| 2 | Usage error, a sample that does not match samples.json, an unknown measure, campaign or type, an invalid --state, a measure given twice, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
+| 2 | Usage error, a sample that does not match samples.json, an unknown measure, campaign or type, a base level that is not a level, an invalid --state, a measure or switched type given twice, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
 | 4 | --samples is not a directory or its samples.json cannot be read. |
 | 9 | --out cannot be written. |
 <!-- end generated -->

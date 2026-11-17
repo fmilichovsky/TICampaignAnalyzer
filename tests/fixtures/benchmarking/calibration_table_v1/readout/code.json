@@ -23,6 +23,7 @@
       "held": "minor",
       "moved": "trivial"
     },
+    "type_bases": {},
     "focus": null
   },
   "totals": {
@@ -110,13 +111,13 @@
       "replay": {
         "trivial": 1,
         "minor": 5,
-        "major": 1,
+        "major": 2,
         "campaign_defining": 0
       },
       "baseline": {
         "trivial": 1,
         "minor": 5,
-        "major": 1,
+        "major": 2,
         "campaign_defining": 0
       }
     },

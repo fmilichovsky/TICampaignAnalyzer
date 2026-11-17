@@ -113,6 +113,7 @@ def row(
     stakes: tuple[tuple[str, float], ...] = (),
     cited: tuple[str, ...] = (),
     entities: tuple[str, ...] = (),
+    rule: str | None = None,
 ) -> dict[str, Any]:
     return {
         "id": id,
@@ -122,7 +123,7 @@ def row(
         "date": None,
         "label": id,
         "base": base(level),
-        "rule": None,
+        "rule": rule,
         "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
         "entities": [{"id": entity, "name": None} for entity in entities],
         "cited": list(cited),
@@ -133,15 +134,18 @@ def row(
 
 def synthetic_kinds(tables: Mapping[str, Sequence[dict[str, Any]]]) -> dict[str, dict[str, Any]]:
     """The ``kinds`` map of hand-built rows: a declared type's code base level and rule, and for a type no kind
-    declares, its first row's level and no rule."""
-    types = {item["type"] for rows in tables.values() for item in rows}
+    declares, the level of the base score its first rule-free row starts from (else its first row's) and the first
+    rule any of its rows names."""
+    every = [item for rows in tables.values() for item in rows]
+    types = {item["type"] for item in every}
     declared = type_kinds(event_type for event_type in types if kind_for(event_type) is not None)
-    synthetic = {
-        item["type"]: {"base": item["level"], "rule": None}
-        for rows in reversed(list(tables.values()))
-        for item in reversed(rows)
-        if item["type"] not in declared
-    }
+    level_of = {base(level): level for level in CONSTANTS["level_bands"]}
+    synthetic: dict[str, dict[str, Any]] = {}
+    for event_type in sorted(types - set(declared)):
+        own = [item for item in every if item["type"] == event_type]
+        free = next((item for item in own if item["rule"] is None), own[0])
+        rule = next((item["rule"] for item in own if item["rule"] is not None), None)
+        synthetic[event_type] = {"base": level_of[free["base"]], "rule": rule}
     return dict(sorted({**synthetic, **declared}.items()))
 
 
@@ -286,6 +290,6 @@ INVALID_HASHES = [
     ("focus=warp", "unknown focus measure"),
     ("base=", "lists no base"),
     ("base=held", "draft:level"),
-    ("base=nobody:major", "unknown draft stake 'nobody'"),
+    ("base=nobody:major", "unknown draft stake or event type 'nobody'"),
 ]
 """State hashes both codecs reject, with the start of the Python error."""
