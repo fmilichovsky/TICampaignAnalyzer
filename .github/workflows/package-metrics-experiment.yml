@@ -3,14 +3,8 @@ name: Package metrics experiment
 # Temporary (#331): measures base and head in concurrent or sequential mode and prints wall time and peak RSS.
 
 on:
-  workflow_dispatch:
-    inputs:
-      mode:
-        description: concurrent or sequential
-        required: true
-        default: concurrent
-        type: choice
-        options: [concurrent, sequential]
+  push:
+    branches: [benchmark-concurrency-experiment]
 
 permissions:
   contents: read
@@ -30,6 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         side: [base, head]
+        mode: [concurrent, sequential]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -52,11 +47,11 @@ jobs:
       - name: Measure
         run: |
           flag=""
-          if [ "${{ inputs.mode }}" = sequential ]; then flag="--sequential"; fi
+          if [ "${{ matrix.mode }}" = sequential ]; then flag="--sequential"; fi
           echo "cpus: $(nproc), mem: $(free -m | awk '/Mem:/ {print $2}') MiB" | tee -a "$GITHUB_STEP_SUMMARY"
           python scripts/peak_rss_tree.py -- python -m tinarrative.cli benchmark metrics measure \
             --python .bench/venv/bin/python --samples benchmarks/samples --matrix benchmarks/matrix.toml \
             --config benchmarks/config.toml --out .bench/out --label "${{ matrix.side }}" $flag 2> .bench/log.txt || status=$?
           cat .bench/log.txt
-          { echo "### ${{ inputs.mode }} / ${{ matrix.side }}"; echo '```'; grep -E "package_metrics: (done|[a-z-]+ ·)|peak_rss_tree" .bench/log.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo "### ${{ matrix.mode }} / ${{ matrix.side }}"; echo '```'; grep -E "package_metrics: (done|[a-z-]+ ·)|peak_rss_tree" .bench/log.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "${status:-0}"
