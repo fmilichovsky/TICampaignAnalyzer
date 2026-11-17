@@ -56,13 +56,20 @@ from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
 from .narrative import build_dossier, narrative_rules
-from .narrator.assembly import assemble, parse_plan, stored_chapter
+from .narrator.assembly import Assembly
 from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
-from .narrator.councilors import article_requests, assemble_articles, missing, request_sha256
+from .narrator.councilors import article_requests, missing
 from .narrator.providers import Endpoint, endpoint
 from .narrator.request import AUDIENCES, CITATIONS, STYLES
 from .narrator.run_directory import RunDirectory, RunDirectoryWriteError
-from .narrator.send_run import SendItem, SendOutcome, SendReporter, send_run
+from .narrator.runs import (
+    RunReporter,
+    assemble_history,
+    chapter_items,
+    narrate_history,
+    write_articles,
+)
+from .narrator.send_run import SendItem, SendOutcome
 from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
@@ -1106,40 +1113,39 @@ def _run_councilors(args: argparse.Namespace) -> int:
         player_only=args.player_only,
         tier_exponent=settings.narrative.significance.tier_exponent,
     )
-    items = [
-        SendItem(index, request, request_sha256(request), {}, "article", entry["name"])
-        for (index, request), entry in zip(article_requests(dossier), dossier["councilors"], strict=True)
-    ]
+    count = len(dossier["councilors"])
+    reporter = _CliSendReporter(
+        "councilors",
+        "article",
+        args.host,
+        lambda: _write_out(f"Wrote dossier.json and {_count(count, 'request')} to {output}.\n"),
+    )
     sys.stdout.write(_dossier_summary(dossier))
-    if output is not None:
-        try:
-            RunDirectory(output).write_dossier(dossier, [(item.index, item.request) for item in items])
-        except RunDirectoryWriteError as error:
-            return _output_failed(output, error.error, "councilors")
-        sys.stdout.write(f"Wrote dossier.json and {_count(len(items), 'request')} to {output}.\n")
-    else:
-        sys.stdout.write("Nothing written; give --output DIR for the dossier and the requests.\n")
-    sys.stdout.flush()
     code = EXIT_SUCCESS
     outcomes: list[SendOutcome] = []
-    if target is not None and output is not None:
-        try:
-            outcomes = send_run(
-                items,
+    try:
+        if target is not None and output is not None:
+            articles = write_articles(
+                dossier,
                 narrator,
                 target,
                 output,
                 host=args.host,
-                reporter=_CliSendReporter("councilors", "article", args.host),
+                reporter=reporter,
                 force=bool(args.force),
+                version=__version__,
             )
-        except RunDirectoryWriteError as error:
-            return _run_directory_write_failed(error, "councilors")
-        code = EXIT_PROVIDER_ERROR if any(outcome.record is None for outcome in outcomes) else EXIT_SUCCESS
-        if code != EXIT_OUTPUT_ERROR:
-            assembled = _write_articles(output, dossier, outcomes, narrator, target, host=args.host)
-            if assembled != EXIT_SUCCESS:
-                code = assembled
+            outcomes = articles.outcomes
+            code = EXIT_PROVIDER_ERROR if any(outcome.record is None for outcome in outcomes) else EXIT_SUCCESS
+            _report_articles(output, articles.manifest)
+        elif output is not None:
+            RunDirectory(output).write_dossier(dossier, article_requests(dossier))
+            reporter.written()
+        else:
+            sys.stdout.write("Nothing written; give --output DIR for the dossier and the requests.\n")
+    except RunDirectoryWriteError as error:
+        return _run_directory_write_failed(error, "councilors", output=None if reporter.is_written else output)
+    sys.stdout.flush()
     logger.info(
         "councilors done %s",
         fields(
@@ -1155,46 +1161,22 @@ def _run_councilors(args: argparse.Namespace) -> int:
     return code
 
 
-def _write_articles(
-    directory: Path,
-    dossier: dict[str, Any],
-    outcomes: Sequence[SendOutcome],
-    narrator: NarratorSettings,
-    target: Endpoint,
-    *,
-    host: Host,
-) -> int:
-    """Assemble ``councilors.md`` and ``manifest.json`` from the run's outcomes; a failed article is listed in the
-    manifest with its finish and the reason, and the missing ones are summed up in one stderr line."""
-    run_directory = RunDirectory(directory)
-    sent_with = run_directory.sent_with(
-        target.provider, narrator.model, narrator.max_output_tokens, narrator.temperature
-    )
-    stored: dict[int, dict[str, Any]] = {}
-    for outcome in outcomes:
-        if outcome.record is not None:
-            stored[outcome.item.index] = outcome.record
-        elif outcome.error is not None:
-            stored[outcome.item.index] = run_directory.failure_record(sent_with, outcome.finish, outcome.error)
-    markdown, manifest = assemble_articles(
-        dossier, stored, generated=host.now(), version=__version__, sent_with=sent_with
-    )
-    try:
-        run_directory.write_articles(markdown, json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
-    except RunDirectoryWriteError as error:
-        return _run_directory_write_failed(error, "councilors")
+def _write_out(text: str) -> None:
+    sys.stdout.write(text)
+
+
+def _report_articles(directory: Path, manifest: dict[str, Any]) -> None:
+    """The one stdout line about ``councilors.md`` and, when articles are missing, the one stderr line."""
     absent = missing(manifest)
     total = len(manifest["articles"])
-    logger.info("councilors assembled %s", fields(articles=total, written=total - len(absent), missing=len(absent)))
     sys.stdout.write(f"Wrote councilors.md and manifest.json to {directory}.\n")
     sys.stdout.flush()
     if absent:
         print(
             f"tinarrative councilors: {len(absent)} of {_count(total, 'article')} missing; see "
-            f"{run_directory.manifest_path}",
+            f"{RunDirectory(directory).manifest_path}",
             file=sys.stderr,
         )
-    return EXIT_SUCCESS
 
 
 def _player_faction(snapshot: SaveSnapshot, profile: CampaignProfile | None) -> EntityId | None:
@@ -1386,36 +1368,41 @@ def _run_narrate(args: argparse.Namespace) -> int:
             f"{', '.join(plan.sparse)}; --period {period} is kept, so those sections may divide what the saves cannot",
             file=sys.stderr,
         )
-    if output is not None:
-        try:
-            RunDirectory(output).write_plan(
-                plan.to_dict(), [(item.index, item.request) for item in _chapter_items(plan)]
-            )
-        except RunDirectoryWriteError as error:
-            return _output_failed(output, error.error)
-    sys.stdout.write(_render_plan(plan, output))
-    sys.stdout.flush()
+    reporter = _CliSendReporter("narrate", "chapter", args.host, lambda: _write_out(_render_plan(plan, output)))
     sent = kept = 0
     code = EXIT_SUCCESS
-    if target is not None and output is not None:
-        try:
-            outcomes = send_run(
-                _chapter_items(plan),
+    try:
+        if target is not None and output is not None:
+            history = narrate_history(
+                plan,
                 narrator,
                 target,
                 output,
                 host=args.host,
-                reporter=_CliSendReporter("narrate", "chapter", args.host),
+                reporter=reporter,
                 force=bool(args.force),
-                stop_on_failure=True,
+                version=__version__,
             )
-        except RunDirectoryWriteError as error:
-            return _run_directory_write_failed(error)
-        code = EXIT_PROVIDER_ERROR if any(outcome.record is None for outcome in outcomes) else EXIT_SUCCESS
-        sent = sum(outcome.record is not None and not outcome.kept for outcome in outcomes)
-        kept = sum(outcome.kept for outcome in outcomes)
-        if code == EXIT_SUCCESS:
-            code = _assemble(output, host=args.host)
+            outcomes = history.outcomes
+            sent = sum(outcome.record is not None and not outcome.kept for outcome in outcomes)
+            kept = sum(outcome.kept for outcome in outcomes)
+            if history.assembly is None:
+                code = EXIT_PROVIDER_ERROR
+            else:
+                _report_history(output, history.assembly)
+        else:
+            if output is not None:
+                RunDirectory(output).write_plan(
+                    plan.to_dict(), [(item.index, item.request) for item in chapter_items(plan)]
+                )
+            reporter.written()
+    except RunDirectoryWriteError as error:
+        return _run_directory_write_failed(error, output=None if reporter.is_written else output)
+    except OSError as error:
+        return _history_unreadable(error, cast(Path, output))
+    except ValueError as error:
+        print(f"tinarrative narrate: {output}: {error}", file=sys.stderr)
+        return EXIT_UNSUPPORTED_INPUT
     logger.info(
         "narrate done %s",
         fields(
@@ -1500,26 +1487,19 @@ def _resolve_narrator(
     return narrator
 
 
-def _chapter_items(plan: ChapterPlan) -> list[SendItem]:
-    return [
-        SendItem(
-            planned.index,
-            planned.request,
-            planned.request_sha256,
-            {"estimate": planned.estimate},
-            "chapter",
-            str(planned.estimate),
-        )
-        for planned in plan.chapters
-    ]
-
-
-class _CliSendReporter(SendReporter):
-    def __init__(self, command: str, noun: str, host: Host) -> None:
+class _CliSendReporter(RunReporter):
+    def __init__(self, command: str, noun: str, host: Host, on_written: Callable[[], None]) -> None:
         self.command = command
         self.noun = noun
         self.host = host
+        self.on_written = on_written
         self.width = 0
+        self.is_written = False
+
+    def written(self) -> None:
+        self.is_written = True
+        self.on_written()
+        sys.stdout.flush()
 
     def kept(self, outcome: SendOutcome, tokens: tuple[int | None, int | None]) -> None:
         item = outcome.item
@@ -1588,51 +1568,36 @@ _FINDINGS = {
 
 
 def _assemble(directory: Path, *, host: Host) -> int:
-    """Assemble ``history.md`` and ``manifest.json`` from the plan, requests and responses written to ``directory``;
-    audit findings are summed up in one stderr line."""
-    run_directory = RunDirectory(directory)
+    """``narrate --assemble``: the history from what ``directory`` holds."""
     try:
-        plan = parse_plan(run_directory.read_plan())
-        count = len(plan["chapters"])
-        chapters = []
-        for entry in plan["chapters"]:
-            chapters.append(
-                stored_chapter(
-                    entry,
-                    run_directory.read_optional(run_directory.request_path(entry["index"], count)),
-                    run_directory.read_response(entry["index"], count),
-                )
-            )
+        assembled = assemble_history(directory, host=host, version=__version__)
     except OSError as error:
-        logger.debug("read failed %s", fields(output=safe_path(directory), error=type(error).__name__))
-        print(f"tinarrative narrate: cannot read {directory}: {error.strerror or error}", file=sys.stderr)
-        return EXIT_INPUT_ERROR
+        return _history_unreadable(error, directory)
     except ValueError as error:
         print(f"tinarrative narrate: {directory}: {error}", file=sys.stderr)
         return EXIT_UNSUPPORTED_INPUT
-    assembly = assemble(chapters, plan, generated=host.now(), version=__version__)
-    try:
-        manifest = json.dumps(assembly.manifest, ensure_ascii=False, indent=2) + "\n"
-        run_directory.write_history(assembly.history, manifest)
     except RunDirectoryWriteError as error:
         return _run_directory_write_failed(error)
-    findings = assembly.findings
-    audit = assembly.manifest["audit"]
-    logger.info(
-        "narrate assembled %s",
-        fields(
-            chapters=count,
-            footnotes=audit["footnotes"],
-            cited_ids=audit["cited_ids"],
-            **{kind: len(audit[kind] or ()) for kind in _FINDINGS},
-        ),
-    )
+    _report_history(directory, assembled.assembly)
+    return EXIT_SUCCESS
+
+
+def _history_unreadable(error: OSError, directory: Path) -> int:
+    logger.debug("read failed %s", fields(output=safe_path(directory), error=type(error).__name__))
+    print(f"tinarrative narrate: cannot read {directory}: {error.strerror or error}", file=sys.stderr)
+    return EXIT_INPUT_ERROR
+
+
+def _report_history(directory: Path, assembly: Assembly) -> None:
+    """The one stdout line about ``history.md`` and, when the audit found something, the one stderr line."""
     sys.stdout.write(f"Wrote history.md and manifest.json to {directory}.\n")
     sys.stdout.flush()
-    if findings:
-        summary = ", ".join(f"{number} {_FINDINGS[kind][number != 1]}" for kind, number in findings.items())
-        print(f"tinarrative narrate: citation audit: {summary}; see {run_directory.manifest_path}", file=sys.stderr)
-    return EXIT_SUCCESS
+    if assembly.findings:
+        summary = ", ".join(f"{number} {_FINDINGS[kind][number != 1]}" for kind, number in assembly.findings.items())
+        print(
+            f"tinarrative narrate: citation audit: {summary}; see {RunDirectory(directory).manifest_path}",
+            file=sys.stderr,
+        )
 
 
 def _output_failed(path: Path, error: OSError, command: str = "narrate") -> int:
@@ -1641,8 +1606,11 @@ def _output_failed(path: Path, error: OSError, command: str = "narrate") -> int:
     return EXIT_OUTPUT_ERROR
 
 
-def _run_directory_write_failed(error: RunDirectoryWriteError, command: str = "narrate") -> int:
-    return _output_failed(error.path, error.error, command)
+def _run_directory_write_failed(
+    error: RunDirectoryWriteError, command: str = "narrate", *, output: Path | None = None
+) -> int:
+    """A write failure names the file, except before the plan or dossier is written, when it names the directory."""
+    return _output_failed(output or error.path, error.error, command)
 
 
 def _read_package(source: str) -> object | int:

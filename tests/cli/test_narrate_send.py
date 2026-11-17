@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import json
-import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +19,7 @@ from tinarrative.cli import (
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED_INPUT,
     EXIT_USAGE_ERROR,
+    NARRATE_CONSTITUENTS,
     main,
 )
 from tinarrative.host import HttpResponse
@@ -26,6 +27,8 @@ from tinarrative.narrator.request import chapter_package
 
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
 SAVES = ["politics_reverted.json", "politics_before.json", "politics_after.json"]
+PACKAGE: list[str] = []
+"""``--package FILE`` of the fixture saves, built once so that no test parses a save."""
 KEY = "sk-test-0123456789-secret"
 PROSE = "The Resistance quietly took the capital."
 
@@ -65,6 +68,34 @@ class FakeTransport:
         return HttpResponse(200, {}, json.dumps(document).encode("utf-8"))
 
 
+@pytest.fixture(scope="module", autouse=True)
+def _package_file(tmp_path_factory: pytest.TempPathFactory, monkeypatch_module: pytest.MonkeyPatch) -> None:
+    path = tmp_path_factory.mktemp("package") / "package.json"
+    out = io.StringIO()
+    args = [
+        "events",
+        "--format",
+        "json",
+        "--narrative",
+        "--min-significance",
+        "major",
+        "--constituents",
+        NARRATE_CONSTITUENTS,
+    ]
+    monkeypatch_module.chdir(FIXTURE_DIR)
+    monkeypatch_module.setattr("sys.stdout", out)
+    assert main([*args, *SAVES]) == EXIT_SUCCESS
+    monkeypatch_module.undo()
+    path.write_text(out.getvalue(), encoding="utf-8")
+    PACKAGE[:] = ["--package", str(path)]
+
+
+@pytest.fixture(scope="module")
+def monkeypatch_module() -> Iterator[pytest.MonkeyPatch]:
+    with pytest.MonkeyPatch.context() as patch:
+        yield patch
+
+
 @pytest.fixture
 def host(monkeypatch: pytest.MonkeyPatch) -> FakeHost:
     fake = FakeTransport()
@@ -86,7 +117,7 @@ def _settings(tmp_path: Path, text: str = "") -> Path:
 def _narrate(tmp_path: Path, *options: str, settings: Path | None = None, host: FakeHost | None = None) -> int:
     config = settings or _settings(tmp_path)
     return main(
-        ["narrate", *SAVES, "--config", str(config), "--output", str(tmp_path / "out"), *options],
+        ["narrate", *PACKAGE, "--config", str(config), "--output", str(tmp_path / "out"), *options],
         host=None if host is None else host.bundle(),
     )
 
@@ -137,7 +168,7 @@ def test_the_provider_settings_never_change_the_plan_or_the_requests(
     plain = tmp_path / "plain.toml"
     plain.write_text("[llm]\nmax_input_tokens = 11000\nchars_per_token = 3\n", encoding="utf-8")
 
-    assert main(["narrate", *SAVES, "--config", str(plain), "--output", str(tmp_path / "plain")]) == EXIT_SUCCESS
+    assert main(["narrate", *PACKAGE, "--config", str(plain), "--output", str(tmp_path / "plain")]) == EXIT_SUCCESS
     assert _narrate(tmp_path, "--send", "--model", "other-model", host=host) == EXIT_SUCCESS
 
     for name in ("plan.json", "requests/01.json", "requests/02.json"):
@@ -186,7 +217,7 @@ def test_send_usage_errors_contact_nothing(
     config = tmp_path / "settings.toml"
     config.write_text(settings_text or "", encoding="utf-8")
 
-    assert main(["narrate", *SAVES, "--config", str(config), "--output", str(tmp_path / "out"), *options]) == (
+    assert main(["narrate", *PACKAGE, "--config", str(config), "--output", str(tmp_path / "out"), *options]) == (
         EXIT_USAGE_ERROR
     )
 
@@ -198,7 +229,7 @@ def test_send_usage_errors_contact_nothing(
 
 
 def test_send_needs_an_output_directory(tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["narrate", *SAVES, "--config", str(_settings(tmp_path)), "--send"]) == EXIT_USAGE_ERROR
+    assert main(["narrate", *PACKAGE, "--config", str(_settings(tmp_path)), "--send"]) == EXIT_USAGE_ERROR
 
     assert "--send needs --output DIR" in capsys.readouterr().err
     assert host.transport.calls == []
@@ -208,7 +239,7 @@ def test_the_log_carries_no_request_response_or_key(
     tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
 ) -> None:
     assert main(
-        ["--log-level", "debug", "narrate", *SAVES, "--config", str(_settings(tmp_path)),
+        ["--log-level", "debug", "narrate", *PACKAGE, "--config", str(_settings(tmp_path)),
          "--output", str(tmp_path / "out"), "--send"],
         host=host.bundle(),
     ) == EXIT_SUCCESS  # fmt: skip
@@ -230,7 +261,7 @@ def test_send_assembles_the_history_and_a_clean_audit_keeps_stderr_empty(
     assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
 
     captured = capsys.readouterr()
-    assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s\n", captured.err)
+    assert captured.err == ""
     out = tmp_path / "out"
     history = (out / "history.md").read_text(encoding="utf-8")
     plan = json.loads((out / "plan.json").read_text(encoding="utf-8"))
@@ -258,19 +289,18 @@ def test_audit_findings_are_one_stderr_line_and_never_fail_the_run(
     assert _narrate(tmp_path, "--send", host=host) == EXIT_SUCCESS
 
     err = capsys.readouterr().err
-    progress, audit = err.splitlines()
-    assert re.fullmatch(r"tinarrative narrate: parsing and processing took \d+\.\d+s", progress)
     manifest = tmp_path / "out" / "manifest.json"
-    assert audit == f"tinarrative narrate: citation audit: 2 unmatched citations; see {manifest}"
+    assert err == f"tinarrative narrate: citation audit: 2 unmatched citations; see {manifest}\n"
 
 
-def test_a_failed_run_writes_no_history(tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]) -> None:
-    host.transport.stops = ["end_turn", "max_tokens"]
+def test_a_failed_chapter_is_a_provider_error_naming_the_chapter(
+    tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]
+) -> None:
+    host.transport.stops = ["max_tokens"]
 
     assert _narrate(tmp_path, "--send", host=host) == EXIT_PROVIDER_ERROR
 
-    assert not (tmp_path / "out" / "history.md").exists()
-    assert not (tmp_path / "out" / "manifest.json").exists()
+    assert capsys.readouterr().err.startswith("tinarrative narrate: chapter 1: anthropic: ")
 
 
 def test_force_needs_send(tmp_path: Path, host: FakeHost, capsys: pytest.CaptureFixture[str]) -> None:
