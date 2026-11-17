@@ -109,8 +109,8 @@ def _items(values: Sequence[str]) -> list[str]:
 
 
 def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
-    """One paragraph: the references against the code's, the clamp, campaigns and types, the totals, the top moves
-    and every draft stake with its issue, so a draft left behind after its issue closed still shows."""
+    """One paragraph: the references and base levels against the code's, the clamp, campaigns and types, the totals,
+    the top moves and every draft stake with its issue, so a draft left behind after its issue closed still shows."""
     state = result["state"]
     code = index["measures"]
     changed = [
@@ -124,11 +124,22 @@ def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
         references = ", ".join(changed)
     else:
         references = ", ".join(changed) + "; every other measure at the code's"
+    switched = [
+        f"{event_type} {level} (code {index['kinds'][event_type]['base']})"
+        for event_type, level in result["state"]["type_bases"].items()
+    ]
+    if not switched:
+        bases = "every type at the code's"
+    elif len(switched) == len(index["kinds"]):
+        bases = ", ".join(switched)
+    else:
+        bases = ", ".join(switched) + "; every other type at the code's"
     totals = result["totals"]
     package = totals["package"]
     moves = "; ".join(_move(move) for move in result["moves"][:TOP_MOVES]) or "nothing"
     return (
         f"References: {references}. "
+        f"Base levels: {bases}. "
         f"Clamp {'on' if state['clamp'] else 'off'}. "
         f"Campaigns: {', '.join(state['campaigns']) or 'none'}. "
         f"Types: {', '.join(state['types']) or 'all'}. "
@@ -170,7 +181,8 @@ def _drafts(index: Mapping[str, Any], result: Replay) -> str:
 
 
 def snippet(index: Mapping[str, Any], result: Replay) -> str:
-    """The changed references as measure registry entries, one line each in index order."""
+    """The changed references as measure registry entries, one line each in index order, then one comment line per
+    switched event type, sorted by type."""
     references = result["state"]["references"]
     lines = [
         f"StakeMeasure.{measure.upper()}: MeasureSpec(reference={js_number(references[measure])}, ...),"
@@ -178,7 +190,11 @@ def snippet(index: Mapping[str, Any], result: Replay) -> str:
         for measure, spec in index["measures"].items()
         if references[measure] != spec["reference"]
     ]
-    return "\n".join(lines) if lines else "# Every reference is the code's."
+    lines += [
+        f"# {event_type}: base {index['kinds'][event_type]['base'].upper()} -> {level.upper()}"
+        for event_type, level in result["state"]["type_bases"].items()
+    ]
+    return "\n".join(lines) if lines else "# Every reference and base level is the code's."
 
 
 def _move(move: Mapping[str, Any]) -> str:
@@ -208,6 +224,15 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
         value = state["references"][measure]
         mark = " (changed)" if value != spec["reference"] else ""
         lines.append(f"| {measure} | {js_number(value)}{mark} | {js_number(spec['reference'])} |")
+    switched = state["type_bases"]
+    if switched:
+        lines += ["", "| Event type | Base level | Code's |", "| --- | --- | ---: |"]
+        lines += [
+            f"| {event_type} | {level} (changed) | {index['kinds'][event_type]['base']} |"
+            for event_type, level in switched.items()
+        ]
+    else:
+        lines += ["", "Every event type is at the code's base level."]
     lines += [
         "",
         f"- Campaigns: {', '.join(state['campaigns']) or 'none'}",

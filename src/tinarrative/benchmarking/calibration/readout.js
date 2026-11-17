@@ -52,11 +52,19 @@
     if (changed.length === 0) references = "every measure at the code's";
     else if (changed.length === measures.length) references = changed.join(", ");
     else references = `${changed.join(", ")}; every other measure at the code's`;
+    const switched = Object.entries(state.type_bases).map(
+      ([type, level]) => `${type} ${level} (code ${index.kinds[type].base})`,
+    );
+    let bases;
+    if (switched.length === 0) bases = "every type at the code's";
+    else if (switched.length === Object.keys(index.kinds).length) bases = switched.join(", ");
+    else bases = `${switched.join(", ")}; every other type at the code's`;
     const totals = result.totals;
     const pkg = totals.package;
     const moves = result.moves.slice(0, TOP_MOVES).map(move).join("; ") || "nothing";
     return (
       `References: ${references}. ` +
+      `Base levels: ${bases}. ` +
       `Clamp ${state.clamp ? "on" : "off"}. ` +
       `Campaigns: ${state.campaigns.join(", ") || "none"}. ` +
       `Types: ${state.types.join(", ") || "all"}. ` +
@@ -70,7 +78,8 @@
     );
   }
 
-  // The changed references as measure registry entries, one line each in index order.
+  // The changed references as measure registry entries, one line each in index order, then one comment line per
+  // switched event type, sorted by type.
   function snippet(index, result) {
     const references = result.state.references;
     const lines = Object.entries(index.measures)
@@ -80,7 +89,10 @@
           `StakeMeasure.${measure.toUpperCase()}: MeasureSpec(reference=${String(references[measure])}, ...),` +
           `  # code: ${String(spec.reference)}`,
       );
-    return lines.length > 0 ? lines.join("\n") : "# Every reference is the code's.";
+    for (const [type, level] of Object.entries(result.state.type_bases)) {
+      lines.push(`# ${type}: base ${index.kinds[type].base.toUpperCase()} -> ${level.toUpperCase()}`);
+    }
+    return lines.length > 0 ? lines.join("\n") : "# Every reference and base level is the code's.";
   }
 
   root.TICalibrationReadout = Object.freeze({ TOP_MOVES, sharedParagraph, snippet });

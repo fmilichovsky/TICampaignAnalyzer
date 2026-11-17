@@ -13,6 +13,8 @@
 | faction | 0.14285714285714285 | 0.14285714285714285 |
 | nuclear | 0.01 | 0.01 |
 
+Every event type is at the code's base level.
+
 - Campaigns: beta
 - Clamp: off
 - Types: atomic.thing
@@ -21,7 +23,7 @@
 
 ## Summary
 
-References: every measure at the code's. Clamp off. Campaigns: beta. Types: atomic.thing. 0 events move level; the narrator package goes from 0 to 0 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 0 events, 0 set by a cited event; moved (#2) at base trivial: 0 events, 0 set by a cited event.
+References: every measure at the code's. Base levels: every type at the code's. Clamp off. Campaigns: beta. Types: atomic.thing. 0 events move level; the narrator package goes from 0 to 0 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 0 events, 0 set by a cited event; moved (#2) at base trivial: 0 events, 0 set by a cited event.
 
 ## Level counts
 
@@ -174,5 +176,5 @@ No row of this draft has this stake.
 ## Snippet
 
 ```python
-# Every reference is the code's.
+# Every reference and base level is the code's.
 ```

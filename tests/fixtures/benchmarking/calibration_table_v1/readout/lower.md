@@ -13,6 +13,8 @@
 | faction | 1e-7 (changed) | 0.14285714285714285 |
 | nuclear | 0.01 | 0.01 |
 
+Every event type is at the code's base level.
+
 - Campaigns: alpha, beta
 - Clamp: on
 - Types: all
@@ -21,7 +23,7 @@
 
 ## Summary
 
-References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 8 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
+References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Base levels: every type at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 8 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
 
 ## Level counts
 
