@@ -367,6 +367,10 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
     `*Reason_Annexation` and `*RegionTransfer`, as on every territory gain, so no tracker reason marks a
     unification. The absorbed nation's arsenal (`numNuclearWeapons`), armies and space assets moved to the
     absorbing nation in the same interval.
+  - *Transfers beside a merger* (observed 2026-11-17, one later Resist interval of 155 days). The absorbing nation
+    of two federation members also lost two regions it held before the interval to two other nations, with no
+    reading and no war between them. The territory aggregates are per nation and interval, so only the counterparts
+    named by an aggregate tell a merger's transfer from another one.
   - *Not unifications.* The 18 other nations that left the European Union's federation in Protectorate lost no
     region in the interval they left.
 

@@ -112,7 +112,9 @@ TAKEOVER_LEDGER_LABELS = frozenset({"Coup", "Purge", "Crackdown"})
 """Mission charges that corroborate a takeover under the bounds of ADR-0010."""
 READINGS = (UNIFICATION, ANNEXATION, INDEPENDENCE)
 """A gain without one of these readings is a cession candidate."""
-MERGED_EITHER = frozenset({TERRITORY_GAINED, TERRITORY_LOST, RENAMED, SPACE_ASSETS_CHANGED})
+MERGED_TERRITORY = frozenset({TERRITORY_GAINED, TERRITORY_LOST})
+"""Territory aggregates that are the merger's exclusive constituents when they name two of its nations."""
+MERGED_EITHER = frozenset({RENAMED, SPACE_ASSETS_CHANGED})
 """Events of either merged nation that are the merger's exclusive constituents in its interval."""
 MERGED_ABSORBED = frozenset({RANK_CHANGED, NATION_DISAPPEARED, NATION_CONTROL, POPULATION_CHANGED, PCGDP_TREND})
 """Events of the absorbed nation only that are the merger's exclusive constituents in its interval."""
@@ -120,7 +122,8 @@ MERGED_POINTS = frozenset({CONTROLLER_CHANGED, POINT_DISAPPEARED, POINT_LOSS_REC
 MERGED_ARMIES = frozenset({ARMY_APPEARED, ARMY_DISAPPEARED, DEPLOYMENT_TYPE_CHANGED, NATION_ARMIES_CHANGED})
 MERGER_CONSTITUENT_TYPES = tuple(
     sorted(
-        MERGED_EITHER
+        MERGED_TERRITORY
+        | MERGED_EITHER
         | MERGED_ABSORBED
         | MERGED_POINTS
         | MERGED_ARMIES
@@ -155,6 +158,28 @@ class MergerParties:
         if found is None or found.entities[0].entity_id == nation_id:
             return None
         return found.entities[0]
+
+    def moved_within(self, territory: Event) -> bool:
+        """Whether a territory aggregate moved regions between two nations of one merger in its interval."""
+        nation_id = subject_id(territory)
+        found = self.unifications.get((nation_id, interval_of(territory.id))) if nation_id is not None else None
+        if found is None:
+            return False
+        return _between_merged(
+            territory, {ref.entity_id for ref in (found.entities[0], *refs_attribute(found, "unified"))}
+        )
+
+
+def _between_merged(territory: Event, nations: Collection[EntityId]) -> bool:
+    """Whether ``territory`` is an aggregate of one of ``nations`` naming another of them as its counterpart.
+
+    A merged nation's territory aggregate covers every counterpart of its interval, so one that also moved regions to
+    or from another nation still belongs to the merger; one that names none of the merged nations does not.
+    """
+    nation = subject_id(territory)
+    return nation in nations and any(
+        ref.entity_id != nation and ref.entity_id in nations for ref in refs_attribute(territory, "counterparts")
+    )
 
 
 def _id(nation: EntityRef | EntityId | None) -> EntityId | None:
@@ -546,7 +571,8 @@ def _member_change(event: Event, parties: MergerParties) -> FrozenMap:
 class CessionRule:
     """``nation.cession``: in one interval, a nation's regions went to another with no reading or war explaining it.
 
-    A conquest without a war looks the same, hence the heuristic join.
+    A conquest without a war looks the same, hence the heuristic join. A territory aggregate naming two nations of one
+    merger is that merger's, so the cession yields it (ADR-0019).
     """
 
     settings: GeopoliticsSettings
@@ -559,16 +585,19 @@ class CessionRule:
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
         explained = _readings(stream)
+        parties = MergerParties.of(stream)
         lost = {(subject_id(event), interval_of(event.id)): event for event in by_type(stream, TERRITORY_LOST)}
         built = []
         for gain in sorted(by_type(stream, TERRITORY_GAINED), key=lambda event: event.id):
             gainer, key = gain.entities[0], interval_of(gain.id)
-            if (gainer.entity_id, key) in explained:
+            if (gainer.entity_id, key) in explained or parties.moved_within(gain):
                 continue
             for loser in refs_attribute(gain, "counterparts"):
                 loss = lost.get((loser.entity_id, key))
-                if loss is None or not any(
-                    ref.entity_id == gainer.entity_id for ref in refs_attribute(loss, "counterparts")
+                if (
+                    loss is None
+                    or parties.moved_within(loss)
+                    or not any(ref.entity_id == gainer.entity_id for ref in refs_attribute(loss, "counterparts"))
                 ):
                     continue
                 around = reports.get(key, ())
@@ -674,6 +703,8 @@ class MergerRule:
 
 def _merger_constituent(event: Event, gainer: EntityId, absorbed: Collection[EntityId]) -> bool:
     nation = subject_id(event)
+    if event.event_type in MERGED_TERRITORY:
+        return _between_merged(event, {gainer, *absorbed})
     if event.event_type in MERGED_EITHER:
         return nation == gainer or nation in absorbed
     if event.event_type in MERGED_ABSORBED:
