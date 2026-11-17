@@ -120,38 +120,6 @@ The shares a reference lets keep a minor or major base level, from the reference
 slides the window along the shares and never changes its width.
 _Avoid_: band (a band is a level's score range)
 
-**Draft stake**:
-A stake tried on the events of an existing event type before its kind declares one, so its reference can be chosen
-first. It is scored beside the real events and never changes their scores.
-_Avoid_: design series, series builder
-
-**Calibration state**:
-What a replay of the calibration table is asked: a reference per stake measure, a base level per event type, the
-clamp, the enabled campaigns and a type filter. Each reference and base level is either the code's or one being
-tried; a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
-_Avoid_: scenario, what-if, trial base level
-
-**Editorial direction**:
-What a campaign history is for, what it emphasizes and plays down, and what each significance level means to a
-reader. A calibration review judges the narrator package against it, and the narrator prompt implements it.
-_Avoid_: editorial stance (a stance is a councilor's public outlook), editorial policy, guidelines
-
-**Must-tell list**:
-The episodes one sample campaign's history has to contain, written by the dev up to a declared cut-off save. It is
-a review's anchor, read by the evaluation tooling only, and acknowledged to lean towards the player's faction.
-_Avoid_: ground truth, expected events
-
-**Must-tell entry**:
-One item of a must-tell list: an episode with an outcome, or a thread, a sustained process with none. It names the
-period it spans in the data, the nations and factions it concerns and the lowest level it must reach.
-_Avoid_: expected event (an entry is an episode, which events state), must-tell event
-
-**Theme**:
-An area of a campaign that its history should follow, such as blocs and unions or alien activity on Earth. It has a
-name, a description and the event types expected to state it; that list is never complete. A calibration review
-can read a campaign by theme. Sharing a theme says nothing about whether two events influenced each other.
-_Avoid_: family (code layout), category, thread, storyline
-
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
 the arc's two ends, so a share never exceeds one.
@@ -179,6 +147,40 @@ _Avoid_: battle size, fleet size
 
 **Dry mass**:
 A ship's mass without its propellant; the save's current mass includes propellant, which swings with refuelling.
+
+### Calibration
+
+**Editorial direction**:
+What a campaign history is for, what it emphasizes and plays down, and what each significance level means to a
+reader. A calibration review judges the narrator package against it, and the narrator prompt implements it.
+_Avoid_: editorial stance (a stance is a councilor's public outlook), editorial policy, guidelines
+
+**Must-tell list**:
+The episodes one sample campaign's history has to contain, written by the dev up to a declared cut-off save. It is
+a review's anchor, read by the evaluation tooling only, and acknowledged to lean towards the player's faction.
+_Avoid_: ground truth, expected events
+
+**Must-tell entry**:
+One item of a must-tell list: an episode with an outcome, or a thread, a sustained process with none. It names the
+period it spans in the data, the nations and factions it concerns and the lowest level it must reach.
+_Avoid_: expected event (an entry is an episode, which events state), must-tell event
+
+**Theme**:
+An area of a campaign that its history should follow, such as blocs and unions or alien activity on Earth. It has a
+name, a description and the event types expected to state it; that list is never complete. A calibration review
+can read a campaign by theme. Sharing a theme says nothing about whether two events influenced each other.
+_Avoid_: family (code layout), category, thread, storyline
+
+**Draft stake**:
+A stake tried on the events of an existing event type before its kind declares one, so its reference can be chosen
+first. It is scored beside the real events and never changes their scores.
+_Avoid_: design series, series builder
+
+**Calibration state**:
+What a replay of the calibration table is asked: a reference per stake measure, a base level per event type, the
+clamp, the enabled campaigns and a type filter. Each reference and base level is either the code's or one being
+tried; a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
+_Avoid_: scenario, what-if, trial base level
 
 ### Narration
 
