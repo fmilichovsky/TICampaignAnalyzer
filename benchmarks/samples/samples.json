@@ -32,44 +32,9 @@
         }
       }
     },
-    "resist": {
-      "description": "Resistance campaign, late game: 5 saves from 2045-08 to 2046-10; large saves, few narrative events, fits one chapter at the default budget.",
-      "files": {
-        "Resistsave00079_2045-8-1.json.xz": {
-          "sha256": "8a2b05bc7c33390d13c7a43c0e30a1f305e66dbb86022980a52ab3f464db0e74",
-          "bytes": 985388,
-          "raw_bytes": 77284666
-        },
-        "Resistsave00080_2045-11-1.json.xz": {
-          "sha256": "ff50486564bd6a96f92e122d96c8475e23ef9e4b033cccb2c0a834e531ea208a",
-          "bytes": 986936,
-          "raw_bytes": 77458972
-        },
-        "Resistsave00081_2045-11-22.json.xz": {
-          "sha256": "e8a35f881623ee894433c39b0a8ecf0409b194f1c856b5ebd9e28893a464091b",
-          "bytes": 985528,
-          "raw_bytes": 77593087
-        },
-        "Resistsave00082_2046-2-22.json.xz": {
-          "sha256": "58096fa1c6c718a1d82f8e90ed966b8079933e3c28df45131c2c5976d64a44bf",
-          "bytes": 992596,
-          "raw_bytes": 77955660
-        },
-        "Resistsave00083_2046-10-8.json.xz": {
-          "sha256": "33a645601328c0e7b9e492a651bb4f6d1846a5b42fb932e2da1d0601c339ba89",
-          "bytes": 1052928,
-          "raw_bytes": 84312715
-        }
-      }
-    },
     "protectorate": {
-      "description": "Approximately 6.5 years of campaign time from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
+      "description": "Approximately 10 years of campaign time from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
       "files": {
-        "Autosave3.json.xz": {
-          "sha256": "e3c7567f846f8d240db75d9c3fee5fbdafc8823102fefd5b8283c3604abdc931",
-          "bytes": 716880,
-          "raw_bytes": 62369052
-        },
         "Protectorate00087_2026-2-13.json.xz": {
           "sha256": "732ef1d334ad7349a0b97b8e332bbaf9a65ef01b263879838b435e2aed246d1c",
           "bytes": 299976,
@@ -169,6 +134,351 @@
           "sha256": "5caf4aca8f29190781b1f2257f806a8012c6c75b3877162987dee58c1dc7dbc5",
           "bytes": 834692,
           "raw_bytes": 71203879
+        },
+        "Protectorate00107_2033-9-16.json.xz": {
+          "sha256": "b4d89ddd1616765423440eba56cb89228655f08cfe5846863c1eeac1a553bbc8",
+          "bytes": 862060,
+          "raw_bytes": 73426518
+        },
+        "Protectorate00108_2033-12-14.json.xz": {
+          "sha256": "5e2f9f14be72d1132d76f32f12a421ef50351a7aacf2d96a3811f2694c83f435",
+          "bytes": 876364,
+          "raw_bytes": 74397504
+        },
+        "Protectorate00109_2034-3-1.json.xz": {
+          "sha256": "379dc5248e3ad20211c879ef9ca0c6c5f4e84d7dd0809e93bf55f84945ee77b0",
+          "bytes": 882460,
+          "raw_bytes": 75227399
+        },
+        "Protectorate00110_2034-9-16.json.xz": {
+          "sha256": "dbffa86941732901f9c66bd87313231a18c08225e14caffefff543092e19d939",
+          "bytes": 907916,
+          "raw_bytes": 77745563
+        },
+        "Protectorate00111-AdminWars_2035-6-16.json.xz": {
+          "sha256": "e69454821653627af59e5ad7ee0d531f58b44a83bee6ab2da5b912eef0a524f4",
+          "bytes": 946896,
+          "raw_bytes": 80100394
+        }
+      }
+    },
+    "resist-long": {
+      "description": "Almost entire campaign (20 years) from start to almost victory.",
+      "files": {
+        "Resistsave00021_2026-8-1.json.xz": {
+          "sha256": "3b214f31f0b3e7ddcc6846d9a263804a269244ab16815dadebeeafeb36bae46c",
+          "bytes": 392284,
+          "raw_bytes": 32633071
+        },
+        "Resistsave00022_2027-2-16.json.xz": {
+          "sha256": "61157dcd62e1dfb223ad8f7a47fa854e281e4d427b87775a536a1107b583b541",
+          "bytes": 415144,
+          "raw_bytes": 33753762
+        },
+        "Resistsave00023_2027-5-16.json.xz": {
+          "sha256": "4d4d8d1cb55f1003034ae7ae773846edbe1c145fd5e5e9f8dda5d67cb0206d43",
+          "bytes": 414972,
+          "raw_bytes": 34198300
+        },
+        "Resistsave00024_2027-12-16.json.xz": {
+          "sha256": "c737bd9f6032e02d399cd1aeac62837e9ac501b91233cd520a83fff168f01c82",
+          "bytes": 445648,
+          "raw_bytes": 36490207
+        },
+        "Resistsave00025_2028-2-16.json.xz": {
+          "sha256": "ce1b57110795d8775d7467cecbc5873fc4565701929e7ca280690d7dbbe01b64",
+          "bytes": 459404,
+          "raw_bytes": 37094114
+        },
+        "Resistsave00026_2029-8-16.json.xz": {
+          "sha256": "f4d024e833da0adc9851f77ca3a4ab5772686dd62446f646eda6e20602037dc0",
+          "bytes": 519684,
+          "raw_bytes": 42132174
+        },
+        "Resistsave00027_2030-3-1.json.xz": {
+          "sha256": "2026ecd94182e6c96d3bdf4290117683fe91c9f763eeeec6b7170fee7c44b074",
+          "bytes": 554152,
+          "raw_bytes": 44455367
+        },
+        "Resistsave00028_2030-8-16.json.xz": {
+          "sha256": "e1c7768ea0a852cfe28bb2fa150494d7ecf32ee8802217fecdd9f983b1524292",
+          "bytes": 581492,
+          "raw_bytes": 47423622
+        },
+        "Resistsave00029_2030-9-1.json.xz": {
+          "sha256": "f997d00239bed2a3cf44e7c529460d489787bbe48652cfc18d90e6fc3405b6c7",
+          "bytes": 583456,
+          "raw_bytes": 47646491
+        },
+        "Resistsave00030_2031-1-14.json.xz": {
+          "sha256": "5608b4d522d4f81be8433f57410a1faf8d1e27528249945019c83c4483059fcd",
+          "bytes": 606564,
+          "raw_bytes": 48484979
+        },
+        "Resistsave00031_2031-2-1.json.xz": {
+          "sha256": "ed38a67ffaee7fa2720b1952bb31dedb078f2aa02c64911dd5fb66d10153c511",
+          "bytes": 612228,
+          "raw_bytes": 49113790
+        },
+        "Resistsave00032_2031-5-1.json.xz": {
+          "sha256": "3864298656de264bd1c67381d6ec01841f61d14ab894ce5add60e17b8654a121",
+          "bytes": 629368,
+          "raw_bytes": 50859138
+        },
+        "Resistsave00033_2031-5-16.json.xz": {
+          "sha256": "6869764ac2fc30a31932efd19c84ce354ecbd219333ed58e7efb95c65771b735",
+          "bytes": 626008,
+          "raw_bytes": 51012947
+        },
+        "Resistsave00034_2031-8-1.json.xz": {
+          "sha256": "795fdd18c0e631a710ab84f6a1c541bbae3eabcc768e5351c2a3ccb0eb75269c",
+          "bytes": 637192,
+          "raw_bytes": 51686207
+        },
+        "Resistsave00035_2031-9-16.json.xz": {
+          "sha256": "1cfa1efe62cd2c99070829406272998db02f8c3f5a002ccf1fb5db8b4d6bebcd",
+          "bytes": 639980,
+          "raw_bytes": 51858508
+        },
+        "Resistsave00036_2032-2-1.json.xz": {
+          "sha256": "b2f92746701cb00b5058ffcb79907a51e235d3934fb7f53da4b579ec709109b3",
+          "bytes": 665624,
+          "raw_bytes": 54014841
+        },
+        "Resistsave00037_2032-5-29.json.xz": {
+          "sha256": "6116918bef245b6fee10061ddb4cf2270cbc105ad20fcd8dad4d70364d1bf5ae",
+          "bytes": 689792,
+          "raw_bytes": 56328707
+        },
+        "Resistsave00038_2032-7-16.json.xz": {
+          "sha256": "d6e2eaa5510541cf7ecf14aa36eb4fd653e5537feadc145980e324b62c409275",
+          "bytes": 692088,
+          "raw_bytes": 56823370
+        },
+        "Resistsave00039_2033-1-1.json.xz": {
+          "sha256": "5f83ddaf303dea05a83a431c066d0102310b4583e77e28f247139a1f8973b4db",
+          "bytes": 708764,
+          "raw_bytes": 57819277
+        },
+        "Resistsave00040_2033-5-16.json.xz": {
+          "sha256": "547af555666fbbc20988bbd63632308c66184a092891e09945d3b9390147f511",
+          "bytes": 724604,
+          "raw_bytes": 59161392
+        },
+        "Resistsave00041_2033-6-23.json.xz": {
+          "sha256": "92bb181be72178b5c399953b2d2d1eef0f0883a39a6476869e379b7a3bdaff3c",
+          "bytes": 729888,
+          "raw_bytes": 59203722
+        },
+        "Resistsave00042_2033-8-16.json.xz": {
+          "sha256": "88d3aba01275936eb71ab0d1fdd7f110dacc916e6dd57010ae9631c16cd30c2e",
+          "bytes": 737136,
+          "raw_bytes": 59659048
+        },
+        "Resistsave00043_2033-8-23.json.xz": {
+          "sha256": "607486a691538085c6fd0f5fad9c56abea5b93f75377c7db2f700ab8f9b5f454",
+          "bytes": 735888,
+          "raw_bytes": 59634753
+        },
+        "Resistsave00044_2033-11-1.json.xz": {
+          "sha256": "c56b5e9ecc97e5734a68f2f62bf40228fa5195ebab3b7fcf1e287e63f466f5bc",
+          "bytes": 737032,
+          "raw_bytes": 59958121
+        },
+        "Resistsave00045_2034-1-11.json.xz": {
+          "sha256": "1179a2f636a2ff57e0921404057d4e1c78b590a56adf6b9351b88366401f98b5",
+          "bytes": 751520,
+          "raw_bytes": 60712309
+        },
+        "Resistsave00046_2034-7-1.json.xz": {
+          "sha256": "7610e4ab63d3b5fe189fb94b2539ddf33a802dd331d6a9906bc7ddcbfa978f15",
+          "bytes": 755264,
+          "raw_bytes": 61322481
+        },
+        "Resistsave00047_2034-7-16.json.xz": {
+          "sha256": "31d49fb575d5fa236812096d9de643086d97b88bb2ea346ab58bcfa94a6e2674",
+          "bytes": 752372,
+          "raw_bytes": 61319414
+        },
+        "Resistsave00048_2034-11-21.json.xz": {
+          "sha256": "30bab00b4ac6fd094c1bf47552763127d0c96fc303ace0a1fddf14c81eb5e765",
+          "bytes": 776176,
+          "raw_bytes": 62874120
+        },
+        "Resistsave00049_2035-2-1.json.xz": {
+          "sha256": "250d8543cf9a4f1a56d1bb518587c43d68f7550f8a9f9dd5e7f2f97f42cc3787",
+          "bytes": 784092,
+          "raw_bytes": 63654997
+        },
+        "Resistsave00050_2035-3-16.json.xz": {
+          "sha256": "458df992cf5b364070c8b58873a0e363469620ed842c7f0065916f9ffcf1737f",
+          "bytes": 792800,
+          "raw_bytes": 64026393
+        },
+        "Resistsave00051_2035-5-16.json.xz": {
+          "sha256": "3ced1d149b931496b7d2e0727900100c5437415a44c69843ab22421070d85917",
+          "bytes": 805940,
+          "raw_bytes": 63996126
+        },
+        "Resistsave00052_2035-8-1.json.xz": {
+          "sha256": "698b10fa64860aa525435f0a0fbced5b12de6e6049d636e3b530fe066f01f583",
+          "bytes": 812856,
+          "raw_bytes": 64300015
+        },
+        "Resistsave00053_2035-9-1.json.xz": {
+          "sha256": "8dd91430dbfcf80fe61145c76f75eca82a4a0eed037d9d7e69573b0b07568fac",
+          "bytes": 814428,
+          "raw_bytes": 64399691
+        },
+        "Resistsave00054_2035-10-16.json.xz": {
+          "sha256": "9cd73efbefba34eaa91c48b52382813f05094f601b06382756640aebccb2425c",
+          "bytes": 816004,
+          "raw_bytes": 64787544
+        },
+        "Resistsave00055_2035-12-1.json.xz": {
+          "sha256": "506dc0fe4208501cc04d233015cbaf85c0b760ef205d4d027ec472ccafc0cdbf",
+          "bytes": 823112,
+          "raw_bytes": 64861787
+        },
+        "Resistsave00056_2036-3-16.json.xz": {
+          "sha256": "5170489ea2eaa68b11bb80725be2b66cd868eb00972d74e153f687074676131e",
+          "bytes": 818144,
+          "raw_bytes": 64865522
+        },
+        "Resistsave00057_2036-5-1.json.xz": {
+          "sha256": "3ef8a2a07eeda06dbb4e42831fc19f6244bed8cb6b2e10e29ee07235c97d02c2",
+          "bytes": 822672,
+          "raw_bytes": 64690600
+        },
+        "Resistsave00058_2036-7-23.json.xz": {
+          "sha256": "1ee21d20158a8f8d7909700de5ba53c0592e18a4abdf47ecf78ea273f6544f06",
+          "bytes": 823312,
+          "raw_bytes": 64717744
+        },
+        "Resistsave00059_2036-12-16.json.xz": {
+          "sha256": "69b789d06d614e442f70688837be8d1c3bcf5048af5bde6b63c5b8ab60665493",
+          "bytes": 826280,
+          "raw_bytes": 65762724
+        },
+        "Resistsave00060_2037-5-1.json.xz": {
+          "sha256": "485c1c65665c18096b63efb56f2e5b50efa52c780d07be8169dccf7b44021f16",
+          "bytes": 837700,
+          "raw_bytes": 66424051
+        },
+        "Resistsave00061_2037-10-1.json.xz": {
+          "sha256": "e2b0f7a760f1fe9ea1c29136b137efdaff50a9100b89f8e83303f4bdb474c0d2",
+          "bytes": 846436,
+          "raw_bytes": 66932430
+        },
+        "Resistsave00062_2038-10-26.json.xz": {
+          "sha256": "22df57660765f62ac18087ebd83a332cab08210e8c64cc85824a8e84892de936",
+          "bytes": 882300,
+          "raw_bytes": 70148422
+        },
+        "Resistsave00063_2039-2-12.json.xz": {
+          "sha256": "3ed11c4372e44aa45f7299e9563e01f294fc42f5855010791741f2f2723c5636",
+          "bytes": 886788,
+          "raw_bytes": 70522470
+        },
+        "Resistsave00064_2039-3-16.json.xz": {
+          "sha256": "ef3856a55c523220f5ae834505528ed06683fcc07a4979090fe7b3f5f3eb2e2d",
+          "bytes": 879696,
+          "raw_bytes": 70085916
+        },
+        "Resistsave00065_2039-7-1.json.xz": {
+          "sha256": "17a3b8c5814d2a69122c47b37946e3177aedd758c919982c1b48b4c2617f830b",
+          "bytes": 887800,
+          "raw_bytes": 71021305
+        },
+        "Resistsave00066_2039-9-16.json.xz": {
+          "sha256": "d0704e1cc2dd8109c10c3eb9728e932f4496e82e830186c70c90ab8e1835f460",
+          "bytes": 891004,
+          "raw_bytes": 71327116
+        },
+        "Resistsave00067_2039-10-16.json.xz": {
+          "sha256": "54ae9bf923fa010f56f263ba79446082b9dd69dc04b65a8b39972580232a03a7",
+          "bytes": 891108,
+          "raw_bytes": 71345081
+        },
+        "Resistsave00068_2040-2-16.json.xz": {
+          "sha256": "1c71e151299e72a2648eb189faa553a84e43c7a665ddf06217eaad8e057412ed",
+          "bytes": 897236,
+          "raw_bytes": 71520643
+        },
+        "Resistsave00069_2040-10-16.json.xz": {
+          "sha256": "11d9b92d6fffdb368421ca1c0ec2eadc97220586069bbdeb783d9da7ecc0d189",
+          "bytes": 926368,
+          "raw_bytes": 72844094
+        },
+        "Resistsave00070_2041-5-1.json.xz": {
+          "sha256": "fe6ab75048b330dcb7bf362a07929eb1ddd9d3a756651539cccade1203875e0a",
+          "bytes": 932200,
+          "raw_bytes": 73262292
+        },
+        "Resistsave00071_2041-10-7.json.xz": {
+          "sha256": "c18c9aa26fde109261401d3418941738af59325541b277be375cc480acf39346",
+          "bytes": 944756,
+          "raw_bytes": 74025865
+        },
+        "Resistsave00072_2041-10-3.json.xz": {
+          "sha256": "f28943906bb932786ecd134d8e5d2c5c7a508d9e4bd2ff489c8c7cd1337f6ae6",
+          "bytes": 945644,
+          "raw_bytes": 74057282
+        },
+        "Resistsave00073_2041-10-8.json.xz": {
+          "sha256": "32cd8bfde2e06238a8f00af132bb475008bd4ee9abd15048d91b878be398b93f",
+          "bytes": 944872,
+          "raw_bytes": 73842779
+        },
+        "Resistsave00074_2041-10-12.json.xz": {
+          "sha256": "e955fc9adbafc5a95af600da625bac35c7aec243f8c3ecc6148945bf8c523312",
+          "bytes": 943916,
+          "raw_bytes": 73887232
+        },
+        "Resistsave00075_2043-3-16.json.xz": {
+          "sha256": "c2ac4705256713c29ad1b1c5b00b5d3c792a2f6f647a6ddde5bdfbfb662d5a2b",
+          "bytes": 976036,
+          "raw_bytes": 76120804
+        },
+        "Resistsave00076_2044-2-1.json.xz": {
+          "sha256": "7b44e089f1c6f4a2f0dadcd265ef554a83c3f960195b056bcbe32d6c25549404",
+          "bytes": 982396,
+          "raw_bytes": 77474501
+        },
+        "Resistsave00077_2044-6-16.json.xz": {
+          "sha256": "f041a450bb06e962533981d3047af7648c5991cc92709a7715d43bd2a578c782",
+          "bytes": 980280,
+          "raw_bytes": 77298366
+        },
+        "Resistsave00078_2044-11-22.json.xz": {
+          "sha256": "408dfd707499ac983d953fce676768b93695aa8fd81e9f684815c84094ff6261",
+          "bytes": 992468,
+          "raw_bytes": 77668762
+        },
+        "Resistsave00079_2045-8-1.json.xz": {
+          "sha256": "c94decbc6da54dc6db0f9467b05dae536946e736ad1f5a5705e2cd9173288a47",
+          "bytes": 985380,
+          "raw_bytes": 77284666
+        },
+        "Resistsave00080_2045-11-1.json.xz": {
+          "sha256": "8a9ce37558e75e48970f83e516c7c6123707c0029f3e6d76c5af4241f6f8b5a6",
+          "bytes": 986928,
+          "raw_bytes": 77458972
+        },
+        "Resistsave00081_2045-11-22.json.xz": {
+          "sha256": "0b50d90dadae6dafad0ac3f7ecffb2143a205eb41507edb8a873deab34a26b0e",
+          "bytes": 985520,
+          "raw_bytes": 77593087
+        },
+        "Resistsave00082_2046-2-22.json.xz": {
+          "sha256": "43a9e83dccb0589d6ccda52fb7349a1b9315ce14787e4df7aa895267e99d5a93",
+          "bytes": 992588,
+          "raw_bytes": 77955660
+        },
+        "Resistsave00083_2046-10-8.json.xz": {
+          "sha256": "7e39a95eee1c39c2ddf9bc2b0819dfd0f25b8368f68561cb92619da6f491111a",
+          "bytes": 1052920,
+          "raw_bytes": 84312715
         }
       }
     }
