@@ -63,13 +63,8 @@
       }
     },
     "protectorate": {
-      "description": "Approximately 6.5 years of campaign time from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
+      "description": "Approximately 10 years of campaign time from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
       "files": {
-        "Autosave3.json.xz": {
-          "sha256": "e3c7567f846f8d240db75d9c3fee5fbdafc8823102fefd5b8283c3604abdc931",
-          "bytes": 716880,
-          "raw_bytes": 62369052
-        },
         "Protectorate00087_2026-2-13.json.xz": {
           "sha256": "732ef1d334ad7349a0b97b8e332bbaf9a65ef01b263879838b435e2aed246d1c",
           "bytes": 299976,
@@ -169,6 +164,31 @@
           "sha256": "5caf4aca8f29190781b1f2257f806a8012c6c75b3877162987dee58c1dc7dbc5",
           "bytes": 834692,
           "raw_bytes": 71203879
+        },
+        "Protectorate00107_2033-9-16.json.xz": {
+          "sha256": "b4d89ddd1616765423440eba56cb89228655f08cfe5846863c1eeac1a553bbc8",
+          "bytes": 862060,
+          "raw_bytes": 73426518
+        },
+        "Protectorate00108_2033-12-14.json.xz": {
+          "sha256": "5e2f9f14be72d1132d76f32f12a421ef50351a7aacf2d96a3811f2694c83f435",
+          "bytes": 876364,
+          "raw_bytes": 74397504
+        },
+        "Protectorate00109_2034-3-1.json.xz": {
+          "sha256": "379dc5248e3ad20211c879ef9ca0c6c5f4e84d7dd0809e93bf55f84945ee77b0",
+          "bytes": 882460,
+          "raw_bytes": 75227399
+        },
+        "Protectorate00110_2034-9-16.json.xz": {
+          "sha256": "dbffa86941732901f9c66bd87313231a18c08225e14caffefff543092e19d939",
+          "bytes": 907916,
+          "raw_bytes": 77745563
+        },
+        "Protectorate00111-AdminWars_2035-6-16.json.xz": {
+          "sha256": "e69454821653627af59e5ad7ee0d531f58b44a83bee6ab2da5b912eef0a524f4",
+          "bytes": 946896,
+          "raw_bytes": 80100394
         }
       }
     }
