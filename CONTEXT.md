@@ -131,6 +131,16 @@ clamp, the enabled campaigns and a type filter. Each reference and base level is
 tried; a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
 _Avoid_: scenario, what-if, trial base level
 
+**Must-tell list**:
+The episodes one sample campaign's history has to contain, written by the dev up to a declared cut-off save. It is
+a review's anchor, read by the evaluation tooling only, and acknowledged to lean towards the player's faction.
+_Avoid_: ground truth, expected events
+
+**Must-tell entry**:
+One item of a must-tell list: an episode with an outcome, or a thread, a sustained process with none. It names the
+period it spans in the data, the nations and factions it concerns and the lowest level it must reach.
+_Avoid_: expected event (an entry is an episode, which events state), must-tell event
+
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
 the arc's two ends, so a share never exceeds one.
