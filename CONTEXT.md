@@ -141,6 +141,12 @@ One item of a must-tell list: an episode with an outcome, or a thread, a sustain
 period it spans in the data, the nations and factions it concerns and the lowest level it must reach.
 _Avoid_: expected event (an entry is an episode, which events state), must-tell event
 
+**Theme**:
+An area of a campaign that its history should follow, such as blocs and unions or alien activity on Earth. It has a
+name, a description and the event types expected to state it; that list is never complete. A calibration review
+can read a campaign by theme. Sharing a theme says nothing about whether two events influenced each other.
+_Avoid_: family (code layout), category, thread, storyline
+
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
 the arc's two ends, so a share never exceeds one.
