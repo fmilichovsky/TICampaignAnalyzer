@@ -13,6 +13,8 @@
 | faction | 0.14285714285714285 | 0.14285714285714285 |
 | nuclear | 0.01 | 0.01 |
 
+Every event type is at the code's base level.
+
 - Campaigns: alpha, beta
 - Clamp: on
 - Types: all
@@ -21,7 +23,7 @@
 
 ## Summary
 
-References: every measure at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 0 events move level; the narrator package goes from 14 to 14 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
+References: every measure at the code's. Base levels: every type at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 0 events move level; the narrator package goes from 14 to 14 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
 
 ## Level counts
 
@@ -248,5 +250,5 @@ Cut-off at share 0.178 (offset 1.25):
 ## Snippet
 
 ```python
-# Every reference is the code's.
+# Every reference and base level is the code's.
 ```

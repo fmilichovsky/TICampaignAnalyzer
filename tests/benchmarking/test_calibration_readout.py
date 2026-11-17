@@ -36,8 +36,10 @@ STATES: dict[str, ReplayState] = {
     "code": CODE,
     "lower": replace(CODE, references={**CODE.references, "power": POWER * 10**-0.2, "faction": 1e-7}),
     "free": replace(CODE, clamp=False, campaigns=("beta",), types=("atomic.thing",)),
+    "switched": replace(CODE, type_bases={"atomic.thing": "major", "atomic.far": "trivial"}),
 }
-"""The golden states: the code's, members falling apart under a lower power reference, and the clamp off."""
+"""The golden states: the code's, members falling apart under a lower power reference, the clamp off and two
+switched base levels."""
 SECTIONS = [
     "Calibration state",
     "Summary",
@@ -81,6 +83,52 @@ def test_the_paragraph_and_the_snippet_are_ascii_and_name_only_changed_reference
     assert [line.split(":")[0] for line in lines] == ["StakeMeasure.POWER", "StakeMeasure.FACTION"]
     assert "every other measure at the code's" in shared_paragraph(INDEX, result)
     assert "every measure at the code's" in shared_paragraph(INDEX, replay(INDEX, TABLES, CODE))
+
+
+def test_the_paragraph_and_the_snippet_state_the_switched_base_levels() -> None:
+    kinds = INDEX["kinds"]
+    none = replay(INDEX, TABLES, CODE)
+    one = replay(INDEX, TABLES, replace(CODE, type_bases={"atomic.thing": "major"}))
+    several = replay(INDEX, TABLES, STATES["switched"])
+    every = replay(
+        INDEX,
+        TABLES,
+        replace(CODE, type_bases={name: "trivial" if kinds[name]["base"] != "trivial" else "minor" for name in kinds}),
+    )
+
+    assert "Base levels: every type at the code's. " in shared_paragraph(INDEX, none)
+    assert snippet(INDEX, none) == "# Every reference and base level is the code's."
+    assert "Base levels: atomic.thing major (code minor); every other type at the code's. " in shared_paragraph(
+        INDEX, one
+    )
+    assert snippet(INDEX, one) == "# atomic.thing: base MINOR -> MAJOR"
+    assert (
+        "Base levels: atomic.far trivial (code minor), atomic.thing major (code minor); every other"
+        in shared_paragraph(INDEX, several)
+    )
+    assert snippet(INDEX, several).splitlines() == [
+        "# atomic.far: base MINOR -> TRIVIAL",
+        "# atomic.thing: base MINOR -> MAJOR",
+    ]
+    assert "; every other type" not in shared_paragraph(INDEX, every)
+
+
+def test_the_snippet_lists_the_changed_references_before_the_switched_base_levels() -> None:
+    state = replace(STATES["lower"], type_bases={"atomic.thing": "major"})
+    lines = snippet(INDEX, replay(INDEX, TABLES, state)).splitlines()
+
+    assert [line.split(":")[0] for line in lines] == ["StakeMeasure.POWER", "StakeMeasure.FACTION", "# atomic.thing"]
+
+
+def test_the_reports_carry_the_switched_base_levels_of_the_state() -> None:
+    state = STATES["switched"]
+    result = replay(INDEX, TABLES, state, DRAFTS)
+    state_hash = encode_state(state, INDEX)
+    document = render_json(INDEX, TABLES, result, state_hash=state_hash, drafts=DRAFTS)
+    text = render_text(INDEX, result, state_hash=state_hash, drafts=DRAFTS)
+
+    assert document["state"]["type_bases"] == {"atomic.far": "trivial", "atomic.thing": "major"}
+    assert "| atomic.thing | major (changed) | minor |" in text
 
 
 def test_the_json_readout_holds_only_the_edges() -> None:

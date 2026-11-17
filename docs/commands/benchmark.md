@@ -270,7 +270,8 @@ tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
 
 Replays the stake calibration table of the sample campaigns at other references and prints what would change: which
 events move level, how the narrator package grows or shrinks, which takeover waves lose members, and the events
-nearest each cut-off. It ends with the changed references written as measure registry entries, ready to paste.
+nearest each cut-off. It ends with the changed references written as measure registry entries, ready to paste,
+followed by one comment line for each event type whose base level was switched.
 
 The table is cached in `--out`, shared with the page, and rebuilt when the package or `samples.json` changed, or
 with `--rebuild`.
@@ -278,7 +279,8 @@ with `--rebuild`.
 `--state` reads a state explored on the calibration page; the other flags override it.
 
 `--base TYPE=LEVEL` shows what changing an event type's base level would do. Events whose level a context rule
-decides keep it. `--base` applies even to types that `--type` leaves out of the count.
+decides keep it. `--base` applies even to types that `--type` leaves out of the count. The readout's state lists the switched
+base levels against the code's.
 
 The table also scores any [draft stakes](#draft-stakes) beside the real events, without changing their levels; the
 state holds a base level for each draft, and its own section of the readout reports each one. A draft that cannot be
