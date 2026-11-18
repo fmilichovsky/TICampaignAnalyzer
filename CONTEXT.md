@@ -193,10 +193,15 @@ can read a campaign by theme. Sharing a theme says nothing about whether two eve
 _Avoid_: family (code layout), category, thread, storyline
 
 **Calibration review**:
-One reading of the narrator packages of the sample campaigns against the editorial direction, over a stated scope
-of campaigns and themes. It ends in value proposals, scoring proposals and structural findings, and records what it
-examined and left alone.
+One reading of the narrator packages of every reviewable sample campaign against the editorial direction, scoped
+by one seed. It ends in value proposals, scoring proposals and structural findings, and records what it examined
+and left alone.
 _Avoid_: audit, calibration pass, tuning session
+
+**Seed**:
+What one calibration review sets out from: a theme, an open calibration item, or a newly admitted sample campaign.
+A sample seed makes the review a survey, which proposes nothing and names the themes and items to review next.
+_Avoid_: trigger (what prompts a review, not what it reads), focus, target
 
 **Value proposal**:
 A proposed change to a base level, a rise or drop share, or the scaling an event kind uses: anything a
