@@ -203,6 +203,17 @@ What one calibration review sets out from: a theme, an open calibration item, or
 A sample seed makes the review a survey, which proposes nothing and names the themes and items to review next.
 _Avoid_: trigger (what prompts a review, not what it reads), focus, target
 
+**Calibration smell**:
+A pattern in a narrator package that sends a calibration review to check the events behind it, such as one event
+type filling most of a level in a period. It is computed, never judged by eye, and is neither a fault in itself,
+the reason of a proposal nor a target. Smell for short.
+_Avoid_: sign (the report's deltas carry signs), guard rail, warning, check
+
+**Smell threshold**:
+The number at which a calibration smell is raised, including the smallest count it needs so that a quiet period
+raises none. It decides only when a review looks and describes no healthy package.
+_Avoid_: bound, limit, target, guard rail
+
 **Value proposal**:
 A proposed change to a base level, a rise or drop share, or the scaling an event kind uses: anything a
 calibration state can try before any code changes. It covers one shift, or a group of related shifts, under one
