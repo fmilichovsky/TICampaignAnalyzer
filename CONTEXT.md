@@ -94,8 +94,9 @@ of confidence.
 _Avoid_: importance, priority, weight
 
 **Base level**:
-The significance an event kind starts from before any stake moves it; every atomic event kind declares one.
-_Avoid_: default level
+The significance an event kind starts from before any stake moves it: the level of the kind's ordinary instance,
+neither the largest nor the smallest it records. Every event kind declares one.
+_Avoid_: default level, ceiling, floor
 
 **Context rule**:
 A named judgement that sets an event's level from what the event itself says, overriding its base level.
@@ -154,6 +155,11 @@ A ship's mass without its propellant; the save's current mass includes propellan
 What a campaign history is for, what it emphasizes and plays down, and what each significance level means to a
 reader. A calibration review judges the narrator package against it, and the narrator prompt implements it.
 _Avoid_: editorial stance (a stance is a councilor's public outlook), editorial policy, guidelines
+
+**Calibration principles**:
+The rules a calibration review applies to judge whether a base level, a reference and the spread of levels in a
+narrator package deliver what the editorial direction says each level means.
+_Avoid_: rules of thumb, calibration rules, guidelines
 
 **Sample campaign**:
 A real campaign kept in the repository as consecutive whole saves, which the benchmarks measure and a calibration
