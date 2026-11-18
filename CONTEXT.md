@@ -183,6 +183,27 @@ name, a description and the event types expected to state it; that list is never
 can read a campaign by theme. Sharing a theme says nothing about whether two events influenced each other.
 _Avoid_: family (code layout), category, thread, storyline
 
+**Calibration review**:
+One reading of the narrator packages of the sample campaigns against the editorial direction, over a stated scope
+of campaigns and themes. It ends in value proposals, scoring proposals and structural findings, and records what it
+examined and left alone.
+_Avoid_: audit, calibration pass, tuning session
+
+**Value proposal**:
+A proposed change to a reference or a base level, which a calibration state can try before any code changes. It
+covers one shift, or a group of related shifts, under one reason stated about a class of events.
+_Avoid_: tier (a) proposal, tuning change, tweak
+
+**Scoring proposal**:
+A proposed change to how a level is computed: a stake, a stake measure or a context rule. The dev agrees to it
+before it changes any real score.
+_Avoid_: tier (b) proposal, rule change (a narrative rule is not scoring)
+
+**Structural finding**:
+A fault a calibration review reports and proposes no change for, because fixing it means changing what exists to
+be scored: an event kind, a narrative rule or the content of the narrator package. The dev judges it.
+_Avoid_: tier (c) proposal, structural proposal, modelling issue
+
 **Draft stake**:
 A stake tried on the events of an existing event type before its kind declares one, so its reference can be chosen
 first. It is scored beside the real events and never changes their scores.
