@@ -181,9 +181,10 @@ a review's anchor, read by the evaluation tooling only, and acknowledged to lean
 _Avoid_: ground truth, expected events
 
 **Must-tell entry**:
-One item of a must-tell list: an episode with an outcome, or a thread, a sustained process with none. It names the
-period it spans in the data, the nations and factions it concerns and the lowest level it must reach.
-_Avoid_: expected event (an entry is an episode, which events state), must-tell event
+One item of a must-tell list: an episode with an outcome, however long it runs. It names the period it spans in the
+data, the nations and factions it concerns and the lowest level it must reach. A sustained process with no outcome
+is not an entry; it belongs to a theme's description.
+_Avoid_: expected event (an entry is an episode, which events state), must-tell event, thread
 
 **Theme**:
 An area of a campaign that its history should follow, such as blocs and unions or alien activity on Earth. It has a
