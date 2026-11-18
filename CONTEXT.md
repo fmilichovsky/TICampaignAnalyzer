@@ -94,7 +94,7 @@ of confidence.
 _Avoid_: importance, priority, weight
 
 **Base level**:
-The significance an event kind starts from before any stake moves it: the level of the kind's ordinary instance,
+The significance an event kind starts from before its share moves it: the level of the kind's ordinary instance,
 neither the largest nor the smallest it records. Every event kind declares one.
 _Avoid_: default level, ceiling, floor
 
@@ -102,24 +102,26 @@ _Avoid_: default level, ceiling, floor
 A named judgement that sets an event's level from what the event itself says, overriding its base level.
 _Avoid_: override, special case
 
-**Stake**:
-What an event's score scales with: the share of a world total (its stake measure) held or moved by the entities the
-event concerns, in the same snapshot.
-_Avoid_: magnitude, size, weight
+**Share**:
+What an event's level scales with: the fraction of a measure held or moved by what the event concerns, in the same
+snapshot, such as the power of a war's sides or a battle's contested mass. A scaled event kind declares where its
+share is read from.
+_Avoid_: stake, magnitude, size, weight
 
-**Stake measure**:
-The world total a stake is a share of, such as nation power, population or organization strength.
-_Avoid_: metric (a nation metric is a statistic, not a stake measure)
+**Measure**:
+The world total a share is a fraction of, such as nation power, population or organization strength.
+_Avoid_: stake measure, metric (a nation metric is a statistic, not a measure)
 
-**Reference**:
-The share of a stake measure at which a stake leaves an event's score at its base level; each tenfold share above or
-below it moves the score ten points.
-_Avoid_: reference value, baseline, target share
+**Scaling**:
+How a share moves an event kind's level: a rise share and a drop share around the level the event starts from,
+with every further level as wide as that one. Kinds share a scaling only when the same reason holds for both.
+_Avoid_: reference, rate, clamp
 
-**Reference window**:
-The shares a reference lets keep a minor or major base level, from the reference ÷ 17.8 to × 17.8; a reference
-slides the window along the shares and never changes its width.
-_Avoid_: band (a band is a level's score range)
+**Rise share** and **drop share**:
+The share at which an event rises one level above the level it starts from, and the share at which it drops one
+below it. A scaling declares its rise share; without a drop share it keeps the default width. A share never drops
+an event below minor.
+_Avoid_: cut-off, threshold, reference window
 
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
@@ -131,14 +133,14 @@ A faction's share of human space holdings: the mean of its share of human habs, 
 share of human ship dry mass. Each total has a floor, so a share stays defined before humans hold anything there.
 
 **Saturation**:
-The human space holdings at which space counts fully in a faction stake; below it, space counts in proportion.
+The human space holdings at which space counts fully in a faction share; below it, space counts in proportion.
 _Avoid_: floor (the floor only keeps a share defined; it is far smaller for habs)
 
-**Faction stake**:
+**Faction share**:
 A human faction's weight in the world: its Earth share (each nation's power share times the faction's share of that
 nation's control points), blended with its space share in proportion to how far humans have reached the
-saturation. The alien faction is the backdrop: its stake is its Earth share alone.
-_Avoid_: faction power, faction strength
+saturation. The alien faction is the backdrop: its faction share is its Earth share alone.
+_Avoid_: faction stake, faction power, faction strength
 
 **Contested mass**:
 How much of a combat was really fought: the smaller side's dry mass plus the larger side's, capped at a multiple of
@@ -157,7 +159,7 @@ reader. A calibration review judges the narrator package against it, and the nar
 _Avoid_: editorial stance (a stance is a councilor's public outlook), editorial policy, guidelines
 
 **Calibration principles**:
-The rules a calibration review applies to judge whether a base level, a reference and the spread of levels in a
+The rules a calibration review applies to judge whether a base level, a scaling and the spread of levels in a
 narrator package deliver what the editorial direction says each level means.
 _Avoid_: rules of thumb, calibration rules, guidelines
 
@@ -168,7 +170,7 @@ without a recollection, and then has no must-tell list.
 _Avoid_: fixture (a fixture is edited test data), test campaign, benchmark save
 
 **Coverage**:
-How much the sample campaigns show of an event type or a stake measure: its occurrences in each one. It is thin
+How much the sample campaigns show of an event type or a measure: its occurrences in each one. It is thin
 when only one sample campaign shows it or the occurrences are few, and a calibration change resting on thin
 coverage is unconfirmed by the samples.
 _Avoid_: support, sample size
@@ -196,13 +198,14 @@ examined and left alone.
 _Avoid_: audit, calibration pass, tuning session
 
 **Value proposal**:
-A proposed change to a reference or a base level, which a calibration state can try before any code changes. It
-covers one shift, or a group of related shifts, under one reason stated about a class of events.
+A proposed change to a base level, a rise or drop share, or the scaling an event kind uses: anything a
+calibration state can try before any code changes. It covers one shift, or a group of related shifts, under one
+reason stated about a class of events.
 _Avoid_: tier (a) proposal, tuning change, tweak
 
 **Scoring proposal**:
-A proposed change to how a level is computed: a stake, a stake measure or a context rule. The dev agrees to it
-before it changes any real score.
+A proposed change to how a level is computed: where a share is read from, a measure, a context rule or how a
+scaling turns a share into a score. The dev agrees to it before it changes any real score.
 _Avoid_: tier (b) proposal, rule change (a narrative rule is not scoring)
 
 **Structural finding**:
@@ -210,15 +213,15 @@ A fault a calibration review reports and proposes no change for, because fixing 
 be scored: an event kind, a narrative rule or the content of the narrator package. The dev judges it.
 _Avoid_: tier (c) proposal, structural proposal, modelling issue
 
-**Draft stake**:
-A stake tried on the events of an existing event type before its kind declares one, so its reference can be chosen
+**Draft share**:
+A share tried on the events of an existing event type before its kind declares one, so its scaling can be chosen
 first. It is scored beside the real events and never changes their scores.
-_Avoid_: design series, series builder
+_Avoid_: draft stake, design series, series builder
 
 **Calibration state**:
-What a replay of the calibration table is asked: a reference per stake measure, a base level per event type, the
-clamp, the enabled campaigns and a type filter. Each reference and base level is either the code's or one being
-tried; a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
+What a replay of the calibration table is asked: the rise share and any drop share of each scaling, a scaling and
+a base level per event type, the enabled campaigns and a type filter. Each is either the code's or one being tried;
+a tried base level stands where the kind's own would, so a context rule that decides still overrides it.
 _Avoid_: scenario, what-if, trial base level
 
 ### Narration
