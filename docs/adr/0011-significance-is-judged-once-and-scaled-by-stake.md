@@ -14,7 +14,10 @@ summary to a forensic log. It measures impact, not certainty, and is independent
 - **A stake is a share, on a log scale.**
   - A stake is a share of a world total in the same snapshot, never an absolute magnitude. Magnitudes grow by
     orders of magnitude over a campaign; shares stay comparable.
-  - Ten score points are a tenfold share relative to a reference share, within a clamp.
+  - Each scaled kind has a scaling: the share at which its event rises a level above its starting level and,
+    unless it keeps the default width, the share at which it drops one. Further levels are as wide, and the score
+    runs evenly in log share across each band. Kinds share a scaling only when the same reason holds for both.
+  - A stake never moves an event below minor: size is never a reason to drop out of the story.
   - A stake measures what the event moved, not only who acted. It is read on the interval's earlier side.
   - Only the types whose impact grows with the stake are scaled; movement and churn never are.
   - Shares add, so a war side, a federation or a faction's holdings are sums.
@@ -43,5 +46,9 @@ summary to a forensic log. It measures impact, not certainty, and is independent
 - **Summing constituent scores.** It was rejected because it rewards duplicate records.
 - **Counting the alien faction in space totals.** It was rejected because humans would rank near zero until the
   late game.
+- **One reference per measure, a fixed rate and a clamp.** It was rejected because every kind moved alike, while
+  the kinds of one measure sit orders of magnitude apart: a war's sides against one nation.
+- **A share per level.** It was rejected because it ties a scaling to the base level, so a base could not change
+  without rewriting it.
 
-Tracked in #199, #200, #201 and #360.
+Tracked in #199, #200, #201, #360 and #568.
