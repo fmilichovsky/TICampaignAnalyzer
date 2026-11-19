@@ -284,7 +284,7 @@ def test_table_entries_resolve_without_context() -> None:
     lookup = empty_lookup()
     expected = {
         "ship.fleet_changed": Significance.TRIVIAL,
-        "fleet.orbit_changed": Significance.MINOR,
+        "hab.tier_changed": Significance.MINOR,
         "nation.regions_changed": Significance.MINOR,
         "nation.hostile_claims_changed": Significance.MINOR,
         "faction.finished_project_names_changed": Significance.MINOR,
@@ -329,7 +329,7 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
     events = [
         technology("DeuteriumTritiumFusion"),  # campaign_defining milestone
         technology("SpaceNavies"),  # major milestone
-        bare_event("fleet.orbit_changed"),  # minor in the table
+        bare_event("hab.tier_changed"),  # minor in the table
         bare_event("nation.rank_changed"),  # trivial in the table
         bare_event("nation.relation_changed", relation="wars"),  # major by its context rule
     ]

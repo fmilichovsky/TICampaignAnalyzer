@@ -402,9 +402,23 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
 - **First presence on a body.** Of the habs appearing in the four older intervals (6, 1, 3, 6), the ones on
   a body where the owning faction had no hab in the earlier save were 0, 0, 2 and 6. `TIHabSiteState.hab`
   and `pendingHab` changed in step (1–10 sites per interval).
-- **Battle outcomes.** Faction `Kills` lists grew by up to 36 names in one older interval while the
-  destruction log of the opposing faction gained 9 entries and 10 habs disappeared; `armiesLost` changed
-  once (`AlienMegafauna`). Ship `kills` lists changed on 2–19 ships per interval.
+- **Space losses** (read by the `faction.space_losses` rule in `reconstruction/space.py`). Faction `Kills` lists
+  grew by up to 36 names in one older interval while the destruction log of the opposing faction gained 9 entries
+  and 10 habs disappeared; `armiesLost` changed once (`AlienMegafauna`). Ship `kills` lists changed on 2–19 ships
+  per interval.
+  - *Observed* (2026-11-20, Resist and Protectorate saves): `Kills[victim]` lists ships, habs, modules,
+    councilors and megafauna or armies by display name.
+  - *Observed:* the display names of the vanished ships were found in the `Kills` growth for 16 of 16 and 50 of
+    56 lost ships in two Resist intervals (the keys of every faction counted).
+  - *Observed:* ship display names repeat; the game reuses names.
+  - *Observed:* fleet disappearances were mostly merges in Protectorate saves 101–104: every ship of four of
+    the six alien fleets lost was still alive in another fleet, and the other two were single ships that no
+    `Kills` list names.
+  - *Observed:* a ship's own `kills` entries are the victim's hull class name, not a name.
+  - *Observed:* no combat is logged by more than one faction (Resist save 79: 145 entries, 115 distinct).
+  - *Hypothesis:* `Kills` names that match no vanished ship are assets created and destroyed within one
+    interval.
+  - *Hypothesis:* self-keyed `Kills` are the faction's own ships lost or scuttled.
 - **Space joins** (observed 2026-10-18, the five older and three newer private saves, structure and counts
   only; read by the space rules in `reconstruction/space.py`). A hab's `barycenter` is the body
   it is on or orbits: it equalled the hab site's `parentBody` for 196 of 196 site-based habs and the orbit's
@@ -578,9 +592,10 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
 - **Narrative rules (space)** (observed 2026-10-20 for the template names, from the latest older save;
   the other counts are the space observations of 2026-10-18 above; evidence for the space narrative
   rules and the defaults of `config.SpaceSettings`).
-  - *Space campaign.* `faction.battle_outcome` anchors one campaign per killer and victim pair. The
-    older saves had few outcomes per pair, so the campaign gap (365 days) is a *hypothesis* sized to
-    the longest observed save interval, not a measured distribution.
+  - *Space campaign.* `faction.space_losses` of either direction and `faction.combat_recorded` of both
+    factions anchor one campaign per unordered faction pair. The older saves had few events per pair, so the
+    campaign gap (365 days) is a *hypothesis* sized to the longest observed save interval, not a measured
+    distribution.
   - *Colonisation wave.* `faction.first_hab_on_body` occurred 0, 0, 2 and 5 times per interval in
     the older saves and 0 and 2 in the newer ones, so a wave of two or more needs a window longer
     than one short interval; 180 days is a *hypothesis*.

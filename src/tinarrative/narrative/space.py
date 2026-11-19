@@ -7,19 +7,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
+from itertools import combinations
 
 from ..config import SpaceSettings
 from ..kinds import campaign as campaign_kinds
 from ..kinds import space as space_kinds
 from ..kinds.faction import TRANSACTION_RECORDED
 from ..kinds.space import (
-    FACTION_BATTLE_OUTCOME,
     FACTION_COMBAT_RECORDED,
     FACTION_FIRST_HAB_ON_BODY,
-    FACTION_HAB_DESTRUCTION_RECORDED,
-)
-from ..kinds.space import (
-    FLEET_DISAPPEARED as FLEET_DISAPPEARED_KIND,
+    FACTION_SPACE_LOSSES,
 )
 from ..kinds.space import (
     HAB_DESTROYED as HAB_DESTROYED_KIND,
@@ -63,12 +60,9 @@ FIRST_MILESTONE = campaign_kinds.FIRST_MILESTONE.event_type
 FLEET_BUILDUP = space_kinds.FLEET_BUILDUP.event_type
 TECHNOLOGY_MILESTONE = TECHNOLOGY_MILESTONE_KIND.event_type
 
-BATTLE_OUTCOME = FACTION_BATTLE_OUTCOME.event_type
+SPACE_LOSSES = FACTION_SPACE_LOSSES.event_type
 HAB_DESTROYED = HAB_DESTROYED_KIND.event_type
-DESTRUCTION_RECORDED = FACTION_HAB_DESTRUCTION_RECORDED.event_type
 COMBAT_RECORDED = FACTION_COMBAT_RECORDED.event_type
-BATTLE_NOTIFICATION = "notification.LogSpaceBattleTakesPlace"
-FLEET_DISAPPEARED = FLEET_DISAPPEARED_KIND.event_type
 FIRST_HAB_ON_BODY = FACTION_FIRST_HAB_ON_BODY.event_type
 HAB_ESTABLISHED = HAB_ESTABLISHED_KIND.event_type
 GLOBAL_MILESTONE = campaign_kinds.GLOBAL_MILESTONE_RECORDED.event_type
@@ -106,11 +100,10 @@ def _ledger(stream: Sequence[Event], label: str, faction: EntityId, low: str | N
 
 @dataclass(frozen=True)
 class SpaceCampaignRule:
-    """``faction.space_campaign``: one faction's recorded space fighting against another, over several intervals.
+    """``faction.space_campaign``: two factions' space losses of either direction and their recorded combats, over
+    several intervals (ADR-0023).
 
-    Counts are summed from the outcomes, never recounted from the attached events, so nothing is counted twice. An
-    ambiguous ``hab.destroyed`` is left out: its destroyer is unsure. The two campaigns of a pair share their combats
-    and name each other in ``mirror``.
+    One campaign per unordered pair. Counts are summed from the events it cites, each told once.
     """
 
     settings: SpaceSettings
@@ -125,16 +118,22 @@ class SpaceCampaignRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         pairs: dict[tuple[EntityId, EntityId], list[Event]] = {}
-        for outcome in by_type(stream, BATTLE_OUTCOME):
-            victim = ref_attribute(outcome, "victim")
-            killer = subject(outcome)
-            if killer is not None and victim is not None:
-                pairs.setdefault((killer.entity_id, victim.entity_id), []).append(outcome)
-        built: list[tuple[tuple[EntityId, EntityId], Event]] = []
+        refs: dict[EntityId, EntityRef] = {}
+        for losses in by_type(stream, SPACE_LOSSES):
+            victim, destroyer = ref_attribute(losses, "victim"), subject(losses)
+            if victim is not None and destroyer is not None:
+                refs.update({victim.entity_id: victim, destroyer.entity_id: destroyer})
+                pairs.setdefault(_pair(destroyer.entity_id, victim.entity_id), []).append(losses)
+        for combat in by_type(stream, COMBAT_RECORDED):
+            for side in _side_refs(combat):
+                refs.setdefault(side.entity_id, side)
+            for first, second in combinations(sorted(_side_ids(combat), key=lambda item: item.sort_key), 2):
+                pairs.setdefault((first, second), []).append(combat)
+        built = []
         for pair in sorted(pairs, key=lambda item: (item[0].sort_key, item[1].sort_key)):
             for run in chained(pairs[pair], self.settings.campaign_gap_days):
-                built.append((pair, self._campaign(stream, situations, build, pair, run)))
-        return [_with_mirror(event, pair, built) for pair, event in built]
+                built.append(self._campaign(stream, situations, build, pair, run, refs))
+        return built
 
     def _campaign(
         self,
@@ -143,62 +142,34 @@ class SpaceCampaignRule:
         build: NarrativeBuilder,
         pair: tuple[EntityId, EntityId],
         run: Run,
+        refs: dict[EntityId, EntityRef],
     ) -> Event:
-        killer_id, victim_id = pair
-        killer = run[0].entities[0]
-        victim = ref_attribute(run[0], "victim")
-        assert victim is not None
+        losses = [event for event in run if event.event_type == SPACE_LOSSES]
+        combats = [event for event in run if event.event_type == COMBAT_RECORDED]
+        sides = tuple(refs[entity_id] for entity_id in pair)
+        lost = [[event for event in losses if _victim_id(event) == entity_id] for entity_id in pair]
+        tied = {ref.entity_id for event in losses for ref in refs_attribute(event, "habs")}
         keys = set(intervals_of(run))
-
-        habs = [
-            event
-            for event in stream.in_intervals(keys, HAB_DESTROYED)
-            if event.attribute("ambiguous") is False
-            and len(event.entities) > 3
-            and event.entities[1].entity_id == victim_id
-            and event.entities[3].entity_id == killer_id
-        ]
-        fleets = [
-            event
-            for event in stream.in_intervals(keys, FLEET_DISAPPEARED)
-            if len(event.entities) > 1 and event.entities[1].entity_id == victim_id
-        ]
-        lost_fleets = {event.entities[0].entity_id for event in fleets}
-        combats = [
-            event for event in stream.in_intervals(keys, COMBAT_RECORDED) if {killer_id, victim_id} <= _side_ids(event)
-        ]
-        notices = [
-            event
-            for event in stream.in_intervals(keys, BATTLE_NOTIFICATION)
-            if (
-                any(
-                    isinstance(ref, EntityRef) and ref.entity_id in lost_fleets for ref in (event.attribute("subject"),)
-                )
-                or any(ref.entity_id in pair for ref in event.entities)
-            )
-        ]
-        cited = {constituent for outcome in run for constituent in outcome.constituents}
-        entries = [event for event in by_type(stream, DESTRUCTION_RECORDED) if event.id in cited]
-        constituents = _dedupe([*run, *habs, *entries, *combats, *notices, *fleets])
-        located = [ref_attribute(hab, "body") for hab in habs] + [
-            ref_attribute(entry, "space_body") for entry in entries
+        located = [
+            ref_attribute(hab, "body")
+            for hab in stream.in_intervals(keys, HAB_DESTROYED)
+            if hab.attribute("ambiguous") is False and hab.entities and hab.entities[0].entity_id in tied
         ]
         bodies = unique_refs(ref for ref in located if ref is not None)
         start, end = earliest(run[0]), max((date for date in map(latest, run) if date), default=None)
-        kind = _kind(run[0], victim)
         return build.event(
             space_kinds.SPACE_CAMPAIGN,
-            id_parts=[killer_id, victim_id, *run.discriminator],
-            constituents=constituents,
-            roles=[(Role.ACTOR, killer), (Role.TARGET, victim), *((Role.BODY, body) for body in bodies)],
+            id_parts=[*pair, *run.discriminator],
+            constituents=list(run),
+            roles=[*((Role.SIDE, side) for side in sides), *((Role.BODY, body) for body in bodies)],
             join=Join.HEURISTIC,
             attributes=(
-                ("victim_kind", kind),
-                ("battles", len(run)),
-                ("habs_lost", _total(run, "habs_lost")),
-                ("fleets_lost", _total(run, "fleets_lost")),
-                ("combats_won", _total(run, "combats_won")),
-                ("combats_lost", _total(run, "combats_lost")),
+                ("sides", sides),
+                ("alien", tuple(_alien(run, side) for side in sides)),
+                ("ships_lost", tuple(_total(events, "ships_lost") for events in lost)),
+                ("habs_lost", tuple(_total(events, "habs_lost") for events in lost)),
+                ("combats", len(combats)),
+                ("combats_won", tuple(sum(_winner(event) == entity_id for event in combats) for entity_id in pair)),
                 ("bodies", bodies),
                 ("span_from", start),
                 ("span_to", end),
@@ -207,24 +178,36 @@ class SpaceCampaignRule:
         )
 
 
-def _with_mirror(
-    campaign: Event, pair: tuple[EntityId, EntityId], built: Sequence[tuple[tuple[EntityId, EntityId], Event]]
-) -> Event:
-    combats = {cid for cid in campaign.constituents if cid.startswith(f"{COMBAT_RECORDED}/")}
-    for other_pair, other in built:
-        if other_pair == (pair[1], pair[0]) and combats & set(other.constituents):
-            return replace(campaign, attributes=(*campaign.attributes, ("mirror", other.id)))
-    return campaign
+def _pair(first: EntityId, second: EntityId) -> tuple[EntityId, EntityId]:
+    return (first, second) if first.sort_key <= second.sort_key else (second, first)
 
 
-def _side_ids(event: Event) -> set[EntityId]:
+def _victim_id(event: Event) -> EntityId | None:
+    victim = ref_attribute(event, "victim")
+    return victim.entity_id if victim is not None else None
+
+
+def _winner(event: Event) -> EntityId | None:
+    winner = ref_attribute(event, "winner")
+    return winner.entity_id if winner is not None else None
+
+
+def _alien(run: Sequence[Event], side: EntityRef) -> bool:
+    return any(_kind(event, side) == "alien" for event in run)
+
+
+def _side_refs(event: Event) -> list[EntityRef]:
     sides = event.attribute("sides")
-    found: set[EntityId] = set()
+    found: list[EntityRef] = []
     if isinstance(sides, tuple):
         for side in sides:
             if isinstance(side, tuple) and side and isinstance(side[0], EntityRef):
-                found.add(side[0].entity_id)
+                found.append(side[0])
     return found
+
+
+def _side_ids(event: Event) -> set[EntityId]:
+    return {ref.entity_id for ref in _side_refs(event)}
 
 
 def _total(events: Sequence[Event], name: str) -> int:

@@ -375,6 +375,11 @@ def _habs(event: Event, shares: Shares) -> tuple[EntityId, ...]:
     return tuple(ref.entity_id for ref in refs)
 
 
+def _lost_assets(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+    """The ships and habs the event lists as lost."""
+    return tuple(ref.entity_id for name in ("ships", "habs") for ref in _listed_refs(event.attribute(name)))
+
+
 def _fleet(event: Event, shares: Shares) -> tuple[EntityId, ...]:
     return _first(event, EntityDomain.FLEET)
 
@@ -393,6 +398,7 @@ SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
     ShareOf.ORGANIZATION: ShareReading(Measure.ORGANIZATION, _organization),
     ShareOf.HAB: ShareReading(Measure.HAB, _habs),
     ShareOf.FLEET: ShareReading(Measure.FLEET, _fleet),
+    ShareOf.SPACE_LOSSES: ShareReading(Measure.SPACE_LOSS, _lost_assets),
     ShareOf.LEFT_FACTION: ShareReading(Measure.FACTION, _left_faction),
     ShareOf.COMBAT: ShareReading(Measure.BATTLE, lambda event, shares: (), from_record=True),
 }
@@ -478,6 +484,11 @@ def _cited_ships(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
     return tuple(item.entities[0] for item in cited if item.event_type == SHIP_APPEARED.event_type and item.entities)
 
 
+def _cited_losses(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
+    """The ships and habs of the cited space-losses events."""
+    return tuple(ref for item in cited for name in ("ships", "habs") for ref in _listed_refs(item.attribute(name)))
+
+
 NARRATIVE_SHARE_IMPLEMENTATIONS: Mapping[ShareOf, NarrativeShareReading] = {
     ShareOf.ACTOR: NarrativeShareReading(Measure.POWER, _actor),
     ShareOf.TARGETS: NarrativeShareReading(Measure.POWER, _targets),
@@ -487,6 +498,7 @@ NARRATIVE_SHARE_IMPLEMENTATIONS: Mapping[ShareOf, NarrativeShareReading] = {
     ShareOf.INDEPENDENT_NATION: NarrativeShareReading(Measure.POWER, _independent_nation),
     ShareOf.COLONY: NarrativeShareReading(Measure.HAB, _cited_habs),
     ShareOf.NEW_SHIPS: NarrativeShareReading(Measure.FLEET, _cited_ships),
+    ShareOf.SPACE_CAMPAIGN: NarrativeShareReading(Measure.SPACE_LOSS, _cited_losses),
     ShareOf.NUCLEAR_ARC: NarrativeShareReading(Measure.NUCLEAR, _actor, net_move=True),
 }
 """Every narrative-event ``ShareOf``'s implementation."""

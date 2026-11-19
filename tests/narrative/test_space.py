@@ -50,27 +50,37 @@ def make(
     )
 
 
-def outcome(
-    key: str, killer: EntityRef = UNION, victim: EntityRef = ALIENS, constituents: Sequence[Event] = (), **counts: int
+def losses(
+    key: str,
+    destroyer: EntityRef = UNION,
+    victim: EntityRef = ALIENS,
+    constituents: Sequence[Event] = (),
+    **counts: int,
 ) -> Event:
-    values = {"habs_lost": 0, "fleets_lost": 1, "combats_won": 1, "combats_lost": 0, **counts}
+    values = {"ships_lost": 1, "habs_lost": 0, **counts}
     return replace(
         make(
-            f"faction.battle_outcome/{killer.entity_id}/{victim.entity_id}",
+            f"faction.space_losses/{destroyer.entity_id}/{victim.entity_id}",
             key,
-            [killer, victim],
-            [("victim", victim), ("faction_kinds", FrozenMap(((str(victim.entity_id), "alien"),))), *values.items()],
+            [destroyer, victim],
+            [
+                ("victim", victim),
+                ("faction_kinds", FrozenMap(((str(victim.entity_id), "alien" if victim == ALIENS else "human"),))),
+                ("ships", ()),
+                ("habs", ()),
+                *values.items(),
+            ],
         ),
         constituents=tuple(event.id for event in constituents),
     )
 
 
-def combat(key: str, number: int, *sides: EntityRef) -> Event:
+def combat(key: str, number: int, *sides: EntityRef, winner: EntityRef | None = None) -> Event:
     return make(
         f"faction.combat_recorded/{number}",
         key,
         sides,
-        [("sides", tuple((side, "") for side in sides))],
+        [("sides", tuple((side, "") for side in sides)), ("winner", winner)],
     )
 
 
@@ -116,96 +126,77 @@ def of_type(events: Sequence[Event], event_type: str) -> list[Event]:
 # --- faction.space_campaign --------------------------------------------------------------------------------------
 
 
-def test_outcomes_of_one_pair_form_a_campaign_with_summed_counts() -> None:
-    habs = make(
-        "hab.destroyed/hab:9",
-        K2,
-        [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION],
-        [("body", LUNA), ("ambiguous", False)],
-    )
-    lost_fleet = make("fleet.disappeared/fleet:50", K1, [FLEET, ALIENS], [("side", "before")])
-    stream = [outcome(K1, habs_lost=1), outcome(K2, habs_lost=2, fleets_lost=0), habs, lost_fleet]
+def test_losses_and_combats_of_one_pair_form_a_campaign_with_summed_counts() -> None:
+    hab = ref(EntityDomain.SPACE_OBJECT, "9")
+    destroyed = make("hab.destroyed/hab:9", K2, [hab, ALIENS, LUNA, UNION], [("body", LUNA), ("ambiguous", False)])
+    forward = losses(K1, ships_lost=2)
+    backward = losses(K2, ALIENS, UNION, ships_lost=0, habs_lost=1)
+    backward = replace(backward, attributes=tuple((n, (hab,) if n == "habs" else v) for n, v in backward.attributes))
+    fought = combat(K1, 1, UNION, ALIENS, winner=UNION)
+    stream = [forward, backward, fought, destroyed]
 
     [campaign] = of_type(built(stream), "faction.space_campaign")
 
-    assert campaign.attribute("battles") == 2
-    assert campaign.attribute("habs_lost") == 3
-    assert campaign.attribute("fleets_lost") == 1
-    assert campaign.attribute("combats_won") == 2
-    assert campaign.attribute("victim_kind") == "alien"
-    assert campaign.attribute("bodies") == (LUNA,)
+    assert campaign.attribute("sides") == (UNION, ALIENS)
+    assert campaign.attribute("ships_lost") == (0, 2)
+    assert campaign.attribute("habs_lost") == (1, 0)
+    assert campaign.attribute("combats") == 1
+    assert campaign.attribute("combats_won") == (1, 0)
+    assert campaign.attribute("alien") == (False, True)
     assert [(role, ref_.entity_id.key) for role, ref_ in campaign.roles] == [
-        (Role.ACTOR, "15"),
-        (Role.TARGET, "16"),
+        (Role.SIDE, "15"),
+        (Role.SIDE, "16"),
         (Role.BODY, "1"),
     ]
-    assert campaign.significance is Significance.MAJOR
-    assert habs.id in campaign.constituents and lost_fleet.id in campaign.constituents
-    assert "Luna" in describe_event(campaign) and "the aliens" in describe_event(campaign)
+    assert set(campaign.constituents) == {forward.id, backward.id, fought.id}
+    assert "the aliens" in describe_event(campaign) and "battle" not in describe_event(campaign).lower()
 
 
-def test_bodies_include_habs_known_only_through_a_destruction_entry() -> None:
-    direct = make(
-        "hab.destroyed/hab:9",
-        K1,
-        [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION],
-        [("body", LUNA), ("ambiguous", False)],
-    )
-    entry = make(
-        "faction.hab_destruction_recorded/16/0",
-        K1,
-        [ALIENS, MARS, UNION],
-        [("space_body", MARS), ("destroyer", UNION)],
-    )
+def test_both_directions_of_a_pair_are_one_campaign() -> None:
+    stream = [losses(K1, UNION, ALIENS), losses(K1, ALIENS, UNION), losses(K1, ACADEMY, ALIENS)]
 
-    [campaign] = of_type(
-        built([outcome(K1, habs_lost=2, constituents=[entry]), direct, entry]), "faction.space_campaign"
-    )
+    campaigns = of_type(built(stream), "faction.space_campaign")
 
-    assert campaign.attribute("bodies") == (LUNA, MARS)
-    assert [ref_.entity_id.key for role, ref_ in campaign.roles if role is Role.BODY] == ["1", "2"]
-    assert entry.id in campaign.constituents
+    assert sorted(tuple(ref_.entity_id.key for _, ref_ in c.roles) for c in campaigns) == [("15", "16"), ("16", "17")]
+    assert all("mirror" not in dict(c.attributes) for c in campaigns)
 
 
-def test_the_two_campaigns_of_a_pair_name_each_other() -> None:
-    shared = combat(K1, 1, UNION, ALIENS)
-    forward = outcome(K1, UNION, ALIENS)
-    backward = outcome(K1, ALIENS, UNION, fleets_lost=0, combats_won=0, combats_lost=1)
-    third = outcome(K1, ACADEMY, ALIENS)
+def test_a_recorded_combat_alone_starts_a_campaign() -> None:
+    [campaign] = of_type(built([combat(K1, 1, UNION, ALIENS)]), "faction.space_campaign")
 
-    campaigns = {
-        (c.roles[0][1].entity_id.key, c.roles[1][1].entity_id.key): c
-        for c in of_type(built([forward, backward, third, shared]), "faction.space_campaign")
-    }
+    assert campaign.attribute("combats") == 1
+    assert campaign.attribute("ships_lost") == (0, 0)
 
-    assert campaigns[("15", "16")].attribute("mirror") == campaigns[("16", "15")].id
-    assert campaigns[("16", "15")].attribute("mirror") == campaigns[("15", "16")].id
-    assert "mirror" not in dict(campaigns[("17", "16")].attributes)
+
+def test_a_combat_logged_twice_by_index_is_two_combats_and_one_side_alone_is_none() -> None:
+    stream = [combat(K1, 1, UNION, ALIENS), combat(K1, 2, UNION, ALIENS), combat(K1, 3, UNION)]
+
+    [campaign] = of_type(built(stream), "faction.space_campaign")
+
+    assert campaign.attribute("combats") == 2
 
 
 def test_a_gap_beyond_the_campaign_window_splits_the_campaign() -> None:
-    campaigns = of_type(built([outcome(K1), outcome(K4)]), "faction.space_campaign")
+    campaigns = of_type(built([losses(K1), losses(K4)]), "faction.space_campaign")
 
     assert len(campaigns) == 2
 
 
-def test_other_pairs_and_ambiguous_destructions_are_not_attached() -> None:
+def test_other_pairs_and_raw_destructions_are_not_attached() -> None:
     other = make(
         "hab.destroyed/hab:8",
         K1,
         [ref(EntityDomain.SPACE_OBJECT, "8"), ALIENS, LUNA, ACADEMY],
         [("body", LUNA), ("ambiguous", False)],
     )
-    unsure = make(
-        "hab.destroyed/hab:7", K1, [ref(EntityDomain.SPACE_OBJECT, "7"), ALIENS, LUNA, UNION], [("ambiguous", True)]
-    )
+    raw = make("fleet.disappeared/fleet:50", K1, [FLEET, ALIENS], [("side", "before")])
 
-    [campaign] = of_type(built([outcome(K1), other, unsure]), "faction.space_campaign")
+    [campaign] = of_type(built([losses(K1), other, raw]), "faction.space_campaign")
 
-    assert campaign.constituents == (outcome(K1).id,)
+    assert campaign.constituents == (losses(K1).id,)
 
 
-def test_no_campaign_without_an_outcome() -> None:
+def test_no_campaign_without_losses_or_combats() -> None:
     habs = make(
         "hab.destroyed/hab:9", K1, [ref(EntityDomain.SPACE_OBJECT, "9"), ALIENS, LUNA, UNION], [("ambiguous", False)]
     )
@@ -409,8 +400,8 @@ def test_a_project_milestone_names_its_faction_and_a_technology_milestone_has_no
 
 def test_results_do_not_depend_on_stream_order() -> None:
     stream = [
-        outcome(K1),
-        outcome(K2),
+        losses(K1),
+        losses(K2),
         first_hab(K1, LUNA),
         first_hab(K2, MARS),
         *(ship(K1, number) for number in range(1, 6)),
@@ -425,7 +416,7 @@ def test_results_do_not_depend_on_stream_order() -> None:
 
 
 def test_every_event_cites_only_stream_events() -> None:
-    stream = [outcome(K1), first_hab(K1, LUNA), first_hab(K2, MARS), milestone(K1)]
+    stream = [losses(K1), first_hab(K1, LUNA), first_hab(K2, MARS), milestone(K1)]
     ids = {item.id for item in stream}
 
     for item in built(stream):

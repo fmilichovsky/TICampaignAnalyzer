@@ -66,7 +66,11 @@ def test_every_geopolitics_nation_nuclear_and_scaled_space_kind_declares_its_sha
         "nation.navy_established",
     }
     nuclear = {"nation.nuclear_armament", "nation.nuclear_buildup", "nation.nuclear_disarmament"}
-    assert measured == geopolitical | nation | nuclear | {"faction.colonisation_wave", "faction.fleet_buildup"}
+    assert measured == geopolitical | nation | nuclear | {
+        "faction.colonisation_wave",
+        "faction.fleet_buildup",
+        "faction.space_campaign",
+    }
 
 
 def test_every_nation_metric_and_diplomacy_kind_declares_its_base_level() -> None:

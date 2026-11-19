@@ -66,6 +66,14 @@ MEASURES: Mapping[Measure, MeasureSpec] = {
         label="Battle",
         description="A combat's contested mass over the world's weighted ship mass.",
     ),
+    Measure.SPACE_LOSS: MeasureSpec(
+        reference=0.01,
+        label="Space loss",
+        description=(
+            "The dry mass of the ships and the tier² of the habs a faction lost, over the human ships' and habs' "
+            "totals, which have floors."
+        ),
+    ),
     Measure.FACTION: MeasureSpec(
         reference=1 / 7,  # an even split among the seven human factions
         label="Faction",

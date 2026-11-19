@@ -10,6 +10,7 @@
 | hab | 0.015 | 0.015 |
 | fleet | 0.01 | 0.01 |
 | battle | 0.0033 | 0.0033 |
+| space_loss | 0.01 | 0.01 |
 | faction | 0.14285714285714285 | 0.14285714285714285 |
 | nuclear | 0.01 | 0.01 |
 
@@ -174,6 +175,16 @@ Cut-off at share 0.000186 (offset -1.25):
 No event has this share.
 
 Cut-off at share 0.0587 (offset 1.25):
+
+No event has this share.
+
+### space_loss
+
+Cut-off at share 0.000562 (offset -1.25):
+
+No event has this share.
+
+Cut-off at share 0.178 (offset 1.25):
 
 No event has this share.
 
