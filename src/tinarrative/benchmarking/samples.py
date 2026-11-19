@@ -10,8 +10,9 @@ import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
+from ..campaign_analysis import ProgressReporter
 from ..grouping import CampaignGroup, group_saves
 from ..io.save_discovery import SaveInput, expand_inputs
 from ..parsing.errors import SaveLoadError
@@ -20,14 +21,6 @@ from .manifest import MANIFEST
 
 DEFAULT_MAX_FILE_BYTES = 5_000_000
 CHUNK_BYTES = 1 << 20
-
-
-class ProgressReporter(Protocol):
-    """The progress interface a benchmark operation needs from the CLI."""
-
-    def update(self, phase: str, completed: int, total: int | None = None, filename: str | None = None) -> None: ...
-
-    def finish(self, activity: str = "parsing and processing") -> None: ...
 
 
 class SampleImportError(Exception):

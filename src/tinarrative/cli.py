@@ -11,11 +11,10 @@ import threading
 import time
 import webbrowser
 from collections.abc import Callable, Sequence
-from contextlib import closing
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import Any, TypeAlias, cast
+from typing import Any, TypeAlias, assert_never, cast
 
 from . import __version__
 from .benchmarking import metrics as benchmark_metrics
@@ -26,6 +25,16 @@ from .benchmarking.calibration import replay as calibration_replay
 from .benchmarking.calibration.table import CalibrationTableError
 from .benchmarking.manifest import MANIFEST, sample_files, update_samples, verify_samples
 from .benchmarking.samples import SampleImportError, import_sample_campaign
+from .campaign_analysis import (
+    EmptyDirectory,
+    NoUsableSave,
+    Survey,
+    SurveyFailed,
+    UnreadableInput,
+    UnsupportedSave,
+    resolve_jobs,
+    survey_inputs,
+)
 from .config import (
     CONFIG_ENV_VAR,
     DEFAULT_SETTINGS,
@@ -81,17 +90,13 @@ from .rendering.listing import CONSTITUENTS, Constituents
 from .rendering.markdown import PERIODS, Period, render_sequence
 from .sequence import (
     IntervalResult,
-    SaveRef,
     SequencePlan,
-    SkippedSave,
-    SurveyFailure,
     event_stream,
     narrative_events,
     plan_sequence,
     run_sequence,
-    survey_all,
 )
-from .workers import default_jobs, memory_line
+from .workers import memory_line
 
 logger = get_logger(__name__)
 
@@ -518,15 +523,6 @@ def _run_diff(args: argparse.Namespace) -> int:
     return EXIT_SUCCESS
 
 
-def _survey_failed(command: str, failure: SurveyFailure) -> int:
-    """Print why a path named on the command line could not be surveyed and return the exit code."""
-    if failure.content:
-        print(f"tinarrative {command}: {failure.source}: {failure.reason}", file=sys.stderr)
-        return EXIT_UNSUPPORTED_INPUT
-    print(f"tinarrative {command}: cannot read {failure.source}: {failure.reason}", file=sys.stderr)
-    return EXIT_INPUT_ERROR
-
-
 class _ProgressTracker:
     """Show save work on one terminal line and report its total elapsed time on stderr."""
 
@@ -582,63 +578,30 @@ class _ProgressTracker:
             sys.stderr.flush()
 
 
-def _survey_inputs(
-    command: str, inputs: Sequence[SaveInput], progress: _ProgressTracker | None = None, jobs: int = 1
-) -> tuple[list[SaveRef], list[SkippedSave]] | int:
-    """Survey every input; only a path named on the command line can fail the run (exit 4 beats nothing found).
-
-    Outcomes are judged in input order, so the failure reported is the same whatever ``jobs`` is.
-    """
-    surveyed: list[SaveRef] = []
-    skipped: list[SkippedSave] = []
-    usable: dict[Path, int] = {}
-    done = 0
-
-    def on_save(path: Path) -> None:
-        nonlocal done
-        done += 1
-        if progress is not None:
-            progress.update("Scanning saves", done, filename=path.name)
-
-    paths = [item.path for item in inputs if not item.empty_directory]
-    with closing(survey_all(paths, jobs=jobs, on_save=on_save)) as outcomes:
-        for item in inputs:
-            if item.empty_directory:
-                print(f"tinarrative {command}: {item.path}: the directory holds no files", file=sys.stderr)
-                return EXIT_INPUT_ERROR
-            found = next(outcomes)
-            if item.directory is None:
-                if isinstance(found, SurveyFailure):
-                    return _survey_failed(command, found)
-                surveyed.append(found)
-                continue
-            usable.setdefault(item.directory, 0)
-            if isinstance(found, SurveyFailure):
-                logger.debug("%s skipped %s", command, fields(save=safe_path(item.path), error=found.error_class))
-                skipped.append(SkippedSave(str(item.path), found.error_class, found.reason))
-            else:
-                surveyed.append(found)
-                usable[item.directory] += 1
-    for directory, count in usable.items():
-        if count == 0:
-            print(f"tinarrative {command}: {directory}: the directory holds no usable save", file=sys.stderr)
+def _survey_failed(command: str, failure: SurveyFailed) -> int:
+    """Print the survey failure behind its command prefix and return its exit code; exhaustive over the failures."""
+    print(f"tinarrative {command}: {failure.message}", file=sys.stderr)
+    match failure:
+        case UnreadableInput() | EmptyDirectory() | NoUsableSave():
             return EXIT_INPUT_ERROR
-    return surveyed, skipped
+        case UnsupportedSave():
+            return EXIT_UNSUPPORTED_INPUT
+        case _:
+            assert_never(failure)
 
 
-def _jobs(requested: int | None, settings: Settings, sources: Sequence[str | Path]) -> int:
-    """``--jobs`` wins over ``processing.jobs``; neither gives the default for these files' sizes."""
-    if requested is not None:
-        return requested
-    if settings.processing.jobs is not None:
-        return settings.processing.jobs
-    sizes: list[int] = []
-    for source in sources:
-        try:
-            sizes.append(os.stat(source).st_size)
-        except OSError:
-            continue  # the survey reports it
-    return default_jobs(sizes)
+def _survey_command_inputs(
+    command: str,
+    inputs: Sequence[SaveInput],
+    settings: Settings,
+    jobs: int | None = None,
+    progress: _ProgressTracker | None = None,
+) -> Survey | int:
+    """Survey the inputs for ``command``, or print the failure and return its exit code."""
+    outcome = survey_inputs(inputs, settings, command=command, jobs=jobs, progress=progress)
+    if isinstance(outcome, Survey):
+        return outcome
+    return _survey_failed(command, outcome)
 
 
 def _run_benchmark_sample(args: argparse.Namespace) -> int:
@@ -993,19 +956,18 @@ def _run_saves(
     inputs = expand_inputs(paths)
     logger.info("%s start %s", command, fields(inputs=len(paths), candidates=len(inputs)))
     progress = _ProgressTracker(command, len(inputs))
-    survey_jobs = _jobs(jobs, settings, [item.path for item in inputs if not item.empty_directory])
-    outcome = _survey_inputs(command, inputs, progress, survey_jobs)
+    outcome = _survey_command_inputs(command, inputs, settings, jobs, progress)
     if isinstance(outcome, int):
         progress.finish()
         return outcome
-    surveyed, skipped = outcome
+    surveyed, skipped = outcome.saves, outcome.skipped
     campaign = _choose_campaign(command, group_saves(surveyed), selector)
     if isinstance(campaign, int):
         progress.finish()
         return campaign
     plan = plan_sequence(campaign.members, skipped)
-    interval_jobs = _jobs(jobs, settings, [save.source for save in plan.saves])
-    logger.debug("%s jobs %s", command, fields(survey=survey_jobs, intervals=interval_jobs))
+    interval_jobs = resolve_jobs(jobs, settings, [save.source for save in plan.saves])
+    logger.debug("%s jobs %s", command, fields(intervals=interval_jobs))
     progress.update("Processing saves", 0, len(plan.saves))
     loaded_saves = 0
 
@@ -1725,10 +1687,10 @@ def _run_campaigns(args: argparse.Namespace) -> int:
     paths = cast(list[Path], args.saves)
     inputs = expand_inputs(paths)
     logger.info("campaigns start %s", fields(inputs=len(paths), candidates=len(inputs)))
-    outcome = _survey_inputs("campaigns", inputs)
+    outcome = _survey_command_inputs("campaigns", inputs, DEFAULT_SETTINGS, jobs=1)
     if isinstance(outcome, int):
         return outcome
-    surveyed, skipped = outcome
+    surveyed, skipped = outcome.saves, outcome.skipped
     groups = group_saves(surveyed)
     if args.format == "json":
         rendered = json.dumps(listing_document(groups, skipped), indent=2, ensure_ascii=True) + "\n"
