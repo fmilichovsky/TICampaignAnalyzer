@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "calibration-dashboard",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8769", "--bind", "127.0.0.1", "--directory", "build/calibration"],
+      "runtimeExecutable": "make",
+      "runtimeArgs": ["calibrate-open"],
       "port": 8769
     }
   ]

@@ -1,4 +1,5 @@
-"""The golden calibration table: two hand-built campaigns in the cache's wrapper format, the browser replay's input.
+"""The golden calibration table: two hand-built campaigns in the cache's wrapper format, read by the replay and
+server tests.
 
 ``test_the_golden_calibration_table_is_current`` keeps the committed files equal to ``golden_tables()``; rewrite
 them with ``pytest --update-goldens``.
@@ -44,7 +45,7 @@ def golden_index() -> dict[str, Any]:
 
 
 def spread() -> list[dict[str, Any]]:
-    """Seeded rows across five decades of power and population: many distinct ratios for the log10 parity."""
+    """Seeded rows across five decades of power and population: many distinct cut-off distances."""
     rng = random.Random(462)
     levels = list(CONSTANTS["level_bands"])
     return [

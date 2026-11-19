@@ -1,4 +1,4 @@
-"""The per-event calibration table of the sample campaigns, written as ``file://``-loadable ``.js`` files."""
+"""The per-event calibration table of the sample campaigns, written as ``.js`` files the page loads as scripts."""
 
 from __future__ import annotations
 

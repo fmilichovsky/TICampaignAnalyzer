@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "key": "golden",
-  "hash": "ref=power:0.006309573444801933,faction:1e-7",
+  "hash": "ref=power:0.006309573444801933,faction:0.0000001",
   "state": {
     "references": {
       "power": 0.006309573444801933,

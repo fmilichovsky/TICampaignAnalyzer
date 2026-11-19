@@ -222,23 +222,34 @@ tinarrative benchmark runtime report build/runtime.json --out build/runtime.md
 
 <!-- generated: synopsis benchmark calibrate open -->
 ```
-tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [--no-open]
+tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [--port PORT]
+                                     [--no-open]
 ```
 <!-- end generated -->
 
-Opens the stake calibration page: a static page, working from disk, for choosing the stake references of the
+Serves the stake calibration page on `127.0.0.1` and opens it: a page for choosing the stake references of the
 measures against the sample campaigns. Slide a measure's reference to see which events change significance level,
 how the narrator package and the takeover waves change, and which events sit nearest each cut-off; open an event to
 see why it has its level. Base levels, under References, switches an event type's base level, as `report --base`
 does; the event inspector switches the type of the event it shows, and says when a context rule decided the event's
 level, so the switch passes it by. The page's URL hash holds the explored state, which `report --state` reads.
 
+The command replays the table in Python for every change on the page; the page only draws the answer
+([ADR-0022](../adr/0022-the-calibration-table-is-replayed-once-in-python.md)). It keeps serving until it is
+interrupted with Ctrl-C. A stale table is served while it is rebuilt, and the page offers to reload once the new one
+is ready. A failed rebuild keeps the old table served and the command exits with 2 when interrupted; with no old
+table it stops at once. A slider replays when it is let go. Opened from disk, or once the command has stopped, the
+page says so and names the command to run.
+
 ```sh
-# Build the table if needed and open the page.
+# Build the table if needed, serve the page and open it.
 tinarrative benchmark calibrate open
 
-# Print the page path only, for a browser on another machine or a script.
+# Print the page's URL only, for a browser started by hand or a launch configuration.
 tinarrative benchmark calibrate open --no-open
+
+# Serve on another port.
+tinarrative benchmark calibrate open --port 8770
 ```
 
 <!-- generated: options benchmark calibrate open -->
@@ -247,16 +258,17 @@ tinarrative benchmark calibrate open --no-open
 | `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
 | `--out PATH` | The calibration cache directory (default build/calibration). |
 | `--rebuild` | Rebuild the cache even when it is fresh. |
-| `--no-open` | Print the page path without opening a browser. |
+| `--port PORT` | The port on 127.0.0.1 to serve the page on (default 8769). |
+| `--no-open` | Print the page's URL without opening a browser. |
 <!-- end generated -->
 
 <!-- generated: exit-codes benchmark calibrate open -->
 | Code | When |
 | --- | --- |
-| 0 | The page was written and its table is current; a browser that cannot be opened only warns. |
-| 2 | Usage error, a sample that does not match samples.json, or a failed extraction (status.js says failed; the old table stays, and an old page was already opened). |
+| 0 | The page was served with a current table until interrupted; a browser that cannot be opened only warns. |
+| 2 | Usage error, a sample that does not match samples.json, or a failed extraction (status.js says failed). With no old table the command stops at once; an old table is served until interrupted. |
 | 4 | --samples is not a directory or its samples.json cannot be read. |
-| 9 | --out cannot be written. |
+| 9 | --out cannot be written, or the port cannot be served on. |
 <!-- end generated -->
 
 ## `benchmark calibrate report`

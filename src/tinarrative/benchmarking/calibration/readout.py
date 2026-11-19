@@ -1,7 +1,8 @@
-"""The readout of a replay: the shared paragraph and the snippet (mirrored by the page), and the report formats.
+"""The readout of a replay: the shared paragraph and the snippet, which the page shows as the server sends them, and
+the report formats.
 
 ``shared_paragraph`` and ``snippet`` are pure functions of the index and the replay, ASCII only, with every number
-written as JavaScript's ``String(number)``: the page formats them again and must give the same bytes.
+written by ``number_text``.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from tinarrative.benchmarking.calibration.replay import (
     Replay,
     ReplayState,
     ReplayStateError,
-    js_number,
+    number_text,
     switched_types,
 )
 
@@ -111,7 +112,7 @@ def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
     state = result["state"]
     code = index["measures"]
     changed = [
-        f"{measure} {js_number(state['references'][measure])} (code {js_number(code[measure]['reference'])})"
+        f"{measure} {number_text(state['references'][measure])} (code {number_text(code[measure]['reference'])})"
         for measure in code
         if state["references"][measure] != code[measure]["reference"]
     ]
@@ -181,8 +182,8 @@ def snippet(index: Mapping[str, Any], result: Replay) -> str:
     switched event type, sorted by type."""
     references = result["state"]["references"]
     lines = [
-        f"StakeMeasure.{measure.upper()}: MeasureSpec(reference={js_number(references[measure])}, ...),"
-        f"  # code: {js_number(spec['reference'])}"
+        f"StakeMeasure.{measure.upper()}: MeasureSpec(reference={number_text(references[measure])}, ...),"
+        f"  # code: {number_text(spec['reference'])}"
         for measure, spec in index["measures"].items()
         if references[measure] != spec["reference"]
     ]
@@ -219,7 +220,7 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
     for measure, spec in index["measures"].items():
         value = state["references"][measure]
         mark = " (changed)" if value != spec["reference"] else ""
-        lines.append(f"| {measure} | {js_number(value)}{mark} | {js_number(spec['reference'])} |")
+        lines.append(f"| {measure} | {number_text(value)}{mark} | {number_text(spec['reference'])} |")
     switched = state["type_bases"]
     if switched:
         lines += ["", "| Event type | Base level | Code's |", "| --- | --- | ---: |"]
@@ -289,7 +290,7 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
         if not cutoffs:
             lines += ["No cut-off.", ""]
         for cutoff in cutoffs:
-            lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {js_number(cutoff['offset'])}):", ""]
+            lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {number_text(cutoff['offset'])}):", ""]
             lines += _table(
                 ["Side", "Campaign", "Event", "Type", "Share", "Score", "Level", "Code level", "Decided by"],
                 [_neighbour_row("below", item) for item in cutoff["below"]]
@@ -336,7 +337,7 @@ def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> lis
             if not cutoffs:
                 lines += ["No cut-off.", ""]
             for cutoff in cutoffs:
-                lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {js_number(cutoff['offset'])}):", ""]
+                lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {number_text(cutoff['offset'])}):", ""]
                 lines += _table(
                     ["Side", "Campaign", "Event", "Share", "Score", "Level", "Own base level", "Decided by", "Ruled"],
                     [_draft_neighbour_row("below", entry) for entry in cutoff["below"]]

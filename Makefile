@@ -11,7 +11,7 @@ PYTHON ?= $(if $(VIRTUAL_ENV),python,$(if $(wildcard .venv-codex/bin/python),.ve
 export PYTHONPATH := $(CURDIR)/src$(if $(PYTHONPATH),:$(PYTHONPATH))
 SAMPLE_CAMPAIGNS ?=
 
-.PHONY: install format lint typecheck test check docs samples samples-fast browser-replay-check browser-replay-samples require-node package-metrics runtime-metrics
+.PHONY: install format lint typecheck test check docs samples samples-fast calibrate-open package-metrics runtime-metrics
 
 # Interpreter used to create .venv; override for a specific Python (3.11 or newer).
 BOOTSTRAP_PYTHON ?= python3
@@ -50,21 +50,14 @@ docs:
 SAMPLES_FAST_CAMPAIGNS := protectorate-short
 
 samples-fast:
-	$(PYTHON) -m pytest -m "samples and not browser_replay" --sample-campaigns "$(SAMPLES_FAST_CAMPAIGNS)"
+	$(PYTHON) -m pytest -m samples --sample-campaigns "$(SAMPLES_FAST_CAMPAIGNS)"
 
 samples:
-	$(PYTHON) -m pytest -m "samples and not browser_replay" --sample-campaigns "$(SAMPLE_CAMPAIGNS)"
+	$(PYTHON) -m pytest -m samples --sample-campaigns "$(SAMPLE_CAMPAIGNS)"
 
-# replay.js against replay.py in Node (test-only); see docs/testing.md.
-browser-replay-check: require-node
-	$(PYTHON) -m pytest -m "browser_replay and not samples"
-
-# The same comparison on the benchmark campaigns.
-browser-replay-samples: require-node
-	$(PYTHON) -m pytest -m "samples and browser_replay" --sample-campaigns "$(SAMPLE_CAMPAIGNS)"
-
-require-node:
-	@command -v node >/dev/null 2>&1 || { echo "The browser replay tests need Node.js on PATH (test-only): install the LTS from https://nodejs.org or run 'brew install node'." >&2; exit 1; }
+# Serve the stake calibration page until interrupted, without opening a browser; .claude/launch.json runs it.
+calibrate-open:
+	$(PYTHON) -m tinarrative.cli benchmark calibrate open --no-open
 
 # Measure the LLM-bound packages of the benchmark samples with this tree; see benchmarks/README.md.
 package-metrics:
