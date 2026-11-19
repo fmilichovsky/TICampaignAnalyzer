@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
-      benchmark_name: ${BENCHMARK_NAME}
+      benchmark_name: $BENCHMARK_NAME
       artifact_name: package-metrics
       report_path: report.md
       comment_marker: '<!-- package-metrics -->'
@@ -158,7 +158,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
-      benchmark_name: ${BENCHMARK_NAME}
+      benchmark_name: $BENCHMARK_NAME
       artifact_name: package-metrics
       report_path: report.md
       comment_marker: '<!-- package-metrics -->'
@@ -172,7 +172,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
-      benchmark_name: ${BENCHMARK_NAME}
+      benchmark_name: $BENCHMARK_NAME
       artifact_name: package-metrics
       report_path: report.md
       comment_marker: '<!-- package-metrics -->'
