@@ -1,10 +1,6 @@
-"""Campaign analysis: save inputs to an analysed campaign in three steps, each returning a failure value.
+"""Campaign analysis: save inputs to an analysed campaign in three steps (survey, choice, analysis).
 
-``survey_inputs`` turns the inputs into surveyed and skipped saves, ``choose_campaign`` picks one campaign among the
-grouped saves, and ``analyze_campaign`` plans its sequence and analyzes the intervals. The choice sits between the
-steps, not inside the analysis, because it may need a person: the module never prompts, so ``choose_campaign`` only
-returns ``CampaignNotChosen`` and the command line decides whether to open a picker. The module never prints and
-never picks an exit code; the command line maps each failure to its code and prefix."""
+Each step returns a failure value; the module never prints, prompts or picks an exit code."""
 
 from __future__ import annotations
 
@@ -197,7 +193,10 @@ def file_time(path: str) -> float:
 
 def choose_campaign(groups: Sequence[CampaignGroup], selector: str | None = None) -> CampaignGroup | CampaignNotChosen:
     """The campaign to analyze: the only one when there is no selector, else the one the selector names. Several
-    campaigns without a selector, or a selector that matches none, is ``CampaignNotChosen``; it never prompts."""
+    campaigns without a selector, or a selector that matches none, is ``CampaignNotChosen``.
+
+    The choice sits outside the analysis because it may need a person; this never prompts, so the command line
+    decides whether to open a picker."""
     if selector is None:
         if len(groups) == 1:
             return groups[0]
