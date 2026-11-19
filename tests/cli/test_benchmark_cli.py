@@ -8,6 +8,7 @@ from pathlib import Path
 
 from tests.fixtures import fixture_path
 from tinarrative import cli
+from tinarrative.benchmarking import samples as sample_import
 from tinarrative.benchmarking.manifest import verify_samples
 
 
@@ -98,6 +99,34 @@ def test_refresh_replaces_files_and_preserves_or_updates_description(tmp_path: P
     assert run_cli(["benchmark", "sample", "fixture", str(first), "--description", "Updated."])[0] == 0
     manifest = json.loads((samples / "samples.json").read_text(encoding="utf-8"))
     assert manifest["campaigns"]["fixture"]["description"] == "Updated."
+
+
+def test_refresh_reuses_identical_file_and_recompresses_changed_content(
+    tmp_path: Path, monkeypatch
+) -> None:
+    samples = tmp_path / "samples"
+    samples.mkdir()
+    monkeypatch.setattr(cli, "BENCHMARK_SAMPLES_DIR", samples)
+    source = tmp_path / "save.json"
+    source.write_bytes(fixture_path("io", "terra_invicta_json_v1", "campaign_assets.json").read_bytes())
+
+    assert run_cli(["benchmark", "sample", "fixture", str(source), "--description", "Fixture campaign."])[0] == 0
+    imported = samples / "fixture" / "save.json.xz"
+    original_compressed = imported.read_bytes()
+
+    def compression_must_be_skipped(*args, **kwargs):
+        raise AssertionError("unchanged save should reuse its existing compressed file")
+
+    compressor = sample_import.lzma.LZMACompressor
+    monkeypatch.setattr(sample_import.lzma, "LZMACompressor", compression_must_be_skipped)
+    assert run_cli(["benchmark", "sample", "fixture", str(source)])[0] == 0
+    assert imported.read_bytes() == original_compressed
+    assert verify_samples(samples) == []
+
+    monkeypatch.setattr(sample_import.lzma, "LZMACompressor", compressor)
+    source.write_bytes(source.read_bytes() + b" ")
+    assert run_cli(["benchmark", "sample", "fixture", str(source)])[0] == 0
+    assert lzma.decompress(imported.read_bytes()) == source.read_bytes()
 
 
 def test_progress_tracker_reports_phase_filename_and_count_only_on_tty(monkeypatch) -> None:
