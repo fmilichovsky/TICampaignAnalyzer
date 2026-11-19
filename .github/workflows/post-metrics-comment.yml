@@ -19,6 +19,17 @@ on:
         description: HTML marker identifying the existing bot comment
         required: true
         type: string
+      status:
+        description: Comment state (report, in_progress, or failed)
+        required: false
+        default: report
+        type: string
+      base_sha:
+        required: false
+        type: string
+      head_sha:
+        required: false
+        type: string
 
 jobs:
   post-comment:
@@ -27,7 +38,8 @@ jobs:
       actions: read
       pull-requests: write
     steps:
-      - uses: actions/download-artifact@v8
+      - if: inputs.status == 'report'
+        uses: actions/download-artifact@v8
         with:
           name: ${{ inputs.artifact_name }}
           path: .bench
@@ -37,13 +49,20 @@ jobs:
           PR_NUMBER: ${{ inputs.pr_number }}
           REPORT_FILE: .bench/${{ inputs.report_path }}
           COMMENT_MARKER: ${{ inputs.comment_marker }}
+          STATUS: ${{ inputs.status }}
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
             const fs = require('fs');
             const { owner, repo } = context.repo;
             const issueNumber = Number(process.env.PR_NUMBER);
-            const body = fs.readFileSync(process.env.REPORT_FILE, 'utf8');
             const marker = process.env.COMMENT_MARKER;
+            const status = process.env.STATUS;
+            const body = status === 'report'
+              ? fs.readFileSync(process.env.REPORT_FILE, 'utf8')
+              : `${marker}\n${status === 'failed' ? 'Benchmark run failed' : 'Benchmark run in progress'}: [View workflow run](${process.env.RUN_URL})\n\nComparing base \`${process.env.BASE_SHA}\` with head \`${process.env.HEAD_SHA}\`.\n`;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner,
               repo,
