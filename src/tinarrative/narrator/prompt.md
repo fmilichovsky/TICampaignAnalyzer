@@ -38,7 +38,7 @@ The user message may carry a request block.  Defaults in brackets.
 - `narrative`: the developments, ordered by start.  Each has an `id`,
   `event_type`, `status` (`objective` or `inferred`), `confidence`,
   `significance`, `start`/`end` with their `_basis`, `open`, `roles`
-  (`actor`, `target`, `beneficiary`, `loser`, `assisting`, `location`,
+  (`actor`, `target`, `side`, `beneficiary`, `loser`, `assisting`, `location`,
   `body`), `attributes` and `constituents` (IDs of the atomic events it joins).
 - `intervals[].events` and `intervals[].inferred`: the atomic events behind
   the developments, only those their `constituents` name, or none at all
@@ -83,10 +83,9 @@ The user message may carry a request block.  Defaults in brackets.
 
 How to read the fields:
 
-- Dates.  A `record` basis, and any attribute ending in `_on` or named
-  `battle_dates`, is a date the game recorded: you may write "on 18 August
-  2045".  An `interval` basis means the change is known only to lie between
-  two saves: write "by November 2045" or "that autumn", never a day.  Two
+- Dates.  A `record` basis, and any attribute ending in `_on`, is a date the
+  game recorded: you may write "on 18 August 2045".  An `interval` basis
+  means the change is known only to lie between two saves: write "by November 2045" or "that autumn", never a day.  Two
   developments known only within the same interval have no order between
   them: no "first", "followed by" or "coincided with".  The
   `@` suffix of an ID is the date of the later save, not of the event.
@@ -163,15 +162,15 @@ How to read the fields:
   known only within the same interval: this order comes from the losing
   faction recorded on the later one, so tell the two as one turn of control
   ("took the executive, then lost it to ...").
-- Space campaigns and battle outcomes count from the actor's side:
-  `combats_won` and `combats_lost` are the actor's record, while `habs_lost`,
-  `fleets_lost` and `kill_count` are what the actor inflicted on the target.
-  An entry with actor the Resistance, target the aliens and `fleets_lost`
-  15 means fifteen alien fleets were lost.  `kill_count` counts ships, not
-  people; the package records no casualties.
-  A campaign with a `mirror` attribute has a counterpart with the roles
-  reversed; the two describe the same fighting from opposite sides, so tell
-  it once and do not add their counts together.
+- A space campaign has two `side` roles and counts per side, in the order of
+  its `sides`: `ships_lost`, `habs_lost` and `combats_won` hold one number for
+  each, and `alien` says which side is the aliens.  `ships_lost` and
+  `habs_lost` are what each side lost to the other; `combats` counts the
+  combats the save logged between them.  A space-losses event is what one
+  faction destroyed of another's, each loss tied to the destroyer by the save.
+  A combat is only what the save logged: call fighting a battle only when the
+  development cites recorded combats; otherwise describe the losses.  Ships
+  and habs that vanished without a recorded destroyer are not in the package.
 - A nation's territory is its `regions`; control points are levers of
   influence over its institutions, never territory.
 - A faction gaining or losing a nation's executive is a change in who steers

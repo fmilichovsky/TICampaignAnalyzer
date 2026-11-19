@@ -16,14 +16,15 @@ from tests.analyzers.support import (
     snapshot,
     state,
 )
+from tests.narrative.support import ref
 from tinarrative.analyzers.space import CombatAnalyzer, HabAnalyzer
 from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds import KINDS
 from tinarrative.model.entities import EntityDomain
-from tinarrative.model.events import Event
+from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
 from tinarrative.model.records import CombatEntry, RecordKind
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
-from tinarrative.model.values import FrozenMap
+from tinarrative.model.values import FrozenMap, Unknown
 from tinarrative.narrative.measures import SCALE_MIN
 from tinarrative.narrative.shares import (
     CONTEST_RATIO,
@@ -232,3 +233,67 @@ def test_a_defection_is_scaled_by_the_share_of_the_faction_left() -> None:
     # The faction left holds nothing here (no nations, habs or ships): the lowest share.
     assert event.significance_basis is not None and event.significance_basis.share == 0
     assert event.score == base + SCALE_MIN
+
+
+def loss(ships: tuple[str, ...] = (), habs: tuple[str, ...] = ()) -> Event:
+    """A ``faction.space_losses`` of the alien faction's ships and habs, as the reconstruction rule lists them."""
+    ship_refs = tuple(ref(SHIP, key) for key in ships)
+    hab_refs = tuple(ref(HAB, key) for key in habs)
+    return Event(
+        id="faction.space_losses/faction:15/faction:16",
+        event_type="faction.space_losses",
+        status=EventStatus.INFERRED,
+        confidence=Confidence.HIGH,
+        date=Unknown(),
+        date_basis=DateBasis.INTERVAL,
+        not_before=Unknown(),
+        sources=(),
+        entities=(HUMAN, ALIEN, *ship_refs, *hab_refs),
+        attributes=(
+            ("habs", hab_refs),
+            ("habs_lost", len(hab_refs)),
+            ("ships", ship_refs),
+            ("ships_lost", len(ship_refs)),
+            ("victim", ALIEN),
+        ),
+    )
+
+
+def loss_world() -> tuple[SaveSnapshot, SaveSnapshot]:
+    before = snapshot(
+        BEFORE,
+        *factions(BEFORE),
+        state(FLEET, "50", BEFORE, faction=HUMAN, ships=()),
+        state(FLEET, "51", BEFORE, faction=ALIEN, ships=()),
+        ship("60", BEFORE, "50", "HumanDesign", 500),
+        ship("61", BEFORE, "51", "AlienDesign", 5),
+        ship("62", BEFORE, "51", "AlienDesign", 50),
+        state(HAB, "70", BEFORE, faction=HUMAN, tier=3),
+        state(HAB, "71", BEFORE, faction=ALIEN, tier=2),
+    )
+    return before, snapshot(AFTER, *factions(AFTER), state(FLEET, "50", AFTER, faction=HUMAN, ships=()))
+
+
+def scored_loss(event: Event) -> Event:
+    before, after = loss_world()
+    return only(ranked([event], before, after), "faction.space_losses")
+
+
+def test_a_heavier_space_loss_ranks_above_a_lighter_one() -> None:
+    light, heavy = scored_loss(loss(("61",))), scored_loss(loss(("61", "62")))
+    assert heavy.score > light.score
+    assert light.significance_basis is not None and light.significance_basis.measure == "space_loss"
+    assert light.significance_basis.share == pytest.approx(5 * KG / max(500 * KG, FLEET_SATURATION))
+
+
+def test_lost_habs_and_ships_add_up_in_one_space_loss_share() -> None:
+    ships_only, both = scored_loss(loss(("61",))), scored_loss(loss(("61",), ("71",)))
+    assert ships_only.significance_basis is not None and both.significance_basis is not None
+    assert both.significance_basis.share == pytest.approx(ships_only.significance_basis.share + hab_share(4, 9))
+    assert both.score > ships_only.score
+
+
+def test_a_space_loss_of_assets_the_earlier_save_does_not_measure_is_unscaled() -> None:
+    event = scored_loss(loss(("99",)))
+    assert event.significance_basis is None
+    assert event.score == KINDS["faction.space_losses"].base.base

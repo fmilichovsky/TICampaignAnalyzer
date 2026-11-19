@@ -443,6 +443,16 @@ def _cited_habs(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, .
     return tuple(ref for item in cited for ref in _listed_refs(item.attribute("habs")))
 
 
+def _lost_assets(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
+    """The ships and habs the event lists as lost."""
+    return tuple(ref for name in ("ships", "habs") for ref in _listed_refs(event.attribute(name)))
+
+
+def _cited_losses(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
+    """The ships and habs of the cited space-losses events."""
+    return tuple(ref for item in cited for ref in _lost_assets(item))
+
+
 def _cited_ships(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """The ships of the cited appearance events: the first entity of each."""
     return tuple(item.entities[0] for item in cited if item.event_type == SHIP_APPEARED.event_type and item.entities)
@@ -456,6 +466,7 @@ SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
     ShareOf.ORGANIZATION: ShareReading(Measure.ORGANIZATION, _organization),
     ShareOf.HAB: ShareReading(Measure.HAB, _habs),
     ShareOf.FLEET: ShareReading(Measure.FLEET, _fleet),
+    ShareOf.SPACE_LOSSES: ShareReading(Measure.SPACE_LOSS, _lost_assets),
     ShareOf.LEFT_FACTION: ShareReading(Measure.FACTION, _left_faction),
     ShareOf.COMBAT: ShareReading(Measure.BATTLE, lambda event, cited: (), ShareVariant.BATTLE),
     ShareOf.ACTOR: ShareReading(Measure.POWER, _actor),
@@ -466,6 +477,7 @@ SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
     ShareOf.INDEPENDENT_NATION: ShareReading(Measure.POWER, _independent_nation),
     ShareOf.COLONY: ShareReading(Measure.HAB, _cited_habs),
     ShareOf.NEW_SHIPS: ShareReading(Measure.FLEET, _cited_ships),
+    ShareOf.SPACE_CAMPAIGN: ShareReading(Measure.SPACE_LOSS, _cited_losses),
     ShareOf.NUCLEAR_ARC: ShareReading(Measure.NUCLEAR, _actor, ShareVariant.NET_MOVE),
 }
 """Every ``ShareOf``'s implementation; any kind may declare any of them."""

@@ -36,12 +36,13 @@ from tinarrative.model.records import (
 )
 from tinarrative.model.snapshot import EntityState
 from tinarrative.model.values import FrozenMap, Observed
-from tinarrative.reconstruction import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED
+from tinarrative.reconstruction import FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED, SPACE_LOSSES
 
 FACTION = EntityDomain.FACTION
 HAB = EntityDomain.SPACE_OBJECT
 PLAYER = faction_ref("15")
 ENEMY = faction_ref("16")
+THIRD = faction_ref("17")
 QUEUE_KEY = "80"
 GLOBAL_KEY = "70"
 ESCORTS = FrozenMap((("FixtureEscort", 2),))
@@ -75,6 +76,9 @@ def built(completion: str, *, upgrade: str | None = None, prior: str | None = No
     }
 
 
+Ship = tuple[str, str | None]
+"""A ship's fleet key and, optionally, its display name (ships share names in the game)."""
+
 Hab = tuple[str, str, str | EntityRef] | tuple[str, str, str | EntityRef, Core]
 """Owning faction key, hab type, body key (or another place) and, optionally, the core (``WORKING`` by default)."""
 
@@ -100,16 +104,21 @@ def space_pair(
     lagrange_points: tuple[str, ...] = (),
     fleets_before: Mapping[str, str] | None = None,
     fleets_after: Mapping[str, str] | None = None,
+    ships_before: Mapping[str, Ship] | None = None,
+    ships_after: Mapping[str, Ship] | None = None,
     records_before: tuple[RecordSet, ...] = (),
     records_after: tuple[RecordSet, ...] = (),
 ) -> Scenario:
-    """Factions 15 and 16, a notification queue, the global values singleton and the given Lagrange points, habs and
-    fleets."""
+    """Factions 15, 16 and 17, a notification queue, the global values singleton and the given Lagrange points, habs,
+    fleets and ships."""
 
-    def states(save: str, habs: Mapping[str, Hab], fleets: Mapping[str, str] | None) -> list[EntityState]:
+    def states(
+        save: str, habs: Mapping[str, Hab], fleets: Mapping[str, str] | None, ships: Mapping[str, Ship] | None
+    ) -> list[EntityState]:
         found = [
             state(FACTION, "15", save),
             state(FACTION, "16", save),
+            state(FACTION, "17", save),
             state(EntityDomain.NOTIFICATION_QUEUE, QUEUE_KEY, save),
             state(EntityDomain.GLOBAL_VALUES, GLOBAL_KEY, save),
             *(replace(state(HAB, key, save, "TILagrangePointState"), ref=lagrange(key)) for key in lagrange_points),
@@ -122,11 +131,14 @@ def space_pair(
             found.append(state(HAB, key, save, **fields))
         for key, faction in sorted((fleets or {}).items()):
             found.append(state(EntityDomain.FLEET, key, save, faction=faction_ref(faction)))
+        for key, (fleet, name) in sorted((ships or {}).items()):
+            ship = state(EntityDomain.SHIP, key, save, fleet=fleet_ref(fleet))
+            found.append(ship if name is None else replace(ship, ref=replace(ship.ref, name=name)))
         return found
 
     return pair(
-        snapshot(BEFORE, *states(BEFORE, habs_before, fleets_before), records=records_before),
-        snapshot(AFTER, *states(AFTER, habs_after, fleets_after), records=records_after),
+        snapshot(BEFORE, *states(BEFORE, habs_before, fleets_before, ships_before), records=records_before),
+        snapshot(AFTER, *states(AFTER, habs_after, fleets_after, ships_after), records=records_after),
     )
 
 
@@ -138,11 +150,10 @@ def destruction(index: int, hab_type: str, place: str, date: str, destroyer: Ent
     return DestructionEntry(index, hab_type, body(place), date, destroyer)
 
 
-def kills(save: str, killer: EntityRef, *victims: tuple[EntityRef, int]) -> RecordSet:
-    """``Kills`` with ``count`` synthetic asset names per victim."""
+def kills(save: str, killer: EntityRef, *victims: tuple[EntityRef, tuple[str, ...]]) -> RecordSet:
+    """``Kills`` listing the given display names per victim."""
     entries: tuple[RecordEntry, ...] = tuple(
-        KeyedEntry(index, victim, tuple(f"Fixture asset {n}" for n in range(count)))
-        for index, (victim, count) in enumerate(victims)
+        KeyedEntry(index, victim, names) for index, (victim, names) in enumerate(victims)
     )
     return record_set(save, killer, "Kills", RecordKind.REFERENCE_VALUES, entries)
 
@@ -261,36 +272,54 @@ def mismatched_destruction() -> Scenario:
     )
 
 
-# --- Scenarios: battle outcome ----------------------------------------------------------------------------------
+# --- Scenarios: space losses -------------------------------------------------------------------------------------
+
+OLD_KILL = "Fixture earlier kill"
 
 
-def battle(
+def losses(
     *,
-    grown: int = 4,
-    hab_loss: bool = True,
-    fleet_loss: bool = False,
-    winners: tuple[EntityRef, ...] = (),
-    notified: bool = False,
+    vanished: Mapping[str, Ship] | None = None,
+    gained: Mapping[EntityRef, tuple[str, ...]] | None = None,
     victim: EntityRef = ENEMY,
+    merged: bool = False,
+    hab_destroyed: bool = False,
 ) -> Scenario:
-    """Faction 15's kills against ``victim`` grow by ``grown``; faction 16 may lose hab 80 and fleet 90."""
-    habs_before = {"80": ("16", "Base", "900"), "81": ("16", "Base", "901")}
-    habs_after = {"81": ("16", "Base", "901")} if hab_loss else habs_before
-    fleets_before = {"90": "16", "91": "15"}
-    fleets_after = {"91": "15"} if fleet_loss else fleets_before
-    notes = (("LogSpaceBattleTakesPlace", IN_INTERVAL, fleet_ref("91")),) if notified else ()
+    """Faction 16's ships ``vanished`` from fleet 90 (``merged``: they move into fleet 91 and fleet 90 goes) while
+    each killer's ``Kills`` list against ``victim`` gains the names in ``gained``; ``hab_destroyed`` also loses a
+    hab to faction 15's destruction log."""
+    ships_before = {**(vanished or {}), "60": ("90", "Fixture survivor")}
+    ships_after: dict[str, Ship] = {"60": ("90", "Fixture survivor")}
+    fleets_before = {"90": "16", "91": "16"}
+    fleets_after = {"91": "16"} if merged else fleets_before
+    if merged:
+        ships_after.update({key: ("91", name) for key, (_, name) in (vanished or {}).items()})
+        ships_after["60"] = ("91", "Fixture survivor")
+    habs_before = {"80": ("16", "Base", "900"), "81": ("16", "Station", "901")}
+    habs_after = {"81": ("16", "Station", "901")} if hab_destroyed else habs_before
+    killers = {PLAYER: (), **(gained or {})}
+    log_after = (destruction_log(AFTER, ENEMY, destruction(0, "Base", "900", IN_INTERVAL)),) if hab_destroyed else ()
     return space_pair(
         habs_before,
         habs_after,
         fleets_before=fleets_before,
         fleets_after=fleets_after,
-        records_before=(kills(BEFORE, PLAYER, (victim, 2)), combat_log(BEFORE, PLAYER), notifications(BEFORE)),
+        ships_before=ships_before,
+        ships_after=ships_after,
+        records_before=(
+            *(kills(BEFORE, killer, (victim, (OLD_KILL,))) for killer in killers),
+            destruction_log(BEFORE, ENEMY),
+        ),
         records_after=(
-            kills(AFTER, PLAYER, (victim, 2 + grown)),
-            combat_log(AFTER, PLAYER, *winners),
-            notifications(AFTER, *notes),
+            *(kills(AFTER, killer, (victim, (OLD_KILL, *names))) for killer, names in killers.items()),
+            *log_after,
         ),
     )
+
+
+def vanished_ships(*names: str) -> dict[str, Ship]:
+    """Faction 16's ships 61, 62, ... of fleet 90 with the given display names."""
+    return {str(61 + index): ("90", name) for index, name in enumerate(names)}
 
 
 SCENARIOS: dict[str, Callable[[], Scenario]] = {
@@ -302,9 +331,10 @@ SCENARIOS: dict[str, Callable[[], Scenario]] = {
     "ambiguous_destruction": lambda: ambiguous_destruction(2),
     "short_destruction": lambda: ambiguous_destruction(1),
     "pinned_destruction": lambda: ambiguous_destruction(2, pinned=True),
-    "battle": battle,
-    "won_battle": lambda: battle(winners=(PLAYER,), fleet_loss=True),
-    "notified_battle": lambda: battle(notified=True),
+    "ship_losses": lambda: losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}),
+    "ship_and_hab_losses": lambda: losses(
+        vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}, hab_destroyed=True
+    ),
 }
 
 
@@ -480,65 +510,98 @@ def test_a_vanished_hab_of_another_type_or_body_is_not_joined() -> None:
     assert by_type(inferred, HAB_DESTROYED) == []
 
 
-# --- faction.battle_outcome -------------------------------------------------------------------------------------
+# --- faction.space_losses ---------------------------------------------------------------------------------------
 
 
-def test_kills_with_a_victim_hab_loss_are_a_medium_battle_outcome() -> None:
-    _, inferred = run(battle())
-    event = only(inferred, BATTLE_OUTCOME)
-    assert event.id == "faction.battle_outcome/faction:15/faction:16"
-    assert event.confidence is Confidence.MEDIUM
-    assert (event.attribute("kill_count"), event.attribute("habs_lost"), event.attribute("fleets_lost")) == (4, 1, 0)
-    assert event.attribute("signals") == ("kills", "hab_losses")
+def test_a_vanished_ship_whose_name_the_destroyer_gained_is_a_space_loss() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha", "Beta"), gained={PLAYER: ("Alpha",)}))
+    event = only(inferred, SPACE_LOSSES)
+    assert event.id == "faction.space_losses/faction:15/faction:16"
+    assert event.confidence is Confidence.HIGH
+    assert (event.attribute("ships_lost"), event.attribute("habs_lost")) == (1, 0)
+    assert ids(event.attribute("ships")) == ["ship:61"]
     kills_source = next(source for source in event.sources if source.change.field == "Kills")
     assert kills_source.role is SourceRole.PRIMARY and kills_source.member == ENEMY
     assert kills_source.entry is not None and kills_source.entry.path.endswith("/Kills/0")
-    assert not any("Fixture asset" in str(value) for _, value in event.attributes)  # names are never copied
 
 
-def test_a_combat_won_by_the_killer_raises_the_outcome_to_high() -> None:
-    _, inferred = run(battle(winners=(PLAYER,), fleet_loss=True))
-    event = only(inferred, BATTLE_OUTCOME)
-    assert event.confidence is Confidence.HIGH
-    assert (event.attribute("combats_won"), event.attribute("combats_lost"), event.attribute("fleets_lost")) == (
-        1,
-        0,
-        1,
+def test_names_from_kills_are_never_copied_into_the_event() -> None:
+    def strings(value: object) -> list[str]:
+        if isinstance(value, tuple):
+            return [text for item in value for text in strings(item)]
+        return [value] if isinstance(value, str) else []
+
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}))
+    event = only(inferred, SPACE_LOSSES)
+    assert not any("Alpha" in text for _, value in event.attributes for text in strings(value))
+
+
+def test_a_name_gained_by_two_destroyers_is_credited_to_neither() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",), THIRD: ("Alpha",)}))
+    assert by_type(inferred, SPACE_LOSSES) == []
+
+
+def test_duplicate_names_tie_the_smaller_of_vanished_ships_and_gained_entries() -> None:
+    twins = vanished_ships("Twin", "Twin", "Twin")
+    _, inferred = run(losses(vanished=twins, gained={PLAYER: ("Twin", "Twin")}))
+    assert only(inferred, SPACE_LOSSES).attribute("ships_lost") == 2
+    _, inferred = run(losses(vanished=vanished_ships("Twin", "Twin"), gained={PLAYER: ("Twin", "Twin", "Twin")}))
+    assert only(inferred, SPACE_LOSSES).attribute("ships_lost") == 2
+
+
+def test_a_fleet_merge_with_kills_growth_is_no_space_loss() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}, merged=True))
+    assert by_type(inferred, SPACE_LOSSES) == []
+
+
+def test_kills_that_match_no_vanished_ship_are_no_space_loss() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("A councilor", "A megafauna army")}))
+    assert by_type(inferred, SPACE_LOSSES) == []
+
+
+def test_vanished_ships_nobody_names_are_credited_to_no_one() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha")))
+    assert by_type(inferred, SPACE_LOSSES) == []
+
+
+def test_a_hab_destroyed_by_the_destroyer_is_a_space_loss_without_any_kills() -> None:
+    _, inferred = run(losses(hab_destroyed=True))
+    event = only(inferred, SPACE_LOSSES)
+    assert (event.attribute("ships_lost"), event.attribute("habs_lost")) == (0, 1)
+    assert ids(event.attribute("habs")) == ["space object:80"]
+    assert describe_event(event).endswith("destroyed 1 hab of Fixture faction 16 (faction:16)")
+
+
+def test_a_hab_destroyed_by_its_own_faction_is_no_space_loss() -> None:
+    scenario = space_pair(
+        {"70": ("16", "Base", "900")},
+        {},
+        records_before=(destruction_log(BEFORE, ENEMY),),
+        records_after=(destruction_log(AFTER, ENEMY, destruction(0, "Base", "900", IN_INTERVAL, ENEMY)),),
     )
-    assert event.attribute("signals") == ("kills", "hab_losses", "fleet_losses", "combat_log")
+    _, inferred = run(scenario)
+    assert by_type(inferred, HAB_DESTROYED) and by_type(inferred, SPACE_LOSSES) == []
 
 
-def test_a_battle_notification_raises_the_outcome_and_supplies_its_date() -> None:
-    _, inferred = run(battle(notified=True))
-    event = only(inferred, BATTLE_OUTCOME)
-    assert event.confidence is Confidence.HIGH
-    assert event.attribute("battle_dates") == (IN_INTERVAL,)
+def test_ships_and_habs_of_one_pair_are_one_event() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}, hab_destroyed=True))
+    event = only(inferred, SPACE_LOSSES)
+    assert (event.attribute("ships_lost"), event.attribute("habs_lost")) == (1, 1)
+    assert "1 ship and 1 hab" in describe_event(event)
 
 
-def test_a_battle_notification_does_not_raise_an_outcome_the_combat_log_says_the_victim_won() -> None:
-    _, inferred = run(battle(notified=True, winners=(ENEMY,)))
-    event = only(inferred, BATTLE_OUTCOME)
-    assert event.confidence is Confidence.MEDIUM
-    assert (event.attribute("combats_won"), event.attribute("combats_lost")) == (0, 1)
+def test_kills_keyed_by_the_destroyer_itself_are_ignored() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}, victim=PLAYER))
+    assert by_type(inferred, SPACE_LOSSES) == []
 
 
-def test_kills_without_a_victim_loss_are_no_battle_outcome() -> None:
-    _, inferred = run(battle(hab_loss=False))
-    assert by_type(inferred, BATTLE_OUTCOME) == []
-
-
-def test_a_battle_outcome_names_the_victim_in_its_entities_and_attribute() -> None:
-    _, inferred = run(battle())
-    event = only(inferred, BATTLE_OUTCOME)
+def test_a_space_loss_names_the_victim_in_its_entities_and_attribute() -> None:
+    _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}))
+    event = only(inferred, SPACE_LOSSES)
     victim = event.attribute("victim")
     assert isinstance(victim, EntityRef) and victim.entity_id == ENEMY.entity_id and victim.name is not None
     assert all(ref.name is not None for ref in event.entities)
     assert len({ref.entity_id for ref in event.entities}) == len(event.entities)
-
-
-def test_kills_keyed_by_the_killer_itself_are_no_battle_outcome() -> None:
-    _, inferred = run(battle(victim=PLAYER))
-    assert by_type(inferred, BATTLE_OUTCOME) == []
 
 
 # --- Invariants and presentation --------------------------------------------------------------------------------
@@ -561,14 +624,13 @@ def test_lines_name_the_reading_and_significance_ranks_it() -> None:
     assert lines_of(unique_destruction())["hab.destroyed/space object:70"] == (
         f"Fixture space object 70 (space object:70) was destroyed by Fixture faction 15 (faction:15) "
         f'on {IN_INTERVAL} (type "Base" at space body:900)',
-        Significance.MINOR,
+        Significance.MAJOR,
     )
     assert lines_of(ambiguous_destruction(2))["hab.destroyed/space object:72"][0] == (
         "Fixture space object 72 (space object:72) was destroyed by Fixture faction 15 (faction:15) "
         '(type "Base" at space body:900): one of 2 recorded destructions for 2 vanished habs'
     )
-    assert lines_of(battle(winners=(PLAYER,)))["faction.battle_outcome/faction:15/faction:16"] == (
-        "Fixture faction 15 (faction:15) inflicted 4 kills on Fixture faction 16 (faction:16), "
-        "which lost 1 hab; recorded combats won 1, lost 0",
+    assert lines_of(SCENARIOS["ship_and_hab_losses"]())["faction.space_losses/faction:15/faction:16"] == (
+        "Fixture faction 15 (faction:15) destroyed 1 ship and 1 hab of Fixture faction 16 (faction:16)",
         Significance.MAJOR,
     )

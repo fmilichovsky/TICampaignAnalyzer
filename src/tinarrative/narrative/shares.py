@@ -284,6 +284,8 @@ class SaveShares:
                 return self.hab
             case Measure.FLEET:
                 return self.fleet
+            case Measure.SPACE_LOSS:
+                return {**self.fleet, **self.hab}  # ship and hab IDs never collide
             case Measure.FACTION:
                 return self.faction
             case Measure.BATTLE:

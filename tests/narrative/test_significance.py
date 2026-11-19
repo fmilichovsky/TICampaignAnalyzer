@@ -273,6 +273,14 @@ def test_notification_types_take_their_kind_and_an_undeclared_type_is_a_code_bug
         significance_of(bare_event("fleet.fixture_unknown"), lookup)
 
 
+def test_space_bookkeeping_ranks_below_the_destruction_it_records() -> None:
+    def rank(event_type: str) -> int:
+        return KINDS[event_type].base.base
+
+    assert rank("hab.destroyed") > rank("faction.hab_destruction_recorded") > rank("hab.disappeared")
+    assert rank("ship.disappeared") == rank("fleet.disappeared") == rank("hab.disappeared")
+
+
 def test_a_narrative_event_kind_is_never_ranked_here() -> None:
     narrative = [event_type for event_type, kind in KINDS.items() if kind.narrative]
     assert narrative
@@ -285,7 +293,7 @@ def test_table_entries_resolve_without_context() -> None:
     lookup = empty_lookup()
     expected = {
         "ship.fleet_changed": Significance.TRIVIAL,
-        "fleet.orbit_changed": Significance.MINOR,
+        "hab.tier_changed": Significance.MINOR,
         "nation.regions_changed": Significance.MINOR,
         "nation.hostile_claims_changed": Significance.MINOR,
         "faction.finished_project_names_changed": Significance.MINOR,
@@ -330,7 +338,7 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
     events = [
         technology("DeuteriumTritiumFusion"),  # campaign_defining milestone
         technology("SpaceNavies"),  # major milestone
-        bare_event("fleet.orbit_changed"),  # minor in the table
+        bare_event("hab.tier_changed"),  # minor in the table
         bare_event("nation.rank_changed"),  # trivial in the table
         bare_event("nation.relation_changed", relation="wars"),  # major by its context rule
     ]
