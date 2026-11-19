@@ -57,7 +57,7 @@ make check
 `make check` is the baseline quality gate and runs formatting, linting, strict type checking, and tests.
 
 Individual targets are `make format`, `make lint`, `make typecheck`, and
-`make test`. To apply formatting, run `python -m ruff format .`.
+`make test`. To apply formatting, run `make format-fix`.
 
 Standards for code, docs, fixtures and tests are in [CONTRIBUTING.md](CONTRIBUTING.md); running and maintaining
 the suite is in [the testing guide](docs/testing.md).
