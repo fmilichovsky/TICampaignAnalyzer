@@ -1,4 +1,4 @@
-"""The golden calibration table is current, and holds every case the browser replay parity relies on."""
+"""The golden calibration table is current, and holds the cases the replay and server tests rely on."""
 
 from __future__ import annotations
 

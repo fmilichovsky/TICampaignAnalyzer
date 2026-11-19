@@ -8,7 +8,6 @@ import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from importlib.resources import files
 from pathlib import Path
 from typing import Final, Literal
 
@@ -17,10 +16,6 @@ from tinarrative.benchmarking.calibration import table
 from tinarrative.benchmarking.manifest import MANIFEST
 
 Status = Literal["fresh", "rebuilding", "failed"]
-PAGE_FILES: Final = ("index.html", "app.js", "style.css")
-"""The page, from the package's ``page/`` directory."""
-PAGE_SCRIPTS: Final = ("replay.js", "readout.js")
-"""The scripts the page shares with the parity tests, from the package directory itself."""
 REBUILD_PREFIX: Final = ".rebuild-"
 RETIRED_PREFIX: Final = ".retired-"
 
@@ -108,21 +103,6 @@ def refresh(
         shutil.rmtree(scratch, ignore_errors=True)
     _status(out, found.key, "fresh")
     return found
-
-
-def write_page(out: Path) -> Path:
-    """Copy the calibration page and its scripts from the package into ``out``; the path of its ``index.html``.
-
-    Runs on every ``open``, so the page always matches the installed package; the tables and ``status.js`` are not
-    touched.
-    """
-    out.mkdir(parents=True, exist_ok=True)
-    package = files("tinarrative.benchmarking.calibration")
-    sources = [(name, package.joinpath("page", name)) for name in PAGE_FILES]
-    sources += [(name, package.joinpath(name)) for name in PAGE_SCRIPTS]
-    for name, source in sources:
-        (out / name).write_bytes(source.read_bytes())
-    return out / "index.html"
 
 
 def _swap(scratch: Path, out: Path) -> None:

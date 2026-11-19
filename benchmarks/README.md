@@ -174,6 +174,6 @@ A campaign that is a leading slice of another carries `"prefix_of": "<other camp
 keeps the field, as it keeps the description, and the calibration table extraction skips such a campaign, because its
 events are already in the longer one.
 
-The samples also feed the stake calibration: `tinarrative benchmark calibrate open` opens a page that replays their
+The samples also feed the stake calibration: `tinarrative benchmark calibrate open` serves a page that replays their
 events at other stake references, and `tinarrative benchmark calibrate report` prints the same readout
 ([command page](../docs/commands/benchmark.md#benchmark-calibrate-open)).

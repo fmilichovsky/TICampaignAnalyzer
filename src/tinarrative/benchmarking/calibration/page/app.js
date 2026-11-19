@@ -1,14 +1,14 @@
-// The calibration page: replays the calibration table for the state in the URL hash and lays out what changes.
+// The calibration page: draws what `tinarrative benchmark calibrate open` answers for the state in the URL hash.
 //
-// A classic script, opened from file:// with no network. index.js, status.js, replay.js and readout.js are loaded
-// by index.html; the campaign tables are injected here. The layout is built once and then updated in place, so the
-// slider keeps its focus and nothing in the left column changes size while a reference slides.
+// A classic script served by that command. index.js and status.js are loaded by index.html; the campaign tables are
+// injected here. The server replays the table: this page holds no scoring, no state codec and no readout wording,
+// and the hash is an opaque string the server gives it (ADR-0022). The layout is built once and then updated in
+// place, so the slider keeps its focus and nothing in the left column changes size while a reference slides.
 (function () {
   "use strict";
 
   const DATA = window.TI_CALIBRATION || { campaigns: {} };
-  const Replay = window.TICalibrationReplay;
-  const Readout = window.TICalibrationReadout;
+  const SERVE = "tinarrative benchmark calibrate open";
   const SVG = "http://www.w3.org/2000/svg";
 
   const LEVEL_NAMES = { trivial: "trivial", minor: "minor", major: "major", campaign_defining: "campaign defining" };
@@ -22,7 +22,6 @@
   const DIGEST_ROWS = 6;
   const POP_WIDTH = 480;
   const POP_MIN_WIDTH = 320;
-  const RESORT_DELAY = 400;
   const ORDER_KEY = "ti-calibration-count-order";
   const VIEW_KEY = "ti-calibration-under-chart";
   const STATUS_POLL = 2000;
@@ -115,19 +114,12 @@
 
   function boot() {
     const index = DATA.index;
-    if (!Replay || !Readout) {
-      fatal("The page is incomplete.", "replay.js or readout.js is missing beside index.html. Run tinarrative benchmark calibrate open again.");
+    if (window.location.protocol === "file:") {
+      fatal("The page needs its server.", `Run ${SERVE} and open the address it prints.`);
       return;
     }
     if (!index) {
-      fatal("No calibration table here.", "index.js is missing beside this page. Run tinarrative benchmark calibrate open to build it.");
-      return;
-    }
-    if (index.schema_version !== Replay.SCHEMA_VERSION) {
-      fatal(
-        "This table is from another version.",
-        `index.js has schema ${index.schema_version}; this page reads schema ${Replay.SCHEMA_VERSION}. Run tinarrative benchmark calibrate open --rebuild.`,
-      );
+      fatal("No calibration table here.", `The server has no index.js yet. Run ${SERVE} to build it.`);
       return;
     }
     Status.start(index);
@@ -152,6 +144,7 @@
     index: null,
     timer: null,
     started: 0,
+    lost: "",
 
     start(index) {
       this.index = index;
@@ -168,7 +161,10 @@
       let text = "";
       let tone = "info";
       action.hidden = true;
-      if (status && status.state === "rebuilding") {
+      if (this.lost) {
+        tone = "error";
+        text = this.lost;
+      } else if (status && status.state === "rebuilding") {
         text = "The calibration table is being rebuilt for the current code. This page shows the previous table until it is done.";
       } else if (status && status.state === "failed") {
         tone = "error";
@@ -191,7 +187,7 @@
       this.timer = setTimeout(() => this.poll(), STATUS_POLL);
     },
 
-    // Re-inject status.js: a file:// page cannot fetch, but a script tag reloads the file the CLI rewrites.
+    // Re-inject status.js: a script tag reloads the file the CLI rewrites.
     poll() {
       for (const old of document.querySelectorAll("script[data-status]")) old.remove();
       const script = document.createElement("script");
@@ -225,8 +221,13 @@
     result: null,
     full: null,
     chosenCuts: {},
-    resortTimer: null,
-    hashTimer: null,
+    hash: "",
+    isCode: true,
+    meta: null,
+    readout: null,
+    asked: 0,
+    lastAsked: null,
+    built: false,
     frame: 0,
     dragging: false,
     chartWidth: 600,
@@ -251,16 +252,96 @@
       this.measures = Object.keys(index.measures);
       this.levels = Object.keys(index.constants.level_bands);
       this.prepare();
-      this.state = this.readHash(window.location.hash);
-      this.build();
-      this.compute();
-      this.render({ resort: true });
-      $("layout").setAttribute("aria-busy", "false");
+      this.ask({ hash: window.location.hash.slice(1) }, { resort: true, layout: true });
       window.addEventListener("hashchange", () => {
-        if (window.location.hash.slice(1) === Replay.encodeState(this.state, this.index)) return;
-        this.state = this.readHash(window.location.hash);
-        this.update({ resort: true, layout: true });
+        if (window.location.hash.slice(1) === this.hash) return;
+        this.ask({ hash: window.location.hash.slice(1) }, { resort: true, layout: true });
       });
+    },
+
+    // --- The server ---------------------------------------------------------------------------------------
+
+    // Ask the server to replay a state hash or the controls' values. Only the latest request's answer is drawn; a
+    // request the same as the last one is not sent again.
+    ask(body, options) {
+      const text = JSON.stringify(body);
+      if (text === this.lastAsked) return;
+      this.lastAsked = text;
+      const asked = ++this.asked;
+      window
+        .fetch("replay", { method: "POST", headers: { "Content-Type": "application/json" }, body: text })
+        .then((response) => response.json().then((answer) => ({ ok: response.ok, answer })))
+        .then(({ ok, answer }) => {
+          if (asked !== this.asked) return;
+          if (!ok) {
+            fatal("The table could not be replayed.", `${answer.fatal || "The server refused the request."} Run ${SERVE} --rebuild.`);
+            return;
+          }
+          this.apply(answer, options);
+        })
+        .catch(() => {
+          if (asked !== this.asked) return;
+          this.lastAsked = null;
+          if (!this.result) {
+            fatal("The page needs its server.", `The server is not answering. Run ${SERVE} and reload this page.`);
+            return;
+          }
+          Status.lost = `The server stopped answering, so this page shows the last replay. Run ${SERVE} and reload.`;
+          Status.show();
+        });
+    },
+
+    apply(answer, options) {
+      if (answer.key !== this.index.key) {
+        // The table was rebuilt under the page: its rows are no longer the ones the answer counts.
+        window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${answer.hash ? `#${answer.hash}` : ""}`);
+        window.location.reload();
+        return;
+      }
+      const local = this.state;
+      this.state = answer.state;
+      if (this.dragging && local) this.state.references = local.references;
+      this.hash = answer.hash;
+      this.isCode = answer.is_code;
+      this.readout = { paragraph: answer.paragraph, snippet: answer.snippet };
+      this.meta = answer.meta;
+      if (answer.error) this.hashError = `The link's state could not be read (${answer.error}), so the page shows the code's references.`;
+      this.result = this.expand(answer.replay);
+      this.full = answer.unfiltered ? this.withUnfiltered(this.result, answer.unfiltered) : this.result;
+      this.lookup = null;
+      if (!this.built) {
+        this.built = true;
+        this.build();
+        $("layout").setAttribute("aria-busy", "false");
+      }
+      this.render(options);
+    },
+
+    // The compact answer's event columns as the per-row results the views read, by row position.
+    expand(replay) {
+      const campaigns = {};
+      for (const [name, campaign] of Object.entries(replay.campaigns)) {
+        const rows = this.tables[name];
+        const drafts = this.drafts[name] || [];
+        const column = (columns, own) =>
+          columns.score.map((score, position) => ({
+            id: own[position].id,
+            score,
+            level: this.levels[columns.level[position]],
+            decided_by: columns.decided[position] === null ? own[position].id : rows[columns.decided[position]].id,
+          }));
+        campaigns[name] = Object.assign({}, campaign, { events: column(campaign.events, rows), drafts: column(campaign.drafts, drafts) });
+      }
+      return Object.assign({}, replay, { campaigns });
+    },
+
+    // The views that dim the types outside the filter count every type: the same replay without the filter.
+    withUnfiltered(result, unfiltered) {
+      const campaigns = {};
+      for (const [name, campaign] of Object.entries(result.campaigns)) {
+        campaigns[name] = Object.assign({}, campaign, { level_counts: unfiltered.level_counts[name], members: unfiltered.members[name] });
+      }
+      return Object.assign({}, result, { moves: unfiltered.moves, campaigns });
     },
 
     // Everything the reference does not change: row positions, the types each measure stakes, the chart domains.
@@ -311,19 +392,6 @@
       }
     },
 
-    readHash(hash) {
-      try {
-        const state = Replay.decodeState(hash || "", this.index);
-        Replay.replay(this.index, this.tables, state, this.drafts);
-        this.hashError = "";
-        return state;
-      } catch (error) {
-        if (!(error instanceof Replay.ReplayError)) throw error;
-        this.hashError = `The link's state could not be read (${error.message}), so the page shows the code's references.`;
-        return Replay.defaultState(this.index);
-      }
-    },
-
     get focus() {
       return this.state.focus || this.measures[0];
     },
@@ -358,10 +426,8 @@
         this.update({ resort: true, layout: true });
       });
       $("reset").addEventListener("click", () => {
-        const fresh = Replay.defaultState(this.index);
-        fresh.focus = this.state.focus;
-        this.state = fresh;
-        this.update({ resort: true, layout: true });
+        // A state of the focus alone: every key left out is the code's.
+        this.ask({ state: { focus: this.state.focus } }, { resort: true, layout: true });
       });
       $("copy").addEventListener("click", () => this.copy());
 
@@ -403,7 +469,7 @@
         this.dragging = false;
       });
       slider.addEventListener("change", () => {
-        if (!this.dragging) this.settleSoon();
+        if (!this.dragging) this.settle();
       });
 
       const value = $("ref-value");
@@ -654,9 +720,11 @@
       return Number(Math.pow(10, position).toPrecision(3));
     },
 
+    // A slider moves only its own readout until it is let go (settle); the replay is asked then.
     setReference(value, { from }) {
       this.state.references = Object.assign({}, this.state.references, { [this.focus]: value });
-      this.update({ resort: from !== "slider", from });
+      if (from === "slider") this.renderControl({ from });
+      else this.update({ resort: true, from });
     },
 
     setFocus(measure) {
@@ -691,17 +759,11 @@
       this.update({ resort: true, layout: true });
     },
 
-    settleSoon() {
-      clearTimeout(this.resortTimer);
-      this.resortTimer = setTimeout(() => this.settle(), RESORT_DELAY);
-    },
-
     settle() {
-      clearTimeout(this.resortTimer);
-      this.renderCounts({ resort: true });
-      this.writeHash();
+      this.update({ resort: true, from: "slider" });
     },
 
+    // Ask for the controls' state once per frame, however many controls changed in it.
     update(options) {
       this.pending = Object.assign(this.pending || {}, options);
       if (this.frame) return;
@@ -709,30 +771,14 @@
         this.frame = 0;
         const pending = this.pending;
         this.pending = null;
-        this.compute();
-        this.render(pending);
+        this.ask({ state: this.state }, pending);
       });
     },
 
-    compute() {
-      this.result = Replay.replay(this.index, this.tables, this.state, this.drafts);
-      this.full =
-        this.state.types.length === 0
-          ? this.result
-          : Replay.replay(this.index, this.tables, Object.assign({}, this.state, { types: [] }), this.drafts);
-      this.lookup = null;
-    },
-
     writeHash() {
-      clearTimeout(this.hashTimer);
-      const hash = Replay.encodeState(this.state, this.index);
+      const hash = this.hash;
       const url = `${window.location.pathname}${window.location.search}${hash ? `#${hash}` : ""}`;
       if (window.location.hash.slice(1) !== hash) window.history.replaceState(null, "", url);
-    },
-
-    writeHashSoon() {
-      clearTimeout(this.hashTimer);
-      this.hashTimer = setTimeout(() => this.writeHash(), 250);
     },
 
     // --- Rendering ----------------------------------------------------------------------------------------
@@ -748,8 +794,7 @@
       this.renderBases();
       this.renderTotals();
       this.renderMembers();
-      if (options.from === "slider") this.writeHashSoon();
-      else this.writeHash();
+      this.writeHash();
       Pop.refresh();
       Inspector.refresh();
     },
@@ -760,8 +805,7 @@
       }
       $("clamp").setAttribute("aria-checked", String(this.state.clamp));
       $("clamp-state").textContent = this.state.clamp ? "on" : "off";
-      const atCode = Replay.encodeState(Object.assign({}, this.state, { focus: null }), this.index) === "";
-      $("reset").disabled = atCode;
+      $("reset").disabled = this.isCode;
       $("table-key").textContent = `Table ${this.index.key.slice(0, 8)} · ${this.index.extracted_at.slice(0, 16).replace("T", " ")}`;
       $("table-key").title = `Cache key ${this.index.key}, extracted ${this.index.extracted_at}`;
       if (this.hashError) {
@@ -823,7 +867,7 @@
     },
 
     windowEdges() {
-      const offsets = Replay.cutoffOffsets(this.index.constants, true);
+      const offsets = this.meta.window;
       const below = offsets.filter((offset) => offset < 0);
       const above = offsets.filter((offset) => offset > 0);
       return [below.length ? Math.max(...below) : 0, above.length ? Math.min(...above) : 0];
@@ -1653,11 +1697,12 @@
       const types = new Set(this.state.types);
       const rows = [];
       for (const name of this.state.campaigns) {
-        for (const row of this.drafts[name] || []) {
-          if (Replay.draftName(row.id) !== draft.name) continue;
-          if (types.size && !types.has(row.type)) continue;
+        const names = this.meta.draft_names[name] || [];
+        (this.drafts[name] || []).forEach((row, position) => {
+          if (names[position] !== draft.name) return;
+          if (types.size && !types.has(row.type)) return;
           rows.push({ campaign: name, row, staked: row.stakes.some((stake) => stake.measure === measure && stake.share > 0) });
-        }
+        });
       }
       return rows;
     },
@@ -2010,11 +2055,11 @@
     // --- Copy -------------------------------------------------------------------------------------------------
 
     copy() {
-      const hash = Replay.encodeState(this.state, this.index);
+      const hash = this.hash;
       const text = [
-        Readout.snippet(this.index, this.result),
+        this.readout.snippet,
         "",
-        Readout.sharedParagraph(this.index, this.result),
+        this.readout.paragraph,
         "",
         hash ? `State: #${hash}` : "State: the code's (no hash)",
         hash ? `tinarrative benchmark calibrate report --state '${hash}'` : "tinarrative benchmark calibrate report",
@@ -2451,7 +2496,7 @@
       const switched = App.isSwitched(row.type);
       const tried = App.index.kinds[row.type] ? App.typeBase(row.type) : null;
       const applies = switched && row.rule === null;
-      parts.base.value.textContent = String(applies ? Replay.levelBase(App.index.constants, tried) : row.base);
+      parts.base.value.textContent = String(applies ? App.meta.level_bases[tried] : row.base);
       parts.base.note.textContent = applies ? `tried ${levelName(tried)}; code's ${row.base}` : "before stakes";
       parts.base.note.classList.toggle("moved", applies);
       if (parts.baseButtons.length) {

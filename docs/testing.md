@@ -20,24 +20,13 @@ the suite also scans them for unknown structures
 (`tests/parsing/test_unknowns_samples.py::test_private_save_unknowns_are_fields_only`); without it that test is
 skipped.
 
-### Browser replay tests
+### Golden calibration table
 
-Tests marked `browser_replay` load `src/tinarrative/benchmarking/calibration/replay.js` in Node and check that it
-writes byte for byte the JSON of `replay.py`, and that the two state codecs agree. They need Node.js on `PATH`, the
-only place the project uses it; install the LTS from [nodejs.org](https://nodejs.org) or run `brew install node`.
-`make check` and `make samples` never need it.
-
-- `make browser-replay-check` runs them on the golden table in `tests/fixtures/benchmarking/calibration_table_v1/`,
-  and fails with an install hint when `node` is missing. CI runs it in the `browser-replay` job.
-- `make browser-replay-samples` runs the same comparison on the benchmark campaigns (`SAMPLE_CAMPAIGNS` selects
-  them, as for `make samples`). The `samples` job in CI runs it after the sample tests: on pull requests with
-  `SAMPLE_CAMPAIGNS=protectorate-short`, on pushes to `main` over every campaign.
-
-`tests/benchmarking/replay_harness.js` runs `replay.js` and the table's wrapper files as classic scripts in a `vm`
-context, as a `file://` page does. The Python side, in `tests/benchmarking/browser_replay.py`, sends it states and
-compares its answers with the Python replay. Nothing expected is committed. The golden table is built from the
-hand-built rows in `tests/benchmarking/calibration_golden.py`; after changing them, rewrite it with
-`pytest --update-goldens tests/benchmarking/test_calibration_golden.py`.
+The golden table in `tests/fixtures/benchmarking/calibration_table_v1/` feeds the replay, readout and calibration
+server tests. It is built from the hand-built rows in `tests/benchmarking/calibration_golden.py`; after changing
+them, rewrite it with `pytest --update-goldens tests/benchmarking/test_calibration_golden.py`. The calibration page's
+`app.js` has no automated tests; the server's request handler is tested as a function
+(`tests/benchmarking/test_calibration_server.py`).
 
 ### Sample tests
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-import random
 from dataclasses import replace
 from typing import Any
 
@@ -42,8 +40,7 @@ from tinarrative.benchmarking.calibration.replay import (
     decode_state,
     default_state,
     encode_state,
-    js_number,
-    portable_log10,
+    number_text,
     replay,
 )
 from tinarrative.benchmarking.calibration.table import build_index, extract_campaign
@@ -237,16 +234,6 @@ def test_a_cut_off_lists_the_nearest_events_on_each_side_and_flags_those_a_cited
     assert all(item["distance"] >= 0 for item in cutoff["below"] + cutoff["above"])
 
 
-def test_the_portable_log10_is_within_an_ulp_of_the_platform_and_exact_on_powers_of_ten() -> None:
-    rng = random.Random(461)
-    values = [10 ** rng.uniform(-300, 300) for _ in range(20000)] + [5e-324, 1e-310, 1.0, 1 + 2**-30]
-
-    assert all(abs(portable_log10(value) - math.log10(value)) <= math.ulp(math.log10(value)) for value in values)
-    assert [portable_log10(10.0**power) for power in range(-20, 23)] == list(range(-20, 23))
-    assert portable_log10(0.0) == -math.inf
-    assert math.isnan(portable_log10(-1.0))
-
-
 # --- State codec ----------------------------------------------------------------------------------------
 
 
@@ -283,15 +270,18 @@ def test_no_enabled_campaign_round_trips() -> None:
     ("value", "text"),
     [
         (0.1, "0.1"),
-        (0.00001, "0.00001"),
-        (1e-7, "1e-7"),
+        (0.002, "0.002"),
+        (0.00002, "0.00002"),
+        (1e-7, "0.0000001"),
         (100.0, "100"),
-        (1e21, "1e+21"),
+        (5, "5"),
+        (1e22, "10000000000000000000000"),
         (1 / 7, "0.14285714285714285"),
     ],
 )
-def test_a_number_is_written_as_javascript_writes_it(value: float, text: str) -> None:
-    assert js_number(value) == text
+def test_a_number_is_written_in_its_shortest_positional_digits_that_decode_back(value: float, text: str) -> None:
+    assert number_text(value) == text
+    assert decode_state(f"ref=power:{text}", INDEX).references["power"] == value
 
 
 @pytest.mark.parametrize(("text", "message"), INVALID_HASHES)
