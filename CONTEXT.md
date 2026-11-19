@@ -86,6 +86,23 @@ The single declaration of one event type: its identifier, how an event of it is 
 the narrator treats it as evidence, and the attributes it carries.
 _Avoid_: event type (that is only the identifier), template, event definition
 
+### Space warfare
+
+**Combat**:
+One space engagement as the save records it: the sides, their ships and the winner. Only combats a faction logged
+are known; nothing else proves an engagement took place.
+_Avoid_: battle
+
+**Space losses**:
+What one faction destroyed of another's in space over an interval, each lost ship or hab tied to that destroyer by
+the save itself. A loss nothing ties to a destroyer belongs to no one.
+_Avoid_: battle, battle outcome
+
+**Space campaign**:
+Two factions' hostile space manoeuvres over a stretch of time: the space losses either side inflicted on the other
+and the combats between them, told as one story with two sides.
+_Avoid_: battle, war (a war is between nations)
+
 ### Significance
 
 **Significance**:
