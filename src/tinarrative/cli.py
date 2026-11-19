@@ -27,13 +27,18 @@ from .benchmarking.calibration.table import CalibrationTableError
 from .benchmarking.manifest import MANIFEST, sample_files, update_samples, verify_samples
 from .benchmarking.samples import SampleImportError, import_sample_campaign
 from .campaign_analysis import (
+    CampaignAnalysis,
+    Depth,
     EmptyDirectory,
+    LoadFailed,
     NoUsableSave,
     Survey,
     SurveyFailed,
     UnreadableInput,
     UnsupportedSave,
-    resolve_jobs,
+    analyze_campaign,
+    choose_campaign,
+    file_time,
     survey_inputs,
 )
 from .config import (
@@ -49,7 +54,7 @@ from .config import (
 from .diff import diff_states
 from .diff import render_json as render_diff_json
 from .diff import render_text as render_diff_text
-from .grouping import CampaignGroup, group_saves, listing_document, render_listing, select_campaign
+from .grouping import CampaignGroup, group_saves, listing_document, render_listing
 from .host import Host
 from .inspection import RenderLimits, inspect_bytes, render_json, render_text
 from .io.save_discovery import SaveInput, expand_inputs
@@ -61,11 +66,11 @@ from .maintenance.render import render_json as render_unknowns_json
 from .maintenance.render import render_text as render_unknowns_text
 from .maintenance.scan import ScanRun, scan_inputs
 from .model.entities import EntityDomain, EntityId
-from .model.events import SIGNIFICANCE_ORDER, Event, Significance
+from .model.events import SIGNIFICANCE_ORDER, Significance
 from .model.records import record_counts
 from .model.snapshot import NORMALIZED_COLLECTION_LABELS, SaveSnapshot
 from .model.values import Observed, to_jsonable
-from .narrative import build_dossier, narrative_rules
+from .narrative import build_dossier
 from .narrator.assembly import Assembly
 from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
 from .narrator.councilors import article_requests, missing
@@ -90,14 +95,8 @@ from .rendering.json_report import build_document
 from .rendering.listing import CONSTITUENTS, Constituents
 from .rendering.markdown import PERIODS, Period, render_sequence
 from .sequence import (
-    IntervalResult,
-    SequencePlan,
     event_stream,
-    narrative_events,
-    plan_sequence,
-    run_sequence,
 )
-from .workers import memory_line
 
 logger = get_logger(__name__)
 
@@ -582,6 +581,12 @@ class _ProgressTracker:
             sys.stderr.flush()
 
 
+def _load_failed(command: str, failure: LoadFailed) -> int:
+    """Print the load failure behind its command prefix and return its exit code."""
+    print(f"tinarrative {command}: {failure.message}", file=sys.stderr)
+    return EXIT_INPUT_ERROR if isinstance(failure.cause, UnreadableInput) else EXIT_UNSUPPORTED_INPUT
+
+
 def _survey_failed(command: str, failure: SurveyFailed) -> int:
     """Print the survey failure behind its command prefix and return its exit code; exhaustive over the failures."""
     print(f"tinarrative {command}: {failure.message}", file=sys.stderr)
@@ -952,77 +957,43 @@ def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
     return settings
 
 
-@dataclass(frozen=True)
-class _SequenceRun:
-    """The analyzed campaign of a save-input command: what ``events`` reports and ``narrate`` packages."""
-
-    plan: SequencePlan
-    intervals: list[IntervalResult]
-    campaign: CampaignGroup
-    surveyed: int
-    narrative: list[Event] | None
-
-
-def _run_saves(
+def _analyze_inputs(
     command: str,
     paths: list[Path],
     selector: str | None,
     settings: Settings,
     *,
-    inferred: bool,
-    changes: bool,
-    narrative: bool,
+    depth: Depth,
+    state_changes: bool,
     jobs: int | None = None,
-) -> _SequenceRun | int:
-    """Survey the inputs, choose the campaign and analyze its saves in order; a failure is printed and returned as
-    the exit code. ``jobs`` is ``--jobs``; unset falls back to the settings, then to ``workers.default_jobs``."""
+) -> tuple[Survey, CampaignAnalysis] | int:
+    """Survey the inputs, choose the campaign and analyze it; a failure is printed and returned as the exit code.
+    ``jobs`` is ``--jobs``; unset falls back to the settings, then to ``workers.default_jobs``."""
     inputs = expand_inputs(paths)
     logger.info("%s start %s", command, fields(inputs=len(paths), candidates=len(inputs)))
     progress = _ProgressTracker(command, len(inputs))
-    outcome = _survey_command_inputs(command, inputs, settings, jobs, progress)
-    if isinstance(outcome, int):
-        progress.finish()
-        return outcome
-    surveyed, skipped = outcome.saves, outcome.skipped
-    campaign = _choose_campaign(command, group_saves(surveyed), selector)
-    if isinstance(campaign, int):
-        progress.finish()
-        return campaign
-    plan = plan_sequence(campaign.members, skipped)
-    interval_jobs = resolve_jobs(jobs, settings, [save.source for save in plan.saves])
-    logger.debug("%s jobs %s", command, fields(intervals=interval_jobs))
-    progress.update("Processing saves", 0, len(plan.saves))
-    loaded_saves = 0
-
-    def on_save() -> None:
-        nonlocal loaded_saves
-        loaded_saves += 1
-        progress.update("Processing saves", loaded_saves, len(plan.saves))
-
     try:
-        intervals = list(
-            run_sequence(
-                plan,
-                inferred=inferred or narrative,
-                changes=changes,
-                load=_SnapshotLoader(command),
-                narrative=settings.narrative,
-                jobs=interval_jobs,
-                on_save=on_save,
-            )
+        survey = _survey_command_inputs(command, inputs, settings, jobs, progress)
+        if isinstance(survey, int):
+            return survey
+        campaign = _choose_campaign(command, group_saves(survey.saves), selector)
+        if isinstance(campaign, int):
+            return campaign
+        analysis = analyze_campaign(
+            campaign,
+            settings,
+            command=command,
+            depth=depth,
+            state_changes=state_changes,
+            skipped=survey.skipped,
+            jobs=jobs,
+            progress=progress,
         )
-    except _LoadFailed as failure:
-        print(failure.message, file=sys.stderr)
+        if isinstance(analysis, LoadFailed):
+            return _load_failed(command, analysis)
+        return survey, analysis
+    finally:
         progress.finish()
-        return failure.code
-    events = (
-        narrative_events(intervals, narrative_rules(settings.narrative), settings.narrative.significance)
-        if narrative
-        else None
-    )
-    memory_line()
-    progress.finish()
-    return _SequenceRun(plan, intervals, campaign, len(surveyed), events)
 
 
 def _run_councilors(args: argparse.Namespace) -> int:
@@ -1049,20 +1020,20 @@ def _run_councilors(args: argparse.Namespace) -> int:
             print(f"tinarrative councilors: {error}", file=sys.stderr)
             return EXIT_USAGE_ERROR
     paths = cast(list[Path], args.saves)
-    run = _run_saves(
+    run = _analyze_inputs(
         "councilors",
         paths,
         cast("str | None", args.campaign),
         settings,
-        inferred=False,
-        changes=False,
-        narrative=False,
+        depth=Depth.OBJECTIVE,
+        state_changes=False,
         jobs=cast("int | None", args.jobs),
     )
     if isinstance(run, int):
         return run
-    career = event_stream(run.intervals)
-    newest = run.plan.saves[-1]
+    survey, analysis = run
+    career = event_stream(analysis.intervals)
+    newest = analysis.plan.saves[-1]
     latest, profile = Path(newest.source), newest.profile
     snapshot = _load_snapshot("councilors", latest)
     if isinstance(snapshot, int):
@@ -1112,7 +1083,7 @@ def _run_councilors(args: argparse.Namespace) -> int:
     logger.info(
         "councilors done %s",
         fields(
-            saves=run.surveyed,
+            saves=len(survey.saves),
             selected=len(dossier["councilors"]),
             written=output is not None,
             sent=sum(outcome.record is not None and not outcome.kept for outcome in outcomes) if target else None,
@@ -1178,19 +1149,19 @@ def _run_events(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return EXIT_USAGE_ERROR
-    run = _run_saves(
+    run = _analyze_inputs(
         "events",
         cast(list[Path], args.saves),
         cast("str | None", args.campaign),
         settings,
-        inferred=args.inferred,
-        changes=args.changes,
-        narrative=args.narrative,
+        depth=Depth.NARRATIVE if args.narrative else Depth.INFERRED if args.inferred else Depth.OBJECTIVE,
+        state_changes=args.changes,
         jobs=cast("int | None", args.jobs),
     )
     if isinstance(run, int):
         return run
-    plan, intervals, campaign, narrative = run.plan, run.intervals, run.campaign, run.narrative
+    survey, analysis = run
+    plan, intervals, campaign, narrative = analysis.plan, analysis.intervals, analysis.campaign, analysis.narrative
     minimum = Significance(cast(str, args.min_significance))
     constituents = cast(Constituents, args.constituents)
     if args.format == "json":
@@ -1205,7 +1176,7 @@ def _run_events(args: argparse.Namespace) -> int:
         )
         rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
     else:
-        left_out = run.surveyed - len(campaign.members)
+        left_out = len(survey.saves) - len(campaign.members)
         rendered = render_sequence(
             plan,
             intervals,
@@ -1598,24 +1569,24 @@ def _read_package(source: str) -> object | int:
 def _build_package(args: argparse.Namespace, saves: list[Path], settings: Settings) -> object | int:
     """The narrator package as ``events --narrative --format json`` builds it, round-tripped through JSON so it is
     the same value a ``--package`` file gives."""
-    run = _run_saves(
+    run = _analyze_inputs(
         "narrate",
         saves,
         cast("str | None", args.campaign),
         settings,
-        inferred=True,
-        changes=False,
-        narrative=True,
+        depth=Depth.NARRATIVE,
+        state_changes=False,
         jobs=cast("int | None", args.jobs),
     )
     if isinstance(run, int):
         return run
+    _, analysis = run
     document = build_document(
-        run.plan,
-        run.intervals,
-        campaign=run.campaign,
+        analysis.plan,
+        analysis.intervals,
+        campaign=analysis.campaign,
         settings=settings,
-        narrative=run.narrative,
+        narrative=analysis.narrative,
         min_significance=Significance(cast("str | None", args.min_significance) or NARRATE_MIN_SIGNIFICANCE.value),
         constituents=cast("Constituents | None", args.constituents) or NARRATE_CONSTITUENTS,
     )
@@ -1652,14 +1623,6 @@ def _count(number: int, noun: str) -> str:
     return f"{number} {noun}{'' if number == 1 else 's'}"
 
 
-def _file_time(path: str) -> float:
-    """A file's modification time for ``--campaign latest``; an unreadable file counts as oldest."""
-    try:
-        return os.stat(path).st_mtime
-    except OSError:
-        return float("-inf")
-
-
 def _interactive() -> bool:
     """Whether a person can answer the campaign picker: stdin and stderr are both terminals (stdout may be a file)."""
     return sys.stdin.isatty() and sys.stderr.isatty()
@@ -1680,24 +1643,17 @@ def _prompt(text: str) -> str:
 
 
 def _choose_campaign(command: str, groups: Sequence[CampaignGroup], selector: str | None) -> CampaignGroup | int:
-    """The campaign to analyze; several without a selector, or a selector that matches none, opens the picker in a
-    terminal and is a usage error otherwise (or when the picker is cancelled)."""
-    if selector is None:
-        if len(groups) == 1:
-            return groups[0]
-        message = f"the input holds {len(groups)} campaigns; choose one with --campaign"
-    else:
-        selected = select_campaign(groups, selector, _file_time)
-        if isinstance(selected, CampaignGroup):
-            logger.info("campaign selected %s", fields(index=selected.index, of=len(groups)))
-            return selected
-        message = selected
+    """The campaign to analyze; ``choose_campaign`` not choosing one opens the picker in a terminal and is a usage
+    error with the listing otherwise (or when the picker is cancelled)."""
+    chosen = choose_campaign(groups, selector)
+    if isinstance(chosen, CampaignGroup):
+        return chosen
     if not _interactive():
-        print(f"tinarrative {command}: {message}\n\n{render_listing(groups)}", end="", file=sys.stderr)
+        print(f"tinarrative {command}: {chosen.reason}\n\n{render_listing(groups)}", end="", file=sys.stderr)
         return EXIT_USAGE_ERROR
     if selector is not None:
-        _write_stderr(f"tinarrative {command}: {message}\n")
-    picked = pick_campaign(groups, read=_prompt, write=_write_stderr, file_time=_file_time, initial=selector)
+        _write_stderr(f"tinarrative {command}: {chosen.reason}\n")
+    picked = pick_campaign(groups, read=_prompt, write=_write_stderr, file_time=file_time, initial=selector)
     if picked is None:
         print(f"tinarrative {command}: no campaign chosen", file=sys.stderr)
         return EXIT_USAGE_ERROR
