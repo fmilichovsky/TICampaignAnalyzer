@@ -174,7 +174,7 @@ Tracking #249.
   - [ ] Narrative settings enter interval analysis as one slice (#329).
   - [ ] Drop the two-save rule (#330).
   - [x] The survey step (#332).
-  - [ ] Benchmark sample reuses the survey step (#333).
+  - [x] Benchmark sample reuses the survey step (#333).
   - [ ] The choice and the analysis step (#334).
   - [ ] Thin the command-line tests (#335).
 - [x] Narrator send run: the narrator owns its run directory (#337):

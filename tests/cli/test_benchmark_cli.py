@@ -143,3 +143,18 @@ def test_refresh_keeps_prefix_of(tmp_path: Path, monkeypatch) -> None:
     assert run_cli(["benchmark", "sample", "fixture", str(second)])[0] == 0
 
     assert json.loads(manifest_path.read_text(encoding="utf-8"))["campaigns"]["fixture"]["prefix_of"] == "longer"
+
+
+def test_a_directory_without_a_usable_save_fails_through_the_shared_survey(tmp_path: Path, monkeypatch) -> None:
+    samples = tmp_path / "samples"
+    samples.mkdir()
+    monkeypatch.setattr(cli, "BENCHMARK_SAMPLES_DIR", samples)
+    saves = tmp_path / "saves"
+    saves.mkdir()
+    (saves / "unusable.json").write_text("not a save", encoding="utf-8")
+
+    code, _, err = run_cli(["benchmark", "sample", "fixture", str(saves)])
+
+    assert code == cli.EXIT_INPUT_ERROR
+    assert f"{saves}: the directory holds no usable save" in err
+    assert not (samples / "fixture").exists()
