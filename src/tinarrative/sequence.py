@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .analyzers import ALL_ANALYZERS, FIRST_INTERVAL_ANALYZERS, run_analyzers
-from .config import DEFAULT_SETTINGS, SignificanceSettings
+from .config import DEFAULT_SETTINGS, NarrativeSettings, SignificanceSettings
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
 from .log import TIMING_LOGGER, fields, get_logger, safe_path
@@ -28,7 +28,6 @@ from .model.events import Event
 from .model.snapshot import SaveSnapshot
 from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
 from .narrative.chronology import TIE_SEPARATOR, chronological, interval_keys, qualify
-from .narrative.situation import SPACEPORTS
 from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
 from .parsing.normalization import normalize
@@ -164,7 +163,7 @@ def analyze_interval(
     *,
     inferred: bool,
     first: bool = False,
-    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
+    narrative: NarrativeSettings = DEFAULT_SETTINGS.narrative,
 ) -> IntervalAnalysis:
     """Diff two snapshots, run every analyzer and, when asked, reconstruction; every event gets its significance.
 
@@ -184,13 +183,13 @@ def analyze_interval(
     analyzers = ALL_ANALYZERS + FIRST_INTERVAL_ANALYZERS if first else ALL_ANALYZERS
     found = run_analyzers(analyzers, before, after, diff)
     lap("analyzers")
-    objective = assign_significance(found, before, after, significance)
+    objective = assign_significance(found, before, after, narrative.significance)
     lap("significance")
     reconstructed = None
     if inferred:
         events = infer_events(objective, before, after, diff)
         lap("reconstruction")
-        reconstructed = assign_significance(events, before, after, significance, evidence=objective)
+        reconstructed = assign_significance(events, before, after, narrative.significance, evidence=objective)
         lap("significance")
     return IntervalAnalysis(diff, objective, reconstructed, seconds)
 
@@ -307,9 +306,8 @@ def load_snapshot(source: str) -> SaveSnapshot:
 class _Options:
     inferred: bool
     changes: bool
-    spaceports: int
     load: Callable[[str], SaveSnapshot]
-    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance
+    narrative: NarrativeSettings = DEFAULT_SETTINGS.narrative
 
 
 @dataclass(frozen=True)
@@ -328,8 +326,7 @@ def run_sequence(
     inferred: bool,
     changes: bool = False,
     load: Callable[[str], SaveSnapshot] = load_snapshot,
-    spaceports: int = SPACEPORTS,
-    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
+    narrative: NarrativeSettings = DEFAULT_SETTINGS.narrative,
     jobs: int = 1,
     on_save: Callable[[], None] | None = None,
 ) -> Iterator[IntervalResult]:
@@ -341,7 +338,7 @@ def run_sequence(
     """
     if len(plan.saves) < 2:
         return
-    options = _Options(inferred, changes, spaceports, load, significance)
+    options = _Options(inferred, changes, load, narrative)
     chunks = [
         _Chunk(start, plan.saves[start : end + 1], plan.keys[start : end + 1], options)
         for start, end in _chunks(len(plan.saves) - 1, jobs)
@@ -387,7 +384,7 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
         started = time.perf_counter()
         snapshot = options.load(chunk.saves[offset].source)
         loaded = time.perf_counter()
-        situation = build_situation(snapshot, spaceports=options.spaceports)
+        situation = build_situation(snapshot, spaceports=options.narrative.nation_metrics.ranking_top_n)
         timing.info("save %s", fields(index=index, load=round(loaded - started, 4), situation=_seconds(loaded)))
         return snapshot, situation
 
@@ -396,7 +393,7 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
         index = chunk.start + offset
         after, after_situation = prepared(offset)
         analysis = analyze_interval(
-            before, after, inferred=options.inferred, first=index == 1, significance=options.significance
+            before, after, inferred=options.inferred, first=index == 1, narrative=options.narrative
         )
         timing.info(
             "interval %s",

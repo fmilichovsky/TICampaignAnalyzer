@@ -262,7 +262,7 @@ def test_a_later_chunk_does_not_run_the_first_interval_analyzers(monkeypatch: py
 
     monkeypatch.setattr("tinarrative.sequence.FIRST_INTERVAL_ANALYZERS", (Recording(),))
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
-    options = _Options(inferred=False, changes=False, spaceports=10, load=load_snapshot)
+    options = _Options(inferred=False, changes=False, load=load_snapshot)
     loads: list[int] = []
 
     later = list(_interval_results(_Chunk(1, plan.saves[1:], plan.keys[1:], options), lambda: loads.append(1)))
