@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 import lzma
+import os
 import shutil
 from collections.abc import Iterable
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -24,9 +26,18 @@ def sample_files(samples: Path) -> dict[str, list[Path]]:
 
 def decompress_samples(files: Iterable[Path], directory: Path) -> None:
     """Decompress compressed saves into ``directory``, each under its name without ``.xz``."""
-    for file in files:
-        with lzma.open(file) as source, (directory / file.name.removesuffix(".xz")).open("wb") as target:
-            shutil.copyfileobj(source, target, 1 << 20)
+    paths = list(files)
+    if not paths:
+        return
+    # lzma releases the GIL while decoding, so threads give real parallelism.
+    with ThreadPoolExecutor(max_workers=min(len(paths), os.cpu_count() or 1)) as pool:
+        for _ in pool.map(lambda file: _decompress_one(file, directory), paths):
+            pass
+
+
+def _decompress_one(file: Path, directory: Path) -> None:
+    with lzma.open(file) as source, (directory / file.name.removesuffix(".xz")).open("wb") as target:
+        shutil.copyfileobj(source, target, 1 << 20)
 
 
 def verify_samples(samples: Path) -> list[str]:

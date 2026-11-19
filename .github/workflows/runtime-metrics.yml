@@ -97,9 +97,8 @@ jobs:
           SAMPLE: ${{ matrix.sample }}
         run: |
           mkdir -p ".bench/sample/$SAMPLE"
-          for file in "benchmarks/samples/$SAMPLE"/*.json.xz; do
-            xz -dc "$file" > ".bench/sample/$SAMPLE/$(basename "$file" .xz)"
-          done
+          ls "benchmarks/samples/$SAMPLE"/*.json.xz | xargs -P "$(nproc)" -I{} sh -c \
+            'xz -dc "$1" > ".bench/sample/$2/$(basename "$1" .xz)"' _ {} "$SAMPLE"
       - name: Measure
         run: >-
           python -m tinarrative.cli benchmark runtime measure --repeats 3

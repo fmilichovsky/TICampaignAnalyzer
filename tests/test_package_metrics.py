@@ -17,7 +17,7 @@ import pytest
 from tests.benchmark_support import SAVES, synthetic_samples
 from tinarrative import cli
 from tinarrative.benchmarking import metrics as benchmark_metrics
-from tinarrative.benchmarking.manifest import update_samples, verify_samples
+from tinarrative.benchmarking.manifest import decompress_samples, update_samples, verify_samples
 from tinarrative.benchmarking.metrics import (
     COMMENT_LIMIT,
     MANIFEST,
@@ -142,6 +142,33 @@ def test_the_samples_manifest_catches_changed_and_unlisted_files(tmp_path: Path)
         "politics/extra.json.xz: not listed in samples.json",
         f"politics/{SAVES[0]}.xz: does not match its size and SHA-256 in samples.json",
     ]
+
+
+def test_decompressing_many_files_concurrently_yields_the_original_bytes(tmp_path: Path) -> None:
+    contents = {f"save-{index}.json": f'{{"n": {index}}}'.encode() * (index + 1) * 1000 for index in range(6)}
+    files = []
+    for name, data in contents.items():
+        file = tmp_path / f"{name}.xz"
+        file.write_bytes(lzma.compress(data))
+        files.append(file)
+    target = tmp_path / "out"
+    target.mkdir()
+
+    decompress_samples(files, target)
+
+    assert {path.name: path.read_bytes() for path in target.iterdir()} == contents
+
+
+def test_a_corrupt_file_fails_the_whole_decompression(tmp_path: Path) -> None:
+    good = tmp_path / "good.json.xz"
+    good.write_bytes(lzma.compress(b"{}"))
+    bad = tmp_path / "bad.json.xz"
+    bad.write_bytes(b"not xz")
+    target = tmp_path / "out"
+    target.mkdir()
+
+    with pytest.raises(lzma.LZMAError):
+        decompress_samples([good, bad], target)
 
 
 def test_the_committed_samples_match_their_manifest() -> None:
