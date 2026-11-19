@@ -16,6 +16,9 @@ concurrency:
   group: runtime-metrics-${{ (github.event_name == 'issue_comment' && github.event.comment.body == '/benchmarks' && github.event.issue.pull_request && github.event.issue.number) || (github.event_name == 'workflow_dispatch' && github.ref) || github.run_id }}
   cancel-in-progress: true
 
+env:
+  BENCHMARK_NAME: 'Runtime metrics'
+
 jobs:
   resolve:
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.body == '/benchmarks')
@@ -34,6 +37,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
+      benchmark_name: ${{ env.BENCHMARK_NAME }}
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
@@ -195,6 +199,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
+      benchmark_name: ${{ env.BENCHMARK_NAME }}
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
@@ -208,6 +213,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
+      benchmark_name: ${{ env.BENCHMARK_NAME }}
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
