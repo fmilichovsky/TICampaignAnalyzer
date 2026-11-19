@@ -10,13 +10,21 @@ import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, assert_never
 
-from ..campaign_analysis import ProgressReporter
+from ..campaign_analysis import (
+    EmptyDirectory,
+    NoUsableSave,
+    ProgressReporter,
+    Survey,
+    UnreadableInput,
+    UnsupportedSave,
+    survey_inputs,
+)
+from ..config import DEFAULT_SETTINGS
 from ..grouping import CampaignGroup, group_saves
 from ..io.save_discovery import SaveInput, expand_inputs
-from ..parsing.errors import SaveLoadError
-from ..sequence import SaveRef, SkippedSave, survey
+from ..sequence import SaveRef, SkippedSave
 from .manifest import MANIFEST
 
 DEFAULT_MAX_FILE_BYTES = 5_000_000
@@ -61,7 +69,8 @@ def import_sample_campaign(
     inputs = expand_inputs(paths)
     progress = progress_factory(len(inputs))
     try:
-        surveyed, skipped = _survey_sample_inputs(inputs, progress)
+        survey = _survey_sample_inputs(inputs, progress)
+        surveyed, skipped = survey.saves, survey.skipped
         if not surveyed:
             raise SampleImportError("no usable saves", 4)
         sources = _select_source_files(paths, surveyed, selector, choose_campaign)
@@ -108,38 +117,18 @@ def validate_sample_inputs(name: str, paths: Sequence[Path], selector: str | Non
         raise SampleImportError("--campaign requires one directory input", 2)
 
 
-def _survey_sample_inputs(
-    inputs: Sequence[SaveInput], progress: ProgressReporter
-) -> tuple[list[SaveRef], list[SkippedSave]]:
-    """Survey named files strictly and directory members as skippable candidates."""
-    surveyed: list[SaveRef] = []
-    skipped: list[SkippedSave] = []
-    usable: dict[Path, int] = {}
-    for index, item in enumerate(inputs, start=1):
-        progress.update("Scanning saves", index, filename=item.path.name)
-        if item.empty_directory:
-            raise SampleImportError(f"{item.path}: the directory holds no files", 4)
-        try:
-            save = survey(item.path)
-        except OSError as error:
-            reason = error.strerror or str(error)
-            if item.directory is None:
-                raise SampleImportError(f"cannot read {item.path}: {reason}", 4) from error
-            skipped.append(SkippedSave(str(item.path), type(error).__name__, reason))
-            continue
-        except SaveLoadError as error:
-            if item.directory is None:
-                raise SampleImportError(f"{item.path}: {error}", 5) from error
-            skipped.append(SkippedSave(str(item.path), type(error).__name__, str(error)))
-            continue
-        surveyed.append(save)
-        if item.directory is not None:
-            usable[item.directory] = usable.get(item.directory, 0) + 1
-
-    for directory in {item.directory for item in inputs if item.directory is not None}:
-        if usable.get(directory, 0) == 0:
-            raise SampleImportError(f"{directory}: the directory holds no usable save", 4)
-    return surveyed, skipped
+def _survey_sample_inputs(inputs: Sequence[SaveInput], progress: ProgressReporter) -> Survey:
+    """Survey through the shared step; its failures become the import's own error and exit status."""
+    outcome = survey_inputs(inputs, DEFAULT_SETTINGS, command="benchmark sample", progress=progress)
+    if isinstance(outcome, Survey):
+        return outcome
+    match outcome:
+        case UnsupportedSave():
+            raise SampleImportError(outcome.message, 5)
+        case UnreadableInput() | EmptyDirectory() | NoUsableSave():
+            raise SampleImportError(outcome.message, 4)
+        case _:
+            assert_never(outcome)
 
 
 def _select_source_files(
