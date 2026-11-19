@@ -43,8 +43,7 @@ def test_replay_js_and_readout_js_match_python_on_a_sample_campaign(calibration_
         replace(code, references=moved(power=10**0.5)),
         replace(code, references=moved(power=10**-0.5)),
         replace(code, references=moved(**others)),
-        replace(code, clamp=False),
-        replace(code, clamp=False, references=moved(power=10**-2)),
+        replace(code, references=moved(power=10**-2)),
         replace(code, types=(common,)),
     ]
 

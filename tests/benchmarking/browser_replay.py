@@ -76,7 +76,6 @@ def state_object(state: ReplayState) -> dict[str, Any]:
     """``state`` as ``replay.js`` holds it."""
     return {
         "references": dict(state.references),
-        "clamp": state.clamp,
         "campaigns": list(state.campaigns),
         "types": list(state.types),
         "focus": state.focus,

@@ -16,21 +16,20 @@
 Every event type is at the code's base level.
 
 - Campaigns: alpha, beta
-- Clamp: on
 - Types: all
 - Cache key: `golden`
 - State: `#ref=power:0.006309573444801933,faction:1e-7`
 
 ## Summary
 
-References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Base levels: every type at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 8 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
+References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.14285714285714285); every other measure at the code's. Base levels: every type at the code's. Campaigns: alpha, beta. Types: all. 9 events move level; the narrator package goes from 14 to 13 events at major or above (-1); 2 events with members change. What moves: atomic.near trivial -> minor 6; faction.takeover major -> campaign_defining 2; atomic.far trivial -> minor 1. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
 
 ## Level counts
 
 | Type | Level | Replay | Baseline | Change |
 | --- | --- | --- | --- | --- |
-| atomic.far | trivial | 1 | 1 | 0 |
-| atomic.far | minor | 1 | 1 | 0 |
+| atomic.far | trivial | 0 | 1 | -1 |
+| atomic.far | minor | 2 | 1 | +1 |
 | atomic.near | trivial | 1 | 7 | -6 |
 | atomic.near | minor | 7 | 1 | +6 |
 | atomic.other | minor | 1 | 1 | 0 |
@@ -57,6 +56,7 @@ References: power 0.006309573444801933 (code 0.01), faction 1e-7 (code 0.1428571
 | --- | --- | --- | --- | --- |
 | atomic.near | trivial | minor | 6 | 0 |
 | faction.takeover | major | campaign_defining | 2 | 0 |
+| atomic.far | trivial | minor | 1 | 0 |
 
 ## Member verdicts
 
@@ -83,8 +83,8 @@ Cut-off at share 0.000355 (offset -1.25):
 | above | alpha | `near-5` | atomic.near | 0.000372 | 25 | minor | trivial | own |
 | above | alpha | `near-4` | atomic.near | 0.000398 | 25 | minor | trivial | own |
 | above | alpha | `near-3` | atomic.near | 0.000427 | 25 | minor | trivial | own |
+| above | alpha | `far-low` | atomic.far | 0.000447 | 25 | minor | trivial | own |
 | above | alpha | `near-2` | atomic.near | 0.000457 | 26 | minor | trivial | own |
-| above | alpha | `near-1` | atomic.near | 0.00049 | 26 | minor | trivial | own |
 
 Cut-off at share 0.112 (offset 1.25):
 
@@ -98,8 +98,8 @@ Cut-off at share 0.112 (offset 1.25):
 | above | beta | `spread-19` | atomic.spread | 0.139 | 100 | campaign_defining | campaign_defining | own |
 | above | alpha | `gone-0` | faction.takeover | 0.158 | 76 | campaign_defining | major | own |
 | above | alpha | `shrunk-0` | faction.takeover | 0.158 | 76 | campaign_defining | major | own |
+| above | alpha | `far-high` | atomic.far | 0.224 | 27 | minor | minor | own |
 | above | beta | `spread-15` | atomic.spread | 0.241 | 77 | campaign_defining | campaign_defining | own |
-| above | beta | `spread-9` | atomic.spread | 0.295 | 77 | campaign_defining | campaign_defining | own |
 
 ### population
 

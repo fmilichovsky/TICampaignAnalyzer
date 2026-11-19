@@ -37,7 +37,6 @@ def override_state(
     references: Sequence[str] = (),
     campaigns: Sequence[str] = (),
     types: Sequence[str] = (),
-    clamp: str | None = None,
     bases: Sequence[str] = (),
 ) -> ReplayState:
     """``state`` with the report's flags applied; each flag value is a comma-separated list, and repeats accumulate.
@@ -78,8 +77,6 @@ def override_state(
         if repeated:
             raise ReplayStateError(f"type(s) given twice: {', '.join(repeated)}")
         state = replace(state, types=tuple(sorted(names)))
-    if clamp is not None:
-        state = replace(state, clamp=clamp == "on")
     levels = list(index["constants"]["level_bands"])
     tried: dict[str, str] = {}
     for item in _items(bases):
@@ -109,7 +106,7 @@ def _items(values: Sequence[str]) -> list[str]:
 
 
 def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
-    """One paragraph: the references and base levels against the code's, the clamp, campaigns and types, the totals,
+    """One paragraph: the references and base levels against the code's, campaigns and types, the totals,
     the top moves and every draft stake with its issue, so a draft left behind after its issue closed still shows."""
     state = result["state"]
     code = index["measures"]
@@ -140,7 +137,6 @@ def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
     return (
         f"References: {references}. "
         f"Base levels: {bases}. "
-        f"Clamp {'on' if state['clamp'] else 'off'}. "
         f"Campaigns: {', '.join(state['campaigns']) or 'none'}. "
         f"Types: {', '.join(state['types']) or 'all'}. "
         f"{_events(totals['events_moved'])} move level; "
@@ -236,7 +232,6 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
     lines += [
         "",
         f"- Campaigns: {', '.join(state['campaigns']) or 'none'}",
-        f"- Clamp: {'on' if state['clamp'] else 'off'}",
         f"- Types: {', '.join(state['types']) or 'all'}",
         f"- Cache key: `{index['key']}`",
         f"- State: `#{state_hash}`" if state_hash else "- State: the default (no hash)",

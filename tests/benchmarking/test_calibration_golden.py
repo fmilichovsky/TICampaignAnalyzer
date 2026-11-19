@@ -32,6 +32,5 @@ def test_the_golden_table_moves_members_and_cut_offs_when_the_state_changes() ->
     assert verdicts(1.0) == {"keeps_members"}
     assert verdicts(10**-0.2) == {"keeps_members", "loses_members", "falls_apart"}
     assert "could_become_member" in verdicts(10**0.5)
-    free = replay(index, tables, replace(code, clamp=False))["cutoffs"]["power"]
-    assert len(free) > len(cutoff_offsets(index["constants"], clamp=True))
+    assert len(replay(index, tables, code)["cutoffs"]["power"]) == len(cutoff_offsets(index["constants"]))
     assert {event["decided_by"] for event in replay(index, tables, code)["campaigns"]["alpha"]["events"]} > {"land"}

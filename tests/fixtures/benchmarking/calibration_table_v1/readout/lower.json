@@ -13,7 +13,6 @@
       "faction": 1e-07,
       "nuclear": 0.01
     },
-    "clamp": true,
     "campaigns": [
       "alpha",
       "beta"
@@ -27,7 +26,7 @@
     "focus": null
   },
   "totals": {
-    "events_moved": 8,
+    "events_moved": 9,
     "package": {
       "replay": 13,
       "baseline": 14,
@@ -49,13 +48,20 @@
       "to_level": "campaign_defining",
       "count": 2,
       "via_cited": 0
+    },
+    {
+      "type": "atomic.far",
+      "from_level": "trivial",
+      "to_level": "minor",
+      "count": 1,
+      "via_cited": 0
     }
   ],
   "level_counts": {
     "atomic.far": {
       "replay": {
-        "trivial": 1,
-        "minor": 1,
+        "trivial": 0,
+        "minor": 2,
         "major": 0,
         "campaign_defining": 0
       },
@@ -335,6 +341,21 @@
     },
     {
       "campaign": "alpha",
+      "id": "far-low",
+      "type": "atomic.far",
+      "stakes": [
+        {
+          "measure": "power",
+          "share": 0.000446683592150963
+        }
+      ],
+      "score": 25,
+      "level": "minor",
+      "code_level": "trivial",
+      "decided_by": "far-low"
+    },
+    {
+      "campaign": "alpha",
       "id": "shrunk-0",
       "type": "faction.takeover",
       "stakes": [
@@ -462,6 +483,17 @@
           },
           {
             "campaign": "alpha",
+            "id": "far-low",
+            "type": "atomic.far",
+            "share": 0.000446683592150963,
+            "score": 25,
+            "level": "minor",
+            "code_level": "trivial",
+            "decided_by": "far-low",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
             "id": "near-2",
             "type": "atomic.near",
             "share": 0.00045708818961487493,
@@ -469,17 +501,6 @@
             "level": "minor",
             "code_level": "trivial",
             "decided_by": "near-2",
-            "decisive": true
-          },
-          {
-            "campaign": "alpha",
-            "id": "near-1",
-            "type": "atomic.near",
-            "share": 0.0004897788193684462,
-            "score": 26,
-            "level": "minor",
-            "code_level": "trivial",
-            "decided_by": "near-1",
             "decisive": true
           }
         ]
@@ -579,6 +600,17 @@
             "decisive": true
           },
           {
+            "campaign": "alpha",
+            "id": "far-high",
+            "type": "atomic.far",
+            "share": 0.223872113856834,
+            "score": 27,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "far-high",
+            "decisive": true
+          },
+          {
             "campaign": "beta",
             "id": "spread-15",
             "type": "atomic.spread",
@@ -587,17 +619,6 @@
             "level": "campaign_defining",
             "code_level": "campaign_defining",
             "decided_by": "spread-15",
-            "decisive": true
-          },
-          {
-            "campaign": "beta",
-            "id": "spread-9",
-            "type": "atomic.spread",
-            "share": 0.2948639032053965,
-            "score": 77,
-            "level": "campaign_defining",
-            "code_level": "campaign_defining",
-            "decided_by": "spread-9",
             "decisive": true
           }
         ]

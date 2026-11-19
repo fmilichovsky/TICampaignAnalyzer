@@ -116,27 +116,24 @@ def test_references_accumulate_over_commas_and_repeats(paths: tuple[Path, Path])
     assert document["hash"] == "ref=power:0.002,hab:0.03,battle:0.001"
 
 
-def test_campaign_type_and_clamp_flags_reach_the_state(paths: tuple[Path, Path]) -> None:
+def test_campaign_and_type_flags_reach_the_state(paths: tuple[Path, Path]) -> None:
     samples, out = paths
     index, tables, _ = load(out)
     types = sorted({row["type"] for rows in tables.values() for row in rows})[:2]
 
-    document = report_json(paths, "--campaign", index["campaigns"][0], "--type", ",".join(types), "--clamp", "off")
+    document = report_json(paths, "--campaign", index["campaigns"][0], "--type", ",".join(types))
 
     assert document["state"]["campaigns"] == index["campaigns"][:1]
     assert document["state"]["types"] == types
-    assert document["state"]["clamp"] is False
     assert set(document["level_counts"]) <= set(types)
 
 
 def test_explicit_flags_override_the_state_hash(paths: tuple[Path, Path]) -> None:
-    document = report_json(paths, "--state", "#ref=power:0.002,hab:0.03&clamp=off", "--reference", "power=0.005")
+    document = report_json(paths, "--state", "#ref=power:0.002,hab:0.03", "--reference", "power=0.005")
 
     assert document["state"]["references"]["power"] == 0.005
     assert document["state"]["references"]["hab"] == 0.03
-    assert document["state"]["clamp"] is False
     assert report_json(paths, "--state", document["hash"])["state"] == document["state"]
-    assert report_json(paths, "--state", "clamp=off", "--clamp", "on")["state"]["clamp"] is True
 
 
 def test_base_flags_switch_event_types_and_override_the_state_hash(paths: tuple[Path, Path]) -> None:
@@ -194,7 +191,7 @@ def test_an_invalid_state_is_a_usage_error(paths: tuple[Path, Path], flags: list
     assert stderr
 
 
-@pytest.mark.parametrize("flags", [["--clamp", "maybe"], ["--format", "yaml"]])
+@pytest.mark.parametrize("flags", [["--clamp", "off"], ["--format", "yaml"]])
 def test_an_invalid_choice_is_a_usage_error(paths: tuple[Path, Path], flags: list[str]) -> None:
     with pytest.raises(SystemExit) as raised:
         report(paths, *flags)

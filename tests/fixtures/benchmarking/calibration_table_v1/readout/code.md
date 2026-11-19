@@ -16,14 +16,13 @@
 Every event type is at the code's base level.
 
 - Campaigns: alpha, beta
-- Clamp: on
 - Types: all
 - Cache key: `golden`
 - State: the default (no hash)
 
 ## Summary
 
-References: every measure at the code's. Base levels: every type at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 0 events move level; the narrator package goes from 14 to 14 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
+References: every measure at the code's. Base levels: every type at the code's. Campaigns: alpha, beta. Types: all. 0 events move level; the narrator package goes from 14 to 14 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 3 events (minor 2, major 1), 2 set by a cited event; moved (#2) at base trivial: 1 event (minor 1), 1 set by a cited event.
 
 ## Level counts
 
@@ -72,8 +71,8 @@ Cut-off at share 0.000562 (offset -1.25):
 | below | alpha | `near-0` | atomic.near | 0.000525 | 24 | trivial | trivial | own |
 | below | alpha | `near-1` | atomic.near | 0.00049 | 24 | trivial | trivial | own |
 | below | alpha | `near-2` | atomic.near | 0.000457 | 24 | trivial | trivial | own |
+| below | alpha | `far-low` | atomic.far | 0.000447 | 23 | trivial | trivial | own |
 | below | alpha | `near-3` | atomic.near | 0.000427 | 23 | trivial | trivial | own |
-| below | alpha | `near-4` | atomic.near | 0.000398 | 23 | trivial | trivial | own |
 | above | alpha | `at-cut` | atomic.thing | 0.000562 | 25 | minor | minor | own |
 | above | alpha | `inside` | atomic.near | 0.000589 | 25 | minor | minor | own |
 | above | alpha | `deal` | nation.cession | 0.001 | 47 | minor | minor | `land` |
@@ -89,10 +88,10 @@ Cut-off at share 0.178 (offset 1.25):
 | below | beta | `spread-19` | atomic.spread | 0.139 | 98 | campaign_defining | campaign_defining | own |
 | below | beta | `spread-13` | atomic.spread | 0.107 | 47 | minor | minor | own |
 | below | beta | `spread-35` | atomic.spread | 0.0912 | 22 | trivial | trivial | own |
+| above | alpha | `far-high` | atomic.far | 0.224 | 26 | minor | minor | own |
 | above | beta | `spread-15` | atomic.spread | 0.241 | 76 | campaign_defining | campaign_defining | own |
 | above | beta | `spread-9` | atomic.spread | 0.295 | 77 | campaign_defining | campaign_defining | own |
 | above | alpha | `outside` | faction.takeover | 0.316 | 77 | campaign_defining | campaign_defining | own |
-| above | alpha | `far-high` | atomic.far | 70.8 | 27 | minor | minor | own |
 
 ### population
 

@@ -21,7 +21,7 @@ OWN-WORLD: Cool chart-white ground #F6F7F4, navy-black ink #16202C, navy header 
 
 STORY: Pick a measure, slide its reference, read the three totals, check members, read what moves in Level counts, and judge the cut-offs by the real events that sit on each side.
 
-FIRST VIEWPORT: Header with campaigns, clamp, reset, copy; left column of measure chips, slider, the 270 px window chart and the two tide-table cut-off lists; right column of totals, member verdict strip and Level counts (each type's level bar, a rise or drop band under what changed level, the exact changes beside it).
+FIRST VIEWPORT: Header with campaigns, reset, copy; left column of measure chips, slider, the 270 px window chart and the two tide-table cut-off lists; right column of totals, member verdict strip and Level counts (each type's level bar, a rise or drop band under what changed level, the exact changes beside it).
 
 SIGNATURE: Each cut-off set like a tide-table entry: bold magenta cut-off figure, five single-line events above and below with the share column first, a magenta rule at the cut.
 
