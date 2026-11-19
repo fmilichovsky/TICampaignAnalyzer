@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
-      benchmark_name: ${BENCHMARK_NAME}
+      benchmark_name: $BENCHMARK_NAME
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
@@ -199,7 +199,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
-      benchmark_name: ${BENCHMARK_NAME}
+      benchmark_name: $BENCHMARK_NAME
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
@@ -213,7 +213,7 @@ jobs:
     uses: ./.github/workflows/post-metrics-comment.yml
     with:
       pr_number: ${{ needs.resolve.outputs.pr_number }}
-      benchmark_name: ${BENCHMARK_NAME}
+      benchmark_name: $BENCHMARK_NAME
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
