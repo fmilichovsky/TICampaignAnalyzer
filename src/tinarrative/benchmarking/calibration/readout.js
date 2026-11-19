@@ -39,7 +39,7 @@
     return parts.join("; ") || "none";
   }
 
-  // One paragraph: the references against the code's, the clamp, campaigns and types, the totals, the top moves
+  // One paragraph: the references against the code's, campaigns and types, the totals, the top moves
   // and every draft stake with its issue.
   function sharedParagraph(index, result) {
     const state = result.state;
@@ -65,7 +65,6 @@
     return (
       `References: ${references}. ` +
       `Base levels: ${bases}. ` +
-      `Clamp ${state.clamp ? "on" : "off"}. ` +
       `Campaigns: ${state.campaigns.join(", ") || "none"}. ` +
       `Types: ${state.types.join(", ") || "all"}. ` +
       `${events(totals.events_moved)} move level; ` +

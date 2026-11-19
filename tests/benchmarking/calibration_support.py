@@ -68,7 +68,7 @@ def check_rows(rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = ()
 def check_parity(
     rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = (), declared: Sequence[DraftStake] = ()
 ) -> None:
-    """At the code's references with the clamp on and each draft's own base, the replay is the pipeline: every score
+    """At the code's references and each draft's own base, the replay is the pipeline: every score
     and level, every group, every draft row of the ``declared`` drafts."""
     kinds = type_kinds(row["type"] for row in rows)
     index = build_index(["campaign"], key="", extracted_at="", kinds=kinds, drafts=declared)
@@ -272,9 +272,9 @@ def drafted() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
 
 INVALID_HASHES = [
     ("speed=1", "unknown state hash key 'speed'"),
-    ("clamp=off&clamp=on", "'clamp' is repeated"),
-    ("clamp", "not key=value"),
-    ("clamp=maybe", "on or off"),
+    ("clamp=off", "unknown state hash key 'clamp'"),
+    ("ref=power:0.002&clamp=on", "unknown state hash key 'clamp'"),
+    ("campaigns", "not key=value"),
     ("ref=warp:0.1", "unknown measure 'warp'"),
     ("ref=power:0.1,power:0.2", "'power' is repeated"),
     ("ref=power:0", "positive number"),

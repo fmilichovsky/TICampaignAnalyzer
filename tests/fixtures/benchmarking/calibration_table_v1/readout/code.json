@@ -13,7 +13,6 @@
       "faction": 0.14285714285714285,
       "nuclear": 0.01
     },
-    "clamp": true,
     "campaigns": [
       "alpha",
       "beta"
@@ -235,6 +234,17 @@
           },
           {
             "campaign": "alpha",
+            "id": "far-low",
+            "type": "atomic.far",
+            "share": 0.000446683592150963,
+            "score": 23,
+            "level": "trivial",
+            "code_level": "trivial",
+            "decided_by": "far-low",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
             "id": "near-3",
             "type": "atomic.near",
             "share": 0.0004265795188015928,
@@ -242,17 +252,6 @@
             "level": "trivial",
             "code_level": "trivial",
             "decided_by": "near-3",
-            "decisive": true
-          },
-          {
-            "campaign": "alpha",
-            "id": "near-4",
-            "type": "atomic.near",
-            "share": 0.00039810717055349735,
-            "score": 23,
-            "level": "trivial",
-            "code_level": "trivial",
-            "decided_by": "near-4",
             "decisive": true
           }
         ],
@@ -376,6 +375,17 @@
         ],
         "above": [
           {
+            "campaign": "alpha",
+            "id": "far-high",
+            "type": "atomic.far",
+            "share": 0.223872113856834,
+            "score": 26,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "far-high",
+            "decisive": true
+          },
+          {
             "campaign": "beta",
             "id": "spread-15",
             "type": "atomic.spread",
@@ -406,17 +416,6 @@
             "level": "campaign_defining",
             "code_level": "campaign_defining",
             "decided_by": "outside",
-            "decisive": true
-          },
-          {
-            "campaign": "alpha",
-            "id": "far-high",
-            "type": "atomic.far",
-            "share": 70.79457843841381,
-            "score": 27,
-            "level": "minor",
-            "code_level": "minor",
-            "decided_by": "far-high",
             "decisive": true
           }
         ]

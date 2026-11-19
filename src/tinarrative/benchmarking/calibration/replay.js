@@ -7,7 +7,7 @@
   "use strict";
 
   const SCHEMA_VERSION = 3;
-  const STATE_KEYS = ["ref", "clamp", "campaigns", "types", "base", "focus"];
+  const STATE_KEYS = ["ref", "campaigns", "types", "base", "focus"];
   const DRAFT_PREFIX = "draft:";
 
   class ReplayError extends Error {
@@ -153,7 +153,7 @@
     for (const [name, measure] of Object.entries(index.measures)) references[name] = Number(measure.reference);
     const bases = {};
     for (const draft of index.drafts) bases[draft.name] = draft.base;
-    return { references, clamp: true, campaigns: [...index.campaigns], types: [], focus: null, bases, type_bases: {} };
+    return { references, campaigns: [...index.campaigns], types: [], focus: null, bases, type_bases: {} };
   }
 
   // The types of state.type_bases away from the code's base level, sorted by type (replay.py's switched_types).
@@ -212,7 +212,6 @@
       schema_version: SCHEMA_VERSION,
       state: {
         references: Object.assign({}, state.references),
-        clamp: state.clamp,
         campaigns: [...state.campaigns],
         types: [...state.types],
         bases,
@@ -364,18 +363,15 @@
   function ownScore(row, base, state, constants) {
     if (row.stakes.length === 0) return base;
     const scales = row.stakes
-      .map((stake) => scale(stake.share, state.references[stake.measure], state.clamp, constants))
-      .filter((value) => value !== null);
-    if (scales.length === 0) return constants.score_min;
+      .map((stake) => scale(stake.share, state.references[stake.measure], constants));
     return Math.max(constants.score_min, Math.min(constants.score_max, base + Math.max(...scales)));
   }
 
-  function scale(share, reference, clamp, constants) {
+  function scale(share, reference, constants) {
     const low = constants.scale_min;
     const high = constants.scale_max;
-    if (share <= 0) return clamp ? low : null;
-    const value = roundHalfEven(10 * log10(share / reference));
-    return clamp ? Math.max(low, Math.min(high, value)) : value;
+    if (share <= 0) return low;
+    return Math.max(low, Math.min(high, roundHalfEven(10 * log10(share / reference))));
   }
 
   function groupVerdict(row, gate, keptRows, lost) {
@@ -474,9 +470,9 @@
       }));
   }
 
-  // Every log10(share / reference) at which a stake moves an event of some base level one more level, ascending;
-  // with the clamp, only those the scale window reaches (replay.py's cutoff_offsets).
-  function cutoffOffsets(constants, clamp) {
+  // Every log10(share / reference) at which a stake moves an event of some base level one more level, ascending,
+  // only those the scale window reaches (replay.py's cutoff_offsets).
+  function cutoffOffsets(constants) {
     const bands = Object.values(constants.level_bands);
     const offsets = new Set();
     for (const [low, high] of bands) {
@@ -486,11 +482,9 @@
         if (otherHigh < base) offsets.add((otherHigh - base + 0.5) / 10);
       }
     }
-    let result = [...offsets];
-    if (clamp) {
-      result = result.filter((offset) => constants.scale_min <= 10 * offset && 10 * offset <= constants.scale_max);
-    }
-    return result.sort((a, b) => a - b);
+    return [...offsets]
+      .filter((offset) => constants.scale_min <= 10 * offset && 10 * offset <= constants.scale_max)
+      .sort((a, b) => a - b);
   }
 
   function measureCutoffs(measure, state, index, selected, shadowed) {
@@ -508,12 +502,9 @@
     };
     const real = candidates(selected);
     const drafted = candidates(shadowed);
-    const window = cutoffOffsets(constants, true);
     const result = [];
-    for (const offset of cutoffOffsets(constants, state.clamp)) {
+    for (const offset of cutoffOffsets(constants)) {
       const cut = reference * Math.pow(10, offset);
-      const beyond = ({ share }) => (offset < 0 ? share < cut : share > cut);
-      if (!window.includes(offset) && !real.some(beyond) && !drafted.some(beyond)) continue;
       const [below, above] = sides(real, cut, offset, state.campaigns, constants.neighbours);
       const drafts = {};
       for (const draft of index.drafts) {
@@ -575,7 +566,6 @@
       .filter((measure) => state.references[measure] !== fallback.references[measure])
       .map((measure) => `${measure}:${String(state.references[measure])}`);
     if (changed.length > 0) fields.push(`ref=${changed.join(",")}`);
-    if (!state.clamp) fields.push("clamp=off");
     const campaigns = index.campaigns.filter((name) => state.campaigns.includes(name));
     if (compareTuples(campaigns, fallback.campaigns) !== 0 || campaigns.length !== fallback.campaigns.length) {
       fields.push(`campaigns=${campaigns.join(",")}`);
@@ -607,11 +597,6 @@
       seen.add(key);
       if (key === "ref") {
         Object.assign(state.references, decodeReferences(value, index));
-      } else if (key === "clamp") {
-        if (value !== "on" && value !== "off") {
-          throw new ReplayStateError(`state hash clamp must be on or off, not ${repr(value)}`);
-        }
-        state.clamp = value === "on";
       } else if (key === "campaigns") {
         const names = parseNames(value, "campaign", true);
         const unknown = names.filter((name) => !index.campaigns.includes(name));

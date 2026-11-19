@@ -857,7 +857,6 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
             references=cast("list[str] | None", args.reference) or [],
             campaigns=cast("list[str] | None", args.campaign) or [],
             types=cast("list[str] | None", args.type) or [],
-            clamp=cast("str | None", args.clamp),
             bases=cast("list[str] | None", args.base) or [],
         )
         result = calibration_replay.replay(index, tables, state, drafts)
@@ -2232,9 +2231,6 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
         action="append",
         metavar="EVENT_TYPE",
         help="Count only these event types; comma-separated, repeatable (default: every type).",
-    )
-    report.add_argument(
-        "--clamp", choices=("on", "off"), help="Clamp the stake's scale, as the page's toggle (default on)."
     )
     report.add_argument(
         "--base",

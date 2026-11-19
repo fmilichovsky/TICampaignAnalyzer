@@ -265,8 +265,8 @@ tinarrative benchmark calibrate open --no-open
 ```
 tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
                                        [--reference MEASURE=VALUE] [--campaign NAME]
-                                       [--type EVENT_TYPE] [--clamp {on,off}] [--base TYPE=LEVEL]
-                                       [--state HASH] [--format {text,json}]
+                                       [--type EVENT_TYPE] [--base TYPE=LEVEL] [--state HASH]
+                                       [--format {text,json}]
 ```
 <!-- end generated -->
 
@@ -298,8 +298,8 @@ tinarrative benchmark calibrate report --reference power=0.002,hab=0.03 --campai
 # What if nation changes were minor events?
 tinarrative benchmark calibrate report --base region.nation_changed=minor
 
-# A state copied from the calibration page, with the clamp turned off.
-tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
+# A state copied from the calibration page.
+tinarrative benchmark calibrate report --state 'ref=power:0.002'
 ```
 
 <!-- generated: options benchmark calibrate report -->
@@ -311,7 +311,6 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002' --clamp off
 | `--reference MEASURE=VALUE` | A measure's reference share; comma-separated, repeatable (default: the code's). |
 | `--campaign NAME` | Replay only these sample campaigns; comma-separated, repeatable (default: every one). |
 | `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
-| `--clamp on\|off` | Clamp the stake's scale, as the page's toggle (default on). |
 | `--base TYPE=LEVEL` | Try a base level on an event type; comma-separated, repeatable (default: the code's). |
 | `--state HASH` | A calibration page's URL hash; the other flags override what it sets. |
 | `--format text\|json` | Report format (default text). |

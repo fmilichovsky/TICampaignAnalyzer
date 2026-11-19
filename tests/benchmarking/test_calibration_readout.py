@@ -35,10 +35,11 @@ POWER = CODE.references["power"]
 STATES: dict[str, ReplayState] = {
     "code": CODE,
     "lower": replace(CODE, references={**CODE.references, "power": POWER * 10**-0.2, "faction": 1e-7}),
-    "free": replace(CODE, clamp=False, campaigns=("beta",), types=("atomic.thing",)),
+    "free": replace(CODE, campaigns=("beta",), types=("atomic.thing",)),
     "switched": replace(CODE, type_bases={"atomic.thing": "major", "atomic.far": "trivial"}),
 }
-"""The golden states: the code's, members falling apart under a lower power reference, the clamp off and two
+"""The golden states: the code's, members falling apart under a lower power reference, a campaign and type
+filter and two
 switched base levels."""
 SECTIONS = [
     "Calibration state",
@@ -231,13 +232,11 @@ def test_flags_override_the_state_and_accumulate() -> None:
         references=["power=0.002,hab=0.03", "battle=1e-3"],
         campaigns=["beta", "alpha"],
         types=["atomic.thing,atomic.near"],
-        clamp="on",
     )
 
     assert state.references == {**CODE.references, "power": 0.002, "hab": 0.03, "battle": 0.001}
     assert state.campaigns == ("alpha", "beta")
     assert state.types == ("atomic.near", "atomic.thing")
-    assert state.clamp
     assert override_state(state, INDEX) == state
 
 

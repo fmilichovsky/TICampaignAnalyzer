@@ -349,14 +349,6 @@
           }),
         );
       }
-      const constants = this.index.constants;
-      $("clamp").title =
-        `Clamp the stake's scale. On, a stake moves a score between ${constants.scale_min} and +${constants.scale_max} points, ` +
-        "so an event moves one level at most. Off, the scale is unbounded and more cut-offs appear.";
-      $("clamp").addEventListener("click", () => {
-        this.state.clamp = !this.state.clamp;
-        this.update({ resort: true, layout: true });
-      });
       $("reset").addEventListener("click", () => {
         const fresh = Replay.defaultState(this.index);
         fresh.focus = this.state.focus;
@@ -758,8 +750,6 @@
       for (const button of document.querySelectorAll("#campaigns .toggle")) {
         button.setAttribute("aria-pressed", String(this.state.campaigns.includes(button.dataset.campaign)));
       }
-      $("clamp").setAttribute("aria-checked", String(this.state.clamp));
-      $("clamp-state").textContent = this.state.clamp ? "on" : "off";
       const atCode = Replay.encodeState(Object.assign({}, this.state, { focus: null }), this.index) === "";
       $("reset").disabled = atCode;
       $("table-key").textContent = `Table ${this.index.key.slice(0, 8)} · ${this.index.extracted_at.slice(0, 16).replace("T", " ")}`;
@@ -823,7 +813,7 @@
     },
 
     windowEdges() {
-      const offsets = Replay.cutoffOffsets(this.index.constants, true);
+      const offsets = Replay.cutoffOffsets(this.index.constants);
       const below = offsets.filter((offset) => offset < 0);
       const above = offsets.filter((offset) => offset > 0);
       return [below.length ? Math.max(...below) : 0, above.length ? Math.min(...above) : 0];
@@ -944,7 +934,7 @@
         nodes.push(label);
       }
 
-      // The cut-offs of the current state: the window's two, and with the clamp off any further ones.
+      // The cut-offs of the current state: the window's two.
       for (const cutoff of this.result.cutoffs[this.focus] || []) {
         const at = x(Math.log10(cutoff.share));
         if (at < plotLeft || at > plotRight) continue;

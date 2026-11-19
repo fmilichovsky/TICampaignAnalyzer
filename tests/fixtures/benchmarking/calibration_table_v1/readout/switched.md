@@ -19,14 +19,13 @@
 | atomic.thing | major (changed) | minor |
 
 - Campaigns: alpha, beta
-- Clamp: on
 - Types: all
 - Cache key: `golden`
 - State: `#base=atomic.far:trivial,atomic.thing:major`
 
 ## Summary
 
-References: every measure at the code's. Base levels: atomic.far trivial (code minor), atomic.thing major (code minor); every other type at the code's. Clamp on. Campaigns: alpha, beta. Types: all. 9 events move level; the narrator package goes from 14 to 17 events at major or above (+3); 0 events with members change. What moves: atomic.thing minor -> major 5; atomic.thing trivial -> minor 1; campaign.first_milestone minor -> major 1 (1 via a cited event); nation.cession minor -> major 1 (1 via a cited event); nation.expansion minor -> major 1 (1 via a cited event). Drafts: held (#1) at base minor: 3 events (minor 0 -2, major 3 +2), 3 set by a cited event; moved (#2) at base trivial: 1 event (minor 0 -1, major 1 +1), 1 set by a cited event.
+References: every measure at the code's. Base levels: atomic.far trivial (code minor), atomic.thing major (code minor); every other type at the code's. Campaigns: alpha, beta. Types: all. 9 events move level; the narrator package goes from 14 to 17 events at major or above (+3); 0 events with members change. What moves: atomic.thing minor -> major 5; atomic.thing trivial -> minor 1; campaign.first_milestone minor -> major 1 (1 via a cited event); nation.cession minor -> major 1 (1 via a cited event); nation.expansion minor -> major 1 (1 via a cited event). Drafts: held (#1) at base minor: 3 events (minor 0 -2, major 3 +2), 3 set by a cited event; moved (#2) at base trivial: 1 event (minor 0 -1, major 1 +1), 1 set by a cited event.
 
 ## Level counts
 
@@ -84,8 +83,8 @@ Cut-off at share 0.000562 (offset -1.25):
 | below | alpha | `near-0` | atomic.near | 0.000525 | 24 | trivial | trivial | own |
 | below | alpha | `near-1` | atomic.near | 0.00049 | 24 | trivial | trivial | own |
 | below | alpha | `near-2` | atomic.near | 0.000457 | 24 | trivial | trivial | own |
+| below | alpha | `far-low` | atomic.far | 0.000447 | 0 | trivial | trivial | own |
 | below | alpha | `near-3` | atomic.near | 0.000427 | 23 | trivial | trivial | own |
-| below | alpha | `near-4` | atomic.near | 0.000398 | 23 | trivial | trivial | own |
 | above | alpha | `at-cut` | atomic.thing | 0.000562 | 50 | major | minor | own |
 | above | alpha | `inside` | atomic.near | 0.000589 | 25 | minor | minor | own |
 | above | alpha | `deal` | nation.cession | 0.001 | 72 | major | minor | `land` |
@@ -101,10 +100,10 @@ Cut-off at share 0.178 (offset 1.25):
 | below | beta | `spread-19` | atomic.spread | 0.139 | 98 | campaign_defining | campaign_defining | own |
 | below | beta | `spread-13` | atomic.spread | 0.107 | 47 | minor | minor | own |
 | below | beta | `spread-35` | atomic.spread | 0.0912 | 22 | trivial | trivial | own |
+| above | alpha | `far-high` | atomic.far | 0.224 | 26 | minor | minor | own |
 | above | beta | `spread-15` | atomic.spread | 0.241 | 76 | campaign_defining | campaign_defining | own |
 | above | beta | `spread-9` | atomic.spread | 0.295 | 77 | campaign_defining | campaign_defining | own |
 | above | alpha | `outside` | faction.takeover | 0.316 | 77 | campaign_defining | campaign_defining | own |
-| above | alpha | `far-high` | atomic.far | 70.8 | 27 | minor | minor | own |
 
 ### population
 
