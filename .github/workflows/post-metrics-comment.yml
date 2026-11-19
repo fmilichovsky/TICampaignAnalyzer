@@ -51,7 +51,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           PR_NUMBER: ${{ inputs.pr_number }}
-          BENCHMARK_NAME: ${{ input.benchmark_name }}
+          BENCHMARK_NAME: ${{ inputs.benchmark_name }}
           REPORT_FILE: .bench/${{ inputs.report_path }}
           COMMENT_MARKER: ${{ inputs.comment_marker }}
           STATUS: ${{ inputs.status }}
