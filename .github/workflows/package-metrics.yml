@@ -42,17 +42,44 @@ jobs:
       base_sha: ${{ needs.resolve.outputs.base_sha }}
       head_sha: ${{ needs.resolve.outputs.head_sha }}
 
-  measure-base:
+  samples:
     needs: resolve
     permissions:
       contents: read
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
+      - id: matrix
+        name: Read sample campaigns
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("benchmarks/samples/samples.json").read_text(encoding="utf-8"))
+          print("value=" + json.dumps({"sample": list(manifest["campaigns"]), "side": ["base", "head"]}, separators=(",", ":")))
+          PY
+
+  measure:
+    name: measure (${{ matrix.sample }}, ${{ matrix.side }})
+    needs: [resolve, samples]
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.samples.outputs.matrix) }}
     steps:
       # The head checkout supplies the CLI, samples, matrix and settings that both sides are measured with.
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve.outputs.head_checkout_ref }}
       - uses: actions/checkout@v7
+        if: matrix.side == 'base'
         with:
           ref: ${{ needs.resolve.outputs.base_sha }}
           path: .bench/base-src
@@ -62,57 +89,32 @@ jobs:
       - name: Install metrics CLI
         run: python -m pip install --quiet .
       - name: Install base
+        if: matrix.side == 'base'
         run: |
-          python -m venv .bench/venv-base
-          .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
-      - name: Measure base
-        run: >-
-          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-base/bin/python
-          --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml --out .bench/base
-          --label "$BASE_LABEL ${GITHUB_BASE_SHA::7}"
-        env:
-          GITHUB_BASE_SHA: ${{ needs.resolve.outputs.base_sha }}
-          BASE_LABEL: ${{ needs.resolve.outputs.base_ref }}
-      - uses: actions/upload-artifact@v7
-        with:
-          name: metrics-base
-          path: .bench/base
-          retention-days: 1
-
-  measure-head:
-    needs: resolve
-    permissions:
-      contents: read
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.11"
-      - name: Install metrics CLI
-        run: python -m pip install --quiet .
+          python -m venv .bench/venv
+          .bench/venv/bin/python -m pip install --quiet ./.bench/base-src
       - name: Install head
+        if: matrix.side == 'head'
         run: |
-          python -m venv .bench/venv-head
-          .bench/venv-head/bin/python -m pip install --quiet .
-      - name: Measure head
+          python -m venv .bench/venv
+          .bench/venv/bin/python -m pip install --quiet .
+      - name: Measure
         run: >-
-          python -m tinarrative.cli benchmark metrics measure --python .bench/venv-head/bin/python
-          --samples benchmarks/samples --matrix benchmarks/matrix.toml --config benchmarks/config.toml --out .bench/head
-          --label "$HEAD_LABEL ${GITHUB_HEAD_SHA::7}"
+          python -m tinarrative.cli benchmark metrics measure --python .bench/venv/bin/python
+          --campaign "$SAMPLE" --samples benchmarks/samples --matrix benchmarks/matrix.toml
+          --config benchmarks/config.toml --out .bench/out --label "$LABEL ${REVISION::7}"
         env:
-          GITHUB_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
-          HEAD_LABEL: ${{ needs.resolve.outputs.head_ref }}
+          SAMPLE: ${{ matrix.sample }}
+          LABEL: ${{ matrix.side == 'base' && needs.resolve.outputs.base_ref || needs.resolve.outputs.head_ref }}
+          REVISION: ${{ matrix.side == 'base' && needs.resolve.outputs.base_sha || needs.resolve.outputs.head_sha }}
       - uses: actions/upload-artifact@v7
         with:
-          name: metrics-head
-          path: .bench/head
+          name: metrics-${{ matrix.side }}-${{ matrix.sample }}
+          path: .bench/out
           retention-days: 1
 
   compare:
-    needs: [resolve, measure-base, measure-head]
+    needs: [resolve, measure]
     permissions:
       contents: read
     runs-on: ubuntu-latest
@@ -127,12 +129,23 @@ jobs:
         run: python -m pip install --quiet .
       - uses: actions/download-artifact@v8
         with:
-          name: metrics-base
-          path: .bench/base
-      - uses: actions/download-artifact@v8
-        with:
-          name: metrics-head
-          path: .bench/head
+          pattern: metrics-*
+          path: .bench/parts
+      - name: Merge campaigns
+        run: |
+          for side in base head; do
+            mkdir -p ".bench/$side"
+            python -m tinarrative.cli benchmark metrics merge .bench/parts/metrics-$side-*/metrics.json \
+              --out ".bench/$side/metrics.json"
+            for part in .bench/parts/metrics-$side-*; do
+              for kept in packages narrate; do
+                if [ -d "$part/$kept" ]; then
+                  mkdir -p ".bench/$side/$kept"
+                  cp -R "$part/$kept/." ".bench/$side/$kept/"
+                fi
+              done
+            done
+          done
       - name: Compare
         run: |
           python -m tinarrative.cli benchmark metrics compare .bench/base/metrics.json .bench/head/metrics.json \
@@ -161,8 +174,8 @@ jobs:
       comment_marker: '<!-- package-metrics -->'
 
   failure-comment:
-    needs: [resolve, placeholder-comment, measure-base, measure-head, compare]
-    if: always() && !cancelled() && needs.resolve.outputs.pr_number != '' && (needs.measure-base.result == 'failure' || needs.measure-head.result == 'failure' || needs.compare.result == 'failure')
+    needs: [resolve, placeholder-comment, samples, measure, compare]
+    if: always() && !cancelled() && needs.resolve.outputs.pr_number != '' && (needs.samples.result == 'failure' || needs.measure.result == 'failure' || needs.compare.result == 'failure')
     permissions:
       actions: read
       pull-requests: write
