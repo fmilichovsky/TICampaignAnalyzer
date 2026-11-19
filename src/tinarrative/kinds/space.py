@@ -7,7 +7,7 @@ from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event, Role, Significance
 from ..model.kinds import EventKind, EvidenceRole, ShareOf, Template
-from ..model.values import FrozenMap, Unknown
+from ..model.values import FrozenMap, Observed, Unknown
 from .narrative import count as _count
 from .narrative import narrative_kind, role
 from .text import (
@@ -101,19 +101,13 @@ def _hab_destroyed(event: Event) -> str:
     return f"{_subject(event)} was destroyed{by}{on} {where}"
 
 
-def _battle_outcome(event: Event) -> str:
-    text = f"{_subject(event)} inflicted {_attr(event, 'kill_count')} kills on {_attr(event, 'victim')}"
-    losses = [
-        f"{render_value(count)} {label}{'' if count == 1 else 's'}"
-        for name, label in (("habs_lost", "hab"), ("fleets_lost", "fleet"))
+def _space_losses(event: Event) -> str:
+    parts = [
+        _count(count, label)
+        for name, label in (("ships_lost", "ship"), ("habs_lost", "hab"))
         if (count := event.attribute(name))
     ]
-    if losses:
-        text += f", which lost {' and '.join(losses)}"
-    won, lost = event.attribute("combats_won"), event.attribute("combats_lost")
-    if won or lost:
-        text += f"; recorded combats won {render_value(won)}, lost {render_value(lost)}"
-    return text
+    return f"{_subject(event)} destroyed {' and '.join(parts)} of {_attr(event, 'victim')}"
 
 
 def _destruction_recorded(event: Event) -> str:
@@ -206,49 +200,49 @@ FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     _trailing("docked location", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_ORBIT_CHANGED = EventKind(
     "fleet.orbit_changed",
     _trailing("orbit", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_BARYCENTER_CHANGED = EventKind(
     "fleet.barycenter_changed",
     _trailing("barycenter", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_PARENT_CHANGED = EventKind(
     "fleet.parent_fleet_changed",
     _trailing("parent fleet", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_IN_COMBAT_CHANGED = EventKind(
     "fleet.in_combat_changed",
     _trailing("in-combat flag", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_APPEARED = EventKind(
     "fleet.appeared",
     lambda event: _presence(event, EntityDomain.FACTION, "faction"),
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_DISAPPEARED = EventKind(
     "fleet.disappeared",
     lambda event: _presence(event, EntityDomain.FACTION, "faction"),
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FACTION_FLEETS_CHANGED = EventKind(
     "faction.fleets_changed",
@@ -282,7 +276,7 @@ SHIP_APPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     frozenset({"hull"}),
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 SHIP_DISAPPEARED = EventKind(
     "ship.disappeared",
@@ -290,7 +284,7 @@ SHIP_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     frozenset({"hull"}),
-    base=Significance.MINOR,
+    base=Significance.TRIVIAL,
 )
 FLEET_SHIPS_CHANGED = EventKind(
     "fleet.ships_changed",
@@ -365,7 +359,7 @@ HAB_DISAPPEARED = EventKind(
     lambda event: _presence(event, EntityDomain.FACTION, "faction"),
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
-    base=Significance.MAJOR,
+    base=Significance.TRIVIAL,
 )
 FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     "faction.hab_destruction_recorded",
@@ -373,7 +367,7 @@ FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     EvidenceRole.EVIDENCE,
     frozenset({"hab_type", "space_body", "destroyer", "recorded_on"}),
     frozenset({"hab", "owner"}),
-    base=Significance.MAJOR,
+    base=Significance.MINOR,
 )
 FACTION_COMBAT_RECORDED = EventKind(
     "faction.combat_recorded",
@@ -409,45 +403,47 @@ HAB_DESTROYED = EventKind(
     frozenset({"hab_type", "body", "signals", "ambiguous"}),
     frozenset({"destroyer", "recorded_on", "destroyers", "recorded_dates", "candidates", "vanished"}),
     share=ShareOf.HAB,
-    base=Significance.MINOR,
+    base=Significance.MAJOR,
 )
-# TODO(#303): not scaled until the attribution problems of combat and destruction records are settled.
-FACTION_BATTLE_OUTCOME = EventKind(
-    "faction.battle_outcome",
-    _battle_outcome,
+FACTION_SPACE_LOSSES = EventKind(
+    "faction.space_losses",
+    _space_losses,
     EvidenceRole.EVIDENCE,
-    frozenset(
-        {
-            "victim",
-            "kill_count",
-            "habs_lost",
-            "fleets_lost",
-            "destruction_entries",
-            "combats_won",
-            "combats_lost",
-            "battle_dates",
-            "signals",
-        }
-    ),
+    frozenset({"victim", "ships_lost", "habs_lost", "ships", "habs"}),
+    share=ShareOf.SPACE_LOSSES,
     base=Significance.MAJOR,
 )
 
 
+def _side_label(label: str, alien: Observed) -> str:
+    return f"the aliens ({label})" if alien is True else label
+
+
+def _lost(label: str, ships: Observed, habs: Observed) -> str:
+    lost = [_count(number, noun) for number, noun in ((ships, "ship"), (habs, "hab")) if number]
+    return f"{label} lost {' and '.join(lost) if lost else 'nothing'}"
+
+
+def _years(start: Observed, end: Observed) -> str:
+    first, last = (str(value)[:4] for value in (start, end))
+    return first if first == last else f"{first}\u2013{last}"
+
+
 def _space_campaign(event: Event) -> str:
-    target = role(event, Role.TARGET)
-    if event.attribute("victim_kind") == "alien":
-        target = f"the aliens ({target})"
-    text = f"{role(event, Role.ACTOR)} fought {target} over {_count(event.attribute('battles'), 'recorded outcome')}"
-    losses = [
-        _count(lost, label)
-        for key, label in (("habs_lost", "hab"), ("fleets_lost", "fleet"))
-        if (lost := event.attribute(key))
-    ]
-    if losses:
-        text += f", which lost {' and '.join(losses)}"
-    won, lost = event.attribute("combats_won"), event.attribute("combats_lost")
-    if won or lost:
-        text += f"; recorded combats won {render_value(won)}, lost {render_value(lost)}"
+    sides, aliens = event.attribute("sides"), event.attribute("alien")
+    ships, habs = event.attribute("ships_lost"), event.attribute("habs_lost")
+    won = event.attribute("combats_won")
+    assert isinstance(sides, tuple) and isinstance(aliens, tuple) and isinstance(ships, tuple)
+    assert isinstance(habs, tuple) and isinstance(won, tuple)
+    names = [render_event_value(side) for side in sides]
+    labels = [_side_label(name, alien) for name, alien in zip(names, aliens, strict=True)]
+    lost = ", ".join(_lost(label, *pair) for label, pair in zip(labels, zip(ships, habs, strict=True), strict=True))
+    text = f"{' and '.join(labels)} conducted hostile space manoeuvres, "
+    text += f"{_years(event.attribute('span_from'), event.attribute('span_to'))}: {lost}"
+    if event.attribute("combats"):
+        text += f"; {_count(event.attribute('combats'), 'recorded combat')}"
+        if any(won):
+            text += f", {render_value(won[0])} won by {names[0]} and {render_value(won[1])} by {names[1]}"
     if event.attribute("bodies"):
         text += f"; habs lost at {_refs(event, 'bodies')}"
     return text
@@ -472,20 +468,19 @@ SPACE_CAMPAIGN = narrative_kind(
     _space_campaign,
     required=frozenset(
         {
-            "victim_kind",
-            "battles",
+            "sides",
+            "alien",
+            "ships_lost",
             "habs_lost",
-            "fleets_lost",
+            "combats",
             "combats_won",
-            "combats_lost",
             "bodies",
             "span_from",
             "span_to",
         }
     ),
-    # The campaign of the opposite pair telling the same combats.
-    optional=frozenset({"mirror"}),
-    base=Significance.MAJOR,
+    base=Significance.MINOR,
+    share=ShareOf.SPACE_CAMPAIGN,
 )
 COLONISATION_WAVE = narrative_kind(
     "faction.colonisation_wave",
@@ -533,7 +528,7 @@ KINDS = (
     HAB_ESTABLISHED,
     FACTION_FIRST_HAB_ON_BODY,
     HAB_DESTROYED,
-    FACTION_BATTLE_OUTCOME,
+    FACTION_SPACE_LOSSES,
     SPACE_CAMPAIGN,
     COLONISATION_WAVE,
     FLEET_BUILDUP,

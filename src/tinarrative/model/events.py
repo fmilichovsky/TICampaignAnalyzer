@@ -128,6 +128,7 @@ class Role(StrEnum):
 
     ACTOR = "actor"
     TARGET = "target"
+    SIDE = "side"
     BENEFICIARY = "beneficiary"
     LOSER = "loser"
     ASSISTING = "assisting"
@@ -142,6 +143,7 @@ class Role(StrEnum):
 ROLE_ORDER: tuple[Role, ...] = (
     Role.ACTOR,
     Role.TARGET,
+    Role.SIDE,
     Role.BENEFICIARY,
     Role.LOSER,
     Role.ASSISTING,

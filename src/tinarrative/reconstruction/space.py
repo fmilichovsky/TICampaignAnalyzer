@@ -1,4 +1,4 @@
-"""Reconstruction rules for space: hab established, first hab on a body, hab destroyed, battle outcome.
+"""Reconstruction rules for space: hab established, first hab on a body, hab destroyed, space losses.
 
 The space analyzers only report presence and log entries; these rules name the narrative event. The joins and their
 evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space joins, hab lifecycle).
@@ -9,21 +9,19 @@ evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space jo
   ``First*Base*`` milestone is cited only when it is unambiguous (labels name places, not body IDs).
 - ``hab.destroyed``: a vanished hab joined to destruction log entries by faction, hab type and body; high when
   one entry matches or a ``LogHabDestroyed`` notification pins the date, else medium (``ambiguous``) or low.
-- ``faction.battle_outcome``: ``Kills`` growth against a victim plus a loss of the victim; medium, high with a
-  combat log won by the killer or a battle notification the combat log does not contradict. Self-kills are no
-  battle.
+- ``faction.space_losses``: the victim's vanished ships whose names its destroyer's ``Kills`` gained, and the habs
+  of non-ambiguous ``hab.destroyed``; high (ADR-0023).
 """
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
 from ..analyzers.campaign.global_values import MILESTONE_RECORDED
 from ..analyzers.campaign.notifications import PREFIX as NOTIFICATION_PREFIX
 from ..analyzers.common import EventBuilder, Lookup, Side
-from ..analyzers.space.combat import side_factions
 from ..kinds import space
 from ..model.changes import ChangeKind, RecordsDetail, StateDiff
 from ..model.entities import EntityDomain, EntityId, EntityRef
@@ -36,18 +34,17 @@ from .common import ObjectiveIndex, Support, inferred
 HAB_ESTABLISHED = space.HAB_ESTABLISHED.event_type
 FIRST_HAB_ON_BODY = space.FACTION_FIRST_HAB_ON_BODY.event_type
 HAB_DESTROYED = space.HAB_DESTROYED.event_type
-BATTLE_OUTCOME = space.FACTION_BATTLE_OUTCOME.event_type
-RULE_TYPES = (HAB_ESTABLISHED, FIRST_HAB_ON_BODY, HAB_DESTROYED, BATTLE_OUTCOME)
-__all__ = ["BATTLE_OUTCOME", "FIRST_HAB_ON_BODY", "HAB_DESTROYED", "HAB_ESTABLISHED", "RULE_TYPES", "space_events"]
+SPACE_LOSSES = space.FACTION_SPACE_LOSSES.event_type
+RULE_TYPES = (HAB_ESTABLISHED, FIRST_HAB_ON_BODY, HAB_DESTROYED, SPACE_LOSSES)
+__all__ = ["FIRST_HAB_ON_BODY", "HAB_DESTROYED", "HAB_ESTABLISHED", "RULE_TYPES", "SPACE_LOSSES", "space_events"]
 
 CORE_COMPLETED = "anyCoreCompleted"
 CORE_DATES = ("corePriorCompletionDate", "coreCompletionDate")
 """Candidate completion dates; the prior one is the first core's when an upgrade began in the same interval."""
 
 HAB_DESTROYED_NOTIFICATION = NOTIFICATION_PREFIX + "LogHabDestroyed"
-BATTLE_NOTIFICATION = NOTIFICATION_PREFIX + "LogSpaceBattleTakesPlace"
 KILLS_FIELD = "Kills"
-"""``TIFactionState.Kills``: victim faction -> display names of destroyed assets (never copied, only counted)."""
+"""``TIFactionState.Kills``: victim faction -> display names of destroyed assets (compared, never copied)."""
 MILESTONE_PREFIX = "First"
 MILESTONE_BASE = "Base"
 """First-base milestone labels start with ``First`` and contain ``Base`` (``FirstBaseOnLuna``, ``FirstMercuryBase``)."""
@@ -81,11 +78,12 @@ def space_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSnaps
     """Every space inference of one interval (unsorted)."""
     context = SpaceContext(events, before, after, diff)
     foundings = _foundings(context)
+    destroyed = _destroyed_habs(context)
     return [
         *(_established(context, founding) for founding in foundings),
         *_first_habs(context, foundings),
-        *_destroyed_habs(context),
-        *_battle_outcomes(context),
+        *destroyed,
+        *_space_losses(context, destroyed),
     ]
 
 
@@ -357,134 +355,135 @@ def _ambiguous_destroyed(
     )
 
 
-# --- faction.battle_outcome -------------------------------------------------------------------------------------
+# --- faction.space_losses ---------------------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class _Kills:
-    """Growth of one killer's ``Kills`` list against one victim, with the citation of that entry."""
+class _Gained:
+    """What one destroyer's ``Kills`` list gained against one victim in the interval, with the citation."""
 
-    killer: EntityId
+    destroyer: EntityId
     victim: EntityRef
-    count: int
+    names: Counter[str]
+    """Display names by count; compared in memory only, never copied (free text)."""
     source: EventSource
 
 
-def _kills(context: SpaceContext) -> list[_Kills]:
-    found: list[_Kills] = []
+def _gained(context: SpaceContext) -> list[_Gained]:
+    found: list[_Gained] = []
     for change in context.index.fields(EntityDomain.FACTION, KILLS_FIELD):
         if change.kind is not ChangeKind.RECORDS or not isinstance(change.detail, RecordsDetail):
             continue
-        killer = change.entity_id
-        assert killer is not None
-        record_set = context.lookup.record_set(killer, KILLS_FIELD, Side.AFTER)
-        grown: list[tuple[KeyedEntry, int]] = [
-            (entry, len(entry.value))
+        destroyer = change.entity_id
+        assert destroyer is not None
+        record_set = context.lookup.record_set(destroyer, KILLS_FIELD, Side.AFTER)
+        grown: list[tuple[KeyedEntry, Counter[str]]] = [
+            (entry, Counter(_names(entry.value)))
             for entry in change.detail.added
             if isinstance(entry, KeyedEntry) and isinstance(entry.value, tuple)
         ]
         for old, new in change.detail.changed:
             if isinstance(old, KeyedEntry) and isinstance(new, KeyedEntry):
                 if isinstance(old.value, tuple) and isinstance(new.value, tuple):
-                    grown.append((new, len(new.value) - len(old.value)))
-        for entry, count in grown:
+                    grown.append((new, Counter(_names(new.value)) - Counter(_names(old.value))))
+        for entry, names in grown:
             victim = entry.key
-            if count <= 0 or not isinstance(victim, EntityRef) or victim.entity_id == killer:
+            if not names or not isinstance(victim, EntityRef) or victim.entity_id == destroyer:
                 continue
             location = record_set.entry_location(entry) if record_set is not None else None
-            found.append(_Kills(killer, victim, count, EventSource(change, SourceRole.PRIMARY, victim, location)))
+            found.append(_Gained(destroyer, victim, names, EventSource(change, SourceRole.PRIMARY, victim, location)))
     return found
 
 
-def _battle_outcomes(context: SpaceContext) -> list[Event]:
-    hab_losses = _losses_by_faction(context, space.HAB_DISAPPEARED.event_type)
-    fleet_losses = _losses_by_faction(context, space.FLEET_DISAPPEARED.event_type)
-    destructions = context.of_type(space.FACTION_HAB_DESTRUCTION_RECORDED.event_type)
-    combats = context.of_type(space.FACTION_COMBAT_RECORDED.event_type)
-    battles = context.of_type(BATTLE_NOTIFICATION)
+def _names(value: tuple[Observed, ...]) -> list[str]:
+    return [item for item in value if isinstance(item, str)]
+
+
+@dataclass
+class _Losses:
+    """What one destroyer took from one victim: tied ships, tied habs and the ``Kills`` entries that tied the ships."""
+
+    ships: list[Event] = field(default_factory=list)
+    habs: list[Event] = field(default_factory=list)
+    kills: list[EventSource] = field(default_factory=list)
+
+
+def _space_losses(context: SpaceContext, destroyed: Sequence[Event]) -> list[Event]:
+    pairs: dict[tuple[EntityId, EntityId], _Losses] = defaultdict(_Losses)
+    victims: dict[EntityId, EntityRef] = {}
+
+    vanished: dict[tuple[EntityId, str], list[Event]] = defaultdict(list)
+    for event in context.of_type(space.SHIP_DISAPPEARED.event_type):
+        owner = event.entities[2] if len(event.entities) > 2 else None
+        name = _subject(event).name
+        if owner is not None and name is not None:
+            vanished[(owner.entity_id, name)].append(event)
+
+    gained = _gained(context)
+    destroyers: dict[tuple[EntityId, str], set[EntityId]] = defaultdict(set)
+    for entry in gained:
+        victims[entry.victim.entity_id] = entry.victim
+        for name in entry.names:
+            destroyers[(entry.victim.entity_id, name)].add(entry.destroyer)
+    for entry in gained:
+        victim = entry.victim.entity_id
+        for name, count in entry.names.items():
+            ships = vanished.get((victim, name))
+            if not ships or destroyers[(victim, name)] != {entry.destroyer}:
+                continue  # nothing vanished under that name, or several destroyers gained it: none is credited
+            tied = sorted(ships, key=lambda event: event.id)[:count]
+            losses = pairs[(entry.destroyer, victim)]
+            losses.ships.extend(tied)
+            if entry.source not in losses.kills:
+                losses.kills.append(entry.source)
+
+    for hab in destroyed:
+        by, owner = hab.attribute("destroyer"), hab.entities[1] if len(hab.entities) > 1 else None
+        if hab.attribute("ambiguous") is not False or not isinstance(by, EntityRef) or owner is None:
+            continue
+        if by.entity_id == owner.entity_id:
+            continue  # a faction's own hab is no one's loss to credit, as with self-keyed Kills
+        pairs[(by.entity_id, owner.entity_id)].habs.append(hab)
+        victims.setdefault(owner.entity_id, owner)
 
     inferred_events: list[Event] = []
-    for kills in sorted(_kills(context), key=lambda item: (item.killer.sort_key, item.victim.entity_id.sort_key)):
-        killer, victim = kills.killer, kills.victim.entity_id
-        victim_ref = context.lookup.resolve(kills.victim)
-        habs = hab_losses.get(victim, ())
-        fleets = fleet_losses.get(victim, ())
-        entries = tuple(
-            event
-            for event in destructions
-            if event.sources[0].change.entity_id == victim and _is(event.attribute("destroyer"), killer)
-        )
-        if not (habs or fleets or entries):
-            continue  # kills alone may be councilors or modules; no loss to tie them to
-        pair = {killer, victim}
-        fought = [
-            event for event in combats if pair <= {ref.entity_id for ref in side_factions(event.attribute("sides"))}
-        ]
-        won = tuple(event for event in fought if _is(event.attribute("winner"), killer))
-        lost = tuple(event for event in fought if _is(event.attribute("winner"), victim))
-        notified = tuple(event for event in battles if _fleet_faction(context, event.attribute("subject")) & pair)
-        signals = tuple(
-            name
-            for name, present in (
-                ("kills", True),
-                ("hab_losses", habs),
-                ("fleet_losses", fleets),
-                ("destruction_log", entries),
-                ("combat_log", won),
-                ("battle_notification", notified),
-            )
-            if present
-        )
-        inferred_events.append(
-            inferred(
-                context.build,
-                space.FACTION_BATTLE_OUTCOME,
-                id_parts=(killer, victim),
-                primary=(*habs, *fleets),
-                primary_changes=(kills.source,),
-                support=Support(events=entries + won + lost + notified),
-                entities=(context.ref(killer), victim_ref),
-                attributes=(
-                    ("victim", victim_ref),
-                    ("kill_count", kills.count),
-                    ("habs_lost", len(habs)),
-                    ("fleets_lost", len(fleets)),
-                    ("destruction_entries", len(entries)),
-                    ("combats_won", len(won)),
-                    ("combats_lost", len(lost)),
-                    ("battle_dates", tuple(sorted(str(event.date) for event in notified))),
-                    ("signals", signals),
-                ),
-                confidence=Confidence.HIGH if won or (notified and not lost) else Confidence.MEDIUM,
-            )
-        )
+    for (destroyer, victim), losses in sorted(pairs.items(), key=lambda item: tuple(k.sort_key for k in item[0])):
+        if not (losses.ships or losses.habs):
+            continue
+        inferred_events.append(_losses_event(context, destroyer, victims[victim], losses))
     return inferred_events
 
 
-def _losses_by_faction(context: SpaceContext, event_type: str) -> dict[EntityId, tuple[Event, ...]]:
-    """The ``*.disappeared`` events of ``event_type`` by the faction owning the entity in the earlier snapshot."""
-    losses: dict[EntityId, list[Event]] = defaultdict(list)
-    for event in context.of_type(event_type):
-        faction = context.faction_of(_subject(event).entity_id, Side.BEFORE)
-        if faction is not None:
-            losses[faction].append(event)
-    return {faction: tuple(events) for faction, events in losses.items()}
-
-
-def _fleet_faction(context: SpaceContext, subject: Observed) -> set[EntityId]:
-    """The factions owning a fleet in either snapshot; empty for any other subject."""
-    if not isinstance(subject, EntityRef) or subject.entity_id.domain is not EntityDomain.FLEET:
-        return set()
-    owners = (context.faction_of(subject.entity_id, side) for side in (Side.BEFORE, Side.AFTER))
-    return {owner for owner in owners if owner is not None}
-
-
-def _is(value: Observed, entity_id: EntityId) -> bool:
-    return isinstance(value, EntityRef) and value.entity_id == entity_id
-
-
-def _ref(value: Observed) -> EntityRef | None:
-    return value if isinstance(value, EntityRef) else None
+def _losses_event(context: SpaceContext, destroyer: EntityId, victim: EntityRef, losses: _Losses) -> Event:
+    victim_ref = context.lookup.resolve(victim) or victim
+    ships = sorted(losses.ships, key=lambda event: _subject(event).entity_id.sort_key)
+    ship_refs = tuple(_subject(event) for event in ships)
+    hab_events = [
+        context.objective.by_id[item]
+        for hab in losses.habs
+        for item in hab.constituents
+        if item in context.objective.by_id
+    ]
+    disappeared = [event for event in hab_events if event.event_type == space.HAB_DISAPPEARED.event_type]
+    entries = [event for event in hab_events if event.event_type != space.HAB_DISAPPEARED.event_type]
+    hab_refs = tuple(sorted((_subject(event) for event in disappeared), key=lambda ref: ref.entity_id.sort_key))
+    return inferred(
+        context.build,
+        space.FACTION_SPACE_LOSSES,
+        id_parts=(destroyer, victim.entity_id),
+        primary=(*ships, *disappeared),
+        primary_changes=tuple(losses.kills),
+        support=Support(events=tuple(entries)),
+        entities=(context.ref(destroyer), victim_ref, *ship_refs, *hab_refs),
+        attributes=(
+            ("victim", victim_ref),
+            ("ships_lost", len(ship_refs)),
+            ("habs_lost", len(hab_refs)),
+            ("ships", ship_refs),
+            ("habs", hab_refs),
+        ),
+        confidence=Confidence.HIGH,
+    )
 
 
 def _named(context: SpaceContext, value: Observed) -> EntityRef | None:
