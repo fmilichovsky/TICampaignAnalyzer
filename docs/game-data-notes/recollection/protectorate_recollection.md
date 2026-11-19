@@ -57,11 +57,43 @@ Meanwhile, the Protectorate slowly wrestles majority control over Earth's orbits
 large ring hab complexes. Many of these stations eventually construct the so-called "Sentinel Complexes", which are officially presented as defensive bastions to maintain Earth's sovereignty, but also have large destructive capability against the surface.
 This destructive threat is used to sway multiple nations, mainly in Europe, towards coming to peaceful terms with the Aliens.
 
-Massive alien fleets enter Earth's orbit, and deploy massive military platforms
-with advanced technology assist the AA's conventional human armies.
+This shift in alignment in Europe also coincides with several chains of deaths of high-profile people aligned
+with hardline-militant ideologies, which were so prevalent in Europe so far.
+
+Large alien fleets enter Earth's orbit, and deploy massive military platforms
+with advanced technology that assist the AA's conventional human armies.
 
 The AA enters wars with several of the world's largest powers - first India, then the power bloc of the United States, China, which support West Germany's attempt to break free and leave the AA's sphere of influence.
+The bastions of Resistance's power - Turkey and Japan - enter conflict with the AA as well.
 
 Indian government, under pressure from AA's invasion armies and background threats about the Sentinel complexes being deployed against its territory, quickly folds and realigns itself with the Protectorate. The new state representatives decisively execute
 a desperate measure and deploy a nuclear barrage on their own territory in Guwahati to
 slow down the progressing invaders. This move proves successful, forcing the AA to sue for peace with India. A separate peace treaty with the US-China-West Germany alliance is soon reached as well.
+
+## 2035-2036 - status quo settling
+
+The AA slows down its agression and expansion, bogged down by internal unrest. It still manages to annex Instabul from Turkey, gaining control of the strategically important Strait of Bosporus.
+
+No major geopolitical shifts happen otherwise - Protectorate's policy of appeasment continues to slowly spread in Europe
+and South Asia, the United States continues to expand its expeditionary forces and improve its military technology
+to be able to assert itself as the global protector and counterweight to the Alien Administration.
+
+Two small probes/colonization vessels head out towards the moon of Jupiter and are promptly destroyed on arrival,
+which is a clear statement from the aliens that they won't accept any human presence beyond the asteroid belt.
+
+Multiple large engineering projects begin to be completed across Protectorate-controlled nations, reinforcing
+these countries' image as being focused on the well-being and prosperity of humanity without desire for needless conflict.
+
+The final months of 2036 see another spike of nuclear proliferation and deployment - South Korea, being slowly occupied by
+alien war platforms, launches nukes defensively on its own territory in an attempt to slow down the alien forces.
+Kazakhstan develops its own nuclear arsenal, in anticipation or in hopes of deterrence against its neighbouring Alien Administration.
+
+## 2037 - New wave of aggression
+
+The dominant powers on Earth start launching multiple one-sided military operations against various states across the world.
+The US, backed by several of its allies, declares war on Algeria, while India does the same to Nepal.
+
+Shortly after, the coalition of India, US, Vietnam, and their allies declare war on Laos and Cambodia, which pulls in the AA
+as their guarantor. Due to the superior naval strength of the coalition, the AA can't deploy more troops to help out its South
+Asian allies, and the entire subcontinent falls to the hands of India. The AA enters into a peace agreement with the coalition
+shortly after.
