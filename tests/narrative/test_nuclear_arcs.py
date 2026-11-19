@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tests.narrative.support import atomic, nation, nation_row, situation
-from tinarrative.config import GeopoliticsSettings, NarrativeSettings, NationMetricsSettings
+from tinarrative.config import NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import NUCLEAR_PROGRAM_CHANGED, STATISTIC_SHIFTED
 from tinarrative.model.entities import EntityRef
@@ -65,10 +65,7 @@ def reports(gdp: Observed = 1.0) -> list[SituationReport]:
 
 
 def built(stream: list[Event], situations: list[SituationReport] | None = None, **settings: object) -> list[Event]:
-    narrative = NarrativeSettings(
-        geopolitics=GeopoliticsSettings(top_gdp_nations=1),
-        nation_metrics=NationMetricsSettings(**settings),  # type: ignore[arg-type]
-    )
+    narrative = NarrativeSettings(nation_metrics=NationMetricsSettings(**settings))  # type: ignore[arg-type]
     events = aggregate(stream, reports() if situations is None else situations, narrative_rules(narrative))
     return [event for event in events if event.event_type in ARCS]
 

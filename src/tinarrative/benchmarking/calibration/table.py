@@ -93,9 +93,8 @@ def _draft_row(
     cited = [by_id[item] for item in event.constituents]
     first, last = stakes.get(event.intervals[0]), stakes.get(event.intervals[-1])
     base = draft_base(draft)
-    geopolitics = DEFAULT_SETTINGS.narrative.geopolitics
     results = [
-        score_narrative(kind, event, cited, geopolitics, scaling=scaling, base=base, stakes=first, last=last)
+        score_narrative(kind, event, cited, scaling=scaling, base=base, stakes=first, last=last)
         for scaling in draft.scalings
     ]
     scored = [result for result in results if result.basis is not None]
@@ -143,7 +142,7 @@ def _own_base(event: Event, narrative: bool) -> int:
     kind = kind_for(event.event_type)
     if kind is None:
         raise CalibrationTableError(f"event type {event.event_type} is declared by no kind")
-    return narrative_level(kind, event, DEFAULT_SETTINGS.narrative.geopolitics).base
+    return narrative_level(kind, event).base
 
 
 def layers() -> dict[str, int]:

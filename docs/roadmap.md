@@ -76,7 +76,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Nuclear arsenal share (#360).
   - [ ] Space program share (#361).
   - [x] Space and faction stakes (#200).
-  - [ ] Remove the top-N promotion (#362).
+  - [x] Remove the top-N promotion (#362).
   - [ ] Narrator length and recall by score (#201).
 - [ ] Stake calibration dashboard (#446):
   - [x] Stake measure registry, no nuclear bonus (#458).

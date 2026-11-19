@@ -5,7 +5,6 @@ See ADR-0009. Rules run in layers derived from what they read and from which kin
 
 from __future__ import annotations
 
-import copy
 import time
 from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -16,7 +15,7 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Protocol
 
 from ..analyzers.common import event_id
-from ..config import DEFAULT_SETTINGS, GeopoliticsSettings, SignificanceSettings
+from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..kinds import attributes as kind_attributes
 from ..kinds import kind_for
 from ..log import TIMING_LOGGER, fields, get_logger
@@ -184,20 +183,11 @@ class NarrativeBuilder:
     def __init__(
         self,
         situations: Sequence[SituationReport],
-        geopolitics: GeopoliticsSettings = DEFAULT_SETTINGS.narrative.geopolitics,
         significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
     ) -> None:
         self._situations = tuple(situations)
         self._last = self._situations[-1] if self._situations else None
-        self._geopolitics = geopolitics
         self._stakes = report_stakes(self._situations, significance)
-
-    def scoring_with(self, geopolitics: GeopoliticsSettings) -> NarrativeBuilder:
-        """This builder, scoring by the rule's own settings and sharing its measured stakes. TODO(#362): goes with
-        ``top_gdp_nations``."""
-        scoring = copy.copy(self)
-        scoring._geopolitics = geopolitics
-        return scoring
 
     def event(
         self,
@@ -263,7 +253,7 @@ class NarrativeBuilder:
             roles=role_list,
         )
         score, basis, rule = narrative_score(
-            kind, event, cited, self._geopolitics, self._stakes.get(intervals[0]), self._stakes.get(intervals[-1])
+            kind, event, cited, self._stakes.get(intervals[0]), self._stakes.get(intervals[-1])
         )
         return replace(
             event, significance=Significance.of(score), score=score, significance_basis=basis, context_rule=rule
