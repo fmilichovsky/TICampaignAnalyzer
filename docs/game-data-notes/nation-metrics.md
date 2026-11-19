@@ -308,7 +308,7 @@ occupation made the owner's estimate unknown.
 
 Observed 2026-11-07 on the first, the 2027-07 and the latest (2032-11) Protectorate saves and the first and last
 Resist saves, with occupied regions weighed as above; the Appease saves were no longer available. The power share is
-the mean of a nation's shares of world GDP, population and strength, one third each (`narrative/prominence.py`). The
+the mean of a nation's shares of world GDP, population and strength, one third each (`narrative/shares.py`). The
 shares built from the snapshot and from its situation report were identical, and summed to 1, in all five saves.
 
 | Campaign | Save | Nations with a share | Largest power share | Largest GDP share | Top-10 overlap | Median rank shift |

@@ -3,7 +3,7 @@
 A post-pass, so no analyzer has to judge impact. Evidence for the entries is in
 ``docs/game-data-notes/higher-level-event-sources.md``. Notification templates are never ranked: the game's own log
 is player-centric and open-ended. Narrative events span intervals and keep no snapshot: ``narrative_score`` scores
-each as the narrative builder builds it, its share read from the situation reports of its first interval.
+each as the narrative builder builds it, its share read from the saves' shares of its first interval.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ import math
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import assert_never
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
@@ -32,18 +31,7 @@ from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
 from .measures import MEASURES, SCALE_MAX, SCALE_MIN
 from .milestones import MILESTONE_TEMPLATES, milestone_of
-from .prominence import (
-    ALIEN_MASS_WEIGHT,
-    FLEET_SATURATION,
-    ShipMasses,
-    contested_mass,
-    nation_power,
-    organization_shares,
-    region_shares,
-    ship_masses,
-    total,
-)
-from .situation import SituationReport, build_situation
+from .shares import ALIEN_MASS_WEIGHT, FLEET_SATURATION, SaveShares, ShipMasses, build_shares, contested_mass, total
 
 __all__ = [
     "RULE_IMPLEMENTATIONS",
@@ -53,7 +41,7 @@ __all__ = [
     "NarrativeContextRule",
     "NarrativeShareReading",
     "NarrativeScore",
-    "ReportShares",
+    "IntervalShares",
     "ShareReading",
     "Significance",
     "Shares",
@@ -225,39 +213,17 @@ RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
 # --- Shares -----------------------------------------------------------------------------------------------
 
 
-class _IntervalShares:
-    """The prominence shares of the two sides of one interval, each measured on first use (``_measured``)."""
+class IntervalShares:
+    """The shares of the two saves of one interval, the earlier side read first."""
 
-    def __init__(self, settings: SignificanceSettings) -> None:
-        self.settings = settings
-        self._shares: dict[tuple[Measure, Side], dict[EntityId, float]] = {}
+    def __init__(self, before: SaveShares, after: SaveShares) -> None:
+        self._saves = {Side.BEFORE: before, Side.AFTER: after}
 
-    def _measured(self, measure: Measure, side: Side) -> dict[EntityId, float]:
-        raise NotImplementedError
+    def save(self, side: Side) -> SaveShares:
+        return self._saves[side]
 
-    def _report(self, side: Side) -> SituationReport:
-        raise NotImplementedError
-
-    def _space_measured(self, measure: Measure, side: Side) -> dict[EntityId, float]:
-        """The hab, fleet and faction shares, read from the side's situation report."""
-        report = self._report(side)
-        match measure:
-            case Measure.HAB:
-                return report.hab_shares()
-            case Measure.FLEET:
-                return report.fleet_shares()
-            case Measure.FACTION:
-                return report.faction_shares(self.settings.power, self.settings.w_space)
-            case Measure.POWER | Measure.POPULATION | Measure.ORGANIZATION | Measure.BATTLE | Measure.NUCLEAR:
-                raise ValueError(f"{measure} is not a space or faction measure")
-            case _:
-                assert_never(measure)
-
-    def shares(self, measure: Measure, side: Side) -> dict[EntityId, float]:
-        key = (measure, side)
-        if key not in self._shares:
-            self._shares[key] = self._measured(measure, side)
-        return self._shares[key]
+    def shares(self, measure: Measure, side: Side) -> Mapping[EntityId, float]:
+        return self._saves[side].of(measure)
 
     def share(self, measure: Measure, entities: Iterable[EntityId]) -> float | None:
         """The summed share of the distinct ``entities`` on the interval's earlier side, an entity without one there
@@ -269,6 +235,10 @@ class _IntervalShares:
             if entity in before or entity in after
         }
         return total(found, found) if found else None
+
+    def world_warheads(self, side: Side) -> float | None:
+        """The warheads of every nation in the side's save whose count is known; ``None`` when no count is known."""
+        return self._saves[side].world_warheads
 
 
 def _is_design_count(value: object) -> bool:
@@ -282,45 +252,19 @@ def _is_design_count(value: object) -> bool:
     )
 
 
-class Shares(_IntervalShares):
-    """The prominence shares of the two snapshots of one interval: an atomic event's shares."""
+class Shares(IntervalShares):
+    """The shares of the two snapshots of one interval, with the snapshots' lookup: an atomic event's shares."""
 
     def __init__(
         self,
-        before: SaveSnapshot,
-        after: SaveSnapshot,
-        settings: SignificanceSettings,
+        before: SaveShares,
+        after: SaveShares,
+        lookup: Lookup,
         evidence: Iterable[Event] = (),
     ) -> None:
-        super().__init__(settings)
-        self.lookup = Lookup(before, after)
-        self._snapshots = {Side.BEFORE: before, Side.AFTER: after}
+        super().__init__(before, after)
+        self.lookup = lookup
         self._evidence = {event.id: event for event in evidence}
-        self._reports: dict[Side, SituationReport] = {}
-        self._masses: ShipMasses | None = None
-
-    def _report(self, side: Side) -> SituationReport:
-        if side not in self._reports:
-            self._reports[side] = build_situation(self._snapshots[side])
-        return self._reports[side]
-
-    def _measured(self, measure: Measure, side: Side) -> dict[EntityId, float]:
-        snapshot = self._snapshots[side]
-        match measure:
-            case Measure.POWER:
-                return nation_power(snapshot, self.settings.power)
-            case Measure.POPULATION:
-                return region_shares(snapshot)
-            case Measure.ORGANIZATION:
-                return organization_shares(snapshot, self.settings.tier_exponent)
-            case Measure.HAB | Measure.FLEET | Measure.FACTION:
-                return self._space_measured(measure, side)
-            case Measure.BATTLE:
-                raise ValueError("a battle share is read from a combat record, not from shares")
-            case Measure.NUCLEAR:
-                raise ValueError("a nuclear share is a narrative arc's net move, not an interval's shares")
-            case _:
-                assert_never(measure)
 
     def contested_share(self, event: Event) -> tuple[float, tuple[EntityRef, ...]] | None:
         """A recorded combat's contested mass over the world's weighted ship mass in the interval's earlier snapshot,
@@ -340,11 +284,10 @@ class Shares(_IntervalShares):
             sides.append((side[0], tuple(ship for ship in side[1] if _is_design_count(ship))))  # type: ignore[misc]
         if not 1 <= len(sides) <= 2 or (len(sides) == 1 and isinstance(entry.hab_faction, EntityRef)):
             return None
-        if self._masses is None:
-            self._masses = ship_masses(self._snapshots[Side.BEFORE])
-        masses = [self._side_mass(faction, ships, self._masses) for faction, ships in sides]
+        earlier = self.save(Side.BEFORE)
+        masses = [self._side_mass(faction, ships, earlier.masses) for faction, ships in sides]
         contested = contested_mass(masses[0], masses[1]) if len(masses) == 2 else 0.0
-        world = max(self._report(Side.BEFORE).world.weighted_ship_mass, FLEET_SATURATION)
+        world = max(earlier.world_ship_mass, FLEET_SATURATION)
         return contested / world, tuple(self.lookup.resolve(faction) or faction for faction, _ in sides)
 
     def _side_mass(self, faction: EntityRef, ships: tuple[tuple[str, str, int], ...], masses: ShipMasses) -> float:
@@ -370,39 +313,6 @@ class Shares(_IntervalShares):
 
     def cited(self, event: Event) -> tuple[Event, ...]:
         return tuple(self._evidence[item] for item in event.constituents if item in self._evidence)
-
-
-class ReportShares(_IntervalShares):
-    """The prominence shares of the two situation reports of a narrative event's first interval. A report states no
-    organization tiers, so a narrative share is a power, population, hab or fleet share."""
-
-    def __init__(self, before: SituationReport, after: SituationReport, settings: SignificanceSettings) -> None:
-        super().__init__(settings)
-        self._reports = {Side.BEFORE: before, Side.AFTER: after}
-
-    def _report(self, side: Side) -> SituationReport:
-        return self._reports[side]
-
-    def _measured(self, measure: Measure, side: Side) -> dict[EntityId, float]:
-        report = self._reports[side]
-        match measure:
-            case Measure.POWER:
-                return report.power_shares(self.settings.power)
-            case Measure.POPULATION:
-                return report.population_shares()
-            case Measure.HAB | Measure.FLEET | Measure.FACTION:
-                return self._space_measured(measure, side)
-            case Measure.ORGANIZATION | Measure.BATTLE | Measure.NUCLEAR:
-                raise ValueError(f"a situation report states no {measure} shares")
-            case _:
-                assert_never(measure)
-
-    def world_warheads(self, side: Side) -> float | None:
-        """The warheads of every nation in the side's report whose count is known (ADR-0005: absent is not zero);
-        ``None`` when no count is known."""
-        counts = [number(row.nuclear_weapons) for row in self._reports[side].nations]
-        known = [count for count in counts if count is not None]
-        return math.fsum(known) if known else None
 
 
 EntitiesOf = Callable[[Event, Shares], tuple[EntityId, ...]]
@@ -495,7 +405,7 @@ NarrativeEntitiesOf = Callable[[Event, Sequence[Event]], tuple[EntityRef, ...]]
 @dataclass(frozen=True)
 class NarrativeShareReading:
     """A narrative-event ``ShareOf``'s implementation: its measure and the entities (of the event, or of the events it
-    cites) whose summed share, in the situation reports of the event's first interval, is the share; no entities, no
+    cites) whose summed share, in the shares of the event's first interval, is the share; no entities, no
     scale."""
 
     measure: Measure
@@ -591,10 +501,8 @@ def _scale(share: float, reference: float) -> int:
 
 def _points(shares: Shares, nation: EntityId) -> int:
     for side in (Side.BEFORE, Side.AFTER):
-        state = shares.lookup.state(nation, side)
-        held = state.get("controlPoints") if state is not None else None
-        if isinstance(held, tuple) and held:
-            return len(held)
+        if held := shares.save(side).control_points.get(nation):
+            return held
     return 1
 
 
@@ -630,8 +538,8 @@ def _narrative_basis(
     event: Event,
     cited: Sequence[Event],
     level: Significance,
-    shares: ReportShares,
-    last: ReportShares,
+    shares: IntervalShares,
+    last: IntervalShares,
 ) -> SignificanceBasis | None:
     refs = _unique(reading.entities(event, cited))
     if reading.net_move:
@@ -657,7 +565,7 @@ def narrative_share_reading(kind: EventKind, event: Event) -> NarrativeShareRead
     return reading
 
 
-def _nuclear_share(event: Event, first: ReportShares, last: ReportShares) -> float | None:
+def _nuclear_share(event: Event, first: IntervalShares, last: IntervalShares) -> float | None:
     """The arc's net move, its first ``before`` to its last ``after``, over the larger world total of the earlier report
     of its first interval and the later report of its last (ADR-0011). A report missing counts can total less than the
     move, so the move bounds the total. ``None`` when a count of the move or both world totals are unknown, or nothing
@@ -773,8 +681,8 @@ def score_narrative(
     *,
     reading: NarrativeShareReading | None,
     base: Significance,
-    shares: ReportShares | None = None,
-    last: ReportShares | None = None,
+    shares: IntervalShares | None = None,
+    last: IntervalShares | None = None,
 ) -> NarrativeScore:
     """The event scored against ``reading`` and ``base`` instead of its kind's own: ``narrative_score`` with the
     share and the base level given. The kind's context rule still decides first; ``base`` applies only where it
@@ -798,8 +706,8 @@ def narrative_score(
     kind: EventKind,
     event: Event,
     cited: Iterable[Event],
-    shares: ReportShares | None = None,
-    last: ReportShares | None = None,
+    shares: IntervalShares | None = None,
+    last: IntervalShares | None = None,
 ) -> tuple[int, SignificanceBasis | None, Rule | None]:
     """The score, its basis and the context rule that decided the own level (``None`` when the base level stood):
     the higher of the kind's own score and the highest score among the ``cited`` events
@@ -822,11 +730,16 @@ def assign_significance(
     settings: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
     *,
     evidence: Iterable[Event] = (),
+    shares: tuple[SaveShares, SaveShares] | None = None,
 ) -> tuple[Event, ...]:
     """Each event gets its score (its level's base, moved by its share when the type has one) and the level
-    of that score; keeps the given order. ``evidence`` are the events a reconstructed one may cite for its share."""
-    shares = Shares(before, after, settings, evidence)
-    assigned = tuple(_ranked(event, *_decision(event, shares.lookup), shares) for event in events)
+    of that score; keeps the given order. ``evidence`` are the events a reconstructed one may cite for its share.
+
+    ``shares`` are the two saves' (``shares.build_shares``, built once per save by the sequence); without them they are
+    measured here with ``settings``."""
+    earlier, later = shares or (build_shares(before, settings), build_shares(after, settings))
+    interval = Shares(earlier, later, Lookup(before, after), evidence)
+    assigned = tuple(_ranked(event, *_decision(event, interval.lookup), interval) for event in events)
     if logger.isEnabledFor(logging.DEBUG):
         counts = Counter(event.significance.value for event in assigned)
         logger.debug(

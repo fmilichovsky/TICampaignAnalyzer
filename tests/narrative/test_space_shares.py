@@ -25,18 +25,18 @@ from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import assign_significance
 from tinarrative.narrative.measures import SCALE_MIN
-from tinarrative.narrative.prominence import (
+from tinarrative.narrative.shares import (
     CONTEST_RATIO,
     FLEET_SATURATION,
     HAB_FLOOR,
     HAB_SATURATION,
+    build_shares,
     contested_mass,
     dry_mass,
     hab_share,
     ship_masses,
     space_weight,
 )
-from tinarrative.narrative.situation import build_situation
 
 HAB, SHIP, FLEET, FACTION = (
     EntityDomain.SPACE_OBJECT,
@@ -135,9 +135,7 @@ def test_an_early_world_leaves_the_faction_shares_to_earth() -> None:
         state(HAB, "3", AFTER, faction=HUMAN, tier=1),
         state(HAB, "4", AFTER, faction=HUMAN, tier=1),
     ]
-    shares = build_situation(snapshot(AFTER, *factions(AFTER), *habs)).faction_shares(
-        DEFAULT_SETTINGS.narrative.significance.power, 0.5
-    )
+    shares = build_shares(snapshot(AFTER, *factions(AFTER), *habs), DEFAULT_SETTINGS.narrative.significance).faction
     assert shares[ALIEN.entity_id] == 0.0  # the backdrop: Earth share alone, and it holds none
     assert 0 < shares[HUMAN.entity_id] < 0.001  # two tier-1 stations hardly count
 

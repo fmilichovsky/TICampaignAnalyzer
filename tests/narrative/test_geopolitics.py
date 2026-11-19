@@ -8,6 +8,7 @@ from dataclasses import replace
 import pytest
 
 from tests.narrative.support import (
+    aggregated,
     atomic,
     faction,
     federation_row,
@@ -37,7 +38,7 @@ from tinarrative.model.events import (
 )
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed, Unknown
-from tinarrative.narrative import NARRATIVE_RULES, aggregate, default_member_gates, narrative_rules, rule_layers
+from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, narrative_rules, rule_layers
 from tinarrative.narrative.geopolitics import TakeoverWaveRule
 from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.rulekit import bounded_shifts
@@ -192,9 +193,11 @@ def built(
     stream: Sequence[Event],
     situations: Sequence[SituationReport],
     settings: GeopoliticsSettings | None = None,
+    regions: Sequence[tuple[EntityRef, Observed]] = (),
 ) -> list[Event]:
+    """``regions`` are the region populations (millions) every save shares."""
     rules = NARRATIVE_RULES if settings is None else narrative_rules(NarrativeSettings(settings))
-    return aggregate(stream, situations, rules)
+    return aggregated(stream, situations, rules, regions=regions)
 
 
 def of_type(events: Sequence[Event], event_type: str) -> list[Event]:
@@ -450,7 +453,7 @@ def test_a_gate_admitting_levels_only_up_to_minor_excludes_a_major_takeover_from
         for rule in NARRATIVE_RULES
     )
 
-    assert not of_type(aggregate(stream, situations, minor_only), "faction.takeover_wave")
+    assert not of_type(aggregated(stream, situations, minor_only), "faction.takeover_wave")
 
 
 def test_every_declared_member_gate_is_listed_for_the_default_rules() -> None:
@@ -965,10 +968,9 @@ def test_gains_chained_within_the_gap_are_one_expansion_with_cessions_nested() -
 
 def test_an_expansion_scales_with_the_population_share_of_every_region_it_gained() -> None:
     populations = [(SOUTH_REGION, 30.0), (EAST_REGION, 70.0), (NORTH_REGION, 900.0)]
-    situations = [situation(key, regions=populations) for key in (K0, K1, K2, K3)]
     stream = [*transfer(K1, NORTH, SOUTH, SOUTH_REGION), *annexation(K2, NORTH, EAST, EAST_REGION)]
 
-    expansion = only(built(stream, situations), "nation.expansion")
+    expansion = only(built(stream, plain(K0, K1, K2, K3), regions=populations), "nation.expansion")
 
     basis = expansion.significance_basis
     assert basis is not None
@@ -995,9 +997,11 @@ def test_a_cession_is_a_transfer_no_reading_or_war_explains_with_allies_as_conte
 
 
 def test_a_cession_scales_with_the_population_share_of_the_regions_it_moved() -> None:
-    before = situation(K0, regions=[(SOUTH_REGION, 50.0), (NORTH_REGION, 950.0)])
+    populations = [(SOUTH_REGION, 50.0), (NORTH_REGION, 950.0)]
 
-    cession = only(built(transfer(K1, SOUTH, NORTH, SOUTH_REGION), [before, situation(K1)]), "nation.cession")
+    cession = only(
+        built(transfer(K1, SOUTH, NORTH, SOUTH_REGION), plain(K0, K1), regions=populations), "nation.cession"
+    )
 
     basis = cession.significance_basis
     assert basis is not None
@@ -1309,9 +1313,11 @@ def test_claims_on_another_nations_regions_are_declared_and_on_its_own_are_not()
 
 
 def test_declared_claims_scale_with_the_population_share_of_the_claimed_regions() -> None:
-    situations = [situation(key, regions=[(NORTH_REGION, 20.0), (SOUTH_REGION, 980.0)]) for key in (K0, K1)]
+    populations = [(NORTH_REGION, 20.0), (SOUTH_REGION, 980.0)]
 
-    declared = only(built([claims(K1, [NORTH_REGION], [NORTH])], situations), "nation.claims_declared")
+    declared = only(
+        built([claims(K1, [NORTH_REGION], [NORTH])], plain(K0, K1), regions=populations), "nation.claims_declared"
+    )
 
     assert declared.significance_basis is not None
     assert (declared.significance_basis.entities, declared.significance_basis.share) == ((NORTH_REGION,), 0.02)

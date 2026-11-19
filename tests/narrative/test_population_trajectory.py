@@ -6,14 +6,14 @@ from collections.abc import Sequence
 
 import pytest
 
-from tests.narrative.support import atomic, nation, nation_row, powers, situation
+from tests.narrative.support import aggregated, atomic, nation, nation_row, powers, situation
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import PCGDP_TREND, POPULATION_CHANGED
 from tinarrative.model.events import DateBasis, Event, Significance, SignificanceBasis
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap
-from tinarrative.narrative import aggregate, narrative_rules
+from tinarrative.narrative import narrative_rules
 from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.narrative.situation import SituationReport
@@ -98,7 +98,7 @@ def power_reports(weight: float) -> list[SituationReport]:
 
 def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:
     narrative = NarrativeSettings(geopolitics=GeopoliticsSettings(**settings))  # type: ignore[arg-type]
-    return [event for event in aggregate(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
+    return [event for event in aggregated(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
 
 
 def test_a_population_drop_is_a_major_collapse_and_growth_is_none() -> None:

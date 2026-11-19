@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.narrative.support import atomic, faction, nation, nation_row, powered, situation, with_rest
+from tests.narrative.support import aggregated, atomic, faction, nation, nation_row, powered, situation, with_rest
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
@@ -13,7 +13,7 @@ from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance, SignificanceBasis
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap
-from tinarrative.narrative import aggregate, narrative_rules
+from tinarrative.narrative import narrative_rules
 from tinarrative.narrative.diplomacy import REALIGNMENT
 from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.situation import SituationReport
@@ -91,7 +91,7 @@ def power_reports(weight: float) -> list[SituationReport]:
 
 def built(stream: list[Event], situations: list[SituationReport] | None = None, **settings: object) -> list[Event]:
     narrative = NarrativeSettings(geopolitics=GeopoliticsSettings(**settings))  # type: ignore[arg-type]
-    events = aggregate(stream, reports() if situations is None else situations, narrative_rules(narrative))
+    events = aggregated(stream, reports() if situations is None else situations, narrative_rules(narrative))
     return [event for event in events if event.event_type == REALIGNMENT]
 
 

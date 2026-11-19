@@ -4,10 +4,7 @@ questions a report answers."""
 from __future__ import annotations
 
 import json
-import math
 from dataclasses import replace
-
-import pytest
 
 from tests.analyzers.support import (
     AFTER,
@@ -29,12 +26,10 @@ from tests.analyzers.support import (
 from tests.narrative import support
 from tests.narrative.support import nation_row, situation, war_row
 from tinarrative.analyzers.politics.nation_assets import GDP, STRENGTH
-from tinarrative.config import PowerSettings
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.records import ItemEntry, KeyedEntry, RecordKind
 from tinarrative.model.snapshot import CampaignMetadata, EntityState, ResearchState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown, UnknownReason
-from tinarrative.narrative.prominence import region_shares
 from tinarrative.narrative.situation import (
     BodyHabs,
     Milestone,
@@ -449,27 +444,3 @@ def test_opposed_wars_are_the_wars_two_nations_fight_on_opposite_sides() -> None
 
     assert report.opposed_wars(SOUTH.entity_id, NORTH.entity_id) == (against,)
     assert report.opposed_wars(SOUTH.entity_id, EAST.entity_id) == ()
-
-
-def test_population_shares_are_the_snapshots_region_shares_and_stay_out_of_the_document() -> None:
-    snapshot = campaign()
-    report = build_situation(snapshot)
-
-    assert report.population_shares() and report.population_shares() == region_shares(snapshot)
-    assert "region_population" not in report.to_dict()
-
-
-def test_power_shares_of_the_landed_nations_sum_to_one() -> None:
-    def row(item: EntityRef, gdp: float, population: float, strength: float, regions: int) -> NationSituation:
-        return replace(nation_row(item, gdp=gdp, strength=strength, regions=regions), population=population)
-
-    report = ranked(
-        row(NORTH, 900.0, 300.0, 40.0, LANDED),
-        row(SOUTH, 400.0, 800.0, 10.0, LANDED),
-        row(EAST, 999.0, 999.0, 99.0, 0),
-    )
-
-    shares = report.power_shares(PowerSettings())
-
-    assert set(shares) == {NORTH.entity_id, SOUTH.entity_id}
-    assert math.fsum(shares.values()) == pytest.approx(1.0)

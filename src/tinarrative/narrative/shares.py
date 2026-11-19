@@ -1,23 +1,26 @@
-"""Prominence shares: each entity's share of a world total in one snapshot, the shares of entity-scaled significance.
+"""Shares: each entity's share of a world total in one save, the shares of entity-scaled significance (ADR-0011).
 
-The atomic pass reads snapshots and the narrative rules read situation reports (``SituationReport.power_shares``); both
-build the same shares here.
+``build_shares`` measures a snapshot once into a ``SaveShares``, which holds no snapshot (ADR-0012). Atomic scoring
+reads the two of an interval, narrative scoring the sequence of a campaign.
 """
 
 from __future__ import annotations
 
 import math
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from typing import assert_never
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.nation_assets import assets, strength
-from ..config import PowerSettings
+from ..config import PowerSettings, SignificanceSettings
 from ..model.entities import EntityId, EntityRef
+from ..model.kinds import Measure
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
+from ..reconstruction.common import control_points
 
 
 @dataclass(frozen=True)
@@ -63,9 +66,11 @@ def power_shares(nations: Iterable[PowerInputs], weights: PowerSettings) -> dict
 
 
 def nation_power(snapshot: SaveSnapshot, weights: PowerSettings) -> dict[EntityId, float]:
-    """The power share of every nation holding regions with known GDP, population and strength in ``snapshot``, as
-    its situation report states them."""
-    lookup = Lookup(snapshot, snapshot)
+    """The power share of every nation holding regions with known GDP, population and strength in ``snapshot``."""
+    return _nation_power(snapshot, Lookup(snapshot, snapshot), weights)
+
+
+def _nation_power(snapshot: SaveSnapshot, lookup: Lookup, weights: PowerSettings) -> dict[EntityId, float]:
     inputs: list[PowerInputs] = []
     for state in snapshot.nations:
         regions = state.get("regions")
@@ -88,8 +93,7 @@ def region_shares(snapshot: SaveSnapshot) -> dict[EntityId, float]:
 
 
 def population_shares(regions: Iterable[tuple[EntityId, Observed]]) -> dict[EntityId, float]:
-    """Each region's share of the summed population of ``regions``, over those with a known population; a situation
-    report gives the same shares as ``region_shares`` for its snapshot."""
+    """Each region's share of the summed population of ``regions``, over those with a known population."""
     return _normalized(
         {region: max(value, 0.0) for region, observed in regions if (value := number(observed)) is not None}
     )
@@ -239,3 +243,133 @@ def hab_weights(snapshot: SaveSnapshot) -> dict[EntityId, float]:
         for state in snapshot.habs
         if (tier := number(state.get("tier"))) is not None
     }
+
+
+# --- The shares of a save ---------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SaveShares:
+    """The finished shares of one save, and what the special readings (a control point, a battle, the nuclear arc) need.
+
+    Every field defaults to nothing, so a test builds one from plain numbers; ``build_shares`` measures a snapshot.
+    """
+
+    power: Mapping[EntityId, float] = field(default_factory=dict)
+    population: Mapping[EntityId, float] = field(default_factory=dict)
+    organization: Mapping[EntityId, float] = field(default_factory=dict)
+    hab: Mapping[EntityId, float] = field(default_factory=dict)
+    fleet: Mapping[EntityId, float] = field(default_factory=dict)
+    faction: Mapping[EntityId, float] = field(default_factory=dict)
+    control_points: Mapping[EntityId, int] = field(default_factory=dict)
+    """The control points each nation lists; a nation without any is not a key."""
+    world_warheads: float | None = None
+    """The warheads of every nation whose count is known (ADR-0005: absent is not zero); ``None`` when none is."""
+    masses: ShipMasses = field(default_factory=lambda: ShipMasses({}, {}, {}))
+    """The dry masses a battle's designs are read from."""
+    world_ship_mass: float = 0.0
+    """Σ dry mass (kg) of every faction's ships, alien ships weighted up: the world total of a battle."""
+
+    def of(self, measure: Measure) -> Mapping[EntityId, float]:
+        """The shares of a measure; a battle share is read from a combat record and a nuclear one is an arc's net move,
+        so neither has shares."""
+        match measure:
+            case Measure.POWER:
+                return self.power
+            case Measure.POPULATION:
+                return self.population
+            case Measure.ORGANIZATION:
+                return self.organization
+            case Measure.HAB:
+                return self.hab
+            case Measure.FLEET:
+                return self.fleet
+            case Measure.FACTION:
+                return self.faction
+            case Measure.BATTLE:
+                raise ValueError("a battle share is read from a combat record, not from shares")
+            case Measure.NUCLEAR:
+                raise ValueError("a nuclear share is a narrative arc's net move, not a save's shares")
+            case _:
+                assert_never(measure)
+
+
+def build_shares(snapshot: SaveSnapshot, settings: SignificanceSettings) -> SaveShares:
+    """Every share of ``snapshot``, measured once; the result holds no snapshot."""
+    lookup = Lookup(snapshot, snapshot)
+    power = _nation_power(snapshot, lookup, settings.power)
+    masses = ship_masses(snapshot)
+    weights = hab_weights(snapshot)
+    hab_weight = _faction_hab_weights(snapshot, lookup)
+    kinds = {state.ref.entity_id: lookup.faction_kind(state.ref.entity_id) for state in snapshot.factions}
+    human = [faction for faction, kind in kinds.items() if kind != "alien"]
+    human_hab = sum(hab_weight.get(faction, 0.0) for faction in human)
+    human_mass = sum(masses.by_faction.get(faction, 0.0) for faction in human)
+    earth = _earth_shares(snapshot, lookup, power)
+    faction = {
+        entity: earth[entity]
+        if kind == "alien"
+        else faction_share(
+            earth[entity],
+            hab_weight.get(entity, 0.0),
+            masses.by_faction.get(entity, 0.0),
+            human_hab,
+            human_mass,
+            settings.w_space,
+        )
+        for entity, kind in kinds.items()
+    }
+    warheads = [count for state in snapshot.nations if (count := number(state.get("numNuclearWeapons"))) is not None]
+    return SaveShares(
+        power=power,
+        population=region_shares(snapshot),
+        organization=organization_shares(snapshot, settings.tier_exponent),
+        hab={hab: hab_share(weight, human_hab) for hab, weight in weights.items()},
+        fleet={asset: fleet_share(mass, human_mass) for asset, mass in masses.by_asset.items()},
+        faction=faction,
+        control_points={
+            state.ref.entity_id: len(listed)
+            for state in snapshot.nations
+            if isinstance(listed := state.get("controlPoints"), tuple) and listed
+        },
+        world_warheads=math.fsum(warheads) if warheads else None,
+        masses=masses,
+        world_ship_mass=sum(
+            masses.by_faction.get(entity, 0.0) * (ALIEN_MASS_WEIGHT if kind == "alien" else 1.0)
+            for entity, kind in kinds.items()
+        ),
+    )
+
+
+def _faction_hab_weights(snapshot: SaveSnapshot, lookup: Lookup) -> dict[EntityId, float]:
+    """Σ tier² of the habs each faction owns; a hab without a faction of the snapshot counts for no one."""
+    held: defaultdict[EntityId, float] = defaultdict(float)
+    for hab in snapshot.habs:
+        owner = hab.get("faction")
+        tier = number(hab.get("tier"))
+        if isinstance(owner, EntityRef) and lookup.state(owner.entity_id, Side.AFTER) is not None and tier is not None:
+            held[owner.entity_id] += max(tier, 0.0) ** 2
+    return dict(held)
+
+
+def _earth_shares(
+    snapshot: SaveSnapshot, lookup: Lookup, power: Mapping[EntityId, float]
+) -> defaultdict[EntityId, float]:
+    """Each faction's Earth share: each nation's power share times the faction's share of that nation's control
+    points; uncontrolled and unresolved points belong to no one."""
+    earth: defaultdict[EntityId, float] = defaultdict(float)
+    for nation in snapshot.nations:
+        share = power.get(nation.ref.entity_id)
+        points = control_points(lookup, nation.ref.entity_id, Side.AFTER)
+        if share is None or not points:
+            continue
+        held: Counter[EntityId] = Counter()
+        for point in points:
+            state = lookup.state(point.entity_id, Side.AFTER)
+            controller = state.get("faction") if state is not None else None
+            resolved = lookup.resolve(controller) if isinstance(controller, EntityRef) else None
+            if resolved is not None:
+                held[resolved.entity_id] += 1
+        for faction, count in held.items():
+            earth[faction] += share * count / len(points)
+    return earth

@@ -311,10 +311,6 @@ def analyze_campaign(
         )
     except _LoadError as failure:
         return LoadFailed(failure.cause)
-    events = (
-        narrative_events(intervals, narrative_rules(settings.narrative), settings.narrative.significance)
-        if depth is Depth.NARRATIVE
-        else None
-    )
+    events = narrative_events(intervals, narrative_rules(settings.narrative)) if depth is Depth.NARRATIVE else None
     memory_line()
     return CampaignAnalysis(plan, intervals, campaign, events)

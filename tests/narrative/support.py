@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 
+from tinarrative.config import PowerSettings
 from tinarrative.kinds import attributes as kind_attributes
 from tinarrative.kinds import kind_for
 from tinarrative.kinds.narrative import narrative_kind
@@ -23,9 +26,10 @@ from tinarrative.model.events import (
 )
 from tinarrative.model.evidence import Evidence, SourceLocation
 from tinarrative.model.kinds import EventKind
-from tinarrative.model.values import FrozenMap, Observed, Unknown
-from tinarrative.narrative.aggregation import Join, NarrativeBuilder
+from tinarrative.model.values import FrozenMap, Observed, Unknown, number
+from tinarrative.narrative.aggregation import Join, NarrativeBuilder, NarrativeRule, aggregate
 from tinarrative.narrative.chronology import qualified_id
+from tinarrative.narrative.shares import SaveShares, population_shares, power_inputs, power_shares
 from tinarrative.narrative.situation import (
     FactionSituation,
     FederationSituation,
@@ -156,11 +160,9 @@ def situation(
     wars: Sequence[EntityRef | WarSituation] = (),
     factions: Sequence[EntityRef] = (),
     nuclear_strikes: Observed = UNKNOWN,
-    regions: Sequence[tuple[EntityRef, Observed]] = (),
 ) -> SituationReport:
     """A report listing the given entities and nothing else; every other value is unknown or empty. A bare reference
-    stands for a row with unknown values; ``nation_row``, ``federation_row`` and ``war_row`` build fuller ones.
-    ``regions`` are region populations in millions."""
+    stands for a row with unknown values; ``nation_row``, ``federation_row`` and ``war_row`` build fuller ones."""
     return SituationReport(
         date=date,
         player_faction_name=Unknown(),
@@ -175,8 +177,37 @@ def situation(
         world=WorldSituation(
             len(nations), Unknown(), Unknown(), Unknown(), Unknown(), (("nuclearStrikes", nuclear_strikes),), ()
         ),
-        region_population=tuple((region.entity_id, population) for region, population in regions),
     )
+
+
+def shares_of(report: SituationReport, regions: Sequence[tuple[EntityRef, Observed]] = ()) -> SaveShares:
+    """The shares a save with the report's rows would have, from plain numbers: each landed nation's power share (the
+    default weights) over the nations with a known GDP, population and strength, the warheads of the nations with a
+    known count, and ``regions`` (populations in millions) as the population shares."""
+    inputs = [
+        found
+        for row in report.nations
+        if row.landed
+        and (found := power_inputs(row.nation.entity_id, dict(row.statistics).get("GDP"), row.population, row.strength))
+    ]
+    counts = [count for row in report.nations if (count := number(row.nuclear_weapons)) is not None]
+    return SaveShares(
+        power=power_shares(inputs, PowerSettings()),
+        population=population_shares((region.entity_id, population) for region, population in regions),
+        world_warheads=math.fsum(counts) if counts else None,
+    )
+
+
+def aggregated(
+    stream: Sequence[Event],
+    situations: Sequence[SituationReport],
+    rules: Sequence[NarrativeRule],
+    *,
+    regions: Sequence[tuple[EntityRef, Observed]] = (),
+    **kwargs: Any,
+) -> list[Event]:
+    """``aggregate`` with the shares ``shares_of`` gives each report; ``regions`` populate every save."""
+    return aggregate(stream, situations, rules, shares=[shares_of(report, regions) for report in situations], **kwargs)
 
 
 def nation_row(

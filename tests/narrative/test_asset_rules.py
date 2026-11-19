@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from tests.narrative.support import atomic, nation, nation_row, powered, situation, with_rest
+from tests.narrative.support import aggregated, atomic, nation, nation_row, powered, situation, with_rest
 from tinarrative.config import NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
@@ -14,7 +14,7 @@ from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Role, Significance, SignificanceBasis
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed
-from tinarrative.narrative import aggregate, narrative_rules
+from tinarrative.narrative import narrative_rules
 from tinarrative.narrative.assets import (
     DEMOBILIZATION,
     MILITARY_BUILDUP,
@@ -110,7 +110,7 @@ def power_reports(weight: float, *north: dict[str, Observed]) -> list[SituationR
 
 def built(stream: Sequence[Event], situations: Sequence[SituationReport], kind: str, **settings: object) -> list[Event]:
     narrative = NarrativeSettings(nation_metrics=NationMetricsSettings(**settings))  # type: ignore[arg-type]
-    return [event for event in aggregate(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
+    return [event for event in aggregated(stream, situations, narrative_rules(narrative)) if event.event_type == kind]
 
 
 def test_standard_armies_growing_by_the_minimum_over_chained_appearances_are_a_buildup() -> None:
