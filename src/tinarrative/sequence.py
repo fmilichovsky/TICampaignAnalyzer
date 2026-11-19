@@ -177,12 +177,12 @@ def analyze_interval(
     inferred: bool,
     first: bool = False,
     narrative: NarrativeSettings = DEFAULT_SETTINGS.narrative,
-    shares: tuple[SaveShares, SaveShares] | None = None,
+    shares: tuple[SaveShares, SaveShares],
 ) -> IntervalAnalysis:
     """Diff two snapshots, run every analyzer and, when asked, reconstruction; every event gets its significance.
 
     ``first`` marks the first interval of a sequence, which also runs ``FIRST_INTERVAL_ANALYZERS``. ``shares`` are the
-    two snapshots' (``build_shares``, which a sequence builds once per save); without them they are built here.
+    two snapshots' (``build_shares``, which a sequence builds once per save).
     """
     clock = time.perf_counter()
     seconds = dict.fromkeys(("diff", "analyzers", "reconstruction", "significance"), 0.0)
@@ -193,21 +193,18 @@ def analyze_interval(
         seconds[stage] += now - clock
         clock = now
 
-    shares = shares or (build_shares(before, narrative.significance), build_shares(after, narrative.significance))
     diff = diff_states(before, after)
     lap("diff")
     analyzers = ALL_ANALYZERS + FIRST_INTERVAL_ANALYZERS if first else ALL_ANALYZERS
     found = run_analyzers(analyzers, before, after, diff)
     lap("analyzers")
-    objective = assign_significance(found, before, after, narrative.significance, shares=shares)
+    objective = assign_significance(found, before, after, shares)
     lap("significance")
     reconstructed = None
     if inferred:
         events = infer_events(objective, before, after, diff)
         lap("reconstruction")
-        reconstructed = assign_significance(
-            events, before, after, narrative.significance, evidence=objective, shares=shares
-        )
+        reconstructed = assign_significance(events, before, after, shares, evidence=objective)
         lap("significance")
     return IntervalAnalysis(diff, objective, reconstructed, seconds)
 

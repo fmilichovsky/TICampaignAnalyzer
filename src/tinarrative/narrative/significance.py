@@ -17,7 +17,6 @@ from dataclasses import dataclass, replace
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
 from ..analyzers.space.combat import LOG_FIELD as COMBAT_LOG
-from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..kinds import kind_for
 from ..kinds.nations import REGION_NATION_CHANGED
 from ..kinds.space import SHIP_APPEARED
@@ -31,7 +30,7 @@ from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
 from .measures import MEASURES, SCALE_MAX, SCALE_MIN
 from .milestones import MILESTONE_TEMPLATES, milestone_of
-from .shares import ALIEN_MASS_WEIGHT, FLEET_SATURATION, SaveShares, ShipMasses, build_shares, contested_mass, total
+from .shares import ALIEN_MASS_WEIGHT, FLEET_SATURATION, SaveShares, ShipMasses, contested_mass, total
 
 __all__ = [
     "RULE_IMPLEMENTATIONS",
@@ -727,17 +726,14 @@ def assign_significance(
     events: Iterable[Event],
     before: SaveSnapshot,
     after: SaveSnapshot,
-    settings: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
+    shares: tuple[SaveShares, SaveShares],
     *,
     evidence: Iterable[Event] = (),
-    shares: tuple[SaveShares, SaveShares] | None = None,
 ) -> tuple[Event, ...]:
     """Each event gets its score (its level's base, moved by its share when the type has one) and the level
-    of that score; keeps the given order. ``evidence`` are the events a reconstructed one may cite for its share.
-
-    ``shares`` are the two saves' (``shares.build_shares``, built once per save by the sequence); without them they are
-    measured here with ``settings``."""
-    earlier, later = shares or (build_shares(before, settings), build_shares(after, settings))
+    of that score; keeps the given order. ``shares`` are the two snapshots' (``shares.build_shares``, built once per
+    save); ``evidence`` are the events a reconstructed one may cite for its share."""
+    earlier, later = shares
     interval = Shares(earlier, later, Lookup(before, after), evidence)
     assigned = tuple(_ranked(event, *_decision(event, interval.lookup), interval) for event in events)
     if logger.isEnabledFor(logging.DEBUG):

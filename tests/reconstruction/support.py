@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from tests.analyzers.support import only as only
+from tests.analyzers.support import ranked
 from tinarrative.analyzers import ALL_ANALYZERS, run_analyzers
 from tinarrative.kinds import describe_event
 from tinarrative.model.changes import StateDiff
 from tinarrative.model.events import Event, EventStatus, Significance, SourceRole
 from tinarrative.model.snapshot import SaveSnapshot
-from tinarrative.narrative import assign_significance
 from tinarrative.reconstruction import infer_events
 
 Scenario = tuple[SaveSnapshot, SaveSnapshot, StateDiff]
@@ -42,6 +42,4 @@ def assert_traceable(scenario: Scenario) -> None:
 def lines_of(scenario: Scenario) -> dict[str, tuple[str, Significance]]:
     before, after, _ = scenario
     _, inferred = run(scenario)
-    return {
-        event.id: (describe_event(event), event.significance) for event in assign_significance(inferred, before, after)
-    }
+    return {event.id: (describe_event(event), event.significance) for event in ranked(inferred, before, after)}

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import replace
 
 from tests.fixtures import fixture_path
 from tinarrative.analyzers.base import Analyzer
+from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.changes import StateDiff
@@ -16,6 +18,7 @@ from tinarrative.model.kinds import EventKind, EvidenceRole
 from tinarrative.model.records import RecordEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown
+from tinarrative.narrative import assign_significance, build_shares
 from tinarrative.parsing.fields import NORMALIZED_DOMAINS
 from tinarrative.parsing.normalization import normalize
 
@@ -186,3 +189,12 @@ def only(events: list[Event] | tuple[Event, ...], event_type: str) -> Event:
     matches = by_type(events, event_type)
     assert len(matches) == 1, [event.id for event in events]
     return matches[0]
+
+
+def ranked(
+    events: Iterable[Event], before: SaveSnapshot, after: SaveSnapshot, *, evidence: Iterable[Event] = ()
+) -> tuple[Event, ...]:
+    """``assign_significance`` with the default settings' shares of the two snapshots."""
+    settings = DEFAULT_SETTINGS.narrative.significance
+    shares = (build_shares(before, settings), build_shares(after, settings))
+    return assign_significance(events, before, after, shares, evidence=evidence)

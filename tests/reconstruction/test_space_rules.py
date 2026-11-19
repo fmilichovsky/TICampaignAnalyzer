@@ -16,6 +16,7 @@ from tests.analyzers.support import (
     hab_ref,
     named,
     pair,
+    ranked,
     record_set,
     snapshot,
     state,
@@ -35,7 +36,6 @@ from tinarrative.model.records import (
 )
 from tinarrative.model.snapshot import EntityState
 from tinarrative.model.values import FrozenMap, Observed
-from tinarrative.narrative import assign_significance
 from tinarrative.reconstruction import BATTLE_OUTCOME, FIRST_HAB_ON_BODY, HAB_DESTROYED, HAB_ESTABLISHED
 
 FACTION = EntityDomain.FACTION
@@ -315,7 +315,7 @@ def test_a_launch_is_a_minor_appearance_with_projected_dates_and_establishes_not
     scenario = launched()
     objective, inferred = run(scenario)
     assert inferred == []
-    (appeared,) = assign_significance(by_type(list(objective), "hab.appeared"), scenario[0], scenario[1])
+    (appeared,) = ranked(by_type(list(objective), "hab.appeared"), scenario[0], scenario[1])
     assert appeared.attribute("core_completed") is False
     assert appeared.attribute("projected_arrival") == "2031-07-30T00:00:00"
     assert appeared.attribute("projected_completion") == AFTER_INTERVAL

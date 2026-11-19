@@ -16,6 +16,7 @@ from tests.analyzers.support import (
     fixture_pair,
     nation_ref,
     only,
+    ranked,
     region_ref,
     snapshot,
     state,
@@ -84,7 +85,7 @@ def empty_lookup() -> Lookup:
 
 
 def classified(analyzer: Analyzer, before: SaveSnapshot, after: SaveSnapshot) -> tuple[Event, ...]:
-    return assign_significance(analyze(analyzer, before, after), before, after)
+    return ranked(analyze(analyzer, before, after), before, after)
 
 
 # --- Recruit-pool councilors ------------------------------------------------------------------------------
@@ -158,16 +159,14 @@ def test_a_war_relation_is_major_and_an_alliance_is_minor() -> None:
         state(NATION, "21", AFTER, allies=(nation_ref("20"),), wars=()),
         state(NATION, "22", AFTER, allies=(), wars=(nation_ref("20"),)),
     )
-    events = assign_significance(
-        run_analyzers(POLITICS_ANALYZERS, before, after, diff_states(before, after)), before, after
-    )
+    events = ranked(run_analyzers(POLITICS_ANALYZERS, before, after, diff_states(before, after)), before, after)
     by_relation = {event.attribute("relation"): event.significance for event in events}
     assert by_relation == {"allies": Significance.MINOR, "wars": Significance.MAJOR}
 
 
 def test_an_executive_change_is_major_only_for_an_upheaval_cause() -> None:
     before, after, diff = fixture_pair("records_before.json", "records_after.json")
-    events = assign_significance(run_analyzers(POLITICS_ANALYZERS, before, after, diff), before, after)
+    events = ranked(run_analyzers(POLITICS_ANALYZERS, before, after, diff), before, after)
     (recorded,) = [event for event in events if event.event_type == "nation.executive_change_recorded"]
     assert recorded.attribute("cause") == "Coup" and recorded.significance is Significance.MAJOR
     lookup = empty_lookup()
@@ -334,7 +333,7 @@ def test_the_pass_gives_every_event_the_base_score_of_its_level() -> None:
         bare_event("nation.rank_changed"),  # trivial in the table
         bare_event("nation.relation_changed", relation="wars"),  # major by its context rule
     ]
-    assigned = assign_significance(events, snap, snap)
+    assigned = ranked(events, snap, snap)
     assert [event.score for event in assigned] == [
         Significance.CAMPAIGN_DEFINING.base,
         Significance.MAJOR.base,
@@ -400,9 +399,9 @@ def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
     )
     raw = run_analyzers(POLITICS_ANALYZERS, before, after, diff_states(before, after))
     assert all(event.significance is Significance.MINOR for event in raw)  # the Event default
-    assigned = assign_significance(raw, before, after)
+    assigned = ranked(raw, before, after)
     assert [event.id for event in assigned] == [event.id for event in raw]
-    assert assign_significance(assigned, before, after) == assigned
+    assert ranked(assigned, before, after) == assigned
     assert {event.significance for event in assigned} == {Significance.TRIVIAL}
     assert {event.score for event in assigned} == {Significance.TRIVIAL.base}
     assert len(assigned) == 3  # two recruit-pool presences and one location move
@@ -463,9 +462,7 @@ def scored(
     evidence: tuple[Event, ...] = (),
 ) -> Event:
     shares = saved(power, regions, control_points)
-    return assign_significance([event], snapshot(BEFORE), snapshot(AFTER), evidence=evidence, shares=(shares, shares))[
-        0
-    ]
+    return assign_significance([event], snapshot(BEFORE), snapshot(AFTER), (shares, shares), evidence=evidence)[0]
 
 
 POWER = {BIG: 0.3, MICRO: 0.001, OTHER: 0.1}
@@ -511,9 +508,8 @@ def test_a_share_at_the_reference_share_keeps_the_level_and_the_clamp_bounds_the
 
 def test_the_share_is_read_on_the_later_side_for_an_entity_that_exists_only_there() -> None:
     event = scaled_event("nation.appeared", nation_ref(BIG))
-    result = assign_significance([event], snapshot(BEFORE), snapshot(AFTER), shares=(saved(), saved(power={BIG: 0.2})))[
-        0
-    ]
+    shares = (saved(), saved(power={BIG: 0.2}))
+    result = assign_significance([event], snapshot(BEFORE), snapshot(AFTER), shares)[0]
     assert result.significance_basis is not None and result.significance_basis.share == 0.2
 
 
