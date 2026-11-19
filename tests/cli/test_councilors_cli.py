@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -60,16 +59,6 @@ def test_one_save_gives_a_portrait_without_a_career(
     assert all(entry["career"] == [] for entry in councilors)
     assert document["source"] == "politics_before.json"
     assert "councilors selected" in capsys.readouterr().out
-
-
-def test_a_directory_holding_one_save_gives_the_dossier(tmp_path: Path, settings: str) -> None:
-    folder = tmp_path / "saves"
-    folder.mkdir()
-    shutil.copyfile(FIXTURE_DIR / "politics_before.json", folder / "politics_before.json")
-
-    document = _dossier(tmp_path, str(folder), "--config", settings)
-
-    assert document["source"] == "politics_before.json"
 
 
 def test_one_unusable_file_is_reported_by_the_survey(tmp_path: Path, settings: str) -> None:

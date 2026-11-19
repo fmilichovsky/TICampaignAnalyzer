@@ -177,7 +177,7 @@ Tracking #249.
   - [x] The survey step (#332).
   - [x] Benchmark sample reuses the survey step (#333).
   - [ ] The choice and the analysis step (#334).
-  - [ ] Thin the command-line tests (#335).
+  - [x] Thin the command-line tests (#335).
 - [x] Narrator send run: the narrator owns its run directory (#337):
   - [x] Host: one bundle for clock, sleep and HTTP (#338).
   - [x] Run directory: layout and response record (#339).
