@@ -18,7 +18,7 @@ import pytest
 from tests.fixtures import FIXTURES_ROOT
 from tests.golden import AssertGolden
 from tests.sequence.campaign_variants import write_campaign, write_variant
-from tinarrative import cli
+from tinarrative import campaign_analysis, cli
 from tinarrative.cli import (
     EXIT_CONFIG_ERROR,
     EXIT_INPUT_ERROR,
@@ -295,14 +295,14 @@ def test_a_save_that_fails_in_a_worker_gives_the_code_and_message_of_one_process
 ) -> None:
     monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)
     saves = _directory(tmp_path, *SHUFFLED)
-    planned = cli.plan_sequence
+    planned = campaign_analysis.plan_sequence
 
     def vanish(*args: Any) -> Any:
         plan = planned(*args)
         Path(plan.saves[-1].source).unlink()  # surveyed, then gone before its chunk loads it
         return plan
 
-    monkeypatch.setattr(cli, "plan_sequence", vanish)
+    monkeypatch.setattr(campaign_analysis, "plan_sequence", vanish)
 
     assert main(["events", "--jobs", jobs, str(saves)]) == EXIT_INPUT_ERROR
     captured = capsys.readouterr()

@@ -1,6 +1,10 @@
-"""Campaign analysis: the survey of save inputs into surveyed and skipped saves, or a returned failure.
+"""Campaign analysis: save inputs to an analysed campaign in three steps, each returning a failure value.
 
-It never prints and never picks an exit code; the command line maps each failure to its code and prefix."""
+``survey_inputs`` turns the inputs into surveyed and skipped saves, ``choose_campaign`` picks one campaign among the
+grouped saves, and ``analyze_campaign`` plans its sequence and analyzes the intervals. The choice sits between the
+steps, not inside the analysis, because it may need a person: the module never prompts, so ``choose_campaign`` only
+returns ``CampaignNotChosen`` and the command line decides whether to open a picker. The module never prints and
+never picks an exit code; the command line maps each failure to its code and prefix."""
 
 from __future__ import annotations
 
@@ -8,14 +12,32 @@ import os
 from collections.abc import Sequence
 from contextlib import closing
 from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 from typing import Protocol
 
 from .config import Settings
+from .grouping import CampaignGroup, select_campaign
 from .io.save_discovery import SaveInput
+from .io.save_loader import load_raw_save
 from .log import fields, get_logger, safe_path
-from .sequence import SaveRef, SkippedSave, SurveyFailure, survey_all
-from .workers import default_jobs
+from .model.events import Event
+from .model.snapshot import SaveSnapshot
+from .narrative import narrative_rules
+from .parsing.errors import SaveLoadError
+from .parsing.normalization import normalize
+from .sequence import (
+    IntervalResult,
+    SaveRef,
+    SequencePlan,
+    SkippedSave,
+    SurveyFailure,
+    narrative_events,
+    plan_sequence,
+    run_sequence,
+    survey_all,
+)
+from .workers import default_jobs, memory_line
 
 logger = get_logger(__name__)
 
@@ -152,3 +174,148 @@ def _named_failure(failure: SurveyFailure) -> UnreadableInput | UnsupportedSave:
     if failure.content:
         return UnsupportedSave(failure.source, failure.reason)
     return UnreadableInput(failure.source, failure.reason)
+
+
+@dataclass(frozen=True)
+class CampaignNotChosen:
+    """No single campaign was selected; ``reason`` says why."""
+
+    reason: str
+
+    @property
+    def message(self) -> str:
+        return self.reason
+
+
+def file_time(path: str) -> float:
+    """A file's modification time for the ``latest`` selector; an unreadable file counts as oldest."""
+    try:
+        return os.stat(path).st_mtime
+    except OSError:
+        return float("-inf")
+
+
+def choose_campaign(groups: Sequence[CampaignGroup], selector: str | None = None) -> CampaignGroup | CampaignNotChosen:
+    """The campaign to analyze: the only one when there is no selector, else the one the selector names. Several
+    campaigns without a selector, or a selector that matches none, is ``CampaignNotChosen``; it never prompts."""
+    if selector is None:
+        if len(groups) == 1:
+            return groups[0]
+        return CampaignNotChosen(f"the input holds {len(groups)} campaigns; choose one with --campaign")
+    selected = select_campaign(groups, selector, file_time)
+    if isinstance(selected, CampaignGroup):
+        logger.info("campaign selected %s", fields(index=selected.index, of=len(groups)))
+        return selected
+    return CampaignNotChosen(selected)
+
+
+class Depth(Enum):
+    """How far the analysis goes; each depth includes the one before it."""
+
+    OBJECTIVE = "objective"
+    INFERRED = "inferred"
+    NARRATIVE = "narrative"
+
+
+@dataclass(frozen=True)
+class LoadFailed:
+    """A save of the chosen campaign could not be loaded while its intervals were analyzed."""
+
+    cause: UnreadableInput | UnsupportedSave
+
+    @property
+    def message(self) -> str:
+        return self.cause.message
+
+
+class _LoadError(Exception):
+    """Carries a load failure out of a worker process; picklable, and turned into a ``LoadFailed`` value."""
+
+    def __init__(self, cause: UnreadableInput | UnsupportedSave) -> None:
+        super().__init__(cause)
+        self.cause = cause
+
+
+@dataclass(frozen=True)
+class _SnapshotLoader:
+    """Load and normalize one save; picklable, so a worker process can run it."""
+
+    command: str
+
+    def __call__(self, source: str) -> SaveSnapshot:
+        save_path = Path(source)
+        save_name = safe_path(save_path)
+        try:
+            return normalize(load_raw_save(save_path))
+        except OSError as error:
+            reason = error.strerror or str(error)
+            logger.debug(
+                "%s read failed %s", self.command, fields(save=save_name, errno=error.errno, error=type(error).__name__)
+            )
+            raise _LoadError(UnreadableInput(str(save_path), reason)) from None
+        except SaveLoadError as error:
+            logger.debug(
+                "%s parse failed %s", self.command, fields(save=save_name, error=type(error).__name__), exc_info=True
+            )
+            raise _LoadError(UnsupportedSave(str(save_path), str(error))) from None
+
+
+@dataclass(frozen=True)
+class CampaignAnalysis:
+    """The analyzed campaign: what ``events`` reports and ``narrate`` packages."""
+
+    plan: SequencePlan
+    intervals: list[IntervalResult]
+    campaign: CampaignGroup
+    narrative: list[Event] | None
+    """The narrative events, at ``Depth.NARRATIVE`` only."""
+
+
+def analyze_campaign(
+    campaign: CampaignGroup,
+    settings: Settings,
+    *,
+    command: str,
+    depth: Depth = Depth.OBJECTIVE,
+    state_changes: bool = False,
+    skipped: Sequence[SkippedSave] = (),
+    jobs: int | None = None,
+    progress: ProgressReporter | None = None,
+) -> CampaignAnalysis | LoadFailed:
+    """Plan the campaign's sequence and analyze its intervals in order; with ``state_changes`` every interval keeps
+    its literal state changes. ``skipped`` are the survey's skipped saves, which the plan records. ``jobs`` is the
+    ``--jobs`` flag (see ``resolve_jobs``)."""
+    plan = plan_sequence(campaign.members, skipped)
+    workers = resolve_jobs(jobs, settings, [save.source for save in plan.saves])
+    logger.debug("%s jobs %s", command, fields(intervals=workers))
+    if progress is not None:
+        progress.update("Processing saves", 0, len(plan.saves))
+    loaded = 0
+
+    def on_save() -> None:
+        nonlocal loaded
+        loaded += 1
+        if progress is not None:
+            progress.update("Processing saves", loaded, len(plan.saves))
+
+    try:
+        intervals = list(
+            run_sequence(
+                plan,
+                inferred=depth is not Depth.OBJECTIVE,
+                changes=state_changes,
+                load=_SnapshotLoader(command),
+                narrative=settings.narrative,
+                jobs=workers,
+                on_save=on_save,
+            )
+        )
+    except _LoadError as failure:
+        return LoadFailed(failure.cause)
+    events = (
+        narrative_events(intervals, narrative_rules(settings.narrative), settings.narrative.significance)
+        if depth is Depth.NARRATIVE
+        else None
+    )
+    memory_line()
+    return CampaignAnalysis(plan, intervals, campaign, events)
