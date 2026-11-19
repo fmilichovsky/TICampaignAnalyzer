@@ -14,7 +14,7 @@ intervals is the job of narrative aggregation ([ADR-0009](0009-narrative-aggrega
 
 - **One diff of the first and last save.** It was rejected because it hides every intermediate state. A nation
   that changed hands and changed back shows no change at all.
-- **Holding every snapshot.** It was rejected because memory would grow with the campaign. Situation reports and
-  the shares of each save (`SaveShares`) carry what rules spanning several intervals need.
+- **Holding every snapshot.** It was rejected because memory would grow with the campaign. Situation reports carry
+  what rules spanning several intervals need.
 - **Ordering by file name or modification time.** It was rejected because players name saves and the game rotates
   its autosaves.
