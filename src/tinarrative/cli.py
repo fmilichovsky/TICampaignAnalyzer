@@ -1040,7 +1040,7 @@ def _run_saves(
                 inferred=inferred or narrative,
                 changes=changes,
                 load=_SnapshotLoader(command),
-                significance=settings.narrative.significance,
+                narrative=settings.narrative,
                 jobs=interval_jobs,
                 on_save=on_save,
             )
