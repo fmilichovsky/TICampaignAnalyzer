@@ -13,7 +13,8 @@ tinarrative benchmark sample [--description TEXT] [--campaign SELECTOR] name PAT
 <!-- end generated -->
 
 Adds a campaign to the samples, or replaces it. Afterwards, add a description in `samples.json` if it has none, and
-add runs for the campaign to `benchmarks/matrix.toml` if needed.
+add runs for the campaign to `benchmarks/matrix.toml` if needed. On refresh, unchanged files with the same name are
+reused without recompression.
 
 ```sh
 # Import one campaign from a save directory.

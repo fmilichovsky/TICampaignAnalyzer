@@ -83,7 +83,14 @@ def import_sample_campaign(
             samples_dir.mkdir(parents=True, exist_ok=True)
             with tempfile.TemporaryDirectory(prefix=".sample-", dir=samples_dir) as temporary:
                 temporary_root = Path(temporary)
-                staged_campaign = _compress_sources(sources, file_names, temporary_root, max_file_bytes, progress)
+                staged_campaign = _compress_sources(
+                    sources,
+                    file_names,
+                    temporary_root,
+                    max_file_bytes,
+                    progress,
+                    samples_dir / name,
+                )
                 file_entries = _sample_entries(staged_campaign)
                 updated_manifest = _updated_manifest(
                     name, campaign_description, file_entries, previous_campaigns, max_file_bytes
@@ -192,13 +199,18 @@ def _compress_sources(
     temporary_root: Path,
     max_file_bytes: int,
     progress: ProgressReporter,
+    existing_campaign: Path,
 ) -> Path:
-    """Write all saves to a staged campaign with the documented xz extreme preset."""
+    """Stage saves, reusing same-named compressed files whose content is unchanged."""
     staged_campaign = temporary_root / "campaign"
     staged_campaign.mkdir()
     for index, (source, name) in enumerate(zip(sources, names, strict=True), start=1):
         progress.update("Compressing saves", index, len(sources), source.name)
         destination = staged_campaign / name
+        existing = existing_campaign / name
+        if existing.is_file() and _same_uncompressed_content(source, existing):
+            shutil.copyfile(existing, destination)
+            continue
         with source.open("rb") as input_file, destination.open("wb") as output_file:
             compressor = lzma.LZMACompressor(format=lzma.FORMAT_XZ, preset=9 | lzma.PRESET_EXTREME)
             while block := input_file.read(CHUNK_BYTES):
@@ -208,6 +220,21 @@ def _compress_sources(
         if size > max_file_bytes:
             raise SampleImportError(f"{name}: {size} bytes exceeds max_file_bytes {max_file_bytes}", 9)
     return staged_campaign
+
+
+def _same_uncompressed_content(source: Path, compressed: Path) -> bool:
+    """Compare a source save and an existing xz file without loading either into memory."""
+    try:
+        with source.open("rb") as source_file, lzma.open(compressed, "rb") as compressed_file:
+            while True:
+                source_block = source_file.read(CHUNK_BYTES)
+                compressed_block = compressed_file.read(CHUNK_BYTES)
+                if source_block != compressed_block:
+                    return False
+                if not source_block:
+                    return True
+    except (EOFError, lzma.LZMAError):
+        return False
 
 
 def _sample_entries(staged_campaign: Path) -> dict[str, dict[str, int | str]]:
