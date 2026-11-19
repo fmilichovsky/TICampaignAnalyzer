@@ -101,9 +101,7 @@ def test_refresh_replaces_files_and_preserves_or_updates_description(tmp_path: P
     assert manifest["campaigns"]["fixture"]["description"] == "Updated."
 
 
-def test_refresh_reuses_identical_file_and_recompresses_changed_content(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_refresh_reuses_identical_file_and_recompresses_changed_content(tmp_path: Path, monkeypatch) -> None:
     samples = tmp_path / "samples"
     samples.mkdir()
     monkeypatch.setattr(cli, "BENCHMARK_SAMPLES_DIR", samples)
