@@ -228,3 +228,8 @@ def test_an_unwritable_output_is_an_output_error(tmp_path: Path, capsys: pytest.
     assert main(["narrate", *SAVES, "--output", str(blocker)]) == EXIT_OUTPUT_ERROR
     captured = capsys.readouterr()
     assert "cannot write" in captured.err and captured.out == ""
+
+
+def test_one_save_has_no_interval_to_narrate(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["narrate", str(FIXTURE_DIR / "politics_after.json")]) == EXIT_USAGE_ERROR
+    assert "nothing to narrate" in capsys.readouterr().err

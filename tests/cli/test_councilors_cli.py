@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import shutil
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,6 +59,16 @@ def test_one_save_gives_a_portrait_without_a_career(
     assert all(entry["career"] == [] for entry in councilors)
     assert document["source"] == "politics_before.json"
     assert "councilors selected" in capsys.readouterr().out
+
+
+def test_a_directory_holding_one_save_gives_the_dossier(tmp_path: Path, settings: str) -> None:
+    folder = tmp_path / "saves"
+    folder.mkdir()
+    shutil.copyfile(FIXTURE_DIR / "politics_before.json", folder / "politics_before.json")
+
+    document = _dossier(tmp_path, str(folder), "--config", settings)
+
+    assert document["source"] == "politics_before.json"
 
 
 def test_a_sequence_adds_the_career_of_the_latest_save(tmp_path: Path, settings: str) -> None:
@@ -237,7 +248,7 @@ def test_send_writes_responses_articles_and_manifest(
     assert f"- 1 sent: complete, 2001 input and 300 output tokens ({names[0]})\n" in captured.out
     assert f"Wrote {len(names)} responses to {out / 'responses'}.\n" in captured.out
     assert captured.out.endswith(f"Wrote councilors.md and manifest.json to {out}.\n")
-    assert captured.err == ""
+    assert captured.err.startswith("tinarrative councilors: parsing and processing took ")
 
 
 @pytest.mark.parametrize(

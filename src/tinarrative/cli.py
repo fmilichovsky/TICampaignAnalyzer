@@ -124,7 +124,7 @@ EXIT_CODES: dict[str, ExitCodes] = {
     "campaigns": ((EXIT_SUCCESS, "the listing was printed."), *_USAGE, *_SAVE_INPUT),
     "events": (
         (EXIT_SUCCESS, "the report was printed."),
-        (EXIT_USAGE_ERROR, "usage error, fewer than two usable saves, or no campaign chosen."),
+        (EXIT_USAGE_ERROR, "usage error or no campaign chosen."),
         *_SAVE_INPUT,
         *_CONFIG,
     ),
@@ -132,8 +132,8 @@ EXIT_CODES: dict[str, ExitCodes] = {
         (EXIT_SUCCESS, "the plan was printed; with --send, the history was assembled."),
         (
             EXIT_USAGE_ERROR,
-            "usage error, no campaign chosen, a single interval over llm.max_input_tokens, or --send without "
-            "--output, a provider, a model or an API key.",
+            "usage error, no campaign chosen, the package holds no interval (one save), a single interval over "
+            "llm.max_input_tokens, or --send without --output, a provider, a model or an API key.",
         ),
         (EXIT_INPUT_ERROR, "a save, the --package file or the --assemble directory cannot be read."),
         (
@@ -992,9 +992,6 @@ def _run_saves(
     """Survey the inputs, choose the campaign and analyze its saves in order; a failure is printed and returned as
     the exit code. ``jobs`` is ``--jobs``; unset falls back to the settings, then to ``workers.default_jobs``."""
     inputs = expand_inputs(paths)
-    if len(inputs) < 2:
-        print(f"tinarrative {command}: at least two saves are required", file=sys.stderr)
-        return EXIT_USAGE_ERROR
     logger.info("%s start %s", command, fields(inputs=len(paths), candidates=len(inputs)))
     progress = _ProgressTracker(command, len(inputs))
     survey_jobs = _jobs(jobs, settings, [item.path for item in inputs if not item.empty_directory])
@@ -1003,25 +1000,10 @@ def _run_saves(
         progress.finish()
         return outcome
     surveyed, skipped = outcome
-    if len(surveyed) < 2:
-        print(
-            f"tinarrative {command}: at least two saves are required ({len(surveyed)} usable, {len(skipped)} skipped)",
-            file=sys.stderr,
-        )
-        progress.finish()
-        return EXIT_USAGE_ERROR
     campaign = _choose_campaign(command, group_saves(surveyed), selector)
     if isinstance(campaign, int):
         progress.finish()
         return campaign
-    if len(campaign.members) < 2:
-        print(
-            f"tinarrative {command}: at least two saves are required (campaign {campaign.key} has "
-            f"{len(campaign.members)})",
-            file=sys.stderr,
-        )
-        progress.finish()
-        return EXIT_USAGE_ERROR
     plan = plan_sequence(campaign.members, skipped)
     interval_jobs = _jobs(jobs, settings, [save.source for save in plan.saves])
     logger.debug("%s jobs %s", command, fields(survey=survey_jobs, intervals=interval_jobs))
@@ -1084,26 +1066,21 @@ def _run_councilors(args: argparse.Namespace) -> int:
             return EXIT_USAGE_ERROR
     paths = cast(list[Path], args.saves)
     inputs = expand_inputs(paths)
-    career: list[Event] = []
-    profile: CampaignProfile | None = None
-    if len(inputs) == 1:
-        latest = inputs[0].path
-    else:
-        run = _run_saves(
-            "councilors",
-            paths,
-            cast("str | None", args.campaign),
-            settings,
-            inferred=False,
-            changes=False,
-            narrative=False,
-            jobs=cast("int | None", args.jobs),
-        )
-        if isinstance(run, int):
-            return run
-        career = event_stream(run.intervals)
-        newest = run.plan.saves[-1]
-        latest, profile = Path(newest.source), newest.profile
+    run = _run_saves(
+        "councilors",
+        paths,
+        cast("str | None", args.campaign),
+        settings,
+        inferred=False,
+        changes=False,
+        narrative=False,
+        jobs=cast("int | None", args.jobs),
+    )
+    if isinstance(run, int):
+        return run
+    career = event_stream(run.intervals)
+    newest = run.plan.saves[-1]
+    latest, profile = Path(newest.source), newest.profile
     snapshot = _load_snapshot("councilors", latest)
     if isinstance(snapshot, int):
         return snapshot
