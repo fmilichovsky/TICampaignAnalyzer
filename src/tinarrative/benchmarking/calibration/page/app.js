@@ -214,7 +214,7 @@
     measures: [],
     levels: [],
     positions: {},
-    stakedTypes: {},
+    measuredTypes: {},
     allTypes: [],
     domains: {},
     state: null,
@@ -344,12 +344,12 @@
       return Object.assign({}, result, { moves: unfiltered.moves, campaigns });
     },
 
-    // Everything the reference does not change: row positions, the types each measure stakes, the chart domains.
+    // Everything the reference does not change: row positions, the types each measure shares, the chart domains.
     prepare() {
       const types = new Set();
       const shares = {};
       for (const measure of this.measures) {
-        this.stakedTypes[measure] = new Map();
+        this.measuredTypes[measure] = new Map();
         shares[measure] = [];
       }
       for (const [name, rows] of Object.entries(this.tables)) {
@@ -357,11 +357,11 @@
         rows.forEach((row, position) => {
           positions.set(row.id, position);
           types.add(row.type);
-          for (const stake of row.stakes) {
-            const counts = this.stakedTypes[stake.measure];
+          for (const share of row.shares) {
+            const counts = this.measuredTypes[share.measure];
             if (!counts) continue;
             counts.set(row.type, (counts.get(row.type) || 0) + 1);
-            if (stake.share > 0) shares[stake.measure].push(stake.share);
+            if (share.share > 0) shares[share.measure].push(share.share);
           }
         });
         this.positions[name] = positions;
@@ -668,7 +668,7 @@
       const body = $("references");
       for (const measure of this.measures) {
         const spec = this.index.measures[measure];
-        const staked = [...this.stakedTypes[measure].values()].reduce((sum, count) => sum + count, 0);
+        const measured = [...this.measuredTypes[measure].values()].reduce((sum, count) => sum + count, 0);
         body.append(
           el(
             "tr",
@@ -680,14 +680,14 @@
             ),
             el("td", { class: "num ref-current" }),
             el("td", { class: "num", text: fmt(spec.reference), title: String(spec.reference) }),
-            el("td", { class: "num", text: String(staked) }),
+            el("td", { class: "num", text: String(measured) }),
           ),
         );
       }
       const drafts = this.index.drafts;
       const list = $("drafts");
       if (drafts.length === 0) {
-        list.replaceChildren(el("li", { class: "draft-line", text: "No draft stakes are declared in this table." }));
+        list.replaceChildren(el("li", { class: "draft-line", text: "No draft shares are declared in this table." }));
         return;
       }
       list.replaceChildren(
@@ -840,15 +840,15 @@
     renderTypeFilter() {
       const select = $("type-filter");
       const focus = this.focus;
-      const staked = [...this.stakedTypes[focus].keys()].sort();
-      const stakedSet = new Set(staked);
-      const others = this.allTypes.filter((type) => !stakedSet.has(type));
+      const measured = [...this.measuredTypes[focus].keys()].sort();
+      const measuredSet = new Set(measured);
+      const others = this.allTypes.filter((type) => !measuredSet.has(type));
       select.replaceChildren(el("option", { value: "", text: "All types" }));
       if (this.state.types.length > 1) {
         select.append(el("option", { value: "__several", text: `${this.state.types.length} types (from the link)` }));
       }
-      if (staked.length > 0) {
-        select.append(el("optgroup", { label: `Staked by ${this.index.measures[focus].label}` }, ...staked.map((type) => el("option", { value: type, text: type }))));
+      if (measured.length > 0) {
+        select.append(el("optgroup", { label: `Measured by ${this.index.measures[focus].label}` }, ...measured.map((type) => el("option", { value: type, text: type }))));
       }
       select.append(el("optgroup", { label: "Other types" }, ...others.map((type) => el("option", { value: type, text: type }))));
       select.value = this.state.types.length > 1 ? "__several" : this.state.types[0] || "";
@@ -876,15 +876,15 @@
       let unshared = 0;
       for (const name of this.state.campaigns) {
         this.tables[name].forEach((row, position) => {
-          const stake = row.stakes.find((item) => item.measure === focus);
-          if (!stake) return;
-          if (!(stake.share > 0)) {
+          const share = row.shares.find((item) => item.measure === focus);
+          if (!share) return;
+          if (!(share.share > 0)) {
             unshared += 1;
             return;
           }
-          const place = Math.floor((Math.log10(stake.share) - domain.low) / BIN + 1e-9);
+          const place = Math.floor((Math.log10(share.share) - domain.low) / BIN + 1e-9);
           const bin = bins[Math.max(0, Math.min(count - 1, place))];
-          bin.items.push({ campaign: name, position, share: stake.share, chosen: types.size === 0 || types.has(row.type) });
+          bin.items.push({ campaign: name, position, share: share.share, chosen: types.size === 0 || types.has(row.type) });
         });
       }
       let max = 0;
@@ -1008,7 +1008,7 @@
         "aria-label",
         `Share distribution of ${this.index.measures[this.focus].label}: ${plural(
           model.bins.reduce((sum, bin) => sum + bin.items.length, 0),
-          "staked event",
+          "measured event",
         )}, reference ${fmt(reference)}, window ${fmt(lowCut)} to ${fmt(highCut)}. Arrow keys step through the bars.`,
       );
       this.chartGeometry = { plotLeft, plotRight, binWidth, x, y, span };
@@ -1228,7 +1228,7 @@
     tideItem(neighbour) {
       const position = this.positions[neighbour.campaign].get(neighbour.id);
       const row = this.tables[neighbour.campaign][position] || {
-        id: neighbour.id, type: neighbour.type, label: neighbour.id, level: neighbour.oracle_level, date: null, stakes: [],
+        id: neighbour.id, type: neighbour.type, label: neighbour.id, level: neighbour.oracle_level, date: null, shares: [],
       };
       return {
         campaign: neighbour.campaign,
@@ -1244,16 +1244,16 @@
     citedBadge(campaign, row, decidedBy) {
       const decider = this.tables[campaign][this.positions[campaign].get(decidedBy)];
       const label = decider ? labelOf(decider) : decidedBy;
-      const stake = decider && decider.stakes.length ? `${decider.stakes[0].measure} stake` : "base level";
-      const text = `Set by the cited ${label} (${stake}), not by this event's own stake.`;
+      const share = decider && decider.shares.length ? `${decider.shares[0].measure} share` : "base level";
+      const text = `Set by the cited ${label} (${share}), not by this event's own share.`;
       return el("span", { class: "badge", title: text, "aria-label": text, text: "cited" });
     },
 
     // --- Level counts -----------------------------------------------------------------------------------------
     //
     // One row per event type: the levels its events hold now, a band under the stretch that rose or dropped into
-    // each level, and the exact changes beside it. Staked types come first, by their staked events or, if chosen,
-    // by how many of their events change level; types that move without a stake on the focused measure follow.
+    // each level, and the exact changes beside it. Measured types come first, by their measured events or, if chosen,
+    // by how many of their events change level; types that move without a share on the focused measure follow.
     // Rows only change place when the reference settles, never while it slides.
 
     setCountOrder(order) {
@@ -1271,7 +1271,7 @@
       this.renderCounts({ resort: true });
     },
 
-    // Put the staked rows in the chosen order; rows that change place glide from where they were.
+    // Put the measured rows in the chosen order; rows that change place glide from where they were.
     orderCounts(moves) {
       const moved = (type) => (moves.get(type) || []).reduce((sum, move) => sum + move.count, 0);
       const place = new Map(this.countStatic.map((type, i) => [type, i]));
@@ -1298,24 +1298,24 @@
     renderCounts({ resort } = {}) {
       const focus = this.focus;
       const list = $("counts");
-      const staked = this.stakedTypes[focus];
+      const measured = this.measuredTypes[focus];
       if (this.countsLayout !== focus) {
         this.countsLayout = focus;
         this.countRows.clear();
         this.countExtras = [];
-        // The static order: by the type's staked rows in the whole table, which the reference never changes.
-        const types = [...staked.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+        // The static order: by the type's measured rows in the whole table, which the reference never changes.
+        const types = [...measured.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
         this.countStatic = types.map(([type]) => type);
         list.replaceChildren(...types.map(([type]) => this.countRow(type)));
-        if (types.length === 0) list.append(el("p", { class: "empty", text: "No event type carries this stake." }));
+        if (types.length === 0) list.append(el("p", { class: "empty", text: "No event type carries this share." }));
         resort = true;
       }
 
       const moves = new Map();
       for (const move of this.full.moves) moves.set(move.type, [...(moves.get(move.type) || []), move]);
       if (resort) this.orderCounts(moves);
-      const unstaked = [...moves.keys()].filter((type) => !staked.has(type)).sort();
-      const extras = resort ? unstaked : [...this.countExtras, ...unstaked.filter((type) => !this.countExtras.includes(type))];
+      const unmeasured = [...moves.keys()].filter((type) => !measured.has(type)).sort();
+      const extras = resort ? unmeasured : [...this.countExtras, ...unmeasured.filter((type) => !this.countExtras.includes(type))];
       if (extras.join("|") !== this.countExtras.join("|")) {
         for (const type of this.countExtras) {
           if (extras.includes(type)) continue;
@@ -1324,7 +1324,7 @@
         }
         this.countExtras = extras;
         for (const stale of list.querySelectorAll(".count-divider")) stale.remove();
-        if (extras.length) list.append(el("p", { class: "count-divider", text: `Moving without a ${focus} stake` }));
+        if (extras.length) list.append(el("p", { class: "count-divider", text: `Moving without a ${focus} share` }));
         for (const type of extras) list.append(this.countRows.has(type) ? this.countRows.get(type).row : this.countRow(type));
       }
 
@@ -1676,7 +1676,7 @@
       parts.row.classList.add("base-row-flash");
     },
 
-    // --- Draft stakes -----------------------------------------------------------------------------------------
+    // --- Draft shares -----------------------------------------------------------------------------------------
     //
     // Each draft with a candidate on the focused measure gets a panel: its base selector, its rows' levels at that
     // base against its own, how many rows a cited event or the kind's context rule decides, and its own rows nearest
@@ -1691,7 +1691,7 @@
         (this.drafts[name] || []).forEach((row, position) => {
           if (names[position] !== draft.name) return;
           if (types.size && !types.has(row.type)) return;
-          rows.push({ campaign: name, row, staked: row.stakes.some((stake) => stake.measure === measure && stake.share > 0) });
+          rows.push({ campaign: name, row, measured: row.shares.some((share) => share.measure === measure && share.share > 0) });
         });
       }
       return rows;
@@ -1711,7 +1711,7 @@
     },
 
     // Under the chart sits one of two readings of the same cut-offs: the real events nearest them, or the drafts on
-    // the focused measure. A measure no draft stakes shows the real ones and keeps the chosen view for the next.
+    // the focused measure. A measure no draft shares shows the real ones and keeps the chosen view for the next.
     renderView(count) {
       const drafts = this.view === "drafts" && count > 0;
       $("view-switch").hidden = count === 0;
@@ -1731,7 +1731,7 @@
       if (!this.renderView(drafts.length)) return;
       const sizes = drafts.map((draft) => {
         const rows = this.draftRowsOn(draft, focus);
-        return { draft, rows, slots: Math.min(this.index.constants.neighbours, rows.filter((item) => item.staked).length) };
+        return { draft, rows, slots: Math.min(this.index.constants.neighbours, rows.filter((item) => item.measured).length) };
       });
       const key = `${focus}|${this.state.campaigns.join(",")}|${this.state.types.join(",")}|${sizes.map((item) => `${item.draft.name}:${item.slots}`).join(",")}`;
       if (key !== this.draftLayout) {
@@ -1796,7 +1796,7 @@
         el(
           "header",
           { class: "draft-head" },
-          el("span", { class: "badge badge-draft", text: `draft #${draft.issue}`, title: `A draft stake, calibrated for issue #${draft.issue}` }),
+          el("span", { class: "badge badge-draft", text: `draft #${draft.issue}`, title: `A draft share, calibrated for issue #${draft.issue}` }),
           el("h3", { class: "draft-title", id: titleId, text: draft.label }),
           el("span", { class: "draft-name", text: draft.name }),
         ),
@@ -1838,8 +1838,8 @@
       const ruled = rows.filter((item) => item.row.ruled).length;
       view.ruled.textContent = ruled ? `${ruled} of ${plural(rows.length, "row")} ruled; the base does not apply to them` : `No row ruled; the base applies to ${rows.length === 1 ? "it" : `all ${rows.length}`}`;
       view.ruled.title = "A ruled row's level is set by its kind's context rule, so a base tried here leaves it as it is.";
-      view.floored.textContent = `${result.floored} of ${plural(total, "row")} set by a cited event, not this stake`;
-      view.floored.title = "A cited event's score is the floor of the row's own, so this stake cannot move these rows.";
+      view.floored.textContent = `${result.floored} of ${plural(total, "row")} set by a cited event, not this share`;
+      view.floored.title = "A cited event's score is the floor of the row's own, so this share cannot move these rows.";
 
       const shown = this.shownCutoffs();
       view.tides.forEach((tide, slot) => {
@@ -1872,13 +1872,13 @@
       const row = (this.drafts[neighbour.campaign] || []).find((item) => item.id === neighbour.id);
       // A draft row's id is draft:<name>:<the id of the event it shadows> (drafts.py's draft_row_id).
       const shadowed = neighbour.id.slice(`draft:${draft.name}:`.length);
-      const badges = [el("span", { class: "badge badge-draft", text: `draft #${draft.issue}`, title: `A row of the draft stake ${draft.label} (#${draft.issue})` })];
+      const badges = [el("span", { class: "badge badge-draft", text: `draft #${draft.issue}`, title: `A row of the draft share ${draft.label} (#${draft.issue})` })];
       if (row && row.ruled) {
         badges.push(el("span", { class: "badge badge-ruled", text: "ruled", title: "Its kind's context rule sets the level; the draft's base does not apply." }));
       }
       return {
         campaign: neighbour.campaign,
-        row: row || { id: neighbour.id, type: neighbour.type, label: shadowed, level: neighbour.oracle_level, date: null, stakes: [] },
+        row: row || { id: neighbour.id, type: neighbour.type, label: shadowed, level: neighbour.oracle_level, date: null, shares: [] },
         level: neighbour.level,
         decidedBy: neighbour.decided_by,
         share: neighbour.share,
@@ -1937,7 +1937,7 @@
           if (member.verdict !== verdict) continue;
           const item = this.eventItem(name, this.positions[name].get(member.id), this.result);
           const detail = verdict === "could_become_member" ? "" : `${member.kept.length} kept, ${member.lost.length} lost, ${member.distinct} distinct of ${member.minimum}`;
-          item.note = detail + (member.stale_stake ? " · stale stake" : "");
+          item.note = detail + (member.stale_share ? " · stale share" : "");
           items.push(item);
         }
       }
@@ -1955,14 +1955,14 @@
     eventItem(campaign, position, result) {
       const row = this.tables[campaign][position];
       const event = result.campaigns[campaign] ? result.campaigns[campaign].events[position] : null;
-      const stake = row.stakes.find((item) => item.measure === this.focus) || row.stakes[0] || null;
+      const share = row.shares.find((item) => item.measure === this.focus) || row.shares[0] || null;
       return {
         campaign,
         row,
         level: event ? event.level : row.level,
         decidedBy: event ? event.decided_by : row.id,
-        share: stake ? stake.share : null,
-        measure: stake ? stake.measure : null,
+        share: share ? share.share : null,
+        measure: share ? share.measure : null,
         score: event ? event.score : row.score,
       };
     },
@@ -2021,7 +2021,7 @@
       };
       node.replaceChildren(
         ...[
-          el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No stake of its own" }),
+          el("span", { class: "event-share num", text: item.share === null ? "—" : fmt(item.share), title: item.measure && item.share !== null ? `${item.measure} share ${item.share}` : "No share of its own" }),
           el("span", { class: "event-main" }, el("span", { class: "event-label", text: label }), showType ? null : type),
           badges.length ? el("span", { class: "event-badges" }, ...badges) : null,
           el(
@@ -2376,20 +2376,20 @@
         "section",
         { class: "ins-section", "aria-labelledby": "ins-decided" },
         el("h3", { class: "ins-head", id: "ins-decided", text: "Level set by" }),
-        el("p", { class: "ins-lead", text: "A cited event sets this event's level, not its own stake." }),
+        el("p", { class: "ins-lead", text: "A cited event sets this event's level, not its own share." }),
         el("ol", { class: "events" }, decided),
       );
 
-      const stakeRows = row.stakes.map((stake) => {
-        const spec = App.index.measures[stake.measure];
+      const shareRows = row.shares.map((share) => {
+        const spec = App.index.measures[share.measure];
         const compare = el("span", { class: "ins-compare" });
         const tr = el(
           "tr",
           {},
-          el("th", { scope: "row" }, el("span", { class: "ins-measure", text: spec ? spec.label : stake.measure }), compare),
-          el("td", { class: "num", text: fmt(stake.share), title: String(stake.share) }),
+          el("th", { scope: "row" }, el("span", { class: "ins-measure", text: spec ? spec.label : share.measure }), compare),
+          el("td", { class: "num", text: fmt(share.share), title: String(share.share) }),
         );
-        return { tr, compare, measure: stake.measure, share: Number(stake.share) };
+        return { tr, compare, measure: share.measure, share: Number(share.share) };
       });
 
       const entities = (row.entities || []).map((entity) => {
@@ -2421,11 +2421,11 @@
         decidedSection,
         el(
           "section",
-          { class: "ins-section", "aria-labelledby": "ins-stakes" },
-          el("h3", { class: "ins-head", id: "ins-stakes" }, "Stakes", el("span", { class: "ins-count", text: String(row.stakes.length) })),
-          stakeRows.length
-            ? el("table", { class: "ins-table" }, el("tbody", {}, ...stakeRows.map((item) => item.tr)))
-            : el("p", { class: "ins-empty", text: "No stakes: the base sets the score." }),
+          { class: "ins-section", "aria-labelledby": "ins-shares" },
+          el("h3", { class: "ins-head", id: "ins-shares" }, "Shares", el("span", { class: "ins-count", text: String(row.shares.length) })),
+          shareRows.length
+            ? el("table", { class: "ins-table" }, el("tbody", {}, ...shareRows.map((item) => item.tr)))
+            : el("p", { class: "ins-empty", text: "No shares: the base sets the score." }),
         ),
         el(
           "section",
@@ -2446,10 +2446,10 @@
             )
           : null,
       ].filter(Boolean));
-      this.parts = { campaign, id, position, row, level, score, base, baseButtons: options ? options.buttons : [], baseCode, ruled, decided, decidedSection, stakeRows, cited, off };
+      this.parts = { campaign, id, position, row, level, score, base, baseButtons: options ? options.buttons : [], baseCode, ruled, decided, decidedSection, shareRows, cited, off };
     },
 
-    // The focused stake against the current reference, written as the tide captions write a cut-off, and which side
+    // The focused share against the current reference, written as the tide captions write a cut-off, and which side
     // of the window around the reference the share falls on.
     compareText(share) {
       if (!(share > 0)) return "no share";
@@ -2487,7 +2487,7 @@
       const tried = App.index.kinds[row.type] ? App.typeBase(row.type) : null;
       const applies = switched && row.rule === null;
       parts.base.value.textContent = String(applies ? App.meta.level_bases[tried] : row.base);
-      parts.base.note.textContent = applies ? `tried ${levelName(tried)}; code's ${row.base}` : "before stakes";
+      parts.base.note.textContent = applies ? `tried ${levelName(tried)}; code's ${row.base}` : "before shares";
       parts.base.note.classList.toggle("moved", applies);
       if (parts.baseButtons.length) {
         App.syncBaseOptions(parts.baseButtons, row.type);
@@ -2507,7 +2507,7 @@
       if (decider) App.fillEventRow(parts.decided, App.eventItem(campaign, decider.position, result), {});
       else if (decidedBy !== row.id) parts.decided.replaceChildren(el("span", { class: "ins-entity-id", text: decidedBy }));
 
-      for (const item of parts.stakeRows) {
+      for (const item of parts.shareRows) {
         const focused = item.measure === App.focus;
         item.tr.classList.toggle("focused", focused);
         item.compare.hidden = !focused;

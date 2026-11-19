@@ -27,7 +27,7 @@ from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import BAND_CROSSED, STATISTIC_SHIFTED
 from tinarrative.kinds.wars import ARC
 from tinarrative.model.events import Event, EventStatus, Role, Significance, SignificanceBasis
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
 from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
@@ -223,7 +223,7 @@ def test_a_shift_scales_with_its_nations_power_share_and_a_landless_nation_dilut
     assert great.significance_basis is not None and micro.significance_basis is not None
     level = Significance.of(great.significance_basis.base)
     assert great.significance_basis == SignificanceBasis(
-        base=level.base, measure=StakeMeasure.POWER, share=pytest.approx(0.4), scale=SCALE_MAX, entities=(NORTH,)
+        base=level.base, measure=Measure.POWER, share=pytest.approx(0.4), scale=SCALE_MAX, entities=(NORTH,)
     )
     assert great.significance.rank == level.rank + 1
     assert micro.significance_basis.scale == SCALE_MIN and micro.significance.rank == level.rank - 1

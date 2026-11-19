@@ -65,7 +65,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] Population and economic trajectory (#192).
   - [x] Military and space-support assets and rankings (#193).
   - [ ] Campaign baseline from cumulative trackers (#194).
-- [ ] Entity-scaled significance ([ADR-0011](adr/0011-significance-is-judged-once-and-scaled-by-stake.md)):
+- [ ] Entity-scaled significance ([ADR-0011](adr/0011-significance-is-judged-once-and-scaled-by-share.md)):
   - [x] Design.
   - [x] Numeric score with unchanged levels (#196).
   - [x] Prominence shares (#197).

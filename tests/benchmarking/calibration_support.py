@@ -6,13 +6,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any
 
-from tinarrative.benchmarking.calibration.drafts import ROW_PREFIX, DraftStake, draft_row_id
+from tinarrative.benchmarking.calibration.drafts import ROW_PREFIX, DraftShare, draft_row_id
 from tinarrative.benchmarking.calibration.replay import default_state, replay
 from tinarrative.benchmarking.calibration.table import build_index, layers, type_kinds
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, Significance
-from tinarrative.model.kinds import Stake, StakeMeasure
-from tinarrative.narrative.significance import NARRATIVE_STAKE_IMPLEMENTATIONS, NarrativeScaling
+from tinarrative.model.kinds import Measure, ShareOf
+from tinarrative.narrative.significance import NARRATIVE_SHARE_IMPLEMENTATIONS, NarrativeShareReading
 
 ROW_FIELDS = {
     "id",
@@ -23,7 +23,7 @@ ROW_FIELDS = {
     "label",
     "base",
     "rule",
-    "stakes",
+    "shares",
     "entities",
     "cited",
     "score",
@@ -66,7 +66,7 @@ def check_rows(rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = ()
 
 
 def check_parity(
-    rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = (), declared: Sequence[DraftStake] = ()
+    rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = (), declared: Sequence[DraftShare] = ()
 ) -> None:
     """At the code's references and each draft's own base, the replay is the pipeline: every score
     and level, every group, every draft row of the ``declared`` drafts."""
@@ -110,7 +110,7 @@ def row(
     *,
     tier: str = "atomic",
     level: str = "minor",
-    stakes: tuple[tuple[str, float], ...] = (),
+    shares: tuple[tuple[str, float], ...] = (),
     cited: tuple[str, ...] = (),
     entities: tuple[str, ...] = (),
     rule: str | None = None,
@@ -124,7 +124,7 @@ def row(
         "label": id,
         "base": base(level),
         "rule": rule,
-        "stakes": [{"measure": measure, "share": share} for measure, share in stakes],
+        "shares": [{"measure": measure, "share": share} for measure, share in shares],
         "entities": [{"id": entity, "name": None} for entity in entities],
         "cited": list(cited),
         "score": base(level),
@@ -161,13 +161,13 @@ def power(scale: float) -> tuple[tuple[str, float], ...]:
 
 
 def chain() -> list[dict[str, Any]]:
-    """A population-staked atomic row, cited by a power-staked layer 1 row, up a 3-deep narrative chain."""
+    """A population-measured atomic row, cited by a power-measured layer 1 row, up a 3-deep narrative chain."""
     layers = INDEX["layers"]
     first, second, third = (next(name for name, number in layers.items() if number == n) for n in (1, 2, 3))
     return with_oracle(
         [
-            row("land", stakes=(("population", POPULATION * 10),)),
-            row("deal", first, tier="narrative", level="trivial", stakes=power(-10), cited=("land",)),
+            row("land", shares=(("population", POPULATION * 10),)),
+            row("deal", first, tier="narrative", level="trivial", shares=power(-10), cited=("land",)),
             row("grow", second, tier="narrative", level="trivial", cited=("deal",)),
             row("arc", third, tier="narrative", level="trivial", cited=("grow",)),
         ]
@@ -182,7 +182,7 @@ def members(faction: str, scales: list[float]) -> list[dict[str, Any]]:
             MEMBER,
             tier="narrative",
             level="major",
-            stakes=power(scale),
+            shares=power(scale),
             entities=(faction, f"{faction}-nation-{number}"),
         )
         for number, scale in enumerate(scales)
@@ -201,26 +201,26 @@ def members(faction: str, scales: list[float]) -> list[dict[str, Any]]:
 
 FIRST, SECOND, THIRD = (next(name for name, number in INDEX["layers"].items() if number == n) for n in (1, 2, 3))
 """A narrative type of each of the first three layers."""
-ACTOR = NARRATIVE_STAKE_IMPLEMENTATIONS[Stake.ACTOR]
+ACTOR = NARRATIVE_SHARE_IMPLEMENTATIONS[ShareOf.ACTOR]
 DRAFTS = (
-    DraftStake(
+    DraftShare(
         name="held",
         label="Held share",
         issue=1,
         event_types=(FIRST, SECOND, THIRD),
-        scalings=(ACTOR, NarrativeScaling(StakeMeasure.POPULATION, ACTOR.entities)),
+        readings=(ACTOR, NarrativeShareReading(Measure.POPULATION, ACTOR.entities)),
         base=Significance.MINOR,
     ),
-    DraftStake(
+    DraftShare(
         name="moved",
         label="Moved share",
         issue=2,
         event_types=(FIRST,),
-        scalings=(NarrativeScaling(StakeMeasure.POPULATION, ACTOR.entities),),
+        readings=(NarrativeShareReading(Measure.POPULATION, ACTOR.entities),),
         base=Significance.TRIVIAL,
     ),
 )
-"""Two fixture draft stakes on the chain's types, side by side on its first layer."""
+"""Two fixture draft shares on the chain's types, side by side on its first layer."""
 DRAFT_INDEX = build_index(["one"], key="", extracted_at="", kinds={}, drafts=DRAFTS)
 
 
@@ -229,7 +229,7 @@ def draft_row(
     of: dict[str, Any],
     *,
     level: str | None = None,
-    stakes: tuple[tuple[str, float], ...] = (),
+    shares: tuple[tuple[str, float], ...] = (),
     ruled: bool = False,
 ) -> dict[str, Any]:
     """The shadow row of draft ``name`` for the real row ``of``: its type and citations, at the draft's base (or at
@@ -240,7 +240,7 @@ def draft_row(
         of["type"],
         tier="narrative",
         level=level if ruled and level is not None else draft["base"],
-        stakes=stakes,
+        shares=shares,
         cited=tuple(of["cited"]),
     )
     return {**shadow, "ruled": ruled}
@@ -262,10 +262,10 @@ def drafted() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rows = chain()
     land, deal, grow, arc = rows
     shadows = [
-        draft_row("held", deal, stakes=power(-10)),
-        draft_row("held", grow, level="major", stakes=power(2), ruled=True),
-        draft_row("held", arc, stakes=(*power(-4), ("population", POPULATION * 10**0.3))),
-        draft_row("moved", deal, stakes=(("population", POPULATION * 10**1.2),)),
+        draft_row("held", deal, shares=power(-10)),
+        draft_row("held", grow, level="major", shares=power(2), ruled=True),
+        draft_row("held", arc, shares=(*power(-4), ("population", POPULATION * 10**0.3))),
+        draft_row("moved", deal, shares=(("population", POPULATION * 10**1.2),)),
     ]
     return rows, with_draft_oracle(DRAFT_INDEX, rows, shadows)
 
@@ -290,6 +290,6 @@ INVALID_HASHES = [
     ("focus=warp", "unknown focus measure"),
     ("base=", "lists no base"),
     ("base=held", "draft:level"),
-    ("base=nobody:major", "unknown draft stake or event type 'nobody'"),
+    ("base=nobody:major", "unknown draft share or event type 'nobody'"),
 ]
 """State hashes both codecs reject, with the start of the Python error."""

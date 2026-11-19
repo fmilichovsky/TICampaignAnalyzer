@@ -15,7 +15,7 @@ npm runtime dependencies. Node is used only for parity checks such as `make brow
 may be vendored into a page when a surface really needs one, never loaded from a CDN. This fits a Python-only
 install, works offline, and lets JS logic stay under parity with its Python twin.
 
-- Maintainer dev aids (the stake calibration page, #446/#464): a generated static page opened from disk
+- Maintainer dev aids (the share calibration page, #446/#464): a generated static page opened from disk
   (`file://`). No server, no network, no hosting.
 - Player surfaces: the CLI may run a local server on localhost. Provider calls go through the Python process, so
   API keys never reach the page.
@@ -26,7 +26,7 @@ install, works offline, and lets JS logic stay under parity with its Python twin
   their campaign: a chronicle or headlines, for the public or an insider audience, plus articles about the notable
   councilors. Many play long campaigns over weeks and come back between sessions. Design decisions are made for
   them first.
-- **Secondary: the maintainer, and coding agents.** They use dev aids such as the stake calibration dashboard to
+- **Secondary: the maintainer, and coding agents.** They use dev aids such as the share calibration dashboard to
   tune the pipeline against the benchmark campaigns. Agents read the same numbers from the CLI that humans see in
   the browser.
 

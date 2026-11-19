@@ -65,7 +65,7 @@ def test_the_replay_at_the_code_references_is_the_pipeline_on_the_fixture_sequen
 
 
 def test_the_scale_is_bounded_and_a_zero_share_takes_the_lowest_scale() -> None:
-    rows = [row("big", stakes=power(40)), row("zero", stakes=(("power", 0.0),))]
+    rows = [row("big", shares=power(40)), row("zero", shares=(("power", 0.0),))]
 
     scored = events(run(rows))
 
@@ -73,8 +73,8 @@ def test_the_scale_is_bounded_and_a_zero_share_takes_the_lowest_scale() -> None:
     assert scored["zero"]["score"] == base("minor") + CONSTANTS["scale_min"]
 
 
-def test_a_stake_with_several_candidates_takes_the_highest_scale() -> None:
-    rows = [row("both", stakes=(("power", POWER), ("population", POPULATION * 10)))]
+def test_a_share_with_several_candidates_takes_the_highest_scale() -> None:
+    rows = [row("both", shares=(("power", POWER), ("population", POPULATION * 10)))]
 
     assert events(run(rows))["both"]["score"] == base("minor") + 10
 
@@ -122,7 +122,7 @@ def test_each_member_verdict_follows_the_admitted_levels_and_the_minimum() -> No
             *members("kept", [0.0] * minimum),
             *members("shrunk", [top, *([0.0] * minimum)]),
             *members("gone", [top, *([0.0] * (minimum - 1))]),
-            row("outside", MEMBER, tier="narrative", level="major", stakes=power(CONSTANTS["scale_max"])),
+            row("outside", MEMBER, tier="narrative", level="major", shares=power(CONSTANTS["scale_max"])),
         ]
     )
     assert rows[-1]["level"] not in GATE["admitted_levels"]
@@ -133,7 +133,7 @@ def test_each_member_verdict_follows_the_admitted_levels_and_the_minimum() -> No
     assert verdicts["kept-group"]["verdict"] == "keeps_members"
     assert verdicts["shrunk-group"]["verdict"] == "loses_members"
     assert verdicts["shrunk-group"]["lost"] == ["shrunk-0"]
-    assert verdicts["shrunk-group"]["stale_stake"]
+    assert verdicts["shrunk-group"]["stale_share"]
     assert verdicts["shrunk-group"]["distinct"] == minimum
     assert verdicts["gone-group"]["verdict"] == "falls_apart"
     assert verdicts["gone-group"]["distinct"] == minimum - 1
@@ -151,9 +151,9 @@ def test_each_member_verdict_follows_the_admitted_levels_and_the_minimum() -> No
 def test_totals_and_moves_count_the_moved_rows_most_first_and_follow_the_type_filter() -> None:
     rows = with_oracle(
         [
-            row("a1", "atomic.a", stakes=power(0)),
-            row("a2", "atomic.a", stakes=power(0)),
-            row("b1", "atomic.b", stakes=power(0)),
+            row("a1", "atomic.a", shares=power(0)),
+            row("a2", "atomic.a", shares=power(0)),
+            row("b1", "atomic.b", shares=power(0)),
             row("still", "atomic.c"),
             *chain(),
         ]
@@ -188,15 +188,15 @@ def test_a_measure_has_the_two_window_ends_as_cut_offs() -> None:
     assert len(window) == 2
     assert window[0] == -window[1]
     assert all(CONSTANTS["scale_min"] <= 10 * offset <= CONSTANTS["scale_max"] for offset in window)
-    result = run([row("x", stakes=power(-60))])
+    result = run([row("x", shares=power(-60))])
     assert [cutoff["offset"] for cutoff in result["cutoffs"]["power"]] == window
     assert list(result["cutoffs"]) == list(INDEX["measures"])
 
 
 def test_a_cut_off_lists_the_nearest_events_on_each_side_and_flags_those_a_cited_row_decided() -> None:
     low = cutoff_offsets(CONSTANTS)[0]
-    rows = [row(f"near-{n}", stakes=power(10 * low - 0.1 * (n + 1))) for n in range(CONSTANTS["neighbours"] + 2)]
-    rows.append(row("inside", stakes=power(10 * low + 0.1)))
+    rows = [row(f"near-{n}", shares=power(10 * low - 0.1 * (n + 1))) for n in range(CONSTANTS["neighbours"] + 2)]
+    rows.append(row("inside", shares=power(10 * low + 0.1)))
     rows.extend(chain())
 
     cutoff = run(rows)["cutoffs"]["power"][0]
@@ -357,12 +357,12 @@ def test_a_drafts_rows_are_its_own_neighbours_at_each_cut_off_and_tagged_with_it
 def test_a_draft_row_of_no_declared_draft_is_rejected() -> None:
     rows, shadows = drafted()
 
-    with pytest.raises(ReplayError, match="no declared draft stake"):
+    with pytest.raises(ReplayError, match="no declared draft share"):
         replay(INDEX, {"one": rows}, replace(CODE, campaigns=("one",)), {"one": shadows})
 
 
 def test_a_state_needs_one_level_base_per_draft() -> None:
-    with pytest.raises(ReplayStateError, match="a base for exactly the draft stakes"):
+    with pytest.raises(ReplayStateError, match="a base for exactly the draft shares"):
         run_drafts(bases={"held": "major"})
     with pytest.raises(ReplayStateError, match="must be a level"):
         run_drafts(bases={"held": "huge", "moved": "minor"})

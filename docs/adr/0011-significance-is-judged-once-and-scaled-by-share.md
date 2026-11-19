@@ -1,4 +1,4 @@
-# Significance is judged once and scaled by stake
+# Significance is judged once and scaled by share
 
 Not every state change belongs in a campaign history. Significance lets a reader ask for anything from a concise
 summary to a forensic log. It measures impact, not certainty, and is independent of confidence.
@@ -11,30 +11,30 @@ summary to a forensic log. It measures impact, not certainty, and is independent
   `minor`, so the unexplained residue is never hidden.
 - **A score with fixed level bands.** Every event has a 0–100 score, and its level is the fixed band that holds the
   score, so the two never disagree. The level is the deterministic cut-off; the score orders events within it.
-- **A stake is a share, on a log scale.**
-  - A stake is a share of a world total in the same snapshot, never an absolute magnitude. Magnitudes grow by
+- **A share, read on a log scale.**
+  - A share is a fraction of a world total in the same snapshot, never an absolute magnitude. Magnitudes grow by
     orders of magnitude over a campaign; shares stay comparable.
   - Each scaled kind has a scaling: the share at which its event rises a level above its starting level and,
     unless it keeps the default width, the share at which it drops one. Further levels are as wide, and the score
     runs evenly in log share across each band. Kinds share a scaling only when the same reason holds for both.
-  - A stake never moves an event below minor: size is never a reason to drop out of the story.
-  - A stake measures what the event moved, not only who acted. It is read on the interval's earlier side.
-  - Only the types whose impact grows with the stake are scaled; movement and churn never are.
+  - A share never moves an event below minor: size is never a reason to drop out of the story.
+  - A measure of what the event moved, not only who acted. It is read on the interval's earlier side.
+  - Only the types whose impact grows with the share are scaled; movement and churn never are.
   - Shares add, so a war side, a federation or a faction's holdings are sums.
 - **Space totals count humans only.** The alien faction holds nearly every space asset early in a campaign
   ([space assets](../game-data-notes/space-assets.md)). Counting it would make the aliens half the world from the
   start; counting humans alone would make one early station half of space. So space shares are taken over the human
   total with a floor, which only keeps a share defined. The floor and the saturation, the holdings at which space
-  counts fully in a faction's stake, are separate: a faction's stake weighs space more as humans build up a real
+  counts fully in a faction's share, are separate: a faction's share weighs space more as humans build up a real
   presence there.
 - **Battles use contested mass.** A side's mass is weighted up for alien ships. Mass beyond a multiple of the
-  opponent's adds nothing, so a large fleet swatting a scout is a skirmish. The outcome never changes the stake.
+  opponent's adds nothing, so a large fleet swatting a scout is a skirmish. The outcome never changes the share.
 - **A nuclear arc uses its nuclear share.** An armament, buildup or disarmament scales by the warheads it moved, net,
   over the world's warheads. The world total is taken at the larger of the arc's two ends, not on the earlier side, so
   it always holds the moved warheads and a buildup from a near-empty world is a share of at most one. A single
   warhead shift is evidence, so a great power's token buildup does not inherit the power share of the shift it
   cites.
-- **The maximum, never a sum.** A narrative event scores the higher of its rule's base plus its own stake and the
+- **The maximum, never a sum.** A narrative event scores the higher of its rule's base plus its own share and the
   highest score among the events it cites. One fact is often recorded several times, so a sum would rank events
   by how often they were recorded.
 - **Perspective is not impact.** The player's faction stays a concern of the narrator.

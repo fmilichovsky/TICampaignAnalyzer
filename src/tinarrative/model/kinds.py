@@ -32,8 +32,8 @@ class Rule(StrEnum):
     """A narrative-event kind's rule: it sets the level from the curated tier of the completed template."""
 
 
-class StakeMeasure(StrEnum):
-    """The world total a stake is a share of. Each measure's reference, label and description are its entry in
+class Measure(StrEnum):
+    """The world total a share is taken of. Each measure's reference, label and description are its entry in
     ``narrative.measures.MEASURES``."""
 
     POWER = "power"
@@ -46,8 +46,8 @@ class StakeMeasure(StrEnum):
     NUCLEAR = "nuclear"
 
 
-class Stake(StrEnum):
-    """What an event's score scales with: a stake measure and the entities of the event whose share it is."""
+class ShareOf(StrEnum):
+    """What an event's score scales with: a measure and the entities of the event whose share it is."""
 
     NATION = "nation"
     BELLIGERENTS = "belligerents"
@@ -55,17 +55,17 @@ class Stake(StrEnum):
     CONTROL_POINT = "control_point"
     ORGANIZATION = "organization"
     ACTOR = "actor"
-    """A narrative-event stake: the power share of the nation in the actor role, the nation the event is about."""
+    """A narrative-event share: the power share of the nation in the actor role, the nation the event is about."""
     TARGETS = "targets"
-    """A narrative-event stake: the power share of the nations in the target role."""
+    """A narrative-event share: the power share of the nations in the target role."""
     WAR_SIDES = "war_sides"
-    """A narrative-event stake: the power share of every attacker and defender."""
+    """A narrative-event share: the power share of every attacker and defender."""
     MEMBERS = "members"
-    """A narrative-event stake: the power share of every nation that was a member."""
+    """A narrative-event share: the power share of every nation that was a member."""
     REGIONS = "regions"
-    """A narrative-event stake: the population share of the regions the event lists."""
+    """A narrative-event share: the population share of the regions the event lists."""
     INDEPENDENT_NATION = "independent_nation"
-    """A narrative-event stake: the power share of the nation that became independent."""
+    """A narrative-event share: the power share of the nation that became independent."""
     HAB = "hab"
     """The hab share of the habs the event is about: its ``habs`` attribute, else its first hab."""
     FLEET = "fleet"
@@ -73,13 +73,13 @@ class Stake(StrEnum):
     COMBAT = "combat"
     """The contested mass of the recorded combat, read from its record entry."""
     LEFT_FACTION = "left_faction"
-    """The stake of the faction a transition leaves, on the interval's earlier side."""
+    """The share of the faction a transition leaves, on the interval's earlier side."""
     COLONY = "colony"
-    """A narrative-event stake: the hab share of every hab the cited first-presence events list."""
+    """A narrative-event share: the hab share of every hab the cited first-presence events list."""
     NEW_SHIPS = "new_ships"
-    """A narrative-event stake: the fleet share of every ship the cited appearance events are about."""
+    """A narrative-event share: the fleet share of every ship the cited appearance events are about."""
     NUCLEAR_ARC = "nuclear_arc"
-    """A narrative-event stake: the nuclear share of the arc's net move, its actor the nation."""
+    """A narrative-event share: the nuclear share of the arc's net move, its actor the nation."""
 
 
 class EvidenceRole(StrEnum):
@@ -113,7 +113,7 @@ class EventKind:
     required: frozenset[str]
     optional: frozenset[str] = frozenset()
     rule: Rule | None = None
-    stake: Stake | None = None
+    share: ShareOf | None = None
     narrative: bool = False
     digests_members: bool = False
     exclusive_constituents: bool = False

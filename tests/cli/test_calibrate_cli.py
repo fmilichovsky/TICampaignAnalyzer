@@ -14,7 +14,7 @@ import pytest
 from tests.benchmark_support import synthetic_samples
 from tinarrative import cli
 from tinarrative.benchmarking.calibration import drafts, table
-from tinarrative.benchmarking.calibration.drafts import DraftStake
+from tinarrative.benchmarking.calibration.drafts import DraftShare
 from tinarrative.benchmarking.calibration.replay import load
 from tinarrative.benchmarking.manifest import MANIFEST
 
@@ -67,7 +67,7 @@ def test_the_first_run_builds_the_cache_and_prints_the_text_readout(paths: tuple
 
     assert code == cli.EXIT_SUCCESS
     assert "Extracting the calibration table" in stderr
-    assert stdout.startswith("# Stake calibration readout")
+    assert stdout.startswith("# Share calibration readout")
     assert "## Snippet" in stdout
     assert table.read_status(out / "status.js")["state"] == "fresh"
 
@@ -230,9 +230,9 @@ def test_a_failed_extraction_is_a_usage_error_and_keeps_the_old_table(
     assert table.read_status(out / "status.js")["state"] == "failed"
 
 
-def test_an_invalid_draft_stake_is_a_usage_error(paths: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
-    invalid = DraftStake(name="ghost", label="Ghost", issue=1, event_types=("nation.ghost",), scalings=())
-    monkeypatch.setattr(drafts, "DRAFT_STAKES", (invalid,))
+def test_an_invalid_draft_share_is_a_usage_error(paths: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    invalid = DraftShare(name="ghost", label="Ghost", issue=1, event_types=("nation.ghost",), readings=())
+    monkeypatch.setattr(drafts, "DRAFT_SHARES", (invalid,))
 
     code, stdout, stderr = report(paths, "--rebuild")
 
@@ -246,7 +246,7 @@ def test_a_state_naming_an_unknown_draft_is_a_usage_error(paths: tuple[Path, Pat
 
     assert code == cli.EXIT_USAGE_ERROR
     assert stdout == ""
-    assert "unknown draft stake or event type 'ghost'" in stderr
+    assert "unknown draft share or event type 'ghost'" in stderr
 
 
 @pytest.mark.parametrize("broken", ["missing", "no-manifest"])

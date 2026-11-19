@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "key": "golden",
   "hash": "base=atomic.far:trivial,atomic.thing:major",
   "state": {
@@ -236,7 +236,7 @@
       "campaign": "alpha",
       "id": "atomic",
       "type": "atomic.thing",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.019952623149688795
@@ -251,7 +251,7 @@
       "campaign": "alpha",
       "id": "both",
       "type": "atomic.thing",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.01
@@ -270,7 +270,7 @@
       "campaign": "alpha",
       "id": "zero",
       "type": "atomic.thing",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.0
@@ -285,7 +285,7 @@
       "campaign": "alpha",
       "id": "at-cut",
       "type": "atomic.thing",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.0005623413251903491
@@ -300,7 +300,7 @@
       "campaign": "alpha",
       "id": "land",
       "type": "atomic.thing",
-      "stakes": [
+      "shares": [
         {
           "measure": "population",
           "share": 0.1
@@ -315,7 +315,7 @@
       "campaign": "alpha",
       "id": "deal",
       "type": "nation.cession",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.001
@@ -330,7 +330,7 @@
       "campaign": "alpha",
       "id": "grow",
       "type": "nation.expansion",
-      "stakes": [],
+      "shares": [],
       "score": 72,
       "level": "major",
       "code_level": "minor",
@@ -340,7 +340,7 @@
       "campaign": "alpha",
       "id": "arc",
       "type": "campaign.first_milestone",
-      "stakes": [],
+      "shares": [],
       "score": 72,
       "level": "major",
       "code_level": "minor",
@@ -350,7 +350,7 @@
       "campaign": "beta",
       "id": "atomic",
       "type": "atomic.thing",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.019952623149688795

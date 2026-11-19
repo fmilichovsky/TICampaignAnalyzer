@@ -38,7 +38,7 @@ class ReplayStateError(ReplayError):
 @dataclass(frozen=True)
 class ReplayState:
     """What the replay is asked: a reference per measure, the enabled campaigns, a type filter, a base
-    level per draft stake, the base levels tried on event types and the focus.
+    level per draft share, the base levels tried on event types and the focus.
 
     ``types`` empty means every type. ``bases`` empty means each draft's own base. ``type_bases`` holds the switched
     types; a type absent, or at the code's base level (the index's ``kinds``), keeps the code's. ``focus`` is the
@@ -79,8 +79,8 @@ class MemberResult(TypedDict):
     distinct: int
     """The distinct members the kept ones hold; 0 for ``could_become_member``."""
     minimum: int
-    stale_stake: bool
-    """The group's own stake still counts the members it lost."""
+    stale_share: bool
+    """The group's own share still counts the members it lost."""
 
 
 class CampaignResult(TypedDict):
@@ -129,7 +129,7 @@ class Neighbour(TypedDict):
     decisive: bool
     """The row's own score set its score."""
     draft: str | None
-    """The draft stake of a draft row; ``None`` for a real one."""
+    """The draft share of a draft row; ``None`` for a real one."""
 
 
 class Sides(TypedDict):
@@ -152,7 +152,7 @@ class DraftResult(TypedDict):
     level_counts: LevelCounts
     """The draft's rows at each level, at ``base`` and at its oracle."""
     floored: int
-    """Rows whose score a cited row set instead of the draft's own stake."""
+    """Rows whose score a cited row set instead of the draft's own share."""
 
 
 class StateResult(TypedDict):
@@ -326,10 +326,10 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
         raise ReplayStateError(f"unknown focus measure {state.focus!r}")
     names = [draft["name"] for draft in index["drafts"]]
     if sorted(state.bases) != sorted(names):
-        raise ReplayStateError(f"the state needs a base for exactly the draft stakes {', '.join(names) or '(none)'}")
+        raise ReplayStateError(f"the state needs a base for exactly the draft shares {', '.join(names) or '(none)'}")
     for name, level in state.bases.items():
         if level not in index["constants"]["level_bands"]:
-            raise ReplayStateError(f"the base of draft stake {name} must be a level, not {level!r}")
+            raise ReplayStateError(f"the base of draft share {name} must be a level, not {level!r}")
     unswitchable = sorted(set(state.type_bases) - set(index["kinds"]))
     if unswitchable:
         raise ReplayStateError(f"unknown event type(s) in the base levels: {', '.join(unswitchable)}")
@@ -415,13 +415,13 @@ def _replay_campaign(
                 "lost": [],
                 "distinct": 0,
                 "minimum": member_gate.minimum,
-                "stale_stake": False,
+                "stale_share": False,
             }
     drafted: list[_Scored] = []
     for row in shadows:
         name = draft_name(row["id"])
         if name not in state.bases:
-            raise ReplayError(f"{row['id']} is a row of no declared draft stake")
+            raise ReplayError(f"{row['id']} is a row of no declared draft share")
         item = settle(row, draft_start(row, name))
         item.member = None
         drafted.append(item)
@@ -436,9 +436,9 @@ def _level_base(constants: Mapping[str, Any], level: str) -> int:
 
 def _own_score(row: Row, base: int, state: ReplayState, constants: Mapping[str, Any]) -> int:
     """``base`` moved by the highest candidate scale, inside the score bound."""
-    if not row["stakes"]:
+    if not row["shares"]:
         return base
-    scales = [_scale(stake["share"], state.references[stake["measure"]], constants) for stake in row["stakes"]]
+    scales = [_scale(share["share"], state.references[share["measure"]], constants) for share in row["shares"]]
     return max(int(constants["score_min"]), min(int(constants["score_max"]), base + max(scales)))
 
 
@@ -467,7 +467,7 @@ def _group_verdict(row: Row, gate: _Gate, kept_rows: Sequence[_Scored], lost: Se
         "lost": list(lost),
         "distinct": distinct,
         "minimum": gate.minimum,
-        "stale_stake": bool(lost),
+        "stale_share": bool(lost),
     }
 
 
@@ -541,7 +541,7 @@ def _moves(items: Sequence[_Scored], levels: Sequence[str]) -> list[Move]:
 
 
 def cutoff_offsets(constants: Mapping[str, Any]) -> list[float]:
-    """Every ``log10(share / reference)`` at which a stake moves an event of some base level one more level, ascending.
+    """Every ``log10(share / reference)`` at which a share moves an event of some base level one more level, ascending.
 
     A base sits mid-band, so the score crosses a band edge where ``10 * offset`` is half a point past it. Only the
     offsets the scale window reaches are kept.
@@ -609,7 +609,7 @@ def _nearest(side: list[Neighbour], campaigns: Sequence[str], neighbours: int) -
 
 
 def _candidate(row: Row, measure: str) -> float | None:
-    return next((float(stake["share"]) for stake in row["stakes"] if stake["measure"] == measure), None)
+    return next((float(share["share"]) for share in row["shares"] if share["measure"] == measure), None)
 
 
 def _neighbour(campaign: str, item: _Scored, share: float, distance: float) -> Neighbour:
@@ -735,7 +735,7 @@ def _decode_bases(value: str, index: Mapping[str, Any]) -> tuple[dict[str, str],
         if name in names:
             if level not in levels:
                 raise ReplayStateError(
-                    f"the base of draft stake {name} must be a level ({', '.join(levels)}), not {level!r}"
+                    f"the base of draft share {name} must be a level ({', '.join(levels)}), not {level!r}"
                 )
             bases[name] = level
         elif name in index["kinds"]:
@@ -744,7 +744,7 @@ def _decode_bases(value: str, index: Mapping[str, Any]) -> tuple[dict[str, str],
             type_bases[name] = level
         else:
             raise ReplayStateError(
-                f"unknown draft stake or event type {name!r} in the state hash "
+                f"unknown draft share or event type {name!r} in the state hash "
                 f"(drafts: {', '.join(names) or '(none)'}; types: the index's kinds)"
             )
     return bases, type_bases

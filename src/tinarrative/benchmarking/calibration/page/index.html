@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Stake calibration</title>
+<title>Share calibration</title>
 <link rel="stylesheet" href="style.css">
 <script>window.TI_CALIBRATION = { campaigns: {} };</script>
 <script src="index.js"></script>
@@ -18,7 +18,7 @@
 </div>
 
 <header class="bar">
-  <h1 class="bar-title">Stake calibration</h1>
+  <h1 class="bar-title">Share calibration</h1>
   <div class="bar-group" role="group" aria-labelledby="campaigns-label">
     <span class="bar-label" id="campaigns-label">Campaigns</span>
     <span class="bar-toggles" id="campaigns"></span>
@@ -70,7 +70,7 @@
         <h2 class="section-title" id="cutoffs-title">Cut-offs</h2>
         <span class="order view-switch" id="view-switch" role="group" aria-label="Shown under the chart" hidden>
           <button type="button" class="order-option" data-view="cutoffs" aria-pressed="true" aria-controls="cutoff-pair" title="The real events nearest each cut-off">Cut-offs</button>
-          <button type="button" class="order-option" data-view="drafts" aria-pressed="false" aria-controls="draft-panels" title="The draft stakes on this measure, at the same cut-offs">Draft stakes <span class="view-count" id="view-count"></span></button>
+          <button type="button" class="order-option" data-view="drafts" aria-pressed="false" aria-controls="draft-panels" title="The draft shares on this measure, at the same cut-offs">Draft shares <span class="view-count" id="view-count"></span></button>
         </span>
         <span class="cutoff-chips" id="cutoff-chips" role="group" aria-label="Cut-offs shown"></span>
       </div>
@@ -78,13 +78,13 @@
         <article class="tide" id="tide-0"></article>
         <article class="tide" id="tide-1"></article>
       </div>
-      <div class="draft-panels" id="draft-panels" aria-label="Draft stakes" hidden></div>
+      <div class="draft-panels" id="draft-panels" aria-label="Draft shares" hidden></div>
     </section>
 
     <section class="references" aria-labelledby="references-title">
       <h2 class="section-title" id="references-title">References</h2>
       <table class="reference-table">
-        <thead><tr><th scope="col">Measure</th><th scope="col" class="num">Reference</th><th scope="col" class="num">Code's</th><th scope="col" class="num">Stakes</th></tr></thead>
+        <thead><tr><th scope="col">Measure</th><th scope="col" class="num">Reference</th><th scope="col" class="num">Code's</th><th scope="col" class="num">Shares</th></tr></thead>
         <tbody id="references"></tbody>
       </table>
       <h3 class="subsection-title">Drafts</h3>
@@ -140,7 +140,7 @@
       <div class="section-head">
         <h2 class="section-title" id="counts-title">Level counts</h2>
         <span class="order" id="count-order" role="group" aria-label="Row order">
-          <button type="button" class="order-option" data-order="events" aria-pressed="true" title="Types with the most staked events first; rows never move">By events</button>
+          <button type="button" class="order-option" data-order="events" aria-pressed="true" title="Types with the most measured events first; rows never move">By events</button>
           <button type="button" class="order-option" data-order="moves" aria-pressed="false" title="Types with the most events changing level first, once the reference settles">By moves</button>
         </span>
         <span class="section-note" id="counts-note"></span>

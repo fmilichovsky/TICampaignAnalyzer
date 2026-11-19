@@ -18,7 +18,7 @@ from .evidence import SourceLocation
 from .values import FieldValue, Observed, Unknown, to_jsonable
 
 if TYPE_CHECKING:
-    from .kinds import Rule, StakeMeasure  # the kind contract builds on events
+    from .kinds import Measure, Rule  # the kind contract builds on events
 
 
 class EventStatus(StrEnum):
@@ -96,10 +96,10 @@ UNSCORED: Final = -1
 
 @dataclass(frozen=True)
 class SignificanceBasis:
-    """How a stake moved an event's score: ``score = clamp(base + scale, 0, 100)`` (ADR-0011)."""
+    """How a share moved an event's score: ``score = clamp(base + scale, 0, 100)`` (ADR-0011)."""
 
     base: int
-    measure: StakeMeasure
+    measure: Measure
     share: float
     scale: int
     entities: tuple[EntityRef, ...]

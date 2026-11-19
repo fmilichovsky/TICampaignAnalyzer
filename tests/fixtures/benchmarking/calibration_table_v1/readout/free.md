@@ -1,4 +1,4 @@
-# Stake calibration readout
+# Share calibration readout
 
 ## Calibration state
 
@@ -65,73 +65,73 @@ Cut-off at share 0.178 (offset 1.25):
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### organization
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### hab
 
 Cut-off at share 0.000844 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.267 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### fleet
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### battle
 
 Cut-off at share 0.000186 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.0587 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### faction
 
 Cut-off at share 0.00803 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 2.54 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### nuclear
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
-## Draft stakes
+## Draft shares
 
 | Draft | Label | Issue | Measures | Base | Own base | Events | Ruled | Set by a cited event |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -146,31 +146,31 @@ No draft rows.
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No row of this draft has this stake.
+No row of this draft has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No row of this draft has this stake.
+No row of this draft has this share.
 
 ### held on population
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No row of this draft has this stake.
+No row of this draft has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No row of this draft has this stake.
+No row of this draft has this share.
 
 ### moved on population
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No row of this draft has this stake.
+No row of this draft has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No row of this draft has this stake.
+No row of this draft has this share.
 
 ## Snippet
 

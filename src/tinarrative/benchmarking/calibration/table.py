@@ -9,18 +9,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
 
-from tinarrative.benchmarking.calibration import drafts as draft_stakes
-from tinarrative.benchmarking.calibration.drafts import DraftStake, draft_base, draft_row_id, validate_drafts
+from tinarrative.benchmarking.calibration import drafts as draft_shares
+from tinarrative.benchmarking.calibration.drafts import DraftShare, draft_base, draft_row_id, validate_drafts
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
 from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event, Significance
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
-from tinarrative.narrative.aggregation import report_stakes
+from tinarrative.narrative.aggregation import report_shares
 from tinarrative.narrative.chronology import interval_of
 from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
-from tinarrative.narrative.significance import ReportStakes, narrative_level, score_narrative
+from tinarrative.narrative.significance import ReportShares, narrative_level, score_narrative
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
@@ -31,7 +31,7 @@ from tinarrative.sequence import (
     survey_all,
 )
 
-SCHEMA_VERSION: Final = 3
+SCHEMA_VERSION: Final = 4
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -48,16 +48,16 @@ class CalibrationTableError(ValueError):
     """A calibration table file that does not follow the wrapper contract, or a campaign that cannot be extracted."""
 
 
-def declared_drafts(drafts: Sequence[DraftStake] | None = None) -> tuple[DraftStake, ...]:
-    """``drafts``, else the declared ``DRAFT_STAKES``, validated (``DraftStakeError``)."""
-    chosen = tuple(draft_stakes.DRAFT_STAKES if drafts is None else drafts)
+def declared_drafts(drafts: Sequence[DraftShare] | None = None) -> tuple[DraftShare, ...]:
+    """``drafts``, else the declared ``DRAFT_SHARES``, validated (``DraftShareError``)."""
+    chosen = tuple(draft_shares.DRAFT_SHARES if drafts is None else drafts)
     validate_drafts(chosen)
     return chosen
 
 
-def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftStake] | None = None) -> dict[str, Any]:
+def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftShare] | None = None) -> dict[str, Any]:
     """The campaign document from a separate in-process run at code defaults: one row per finished event, and one
-    shadow row per draft stake and event of its types (``drafts``, by default the declared ones)."""
+    shadow row per draft share and event of its types (``drafts``, by default the declared ones)."""
     chosen = declared_drafts(drafts)
     outcomes = list(survey_all(list(saves)))
     failures = [outcome for outcome in outcomes if isinstance(outcome, SurveyFailure)]
@@ -72,9 +72,9 @@ def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftStake] | None 
     rows.extend(_row(event, "narrative") for event in narrative)
     by_id = {event.id: event for interval in intervals for event in interval.events()}
     by_id.update((event.id, event) for event in narrative)
-    stakes = report_stakes(situations(intervals), DEFAULT_SETTINGS.narrative.significance)
+    shares = report_shares(situations(intervals), DEFAULT_SETTINGS.narrative.significance)
     shadows = [
-        _draft_row(draft, event, by_id, stakes)
+        _draft_row(draft, event, by_id, shares)
         for draft in chosen
         for event in narrative
         if event.event_type in draft.event_types
@@ -83,7 +83,7 @@ def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftStake] | None 
 
 
 def _draft_row(
-    draft: DraftStake, event: Event, by_id: Mapping[str, Event], stakes: Mapping[str, ReportStakes]
+    draft: DraftShare, event: Event, by_id: Mapping[str, Event], shares: Mapping[str, ReportShares]
 ) -> dict[str, Any]:
     """The event scored by the draft's candidates, each as the pipeline would score it; the score is the highest
     of the candidates with a share, as the replay takes it."""
@@ -91,11 +91,11 @@ def _draft_row(
     if kind is None:
         raise CalibrationTableError(f"event type {event.event_type} is declared by no kind")
     cited = [by_id[item] for item in event.constituents]
-    first, last = stakes.get(event.intervals[0]), stakes.get(event.intervals[-1])
+    first, last = shares.get(event.intervals[0]), shares.get(event.intervals[-1])
     base = draft_base(draft)
     results = [
-        score_narrative(kind, event, cited, scaling=scaling, base=base, stakes=first, last=last)
-        for scaling in draft.scalings
+        score_narrative(kind, event, cited, reading=reading, base=base, shares=first, last=last)
+        for reading in draft.readings
     ]
     scored = [result for result in results if result.basis is not None]
     score = max(result.score for result in scored) if scored else results[0].score
@@ -103,7 +103,7 @@ def _draft_row(
         **_row(event, "narrative"),
         "id": draft_row_id(draft.name, event.id),
         "base": results[0].level.base,
-        "stakes": [
+        "shares": [
             {"measure": result.basis.measure.value, "share": result.basis.share}
             for result in scored
             if result.basis is not None
@@ -127,7 +127,7 @@ def _row(event: Event, tier: str) -> dict[str, Any]:
         "label": describe_event(event, plain=True),
         "base": basis.base if basis is not None else _own_base(event, narrative),
         "rule": None if event.context_rule is None else event.context_rule.value,
-        "stakes": [{"measure": basis.measure.value, "share": basis.share}] if basis is not None else [],
+        "shares": [{"measure": basis.measure.value, "share": basis.share}] if basis is not None else [],
         "entities": [{"id": str(ref.entity_id), "name": ref.name or None} for ref in event.entities],
         "cited": list(event.constituents) if narrative else [],
         "score": event.score,
@@ -179,10 +179,10 @@ def build_index(
     key: str,
     extracted_at: str,
     kinds: Mapping[str, Mapping[str, Any]],
-    drafts: Sequence[DraftStake] | None = None,
+    drafts: Sequence[DraftShare] | None = None,
 ) -> dict[str, Any]:
     """The ``index.js`` document: what the rows cannot say about themselves, from the registry, the rules and the
-    draft stakes (``drafts``, by default the declared ones).
+    draft shares (``drafts``, by default the declared ones).
 
     ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold.
     """
@@ -224,7 +224,7 @@ def build_index(
                 "label": draft.label,
                 "issue": draft.issue,
                 "base": draft_base(draft).value,
-                "measures": list(dict.fromkeys(scaling.measure.value for scaling in draft.scalings)),
+                "measures": list(dict.fromkeys(reading.measure.value for reading in draft.readings)),
             }
             for draft in chosen
         ],

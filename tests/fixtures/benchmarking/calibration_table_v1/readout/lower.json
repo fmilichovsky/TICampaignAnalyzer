@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "key": "golden",
   "hash": "ref=power:0.006309573444801933,faction:0.0000001",
   "state": {
@@ -229,7 +229,7 @@
       ],
       "distinct": 3,
       "minimum": 3,
-      "stale_stake": true
+      "stale_share": true
     },
     {
       "campaign": "alpha",
@@ -245,7 +245,7 @@
       ],
       "distinct": 2,
       "minimum": 3,
-      "stale_stake": true
+      "stale_share": true
     }
   ],
   "moved": [
@@ -253,7 +253,7 @@
       "campaign": "alpha",
       "id": "near-0",
       "type": "atomic.near",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.0005248074602497726
@@ -268,7 +268,7 @@
       "campaign": "alpha",
       "id": "near-1",
       "type": "atomic.near",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.0004897788193684462
@@ -283,7 +283,7 @@
       "campaign": "alpha",
       "id": "near-2",
       "type": "atomic.near",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.00045708818961487493
@@ -298,7 +298,7 @@
       "campaign": "alpha",
       "id": "near-3",
       "type": "atomic.near",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.0004265795188015928
@@ -313,7 +313,7 @@
       "campaign": "alpha",
       "id": "near-4",
       "type": "atomic.near",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.00039810717055349735
@@ -328,7 +328,7 @@
       "campaign": "alpha",
       "id": "near-5",
       "type": "atomic.near",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.0003715352290971724
@@ -343,7 +343,7 @@
       "campaign": "alpha",
       "id": "far-low",
       "type": "atomic.far",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.000446683592150963
@@ -358,7 +358,7 @@
       "campaign": "alpha",
       "id": "shrunk-0",
       "type": "faction.takeover",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.15848931924611134
@@ -373,7 +373,7 @@
       "campaign": "alpha",
       "id": "gone-0",
       "type": "faction.takeover",
-      "stakes": [
+      "shares": [
         {
           "measure": "power",
           "share": 0.15848931924611134

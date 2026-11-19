@@ -36,7 +36,7 @@ from .prominence import (
     ALIEN_MASS_WEIGHT,
     PowerInputs,
     ShipMasses,
-    faction_stake,
+    faction_share,
     fleet_share,
     hab_share,
     hab_weights,
@@ -324,11 +324,11 @@ class SituationReport:
     unattributed: Unattributed
     world: WorldSituation
     region_population: tuple[tuple[EntityId, Observed], ...] = ()
-    """Each region's ``populationInMillions``, the territory stakes of narrative events; not part of ``to_dict``."""
+    """Each region's ``populationInMillions``, the territory shares of narrative events; not part of ``to_dict``."""
     hab_weight_by_hab: tuple[tuple[EntityId, float], ...] = ()
-    """Each hab's tier², the hab stakes of narrative events; not part of ``to_dict``."""
+    """Each hab's tier², the hab shares of narrative events; not part of ``to_dict``."""
     dry_mass_by_asset: tuple[tuple[EntityId, float], ...] = ()
-    """The dry mass (kg) of each ship and each fleet, the fleet stakes of narrative events; not part of ``to_dict``."""
+    """The dry mass (kg) of each ship and each fleet, the fleet shares of narrative events; not part of ``to_dict``."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -371,7 +371,7 @@ class SituationReport:
         return tuple(found)
 
     def power_shares(self, weights: PowerSettings) -> dict[EntityId, float]:
-        """Each nation's stake: ``prominence.power_shares`` over the nations holding land with known GDP, population
+        """Each nation's share: ``prominence.power_shares`` over the nations holding land with known GDP, population
         and strength, as ``prominence.nation_power`` gives for the snapshot this report was built from."""
         inputs: list[PowerInputs] = []
         for row in self.nations:
@@ -382,8 +382,8 @@ class SituationReport:
                 inputs.append(found)
         return power_shares(inputs, weights)
 
-    def faction_stakes(self, weights: PowerSettings, w_space: float) -> dict[EntityId, float]:
-        """Each faction's stake: a human faction's Earth share (each nation's power share times the faction's share of
+    def faction_shares(self, weights: PowerSettings, w_space: float) -> dict[EntityId, float]:
+        """Each faction's share: a human faction's Earth share (each nation's power share times the faction's share of
         that nation's control points) blended with its space share by how far humans have reached the space
         saturation; the alien faction, the backdrop of space, keeps its Earth share alone."""
         power = self.power_shares(weights)
@@ -396,13 +396,13 @@ class SituationReport:
             for key, held in row.shares.items:
                 if isinstance(held, int):
                     earth[key] += share * held / points
-        stakes: dict[EntityId, float] = {}
+        shares: dict[EntityId, float] = {}
         for faction in self.factions:
             found = earth[str(faction.faction.entity_id)]
-            stakes[faction.faction.entity_id] = (
+            shares[faction.faction.entity_id] = (
                 found
                 if faction.kind == "alien"
-                else faction_stake(
+                else faction_share(
                     found,
                     faction.hab_weight,
                     faction.ship_mass,
@@ -411,7 +411,7 @@ class SituationReport:
                     w_space,
                 )
             )
-        return stakes
+        return shares
 
     def hab_shares(self) -> dict[EntityId, float]:
         """Each hab's ``tier²`` over the human total (at least ``HAB_FLOOR``), alien habs included as habs."""

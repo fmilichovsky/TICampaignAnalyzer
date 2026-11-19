@@ -1,7 +1,7 @@
 # Space assets: habs and ships by faction
 
-Evidence base for the space stakes of the entity-scaled significance score
-([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-stake.md), roadmap *Entity-scaled significance*). It records how the
+Evidence base for the space shares of the entity-scaled significance score
+([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-share.md), roadmap *Entity-scaled significance*). It records how the
 habs and ships in a save divide between the alien faction and the human factions, so that a share of "space" can be
 defined that behaves from the first save of a campaign to its late game. It follows the rules of the
 [notes README](README.md): structure, counts, magnitudes and dates only; faction templates are named, players are not.
@@ -54,7 +54,7 @@ Observations:
   floor. The late-game human totals (about 1,400 tier², 4 to 5 Mt) are the scale such a floor is calibrated against.
 - A combat record names each ship's design (`Item1`, a `dataName` such as `playerShipTemplate16`) beside its hull
   class (`Item2`); a live ship's `templateName` is the same `dataName`, and its hull class is the `hullName` of the
-  design in its faction's `shipDesigns`. A battle stake reads a record's ships through them: a live ship of the design,
+  design in its faction's `shipDesigns`. A battle share reads a record's ships through them: a live ship of the design,
   else the median dry mass of the hull class, else nothing.
 
 ## Progression and combats (scan of 24 private saves, 2026-11-13)

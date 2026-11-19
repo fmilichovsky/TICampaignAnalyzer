@@ -32,7 +32,7 @@ from ..model.kinds import EventKind
 from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
-from .significance import ReportStakes, narrative_score
+from .significance import ReportShares, narrative_score
 from .situation import SituationReport
 from .stream import EventStream, UndeclaredRead
 
@@ -154,10 +154,10 @@ def interval_reports(situations: Sequence[SituationReport]) -> dict[str, tuple[S
     return {keys[index]: (situations[index - 1], situations[index]) for index in range(1, len(situations))}
 
 
-def report_stakes(situations: Sequence[SituationReport], significance: SignificanceSettings) -> dict[str, ReportStakes]:
-    """The stakes of each interval's two reports, keyed as ``interval_reports`` keys them."""
+def report_shares(situations: Sequence[SituationReport], significance: SignificanceSettings) -> dict[str, ReportShares]:
+    """The shares of each interval's two reports, keyed as ``interval_reports`` keys them."""
     return {
-        key: ReportStakes(before, after, significance) for key, (before, after) in interval_reports(situations).items()
+        key: ReportShares(before, after, significance) for key, (before, after) in interval_reports(situations).items()
     }
 
 
@@ -173,10 +173,10 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 class NarrativeBuilder:
     """Applies the shared policy: confidence is the constituents' minimum, the score and its basis are significance's
-    (``narrative_score``, the stake read from the reports of the event's first interval, the nuclear share also from
+    (``narrative_score``, the share read from the reports of the event's first interval, the nuclear share also from
     its last), and ``open`` while the anchor is in the last report.
 
-    A rule chooses no level: the kind's base level, context rule and stake do, never below the highest-scored cited
+    A rule chooses no level: the kind's base level, context rule and share do, never below the highest-scored cited
     event.
     """
 
@@ -187,7 +187,7 @@ class NarrativeBuilder:
     ) -> None:
         self._situations = tuple(situations)
         self._last = self._situations[-1] if self._situations else None
-        self._stakes = report_stakes(self._situations, significance)
+        self._shares = report_shares(self._situations, significance)
 
     def event(
         self,
@@ -253,7 +253,7 @@ class NarrativeBuilder:
             roles=role_list,
         )
         score, basis, rule = narrative_score(
-            kind, event, cited, self._stakes.get(intervals[0]), self._stakes.get(intervals[-1])
+            kind, event, cited, self._shares.get(intervals[0]), self._shares.get(intervals[-1])
         )
         return replace(
             event, significance=Significance.of(score), score=score, significance_basis=basis, context_rule=rule
@@ -283,7 +283,7 @@ def aggregate(
 ) -> list[Event]:
     """Rules run in layers derived from what they read and which ``kinds`` have exclusive constituents, each layer by
     rule name. ``kinds`` is the registry; tests pass their own to declare fixture kinds exclusive. ``significance``
-    scales the narrative events' stakes.
+    scales the narrative events' shares.
 
     Narrative events already in ``stream`` are hidden from a rule that does not read their type, like those the rules
     build. These programming errors raise ``ValueError``: a duplicate rule name or event ID (naming the rule when one

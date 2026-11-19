@@ -10,7 +10,7 @@ from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import NUCLEAR_PROGRAM_CHANGED, STATISTIC_SHIFTED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Significance
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.model.values import Observed, Unknown
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.measures import MEASURES
@@ -152,7 +152,7 @@ def test_a_great_buildup_outranks_a_token_one() -> None:
 
 
 def test_a_one_warhead_armament_stays_major_in_a_world_at_the_reference() -> None:
-    world = round(1 / MEASURES[StakeMeasure.NUCLEAR].reference)
+    world = round(1 / MEASURES[Measure.NUCLEAR].reference)
     (arc,) = built([weapons(K1, 0, 1)], arsenals({K0: 0, K1: 1}, south=world - 1))
     assert arc.event_type == NUCLEAR_ARMAMENT and arc.significance is Significance.MAJOR
     assert arc.significance_basis is not None and arc.significance_basis.scale >= 0
@@ -175,7 +175,7 @@ def test_a_nation_with_an_unknown_count_is_skipped_in_the_world_total() -> None:
 def test_the_basis_names_the_nuclear_measure_and_the_acting_nation() -> None:
     (arc,) = built([weapons(K1, 8, 4)], arsenals({K0: 8, K1: 4}))
     basis = arc.significance_basis
-    assert basis is not None and basis.measure is StakeMeasure.NUCLEAR and basis.entities == (NORTH,)
+    assert basis is not None and basis.measure is Measure.NUCLEAR and basis.entities == (NORTH,)
 
 
 def test_without_any_known_count_the_arc_is_not_scaled() -> None:

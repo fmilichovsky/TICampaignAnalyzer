@@ -1,6 +1,6 @@
 # The calibration table is replayed once, in Python
 
-The calibration page shows how the sample campaigns' events change level when a stake's reference or a base level
+The calibration page shows how the sample campaigns' events change level when a share's reference or a base level
 changes. Each of those changes is a replay of the calibration table, and the same replay backs
 `benchmark calibrate report`.
 

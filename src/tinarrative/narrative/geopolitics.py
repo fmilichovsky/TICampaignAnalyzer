@@ -415,7 +415,7 @@ def _holds_executive_only(situations: Sequence[SituationReport], nation_id: Enti
 class TakeoverWaveRule:
     """``faction.takeover_wave``: one faction took several nations in a short period.
 
-    A takeover whose stake makes it campaign defining stays a headline narrative event of its own and never joins a
+    A takeover whose share makes it campaign defining stays a headline narrative event of its own and never joins a
     wave. ``member_gate`` declares that.
     """
 
