@@ -55,9 +55,12 @@ the one that `compare` reads; see the [command page](../docs/commands/benchmark.
 or when any user comments exactly `/benchmarks` on a pull request. Manual runs compare the selected branch with the
 default branch; comment-triggered runs compare that pull request's base and head. Measurements are informational and never fail because of a change.
 
-The package workflow installs the base and head into two virtual environments and measures both with the head checkout's
-CLI, samples, matrix and settings. It uploads both sides' outputs as the `package-metrics` artifact so any package or
-request can be diffed locally.
+The package workflow reads the campaign list from `samples.json` and runs one measure job per campaign and side
+(`fail-fast: false`, so a failing campaign does not cancel the others), so its wall time follows the longest campaign
+rather than the number of campaigns. Each job installs only its side and measures its campaign with the head
+checkout's CLI, samples, matrix and settings. A final job merges each side's per-campaign results with
+`benchmark metrics merge`, runs `compare` and uploads both sides' merged outputs as the `package-metrics` artifact so
+any package or request can be diffed locally.
 
 The report:
 
