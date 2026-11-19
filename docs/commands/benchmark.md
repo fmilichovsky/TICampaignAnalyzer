@@ -90,8 +90,7 @@ tinarrative benchmark metrics measure --out build/package-metrics --label "$(git
 ```
 
 `--campaign NAME` measures only that sample campaign (repeat it for several); a name `samples.json` does not list is a
-usage error. Measure each campaign on its own, for example on separate runners, and combine the results with
-[`benchmark metrics merge`](#benchmark-metrics-merge).
+usage error. Combine per-campaign results with [`benchmark metrics merge`](#benchmark-metrics-merge).
 
 ```sh
 tinarrative benchmark metrics measure --campaign protectorate --out build/protectorate --label "$(git rev-parse --short HEAD)"
@@ -128,7 +127,6 @@ tinarrative benchmark metrics merge --out PATH METRICS [METRICS ...]
 <!-- end generated -->
 
 Combines the `metrics.json` files of single campaigns (see `measure --campaign`) into the one file that `compare` reads.
-The merged file is what one `measure` run over those campaigns would have written; its campaigns are in name order.
 The inputs must agree on everything else `measure` records (tool version, label, matrix, samples hash, characters per
 token), and no campaign may be in two of them. Otherwise nothing is written.
 

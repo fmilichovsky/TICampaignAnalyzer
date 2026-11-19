@@ -383,10 +383,6 @@ def select_campaigns(found: Mapping[str, Any], names: Sequence[str] | None) -> d
     return {name: value for name, value in found.items() if names is None or name in names}
 
 
-METADATA = ("tool_version", "label", "chars_per_token", "matrix_sha256", "samples_sha256", "matrix")
-"""What a metrics file records besides its campaigns; merged files must agree on all of it."""
-
-
 def merge(documents: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     """One metrics file from per-campaign ones, as a single measurement of all the campaigns would have written it.
 

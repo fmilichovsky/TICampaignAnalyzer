@@ -481,3 +481,25 @@ def test_metrics_cli_merge_writes_one_file_and_names_its_failures(
 
     missing = str(tmp_path / "missing.json")
     assert cli.main(["benchmark", "metrics", "merge", paths[0], missing, "--out", str(out)]) == cli.EXIT_INPUT_ERROR
+
+
+def test_merging_separate_campaign_measurements_equals_measuring_all_at_once(tmp_path: Path) -> None:
+    samples = _two_campaign_samples(tmp_path)
+    matrix, config = _write_matrix(tmp_path)
+
+    def run(name: str, campaigns: list[str] | None) -> dict[str, Any]:
+        return measure(
+            python=sys.executable,
+            samples=samples,
+            matrix_path=matrix,
+            config=config,
+            out=tmp_path / name,
+            label="test",
+            chars_per_token=3,
+            log=None,
+            campaigns=campaigns,
+        )
+
+    merged = benchmark_metrics.merge([run("second", ["second"]), run("politics", ["politics"])])
+
+    assert json.dumps(merged) == json.dumps(run("all", None))
