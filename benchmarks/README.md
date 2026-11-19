@@ -45,6 +45,9 @@ mapping keyed by ID (more than 30 keys) is not broken down.
 Characters and estimated tokens are exact for what is sent. Real tokens depend on the model's tokenizer, so compare
 the estimates with each other, not with a provider's bill.
 
+`measure --campaign NAME` measures only the named campaigns, and `merge` combines per-campaign `metrics.json` files into
+the one that `compare` reads; see the [command page](../docs/commands/benchmark.md#benchmark-metrics-merge).
+
 ## On-demand runs
 
 [`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml) and

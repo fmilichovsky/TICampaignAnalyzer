@@ -77,7 +77,7 @@ tinarrative benchmark metrics samples
 <!-- generated: synopsis benchmark metrics measure -->
 ```
 tinarrative benchmark metrics measure [--python PYTHON] [--samples PATH] [--matrix PATH]
-                                      [--config PATH] --out PATH [--label TEXT]
+                                      [--config PATH] --out PATH [--label TEXT] [--campaign NAME]
                                       [--chars-per-token FLOAT] [--jobs N]
 ```
 <!-- end generated -->
@@ -89,6 +89,13 @@ package-metrics` runs it for the working tree.
 tinarrative benchmark metrics measure --out build/package-metrics --label "$(git rev-parse --short HEAD)"
 ```
 
+`--campaign NAME` measures only that sample campaign (repeat it for several); a name `samples.json` does not list is a
+usage error. Combine per-campaign results with [`benchmark metrics merge`](#benchmark-metrics-merge).
+
+```sh
+tinarrative benchmark metrics measure --campaign protectorate --out build/protectorate --label "$(git rev-parse --short HEAD)"
+```
+
 <!-- generated: options benchmark metrics measure -->
 | Option | Meaning |
 | --- | --- |
@@ -98,6 +105,7 @@ tinarrative benchmark metrics measure --out build/package-metrics --label "$(git
 | `--config PATH` | Settings file for the measured runs (default benchmarks/config.toml). |
 | `--out PATH` | Directory for the packages, plans and metrics.json. |
 | `--label TEXT` | What is measured, such as a commit (default working tree). |
+| `--campaign NAME` | Measure only this sample campaign; repeat for several (default: every campaign). |
 | `--chars-per-token FLOAT` | Characters per estimated token (default 2.4). |
 | `--jobs N` | Commands run at once (default: the CPU count). |
 <!-- end generated -->
@@ -106,8 +114,40 @@ tinarrative benchmark metrics measure --out build/package-metrics --label "$(git
 | Code | When |
 | --- | --- |
 | 0 | Metrics.json was written; failed runs are recorded in it. |
-| 2 | Usage error, a sample that does not match samples.json, or an invalid matrix. |
+| 2 | Usage error, a sample that does not match samples.json, an invalid matrix or an unknown --campaign. |
 | 9 | The outputs cannot be written. |
+<!-- end generated -->
+
+## `benchmark metrics merge`
+
+<!-- generated: synopsis benchmark metrics merge -->
+```
+tinarrative benchmark metrics merge --out PATH METRICS [METRICS ...]
+```
+<!-- end generated -->
+
+Combines the `metrics.json` files of single campaigns (see `measure --campaign`) into the one file that `compare` reads.
+The inputs must agree on everything else `measure` records (tool version, label, matrix, samples hash, characters per
+token), and no campaign may be in two of them. Otherwise nothing is written.
+
+```sh
+tinarrative benchmark metrics merge build/protectorate/metrics.json build/resist/metrics.json --out build/package-metrics/metrics.json
+```
+
+<!-- generated: options benchmark metrics merge -->
+| Option | Meaning |
+| --- | --- |
+| `METRICS...` | A per-campaign metrics.json. |
+| `--out PATH` | Write the merged metrics.json here. |
+<!-- end generated -->
+
+<!-- generated: exit-codes benchmark metrics merge -->
+| Code | When |
+| --- | --- |
+| 0 | The merged metrics.json was written. |
+| 2 | Usage error, metrics files that differ in their metadata, or a campaign in two of them. |
+| 4 | A metrics file cannot be read or is not a metrics file. |
+| 9 | The merged file cannot be written. |
 <!-- end generated -->
 
 ## `benchmark metrics compare`

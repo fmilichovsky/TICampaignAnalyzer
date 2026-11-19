@@ -380,3 +380,153 @@ def test_a_malformed_matrix_is_a_usage_error(tmp_path: Path, capsys: pytest.Capt
 
     assert code == 2
     assert "narrate.b: package must name an events run" in capsys.readouterr().err
+
+
+def _write_matrix(tmp_path: Path) -> tuple[Path, Path]:
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text('[[events]]\nid = "bare"\nargs = ["--narrative", "--format", "json"]\n', encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    return matrix, config
+
+
+def _two_campaign_samples(tmp_path: Path) -> Path:
+    samples = synthetic_samples(tmp_path)
+    shutil.copytree(samples / "politics", samples / "second")
+    manifest = update_samples(samples)
+    for name in manifest["campaigns"]:
+        manifest["campaigns"][name]["description"] = name
+    (samples / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+    return samples
+
+
+def test_a_measurement_can_be_limited_to_named_campaigns(tmp_path: Path) -> None:
+    samples = _two_campaign_samples(tmp_path)
+    matrix, config = _write_matrix(tmp_path)
+
+    metrics = measure(
+        python=sys.executable,
+        samples=samples,
+        matrix_path=matrix,
+        config=config,
+        out=tmp_path / "out",
+        label="test",
+        chars_per_token=3,
+        log=None,
+        campaigns=["second"],
+    )
+
+    assert list(metrics["campaigns"]) == ["second"]
+    assert not (tmp_path / "out" / "packages" / "politics").exists()
+
+
+def test_an_unknown_campaign_is_refused_before_measuring(tmp_path: Path) -> None:
+    samples = _two_campaign_samples(tmp_path)
+    matrix, config = _write_matrix(tmp_path)
+
+    with pytest.raises(ValueError, match="unknown campaign 'nope'"):
+        measure(
+            python=sys.executable,
+            samples=samples,
+            matrix_path=matrix,
+            config=config,
+            out=tmp_path / "out",
+            label="test",
+            chars_per_token=3,
+            log=None,
+            campaigns=["nope"],
+        )
+
+
+def test_metrics_cli_measure_rejects_an_unknown_campaign(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    samples = _two_campaign_samples(tmp_path)
+    matrix, config = _write_matrix(tmp_path)
+
+    code = cli.main(
+        ["benchmark", "metrics", "measure", "--samples", str(samples), "--matrix", str(matrix), "--config", str(config)]
+        + ["--out", str(tmp_path / "out"), "--campaign", "nope"]
+    )
+
+    assert code == cli.EXIT_USAGE_ERROR
+    assert "unknown campaign 'nope'" in capsys.readouterr().err
+
+
+def _per_campaign(name: str, *, est_tokens: int = 100) -> dict[str, Any]:
+    metrics = _metrics("L", members={"saves": est_tokens}, est_tokens=est_tokens)
+    metrics["campaigns"] = {name: metrics["campaigns"]["camp"]}
+    return metrics
+
+
+def test_merged_per_campaign_metrics_equal_one_measurement_of_all_campaigns() -> None:
+    first, second = _per_campaign("alpha"), _per_campaign("beta", est_tokens=200)
+    everything = _metrics("L", members={"saves": 1})
+    everything["campaigns"] = {**first["campaigns"], **second["campaigns"]}
+
+    assert benchmark_metrics.merge([second, first]) == everything
+    assert list(benchmark_metrics.merge([second, first])["campaigns"]) == ["alpha", "beta"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("label", "other"),
+        ("tool_version", 2),
+        ("chars_per_token", 4),
+        ("matrix_sha256", "x"),
+        ("samples_sha256", "x"),
+        ("matrix", {"events": ["other"], "narrate": []}),
+    ],
+)
+def test_merge_refuses_inputs_whose_metadata_differs(field: str, value: Any) -> None:
+    first, second = _per_campaign("alpha"), _per_campaign("beta")
+    second[field] = value
+
+    with pytest.raises(ValueError, match=f"differ in {field}"):
+        benchmark_metrics.merge([first, second])
+
+
+def test_merge_refuses_a_campaign_in_more_than_one_input() -> None:
+    with pytest.raises(ValueError, match="campaign 'alpha' appears in more than one input"):
+        benchmark_metrics.merge([_per_campaign("alpha"), _per_campaign("alpha")])
+
+
+def test_metrics_cli_merge_writes_one_file_and_names_its_failures(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    paths = []
+    for name in ("alpha", "beta"):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(_per_campaign(name)), encoding="utf-8")
+        paths.append(str(path))
+    out = tmp_path / "merged" / "metrics.json"
+
+    assert cli.main(["benchmark", "metrics", "merge", *paths, "--out", str(out)]) == cli.EXIT_SUCCESS
+    assert list(json.loads(out.read_text(encoding="utf-8"))["campaigns"]) == ["alpha", "beta"]
+
+    assert cli.main(["benchmark", "metrics", "merge", paths[0], paths[0], "--out", str(out)]) == cli.EXIT_USAGE_ERROR
+    assert "appears in more than one input" in capsys.readouterr().err
+
+    missing = str(tmp_path / "missing.json")
+    assert cli.main(["benchmark", "metrics", "merge", paths[0], missing, "--out", str(out)]) == cli.EXIT_INPUT_ERROR
+
+
+def test_merging_separate_campaign_measurements_equals_measuring_all_at_once(tmp_path: Path) -> None:
+    samples = _two_campaign_samples(tmp_path)
+    matrix, config = _write_matrix(tmp_path)
+
+    def run(name: str, campaigns: list[str] | None) -> dict[str, Any]:
+        return measure(
+            python=sys.executable,
+            samples=samples,
+            matrix_path=matrix,
+            config=config,
+            out=tmp_path / name,
+            label="test",
+            chars_per_token=3,
+            log=None,
+            campaigns=campaigns,
+        )
+
+    merged = benchmark_metrics.merge([run("second", ["second"]), run("politics", ["politics"])])
+
+    assert json.dumps(merged) == json.dumps(run("all", None))
