@@ -17,11 +17,11 @@ from tinarrative.kinds.registry import kind_for
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Event, Role, Significance
 from tinarrative.model.kinds import Measure, ShareOf
-from tinarrative.narrative.significance import NARRATIVE_SHARE_IMPLEMENTATIONS, NarrativeShareReading
+from tinarrative.narrative.significance import SHARE_IMPLEMENTATIONS, ShareReading
 
 SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
 CLAIMS, CESSION = "nation.claims_declared", "nation.cession"
-REGIONS = NARRATIVE_SHARE_IMPLEMENTATIONS[ShareOf.REGIONS]
+REGIONS = SHARE_IMPLEMENTATIONS[ShareOf.REGIONS]
 
 
 def locations(event: Event, cited: Any = ()) -> tuple[EntityRef, ...]:
@@ -37,8 +37,8 @@ TERRITORY = DraftShare(
     event_types=(CLAIMS, CESSION),
     readings=(
         REGIONS,
-        NarrativeShareReading(Measure.POWER, locations),
-        NarrativeShareReading(Measure.POPULATION, locations),
+        ShareReading(Measure.POWER, locations),
+        ShareReading(Measure.POPULATION, locations),
     ),
     base=Significance.MINOR,
 )

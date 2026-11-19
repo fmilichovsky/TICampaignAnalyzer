@@ -12,7 +12,7 @@ from tinarrative.benchmarking.calibration.table import build_index, layers, type
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, Significance
 from tinarrative.model.kinds import Measure, ShareOf
-from tinarrative.narrative.significance import NARRATIVE_SHARE_IMPLEMENTATIONS, NarrativeShareReading
+from tinarrative.narrative.significance import SHARE_IMPLEMENTATIONS, ShareReading
 
 ROW_FIELDS = {
     "id",
@@ -201,14 +201,14 @@ def members(faction: str, scales: list[float]) -> list[dict[str, Any]]:
 
 FIRST, SECOND, THIRD = (next(name for name, number in INDEX["layers"].items() if number == n) for n in (1, 2, 3))
 """A narrative type of each of the first three layers."""
-ACTOR = NARRATIVE_SHARE_IMPLEMENTATIONS[ShareOf.ACTOR]
+ACTOR = SHARE_IMPLEMENTATIONS[ShareOf.ACTOR]
 DRAFTS = (
     DraftShare(
         name="held",
         label="Held share",
         issue=1,
         event_types=(FIRST, SECOND, THIRD),
-        readings=(ACTOR, NarrativeShareReading(Measure.POPULATION, ACTOR.entities)),
+        readings=(ACTOR, ShareReading(Measure.POPULATION, ACTOR.entities)),
         base=Significance.MINOR,
     ),
     DraftShare(
@@ -216,7 +216,7 @@ DRAFTS = (
         label="Moved share",
         issue=2,
         event_types=(FIRST,),
-        readings=(NarrativeShareReading(Measure.POPULATION, ACTOR.entities),),
+        readings=(ShareReading(Measure.POPULATION, ACTOR.entities),),
         base=Significance.TRIVIAL,
     ),
 )

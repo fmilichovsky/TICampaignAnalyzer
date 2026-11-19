@@ -37,6 +37,9 @@ summary to a forensic log. It measures impact, not certainty, and is independent
 - **The maximum, never a sum.** A narrative event scores the higher of its rule's base plus its own share and the
   highest score among the events it cites. One fact is often recorded several times, so a sum would rank events
   by how often they were recorded.
+- **Shares are computed once per save, and one path scores every event.** Two scoring paths drifted apart whenever
+  one was fixed; the tiers differ only in where an event's entities are read from. Only a narrative event is lifted
+  by the events it cites: an atomic event cites evidence to find its entities, not to inherit its rank.
 - **Perspective is not impact.** The player's faction stays a concern of the narrator.
 
 ## Considered options
