@@ -87,6 +87,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [x] `benchmark calibrate report` and the calibration cache (#463).
   - [x] Calibration page and `benchmark calibrate open` (#464).
   - [x] One replay in Python; `calibrate open` serves the page and the browser replay is removed (#591).
+  - [x] One scoring path for atomic and narrative events (#588).
   - [x] Draft stakes: declaration, scoring seam and shadow rows (#465).
   - [x] Draft stakes in the readout and on the page (#466).
 - [x] Councilor profiles (#222):

@@ -32,7 +32,7 @@ from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
 from .shares import SaveShares
-from .significance import IntervalShares, narrative_score
+from .significance import IntervalShares, score_event
 from .situation import SituationReport
 from .stream import EventStream, UndeclaredRead
 
@@ -178,7 +178,7 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 class NarrativeBuilder:
     """Applies the shared policy: confidence is the constituents' minimum, the score and its basis are significance's
-    (``narrative_score``, the share read from the saves' shares of the event's first interval, the nuclear share also
+    (``score_event``, the share read from the saves' shares of the event's first interval, the nuclear share also
     from its last), and ``open`` while the anchor is in the last report.
 
     A rule chooses no level: the kind's base level, context rule and share do, never below the highest-scored cited
@@ -258,11 +258,15 @@ class NarrativeBuilder:
             intervals=intervals,
             roles=role_list,
         )
-        score, basis, rule = narrative_score(
-            kind, event, cited, self._shares.get(intervals[0]), self._shares.get(intervals[-1])
+        scored = score_event(
+            kind, event, cited, shares=self._shares.get(intervals[0]), last=self._shares.get(intervals[-1])
         )
         return replace(
-            event, significance=Significance.of(score), score=score, significance_basis=basis, context_rule=rule
+            event,
+            significance=Significance.of(scored.score),
+            score=scored.score,
+            significance_basis=scored.basis,
+            context_rule=scored.rule,
         )
 
     def _open(self, anchor: EntityRef | None) -> bool:

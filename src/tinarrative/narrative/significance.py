@@ -1,9 +1,6 @@
 """Significance rules: which events a campaign history keeps and which are routine churn. See ADR-0011.
 
-A post-pass, so no analyzer has to judge impact. Evidence for the entries is in
-``docs/game-data-notes/higher-level-event-sources.md``. Notification templates are never ranked: the game's own log
-is player-centric and open-ended. Narrative events span intervals and keep no snapshot: ``narrative_score`` scores
-each as the narrative builder builds it, its share read from the saves' shares of its first interval.
+One path scores atomic and narrative events alike; evidence for the entries is in ``docs/game-data-notes/``.
 """
 
 from __future__ import annotations
@@ -13,6 +10,7 @@ import math
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
+from enum import StrEnum
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
@@ -36,19 +34,16 @@ __all__ = [
     "RULE_IMPLEMENTATIONS",
     "SIGNIFICANCE_ORDER",
     "SHARE_IMPLEMENTATIONS",
-    "NARRATIVE_SHARE_IMPLEMENTATIONS",
-    "NarrativeContextRule",
-    "NarrativeShareReading",
-    "NarrativeScore",
+    "ContextRule",
+    "EventScore",
     "IntervalShares",
     "ShareReading",
+    "ShareVariant",
     "Significance",
-    "Shares",
+    "arithmetic",
     "assign_significance",
-    "narrative_level",
-    "narrative_share_reading",
-    "narrative_score",
-    "score_narrative",
+    "decide",
+    "score_event",
     "significance_of",
 ]
 
@@ -65,16 +60,27 @@ WAR_RELATION = "wars"
 
 # --- Context rules ----------------------------------------------------------------------------------------
 
-ContextRule = Callable[[Event, Lookup], Significance | None]
-"""An atomic kind's context rule; ``None`` defers to the base level."""
-
 
 @dataclass(frozen=True)
-class NarrativeContextRule:
-    """A narrative-event kind's context rule: it reads only the event."""
+class ContextRule:
+    """A kind's context rule: it reads the event, and the snapshot lookup when ``needs_lookup``."""
 
-    judge: Callable[[Event], Significance | None]
+    judge: Callable[[Event, Lookup | None], Significance | None]
     """``None`` defers to the base level."""
+    needs_lookup: bool = False
+
+
+def _from_event(rule: Callable[[Event], Significance | None]) -> ContextRule:
+    return ContextRule(lambda event, lookup: rule(event))
+
+
+def _from_snapshots(rule: Callable[[Event, Lookup], Significance | None]) -> ContextRule:
+    def judge(event: Event, lookup: Lookup | None) -> Significance | None:
+        if lookup is None:
+            raise ValueError(f"rule {rule.__name__} of {event.event_type} needs the snapshot lookup")
+        return rule(event, lookup)
+
+    return ContextRule(judge, needs_lookup=True)
 
 
 def _subject(event: Event) -> EntityRef | None:
@@ -105,33 +111,33 @@ def _councilor_presence(event: Event, lookup: Lookup) -> Significance | None:
     return None
 
 
-def _relation_changed(event: Event, lookup: Lookup) -> Significance | None:
+def _relation_changed(event: Event) -> Significance | None:
     return Significance.MAJOR if event.attribute("relation") == WAR_RELATION else Significance.MINOR
 
 
-def _executive_change(event: Event, lookup: Lookup) -> Significance | None:
+def _executive_change(event: Event) -> Significance | None:
     cause = event.attribute("cause")
     return Significance.MAJOR if isinstance(cause, str) and cause in UPHEAVAL_CAUSES else Significance.MINOR
 
 
-def _population_changed(event: Event, lookup: Lookup) -> Significance | None:
+def _population_changed(event: Event) -> Significance | None:
     """A population drop beyond territory is major, since routine decline is far slower; growth is minor."""
     return Significance.MAJOR if event.attribute("direction") == "drop" else Significance.MINOR
 
 
-def _space_assets_changed(event: Event, lookup: Lookup) -> Significance | None:
+def _space_assets_changed(event: Event) -> Significance | None:
     """A nation's first space defences are major (they appear only late); boost and mission control moves are
     minor."""
     first = event.attribute("statistic") == "spaceDefences" and event.attribute("before") == 0
     return Significance.MAJOR if first else Significance.MINOR
 
 
-def _army_presence(event: Event, lookup: Lookup) -> Significance | None:
+def _army_presence(event: Event) -> Significance | None:
     """Megafauna are rare, so their presence is major; regular army presence is routine."""
     return Significance.MAJOR if event.attribute("megafauna") is True else Significance.MINOR
 
 
-def _completion(event: Event, lookup: Lookup) -> Significance | None:
+def _completion(event: Event) -> Significance | None:
     """An unlisted completion is minor: many technologies and projects are routine unlocks."""
     milestone = milestone_of(event)
     return milestone.significance if milestone is not None else Significance.MINOR
@@ -178,8 +184,6 @@ def _collapse_after_strikes(event: Event) -> Significance | None:
         return Significance.CAMPAIGN_DEFINING
     return None
 
-    return None
-
 
 def _entered_top(event: Event) -> Significance | None:
     """A nation entering the top of a space measure is a major event."""
@@ -193,19 +197,19 @@ def _milestone_tier(event: Event) -> Significance | None:
     return milestone.significance if milestone is not None else None
 
 
-RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule | NarrativeContextRule] = {
-    Rule.COUNCILOR_PRESENCE: _councilor_presence,
-    Rule.RELATION_CHANGED: _relation_changed,
-    Rule.CLAIMS_CHANGED: _claims_changed,
-    Rule.EXECUTIVE_CHANGE: _executive_change,
-    Rule.POPULATION_CHANGED: _population_changed,
-    Rule.SPACE_ASSETS_CHANGED: _space_assets_changed,
-    Rule.ARMY_PRESENCE: _army_presence,
-    Rule.COMPLETION: _completion,
-    Rule.BAND_SHIFT: NarrativeContextRule(_band_shift),
-    Rule.COLLAPSE_AFTER_STRIKES: NarrativeContextRule(_collapse_after_strikes),
-    Rule.ENTERED_TOP: NarrativeContextRule(_entered_top),
-    Rule.MILESTONE_TIER: NarrativeContextRule(_milestone_tier),
+RULE_IMPLEMENTATIONS: Mapping[Rule, ContextRule] = {
+    Rule.COUNCILOR_PRESENCE: _from_snapshots(_councilor_presence),
+    Rule.RELATION_CHANGED: _from_event(_relation_changed),
+    Rule.CLAIMS_CHANGED: _from_snapshots(_claims_changed),
+    Rule.EXECUTIVE_CHANGE: _from_event(_executive_change),
+    Rule.POPULATION_CHANGED: _from_event(_population_changed),
+    Rule.SPACE_ASSETS_CHANGED: _from_event(_space_assets_changed),
+    Rule.ARMY_PRESENCE: _from_event(_army_presence),
+    Rule.COMPLETION: _from_event(_completion),
+    Rule.BAND_SHIFT: _from_event(_band_shift),
+    Rule.COLLAPSE_AFTER_STRIKES: _from_event(_collapse_after_strikes),
+    Rule.ENTERED_TOP: _from_event(_entered_top),
+    Rule.MILESTONE_TIER: _from_event(_milestone_tier),
 }
 """Every ``Rule``'s implementation."""
 
@@ -251,167 +255,133 @@ def _is_design_count(value: object) -> bool:
     )
 
 
-class Shares(IntervalShares):
-    """The shares of the two snapshots of one interval, with the snapshots' lookup: an atomic event's shares."""
+def _contested_share(
+    event: Event, shares: IntervalShares, lookup: Lookup
+) -> tuple[float, tuple[EntityRef, ...]] | None:
+    """A recorded combat's contested mass over the world's weighted ship mass in the interval's earlier snapshot,
+    with the factions of its sides; ``None`` when the record does not say enough to measure it.
 
-    def __init__(
-        self,
-        before: SaveShares,
-        after: SaveShares,
-        lookup: Lookup,
-        evidence: Iterable[Event] = (),
-    ) -> None:
-        super().__init__(before, after)
-        self.lookup = lookup
-        self._evidence = {event.id: event for event in evidence}
-
-    def contested_share(self, event: Event) -> tuple[float, tuple[EntityRef, ...]] | None:
-        """A recorded combat's contested mass over the world's weighted ship mass in the interval's earlier snapshot,
-        with the factions of its sides; ``None`` when the record does not say enough to measure it.
-
-        Each side's mass is its ships' dry mass (a live ship of the design in the earlier snapshot, else the median of
-        its hull class there, else nothing), alien ships weighted up. A record with one side and a ``HabFaction``
-        does not name the hab, so it is not measured; one side without is contested mass 0.
-        """
-        entry = self._combat_entry(event)
-        if entry is None or not isinstance(entry.designs, tuple):
+    Each side's mass is its ships' dry mass (a live ship of the design in the earlier snapshot, else the median of
+    its hull class there, else nothing), alien ships weighted up. A record with one side and a ``HabFaction``
+    does not name the hab, so it is not measured; one side without is contested mass 0.
+    """
+    entry = _combat_entry(event, lookup)
+    if entry is None or not isinstance(entry.designs, tuple):
+        return None
+    sides: list[tuple[EntityRef, tuple[tuple[str, str, int], ...]]] = []
+    for side in entry.designs:
+        if not (isinstance(side, tuple) and isinstance(side[0], EntityRef) and isinstance(side[1], tuple)):
             return None
-        sides: list[tuple[EntityRef, tuple[tuple[str, str, int], ...]]] = []
-        for side in entry.designs:
-            if not (isinstance(side, tuple) and isinstance(side[0], EntityRef) and isinstance(side[1], tuple)):
-                return None
-            sides.append((side[0], tuple(ship for ship in side[1] if _is_design_count(ship))))  # type: ignore[misc]
-        if not 1 <= len(sides) <= 2 or (len(sides) == 1 and isinstance(entry.hab_faction, EntityRef)):
-            return None
-        earlier = self.save(Side.BEFORE)
-        masses = [self._side_mass(faction, ships, earlier.masses) for faction, ships in sides]
-        contested = contested_mass(masses[0], masses[1]) if len(masses) == 2 else 0.0
-        world = max(earlier.world_ship_mass, FLEET_SATURATION)
-        return contested / world, tuple(self.lookup.resolve(faction) or faction for faction, _ in sides)
-
-    def _side_mass(self, faction: EntityRef, ships: tuple[tuple[str, str, int], ...], masses: ShipMasses) -> float:
-        weight = ALIEN_MASS_WEIGHT if self.lookup.faction_kind(faction.entity_id) == "alien" else 1.0
-        return weight * math.fsum(
-            (masses.of(faction.entity_id, design, hull) or 0.0) * count for design, hull, count in ships
-        )
-
-    def _combat_entry(self, event: Event) -> CombatEntry | None:
-        """The entry a ``faction.combat_recorded`` event rests on, found by its record index."""
-        source = event.sources[0] if event.sources else None
-        location = source.entry if source is not None else None
-        owner = event.entities[0] if event.entities else None
-        if location is None or location.path is None or owner is None:
-            return None
-        tail = location.path.rsplit("/", 1)[-1]
-        record_set = self.lookup.record_set(owner.entity_id, COMBAT_LOG, Side.AFTER)
-        if not tail.isdigit() or record_set is None or not isinstance(record_set.entries, tuple):
-            return None
-        return next(
-            (item for item in record_set.entries if isinstance(item, CombatEntry) and item.index == int(tail)), None
-        )
-
-    def cited(self, event: Event) -> tuple[Event, ...]:
-        return tuple(self._evidence[item] for item in event.constituents if item in self._evidence)
+        sides.append((side[0], tuple(ship for ship in side[1] if _is_design_count(ship))))  # type: ignore[misc]
+    if not 1 <= len(sides) <= 2 or (len(sides) == 1 and isinstance(entry.hab_faction, EntityRef)):
+        return None
+    earlier = shares.save(Side.BEFORE)
+    masses = [_side_mass(faction, ships, earlier.masses, lookup) for faction, ships in sides]
+    contested = contested_mass(masses[0], masses[1]) if len(masses) == 2 else 0.0
+    world = max(earlier.world_ship_mass, FLEET_SATURATION)
+    return contested / world, tuple(lookup.resolve(faction) or faction for faction, _ in sides)
 
 
-EntitiesOf = Callable[[Event, Shares], tuple[EntityId, ...]]
+def _side_mass(
+    faction: EntityRef, ships: tuple[tuple[str, str, int], ...], masses: ShipMasses, lookup: Lookup
+) -> float:
+    weight = ALIEN_MASS_WEIGHT if lookup.faction_kind(faction.entity_id) == "alien" else 1.0
+    return weight * math.fsum(
+        (masses.of(faction.entity_id, design, hull) or 0.0) * count for design, hull, count in ships
+    )
+
+
+def _combat_entry(event: Event, lookup: Lookup) -> CombatEntry | None:
+    """The entry a ``faction.combat_recorded`` event rests on, found by its record index."""
+    source = event.sources[0] if event.sources else None
+    location = source.entry if source is not None else None
+    owner = event.entities[0] if event.entities else None
+    if location is None or location.path is None or owner is None:
+        return None
+    tail = location.path.rsplit("/", 1)[-1]
+    record_set = lookup.record_set(owner.entity_id, COMBAT_LOG, Side.AFTER)
+    if not tail.isdigit() or record_set is None or not isinstance(record_set.entries, tuple):
+        return None
+    return next(
+        (item for item in record_set.entries if isinstance(item, CombatEntry) and item.index == int(tail)), None
+    )
+
+
+Selector = Callable[[Event, Sequence[Event]], tuple[EntityRef, ...]]
+"""An event and the events it cites in, the entities whose summed share is the event's share out; no entities, no
+scale."""
+
+
+class ShareVariant(StrEnum):
+    """How a reading's share is taken when it is not the summed share of its entities."""
+
+    PER_POINT = "per_point"
+    """The share of a single control point: the nation's, divided by the points it holds."""
+    BATTLE = "battle"
+    """The share is read from the record entry the event rests on (``_contested_share``, which needs the snapshot
+    lookup), not from the shares of the entities."""
+    NET_MOVE = "net_move"
+    """The share is the arc's net move over the world total at its larger end (``_nuclear_share``)."""
 
 
 @dataclass(frozen=True)
 class ShareReading:
-    """A ``ShareOf``'s implementation: its measure and the entities whose summed share is read; no entities, no
-    scale."""
+    """A ``ShareOf``'s implementation: its measure and the entities (of the event, or of the events it cites) whose
+    summed share, in the shares of the event's first interval, is the share."""
 
     measure: Measure
-    entities: EntitiesOf
-    per_point: bool = False
-    """The share of a single control point: the nation's, divided by the points it holds."""
-    from_record: bool = False
-    """The share is read from the record entry the event rests on (``Shares.contested_share``), not from the shares of
-    ``entities``."""
+    entities: Selector
+    variant: ShareVariant | None = None
 
 
-def _first(event: Event, domain: EntityDomain) -> tuple[EntityId, ...]:
-    return next(((ref.entity_id,) for ref in event.entities if ref.entity_id.domain is domain), ())
+def _first(event: Event, domain: EntityDomain) -> tuple[EntityRef, ...]:
+    return next(((ref,) for ref in event.entities if ref.entity_id.domain is domain), ())
 
 
-def _nation(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _nation(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return _first(event, EntityDomain.NATION)
 
 
-def _organization(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _organization(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return _first(event, EntityDomain.ORGANIZATION)
 
 
-def _belligerents(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _belligerents(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     if event.attribute("relation") != WAR_RELATION:
         return ()
-    return tuple(ref.entity_id for ref in event.entities if ref.entity_id.domain is EntityDomain.NATION)
+    return tuple(ref for ref in event.entities if ref.entity_id.domain is EntityDomain.NATION)
 
 
-def _moved_regions(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _moved_regions(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """The regions of a transfer: the event's own, else those of the region events it cites; a region event is its
     own territory."""
     if event.event_type == REGION_NATION_CHANGED.event_type:
         return _first(event, EntityDomain.REGION)
-    listed = event.attribute("regions")
-    if isinstance(listed, tuple):
-        return tuple(ref.entity_id for ref in listed if isinstance(ref, EntityRef))
+    listed = _listed_refs(event.attribute("regions"))
+    if listed:
+        return listed
     return tuple(
-        entity
-        for cited in shares.cited(event)
-        if cited.event_type == REGION_NATION_CHANGED.event_type
-        for entity in _moved_regions(cited, shares)
+        ref for item in cited if item.event_type == REGION_NATION_CHANGED.event_type for ref in _moved_regions(item)
     )
 
 
 HAB_STATE_TYPE = "TIHabState"
 
 
-def _habs(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _habs(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """The habs the event lists, else its first hab (lagrange points share the domain, so the state type tells)."""
     listed = _listed_refs(event.attribute("habs"))
-    refs = listed or tuple(ref for ref in event.entities if ref.state_type == HAB_STATE_TYPE)[:1]
-    return tuple(ref.entity_id for ref in refs)
+    return listed or tuple(ref for ref in event.entities if ref.state_type == HAB_STATE_TYPE)[:1]
 
 
-def _fleet(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _fleet(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     return _first(event, EntityDomain.FLEET)
 
 
-def _left_faction(event: Event, shares: Shares) -> tuple[EntityId, ...]:
+def _left_faction(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """The faction a transition leaves: its ``before`` value."""
     left = event.attribute("before")
-    return (left.entity_id,) if isinstance(left, EntityRef) else ()
-
-
-SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
-    ShareOf.NATION: ShareReading(Measure.POWER, _nation),
-    ShareOf.BELLIGERENTS: ShareReading(Measure.POWER, _belligerents),
-    ShareOf.TERRITORY: ShareReading(Measure.POPULATION, _moved_regions),
-    ShareOf.CONTROL_POINT: ShareReading(Measure.POWER, _nation, per_point=True),
-    ShareOf.ORGANIZATION: ShareReading(Measure.ORGANIZATION, _organization),
-    ShareOf.HAB: ShareReading(Measure.HAB, _habs),
-    ShareOf.FLEET: ShareReading(Measure.FLEET, _fleet),
-    ShareOf.LEFT_FACTION: ShareReading(Measure.FACTION, _left_faction),
-    ShareOf.COMBAT: ShareReading(Measure.BATTLE, lambda event, shares: (), from_record=True),
-}
-"""Every atomic ``ShareOf``'s implementation."""
-
-NarrativeEntitiesOf = Callable[[Event, Sequence[Event]], tuple[EntityRef, ...]]
-
-
-@dataclass(frozen=True)
-class NarrativeShareReading:
-    """A narrative-event ``ShareOf``'s implementation: its measure and the entities (of the event, or of the events it
-    cites) whose summed share, in the shares of the event's first interval, is the share; no entities, no
-    scale."""
-
-    measure: Measure
-    entities: NarrativeEntitiesOf
-    net_move: bool = False
-    """The share is the arc's net move over the world total at its larger end (``_nuclear_share``), not the summed
-    share of ``entities``."""
+    return (left,) if isinstance(left, EntityRef) else ()
 
 
 def _role_nations(event: Event, wanted: Role) -> tuple[EntityRef, ...]:
@@ -468,28 +438,37 @@ def _independent_nation(event: Event, cited: Sequence[Event] = ()) -> tuple[Enti
     return _role_nations(event, Role.BENEFICIARY)[:1] or _role_nations(event, Role.ACTOR)[:1]
 
 
-def _cited_habs(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
+def _cited_habs(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """The habs of the cited first-presence events."""
     return tuple(ref for item in cited for ref in _listed_refs(item.attribute("habs")))
 
 
-def _cited_ships(event: Event, cited: Sequence[Event]) -> tuple[EntityRef, ...]:
+def _cited_ships(event: Event, cited: Sequence[Event] = ()) -> tuple[EntityRef, ...]:
     """The ships of the cited appearance events: the first entity of each."""
     return tuple(item.entities[0] for item in cited if item.event_type == SHIP_APPEARED.event_type and item.entities)
 
 
-NARRATIVE_SHARE_IMPLEMENTATIONS: Mapping[ShareOf, NarrativeShareReading] = {
-    ShareOf.ACTOR: NarrativeShareReading(Measure.POWER, _actor),
-    ShareOf.TARGETS: NarrativeShareReading(Measure.POWER, _targets),
-    ShareOf.WAR_SIDES: NarrativeShareReading(Measure.POWER, _war_sides),
-    ShareOf.MEMBERS: NarrativeShareReading(Measure.POWER, _federation_members),
-    ShareOf.REGIONS: NarrativeShareReading(Measure.POPULATION, _listed_regions),
-    ShareOf.INDEPENDENT_NATION: NarrativeShareReading(Measure.POWER, _independent_nation),
-    ShareOf.COLONY: NarrativeShareReading(Measure.HAB, _cited_habs),
-    ShareOf.NEW_SHIPS: NarrativeShareReading(Measure.FLEET, _cited_ships),
-    ShareOf.NUCLEAR_ARC: NarrativeShareReading(Measure.NUCLEAR, _actor, net_move=True),
+SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
+    ShareOf.NATION: ShareReading(Measure.POWER, _nation),
+    ShareOf.BELLIGERENTS: ShareReading(Measure.POWER, _belligerents),
+    ShareOf.TERRITORY: ShareReading(Measure.POPULATION, _moved_regions),
+    ShareOf.CONTROL_POINT: ShareReading(Measure.POWER, _nation, ShareVariant.PER_POINT),
+    ShareOf.ORGANIZATION: ShareReading(Measure.ORGANIZATION, _organization),
+    ShareOf.HAB: ShareReading(Measure.HAB, _habs),
+    ShareOf.FLEET: ShareReading(Measure.FLEET, _fleet),
+    ShareOf.LEFT_FACTION: ShareReading(Measure.FACTION, _left_faction),
+    ShareOf.COMBAT: ShareReading(Measure.BATTLE, lambda event, cited: (), ShareVariant.BATTLE),
+    ShareOf.ACTOR: ShareReading(Measure.POWER, _actor),
+    ShareOf.TARGETS: ShareReading(Measure.POWER, _targets),
+    ShareOf.WAR_SIDES: ShareReading(Measure.POWER, _war_sides),
+    ShareOf.MEMBERS: ShareReading(Measure.POWER, _federation_members),
+    ShareOf.REGIONS: ShareReading(Measure.POPULATION, _listed_regions),
+    ShareOf.INDEPENDENT_NATION: ShareReading(Measure.POWER, _independent_nation),
+    ShareOf.COLONY: ShareReading(Measure.HAB, _cited_habs),
+    ShareOf.NEW_SHIPS: ShareReading(Measure.FLEET, _cited_ships),
+    ShareOf.NUCLEAR_ARC: ShareReading(Measure.NUCLEAR, _actor, ShareVariant.NET_MOVE),
 }
-"""Every narrative-event ``ShareOf``'s implementation."""
+"""Every ``ShareOf``'s implementation; any kind may declare any of them."""
 
 
 def _scale(share: float, reference: float) -> int:
@@ -498,70 +477,11 @@ def _scale(share: float, reference: float) -> int:
     return max(SCALE_MIN, min(SCALE_MAX, round(10 * math.log10(share / reference))))
 
 
-def _points(shares: Shares, nation: EntityId) -> int:
+def _points(shares: IntervalShares, nation: EntityId) -> int:
     for side in (Side.BEFORE, Side.AFTER):
         if held := shares.save(side).control_points.get(nation):
             return held
     return 1
-
-
-def _combat_basis(event: Event, level: Significance, shares: Shares) -> SignificanceBasis | None:
-    measured = shares.contested_share(event)
-    if measured is None:
-        return None
-    share, factions = measured
-    return _scaled(level, Measure.BATTLE, share, factions)
-
-
-def _basis(event: Event, level: Significance, shares: Shares) -> SignificanceBasis | None:
-    named = _kind(event).share
-    if named is None:
-        return None
-    reading = SHARE_IMPLEMENTATIONS.get(named)
-    if reading is None:
-        raise ValueError(f"share {named} of {event.event_type} scales a narrative event")
-    if reading.from_record:
-        return _combat_basis(event, level, shares)
-    entities = reading.entities(event, shares)
-    share = shares.share(reading.measure, entities)
-    if share is None:
-        return None
-    if reading.per_point:
-        share /= _points(shares, entities[0])
-    refs = tuple(ref for ref in event.entities if ref.entity_id in set(entities))
-    return _scaled(level, reading.measure, share, refs)
-
-
-def _narrative_basis(
-    reading: NarrativeShareReading,
-    event: Event,
-    cited: Sequence[Event],
-    level: Significance,
-    shares: IntervalShares,
-    last: IntervalShares,
-) -> SignificanceBasis | None:
-    refs = _unique(reading.entities(event, cited))
-    if reading.net_move:
-        share = _nuclear_share(event, shares, last)
-    else:
-        share = shares.share(reading.measure, (ref.entity_id for ref in refs))
-    if share is None:
-        return None
-    return _scaled(level, reading.measure, share, refs)
-
-
-def narrative_share_reading(kind: EventKind, event: Event) -> NarrativeShareReading | None:
-    """The implementation of the kind's share; ``None`` for a kind without one.
-
-    Raises ``ValueError`` for a share that scales atomic events: a code bug.
-    """
-    named = kind.share
-    if named is None:
-        return None
-    reading = NARRATIVE_SHARE_IMPLEMENTATIONS.get(named)
-    if reading is None:
-        raise ValueError(f"share {named} of {event.event_type} scales an atomic event")
-    return reading
 
 
 def _nuclear_share(event: Event, first: IntervalShares, last: IntervalShares) -> float | None:
@@ -585,23 +505,51 @@ def _unique(refs: Iterable[EntityRef]) -> tuple[EntityRef, ...]:
     return tuple(seen.values())
 
 
-def _scaled(
+def _basis(
+    reading: ShareReading,
+    event: Event,
+    cited: Sequence[Event],
     level: Significance,
-    measure: Measure,
-    share: float,
-    entities: tuple[EntityRef, ...],
-) -> SignificanceBasis:
+    shares: IntervalShares,
+    last: IntervalShares,
+    lookup: Lookup | None,
+) -> SignificanceBasis | None:
+    share: float | None
+    if reading.variant is ShareVariant.BATTLE:
+        if lookup is None:
+            raise ValueError(f"a battle share of {event.event_type} needs the snapshot lookup")
+        measured = _contested_share(event, shares, lookup)
+        if measured is None:
+            return None
+        share, refs = measured
+    else:
+        refs = _unique(reading.entities(event, cited))
+        if reading.variant is ShareVariant.NET_MOVE:
+            share = _nuclear_share(event, shares, last)
+        else:
+            share = shares.share(reading.measure, (ref.entity_id for ref in refs))
+            if share is not None and reading.variant is ShareVariant.PER_POINT:
+                share /= _points(shares, refs[0].entity_id)
+        if share is None:
+            return None
     return SignificanceBasis(
         base=level.base,
-        measure=measure,
+        measure=reading.measure,
         share=share,
-        scale=_scale(share, MEASURES[measure].reference),
-        entities=entities,
+        scale=_scale(share, MEASURES[reading.measure].reference),
+        entities=refs,
     )
 
 
-def _clamped(basis: SignificanceBasis) -> int:
-    return max(0, min(100, basis.base + basis.scale))
+def arithmetic(
+    level: Significance, basis: SignificanceBasis | None, cited_scores: Iterable[int]
+) -> tuple[int, Significance]:
+    """The score and its level from the starting ``level``, the share's ``basis`` (``None`` for no share) and the
+    scores of the cited events (ADR-0011): the higher of the level's base moved by the share and the highest cited
+    score. The one place the arithmetic lives; the calibration replay can point at it."""
+    own = level.base if basis is None else max(0, min(100, basis.base + basis.scale))
+    score = max([own, *cited_scores])
+    return score, Significance.of(score)
 
 
 # --- Entry points -----------------------------------------------------------------------------------------
@@ -614,112 +562,79 @@ def _kind(event: Event) -> EventKind:
     return kind
 
 
-def significance_of(event: Event, lookup: Lookup) -> Significance:
-    """The kind's context rule, else its base level: the level before the share scales the score.
-
-    Raises ``ValueError`` for a type no kind declares, or a narrative-event kind, scored by ``narrative_score``: each
-    is a code bug, as every emitter passes a kind and narrative events are not ranked here.
-    """
-    return _decision(event, lookup)[0]
-
-
-def _decision(event: Event, lookup: Lookup) -> tuple[Significance, Rule | None]:
-    """``significance_of`` and the context rule that decided it, ``None`` when the base level stood."""
-    kind = _kind(event)
-    if kind.narrative:
-        raise ValueError(f"event type {event.event_type} is a narrative event, scored when it is built")
+def decide(kind: EventKind, event: Event, lookup: Lookup | None = None) -> tuple[Significance, Rule | None]:
+    """The kind's context-rule level, else its base level, and the context rule that decided it, ``None`` when the
+    base level stood. A rule that needs the snapshot lookup raises ``ValueError`` without one: a code bug."""
     if kind.rule is not None:
-        if isinstance(rule := RULE_IMPLEMENTATIONS[kind.rule], NarrativeContextRule):
-            raise ValueError(f"rule {kind.rule} of {event.event_type} judges a narrative event")
-        decided = rule(event, lookup)
+        decided = RULE_IMPLEMENTATIONS[kind.rule].judge(event, lookup)
         if decided is not None:
             return decided, kind.rule
     return kind.base, None
 
 
-def narrative_level(kind: EventKind, event: Event) -> Significance:
-    """The kind's context-rule level, else its base level: the level a narrative event's own score starts from.
+def significance_of(event: Event, lookup: Lookup) -> Significance:
+    """The kind's context rule, else its base level: the level before the share scales the score.
 
-    Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
+    Raises ``ValueError`` for a type no kind declares, or a narrative-event kind, scored when the narrative builder
+    builds it: each is a code bug, as every emitter passes a kind and narrative events are not ranked here.
     """
-    return _narrative_decision(kind, event)[0]
-
-
-def _narrative_decision(kind: EventKind, event: Event) -> tuple[Significance, Rule | None]:
-    """``narrative_level`` and the context rule that decided it, ``None`` when the base level stood."""
-    if kind.rule is None:
-        return kind.base, None
-    rule = RULE_IMPLEMENTATIONS[kind.rule]
-    if not isinstance(rule, NarrativeContextRule):
-        raise ValueError(f"rule {kind.rule} of {event.event_type} judges an atomic event")
-    decided = rule.judge(event)
-    return (kind.base, None) if decided is None else (decided, kind.rule)
+    kind = _kind(event)
+    if kind.narrative:
+        raise ValueError(f"event type {event.event_type} is a narrative event, scored when it is built")
+    return decide(kind, event, lookup)[0]
 
 
 @dataclass(frozen=True)
-class NarrativeScore:
-    """A narrative event scored against one reading and base (``score_narrative``)."""
+class EventScore:
+    """An event scored by ``score_event``."""
 
     score: int
     basis: SignificanceBasis | None
     rule: Rule | None
-    """The kind's context rule that decided ``level``; ``None`` when the given base stood."""
+    """The kind's context rule that decided ``level``; ``None`` when the base level stood."""
     level: Significance
     """The level the own score starts from, before the share moves it."""
 
     @property
     def ruled(self) -> bool:
-        """The kind's context rule decided ``level``; the given base did not apply."""
+        """The kind's context rule decided ``level``; the base did not apply."""
         return self.rule is not None
 
 
-def score_narrative(
+def score_event(
     kind: EventKind,
     event: Event,
-    cited: Iterable[Event],
+    cited: Iterable[Event] = (),
     *,
-    reading: NarrativeShareReading | None,
-    base: Significance,
     shares: IntervalShares | None = None,
     last: IntervalShares | None = None,
-) -> NarrativeScore:
-    """The event scored against ``reading`` and ``base`` instead of its kind's own: ``narrative_score`` with the
-    share and the base level given. The kind's context rule still decides first; ``base`` applies only where it
-    defers.
+    lookup: Lookup | None = None,
+    reading: ShareReading | None = None,
+    base: Significance | None = None,
+    floored: bool = True,
+) -> EventScore:
+    """The one scoring path of every event: the kind's context rule, else its base level, moved by its share, never
+    below the highest score among the ``cited`` events (ADR-0011).
 
-    Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
+    ``shares`` are the saves' shares of the event's first interval, without them there is no basis; ``last`` those of
+    its last interval (by default the first's), read only by the nuclear share. ``lookup`` is the snapshots' lookup,
+    for the rules and the battle share that need it. ``reading`` and ``base`` override the kind's own share and base
+    level; the context rule still decides first, ``base`` applying only where it defers. ``floored`` is false where
+    the cited events only locate the share's entities and their scores must not lift the event: an atomic event's
+    evidence.
     """
     cited = tuple(cited)
-    decided, rule = _narrative_decision(kind, event)
-    level = base if rule is None else decided
+    decided, rule = decide(kind, event, lookup)
+    level = decided if rule is not None else (base if base is not None else kind.base)
+    named = kind.share
+    reading = reading or (SHARE_IMPLEMENTATIONS[named] if named is not None else None)
     basis = (
-        _narrative_basis(reading, event, cited, level, shares, last or shares)
+        _basis(reading, event, cited, level, shares, last or shares, lookup)
         if reading is not None and shares is not None
         else None
     )
-    own = level.base if basis is None else _clamped(basis)
-    return NarrativeScore(max([own, *(item.score for item in cited)]), basis, rule, level)
-
-
-def narrative_score(
-    kind: EventKind,
-    event: Event,
-    cited: Iterable[Event],
-    shares: IntervalShares | None = None,
-    last: IntervalShares | None = None,
-) -> tuple[int, SignificanceBasis | None, Rule | None]:
-    """The score, its basis and the context rule that decided the own level (``None`` when the base level stood):
-    the higher of the kind's own score and the highest score among the ``cited`` events
-    (ADR-0011). The own score is the kind's context-rule level, else its base level, moved by its share as an atomic
-    event's is; ``shares`` are the reports of the event's first interval, and without them there is no basis. ``last``
-    are the reports of its last interval (by default the first's), read only by the nuclear share.
-
-    Raises ``ValueError`` for a kind whose context rule judges atomic events, or whose share scales atomic events:
-    each is a code bug.
-    """
-    reading = narrative_share_reading(kind, event) if shares is not None else None
-    scored = score_narrative(kind, event, cited, reading=reading, base=kind.base, shares=shares, last=last)
-    return scored.score, scored.basis, scored.rule
+    score, _ = arithmetic(level, basis, (item.score for item in cited) if floored else ())
+    return EventScore(score, basis, rule, level)
 
 
 def assign_significance(
@@ -733,9 +648,10 @@ def assign_significance(
     """Each event gets its score (its level's base, moved by its share when the type has one) and the level
     of that score; keeps the given order. ``shares`` are the two snapshots' (``shares.build_shares``, built once per
     save); ``evidence`` are the events a reconstructed one may cite for its share."""
-    earlier, later = shares
-    interval = Shares(earlier, later, Lookup(before, after), evidence)
-    assigned = tuple(_ranked(event, *_decision(event, interval.lookup), interval) for event in events)
+    interval = IntervalShares(*shares)
+    lookup = Lookup(before, after)
+    known = {event.id: event for event in evidence}
+    assigned = tuple(_ranked(event, known, interval, lookup) for event in events)
     if logger.isEnabledFor(logging.DEBUG):
         counts = Counter(event.significance.value for event in assigned)
         logger.debug(
@@ -749,9 +665,13 @@ def assign_significance(
     return assigned
 
 
-def _ranked(event: Event, level: Significance, rule: Rule | None, shares: Shares) -> Event:
-    basis = _basis(event, level, shares)
-    if basis is None:
-        return replace(event, significance=level, score=level.base, significance_basis=None, context_rule=rule)
-    score = _clamped(basis)
-    return replace(event, significance=Significance.of(score), score=score, significance_basis=basis, context_rule=rule)
+def _ranked(event: Event, known: Mapping[str, Event], shares: IntervalShares, lookup: Lookup) -> Event:
+    cited = tuple(known[item] for item in event.constituents if item in known)
+    scored = score_event(_kind(event), event, cited, shares=shares, lookup=lookup, floored=False)
+    return replace(
+        event,
+        significance=Significance.of(scored.score),
+        score=scored.score,
+        significance_basis=scored.basis,
+        context_rule=scored.rule,
+    )

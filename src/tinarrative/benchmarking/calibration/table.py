@@ -19,7 +19,7 @@ from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_la
 from tinarrative.narrative.aggregation import interval_shares
 from tinarrative.narrative.chronology import interval_of
 from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
-from tinarrative.narrative.significance import IntervalShares, narrative_level, score_narrative
+from tinarrative.narrative.significance import IntervalShares, decide, score_event
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
@@ -94,7 +94,7 @@ def _draft_row(
     first, last = shares.get(event.intervals[0]), shares.get(event.intervals[-1])
     base = draft_base(draft)
     results = [
-        score_narrative(kind, event, cited, reading=reading, base=base, shares=first, last=last)
+        score_event(kind, event, cited, reading=reading, base=base, shares=first, last=last)
         for reading in draft.readings
     ]
     scored = [result for result in results if result.basis is not None]
@@ -142,7 +142,7 @@ def _own_base(event: Event, narrative: bool) -> int:
     kind = kind_for(event.event_type)
     if kind is None:
         raise CalibrationTableError(f"event type {event.event_type} is declared by no kind")
-    return narrative_level(kind, event).base
+    return decide(kind, event)[0].base
 
 
 def layers() -> dict[str, int]:

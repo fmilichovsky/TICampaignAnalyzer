@@ -48,12 +48,13 @@ from tinarrative.narrative import assign_significance, significance_of
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.shares import SaveShares
 from tinarrative.narrative.significance import (
-    NARRATIVE_SHARE_IMPLEMENTATIONS,
     RULE_IMPLEMENTATIONS,
     SHARE_IMPLEMENTATIONS,
-    NarrativeContextRule,
-    narrative_score,
-    score_narrative,
+    IntervalShares,
+    ShareVariant,
+    arithmetic,
+    decide,
+    score_event,
 )
 
 COUNCILOR = EntityDomain.COUNCILOR
@@ -365,23 +366,36 @@ def test_a_kind_without_a_context_rule_is_judged_by_its_base_level() -> None:
 
 def test_every_rule_and_share_has_exactly_one_implementation() -> None:
     assert set(RULE_IMPLEMENTATIONS) == set(Rule)
-    assert set(SHARE_IMPLEMENTATIONS) | set(NARRATIVE_SHARE_IMPLEMENTATIONS) == set(ShareOf)
-    assert not set(SHARE_IMPLEMENTATIONS) & set(NARRATIVE_SHARE_IMPLEMENTATIONS)
+    assert set(SHARE_IMPLEMENTATIONS) == set(ShareOf)
 
 
-def test_every_kind_declares_a_share_of_its_own_scope() -> None:
+def test_every_kind_names_an_implemented_context_rule_and_share() -> None:
     for event_type, kind in KINDS.items():
-        if kind.share is not None:
-            implemented = NARRATIVE_SHARE_IMPLEMENTATIONS if kind.narrative else SHARE_IMPLEMENTATIONS
-            assert kind.share in implemented, event_type
+        assert kind.rule is None or kind.rule in RULE_IMPLEMENTATIONS, event_type
+        assert kind.share is None or kind.share in SHARE_IMPLEMENTATIONS, event_type
 
 
-def test_every_narrative_kind_names_an_implemented_context_rule_and_share() -> None:
+def test_no_narrative_kind_uses_a_context_rule_that_needs_the_lookup() -> None:
     narrative = [kind for kind in KINDS.values() if kind.narrative]
     assert narrative
     for kind in narrative:
-        assert kind.rule is None or isinstance(RULE_IMPLEMENTATIONS[kind.rule], NarrativeContextRule), kind.event_type
-        assert kind.share is None or kind.share in NARRATIVE_SHARE_IMPLEMENTATIONS, kind.event_type
+        assert kind.rule is None or not RULE_IMPLEMENTATIONS[kind.rule].needs_lookup, kind.event_type
+
+
+def test_a_rule_that_needs_the_lookup_cannot_be_judged_without_one() -> None:
+    kind = KINDS["councilor.disappeared"]
+    assert RULE_IMPLEMENTATIONS[kind.rule].needs_lookup  # type: ignore[index]
+    with pytest.raises(ValueError, match="needs the snapshot lookup"):
+        decide(kind, bare_event(kind.event_type))
+
+
+def test_only_the_declared_variants_take_a_share_otherwise_than_by_summing_entities() -> None:
+    variants = {share: reading.variant for share, reading in SHARE_IMPLEMENTATIONS.items() if reading.variant}
+    assert variants == {
+        ShareOf.CONTROL_POINT: ShareVariant.PER_POINT,
+        ShareOf.COMBAT: ShareVariant.BATTLE,
+        ShareOf.NUCLEAR_ARC: ShareVariant.NET_MOVE,
+    }
 
 
 def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
@@ -601,7 +615,7 @@ def test_the_basis_keeps_the_unrounded_share_and_the_json_rounds_it() -> None:
 def narrative_level(event_type: str, **attributes: Observed) -> Significance:
     kind = KINDS[event_type]
     event = bare_event(event_type, **attributes)
-    return Significance.of(narrative_score(kind, event, ())[0])
+    return Significance.of(score_event(kind, event).score)
 
 
 @pytest.mark.parametrize(
@@ -639,25 +653,57 @@ def test_a_given_base_applies_only_where_the_context_rule_defers() -> None:
     calm = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
     struck = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=True)
 
-    deferred = score_narrative(kind, calm, (), reading=None, base=Significance.TRIVIAL)
-    ruled = score_narrative(kind, struck, (), reading=None, base=Significance.TRIVIAL)
+    deferred = score_event(kind, calm, base=Significance.TRIVIAL)
+    ruled = score_event(kind, struck, base=Significance.TRIVIAL)
 
     assert (deferred.level, deferred.score, deferred.ruled) == (Significance.TRIVIAL, Significance.TRIVIAL.base, False)
     assert (ruled.level, ruled.ruled) == (Significance.CAMPAIGN_DEFINING, True)
     assert ruled.score == Significance.CAMPAIGN_DEFINING.base
 
 
-def test_the_kinds_own_reading_and_base_score_an_event_as_narrative_score_does() -> None:
+def test_an_event_scores_never_below_the_highest_cited_score() -> None:
     kind = KINDS[POPULATION_COLLAPSE.event_type]
     event = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
     top = Significance.CAMPAIGN_DEFINING
     cited = replace(bare_event("nation.rank_changed"), significance=top, score=top.band[1])
 
-    scored = score_narrative(kind, event, (cited,), reading=None, base=kind.base)
+    scored = score_event(kind, event, (cited,))
 
-    assert (scored.score, scored.basis, scored.rule) == narrative_score(kind, event, (cited,))
     assert scored.score == cited.score
     assert scored.level is kind.base
+
+
+def test_an_atomic_score_is_not_lifted_by_the_evidence_it_cites() -> None:
+    transfer = replace(scaled_event("region.nation_changed", region_ref("41")), id="region.nation_changed/region:41")
+    top = Significance.CAMPAIGN_DEFINING
+    evidence = replace(transfer, significance=top, score=top.band[1])
+    independence = scaled_event("nation.independence", nation_ref(BIG), constituents=(evidence.id,))
+
+    lifted = scored(independence, regions=REGIONS, evidence=(evidence,))
+
+    assert lifted.score < evidence.score
+
+
+def test_a_given_reading_replaces_the_kinds_own_share() -> None:
+    kind = KINDS["nation.disappeared"]
+    event = scaled_event(kind.event_type, nation_ref(BIG))
+    interval = IntervalShares(saved(power=POWER), saved(power=POWER))
+
+    own = score_event(kind, event, shares=interval)
+    given = score_event(kind, event, shares=interval, reading=SHARE_IMPLEMENTATIONS[ShareOf.TARGETS])
+
+    assert own.basis is not None and own.basis.share == 0.3
+    assert given.basis is None and given.score == kind.base.base
+
+
+def test_the_arithmetic_moves_the_level_by_the_share_and_never_drops_below_a_cited_score() -> None:
+    kind = KINDS["nation.disappeared"]
+    interval = IntervalShares(saved(power=POWER), saved(power=POWER))
+    micro = score_event(kind, scaled_event(kind.event_type, nation_ref(MICRO)), shares=interval)
+    assert micro.basis is not None
+    assert arithmetic(micro.level, micro.basis, ()) == (micro.score, Significance.of(micro.score))
+    assert arithmetic(micro.level, micro.basis, (95,))[0] == 95
+    assert arithmetic(micro.level, None, ())[0] == micro.level.base
 
 
 def test_a_space_program_is_major_only_when_the_nation_entered_a_top() -> None:
@@ -680,7 +726,7 @@ def test_a_narrative_score_names_the_context_rule_only_where_it_decided_the_leve
 
     def rule(entered: bool) -> Rule | None:
         event = bare_event(kind.event_type, **measures, entered_top=entered)
-        return narrative_score(kind, event, ())[2]
+        return score_event(kind, event).rule
 
     assert rule(True) is Rule.ENTERED_TOP
     assert rule(False) is None

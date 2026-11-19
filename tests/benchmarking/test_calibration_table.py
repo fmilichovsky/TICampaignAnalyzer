@@ -31,7 +31,7 @@ from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SIGNIFICANCE_ORDER
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates
 from tinarrative.narrative.measures import MEASURES
-from tinarrative.narrative.significance import narrative_level
+from tinarrative.narrative.significance import decide
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
 SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
@@ -157,7 +157,7 @@ def test_the_kinds_map_holds_each_types_code_base_level_and_rule() -> None:
 def test_a_narrative_row_without_a_share_keeps_its_own_base_when_cited_events_raise_its_level() -> None:
     intervals = list(run_sequence(plan_sequence([survey(path) for path in saves()]), inferred=True))
     event = next(item for item in narrative_events(intervals) if item.significance_basis is None)
-    own = narrative_level(kind_for(event.event_type), event)
+    own = decide(kind_for(event.event_type), event)[0]
     top = SIGNIFICANCE_ORDER[-1]
     # Through the row seam: no fixture has a share-less narrative event that its cited events raise.
     raised = _row(replace(event, significance=top, score=top.band[1]), "narrative")
