@@ -102,7 +102,7 @@ line, the details go to `manifest.json`, and the run still exits 0.
 | Code | When |
 | --- | --- |
 | 0 | The plan was printed; with --send, the history was assembled. |
-| 2 | Usage error, no campaign chosen, a single interval over llm.max_input_tokens, or --send without --output, a provider, a model or an API key. |
+| 2 | Usage error, no campaign chosen, the package holds no interval (one save), a single interval over llm.max_input_tokens, or --send without --output, a provider, a model or an API key. |
 | 4 | A save, the --package file or the --assemble directory cannot be read. |
 | 5 | A save is not a supported save, the package is not a narrator package, or a run directory does not match its plan. |
 | 8 | The settings file cannot be read or is not valid settings. |

@@ -14,7 +14,7 @@ Reports what happened in one campaign between every pair of consecutive saves: t
 how significant each one is. On request it adds the events inferred from them, the narrative events that span the
 whole campaign, and the literal state changes. Use it to read a campaign's analysis yourself, to check what
 [`narrate`](narrate.md) will tell, or to build a narrator package for your own model. Saves and campaigns are chosen as
-described in [saves and campaigns](README.md#saves-and-campaigns); at least two usable saves are needed.
+described in [saves and campaigns](README.md#saves-and-campaigns); one usable save is enough and reports that no interval was compared.
 
 ## Examples
 
@@ -90,7 +90,7 @@ and, with `--constituents all` or `evidence`, the events behind them, but no fil
 | Code | When |
 | --- | --- |
 | 0 | The report was printed. |
-| 2 | Usage error, fewer than two usable saves, or no campaign chosen. |
+| 2 | Usage error or no campaign chosen. |
 | 4 | A named path cannot be read, or a named directory holds no usable save. |
 | 5 | A named file is not a supported save or has no game time. |
 | 8 | The settings file cannot be read or is not valid settings. |
