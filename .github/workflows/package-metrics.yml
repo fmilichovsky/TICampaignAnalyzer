@@ -25,6 +25,22 @@ jobs:
       issues: none
     uses: ./.github/workflows/resolve-metrics-refs.yml
 
+  placeholder-comment:
+    needs: resolve
+    if: needs.resolve.outputs.pr_number != ''
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      artifact_name: package-metrics
+      report_path: report.md
+      comment_marker: '<!-- package-metrics -->'
+      status: in_progress
+      base_sha: ${{ needs.resolve.outputs.base_sha }}
+      head_sha: ${{ needs.resolve.outputs.head_sha }}
+
   measure-base:
     needs: resolve
     permissions:
@@ -130,7 +146,7 @@ jobs:
             .bench/head
           retention-days: 14
   post-comment:
-    needs: [resolve, compare]
+    needs: [resolve, compare, placeholder-comment]
     if: needs.resolve.outputs.pr_number != ''
     permissions:
       actions: read
@@ -141,3 +157,19 @@ jobs:
       artifact_name: package-metrics
       report_path: report.md
       comment_marker: '<!-- package-metrics -->'
+
+  failure-comment:
+    needs: [resolve, placeholder-comment, measure-base, measure-head, compare]
+    if: always() && !cancelled() && needs.resolve.outputs.pr_number != '' && (needs.measure-base.result == 'failure' || needs.measure-head.result == 'failure' || needs.compare.result == 'failure')
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      artifact_name: package-metrics
+      report_path: report.md
+      comment_marker: '<!-- package-metrics -->'
+      status: failed
+      base_sha: ${{ needs.resolve.outputs.base_sha }}
+      head_sha: ${{ needs.resolve.outputs.head_sha }}

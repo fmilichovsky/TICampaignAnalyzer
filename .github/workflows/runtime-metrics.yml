@@ -25,6 +25,22 @@ jobs:
       issues: none
     uses: ./.github/workflows/resolve-metrics-refs.yml
 
+  placeholder-comment:
+    needs: resolve
+    if: needs.resolve.outputs.pr_number != ''
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      artifact_name: runtime-metrics
+      report_path: runtime.md
+      comment_marker: '<!-- runtime-metrics -->'
+      status: in_progress
+      base_sha: ${{ needs.resolve.outputs.base_sha }}
+      head_sha: ${{ needs.resolve.outputs.head_sha }}
+
   samples:
     needs: resolve
     permissions:
@@ -171,7 +187,7 @@ jobs:
             .bench/runtime.md
           retention-days: 14
   post-comment:
-    needs: [resolve, report]
+    needs: [resolve, report, placeholder-comment]
     if: needs.resolve.outputs.pr_number != ''
     permissions:
       actions: read
@@ -182,3 +198,19 @@ jobs:
       artifact_name: runtime-metrics
       report_path: runtime.md
       comment_marker: '<!-- runtime-metrics -->'
+
+  failure-comment:
+    needs: [resolve, placeholder-comment, samples, measure, report]
+    if: always() && !cancelled() && needs.resolve.outputs.pr_number != '' && (needs.samples.result == 'failure' || needs.measure.result == 'failure' || needs.report.result == 'failure')
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      artifact_name: runtime-metrics
+      report_path: runtime.md
+      comment_marker: '<!-- runtime-metrics -->'
+      status: failed
+      base_sha: ${{ needs.resolve.outputs.base_sha }}
+      head_sha: ${{ needs.resolve.outputs.head_sha }}
