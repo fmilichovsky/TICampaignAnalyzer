@@ -526,10 +526,14 @@ def test_a_vanished_ship_whose_name_the_destroyer_gained_is_a_space_loss() -> No
 
 
 def test_names_from_kills_are_never_copied_into_the_event() -> None:
+    def strings(value: object) -> list[str]:
+        if isinstance(value, tuple):
+            return [text for item in value for text in strings(item)]
+        return [value] if isinstance(value, str) else []
+
     _, inferred = run(losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}))
     event = only(inferred, SPACE_LOSSES)
-    assert "Alpha" not in repr([value for _, value in event.attributes if not isinstance(value, tuple)])
-    assert not any(isinstance(value, str) and "Alpha" in value for _, value in event.attributes)
+    assert not any("Alpha" in text for _, value in event.attributes for text in strings(value))
 
 
 def test_a_name_gained_by_two_destroyers_is_credited_to_neither() -> None:
@@ -566,6 +570,17 @@ def test_a_hab_destroyed_by_the_destroyer_is_a_space_loss_without_any_kills() ->
     assert (event.attribute("ships_lost"), event.attribute("habs_lost")) == (0, 1)
     assert ids(event.attribute("habs")) == ["space object:80"]
     assert describe_event(event).endswith("destroyed 1 hab of Fixture faction 16 (faction:16)")
+
+
+def test_a_hab_destroyed_by_its_own_faction_is_no_space_loss() -> None:
+    scenario = space_pair(
+        {"70": ("16", "Base", "900")},
+        {},
+        records_before=(destruction_log(BEFORE, ENEMY),),
+        records_after=(destruction_log(AFTER, ENEMY, destruction(0, "Base", "900", IN_INTERVAL, ENEMY)),),
+    )
+    _, inferred = run(scenario)
+    assert by_type(inferred, HAB_DESTROYED) and by_type(inferred, SPACE_LOSSES) == []
 
 
 def test_ships_and_habs_of_one_pair_are_one_event() -> None:

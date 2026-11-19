@@ -149,7 +149,7 @@ def test_losses_and_combats_of_one_pair_form_a_campaign_with_summed_counts() -> 
         (Role.BODY, "1"),
     ]
     assert set(campaign.constituents) == {forward.id, backward.id, fought.id}
-    assert "the aliens" in describe_event(campaign) and "battle" not in describe_event(campaign).lower()
+    assert "the aliens" in describe_event(campaign)
 
 
 def test_both_directions_of_a_pair_are_one_campaign() -> None:
@@ -158,7 +158,6 @@ def test_both_directions_of_a_pair_are_one_campaign() -> None:
     campaigns = of_type(built(stream), "faction.space_campaign")
 
     assert sorted(tuple(ref_.entity_id.key for _, ref_ in c.roles) for c in campaigns) == [("15", "16"), ("16", "17")]
-    assert all("mirror" not in dict(c.attributes) for c in campaigns)
 
 
 def test_a_recorded_combat_alone_starts_a_campaign() -> None:

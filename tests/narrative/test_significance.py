@@ -272,6 +272,14 @@ def test_notification_types_take_their_kind_and_an_undeclared_type_is_a_code_bug
         significance_of(bare_event("fleet.fixture_unknown"), lookup)
 
 
+def test_space_bookkeeping_ranks_below_the_destruction_it_records() -> None:
+    def rank(event_type: str) -> int:
+        return KINDS[event_type].base.base
+
+    assert rank("hab.destroyed") > rank("faction.hab_destruction_recorded") > rank("hab.disappeared")
+    assert rank("ship.disappeared") == rank("fleet.disappeared") == rank("hab.disappeared")
+
+
 def test_a_narrative_event_kind_is_never_ranked_here() -> None:
     narrative = [event_type for event_type, kind in KINDS.items() if kind.narrative]
     assert narrative

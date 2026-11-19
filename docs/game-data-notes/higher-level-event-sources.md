@@ -402,10 +402,10 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
 - **First presence on a body.** Of the habs appearing in the four older intervals (6, 1, 3, 6), the ones on
   a body where the owning faction had no hab in the earlier save were 0, 0, 2 and 6. `TIHabSiteState.hab`
   and `pendingHab` changed in step (1–10 sites per interval).
-- **Space losses** (read by the `faction.space_losses` rule in `reconstruction/space.py`). Faction `Kills` lists
-  grew by up to 36 names in one older interval while the destruction log of the opposing faction gained 9 entries
-  and 10 habs disappeared; `armiesLost` changed once (`AlienMegafauna`). Ship `kills` lists changed on 2–19 ships
-  per interval.
+- **Space losses** (read by the `faction.space_losses` rule in `reconstruction/space.py`).
+  - *Observed:* faction `Kills` lists grew by up to 36 names in one older interval while the destruction log of the
+    opposing faction gained 9 entries and 10 habs disappeared; `armiesLost` changed once (`AlienMegafauna`). Ship
+    `kills` lists changed on 2–19 ships per interval.
   - *Observed* (2026-11-20, Resist and Protectorate saves): `Kills[victim]` lists ships, habs, modules,
     councilors and megafauna or armies by display name.
   - *Observed:* the display names of the vanished ships were found in the `Kills` growth for 16 of 16 and 50 of

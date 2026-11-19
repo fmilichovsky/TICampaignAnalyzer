@@ -441,6 +441,8 @@ def _space_losses(context: SpaceContext, destroyed: Sequence[Event]) -> list[Eve
         by, owner = hab.attribute("destroyer"), hab.entities[1] if len(hab.entities) > 1 else None
         if hab.attribute("ambiguous") is not False or not isinstance(by, EntityRef) or owner is None:
             continue
+        if by.entity_id == owner.entity_id:
+            continue  # a faction's own hab is no one's loss to credit, as with self-keyed Kills
         pairs[(by.entity_id, owner.entity_id)].habs.append(hab)
         victims.setdefault(owner.entity_id, owner)
 
