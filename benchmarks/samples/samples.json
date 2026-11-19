@@ -159,6 +159,51 @@
           "sha256": "e69454821653627af59e5ad7ee0d531f58b44a83bee6ab2da5b912eef0a524f4",
           "bytes": 946896,
           "raw_bytes": 80100394
+        },
+        "Protectorate00112_2035-12-16.json.xz": {
+          "sha256": "4ccc90c75161df148674021874245182507433a4a1591fd670e892a899bfb0d9",
+          "bytes": 968364,
+          "raw_bytes": 81945097
+        },
+        "Protectorate00113_2036-6-7.json.xz": {
+          "sha256": "aca4abc9bd9e5083f56fa95368001ffc11f70c9a6a2786f3957c79fbfa762585",
+          "bytes": 978400,
+          "raw_bytes": 82541728
+        },
+        "Protectorate00114_2036-9-23.json.xz": {
+          "sha256": "eaf61a5928785a0c15d5a9dad66db82a9578bed0822d5e31a8f3c8e38707de80",
+          "bytes": 995788,
+          "raw_bytes": 83958852
+        },
+        "Protectorate00115_2036-12-16.json.xz": {
+          "sha256": "603f783f09471fb5687155e56817263b7d1d91bd352bb76c7ed1f84abc19924c",
+          "bytes": 985240,
+          "raw_bytes": 83360248
+        },
+        "Protectorate00116-SmallWars_2037-1-26.json.xz": {
+          "sha256": "a978152fc6a4d93cf1dffe9193db8919aa48050a840b903533f2157b38099860",
+          "bytes": 990472,
+          "raw_bytes": 83597833
+        },
+        "Protectorate00116-Wars2_2037-3-11.json.xz": {
+          "sha256": "53a48f4da8f51c3affded36b730c2b7fb690c3b70ea6ae68ddf80734655eee0a",
+          "bytes": 995400,
+          "raw_bytes": 83788966
+        },
+        "Protectorate00117-AAWars_2037-4-10.json.xz": {
+          "sha256": "aa918a4bd133993215254f28517243f753f07b922e50abc8db73a02ee9d22c3c",
+          "bytes": 1000228,
+          "raw_bytes": 84201420
+        },
+        "Protectorate00118-AApush_2037-6-26.json.xz": {
+          "sha256": "8e7b38c93db20a092c20dde3a96eab21972a4422fc2da99a618614116a90a07f",
+          "bytes": 1007088,
+          "raw_bytes": 84742941
+        },
+        "Protectorate00119-Victory_2037-9-16.json.xz": {
+          "sha256": "74c40dd7d539d847eadfd41f3b594adbe26e838e8d302d990dd39e2c1819518d",
+          "bytes": 1015264,
+          "raw_bytes": 85029529
         }
       }
     },
