@@ -1065,7 +1065,6 @@ def _run_councilors(args: argparse.Namespace) -> int:
             print(f"tinarrative councilors: {error}", file=sys.stderr)
             return EXIT_USAGE_ERROR
     paths = cast(list[Path], args.saves)
-    inputs = expand_inputs(paths)
     run = _run_saves(
         "councilors",
         paths,
@@ -1129,7 +1128,7 @@ def _run_councilors(args: argparse.Namespace) -> int:
     logger.info(
         "councilors done %s",
         fields(
-            saves=len(inputs),
+            saves=run.surveyed,
             selected=len(dossier["councilors"]),
             written=output is not None,
             sent=sum(outcome.record is not None and not outcome.kept for outcome in outcomes) if target else None,

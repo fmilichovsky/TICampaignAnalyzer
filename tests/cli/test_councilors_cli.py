@@ -21,6 +21,7 @@ from tinarrative.cli import (
     EXIT_INPUT_ERROR,
     EXIT_OUTPUT_ERROR,
     EXIT_SUCCESS,
+    EXIT_UNSUPPORTED_INPUT,
     EXIT_USAGE_ERROR,
     main,
 )
@@ -69,6 +70,10 @@ def test_a_directory_holding_one_save_gives_the_dossier(tmp_path: Path, settings
     document = _dossier(tmp_path, str(folder), "--config", settings)
 
     assert document["source"] == "politics_before.json"
+
+
+def test_one_unusable_file_is_reported_by_the_survey(tmp_path: Path, settings: str) -> None:
+    assert main(["councilors", "malformed_truncated.json", "--config", settings]) == EXIT_UNSUPPORTED_INPUT
 
 
 def test_a_sequence_adds_the_career_of_the_latest_save(tmp_path: Path, settings: str) -> None:
