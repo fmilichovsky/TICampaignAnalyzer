@@ -23,6 +23,9 @@ install:
 format:
 	$(PYTHON) -m ruff format --check .
 
+format-fix:
+	$(PYTHON) -m ruff format .
+
 lint:
 	$(PYTHON) -m ruff check .
 
