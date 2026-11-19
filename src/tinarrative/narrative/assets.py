@@ -33,7 +33,6 @@ from ..model.values import FrozenMap, Observed, number
 from .aggregation import Join, NarrativeBuilder, interval_reports
 from .chronology import interval_of
 from .rulekit import NATION_ARMIES_CHANGED, army_home, by_subject, by_type, chained, intervals_of, sorted_keys, subject
-from .significance import in_top_n
 from .situation import Place, SituationReport
 from .stream import EventStream
 
@@ -282,8 +281,9 @@ class SpaceDefencesEstablishedRule:
 
 
 def _placed(report: SituationReport, nation_id: EntityId, metric: str, top: int) -> bool:
-    """Tied places count, unlike ``SituationReport.top``."""
-    return in_top_n(report.rank(nation_id, metric), top)
+    """Tied places count, unlike ``SituationReport.top``; an unranked nation (``None``, unknown) is not placed."""
+    rank = report.rank(nation_id, metric)
+    return isinstance(rank, int) and not isinstance(rank, bool) and rank <= top
 
 
 def _entry(place: Place) -> FrozenMap:

@@ -17,9 +17,8 @@ from typing import assert_never
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
-from ..analyzers.politics.nation_assets import GDP, STRENGTH
 from ..analyzers.space.combat import LOG_FIELD as COMBAT_LOG
-from ..config import DEFAULT_SETTINGS, GeopoliticsSettings, SignificanceSettings
+from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..kinds import kind_for
 from ..kinds.nations import REGION_NATION_CHANGED
 from ..kinds.space import SHIP_APPEARED
@@ -47,7 +46,6 @@ from .prominence import (
 from .situation import SituationReport, build_situation
 
 __all__ = [
-    "PROMOTED",
     "RULE_IMPLEMENTATIONS",
     "SIGNIFICANCE_ORDER",
     "STAKE_IMPLEMENTATIONS",
@@ -60,12 +58,9 @@ __all__ = [
     "Significance",
     "Stakes",
     "assign_significance",
-    "in_top_n",
     "narrative_level",
     "narrative_scaling",
     "narrative_score",
-    "promoted_at_rank",
-    "promoted_by_rank",
     "score_narrative",
     "significance_of",
 ]
@@ -81,39 +76,6 @@ UPHEAVAL_CAUSES = frozenset({"Coup", "RegimeChange", "Independence", "Enthrall"}
 WAR_RELATION = "wars"
 """The ``nation.relation_changed`` relation that names a war; ``allies`` and ``rivals`` are routine diplomacy."""
 
-# --- Rank promotion ---------------------------------------------------------------------------------------
-# TODO(#362): temporary; the named context rule and the stakes replace these, then they go with ``top_gdp_nations``.
-
-PROMOTED = {
-    Significance.TRIVIAL: Significance.MINOR,
-    Significance.MINOR: Significance.MAJOR,
-    Significance.MAJOR: Significance.CAMPAIGN_DEFINING,
-    Significance.CAMPAIGN_DEFINING: Significance.CAMPAIGN_DEFINING,
-}
-"""One level up; the highest level stays."""
-
-
-def in_top_n(rank: Observed, top: int) -> bool:
-    """Whether ``rank`` (1 is the largest) is at most ``top``. An unranked nation (``None``, unknown) is not in it."""
-    return isinstance(rank, int) and not isinstance(rank, bool) and rank <= top
-
-
-def promoted_at_rank(level: Significance, rank: Observed, top: int) -> Significance:
-    """``level`` one up when ``rank`` is in the top ``top``."""
-    return PROMOTED[level] if in_top_n(rank, top) else level
-
-
-def promoted_by_rank(
-    level: Significance, report: SituationReport, nation_id: EntityId, top: int, *, by_strength: bool = False
-) -> Significance:
-    """``level`` one up when the nation ranks in the top ``top`` by GDP (or, with ``by_strength``, by strength) in
-    ``report``, ranked as ``SituationReport.rank`` ranks."""
-    statistics = (GDP, STRENGTH) if by_strength else (GDP,)
-    if any(in_top_n(report.rank(nation_id, statistic), top) for statistic in statistics):
-        return PROMOTED[level]
-    return level
-
-
 # --- Context rules ----------------------------------------------------------------------------------------
 
 ContextRule = Callable[[Event, Lookup], Significance | None]
@@ -122,9 +84,9 @@ ContextRule = Callable[[Event, Lookup], Significance | None]
 
 @dataclass(frozen=True)
 class NarrativeContextRule:
-    """A narrative-event kind's context rule: it reads only the event, and the settings of a temporary rule."""
+    """A narrative-event kind's context rule: it reads only the event."""
 
-    judge: Callable[[Event, GeopoliticsSettings], Significance | None]
+    judge: Callable[[Event], Significance | None]
     """``None`` defers to the base level."""
 
 
@@ -199,7 +161,7 @@ def _claims_changed(event: Event, lookup: Lookup) -> Significance | None:
     return Significance.MAJOR
 
 
-def _band_shift(event: Event, _: GeopoliticsSettings) -> Significance | None:
+def _band_shift(event: Event) -> Significance | None:
     """Major for a statistic that is always major, a crossing into severe unrest, a crossing of a cohesion extreme or
     two bands crossed, else minor."""
     statistic, before, after = (
@@ -222,7 +184,7 @@ def _band_shift(event: Event, _: GeopoliticsSettings) -> Significance | None:
     return Significance.MAJOR if major else Significance.MINOR
 
 
-def _collapse_after_strikes(event: Event, _: GeopoliticsSettings) -> Significance | None:
+def _collapse_after_strikes(event: Event) -> Significance | None:
     """A population collapse of nuked regions, or one citing nuclear strikes, is campaign defining."""
     nuked = event.attribute("nuked_regions")
     if (isinstance(nuked, tuple) and nuked) or event.attribute("nuclear_strikes") is True:
@@ -232,12 +194,12 @@ def _collapse_after_strikes(event: Event, _: GeopoliticsSettings) -> Significanc
     return None
 
 
-def _entered_top(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+def _entered_top(event: Event) -> Significance | None:
     """A nation entering the top of a space measure is a major event."""
     return Significance.MAJOR if event.attribute("entered_top") is True else None
 
 
-def _milestone_tier(event: Event, geopolitics: GeopoliticsSettings) -> Significance | None:
+def _milestone_tier(event: Event) -> Significance | None:
     """A completion's level is the tier the curated milestone list gives its template."""
     template = event.attribute("template")
     milestone = MILESTONE_TEMPLATES.get(template) if isinstance(template, str) else None
@@ -774,24 +736,22 @@ def _decision(event: Event, lookup: Lookup) -> tuple[Significance, Rule | None]:
     return kind.base, None
 
 
-def narrative_level(kind: EventKind, event: Event, geopolitics: GeopoliticsSettings) -> Significance:
+def narrative_level(kind: EventKind, event: Event) -> Significance:
     """The kind's context-rule level, else its base level: the level a narrative event's own score starts from.
 
     Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
     """
-    return _narrative_decision(kind, event, geopolitics)[0]
+    return _narrative_decision(kind, event)[0]
 
 
-def _narrative_decision(
-    kind: EventKind, event: Event, geopolitics: GeopoliticsSettings
-) -> tuple[Significance, Rule | None]:
+def _narrative_decision(kind: EventKind, event: Event) -> tuple[Significance, Rule | None]:
     """``narrative_level`` and the context rule that decided it, ``None`` when the base level stood."""
     if kind.rule is None:
         return kind.base, None
     rule = RULE_IMPLEMENTATIONS[kind.rule]
     if not isinstance(rule, NarrativeContextRule):
         raise ValueError(f"rule {kind.rule} of {event.event_type} judges an atomic event")
-    decided = rule.judge(event, geopolitics)
+    decided = rule.judge(event)
     return (kind.base, None) if decided is None else (decided, kind.rule)
 
 
@@ -816,7 +776,6 @@ def score_narrative(
     kind: EventKind,
     event: Event,
     cited: Iterable[Event],
-    geopolitics: GeopoliticsSettings,
     *,
     scaling: NarrativeScaling | None,
     base: Significance,
@@ -830,7 +789,7 @@ def score_narrative(
     Raises ``ValueError`` for a kind whose context rule judges atomic events: a code bug.
     """
     cited = tuple(cited)
-    decided, rule = _narrative_decision(kind, event, geopolitics)
+    decided, rule = _narrative_decision(kind, event)
     level = base if rule is None else decided
     basis = (
         _narrative_basis(scaling, event, cited, level, stakes, last or stakes)
@@ -845,7 +804,6 @@ def narrative_score(
     kind: EventKind,
     event: Event,
     cited: Iterable[Event],
-    geopolitics: GeopoliticsSettings,
     stakes: ReportStakes | None = None,
     last: ReportStakes | None = None,
 ) -> tuple[int, SignificanceBasis | None, Rule | None]:
@@ -859,7 +817,7 @@ def narrative_score(
     each is a code bug.
     """
     scaling = narrative_scaling(kind, event) if stakes is not None else None
-    scored = score_narrative(kind, event, cited, geopolitics, scaling=scaling, base=kind.base, stakes=stakes, last=last)
+    scored = score_narrative(kind, event, cited, scaling=scaling, base=kind.base, stakes=stakes, last=last)
     return scored.score, scored.basis, scored.rule
 
 

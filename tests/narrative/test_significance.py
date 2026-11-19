@@ -26,7 +26,6 @@ from tinarrative.analyzers.base import Analyzer
 from tinarrative.analyzers.common import Lookup
 from tinarrative.analyzers.military import ArmyAnalyzer
 from tinarrative.analyzers.politics import CouncilorAnalyzer, NationMetricAnalyzer, OrganizationAnalyzer
-from tinarrative.config import GeopoliticsSettings
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.kinds import KINDS
 from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
@@ -612,7 +611,7 @@ def test_the_basis_keeps_the_unrounded_share_and_the_json_rounds_it() -> None:
 def narrative_level(event_type: str, **attributes: Observed) -> Significance:
     kind = KINDS[event_type]
     event = bare_event(event_type, **attributes)
-    return Significance.of(narrative_score(kind, event, (), GeopoliticsSettings())[0])
+    return Significance.of(narrative_score(kind, event, ())[0])
 
 
 @pytest.mark.parametrize(
@@ -650,8 +649,8 @@ def test_a_given_base_applies_only_where_the_context_rule_defers() -> None:
     calm = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
     struck = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=True)
 
-    deferred = score_narrative(kind, calm, (), GeopoliticsSettings(), scaling=None, base=Significance.TRIVIAL)
-    ruled = score_narrative(kind, struck, (), GeopoliticsSettings(), scaling=None, base=Significance.TRIVIAL)
+    deferred = score_narrative(kind, calm, (), scaling=None, base=Significance.TRIVIAL)
+    ruled = score_narrative(kind, struck, (), scaling=None, base=Significance.TRIVIAL)
 
     assert (deferred.level, deferred.score, deferred.ruled) == (Significance.TRIVIAL, Significance.TRIVIAL.base, False)
     assert (ruled.level, ruled.ruled) == (Significance.CAMPAIGN_DEFINING, True)
@@ -664,9 +663,9 @@ def test_the_kinds_own_scaling_and_base_score_an_event_as_narrative_score_does()
     top = Significance.CAMPAIGN_DEFINING
     cited = replace(bare_event("nation.rank_changed"), significance=top, score=top.band[1])
 
-    scored = score_narrative(kind, event, (cited,), GeopoliticsSettings(), scaling=None, base=kind.base)
+    scored = score_narrative(kind, event, (cited,), scaling=None, base=kind.base)
 
-    assert (scored.score, scored.basis, scored.rule) == narrative_score(kind, event, (cited,), GeopoliticsSettings())
+    assert (scored.score, scored.basis, scored.rule) == narrative_score(kind, event, (cited,))
     assert scored.score == cited.score
     assert scored.level is kind.base
 
@@ -691,7 +690,7 @@ def test_a_narrative_score_names_the_context_rule_only_where_it_decided_the_leve
 
     def rule(entered: bool) -> Rule | None:
         event = bare_event(kind.event_type, **measures, entered_top=entered)
-        return narrative_score(kind, event, (), GeopoliticsSettings())[2]
+        return narrative_score(kind, event, ())[2]
 
     assert rule(True) is Rule.ENTERED_TOP
     assert rule(False) is None
