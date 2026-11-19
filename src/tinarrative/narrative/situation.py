@@ -24,7 +24,6 @@ from ..analyzers.politics.nation_assets import (
     strength,
 )
 from ..analyzers.politics.wars import ATTACKERS, DEFENDERS, LAST_FIGHTING, START_DATE
-from ..config import PowerSettings
 from ..log import fields, get_logger
 from ..model.entities import EntityId, EntityRef
 from ..model.records import ItemEntry, KeyedEntry
@@ -32,19 +31,6 @@ from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, UnknownReason, number, to_jsonable
 from ..reconstruction.common import control_points, executive_seat
 from ..reconstruction.control import Holder
-from .prominence import (
-    ALIEN_MASS_WEIGHT,
-    PowerInputs,
-    ShipMasses,
-    faction_share,
-    fleet_share,
-    hab_share,
-    hab_weights,
-    population_shares,
-    power_inputs,
-    power_shares,
-    ship_masses,
-)
 
 logger = get_logger(__name__)
 
@@ -210,10 +196,6 @@ class FactionSituation:
     fleets: int
     ships: int
     finished_projects: Count
-    hab_weight: float = 0.0
-    """Σ tier² of its habs; not part of ``to_dict``."""
-    ship_mass: float = 0.0
-    """Σ dry mass (kg) of its ships with a known mass; not part of ``to_dict``."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -271,12 +253,6 @@ class WorldSituation:
     climate: tuple[tuple[str, Observed], ...]
     spaceports: tuple[Spaceport, ...] = ()
     """Largest boost first, ties by ID."""
-    human_hab_weight: float = 0.0
-    """Σ tier² of every human faction's habs; not part of ``to_dict``."""
-    human_ship_mass: float = 0.0
-    """Σ dry mass (kg) of every human faction's ships; not part of ``to_dict``."""
-    weighted_ship_mass: float = 0.0
-    """Σ dry mass (kg) of every faction's ships, alien ships weighted up; not part of ``to_dict``."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -323,12 +299,6 @@ class SituationReport:
     factions: tuple[FactionSituation, ...]
     unattributed: Unattributed
     world: WorldSituation
-    region_population: tuple[tuple[EntityId, Observed], ...] = ()
-    """Each region's ``populationInMillions``, the territory shares of narrative events; not part of ``to_dict``."""
-    hab_weight_by_hab: tuple[tuple[EntityId, float], ...] = ()
-    """Each hab's tier², the hab shares of narrative events; not part of ``to_dict``."""
-    dry_mass_by_asset: tuple[tuple[EntityId, float], ...] = ()
-    """The dry mass (kg) of each ship and each fleet, the fleet shares of narrative events; not part of ``to_dict``."""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -369,62 +339,6 @@ class SituationReport:
             if (first in attackers and second in defenders) or (first in defenders and second in attackers):
                 found.append(war)
         return tuple(found)
-
-    def power_shares(self, weights: PowerSettings) -> dict[EntityId, float]:
-        """Each nation's share: ``prominence.power_shares`` over the nations holding land with known GDP, population
-        and strength, as ``prominence.nation_power`` gives for the snapshot this report was built from."""
-        inputs: list[PowerInputs] = []
-        for row in self.nations:
-            if not row.landed:
-                continue
-            found = power_inputs(row.nation.entity_id, dict(row.statistics).get(GDP), row.population, row.strength)
-            if found is not None:
-                inputs.append(found)
-        return power_shares(inputs, weights)
-
-    def faction_shares(self, weights: PowerSettings, w_space: float) -> dict[EntityId, float]:
-        """Each faction's share: a human faction's Earth share (each nation's power share times the faction's share of
-        that nation's control points) blended with its space share by how far humans have reached the space
-        saturation; the alien faction, the backdrop of space, keeps its Earth share alone."""
-        power = self.power_shares(weights)
-        earth: defaultdict[str, float] = defaultdict(float)  # by the faction's ID text, as ``shares`` is
-        for row in self.nations:
-            share = power.get(row.nation.entity_id)
-            points = row.control_points
-            if share is None or not isinstance(points, int) or points <= 0 or not isinstance(row.shares, FrozenMap):
-                continue
-            for key, held in row.shares.items:
-                if isinstance(held, int):
-                    earth[key] += share * held / points
-        shares: dict[EntityId, float] = {}
-        for faction in self.factions:
-            found = earth[str(faction.faction.entity_id)]
-            shares[faction.faction.entity_id] = (
-                found
-                if faction.kind == "alien"
-                else faction_share(
-                    found,
-                    faction.hab_weight,
-                    faction.ship_mass,
-                    self.world.human_hab_weight,
-                    self.world.human_ship_mass,
-                    w_space,
-                )
-            )
-        return shares
-
-    def hab_shares(self) -> dict[EntityId, float]:
-        """Each hab's ``tier²`` over the human total (at least ``HAB_FLOOR``), alien habs included as habs."""
-        return {hab: hab_share(weight, self.world.human_hab_weight) for hab, weight in self.hab_weight_by_hab}
-
-    def fleet_shares(self) -> dict[EntityId, float]:
-        """Each ship's and fleet's dry mass over the human total (at least ``FLEET_SATURATION``)."""
-        return {asset: fleet_share(mass, self.world.human_ship_mass) for asset, mass in self.dry_mass_by_asset}
-
-    def population_shares(self) -> dict[EntityId, float]:
-        """Each region's share of world population, as ``prominence.region_shares`` gives for the snapshot this
-        report was built from."""
-        return population_shares(self.region_population)
 
     def _landed_order(self, statistic: str) -> list[tuple[float, NationSituation]]:
         value = RANKED[statistic]
@@ -576,7 +490,7 @@ def _war(reader: _Reader, state: EntityState) -> WarSituation:
     )
 
 
-def _factions(reader: _Reader, masses: ShipMasses) -> tuple[tuple[FactionSituation, ...], Unattributed]:
+def _factions(reader: _Reader) -> tuple[tuple[FactionSituation, ...], Unattributed]:
     snapshot = reader.snapshot
     habs: Counter[EntityId] = Counter()
     bodies: dict[EntityId, Counter[EntityId]] = defaultdict(Counter)
@@ -606,14 +520,6 @@ def _factions(reader: _Reader, masses: ShipMasses) -> tuple[tuple[FactionSituati
         if owner is not None:
             ships[owner] += 1
 
-    hab_weight: defaultdict[EntityId, float] = defaultdict(float)
-    for hab in snapshot.habs:
-        owner = reader.owner(hab)
-        tier = number(hab.get("tier"))
-        if owner is not None and tier is not None:
-            hab_weight[owner] += max(tier, 0.0) ** 2
-    mass = masses.by_faction
-
     factions = tuple(
         FactionSituation(
             faction=state.ref,
@@ -626,8 +532,6 @@ def _factions(reader: _Reader, masses: ShipMasses) -> tuple[tuple[FactionSituati
             fleets=fleets[state.ref.entity_id],
             ships=ships[state.ref.entity_id],
             finished_projects=_count(state.get("finishedProjectNames")),
-            hab_weight=hab_weight[state.ref.entity_id],
-            ship_mass=mass.get(state.ref.entity_id, 0.0),
         )
         for state in snapshot.factions
     )
@@ -686,9 +590,6 @@ def _world(
         nuclear=counters(NUCLEAR_COUNTERS),
         climate=counters(CLIMATE_COUNTERS),
         spaceports=_spaceports(reader, spaceports),
-        human_hab_weight=sum(row.hab_weight for row in factions if row.kind != "alien"),
-        human_ship_mass=sum(row.ship_mass for row in factions if row.kind != "alien"),
-        weighted_ship_mass=sum(row.ship_mass * (ALIEN_MASS_WEIGHT if row.kind == "alien" else 1.0) for row in factions),
     )
 
 
@@ -696,8 +597,7 @@ def build_situation(snapshot: SaveSnapshot, *, spaceports: int = SPACEPORTS) -> 
     """The same snapshot always gives an equal report."""
     reader = _Reader(snapshot)
     parties = _war_parties(snapshot)
-    masses = ship_masses(snapshot)
-    factions, unattributed = _factions(reader, masses)
+    factions, unattributed = _factions(reader)
     nations = tuple(_nation(reader, state, parties.get(state.ref.entity_id, [])) for state in snapshot.nations)
     report = SituationReport(
         date=snapshot.date,
@@ -711,9 +611,6 @@ def build_situation(snapshot: SaveSnapshot, *, spaceports: int = SPACEPORTS) -> 
         factions=factions,
         unattributed=unattributed,
         world=_world(reader, nations, factions, spaceports),
-        region_population=tuple((state.ref.entity_id, state.get("populationInMillions")) for state in snapshot.regions),
-        hab_weight_by_hab=tuple(hab_weights(snapshot).items()),
-        dry_mass_by_asset=tuple(masses.by_asset.items()),
     )
     logger.debug(
         "situation built %s",

@@ -21,7 +21,7 @@ from ..model.snapshot import EntityState, SaveSnapshot
 from ..model.values import FrozenMap, Observed, Unknown, to_jsonable
 from ..trait_names import KEPT_GROUPS, TRAITS, WITHHELD_GROUPS
 from .org_catalog import NAMED_ORG_CATEGORIES
-from .prominence import organization_shares, total
+from .shares import organization_shares, total
 from .trait_catalog import (
     DETECTION_BONUS,
     EASILY_VISIBLE,

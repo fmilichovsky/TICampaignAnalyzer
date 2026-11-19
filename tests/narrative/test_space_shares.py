@@ -11,6 +11,7 @@ from tests.analyzers.support import (
     faction_ref,
     fleet_ref,
     only,
+    ranked,
     record_set,
     snapshot,
     state,
@@ -23,20 +24,19 @@ from tinarrative.model.events import Event
 from tinarrative.model.records import CombatEntry, RecordKind
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import FrozenMap
-from tinarrative.narrative import assign_significance
 from tinarrative.narrative.measures import SCALE_MIN
-from tinarrative.narrative.prominence import (
+from tinarrative.narrative.shares import (
     CONTEST_RATIO,
     FLEET_SATURATION,
     HAB_FLOOR,
     HAB_SATURATION,
+    build_shares,
     contested_mass,
     dry_mass,
     hab_share,
     ship_masses,
     space_weight,
 )
-from tinarrative.narrative.situation import build_situation
 
 HAB, SHIP, FLEET, FACTION = (
     EntityDomain.SPACE_OBJECT,
@@ -102,7 +102,7 @@ def combat(index, first, second=None, hab_faction=None):  # type: ignore[no-unty
 
 def scored(*entries: CombatEntry) -> list[Event]:
     before, after = combat_world(*entries)
-    return list(assign_significance(analyze(CombatAnalyzer(), before, after), before, after))
+    return list(ranked(analyze(CombatAnalyzer(), before, after), before, after))
 
 
 H, A = "HumanDesign", "AlienDesign"
@@ -135,9 +135,7 @@ def test_an_early_world_leaves_the_faction_shares_to_earth() -> None:
         state(HAB, "3", AFTER, faction=HUMAN, tier=1),
         state(HAB, "4", AFTER, faction=HUMAN, tier=1),
     ]
-    shares = build_situation(snapshot(AFTER, *factions(AFTER), *habs)).faction_shares(
-        DEFAULT_SETTINGS.narrative.significance.power, 0.5
-    )
+    shares = build_shares(snapshot(AFTER, *factions(AFTER), *habs), DEFAULT_SETTINGS.narrative.significance).faction
     assert shares[ALIEN.entity_id] == 0.0  # the backdrop: Earth share alone, and it holds none
     assert 0 < shares[HUMAN.entity_id] < 0.001  # two tier-1 stations hardly count
 
@@ -145,7 +143,7 @@ def test_an_early_world_leaves_the_faction_shares_to_earth() -> None:
 def appeared(*habs: EntityState) -> dict[str, Event]:
     before = snapshot(BEFORE, *factions(BEFORE))
     after = snapshot(AFTER, *factions(AFTER), *habs)
-    found = assign_significance(analyze(HabAnalyzer(), before, after), before, after)
+    found = ranked(analyze(HabAnalyzer(), before, after), before, after)
     return {str(event.entities[0].entity_id): event for event in found if event.event_type == "hab.appeared"}
 
 
@@ -228,7 +226,7 @@ def test_a_defection_is_scaled_by_the_share_of_the_faction_left() -> None:
         )
 
     before, after = save(BEFORE, HUMAN), save(AFTER, ALIEN)
-    found = assign_significance(analyze(CouncilorAnalyzer(), before, after), before, after)
+    found = ranked(analyze(CouncilorAnalyzer(), before, after), before, after)
     event = only(found, "councilor.faction_changed")
     base = KINDS["councilor.faction_changed"].base.base
     # The faction left holds nothing here (no nations, habs or ships): the lowest share.

@@ -1,4 +1,4 @@
-"""Prominence shares: nation power, region population and organization tier, from a snapshot or a situation report."""
+"""Shares: nation power, region population and organization tier of a snapshot, and the shares of a save."""
 
 from __future__ import annotations
 
@@ -6,18 +6,20 @@ import math
 
 import pytest
 
-from tests.analyzers.support import AFTER, nation_ref, region_ref, snapshot, state
-from tinarrative.config import PowerSettings
+from tests.analyzers.support import AFTER, nation_ref, ref, region_ref, snapshot, state
+from tinarrative.config import PowerSettings, SignificanceSettings
 from tinarrative.model.entities import EntityDomain, EntityId
+from tinarrative.model.kinds import Measure
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Observed, Unknown
-from tinarrative.narrative.prominence import (
+from tinarrative.narrative.shares import (
+    SaveShares,
+    build_shares,
     nation_power,
     organization_shares,
     region_shares,
     total,
 )
-from tinarrative.narrative.situation import build_situation
 
 NATION, REGION, ORG = EntityDomain.NATION, EntityDomain.REGION, EntityDomain.ORGANIZATION
 THIRDS = PowerSettings()
@@ -82,12 +84,51 @@ def test_power_is_the_weighted_mean_of_the_gdp_population_and_strength_shares() 
     assert pop_only[nid("22")] == pytest.approx(100 / 1100)
 
 
-def test_a_snapshot_and_its_situation_report_give_the_same_shares() -> None:
+def test_a_save_shares_covers_the_measures_of_its_snapshot() -> None:
     save = world()
 
-    from_report = build_situation(save).power_shares(THIRDS)
+    shares = build_shares(save, SignificanceSettings())
 
-    assert from_report == pytest.approx(nation_power(save, THIRDS))
+    assert shares.of(Measure.POWER) == pytest.approx(nation_power(save, THIRDS))
+    assert shares.of(Measure.POPULATION) == region_shares(save)
+    assert shares.world_warheads == 1
+    assert math.fsum(shares.power.values()) == pytest.approx(1.0)
+
+
+def test_a_save_shares_uses_the_given_settings() -> None:
+    gdp_only = SignificanceSettings(power=PowerSettings(w_gdp=1.0, w_pop=0.0, w_str=0.0))
+
+    assert build_shares(world(), gdp_only).power == pytest.approx(nation_power(world(), gdp_only.power))
+    assert build_shares(world(), gdp_only).power != build_shares(world(), SignificanceSettings()).power
+
+
+def test_a_save_shares_counts_the_control_points_each_nation_lists() -> None:
+    points = (ref(EntityDomain.CONTROL_POINT, "1"), ref(EntityDomain.CONTROL_POINT, "2"))
+    save = snapshot(AFTER, nation("20", (), controlPoints=points), nation("21", (), controlPoints=()))
+
+    assert build_shares(save, SignificanceSettings()).control_points == {nid("20"): 2}
+
+
+def test_a_nation_without_a_known_arsenal_counts_no_warheads_and_none_known_gives_none() -> None:
+    unknown = snapshot(AFTER, nation("20", (), numNuclearWeapons=Unknown()))
+    mixed = snapshot(AFTER, nation("20", (), numNuclearWeapons=Unknown()), nation("21", (), numNuclearWeapons=3))
+
+    assert build_shares(unknown, SignificanceSettings()).world_warheads is None
+    assert build_shares(mixed, SignificanceSettings()).world_warheads == 3
+
+
+def test_a_save_shares_is_built_from_plain_numbers_with_no_snapshot_or_settings() -> None:
+    shares = SaveShares(power={nid("20"): 0.4}, world_warheads=12.0)
+
+    assert shares.of(Measure.POWER) == {nid("20"): 0.4}
+    assert shares.of(Measure.HAB) == {} and shares.control_points == {}
+    assert shares.world_warheads == 12.0
+
+
+@pytest.mark.parametrize("measure", [Measure.BATTLE, Measure.NUCLEAR])
+def test_a_battle_or_nuclear_share_is_not_a_save_share(measure: Measure) -> None:
+    with pytest.raises(ValueError):
+        SaveShares().of(measure)
 
 
 def test_a_nuclear_armed_small_state_gains_on_strength_but_stays_below_a_large_conventional_power() -> None:

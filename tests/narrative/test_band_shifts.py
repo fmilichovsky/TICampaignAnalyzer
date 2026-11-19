@@ -8,6 +8,7 @@ import pytest
 
 from tests.narrative.support import (
     WORLD_POWER,
+    aggregated,
     atomic,
     declared_attributes,
     faction,
@@ -29,7 +30,7 @@ from tinarrative.kinds.wars import ARC
 from tinarrative.model.events import Event, EventStatus, Role, Significance, SignificanceBasis
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed
-from tinarrative.narrative import Join, NarrativeBuilder, aggregate, narrative_rules
+from tinarrative.narrative import Join, NarrativeBuilder, narrative_rules
 from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.nation_metrics import BAND_SHIFTS, BandShiftRule
 from tinarrative.narrative.situation import SituationReport
@@ -107,7 +108,7 @@ def built(stream: Sequence[Event], situations: Sequence[SituationReport], **sett
         geopolitics=GeopoliticsSettings(**{k: v for k, v in settings.items() if k != "band_hold_days"}),  # type: ignore[arg-type]
         nation_metrics=NationMetricsSettings(**{k: v for k, v in settings.items() if k == "band_hold_days"}),  # type: ignore[arg-type]
     )
-    events = aggregate(stream, situations, narrative_rules(narrative))
+    events = aggregated(stream, situations, narrative_rules(narrative))
     return [event for event in events if event.event_type in {kind.event_type for kind in BAND_SHIFTS.values()}]
 
 
@@ -153,7 +154,7 @@ def test_a_war_arc_explains_an_unrest_shift_for_its_nation_and_interval() -> Non
     fighting = atomic("war.last_fighting_changed", K1, entities=(war("1"),))
     rule = BandShiftRule("unrest", NationMetricsSettings(), GeopoliticsSettings())
 
-    result = aggregate([event, fighting], reports(2.5, 4.75, 5.0), [WarArcRule(), rule])
+    result = aggregated([event, fighting], reports(2.5, 4.75, 5.0), [WarArcRule(), rule])
 
     assert [item.event_type for item in result] == [ARC.event_type]
 

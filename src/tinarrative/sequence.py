@@ -19,14 +19,23 @@ from pathlib import Path
 from typing import Any
 
 from .analyzers import ALL_ANALYZERS, FIRST_INTERVAL_ANALYZERS, run_analyzers
-from .config import DEFAULT_SETTINGS, NarrativeSettings, SignificanceSettings
+from .config import DEFAULT_SETTINGS, NarrativeSettings
 from .diff import diff_states
 from .io.save_loader import load_raw_save, load_save
 from .log import TIMING_LOGGER, fields, get_logger, safe_path
 from .model.changes import StateChange, StateDiff
 from .model.events import Event
 from .model.snapshot import SaveSnapshot
-from .narrative import NARRATIVE_RULES, NarrativeRule, SituationReport, aggregate, assign_significance, build_situation
+from .narrative import (
+    NARRATIVE_RULES,
+    NarrativeRule,
+    SaveShares,
+    SituationReport,
+    aggregate,
+    assign_significance,
+    build_shares,
+    build_situation,
+)
 from .narrative.chronology import TIE_SEPARATOR, chronological, interval_keys, qualify
 from .parsing.continuity import CampaignProfile
 from .parsing.errors import SaveLoadError
@@ -136,6 +145,10 @@ class IntervalResult:
     before_situation: SituationReport | None = None
     after_situation: SituationReport | None = None
     """The situation reports of ``before`` and ``after``; not part of ``to_dict`` (the saves carry them)."""
+    before_shares: SaveShares | None = None
+    after_shares: SaveShares | None = None
+    """The shares of ``before`` and ``after``, built once per save beside its situation report; not part of
+    ``to_dict``."""
 
     def events(self) -> tuple[Event, ...]:
         return self.objective + (self.inferred or ())
@@ -164,10 +177,12 @@ def analyze_interval(
     inferred: bool,
     first: bool = False,
     narrative: NarrativeSettings = DEFAULT_SETTINGS.narrative,
+    shares: tuple[SaveShares, SaveShares],
 ) -> IntervalAnalysis:
     """Diff two snapshots, run every analyzer and, when asked, reconstruction; every event gets its significance.
 
-    ``first`` marks the first interval of a sequence, which also runs ``FIRST_INTERVAL_ANALYZERS``.
+    ``first`` marks the first interval of a sequence, which also runs ``FIRST_INTERVAL_ANALYZERS``. ``shares`` are the
+    two snapshots' (``build_shares``, which a sequence builds once per save).
     """
     clock = time.perf_counter()
     seconds = dict.fromkeys(("diff", "analyzers", "reconstruction", "significance"), 0.0)
@@ -183,13 +198,13 @@ def analyze_interval(
     analyzers = ALL_ANALYZERS + FIRST_INTERVAL_ANALYZERS if first else ALL_ANALYZERS
     found = run_analyzers(analyzers, before, after, diff)
     lap("analyzers")
-    objective = assign_significance(found, before, after, narrative.significance)
+    objective = assign_significance(found, before, after, shares)
     lap("significance")
     reconstructed = None
     if inferred:
         events = infer_events(objective, before, after, diff)
         lap("reconstruction")
-        reconstructed = assign_significance(events, before, after, narrative.significance, evidence=objective)
+        reconstructed = assign_significance(events, before, after, shares, evidence=objective)
         lap("significance")
     return IntervalAnalysis(diff, objective, reconstructed, seconds)
 
@@ -377,7 +392,7 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
     """The intervals of one chunk; the first save of a later chunk is not reported to ``on_save`` again."""
     options = chunk.options
 
-    def prepared(offset: int) -> tuple[SaveSnapshot, SituationReport]:
+    def prepared(offset: int) -> tuple[SaveSnapshot, SituationReport, SaveShares]:
         if on_save is not None and (offset > 0 or chunk.start == 0):
             on_save()
         index = chunk.start + offset
@@ -385,15 +400,30 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
         snapshot = options.load(chunk.saves[offset].source)
         loaded = time.perf_counter()
         situation = build_situation(snapshot, spaceports=options.narrative.nation_metrics.ranking_top_n)
-        timing.info("save %s", fields(index=index, load=round(loaded - started, 4), situation=_seconds(loaded)))
-        return snapshot, situation
+        built = time.perf_counter()
+        shares = build_shares(snapshot, options.narrative.significance)
+        timing.info(
+            "save %s",
+            fields(
+                index=index,
+                load=round(loaded - started, 4),
+                situation=round(built - loaded, 4),
+                shares=_seconds(built),
+            ),
+        )
+        return snapshot, situation, shares
 
-    before, before_situation = prepared(0)
+    before, before_situation, before_shares = prepared(0)
     for offset in range(1, len(chunk.saves)):
         index = chunk.start + offset
-        after, after_situation = prepared(offset)
+        after, after_situation, after_shares = prepared(offset)
         analysis = analyze_interval(
-            before, after, inferred=options.inferred, first=index == 1, narrative=options.narrative
+            before,
+            after,
+            inferred=options.inferred,
+            first=index == 1,
+            narrative=options.narrative,
+            shares=(before_shares, after_shares),
         )
         timing.info(
             "interval %s",
@@ -411,6 +441,8 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
             state_changes=analysis.diff.changes if options.changes else None,
             before_situation=before_situation,
             after_situation=after_situation,
+            before_shares=before_shares,
+            after_shares=after_shares,
         )
         logger.info(
             "interval done %s",
@@ -423,7 +455,7 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
         )
         del analysis  # its diff holds both snapshots; the next load must find only ``after`` alive
         yield result
-        before, before_situation = after, after_situation
+        before, before_situation, before_shares = after, after_situation, after_shares
 
 
 def event_stream(intervals: Iterable[IntervalResult]) -> list[Event]:
@@ -442,10 +474,21 @@ def situations(intervals: Iterable[IntervalResult]) -> tuple[SituationReport, ..
     return tuple(reports)
 
 
+def save_shares(intervals: Iterable[IntervalResult]) -> tuple[SaveShares, ...]:
+    """One ``SaveShares`` per save of the sequence, in its order (as ``situations``); empty when no interval ran."""
+    found: list[SaveShares] = []
+    for interval in intervals:
+        if not found and interval.before_shares is not None:
+            found.append(interval.before_shares)
+        if interval.after_shares is not None:
+            found.append(interval.after_shares)
+    return tuple(found)
+
+
 def narrative_events(
     intervals: Sequence[IntervalResult],
     rules: Sequence[NarrativeRule] = NARRATIVE_RULES,
-    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
 ) -> list[Event]:
-    """The narrative events the rules build over the stream and situation reports (``narrative.aggregate``)."""
-    return aggregate(event_stream(intervals), situations(intervals), rules, significance=significance)
+    """The narrative events the rules build over the stream and situation reports, their shares read from the saves'
+    (``narrative.aggregate``); the shares were measured with the sequence's significance settings."""
+    return aggregate(event_stream(intervals), situations(intervals), rules, shares=save_shares(intervals))

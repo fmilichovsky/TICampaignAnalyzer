@@ -12,21 +12,21 @@ from typing import Any, Final
 from tinarrative.benchmarking.calibration import drafts as draft_shares
 from tinarrative.benchmarking.calibration.drafts import DraftShare, draft_base, draft_row_id, validate_drafts
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
-from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event, Significance
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
-from tinarrative.narrative.aggregation import report_shares
+from tinarrative.narrative.aggregation import interval_shares
 from tinarrative.narrative.chronology import interval_of
 from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
-from tinarrative.narrative.significance import ReportShares, narrative_level, score_narrative
+from tinarrative.narrative.significance import IntervalShares, narrative_level, score_narrative
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
     narrative_events,
     plan_sequence,
     run_sequence,
+    save_shares,
     situations,
     survey_all,
 )
@@ -72,7 +72,7 @@ def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftShare] | None 
     rows.extend(_row(event, "narrative") for event in narrative)
     by_id = {event.id: event for interval in intervals for event in interval.events()}
     by_id.update((event.id, event) for event in narrative)
-    shares = report_shares(situations(intervals), DEFAULT_SETTINGS.narrative.significance)
+    shares = interval_shares(situations(intervals), save_shares(intervals))
     shadows = [
         _draft_row(draft, event, by_id, shares)
         for draft in chosen
@@ -83,7 +83,7 @@ def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftShare] | None 
 
 
 def _draft_row(
-    draft: DraftShare, event: Event, by_id: Mapping[str, Event], shares: Mapping[str, ReportShares]
+    draft: DraftShare, event: Event, by_id: Mapping[str, Event], shares: Mapping[str, IntervalShares]
 ) -> dict[str, Any]:
     """The event scored by the draft's candidates, each as the pipeline would score it; the score is the highest
     of the candidates with a share, as the replay takes it."""

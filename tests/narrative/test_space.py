@@ -6,13 +6,13 @@ import random
 from collections.abc import Sequence
 from dataclasses import replace
 
-from tests.narrative.support import atomic, faction, ref, situation
+from tests.narrative.support import aggregated, atomic, faction, ref, situation
 from tinarrative.config import NarrativeSettings, SpaceSettings
 from tinarrative.kinds import describe_event
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import DateBasis, Event, EventStatus, Role, Significance
 from tinarrative.model.values import FrozenMap, Observed
-from tinarrative.narrative import NARRATIVE_RULES, aggregate, narrative_rules
+from tinarrative.narrative import NARRATIVE_RULES, narrative_rules
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.situation import SituationReport
 
@@ -106,7 +106,7 @@ def plain(*keys: str) -> list[SituationReport]:
 
 def built(stream: Sequence[Event], situations: Sequence[SituationReport] | None = None, **settings: int) -> list[Event]:
     rules = narrative_rules(NarrativeSettings(space=SpaceSettings(**settings))) if settings else NARRATIVE_RULES
-    return aggregate(stream, situations or plain(K0, K1, K2, K3, K4), rules)
+    return aggregated(stream, situations or plain(K0, K1, K2, K3, K4), rules)
 
 
 def of_type(events: Sequence[Event], event_type: str) -> list[Event]:

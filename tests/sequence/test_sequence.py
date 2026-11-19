@@ -12,10 +12,12 @@ from pathlib import Path
 import pytest
 
 from tests.fixtures import fixture_path
+from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.changes import StateDiff
 from tinarrative.model.events import Event, EventStatus
 from tinarrative.model.snapshot import SaveSnapshot
+from tinarrative.narrative import SaveShares, build_shares
 from tinarrative.narrative.situation import build_situation
 from tinarrative.parsing.continuity import campaign_profile
 from tinarrative.parsing.normalization import normalize
@@ -49,6 +51,11 @@ def fixture(name: str) -> Path:
 
 def surveyed(*paths: Path) -> list[SaveRef]:
     return [survey(path) for path in paths]
+
+
+def pair_shares(pair: list[SaveSnapshot]) -> tuple[SaveShares, SaveShares]:
+    settings = DEFAULT_SETTINGS.narrative.significance
+    return build_shares(pair[0], settings), build_shares(pair[1], settings)
 
 
 def test_saves_are_ordered_by_game_time_whatever_the_argument_order() -> None:
@@ -136,7 +143,7 @@ def test_every_interval_runs_the_diff_pipeline_and_qualifies_its_ids() -> None:
         (DATES[1], DATES[2], DATES[2]),
     ]
     first_pair = [normalize(load_raw_save(fixture(name))) for name in SEQUENCE[:2]]
-    direct = analyze_interval(*first_pair, inferred=True)
+    direct = analyze_interval(*first_pair, inferred=True, shares=pair_shares(first_pair))
     assert intervals[0].changes == len(direct.diff.changes)
     assert [event.id for event in intervals[0].objective] == [f"{event.id}@{DATES[1]}" for event in direct.objective]
     assert direct.inferred is not None and intervals[0].inferred is not None
@@ -190,7 +197,7 @@ def test_literal_changes_are_kept_only_when_asked() -> None:
     intervals = list(run_sequence(plan, inferred=False, changes=True))
 
     first_pair = [normalize(load_raw_save(fixture(name))) for name in SEQUENCE[:2]]
-    direct = analyze_interval(*first_pair, inferred=False)
+    direct = analyze_interval(*first_pair, inferred=False, shares=pair_shares(first_pair))
     assert intervals[0].state_changes == direct.diff.changes
     assert [len(interval.state_changes or ()) for interval in intervals] == [interval.changes for interval in intervals]
 

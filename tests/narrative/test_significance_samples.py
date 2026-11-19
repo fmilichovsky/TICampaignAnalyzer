@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.analyzers.support import ranked
 from tests.samples import save_paths
 from tinarrative.analyzers import ALL_ANALYZERS, run_analyzers
 from tinarrative.analyzers.common import Lookup, Side
 from tinarrative.diff.state_diff import diff_states
 from tinarrative.io.save_loader import load_raw_save
 from tinarrative.model.events import Significance
-from tinarrative.narrative import assign_significance
 from tinarrative.parsing.normalization import normalize
 
 pytestmark = pytest.mark.samples
@@ -25,7 +25,7 @@ def test_recruit_pool_councilors_and_only_they_rank_as_trivial(sample_campaign: 
     snapshots = [normalize(load_raw_save(path)) for path in save_paths(sample_campaign)[:2]]
     before, after = sorted(snapshots, key=lambda snapshot: snapshot.timestamp)
     raw = run_analyzers(ALL_ANALYZERS, before, after, diff_states(before, after))
-    assigned = assign_significance(raw, before, after)
+    assigned = ranked(raw, before, after)
     lookup = Lookup(before, after)
     presence = [event for event in assigned if event.event_type in COUNCILOR_PRESENCE]
     assert presence

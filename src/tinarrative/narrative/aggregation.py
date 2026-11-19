@@ -15,7 +15,6 @@ from graphlib import CycleError, TopologicalSorter
 from typing import Protocol
 
 from ..analyzers.common import event_id
-from ..config import DEFAULT_SETTINGS, SignificanceSettings
 from ..kinds import attributes as kind_attributes
 from ..kinds import kind_for
 from ..log import TIMING_LOGGER, fields, get_logger
@@ -32,7 +31,8 @@ from ..model.kinds import EventKind
 from ..model.values import Observed, Unknown
 from ..reconstruction.common import Support, cite, lower
 from .chronology import chronological, interval_keys, interval_of, interval_sort_key, qualified_id
-from .significance import ReportShares, narrative_score
+from .shares import SaveShares
+from .significance import IntervalShares, narrative_score
 from .situation import SituationReport
 from .stream import EventStream, UndeclaredRead
 
@@ -154,10 +154,15 @@ def interval_reports(situations: Sequence[SituationReport]) -> dict[str, tuple[S
     return {keys[index]: (situations[index - 1], situations[index]) for index in range(1, len(situations))}
 
 
-def report_shares(situations: Sequence[SituationReport], significance: SignificanceSettings) -> dict[str, ReportShares]:
-    """The shares of each interval's two reports, keyed as ``interval_reports`` keys them."""
+def interval_shares(situations: Sequence[SituationReport], shares: Sequence[SaveShares]) -> dict[str, IntervalShares]:
+    """The shares of each interval's two saves, keyed as ``interval_reports`` keys them; ``shares`` are those of the
+    ``situations``, one per save in the same order."""
+    if len(shares) != len(situations):
+        raise ValueError(f"{len(shares)} save shares for {len(situations)} situation reports")
     return {
-        key: ReportShares(before, after, significance) for key, (before, after) in interval_reports(situations).items()
+        key: IntervalShares(shares[index - 1], shares[index])
+        for index, key in enumerate(interval_keys([str(report.date) for report in situations]))
+        if index > 0
     }
 
 
@@ -173,8 +178,8 @@ def present_in(report: SituationReport, ref: EntityRef) -> bool:
 
 class NarrativeBuilder:
     """Applies the shared policy: confidence is the constituents' minimum, the score and its basis are significance's
-    (``narrative_score``, the share read from the reports of the event's first interval, the nuclear share also from
-    its last), and ``open`` while the anchor is in the last report.
+    (``narrative_score``, the share read from the saves' shares of the event's first interval, the nuclear share also
+    from its last), and ``open`` while the anchor is in the last report.
 
     A rule chooses no level: the kind's base level, context rule and share do, never below the highest-scored cited
     event.
@@ -183,11 +188,12 @@ class NarrativeBuilder:
     def __init__(
         self,
         situations: Sequence[SituationReport],
-        significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
+        shares: Sequence[SaveShares] | None = None,
     ) -> None:
+        """``shares`` are the saves' shares, one per situation report; without them no event has a share."""
         self._situations = tuple(situations)
         self._last = self._situations[-1] if self._situations else None
-        self._shares = report_shares(self._situations, significance)
+        self._shares = {} if shares is None else interval_shares(self._situations, shares)
 
     def event(
         self,
@@ -279,11 +285,11 @@ def aggregate(
     rules: Sequence[NarrativeRule],
     *,
     kinds: Callable[[str], EventKind | None] = kind_for,
-    significance: SignificanceSettings = DEFAULT_SETTINGS.narrative.significance,
+    shares: Sequence[SaveShares] | None = None,
 ) -> list[Event]:
     """Rules run in layers derived from what they read and which ``kinds`` have exclusive constituents, each layer by
-    rule name. ``kinds`` is the registry; tests pass their own to declare fixture kinds exclusive. ``significance``
-    scales the narrative events' shares.
+    rule name. ``kinds`` is the registry; tests pass their own to declare fixture kinds exclusive. ``shares`` are the
+    saves' shares (one per situation report) that scale the narrative events; without them none is scaled.
 
     Narrative events already in ``stream`` are hidden from a rule that does not read their type, like those the rules
     build. These programming errors raise ``ValueError``: a duplicate rule name or event ID (naming the rule when one
@@ -306,7 +312,7 @@ def aggregate(
     )
     layers = rule_layers(rules, exclusive)
     started = time.perf_counter()
-    build = NarrativeBuilder(situations, significance=significance)
+    build = NarrativeBuilder(situations, shares)
     built: list[Event] = []
     for layer, layer_rules in enumerate(layers):
         visible = EventStream(chronological([*stream, *built]))
