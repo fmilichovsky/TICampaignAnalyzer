@@ -13,7 +13,7 @@ from typing import Final
 
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import Significance
-from tinarrative.narrative.significance import NarrativeShareReading
+from tinarrative.narrative.significance import ShareReading
 
 ROW_PREFIX: Final = "draft:"
 _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
@@ -33,7 +33,7 @@ class DraftShare:
         label="Space program share",
         issue=361,
         event_types=("nation.space_program_growth",),
-        readings=(NarrativeShareReading(Measure.BOOST, actor), NarrativeShareReading(Measure.MISSION_CONTROL, actor)),
+        readings=(ShareReading(Measure.BOOST, actor), ShareReading(Measure.MISSION_CONTROL, actor)),
     )
     """
 
@@ -44,7 +44,7 @@ class DraftShare:
     """The issue the draft calibrates for."""
     event_types: tuple[str, ...]
     """Existing narrative event types."""
-    readings: tuple[NarrativeShareReading, ...]
+    readings: tuple[ShareReading, ...]
     """Each is a candidate of the rows' shares; the highest scale wins."""
     base: Significance | None = None
     """The hypothetical base level; by default the base of the types' kind."""

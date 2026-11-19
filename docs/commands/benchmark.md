@@ -366,13 +366,13 @@ One small PR:
 1. If the share needs a measure the code does not have, add it: a `Measure` member, its `MeasureSpec` entry in
    `MEASURES` (`narrative/measures.py`) and the branch that reads its shares in `narrative/significance.py`.
 2. Add a `DraftShare` to `DRAFT_SHARES` in `benchmarking/calibration/drafts.py`: a slug `name`, a `label`, the
-   `issue` it calibrates for, the existing narrative `event_types` it is tried on, one `NarrativeShareReading` per
+   `issue` it calibrates for, the existing narrative `event_types` it is tried on, one `ShareReading` per
    candidate (the highest scale wins) and, if its types' kinds do not share one, a `base`.
 3. Run `tinarrative benchmark calibrate open`, which rebuilds the table, and calibrate the draft's reference and base
    on the page.
 
 #### Graduating a draft
 
-One PR as well: add a `ShareOf` member, move the draft's share reading into `NARRATIVE_SHARE_IMPLEMENTATIONS`, set `share=`
+One PR as well: add a `ShareOf` member, move the draft's share reading into `SHARE_IMPLEMENTATIONS`, set `share=`
 (and `base=` if the calibrated base differs) on the kinds of the draft's types, write the calibrated reference into
 the measure's registry entry, and delete the draft from `DRAFT_SHARES`.
