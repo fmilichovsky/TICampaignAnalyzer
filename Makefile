@@ -16,8 +16,14 @@ SAMPLE_CAMPAIGNS ?=
 
 # Override PYTHON when a particular interpreter is needed (Python 3.11 or newer).
 
+# The interpreter that creates .venv: the first of these on PATH that is Python 3.11 or newer.
+# Override BOOTSTRAP_PYTHON to force one (e.g. `make install BOOTSTRAP_PYTHON=python3.12`).
+BOOTSTRAP_PYTHON ?= $(shell for p in python3 python python3.14 python3.13 python3.12 python3.11 py; do \
+	if command -v $$p >/dev/null 2>&1 && $$p -c 'import sys; sys.exit(sys.version_info < (3, 11))' >/dev/null 2>&1; then echo $$p; break; fi; done)
+
 install:
-	python -m venv .venv
+	@test -n "$(BOOTSTRAP_PYTHON)" || { echo "No Python 3.11+ found on PATH; install one or run: make install BOOTSTRAP_PYTHON=/path/to/python" >&2; exit 1; }
+	@test -x "$(VENV_PYTHON)" || "$(BOOTSTRAP_PYTHON)" -m venv .venv
 	$(VENV_PYTHON) -m pip install -e ".[dev]"
 
 format:
