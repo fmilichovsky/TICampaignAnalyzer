@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "key": "golden",
-  "hash": "clamp=off&campaigns=beta&types=atomic.thing",
+  "hash": "campaigns=beta&types=atomic.thing",
   "state": {
     "references": {
       "power": 0.01,
@@ -13,7 +13,6 @@
       "faction": 0.14285714285714285,
       "nuclear": 0.01
     },
-    "clamp": false,
     "campaigns": [
       "beta"
     ],

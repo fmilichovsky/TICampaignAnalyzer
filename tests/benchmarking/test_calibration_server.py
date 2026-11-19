@@ -20,7 +20,7 @@ from tinarrative.benchmarking.calibration.table import read_index, write_index, 
 
 PAGE = files("tinarrative.benchmarking.calibration").joinpath("page")
 INDEX, TABLES, DRAFTS = load(GOLDEN)
-LOWER = "ref=power:0.002&clamp=off"
+LOWER = "ref=power:0.002"
 
 
 @pytest.fixture
@@ -151,7 +151,7 @@ def test_a_type_filter_also_answers_the_replay_without_it(calibration: server.Ca
         {"hash": 3},
         {"state": {"references": {"power": -1}}},
         {"state": {"references": {"power": True}}},
-        {"state": {"clamp": "off"}},
+        {"state": {"clamp": False}},
         {"state": {"campaigns": ["gamma"]}},
         {"state": {"bases": {"nope": "major"}}},
         {"state": {"type_bases": {"no.such.type": "major"}}},

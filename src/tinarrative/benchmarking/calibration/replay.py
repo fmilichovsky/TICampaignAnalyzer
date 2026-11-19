@@ -18,7 +18,7 @@ from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.table import SCHEMA_VERSION as SCHEMA_VERSION
 from tinarrative.benchmarking.calibration.table import read_campaign, read_index
 
-STATE_KEYS: Final = ("ref", "clamp", "campaigns", "types", "base", "focus")
+STATE_KEYS: Final = ("ref", "campaigns", "types", "base", "focus")
 """The hash keys, in the order ``encode_state`` writes them."""
 
 Row = Mapping[str, Any]
@@ -37,7 +37,7 @@ class ReplayStateError(ReplayError):
 
 @dataclass(frozen=True)
 class ReplayState:
-    """What the replay is asked: a reference per measure, the clamp, the enabled campaigns, a type filter, a base
+    """What the replay is asked: a reference per measure, the enabled campaigns, a type filter, a base
     level per draft stake, the base levels tried on event types and the focus.
 
     ``types`` empty means every type. ``bases`` empty means each draft's own base. ``type_bases`` holds the switched
@@ -46,7 +46,6 @@ class ReplayState:
     """
 
     references: Mapping[str, float]
-    clamp: bool
     campaigns: tuple[str, ...]
     types: tuple[str, ...] = ()
     focus: str | None = None
@@ -158,7 +157,6 @@ class DraftResult(TypedDict):
 
 class StateResult(TypedDict):
     references: dict[str, float]
-    clamp: bool
     campaigns: list[str]
     types: list[str]
     bases: dict[str, str]
@@ -205,11 +203,11 @@ class _Scored:
 
 
 def default_state(index: Mapping[str, Any]) -> ReplayState:
-    """The code's references, the clamp on, every campaign and each draft's own base: the state whose replay is the
+    """The code's references, every campaign and each draft's own base: the state whose replay is the
     pipeline."""
     references = {name: float(measure["reference"]) for name, measure in index["measures"].items()}
     bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
-    return ReplayState(references=references, clamp=True, campaigns=tuple(index["campaigns"]), bases=bases)
+    return ReplayState(references=references, campaigns=tuple(index["campaigns"]), bases=bases)
 
 
 Tables = dict[str, list[dict[str, Any]]]
@@ -268,7 +266,6 @@ def replay(
         "schema_version": SCHEMA_VERSION,
         "state": {
             "references": dict(state.references),
-            "clamp": state.clamp,
             "campaigns": list(state.campaigns),
             "types": list(state.types),
             "bases": {draft["name"]: state.bases[draft["name"]] for draft in index["drafts"]},
@@ -441,23 +438,17 @@ def _own_score(row: Row, base: int, state: ReplayState, constants: Mapping[str, 
     """``base`` moved by the highest candidate scale, inside the score bound."""
     if not row["stakes"]:
         return base
-    scales = [
-        scale
-        for stake in row["stakes"]
-        if (scale := _scale(stake["share"], state.references[stake["measure"]], state.clamp, constants)) is not None
-    ]
-    if not scales:
-        return int(constants["score_min"])
+    scales = [_scale(stake["share"], state.references[stake["measure"]], constants) for stake in row["stakes"]]
     return max(int(constants["score_min"]), min(int(constants["score_max"]), base + max(scales)))
 
 
-def _scale(share: float, reference: float, clamp: bool, constants: Mapping[str, Any]) -> int | None:
-    """``round(10 * log10(share / reference))``, clamped when ``clamp``; ``None`` for no share with the clamp off."""
+def _scale(share: float, reference: float, constants: Mapping[str, Any]) -> int:
+    """``round(10 * log10(share / reference))``, bounded by ``scale_min`` and ``scale_max``; no share takes
+    ``scale_min``."""
     low, high = int(constants["scale_min"]), int(constants["scale_max"])
     if share <= 0:
-        return low if clamp else None
-    scale = round(10 * math.log10(share / reference))
-    return max(low, min(high, scale)) if clamp else scale
+        return low
+    return max(low, min(high, round(10 * math.log10(share / reference))))
 
 
 def _group_verdict(row: Row, gate: _Gate, kept_rows: Sequence[_Scored], lost: Sequence[str]) -> MemberResult:
@@ -549,11 +540,11 @@ def _moves(items: Sequence[_Scored], levels: Sequence[str]) -> list[Move]:
     ]
 
 
-def cutoff_offsets(constants: Mapping[str, Any], *, clamp: bool) -> list[float]:
+def cutoff_offsets(constants: Mapping[str, Any]) -> list[float]:
     """Every ``log10(share / reference)`` at which a stake moves an event of some base level one more level, ascending.
 
-    A base sits mid-band, so the score crosses a band edge where ``10 * offset`` is half a point past it. With
-    ``clamp``, only the offsets the scale window reaches.
+    A base sits mid-band, so the score crosses a band edge where ``10 * offset`` is half a point past it. Only the
+    offsets the scale window reaches are kept.
     """
     bands = list(constants["level_bands"].values())
     offsets: set[float] = set()
@@ -564,9 +555,7 @@ def cutoff_offsets(constants: Mapping[str, Any], *, clamp: bool) -> list[float]:
                 offsets.add((other_low - base - 0.5) / 10)
             if other_high < base:
                 offsets.add((other_high - base + 0.5) / 10)
-    if clamp:
-        offsets = {offset for offset in offsets if constants["scale_min"] <= 10 * offset <= constants["scale_max"]}
-    return sorted(offsets)
+    return sorted(offset for offset in offsets if constants["scale_min"] <= 10 * offset <= constants["scale_max"])
 
 
 def _cutoffs(
@@ -590,14 +579,9 @@ def _cutoffs(
     real = candidates(selected)
     drafted = candidates(shadowed)
     names = [draft["name"] for draft in index["drafts"]]
-    window = cutoff_offsets(constants, clamp=True)
     result: list[Cutoff] = []
-    for offset in cutoff_offsets(constants, clamp=state.clamp):
+    for offset in cutoff_offsets(constants):
         cut = reference * 10**offset
-        if offset not in window and not any(
-            (share < cut) if offset < 0 else (share > cut) for _, _, share in (*real, *drafted)
-        ):
-            continue
         below, above = _sides(real, cut, offset, state.campaigns, constants["neighbours"])
         drafts: dict[str, Sides] = {}
         for name in names:
@@ -654,7 +638,7 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
     """The URL hash of ``state``, without the ``#``; ``""`` for the default state.
 
     ``&``-separated ``key=value`` fields, only those that differ from ``default_state``, in the order of
-    ``STATE_KEYS``: ``ref=<measure>:<number>,...`` (index order), ``clamp=off``, ``campaigns=<name>,...`` (index
+    ``STATE_KEYS``: ``ref=<measure>:<number>,...`` (index order), ``campaigns=<name>,...`` (index
     order; empty for none), ``types=<type>,...`` (sorted), ``base=<name>:<level>,...`` (the switched drafts in index
     order, then the switched event types sorted) and ``focus=<measure>``. A draft name is a slug and an event type
     holds a dot, so the two never meet. A number is written by ``number_text``.
@@ -668,8 +652,6 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
     ]
     if changed:
         fields.append("ref=" + ",".join(changed))
-    if not state.clamp:
-        fields.append("clamp=off")
     campaigns = [name for name in index["campaigns"] if name in state.campaigns]
     if campaigns != list(default.campaigns):
         fields.append("campaigns=" + ",".join(campaigns))
@@ -693,12 +675,11 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
 
     Raises ``ReplayStateError`` for an unknown or repeated key, an unknown or repeated measure, campaign, type or
     draft, a base naming no draft or event type of the index's ``kinds``, a reference that is not a positive number,
-    a base that is not a level, or a clamp other than ``on`` or ``off``. The filter's type names are checked against
+    or a base that is not a level. The filter's type names are checked against
     the rows by ``replay``. A type switched to its code's base level is dropped.
     """
     default = default_state(index)
     references = dict(default.references)
-    clamp = default.clamp
     campaigns = default.campaigns
     types: tuple[str, ...] = ()
     bases = dict(default.bases)
@@ -717,10 +698,6 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
         seen.add(key)
         if key == "ref":
             references.update(_decode_references(value, index))
-        elif key == "clamp":
-            if value not in {"on", "off"}:
-                raise ReplayStateError(f"state hash clamp must be on or off, not {value!r}")
-            clamp = value == "on"
         elif key == "campaigns":
             names = _names(value, "campaign", allow_empty=True)
             unknown = [name for name in names if name not in index["campaigns"]]
@@ -737,7 +714,7 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
             if value not in index["measures"]:
                 raise ReplayStateError(f"unknown focus measure {value!r} in the state hash")
             focus = value
-    state = ReplayState(references=references, clamp=clamp, campaigns=campaigns, types=types, focus=focus, bases=bases)
+    state = ReplayState(references=references, campaigns=campaigns, types=types, focus=focus, bases=bases)
     return replace(state, type_bases=switched_types(replace(state, type_bases=type_bases), index))
 
 

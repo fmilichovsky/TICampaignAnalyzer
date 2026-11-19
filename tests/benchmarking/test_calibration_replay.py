@@ -64,27 +64,13 @@ def test_the_replay_at_the_code_references_is_the_pipeline_on_the_fixture_sequen
     check_parity(extract_campaign(saves)["events"])
 
 
-def test_the_clamp_bounds_the_scale_and_a_zero_share_takes_the_lowest_scale() -> None:
+def test_the_scale_is_bounded_and_a_zero_share_takes_the_lowest_scale() -> None:
     rows = [row("big", stakes=power(40)), row("zero", stakes=(("power", 0.0),))]
 
     scored = events(run(rows))
 
     assert scored["big"]["score"] == base("minor") + CONSTANTS["scale_max"]
     assert scored["zero"]["score"] == base("minor") + CONSTANTS["scale_min"]
-
-
-def test_without_the_clamp_the_scale_is_free_and_a_zero_share_drives_the_score_to_the_bottom() -> None:
-    rows = [
-        row("big", stakes=power(30)),
-        row("huge", level="campaign_defining", stakes=power(40)),
-        row("zero", stakes=(("power", 0.0),)),
-    ]
-
-    scored = events(run(rows, clamp=False))
-
-    assert scored["big"]["score"] == base("minor") + 30
-    assert scored["huge"]["score"] == CONSTANTS["score_max"]
-    assert scored["zero"]["score"] == CONSTANTS["score_min"]
 
 
 def test_a_stake_with_several_candidates_takes_the_highest_scale() -> None:
@@ -196,8 +182,8 @@ def test_totals_and_moves_count_the_moved_rows_most_first_and_follow_the_type_fi
         run(rows, types=("atomic.none",))
 
 
-def test_with_the_clamp_on_a_measure_has_the_two_window_ends_as_cut_offs() -> None:
-    window = cutoff_offsets(CONSTANTS, clamp=True)
+def test_a_measure_has_the_two_window_ends_as_cut_offs() -> None:
+    window = cutoff_offsets(CONSTANTS)
 
     assert len(window) == 2
     assert window[0] == -window[1]
@@ -207,19 +193,8 @@ def test_with_the_clamp_on_a_measure_has_the_two_window_ends_as_cut_offs() -> No
     assert list(result["cutoffs"]) == list(INDEX["measures"])
 
 
-def test_without_the_clamp_further_cut_offs_appear_only_where_data_lies_beyond_them() -> None:
-    window = cutoff_offsets(CONSTANTS, clamp=True)
-    further = [offset for offset in cutoff_offsets(CONSTANTS, clamp=False) if offset not in window]
-    lower = max(offset for offset in further if offset < 0)
-    rows = [row("far", stakes=power(10 * lower - 1))]
-
-    offsets = [cutoff["offset"] for cutoff in run(rows, clamp=False)["cutoffs"]["power"]]
-
-    assert offsets == sorted([*window, lower])
-
-
 def test_a_cut_off_lists_the_nearest_events_on_each_side_and_flags_those_a_cited_row_decided() -> None:
-    low = cutoff_offsets(CONSTANTS, clamp=True)[0]
+    low = cutoff_offsets(CONSTANTS)[0]
     rows = [row(f"near-{n}", stakes=power(10 * low - 0.1 * (n + 1))) for n in range(CONSTANTS["neighbours"] + 2)]
     rows.append(row("inside", stakes=power(10 * low + 0.1)))
     rows.extend(chain())
@@ -246,7 +221,6 @@ def test_the_default_state_encodes_to_an_empty_hash() -> None:
 def test_a_state_round_trips_through_its_hash_in_a_stable_key_order() -> None:
     state = ReplayState(
         references={**CODE.references, "hab": 0.00002, "power": 0.002},
-        clamp=False,
         campaigns=("two",),
         types=("war.arc", "faction.takeover"),
         focus="hab",
@@ -254,9 +228,9 @@ def test_a_state_round_trips_through_its_hash_in_a_stable_key_order() -> None:
 
     text = encode_state(state, INDEX)
 
-    assert text == "ref=power:0.002,hab:0.00002&clamp=off&campaigns=two&types=faction.takeover,war.arc&focus=hab"
+    assert text == "ref=power:0.002,hab:0.00002&campaigns=two&types=faction.takeover,war.arc&focus=hab"
     assert decode_state(f"#{text}", INDEX) == replace(state, types=("faction.takeover", "war.arc"))
-    reordered = "focus=hab&types=war.arc,faction.takeover&campaigns=two&clamp=off&ref=hab:0.00002,power:0.002"
+    reordered = "focus=hab&types=war.arc,faction.takeover&campaigns=two&ref=hab:0.00002,power:0.002"
     assert encode_state(decode_state(reordered, INDEX), INDEX) == text
 
 

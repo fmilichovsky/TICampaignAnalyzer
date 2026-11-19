@@ -238,9 +238,9 @@ def test_duplicates_are_merged_and_one_distinct_save_compares_nothing(
     assert report["intervals"] == []
 
 
-def test_a_single_save_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["events", str(FIXTURE_DIR / "politics_after.json")]) == EXIT_USAGE_ERROR
-    assert "at least two saves" in capsys.readouterr().err
+def test_a_single_save_reports_that_no_interval_was_compared(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["events", str(FIXTURE_DIR / "politics_after.json")]) == EXIT_SUCCESS
+    assert "no interval was compared" in capsys.readouterr().out
 
 
 def test_an_unreadable_save_stops_the_run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -406,15 +406,13 @@ def test_a_directory_without_a_usable_save_is_an_input_error(
 
 
 @pytest.mark.parametrize("names", [("politics_after.json",), ("politics_after.json", "malformed_truncated.json")])
-def test_fewer_than_two_usable_saves_after_expansion_is_a_usage_error(
+def test_one_usable_save_after_expansion_gives_the_empty_report(
     names: tuple[str, ...], tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     directory = _directory(tmp_path, *names)
 
-    assert main(["events", str(directory)]) == EXIT_USAGE_ERROR
-    captured = capsys.readouterr()
-    assert captured.out == ""
-    assert "at least two saves are required" in captured.err
+    assert main(["events", str(directory)]) == EXIT_SUCCESS
+    assert "no interval was compared" in capsys.readouterr().out
 
 
 def test_directory_runs_log_counts_and_no_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -500,15 +498,15 @@ def test_an_unknown_campaign_is_a_usage_error(
     assert "2 campaigns:" in captured.err
 
 
-def test_a_selected_campaign_with_one_save_is_a_usage_error(
+def test_a_selected_campaign_with_one_save_gives_the_empty_report(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _directory(tmp_path, *SHUFFLED)
     write_variant(tmp_path / "saves", "odd.json", humans=0)
     monkeypatch.chdir(tmp_path)
 
-    assert main(["events", "--campaign", "2", "saves"]) == EXIT_USAGE_ERROR
-    assert "campaign fixture-resistance#2 has 1" in capsys.readouterr().err
+    assert main(["events", "--campaign", "2", "saves"]) == EXIT_SUCCESS
+    assert "no interval was compared" in capsys.readouterr().out
 
 
 @pytest.fixture

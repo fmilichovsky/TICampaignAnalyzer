@@ -64,8 +64,7 @@ def golden_tables() -> dict[str, dict[str, Any]]:
     minimum = GATE["minimum"]
     chain_rows, shadows = drafted()
     top = (CONSTANTS["level_bands"]["campaign_defining"][0] - base("major")) - 1
-    window = cutoff_offsets(CONSTANTS, clamp=True)
-    further = [offset for offset in cutoff_offsets(CONSTANTS, clamp=False) if offset not in window]
+    window = cutoff_offsets(CONSTANTS)
     low = window[0]
     alpha = [
         row("atomic", "atomic.thing", stakes=power(3)),
@@ -76,8 +75,8 @@ def golden_tables() -> dict[str, dict[str, Any]]:
         row("at-cut", "atomic.thing", stakes=(("power", POWER * 10**low),)),
         *(row(f"near-{n}", "atomic.near", stakes=power(10 * low - 0.3 * (n + 1))) for n in range(7)),
         row("inside", "atomic.near", stakes=power(10 * low + 0.2)),
-        row("far-low", "atomic.far", stakes=power(10 * max(o for o in further if o < 0) - 1)),
-        row("far-high", "atomic.far", level="trivial", stakes=power(10 * min(o for o in further if o > 0) + 1)),
+        row("far-low", "atomic.far", stakes=power(10 * window[0] - 1)),
+        row("far-high", "atomic.far", level="trivial", stakes=power(10 * window[1] + 1)),
         *chain_rows,
         *members("kept", [0.0] * minimum),
         *members("shrunk", [top, *([0.0] * minimum)]),

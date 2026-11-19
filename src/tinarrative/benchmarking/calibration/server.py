@@ -165,11 +165,11 @@ def compact(index: Mapping[str, Any], tables: Tables, drafts: Tables, result: ca
 
 
 def meta(index: Mapping[str, Any], drafts: Tables) -> dict[str, Any]:
-    """What the page needs of the replay that no state changes: the clamped cut-off offsets, the score a base level
-    gives, and the draft each draft row belongs to."""
+    """What the page needs of the replay that no state changes: the cut-off offsets in the scale window, the score
+    a base level gives, and the draft each draft row belongs to."""
     constants = index["constants"]
     return {
-        "window": calibration.cutoff_offsets(constants, clamp=True),
+        "window": calibration.cutoff_offsets(constants),
         "level_bases": {level: (int(low) + int(high)) // 2 for level, (low, high) in constants["level_bands"].items()},
         "draft_names": {name: [draft_name(row["id"]) for row in rows] for name, rows in drafts.items()},
     }
@@ -184,7 +184,7 @@ def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
     """
     if not isinstance(values, dict):
         raise ReplayStateError("the state is not an object")
-    known = {"references", "clamp", "campaigns", "types", "bases", "type_bases", "focus"}
+    known = {"references", "campaigns", "types", "bases", "type_bases", "focus"}
     unknown = sorted(set(values) - known)
     if unknown:
         raise ReplayStateError(f"unknown state key(s): {', '.join(unknown)}")
@@ -197,9 +197,6 @@ def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
         if isinstance(number, bool) or not isinstance(number, int | float) or not math.isfinite(number) or number <= 0:
             raise ReplayStateError(f"the reference of {measure} must be a positive number, not {number!r}")
         references[measure] = float(number)
-    clamp = values.get("clamp", default.clamp)
-    if not isinstance(clamp, bool):
-        raise ReplayStateError(f"the clamp must be true or false, not {clamp!r}")
     campaigns = _names(values.get("campaigns", list(default.campaigns)), "campaigns")
     unknown = [name for name in campaigns if name not in index["campaigns"]]
     if unknown:
@@ -227,7 +224,6 @@ def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
         raise ReplayStateError(f"unknown focus measure {focus!r}")
     state = ReplayState(
         references=references,
-        clamp=clamp,
         campaigns=tuple(name for name in index["campaigns"] if name in campaigns),
         types=tuple(sorted(_names(values.get("types", []), "types"))),
         focus=focus,
