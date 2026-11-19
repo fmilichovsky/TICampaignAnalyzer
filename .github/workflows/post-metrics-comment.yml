@@ -68,7 +68,7 @@ jobs:
             const status = process.env.STATUS;
             const body = status === 'report'
               ? fs.readFileSync(process.env.REPORT_FILE, 'utf8')
-              : `${marker}\n${name} ${status === 'failed' ? 'benchmark run failed' : 'benchmark run in progress'}: [View workflow run](${process.env.RUN_URL})\n\nComparing [${process.env.BASE_SHA}](https://github.com/${owner}/${repo}/commit/${process.env.BASE_SHA}) vs [${process.env.HEAD_SHA}](https://github.com/${owner}/${repo}/commit/${process.env.HEAD_SHA}).\n`;
+              : `${marker}\n${name} ${status === 'failed' ? 'benchmark run failed' : 'benchmark run in progress'}: [View workflow run](${process.env.RUN_URL})\n\nComparing https://github.com/${owner}/${repo}/commit/${process.env.BASE_SHA} vs https://github.com/${owner}/${repo}/commit/${process.env.HEAD_SHA}.\n`;
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner,
               repo,
