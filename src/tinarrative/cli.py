@@ -212,8 +212,17 @@ EXIT_CODES: dict[str, ExitCodes] = {
     ),
     "benchmark metrics measure": (
         (EXIT_SUCCESS, "metrics.json was written; failed runs are recorded in it."),
-        (EXIT_USAGE_ERROR, f"usage error, a sample that does not match {MANIFEST}, or an invalid matrix."),
+        (
+            EXIT_USAGE_ERROR,
+            f"usage error, a sample that does not match {MANIFEST}, an invalid matrix or an unknown --campaign.",
+        ),
         (EXIT_OUTPUT_ERROR, "the outputs cannot be written."),
+    ),
+    "benchmark metrics merge": (
+        (EXIT_SUCCESS, "the merged metrics.json was written."),
+        (EXIT_USAGE_ERROR, "usage error, metrics files that differ in their metadata, or a campaign in two of them."),
+        (EXIT_INPUT_ERROR, "a metrics file cannot be read or is not a metrics file."),
+        (EXIT_OUTPUT_ERROR, "the merged file cannot be written."),
     ),
     "benchmark metrics compare": (
         (EXIT_SUCCESS, "the report was written."),
@@ -664,6 +673,9 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
             print(f"tinarrative benchmark metrics samples: {sample_error}", file=sys.stderr)
         return EXIT_USAGE_ERROR if errors else EXIT_SUCCESS
 
+    if operation == "merge":
+        return _merge_metrics(args)
+
     if operation == "compare":
         try:
             report = benchmark_metrics.compare(
@@ -691,7 +703,9 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
         if errors:
             return EXIT_USAGE_ERROR
         matrix = benchmark_metrics.load_matrix(cast(Path, args.matrix))
-        total = len(sample_files(samples)) * sum(len(entries) for entries in matrix.values())
+        named = cast("list[str] | None", args.campaign)
+        selected = benchmark_metrics.select_campaigns(sample_files(samples), named)
+        total = len(selected) * sum(len(entries) for entries in matrix.values())
         progress_tracker = _ProgressTracker("benchmark metrics measure", total)
         progress = progress_tracker
         metrics = benchmark_metrics.measure(
@@ -705,6 +719,7 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
             jobs=cast("int | None", args.jobs) or os.cpu_count() or 1,
             on_progress=lambda amount: progress_tracker.advance("Measuring runs", amount),
             on_campaign_complete=progress_tracker.report,
+            campaigns=named,
         )
         output = cast(Path, args.out)
         output.mkdir(parents=True, exist_ok=True)
@@ -719,6 +734,32 @@ def _run_benchmark_metrics(args: argparse.Namespace) -> int:
     finally:
         if progress is not None:
             progress.finish("measurement")
+
+
+def _merge_metrics(args: argparse.Namespace) -> int:
+    """Combine per-campaign metrics files into one."""
+    try:
+        documents = [json.loads(path.read_text(encoding="utf-8")) for path in cast("list[Path]", args.inputs)]
+        if not all(
+            isinstance(document, dict) and isinstance(document.get("campaigns"), dict) for document in documents
+        ):
+            raise ValueError("an input is not a metrics file")
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        print(f"tinarrative benchmark metrics merge: {error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    try:
+        merged = benchmark_metrics.merge(documents)
+    except ValueError as error:
+        print(f"tinarrative benchmark metrics merge: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    output = cast(Path, args.out)
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8", newline="\n")
+    except OSError as error:
+        print(f"tinarrative benchmark metrics merge: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    return EXIT_SUCCESS
 
 
 def _calibration_samples_error(command: str, samples: Path) -> int | None:
@@ -2037,6 +2078,12 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     _add_label_argument(measure)
     measure.add_argument(
+        "--campaign",
+        action="append",
+        metavar="NAME",
+        help="Measure only this sample campaign; repeat for several (default: every campaign).",
+    )
+    measure.add_argument(
         "--chars-per-token",
         type=_positive_float,
         default=2.4,
@@ -2047,6 +2094,16 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
         "--jobs", type=_positive_int, metavar="N", help="Commands run at once (default: the CPU count)."
     )
     measure.set_defaults(handler=_run_benchmark_metrics)
+
+    merge = _add_command(
+        metric_commands,
+        "merge",
+        "Combine per-campaign metrics.json files into one.",
+        "benchmark metrics merge",
+    )
+    merge.add_argument("inputs", type=Path, nargs="+", metavar="METRICS", help="A per-campaign metrics.json.")
+    merge.add_argument("--out", type=Path, required=True, metavar="PATH", help="Write the merged metrics.json here.")
+    merge.set_defaults(handler=_run_benchmark_metrics)
 
     compare = _add_command(
         metric_commands, "compare", "Write the Markdown comparison of two metrics files.", "benchmark metrics compare"

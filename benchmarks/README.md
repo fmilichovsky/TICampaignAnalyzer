@@ -45,6 +45,20 @@ mapping keyed by ID (more than 30 keys) is not broken down.
 Characters and estimated tokens are exact for what is sent. Real tokens depend on the model's tokenizer, so compare
 the estimates with each other, not with a provider's bill.
 
+`measure --campaign NAME` (repeatable) measures only the named campaigns, so each can run on its own runner, and
+`merge` combines the per-campaign `metrics.json` files into the one that `compare` reads:
+
+```sh
+tinarrative benchmark metrics measure --campaign protectorate --out build/protectorate --label "$LABEL"
+tinarrative benchmark metrics measure --campaign resist --out build/resist --label "$LABEL"
+tinarrative benchmark metrics merge build/protectorate/metrics.json build/resist/metrics.json \
+    --out build/package-metrics/metrics.json
+```
+
+`merge` refuses files that differ in tool version, label, matrix, samples hash or characters per token, and a campaign
+that is in more than one file. Apart from timings, which `metrics.json` does not hold, the merged file equals one
+`measure` run over all the campaigns.
+
 ## On-demand runs
 
 [`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml) and

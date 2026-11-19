@@ -309,8 +309,12 @@ def measure(
     log: TextIO | None = sys.stderr,
     on_progress: Callable[[int], None] | None = None,
     on_campaign_complete: Callable[[Sequence[str]], None] | None = None,
+    campaigns: Sequence[str] | None = None,
 ) -> dict[str, Any]:
-    """Run the matrix against every sample campaign and return the metrics; packages and plans go under ``out``.
+    """Run the matrix against the sample campaigns and return the metrics; packages and plans go under ``out``.
+
+    ``campaigns`` limits the measurement to the named ones (every campaign by default); an unknown name raises
+    ``ValueError``.
 
     The campaigns are measured at once, with at most ``jobs`` commands running. Each campaign's log is written in one
     piece when it is done, so the logs of campaigns never interleave.
@@ -318,7 +322,7 @@ def measure(
     matrix = load_matrix(matrix_path)
     for kept in ("packages", "narrate"):
         shutil.rmtree(out / kept, ignore_errors=True)
-    found = sample_files(samples)
+    found = select_campaigns(sample_files(samples), campaigns)
     per_campaign = len(matrix["events"]) + len(matrix["narrate"])
     print(
         f"package_metrics: measuring {len(found)} campaigns ({', '.join(found)}), {per_campaign} runs each, "
@@ -360,7 +364,6 @@ def measure(
             else:
                 on_campaign_complete(lines)
     print(f"package_metrics: done in {time.perf_counter() - started:.1f}s", file=log, flush=True)
-    campaigns = {campaign: measured[campaign] for campaign in found}
     return {
         "tool_version": TOOL_VERSION,
         "label": label,
@@ -368,7 +371,43 @@ def measure(
         "matrix_sha256": sha256_file(matrix_path),
         "samples_sha256": sha256_file(samples / MANIFEST),
         "matrix": {kind: [entry["id"] for entry in entries] for kind, entries in matrix.items()},
-        "campaigns": campaigns,
+        "campaigns": {campaign: measured[campaign] for campaign in found},
+    }
+
+
+def select_campaigns(found: Mapping[str, Any], names: Sequence[str] | None) -> dict[str, Any]:
+    """The entries of ``found`` named in ``names``, in ``found`` order; all of them when ``names`` is None."""
+    for name in names or ():
+        if name not in found:
+            raise ValueError(f"unknown campaign {name!r}; the samples hold {', '.join(found)}")
+    return {name: value for name, value in found.items() if names is None or name in names}
+
+
+METADATA = ("tool_version", "label", "chars_per_token", "matrix_sha256", "samples_sha256", "matrix")
+"""What a metrics file records besides its campaigns; merged files must agree on all of it."""
+
+
+def merge(documents: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """One metrics file from per-campaign ones, as a single measurement of all the campaigns would have written it.
+
+    Raises ``ValueError`` when the files differ in any metadata or when a campaign is in more than one of them.
+    """
+    if not documents:
+        raise ValueError("nothing to merge")
+    first = documents[0]
+    for document in documents[1:]:
+        for key in sorted({*first, *document} - {"campaigns"}):
+            if first.get(key) != document.get(key):
+                raise ValueError(f"the metrics files differ in {key}: {first.get(key)!r} and {document.get(key)!r}")
+    campaigns: dict[str, Any] = {}
+    for document in documents:
+        for name, result in document["campaigns"].items():
+            if name in campaigns:
+                raise ValueError(f"campaign {name!r} appears in more than one input")
+            campaigns[name] = result
+    return {
+        **{key: value for key, value in first.items() if key != "campaigns"},
+        "campaigns": dict(sorted(campaigns.items())),
     }
 
 
