@@ -1,4 +1,4 @@
-# Stake calibration readout
+# Share calibration readout
 
 ## Calibration state
 
@@ -62,7 +62,7 @@ References: power 0.006309573444801933 (code 0.01), faction 0.0000001 (code 0.14
 
 Groups and candidates: falls_apart 1, keeps_members 1, loses_members 1.
 
-| Campaign | Event | Type | Verdict | Kept | Lost | Distinct / minimum | Stale stake |
+| Campaign | Event | Type | Verdict | Kept | Lost | Distinct / minimum | Stale share |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | alpha | `shrunk-group` | faction.takeover_wave | loses_members | 3 | `shrunk-0` | 3 / 3 | yes |
 | alpha | `gone-group` | faction.takeover_wave | falls_apart | 2 | `gone-0` | 2 / 3 | yes |
@@ -147,53 +147,53 @@ Cut-off at share 0.178 (offset 1.25):
 
 Cut-off at share 0.000844 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.267 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### fleet
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### battle
 
 Cut-off at share 0.000186 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.0587 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### faction
 
 Cut-off at share 5.62e-09 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 1.78e-06 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
 ### nuclear
 
 Cut-off at share 0.000562 (offset -1.25):
 
-No event has this stake.
+No event has this share.
 
 Cut-off at share 0.178 (offset 1.25):
 
-No event has this stake.
+No event has this share.
 
-## Draft stakes
+## Draft shares
 
 | Draft | Label | Issue | Measures | Base | Own base | Events | Ruled | Set by a cited event |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -257,6 +257,6 @@ Cut-off at share 0.178 (offset 1.25):
 ## Snippet
 
 ```python
-StakeMeasure.POWER: MeasureSpec(reference=0.006309573444801933, ...),  # code: 0.01
-StakeMeasure.FACTION: MeasureSpec(reference=0.0000001, ...),  # code: 0.14285714285714285
+Measure.POWER: MeasureSpec(reference=0.006309573444801933, ...),  # code: 0.01
+Measure.FACTION: MeasureSpec(reference=0.0000001, ...),  # code: 0.14285714285714285
 ```

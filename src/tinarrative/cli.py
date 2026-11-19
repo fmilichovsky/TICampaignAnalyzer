@@ -2038,7 +2038,7 @@ def _add_campaigns_parser(subcommands: Subcommands) -> None:
 
 
 def _add_benchmark_parser(subcommands: Subcommands) -> None:
-    summary = "Maintain the benchmark samples, measure package size and runtime, and calibrate stakes."
+    summary = "Maintain the benchmark samples, measure package size and runtime, and calibrate shares."
     parser = subcommands.add_parser("benchmark", help=summary, description=summary)
     commands = parser.add_subparsers(dest="benchmark_command", metavar="COMMAND", required=True)
     sample = _add_command(
@@ -2155,13 +2155,13 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     _add_report_arguments(reported)
     reported.set_defaults(handler=_run_benchmark_runtime)
 
-    summary = "Replay the stake calibration table for other references."
+    summary = "Replay the share calibration table for other references."
     calibrate = commands.add_parser("calibrate", help=summary, description=summary)
     calibrate_commands = calibrate.add_subparsers(dest="calibrate_command", metavar="OPERATION", required=True)
     opened = _add_command(
         calibrate_commands,
         "open",
-        "Serve the stake calibration page, open it in the browser and keep its table current until interrupted.",
+        "Serve the share calibration page, open it in the browser and keep its table current until interrupted.",
         "benchmark calibrate open",
     )
     _add_calibration_cache_arguments(opened)

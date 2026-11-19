@@ -48,7 +48,7 @@ SECTIONS = [
     "What moves",
     "Member verdicts",
     "Cut-offs",
-    "Draft stakes",
+    "Draft shares",
     "Snippet",
 ]
 
@@ -81,7 +81,7 @@ def test_the_paragraph_and_the_snippet_are_ascii_and_name_only_changed_reference
     for text in (shared_paragraph(INDEX, result), snippet(INDEX, result)):
         assert text.isascii()
     lines = snippet(INDEX, result).splitlines()
-    assert [line.split(":")[0] for line in lines] == ["StakeMeasure.POWER", "StakeMeasure.FACTION"]
+    assert [line.split(":")[0] for line in lines] == ["Measure.POWER", "Measure.FACTION"]
     assert "every other measure at the code's" in shared_paragraph(INDEX, result)
     assert "every measure at the code's" in shared_paragraph(INDEX, replay(INDEX, TABLES, CODE))
 
@@ -118,7 +118,7 @@ def test_the_snippet_lists_the_changed_references_before_the_switched_base_level
     state = replace(STATES["lower"], type_bases={"atomic.thing": "major"})
     lines = snippet(INDEX, replay(INDEX, TABLES, state)).splitlines()
 
-    assert [line.split(":")[0] for line in lines] == ["StakeMeasure.POWER", "StakeMeasure.FACTION", "# atomic.thing"]
+    assert [line.split(":")[0] for line in lines] == ["Measure.POWER", "Measure.FACTION", "# atomic.thing"]
 
 
 def test_the_reports_carry_the_switched_base_levels_of_the_state() -> None:
@@ -213,7 +213,7 @@ def test_a_table_without_drafts_says_so() -> None:
     result = replay(bare, TABLES, replace(CODE, bases={}))
 
     assert shared_paragraph(bare, result).endswith(" Drafts: none.")
-    assert "No draft stakes are declared." in render_text(bare, result, state_hash="")
+    assert "No draft shares are declared." in render_text(bare, result, state_hash="")
     assert render_json(bare, TABLES, result, state_hash="")["drafts"] == []
 
 

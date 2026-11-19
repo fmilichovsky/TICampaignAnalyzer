@@ -204,10 +204,10 @@ def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
     bases = dict(default.bases)
     for name, level in _mapping(values.get("bases", {}), "bases").items():
         if name not in bases:
-            raise ReplayStateError(f"unknown draft stake {name!r}")
+            raise ReplayStateError(f"unknown draft share {name!r}")
         if level not in levels:
             raise ReplayStateError(
-                f"the base of draft stake {name} must be a level ({', '.join(levels)}), not {level!r}"
+                f"the base of draft share {name} must be a level ({', '.join(levels)}), not {level!r}"
             )
         bases[name] = level
     type_bases: dict[str, str] = {}

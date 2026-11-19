@@ -55,7 +55,7 @@ samples-fast:
 samples:
 	$(PYTHON) -m pytest -m samples --sample-campaigns "$(SAMPLE_CAMPAIGNS)"
 
-# Serve the stake calibration page until interrupted, without opening a browser; .claude/launch.json runs it.
+# Serve the share calibration page until interrupted, without opening a browser; .claude/launch.json runs it.
 calibrate-open:
 	$(PYTHON) -m tinarrative.cli benchmark calibrate open --no-open
 

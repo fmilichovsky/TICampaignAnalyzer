@@ -28,7 +28,7 @@ before touching the model or pipeline.
 - `docs/game-data-notes/` — the evidence log of the observed save format ([README](docs/game-data-notes/README.md)).
 - `benchmarks/` — real sample campaigns, the package-size matrix and the runtime measurement
   ([README](benchmarks/README.md)).
-- `src/tinarrative/benchmarking/calibration/` — the stake calibration table, its replay and readout; agents read it
+- `src/tinarrative/benchmarking/calibration/` — the share calibration table, its replay and readout; agents read it
   with `benchmark calibrate report` ([command page](docs/commands/benchmark.md#benchmark-calibrate-report)).
 - `scripts/` — standalone utilities, not fit to be part of the main product
   ([observe_saves.md](scripts/observe_saves.md)).

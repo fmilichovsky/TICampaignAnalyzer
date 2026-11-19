@@ -11,7 +11,7 @@ from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import PCGDP_TREND, POPULATION_CHANGED
 from tinarrative.model.events import DateBasis, Event, Significance, SignificanceBasis
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.measures import SCALE_MAX
@@ -163,7 +163,7 @@ def test_a_backstory_trajectory_is_closed_before_the_last_interval_and_scales_wi
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
         base=Significance.MAJOR.base,
-        measure=StakeMeasure.POWER,
+        measure=Measure.POWER,
         share=pytest.approx(0.4),
         scale=SCALE_MAX,
         entities=(NORTH,),

@@ -49,8 +49,8 @@ nuclear, space-support and military assets a nation holds.
 
 [Space assets](space-assets.md) records how habs and ships divide between the
 alien faction and the human factions from the start of a campaign to its late
-game: the evidence behind the space stakes of the entity-scaled significance
-score ([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-stake.md)).
+game: the evidence behind the space shares of the entity-scaled significance
+score ([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-share.md)).
 
 [Wiki sources](wiki-sources/README.md) holds game text transcribed from the
 Terra Invicta wiki: the descriptions of the seven human factions (ideology,

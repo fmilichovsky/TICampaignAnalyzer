@@ -143,13 +143,13 @@ class PowerSettings:
 
 @dataclass(frozen=True)
 class SignificanceSettings:
-    """How stakes are measured (ADR-0011); the scale they are read on is ``narrative.measures``."""
+    """How shares are measured (ADR-0011); the scale they are read on is ``narrative.measures``."""
 
     tier_exponent: int = _int(2, 1)
-    """An organization's stake is its tier to this power over the total of all organizations; also ranks the
+    """An organization's share is its tier to this power over the total of all organizations; also ranks the
     councilors of the dossier."""
     w_space: float = _float(0.5, 0.0)
-    """How far space counts in a human faction's stake once humans hold the saturation of habs and ships (0 to 1);
+    """How far space counts in a human faction's share once humans hold the saturation of habs and ships (0 to 1);
     below it, space counts in proportion."""
     power: PowerSettings = field(default_factory=PowerSettings)
 

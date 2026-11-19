@@ -1,4 +1,4 @@
-"""Space and faction stakes: habs, combats and the faction stake, from snapshots and situation reports."""
+"""Space and faction shares: habs, combats and the faction share, from snapshots and situation reports."""
 
 from __future__ import annotations
 
@@ -128,18 +128,18 @@ def test_space_counts_in_proportion_to_how_far_humans_have_reached_the_saturatio
     assert space_weight(0.5, HAB_SATURATION, FLEET_SATURATION) == 0.5
 
 
-def test_an_early_world_leaves_the_faction_stakes_to_earth() -> None:
+def test_an_early_world_leaves_the_faction_shares_to_earth() -> None:
     habs = [
         state(HAB, "1", AFTER, faction=ALIEN, tier=3),
         state(HAB, "2", AFTER, faction=ALIEN, tier=2),
         state(HAB, "3", AFTER, faction=HUMAN, tier=1),
         state(HAB, "4", AFTER, faction=HUMAN, tier=1),
     ]
-    stakes = build_situation(snapshot(AFTER, *factions(AFTER), *habs)).faction_stakes(
+    shares = build_situation(snapshot(AFTER, *factions(AFTER), *habs)).faction_shares(
         DEFAULT_SETTINGS.narrative.significance.power, 0.5
     )
-    assert stakes[ALIEN.entity_id] == 0.0  # the backdrop: Earth share alone, and it holds none
-    assert 0 < stakes[HUMAN.entity_id] < 0.001  # two tier-1 stations hardly count
+    assert shares[ALIEN.entity_id] == 0.0  # the backdrop: Earth share alone, and it holds none
+    assert 0 < shares[HUMAN.entity_id] < 0.001  # two tier-1 stations hardly count
 
 
 def appeared(*habs: EntityState) -> dict[str, Event]:
@@ -217,7 +217,7 @@ def test_a_design_name_reused_by_another_faction_does_not_borrow_its_mass() -> N
     assert masses.of(OTHER.entity_id, "HumanDesign", "HumanHull") == 500 * KG
 
 
-def test_a_defection_is_scaled_by_the_stake_of_the_faction_left() -> None:
+def test_a_defection_is_scaled_by_the_share_of_the_faction_left() -> None:
     from tinarrative.analyzers.politics import CouncilorAnalyzer
 
     def save(name: str, faction: object) -> SaveSnapshot:
@@ -231,6 +231,6 @@ def test_a_defection_is_scaled_by_the_stake_of_the_faction_left() -> None:
     found = assign_significance(analyze(CouncilorAnalyzer(), before, after), before, after)
     event = only(found, "councilor.faction_changed")
     base = KINDS["councilor.faction_changed"].base.base
-    # The faction left holds nothing here (no nations, habs or ships): the lowest stake.
+    # The faction left holds nothing here (no nations, habs or ships): the lowest share.
     assert event.significance_basis is not None and event.significance_basis.share == 0
     assert event.score == base + SCALE_MIN

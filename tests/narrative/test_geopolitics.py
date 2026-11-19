@@ -35,7 +35,7 @@ from tinarrative.model.events import (
     Significance,
     SignificanceBasis,
 )
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative import NARRATIVE_RULES, aggregate, default_member_gates, narrative_rules, rule_layers
 from tinarrative.narrative.geopolitics import TakeoverWaveRule
@@ -380,7 +380,7 @@ def test_a_takeover_scales_with_its_nations_power_share_before_it() -> None:
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
         base=Significance.MAJOR.base,
-        measure=StakeMeasure.POWER,
+        measure=Measure.POWER,
         share=pytest.approx(0.4),
         scale=SCALE_MAX,
         entities=(NORTH,),
@@ -389,7 +389,7 @@ def test_a_takeover_scales_with_its_nations_power_share_before_it() -> None:
     assert micro.significance.rank < Significance.MAJOR.rank
 
 
-def test_a_low_stake_never_pulls_a_takeover_below_its_highest_cited_score() -> None:
+def test_a_low_share_never_pulls_a_takeover_below_its_highest_cited_score() -> None:
     stream = [control(K1, "executive", RESISTANCE, SERVANTS, subject=SOUTH, significance=Significance.MAJOR, score=70)]
 
     takeover = only(built(stream, [powers(K0, (SOUTH, 0.1)), powers(K1)]), TAKEOVER)
@@ -973,7 +973,7 @@ def test_an_expansion_scales_with_the_population_share_of_every_region_it_gained
     basis = expansion.significance_basis
     assert basis is not None
     assert (basis.measure, basis.share, basis.entities) == (
-        StakeMeasure.POPULATION,
+        Measure.POPULATION,
         pytest.approx(0.1),
         (EAST_REGION, SOUTH_REGION),
     )
@@ -1001,7 +1001,7 @@ def test_a_cession_scales_with_the_population_share_of_the_regions_it_moved() ->
 
     basis = cession.significance_basis
     assert basis is not None
-    assert (basis.measure, basis.share, basis.entities) == (StakeMeasure.POPULATION, 0.05, (SOUTH_REGION,))
+    assert (basis.measure, basis.share, basis.entities) == (Measure.POPULATION, 0.05, (SOUTH_REGION,))
     assert cession.score > Significance.MAJOR.base
 
 

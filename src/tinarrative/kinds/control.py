@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, Stake
+from ..model.kinds import EventKind, EvidenceRole, Rule, ShareOf
 from ..model.values import Unknown
 from .narrative import count, has_role, narrative_kind, role
 from .text import (
@@ -108,7 +108,7 @@ CONTROL_POINT_CONTROLLER_CHANGED = EventKind(
     BOOKKEEPING,
     required=TRANSITION,
     optional=frozenset({"loss_recorded_on"}),
-    stake=Stake.CONTROL_POINT,
+    share=ShareOf.CONTROL_POINT,
     base=Significance.MAJOR,
 )
 CONTROL_POINT_NATION_CHANGED = EventKind(
@@ -150,7 +150,7 @@ COUNCILOR_FACTION_CHANGED = EventKind(
     plain("faction"),
     EVIDENCE,
     TRANSITION,
-    stake=Stake.LEFT_FACTION,
+    share=ShareOf.LEFT_FACTION,
     base=Significance.MAJOR,
 )
 COUNCILOR_STATUS_CHANGED = EventKind(
@@ -202,7 +202,7 @@ ORGANIZATION_ASSIGNED_COUNCILOR_CHANGED = EventKind(
     plain("assigned councilor"),
     BOOKKEEPING,
     TRANSITION,
-    stake=Stake.ORGANIZATION,
+    share=ShareOf.ORGANIZATION,
     base=Significance.MAJOR,
 )
 ORGANIZATION_FACTION_ORBIT_CHANGED = EventKind(
@@ -246,7 +246,7 @@ NATION_CONTROL_CHANGED = EventKind(
             "population",
         }
     ),
-    stake=Stake.NATION,
+    share=ShareOf.NATION,
     base=Significance.MAJOR,
 )
 
@@ -284,14 +284,14 @@ TAKEOVER = narrative_kind(
     # Takeovers sharing an anchor interval: the derived order, else both ambiguous.
     optional=frozenset({"succeeds", "succeeded_by", "ambiguous", "alternatives"}),
     base=Significance.MAJOR,
-    stake=Stake.TARGETS,
+    share=ShareOf.TARGETS,
 )
 TAKEOVER_WAVE = narrative_kind(
     "faction.takeover_wave",
     _takeover_wave,
     required=frozenset({"nations", "count"}),
     base=Significance.MAJOR,
-    stake=Stake.TARGETS,
+    share=ShareOf.TARGETS,
     digests_members=True,
 )
 

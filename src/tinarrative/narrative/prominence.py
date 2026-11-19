@@ -1,4 +1,4 @@
-"""Prominence shares: each entity's share of a world total in one snapshot, the stakes of entity-scaled significance.
+"""Prominence shares: each entity's share of a world total in one snapshot, the shares of entity-scaled significance.
 
 The atomic pass reads snapshots and the narrative rules read situation reports (``SituationReport.power_shares``); both
 build the same shares here.
@@ -115,16 +115,16 @@ def _normalized(values: Mapping[EntityId, float]) -> dict[EntityId, float]:
     return {entity: value / world for entity, value in values.items()} if world > 0 else {}
 
 
-# --- Space and faction stakes -----------------------------------------------------------------------------
+# --- Space and faction shares -----------------------------------------------------------------------------
 # Evidence: docs/game-data-notes/space-assets.md. Only ``w_space`` is a user setting; the rest are code constants.
 
 HAB_FLOOR = 25.0
 """Σ tier² of human habs below which a hab share is read against this instead: keeps a share defined before humans
 hold a hab, and stops one tier-1 station being half of human space."""
 HAB_SATURATION = 400.0
-"""Σ tier² of human habs at which space counts fully in a faction stake."""
+"""Σ tier² of human habs at which space counts fully in a faction share."""
 FLEET_SATURATION = 1_000_000_000.0
-"""Dry mass (kg, 1,000 kt) of human ships at which space counts fully in a faction stake; also the floor of a fleet
+"""Dry mass (kg, 1,000 kt) of human ships at which space counts fully in a faction share; also the floor of a fleet
 share and of the world mass of a battle."""
 ALIEN_MASS_WEIGHT = 2.0
 """Alien ships count this many times their dry mass in a battle."""
@@ -210,12 +210,12 @@ def fleet_share(mass: float, human_mass: float) -> float:
 
 
 def space_weight(w_space: float, human_hab_weight: float, human_mass: float) -> float:
-    """How far space counts in a faction stake: ``w_space`` times how far humans have reached the saturation."""
+    """How far space counts in a faction share: ``w_space`` times how far humans have reached the saturation."""
     reached = (min(1.0, human_hab_weight / HAB_SATURATION) + min(1.0, human_mass / FLEET_SATURATION)) / 2
     return w_space * reached
 
 
-def faction_stake(
+def faction_share(
     earth: float, hab_weight: float, mass: float, human_hab_weight: float, human_mass: float, w_space: float
 ) -> float:
     """A human faction's ``(1 − w)·earth_share + w·space_share``; ``space_share`` is the mean of its hab and fleet

@@ -108,7 +108,7 @@ def _items(values: Sequence[str]) -> list[str]:
 
 def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
     """One paragraph: the references and base levels against the code's, campaigns and types, the totals,
-    the top moves and every draft stake with its issue, so a draft left behind after its issue closed still shows."""
+    the top moves and every draft share with its issue, so a draft left behind after its issue closed still shows."""
     state = result["state"]
     code = index["measures"]
     changed = [
@@ -182,7 +182,7 @@ def snippet(index: Mapping[str, Any], result: Replay) -> str:
     switched event type, sorted by type."""
     references = result["state"]["references"]
     lines = [
-        f"StakeMeasure.{measure.upper()}: MeasureSpec(reference={number_text(references[measure])}, ...),"
+        f"Measure.{measure.upper()}: MeasureSpec(reference={number_text(references[measure])}, ...),"
         f"  # code: {number_text(spec['reference'])}"
         for measure, spec in index["measures"].items()
         if references[measure] != spec["reference"]
@@ -212,10 +212,10 @@ def _signed(number: int) -> str:
 
 def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, drafts: Tables | None = None) -> str:
     """The Markdown readout, in eight sections: state, summary, level counts, What moves, members, cut-offs, draft
-    stakes, snippet. ``drafts`` are the draft rows of each campaign, which say which rows are ruled."""
+    shares, snippet. ``drafts`` are the draft rows of each campaign, which say which rows are ruled."""
     state = result["state"]
     levels = list(index["constants"]["level_bands"])
-    lines = ["# Stake calibration readout", "", "## Calibration state", ""]
+    lines = ["# Share calibration readout", "", "## Calibration state", ""]
     lines += ["| Measure | Reference | Code's |", "| --- | ---: | ---: |"]
     for measure, spec in index["measures"].items():
         value = state["references"][measure]
@@ -274,11 +274,11 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
     )
     lines.append("")
     lines += _table(
-        ["Campaign", "Event", "Type", "Verdict", "Kept", "Lost", "Distinct / minimum", "Stale stake"],
+        ["Campaign", "Event", "Type", "Verdict", "Kept", "Lost", "Distinct / minimum", "Stale share"],
         [
             f"| {name} | `{member['id']}` | {member['type']} | {member['verdict']} | {len(member['kept'])} "
             f"| {_ids(member['lost'])} | {member['distinct']} / {member['minimum']} "
-            f"| {'yes' if member['stale_stake'] else 'no'} |"
+            f"| {'yes' if member['stale_share'] else 'no'} |"
             for name, member in members
             if member["verdict"] != "keeps_members"
         ],
@@ -295,10 +295,10 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
                 ["Side", "Campaign", "Event", "Type", "Share", "Score", "Level", "Code level", "Decided by"],
                 [_neighbour_row("below", item) for item in cutoff["below"]]
                 + [_neighbour_row("above", item) for item in cutoff["above"]],
-                "No event has this stake.",
+                "No event has this share.",
             )
             lines.append("")
-    lines += ["## Draft stakes", ""]
+    lines += ["## Draft shares", ""]
     lines += _draft_text(index, result, drafts or {})
     lines += ["## Snippet", "", "```python", snippet(index, result), "```", ""]
     return "\n".join(lines)
@@ -308,7 +308,7 @@ def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> lis
     levels = list(index["constants"]["level_bands"])
     summaries = draft_summaries(index, result, drafts)
     if not summaries:
-        return ["No draft stakes are declared.", ""]
+        return ["No draft shares are declared.", ""]
     lines = _table(
         ["Draft", "Label", "Issue", "Measures", "Base", "Own base", "Events", "Ruled", "Set by a cited event"],
         [
@@ -342,14 +342,14 @@ def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> lis
                     ["Side", "Campaign", "Event", "Share", "Score", "Level", "Own base level", "Decided by", "Ruled"],
                     [_draft_neighbour_row("below", entry) for entry in cutoff["below"]]
                     + [_draft_neighbour_row("above", entry) for entry in cutoff["above"]],
-                    "No row of this draft has this stake.",
+                    "No row of this draft has this share.",
                 )
                 lines.append("")
     return lines
 
 
 def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) -> list[dict[str, Any]]:
-    """Each draft stake as the page's draft panel shows it, in index order: its base against its own, its rows'
+    """Each draft share as the page's draft panel shows it, in index order: its base against its own, its rows'
     levels, how many are ruled (their kind's context rule sets the level, so the base does not apply) or set by a
     cited event, and its own nearest rows at every cut-off of its measures. Rows of the enabled campaigns and
     types only."""
@@ -409,7 +409,7 @@ def render_json(
     index: Mapping[str, Any], tables: Tables, result: Replay, *, state_hash: str, drafts: Tables | None = None
 ) -> dict[str, Any]:
     """The JSON readout: the state, the aggregates, only the edges (moved events and cut-off neighbours) and the
-    draft stakes (``draft_summaries`` of the ``drafts`` rows)."""
+    draft shares (``draft_summaries`` of the ``drafts`` rows)."""
     levels = list(index["constants"]["level_bands"])
     types = set(result["state"]["types"])
     moved: list[dict[str, Any]] = []
@@ -423,7 +423,7 @@ def render_json(
                     "campaign": name,
                     "id": event["id"],
                     "type": row["type"],
-                    "stakes": row["stakes"],
+                    "shares": row["shares"],
                     "score": event["score"],
                     "level": event["level"],
                     "code_level": row["level"],

@@ -329,7 +329,7 @@ regions has a share in all five saves.
 ### Scaled atomic events
 
 Observed 2026-11-07 on five Protectorate saves (2029-06 to 2031-06) with every reference share at 0.01. The score
-moves by `10·log10(share / reference)` points, so a stake a tenth of the reference lowers it by 10.
+moves by `10·log10(share / reference)` points, so a share a tenth of the reference lowers it by 10.
 
 | Event type | Scaled events | Median scale | Range |
 | --- | --- | --- | --- |
@@ -357,9 +357,9 @@ with raising a top-ten GDP nation's event one level:
 | Protectorate, first five saves | 201 | 22 | 0 | 22 |
 | Resist (benchmark) | 64 | 14 | 0 | 14 |
 
-- The nations of GDP places 11 to about 100 keep their level: their stake lies within a few points of the
+- The nations of GDP places 11 to about 100 keep their level: their share lies within a few points of the
   reference.
 - Small states drop one level (GDP places from about 100 down, such as Iceland, Djibouti and The Bahamas).
-- The top-ten economies drop one level too. Their stake adds 3 to 12 points, while a level is 25 points wide and
+- The top-ten economies drop one level too. Their share adds 3 to 12 points, while a level is 25 points wide and
   starts 13 points above a base. Rising a level takes a share of about 20 %, which no nation of the Protectorate
   saves holds (the largest is 14 to 16 %, table above).

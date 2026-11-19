@@ -9,7 +9,7 @@ two of them:
 - **Level**, atomic or narrative: how much of the stream does it represent? A narrative event may contain both
   objective and inferred constituents.
 - **Confidence**, high, medium or low: how strongly is the reconstruction supported?
-- **Significance**: how much does it matter to the history ([ADR-0011](0011-significance-is-judged-once-and-scaled-by-stake.md))?
+- **Significance**: how much does it matter to the history ([ADR-0011](0011-significance-is-judged-once-and-scaled-by-share.md))?
 
 A narrative event is an event with a span, roles and constituents, not a parallel type. So significance,
 rendering, the narrator package and citation all handle both levels the same way. The envelope carries no prose.

@@ -5,9 +5,9 @@ primary_target: "src/tinarrative/benchmarking/calibration/page/index.html"
 related_targets: []
 ---
 
-# Stake calibration page
+# ShareOf calibration page
 
-Scope: the maintainer's stake calibration page (`benchmark calibrate open`), opened from file:// on a desktop beside an editor. Mode: Operate. Source of decisions: issue #464 and its design brief comment ("Tide Table"), pinned whole.
+Scope: the maintainer's share calibration page (`benchmark calibrate open`), opened from file:// on a desktop beside an editor. Mode: Operate. Source of decisions: issue #464 and its design brief comment ("Tide Table"), pinned whole.
 
 Audience and job: the maintainer (and, through the copied hash, an agent) drags one measure's reference and must see, without the page moving, what changes level, whose members change, and the real events on each side of each cut-off; then copies a snippet.
 

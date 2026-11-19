@@ -40,15 +40,15 @@ from tinarrative.model.events import (
     Significance,
     SignificanceBasis,
 )
-from tinarrative.model.kinds import Rule, Stake, StakeMeasure
+from tinarrative.model.kinds import Measure, Rule, ShareOf
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance, significance_of
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.significance import (
-    NARRATIVE_STAKE_IMPLEMENTATIONS,
+    NARRATIVE_SHARE_IMPLEMENTATIONS,
     RULE_IMPLEMENTATIONS,
-    STAKE_IMPLEMENTATIONS,
+    SHARE_IMPLEMENTATIONS,
     NarrativeContextRule,
     narrative_score,
     score_narrative,
@@ -363,25 +363,25 @@ def test_a_kind_without_a_context_rule_is_judged_by_its_base_level() -> None:
             assert significance_of(bare_event(event_type), lookup) is kind.base, event_type
 
 
-def test_every_rule_and_stake_has_exactly_one_implementation() -> None:
+def test_every_rule_and_share_has_exactly_one_implementation() -> None:
     assert set(RULE_IMPLEMENTATIONS) == set(Rule)
-    assert set(STAKE_IMPLEMENTATIONS) | set(NARRATIVE_STAKE_IMPLEMENTATIONS) == set(Stake)
-    assert not set(STAKE_IMPLEMENTATIONS) & set(NARRATIVE_STAKE_IMPLEMENTATIONS)
+    assert set(SHARE_IMPLEMENTATIONS) | set(NARRATIVE_SHARE_IMPLEMENTATIONS) == set(ShareOf)
+    assert not set(SHARE_IMPLEMENTATIONS) & set(NARRATIVE_SHARE_IMPLEMENTATIONS)
 
 
-def test_every_kind_declares_a_stake_of_its_own_scope() -> None:
+def test_every_kind_declares_a_share_of_its_own_scope() -> None:
     for event_type, kind in KINDS.items():
-        if kind.stake is not None:
-            implemented = NARRATIVE_STAKE_IMPLEMENTATIONS if kind.narrative else STAKE_IMPLEMENTATIONS
-            assert kind.stake in implemented, event_type
+        if kind.share is not None:
+            implemented = NARRATIVE_SHARE_IMPLEMENTATIONS if kind.narrative else SHARE_IMPLEMENTATIONS
+            assert kind.share in implemented, event_type
 
 
-def test_every_narrative_kind_names_an_implemented_context_rule_and_stake() -> None:
+def test_every_narrative_kind_names_an_implemented_context_rule_and_share() -> None:
     narrative = [kind for kind in KINDS.values() if kind.narrative]
     assert narrative
     for kind in narrative:
         assert kind.rule is None or isinstance(RULE_IMPLEMENTATIONS[kind.rule], NarrativeContextRule), kind.event_type
-        assert kind.stake is None or kind.stake in NARRATIVE_STAKE_IMPLEMENTATIONS, kind.event_type
+        assert kind.share is None or kind.share in NARRATIVE_SHARE_IMPLEMENTATIONS, kind.event_type
 
 
 def test_the_pass_keeps_order_and_ids_and_is_idempotent() -> None:
@@ -489,7 +489,7 @@ def test_a_micro_states_disappearance_is_major_and_a_large_states_campaign_defin
     assert big.significance is Significance.CAMPAIGN_DEFINING
 
 
-def test_a_stake_at_the_reference_share_keeps_the_level_and_the_clamp_bounds_the_scale(
+def test_a_share_at_the_reference_share_keeps_the_level_and_the_clamp_bounds_the_scale(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     at_reference = scored(
@@ -503,7 +503,7 @@ def test_a_stake_at_the_reference_share_keeps_the_level_and_the_clamp_bounds_the
     assert empty.significance_basis is not None and empty.significance_basis.scale == -20
 
 
-def test_the_stake_is_read_on_the_later_side_for_an_entity_that_exists_only_there(
+def test_the_share_is_read_on_the_later_side_for_an_entity_that_exists_only_there(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[int] = []
@@ -583,9 +583,9 @@ def test_churn_and_movement_are_never_scaled(monkeypatch: pytest.MonkeyPatch) ->
         assert result.score == significance_of(bare_event(event_type), empty_lookup()).base
 
 
-def test_movement_and_churn_have_no_stake() -> None:
+def test_movement_and_churn_have_no_share() -> None:
     assert all(
-        KINDS[t].stake is None for t in ("fleet.orbit_changed", "nation.rank_changed", "nation.population_changed")
+        KINDS[t].share is None for t in ("fleet.orbit_changed", "nation.rank_changed", "nation.population_changed")
     )
 
 
@@ -602,7 +602,7 @@ def test_the_basis_is_in_the_event_json(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_the_basis_keeps_the_unrounded_share_and_the_json_rounds_it() -> None:
-    basis = SignificanceBasis(base=0, measure=StakeMeasure.POWER, share=0.123456789, scale=0, entities=())
+    basis = SignificanceBasis(base=0, measure=Measure.POWER, share=0.123456789, scale=0, entities=())
 
     assert basis.share == 0.123456789
     assert basis.to_dict()["share"] == 0.123457
@@ -649,21 +649,21 @@ def test_a_given_base_applies_only_where_the_context_rule_defers() -> None:
     calm = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
     struck = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=True)
 
-    deferred = score_narrative(kind, calm, (), scaling=None, base=Significance.TRIVIAL)
-    ruled = score_narrative(kind, struck, (), scaling=None, base=Significance.TRIVIAL)
+    deferred = score_narrative(kind, calm, (), reading=None, base=Significance.TRIVIAL)
+    ruled = score_narrative(kind, struck, (), reading=None, base=Significance.TRIVIAL)
 
     assert (deferred.level, deferred.score, deferred.ruled) == (Significance.TRIVIAL, Significance.TRIVIAL.base, False)
     assert (ruled.level, ruled.ruled) == (Significance.CAMPAIGN_DEFINING, True)
     assert ruled.score == Significance.CAMPAIGN_DEFINING.base
 
 
-def test_the_kinds_own_scaling_and_base_score_an_event_as_narrative_score_does() -> None:
+def test_the_kinds_own_reading_and_base_score_an_event_as_narrative_score_does() -> None:
     kind = KINDS[POPULATION_COLLAPSE.event_type]
     event = bare_event(kind.event_type, nuked_regions=(), nuclear_strikes=False)
     top = Significance.CAMPAIGN_DEFINING
     cited = replace(bare_event("nation.rank_changed"), significance=top, score=top.band[1])
 
-    scored = score_narrative(kind, event, (cited,), scaling=None, base=kind.base)
+    scored = score_narrative(kind, event, (cited,), reading=None, base=kind.base)
 
     assert (scored.score, scored.basis, scored.rule) == narrative_score(kind, event, (cited,))
     assert scored.score == cited.score

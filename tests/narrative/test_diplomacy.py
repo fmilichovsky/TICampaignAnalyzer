@@ -11,7 +11,7 @@ from tinarrative.kinds.control import NATION_CONTROL_CHANGED
 from tinarrative.kinds.nations import RELATION_CHANGED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, Event, EventStatus, Role, Significance, SignificanceBasis
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.diplomacy import REALIGNMENT
@@ -207,7 +207,7 @@ def test_a_realignment_scales_with_its_nations_power_share_alone() -> None:
     assert item.significance is Significance.CAMPAIGN_DEFINING
     assert item.significance_basis == SignificanceBasis(
         base=Significance.MAJOR.base,
-        measure=StakeMeasure.POWER,
+        measure=Measure.POWER,
         share=pytest.approx(0.4),
         scale=SCALE_MAX,
         entities=(NORTH,),

@@ -58,11 +58,11 @@ def test_every_event_becomes_a_row_with_its_own_score_and_level(rows: list[dict]
     check_rows(rows)
 
 
-def test_a_stake_row_keeps_the_unrounded_share(rows: list[dict]) -> None:
-    shares = [stake["share"] for row in rows for stake in row["stakes"]]
+def test_a_share_row_keeps_the_unrounded_share(rows: list[dict]) -> None:
+    shares = [share["share"] for row in rows for share in row["shares"]]
 
     assert all(isinstance(share, float) for share in shares)
-    assert all(not row["stakes"] or len(row["stakes"]) == 1 for row in rows)
+    assert all(not row["shares"] or len(row["shares"]) == 1 for row in rows)
 
 
 def test_a_campaign_file_round_trips_exactly(tmp_path: Path, rows: list[dict]) -> None:
@@ -154,12 +154,12 @@ def test_the_kinds_map_holds_each_types_code_base_level_and_rule() -> None:
         type_kinds(["no.such"])
 
 
-def test_a_narrative_row_without_a_stake_keeps_its_own_base_when_cited_events_raise_its_level() -> None:
+def test_a_narrative_row_without_a_share_keeps_its_own_base_when_cited_events_raise_its_level() -> None:
     intervals = list(run_sequence(plan_sequence([survey(path) for path in saves()]), inferred=True))
     event = next(item for item in narrative_events(intervals) if item.significance_basis is None)
     own = narrative_level(kind_for(event.event_type), event)
     top = SIGNIFICANCE_ORDER[-1]
-    # Through the row seam: no fixture has a stake-less narrative event that its cited events raise.
+    # Through the row seam: no fixture has a share-less narrative event that its cited events raise.
     raised = _row(replace(event, significance=top, score=top.band[1]), "narrative")
 
     assert own is not top

@@ -1,4 +1,4 @@
-"""Draft stakes: their validation, and their shadow rows over the synthetic politics sequence."""
+"""Draft shares: their validation, and their shadow rows over the synthetic politics sequence."""
 
 from __future__ import annotations
 
@@ -10,18 +10,18 @@ import pytest
 from tests.benchmarking.calibration_support import check_parity, check_rows
 from tests.fixtures import fixture_path
 from tinarrative.benchmarking.calibration import drafts
-from tinarrative.benchmarking.calibration.drafts import DraftStake, DraftStakeError, draft_name, validate_drafts
+from tinarrative.benchmarking.calibration.drafts import DraftShare, DraftShareError, draft_name, validate_drafts
 from tinarrative.benchmarking.calibration.replay import default_state, replay
 from tinarrative.benchmarking.calibration.table import build_index, extract_campaign
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.entities import EntityDomain, EntityRef
 from tinarrative.model.events import Event, Role, Significance
-from tinarrative.model.kinds import Stake, StakeMeasure
-from tinarrative.narrative.significance import NARRATIVE_STAKE_IMPLEMENTATIONS, NarrativeScaling
+from tinarrative.model.kinds import Measure, ShareOf
+from tinarrative.narrative.significance import NARRATIVE_SHARE_IMPLEMENTATIONS, NarrativeShareReading
 
 SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
 CLAIMS, CESSION = "nation.claims_declared", "nation.cession"
-REGIONS = NARRATIVE_STAKE_IMPLEMENTATIONS[Stake.REGIONS]
+REGIONS = NARRATIVE_SHARE_IMPLEMENTATIONS[ShareOf.REGIONS]
 
 
 def locations(event: Event, cited: Any = ()) -> tuple[EntityRef, ...]:
@@ -30,21 +30,21 @@ def locations(event: Event, cited: Any = ()) -> tuple[EntityRef, ...]:
     )
 
 
-TERRITORY = DraftStake(
+TERRITORY = DraftShare(
     name="territory",
     label="Territory",
     issue=1,
     event_types=(CLAIMS, CESSION),
-    scalings=(
+    readings=(
         REGIONS,
-        NarrativeScaling(StakeMeasure.POWER, locations),
-        NarrativeScaling(StakeMeasure.POPULATION, locations),
+        NarrativeShareReading(Measure.POWER, locations),
+        NarrativeShareReading(Measure.POPULATION, locations),
     ),
     base=Significance.MINOR,
 )
 """Three candidates on two types: the listed regions' population, which the kinds use, and the location's power
 (which no region has) and population."""
-CESSION_ONLY = DraftStake(name="cession-only", label="Cession", issue=2, event_types=(CESSION,), scalings=(REGIONS,))
+CESSION_ONLY = DraftShare(name="cession-only", label="Cession", issue=2, event_types=(CESSION,), readings=(REGIONS,))
 
 
 def saves() -> list[Path]:
@@ -87,8 +87,8 @@ def test_a_shadow_row_takes_the_draft_base_its_candidates_with_a_share_and_the_c
     rows = [row for row in drafted["drafts"] if draft_name(row["id"]) == TERRITORY.name]
 
     assert {row["base"] for row in rows} == {Significance.MINOR.base}
-    assert any(len(row["stakes"]) == 2 for row in rows)
-    assert all(stake["measure"] == StakeMeasure.POPULATION.value for row in rows for stake in row["stakes"])
+    assert any(len(row["shares"]) == 2 for row in rows)
+    assert all(share["measure"] == Measure.POPULATION.value for row in rows for share in row["shares"])
     index = build_index(["politics"], key="", extracted_at="", kinds={}, drafts=(TERRITORY,))
     result = replay(index, {"politics": drafted["events"]}, default_state(index), {"politics": rows})
     assert any(event["decided_by"] != event["id"] for event in result["campaigns"]["politics"]["drafts"])
@@ -108,7 +108,7 @@ def test_two_drafts_on_one_type_sit_side_by_side_and_leave_the_real_rows_alone(
 
 
 def test_the_declared_drafts_are_read_when_extraction_runs(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(drafts, "DRAFT_STAKES", (CESSION_ONLY,))
+    monkeypatch.setattr(drafts, "DRAFT_SHARES", (CESSION_ONLY,))
 
     index = build_index(["politics"], key="", extracted_at="", kinds={})
 
@@ -123,24 +123,24 @@ def test_the_declared_drafts_are_read_when_extraction_runs(monkeypatch: pytest.M
     ]
 
 
-def test_the_index_lists_each_measure_of_a_draft_once_in_scaling_order() -> None:
+def test_the_index_lists_each_measure_of_a_draft_once_in_reading_order() -> None:
     index = build_index(["politics"], key="", extracted_at="", kinds={}, drafts=(TERRITORY,))
 
-    assert index["drafts"][0]["measures"] == [REGIONS.measure.value, StakeMeasure.POWER.value]
-    assert len(TERRITORY.scalings) == 3
+    assert index["drafts"][0]["measures"] == [REGIONS.measure.value, Measure.POWER.value]
+    assert len(TERRITORY.readings) == 3
     assert index["drafts"][0]["base"] == Significance.MINOR.value
 
 
-def draft(**changes: Any) -> DraftStake:
+def draft(**changes: Any) -> DraftShare:
     fields: dict[str, Any] = {
         "name": "space-program",
         "label": "Space program",
         "issue": 1,
         "event_types": (CESSION,),
-        "scalings": (REGIONS,),
+        "readings": (REGIONS,),
         **changes,
     }
-    return DraftStake(**fields)
+    return DraftShare(**fields)
 
 
 @pytest.mark.parametrize(
@@ -152,12 +152,12 @@ def draft(**changes: Any) -> DraftStake:
         ((draft(name="Space Program"),), "not a lowercase slug"),
         ((draft(name="space:program"),), "not a lowercase slug"),
         ((draft(event_types=()),), "names no event type"),
-        ((draft(scalings=()),), "has no scaling"),
+        ((draft(readings=()),), "has no reading"),
         ((draft(event_types=(CLAIMS, CESSION)),), "needs a base"),
     ],
 )
-def test_a_draft_that_cannot_be_scored_is_rejected(drafts_given: tuple[DraftStake, ...], message: str) -> None:
-    with pytest.raises(DraftStakeError, match=message):
+def test_a_draft_that_cannot_be_scored_is_rejected(drafts_given: tuple[DraftShare, ...], message: str) -> None:
+    with pytest.raises(DraftShareError, match=message):
         validate_drafts(drafts_given)
-    with pytest.raises(DraftStakeError, match=message):
+    with pytest.raises(DraftShareError, match=message):
         extract_campaign(saves(), drafts_given)

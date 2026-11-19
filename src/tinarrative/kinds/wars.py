@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Stake, Template
+from ..model.kinds import EventKind, EvidenceRole, ShareOf, Template
 from ..model.values import Unknown
 from .narrative import narrative_kind, role
 from .text import attribute_label, attribute_text, list_changed, plain, region_count, subject_label, transition_label
@@ -138,7 +138,7 @@ ARC = narrative_kind(
         }
     ),
     base=Significance.MAJOR,
-    stake=Stake.WAR_SIDES,
+    share=ShareOf.WAR_SIDES,
 )
 
 KINDS = (

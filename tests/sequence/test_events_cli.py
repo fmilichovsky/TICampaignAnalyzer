@@ -214,7 +214,7 @@ def test_inferred_events_are_listed_apart_and_filtered_by_significance(
         f"  - from `region.nation_changed/region:42{key}`: Fixture South (region:42) nation: "
         f"Fixture Southland (nation:21) -> Fixture Northland (nation:20)\n" in inferred
     )
-    # The fixture world is tiny, so the stake of the region lifts the territory events to major as well.
+    # The fixture world is tiny, so the share of the region lifts the territory events to major as well.
     assert "gained 1 region" in inferred
     assert "inferred events below major significance omitted" not in inferred
 

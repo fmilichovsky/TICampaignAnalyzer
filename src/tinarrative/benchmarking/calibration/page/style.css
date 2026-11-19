@@ -1,4 +1,4 @@
-/* The stake calibration page: a fixed table of figures on a cool chart-white ground; only the figures change. */
+/* The share calibration page: a fixed table of figures on a cool chart-white ground; only the figures change. */
 
 :root {
   --ground: #f6f7f4;
@@ -621,7 +621,7 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 @keyframes base-flash { from { background: var(--row-hover); } to { background: transparent; } }
 .bases-empty { padding: 0 0 4px; }
 
-/* --- Draft stakes: one panel per draft on the focused measure, two side by side; sized per focus, never by the
+/* --- Draft shares: one panel per draft on the focused measure, two side by side; sized per focus, never by the
    slider. A draft is marked by its issue badge and a dashed frame, so it never reads as a real panel. --- */
 
 .draft-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }

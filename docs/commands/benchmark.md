@@ -1,7 +1,7 @@
 # `tinarrative benchmark`
 
 Maintainer tooling for the real sample campaigns in `benchmarks/`: import them, measure how big the narrator
-packages are and how long `events` takes, and calibrate the stake references against them. Pull requests get both measurements automatically; what they measure is in
+packages are and how long `events` takes, and calibrate the share references against them. Pull requests get both measurements automatically; what they measure is in
 [benchmarks/README.md](../../benchmarks/README.md). Run these commands from the repository root.
 
 ## `benchmark sample`
@@ -227,7 +227,7 @@ tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [
 ```
 <!-- end generated -->
 
-Serves the stake calibration page on `127.0.0.1` and opens it: a page for choosing the stake references of the
+Serves the share calibration page on `127.0.0.1` and opens it: a page for choosing the share references of the
 measures against the sample campaigns. Slide a measure's reference to see which events change significance level,
 how the narrator package and the takeover waves change, and which events sit nearest each cut-off; open an event to
 see why it has its level. Base levels, under References, switches an event type's base level, as `report --base`
@@ -282,7 +282,7 @@ tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
 ```
 <!-- end generated -->
 
-Replays the stake calibration table of the sample campaigns at other references and prints what would change: which
+Replays the share calibration table of the sample campaigns at other references and prints what would change: which
 events move level, how the narrator package grows or shrinks, which takeover waves lose members, and the events
 nearest each cut-off. It ends with the changed references written as measure registry entries, ready to paste,
 followed by one comment line for each event type whose base level was switched.
@@ -296,7 +296,7 @@ with `--rebuild`.
 decides keep it. `--base` applies even to types that `--type` leaves out of the count. The readout's state lists the switched
 base levels against the code's.
 
-The table also scores any [draft stakes](#draft-stakes) beside the real events, without changing their levels; the
+The table also scores any [draft shares](#draft-shares) beside the real events, without changing their levels; the
 state holds a base level for each draft, and its own section of the readout reports each one. A draft that cannot be
 scored fails the rebuild.
 
@@ -337,9 +337,9 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002'
 | 9 | --out cannot be written. |
 <!-- end generated -->
 
-### Draft stakes
+### Draft shares
 
-A draft stake is a stake tried on the events of existing narrative types before a kind declares it. Its rows are
+A draft share is a share tried on the events of existing narrative types before a kind declares it. Its rows are
 scored beside the real events and never enter their counts, totals, moves or cut-offs, so a draft changes no real
 panel or readout section.
 
@@ -350,11 +350,11 @@ with its issue; two drafts on the same measure sit side by side. A panel holds:
   decided by its kind's context rule, so the base does not apply to it. The chosen base goes into the URL hash
   (`base=<draft>:<level>`).
 - the level counts of its rows at that base, each with its change against the draft's own base;
-- how many of its rows a cited event sets instead of the draft's own stake;
+- how many of its rows a cited event sets instead of the draft's own share;
 - its own rows nearest the two cut-offs the tide tables show, badged `draft #N` and, where it applies, `ruled`. A
   row opens the event it shadows in the inspector.
 
-The readout's Draft stakes section reports the same numbers, with every draft's nearest rows at every cut-off of its
+The readout's Draft shares section reports the same numbers, with every draft's nearest rows at every cut-off of its
 measures, and the summary paragraph names every draft with its issue, so a draft left behind after its issue closed
 still shows.
 
@@ -362,16 +362,16 @@ still shows.
 
 One small PR:
 
-1. If the stake needs a measure the code does not have, add it: a `StakeMeasure` member, its `MeasureSpec` entry in
+1. If the share needs a measure the code does not have, add it: a `Measure` member, its `MeasureSpec` entry in
    `MEASURES` (`narrative/measures.py`) and the branch that reads its shares in `narrative/significance.py`.
-2. Add a `DraftStake` to `DRAFT_STAKES` in `benchmarking/calibration/drafts.py`: a slug `name`, a `label`, the
-   `issue` it calibrates for, the existing narrative `event_types` it is tried on, one `NarrativeScaling` per
+2. Add a `DraftShare` to `DRAFT_SHARES` in `benchmarking/calibration/drafts.py`: a slug `name`, a `label`, the
+   `issue` it calibrates for, the existing narrative `event_types` it is tried on, one `NarrativeShareReading` per
    candidate (the highest scale wins) and, if its types' kinds do not share one, a `base`.
 3. Run `tinarrative benchmark calibrate open`, which rebuilds the table, and calibrate the draft's reference and base
    on the page.
 
 #### Graduating a draft
 
-One PR as well: add a `Stake` member, move the draft's scaling into `NARRATIVE_STAKE_IMPLEMENTATIONS`, set `stake=`
+One PR as well: add a `ShareOf` member, move the draft's share reading into `NARRATIVE_SHARE_IMPLEMENTATIONS`, set `share=`
 (and `base=` if the calibrated base differs) on the kinds of the draft's types, write the calibrated reference into
-the measure's registry entry, and delete the draft from `DRAFT_STAKES`.
+the measure's registry entry, and delete the draft from `DRAFT_SHARES`.

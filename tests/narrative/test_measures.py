@@ -1,13 +1,13 @@
-"""The stake measure registry."""
+"""The measure registry."""
 
 from __future__ import annotations
 
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.narrative.measures import MEASURES
 
 
-def test_every_stake_measure_has_exactly_one_registry_entry() -> None:
-    assert list(MEASURES) == list(StakeMeasure)
+def test_every_measure_has_exactly_one_registry_entry() -> None:
+    assert list(MEASURES) == list(Measure)
 
 
 def test_every_entry_has_a_positive_reference_a_label_and_a_description() -> None:

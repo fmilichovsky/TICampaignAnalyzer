@@ -12,7 +12,7 @@ from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Event, Role, Significance, SignificanceBasis
-from tinarrative.model.kinds import StakeMeasure
+from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import aggregate, narrative_rules
 from tinarrative.narrative.assets import (
@@ -150,7 +150,7 @@ def test_an_army_event_scales_with_its_nations_power_share(
     assert great.significance is Significance.CAMPAIGN_DEFINING
     assert great.significance_basis == SignificanceBasis(
         base=Significance.MAJOR.base,
-        measure=StakeMeasure.POWER,
+        measure=Measure.POWER,
         share=pytest.approx(0.4),
         scale=SCALE_MAX,
         entities=(NORTH,),
