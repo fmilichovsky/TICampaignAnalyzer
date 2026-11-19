@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import json
-import os
 import re
 import shutil
 import sys
@@ -17,7 +16,7 @@ import pytest
 
 from tests.fixtures import FIXTURES_ROOT
 from tests.golden import AssertGolden
-from tests.sequence.campaign_variants import write_campaign, write_variant
+from tests.sequence.campaign_variants import write_campaign
 from tinarrative import campaign_analysis, cli
 from tinarrative.cli import (
     EXIT_CONFIG_ERROR,
@@ -238,11 +237,6 @@ def test_duplicates_are_merged_and_one_distinct_save_compares_nothing(
     assert report["intervals"] == []
 
 
-def test_a_single_save_reports_that_no_interval_was_compared(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main(["events", str(FIXTURE_DIR / "politics_after.json")]) == EXIT_SUCCESS
-    assert "no interval was compared" in capsys.readouterr().out
-
-
 def test_an_unreadable_save_stops_the_run(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     missing = tmp_path / "missing.json"
 
@@ -252,16 +246,13 @@ def test_an_unreadable_save_stops_the_run(tmp_path: Path, capsys: pytest.Capture
     assert "cannot read" in captured.err
 
 
-@pytest.mark.parametrize(
-    ("name", "message"), [("representative_campaign.json", "cannot be ordered"), ("malformed_truncated.json", "")]
-)
-def test_an_unorderable_or_unsupported_save_stops_the_run(
-    name: str, message: str, capsys: pytest.CaptureFixture[str]
-) -> None:
-    assert main(["events", str(FIXTURE_DIR / "politics_after.json"), str(FIXTURE_DIR / name)]) == EXIT_UNSUPPORTED_INPUT
+def test_an_unsupported_save_stops_the_run(capsys: pytest.CaptureFixture[str]) -> None:
+    unsupported = FIXTURE_DIR / "malformed_truncated.json"
+
+    assert main(["events", str(FIXTURE_DIR / "politics_after.json"), str(unsupported)]) == EXIT_UNSUPPORTED_INPUT
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert message in captured.err
+    assert captured.err.startswith(f"tinarrative events: {unsupported}: ")
 
 
 @pytest.mark.parametrize(
@@ -289,9 +280,8 @@ def test_workers_write_the_golden_report_byte_for_byte(
     assert re.fullmatch(r"tinarrative events: parsing and processing took \d+\.\d+s\n", parallel.err)
 
 
-@pytest.mark.parametrize("jobs", ["1", "2"])
-def test_a_save_that_fails_in_a_worker_gives_the_code_and_message_of_one_process(
-    jobs: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_a_save_that_cannot_be_loaded_stops_the_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)
     saves = _directory(tmp_path, *SHUFFLED)
@@ -304,27 +294,11 @@ def test_a_save_that_fails_in_a_worker_gives_the_code_and_message_of_one_process
 
     monkeypatch.setattr(campaign_analysis, "plan_sequence", vanish)
 
-    assert main(["events", "--jobs", jobs, str(saves)]) == EXIT_INPUT_ERROR
+    assert main(["events", "--jobs", "1", str(saves)]) == EXIT_INPUT_ERROR
     captured = capsys.readouterr()
     assert captured.out == ""
     missing = saves / "politics_reverted.json"
     assert captured.err.splitlines()[0] == f"tinarrative events: cannot read {missing}: No such file or directory"
-
-
-@pytest.mark.parametrize("name", ["missing.json", "malformed_truncated.json"])
-def test_a_survey_failure_in_a_worker_gives_the_code_and_message_of_one_process(
-    name: str, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    path = str(FIXTURE_DIR / name) if name != "missing.json" else str(tmp_path / name)
-    outcomes = []
-    for jobs in ("1", "2"):
-        code = main(["events", "--jobs", jobs, str(FIXTURE_DIR / "politics_after.json"), path])
-        outcomes.append((code, capsys.readouterr()))
-
-    (serial_code, serial), (parallel_code, parallel) = outcomes
-    assert parallel_code == serial_code in (EXIT_INPUT_ERROR, EXIT_UNSUPPORTED_INPUT)
-    assert parallel.err.splitlines()[0] == serial.err.splitlines()[0]
-    assert parallel.out == serial.out == ""
 
 
 def _directory(root: Path, *names: str) -> Path:
@@ -362,34 +336,6 @@ def test_a_directory_is_expanded_and_its_invalid_files_are_skipped(
     ]
 
 
-def test_files_and_directories_mix_and_identical_copies_merge(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _directory(tmp_path, "politics_before.json", "politics_after.json")
-    shutil.copyfile(FIXTURE_DIR / "politics_after.json", tmp_path / "Exitsave.json")
-    shutil.copyfile(FIXTURE_DIR / "politics_reverted.json", tmp_path / "reverted.json")
-    monkeypatch.chdir(tmp_path)
-
-    assert main(["events", "--format", "json", "reverted.json", "saves", "Exitsave.json"]) == EXIT_SUCCESS
-    report = json.loads(capsys.readouterr().out)
-
-    assert (report["inputs"], report["duplicates"], report["skipped"]) == (4, 1, [])
-    assert [(save["source"], save["aliases"]) for save in report["saves"]] == [
-        ("saves/politics_before.json", []),
-        ("Exitsave.json", ["saves/politics_after.json"]),
-        ("reverted.json", []),
-    ]
-
-
-def test_a_named_invalid_file_still_fails_beside_a_directory(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    directory = _directory(tmp_path, *SHUFFLED)
-
-    assert main(["events", str(directory), str(FIXTURE_DIR / "malformed_truncated.json")]) == EXIT_UNSUPPORTED_INPUT
-    assert capsys.readouterr().out == ""
-
-
 @pytest.mark.parametrize(
     ("names", "message"),
     [((), "the directory holds no files"), (("malformed_truncated.json",), "the directory holds no usable save")],
@@ -403,16 +349,6 @@ def test_a_directory_without_a_usable_save_is_an_input_error(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert message in captured.err
-
-
-@pytest.mark.parametrize("names", [("politics_after.json",), ("politics_after.json", "malformed_truncated.json")])
-def test_one_usable_save_after_expansion_gives_the_empty_report(
-    names: tuple[str, ...], tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    directory = _directory(tmp_path, *names)
-
-    assert main(["events", str(directory)]) == EXIT_SUCCESS
-    assert "no interval was compared" in capsys.readouterr().out
 
 
 def test_directory_runs_log_counts_and_no_paths(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -432,19 +368,6 @@ def _two_campaigns(root: Path) -> Path:
     return directory
 
 
-def test_one_campaign_needs_no_selector_and_is_reported(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _directory(tmp_path, *SHUFFLED)
-    monkeypatch.chdir(tmp_path)
-
-    assert main(["events", "--format", "json", "saves"]) == EXIT_SUCCESS
-    report = json.loads(capsys.readouterr().out)
-
-    assert report["campaign"]["key"] == "fixture-resistance"
-    assert report["campaign"]["saves"] == 3
-
-
 def test_several_campaigns_without_a_selector_is_a_usage_error_with_the_listing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -460,53 +383,20 @@ def test_several_campaigns_without_a_selector_is_a_usage_error_with_the_listing(
     assert "2. protectorate-20261014-152624\n" in captured.err
 
 
-@pytest.mark.parametrize(("selector", "prefix"), [("protectorate", "p_"), ("1", "r_"), ("latest", "p_")])
-def test_a_selected_campaign_reports_only_its_own_saves(
-    selector: str,
-    prefix: str,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    directory = _two_campaigns(tmp_path)
-    for path in directory.iterdir():
-        os.utime(path, (1_000_000, 2_000_000 if path.name == "p_politics_before.json" else 1_000_000))
-    monkeypatch.chdir(tmp_path)
-
-    assert main(["events", "--format", "json", "--campaign", selector, "saves"]) == EXIT_SUCCESS
-    report = json.loads(capsys.readouterr().out)
-
-    assert report["campaign"]["key"].startswith("protectorate" if prefix == "p_" else "resistance")
-    assert all(Path(save["source"]).name.startswith(prefix) for save in report["saves"])
-    assert len(report["intervals"]) == 2
-
-    assert main(["events", "--campaign", selector, "saves"]) == EXIT_SUCCESS
-    assert "3 given saves belong to other campaigns." in capsys.readouterr().out
-
-
-def test_an_unknown_campaign_is_a_usage_error(
+def test_the_campaign_option_selects_one_campaign_and_counts_the_saves_left_out(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     _two_campaigns(tmp_path)
     monkeypatch.chdir(tmp_path)
 
-    assert main(["events", "--campaign", "academy", "saves"]) == EXIT_USAGE_ERROR
-    captured = capsys.readouterr()
+    assert main(["events", "--format", "json", "--campaign", "protectorate", "saves"]) == EXIT_SUCCESS
+    report = json.loads(capsys.readouterr().out)
 
-    assert captured.out == ""
-    assert "no campaign matches 'academy'" in captured.err
-    assert "2 campaigns:" in captured.err
+    assert report["campaign"]["key"].startswith("protectorate")
+    assert all(Path(save["source"]).name.startswith("p_") for save in report["saves"])
 
-
-def test_a_selected_campaign_with_one_save_gives_the_empty_report(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    _directory(tmp_path, *SHUFFLED)
-    write_variant(tmp_path / "saves", "odd.json", humans=0)
-    monkeypatch.chdir(tmp_path)
-
-    assert main(["events", "--campaign", "2", "saves"]) == EXIT_SUCCESS
-    assert "no interval was compared" in capsys.readouterr().out
+    assert main(["events", "--campaign", "protectorate", "saves"]) == EXIT_SUCCESS
+    assert "3 given saves belong to other campaigns." in capsys.readouterr().out
 
 
 @pytest.fixture

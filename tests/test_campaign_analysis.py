@@ -309,3 +309,40 @@ def test_a_save_that_is_no_longer_a_save_is_an_unsupported_failure(tmp_path: Pat
 
     assert isinstance(outcome, LoadFailed)
     assert isinstance(outcome.cause, UnsupportedSave)
+
+
+def test_a_save_without_a_game_time_is_skipped_in_a_directory_and_fails_when_named(tmp_path: Path) -> None:
+    unorderable = "representative_campaign.json"
+
+    skipped = survey(directory_of(tmp_path, POLITICS[0], unorderable))
+    named = survey(fixture(POLITICS[0]), fixture(unorderable))
+
+    assert isinstance(skipped, Survey)
+    assert [(Path(s.source).name, s.error_class) for s in skipped.skipped] == [(unorderable, "UnknownChronologyError")]
+    assert isinstance(named, UnsupportedSave)
+    assert "cannot be ordered" in named.message
+
+
+def test_a_named_unusable_file_fails_beside_a_directory(tmp_path: Path) -> None:
+    outcome = survey(directory_of(tmp_path, *POLITICS), fixture(BAD))
+
+    assert isinstance(outcome, UnsupportedSave)
+
+
+def test_files_and_directories_mix_and_identical_copies_merge_into_the_first_source(tmp_path: Path) -> None:
+    directory = directory_of(tmp_path, POLITICS[0], POLITICS[1])
+    copy = tmp_path / "Exitsave.json"
+    shutil.copy(fixture(POLITICS[1]), copy)
+    survey_outcome = survey(fixture(POLITICS[2]), directory, copy)
+    assert isinstance(survey_outcome, Survey)
+    (group,) = group_saves(survey_outcome.saves)
+
+    analysis = analyze_campaign(group, DEFAULT_SETTINGS, command="test", jobs=1)
+
+    assert isinstance(analysis, CampaignAnalysis)
+    assert (analysis.plan.inputs, analysis.plan.duplicates, analysis.plan.skipped) == (4, 1, ())
+    assert [(Path(s.source).name, [Path(a).name for a in s.aliases]) for s in analysis.plan.saves] == [
+        (POLITICS[0], []),
+        (copy.name, [POLITICS[1]]),
+        (POLITICS[2], []),
+    ]
