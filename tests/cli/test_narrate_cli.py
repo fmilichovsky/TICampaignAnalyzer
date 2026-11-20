@@ -51,7 +51,7 @@ def test_saves_a_package_file_and_stdin_give_the_same_bytes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     package = _package(tmp_path, capsys)
-    options = ["--audience", "insider", "--length", "1500", "--config", str(_settings(tmp_path, 11000))]
+    options = ["--style", "headlines", "--length", "1500", "--config", str(_settings(tmp_path, 11000))]
 
     assert main(["narrate", *SAVES, *options, "--output", str(tmp_path / "saves")]) == EXIT_SUCCESS
     assert main(["narrate", "--package", str(package), *options, "--output", str(tmp_path / "file")]) == EXIT_SUCCESS
@@ -66,8 +66,7 @@ def test_saves_a_package_file_and_stdin_give_the_same_bytes(
     assert [chapter["part"] for chapter in plan["chapters"]] == ["first", "last"]
     assert plan["request"] == {
         "period": "quarter",
-        "audience": "insider",
-        "focus": "Fixture Resistance",
+        "style": "headlines",
         "length": 1500,
     }
     request = json.loads(written["requests/02.json"])

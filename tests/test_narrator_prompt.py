@@ -31,12 +31,12 @@ def test_the_command_writes_the_same_bytes_every_time(
 
     outputs = []
     for _ in range(2):
-        assert main([str(source), "--audience", "insider", "--style", "headlines", "--sample", "2032-Q2"]) == 0
+        assert main([str(source), "--citations", "none", "--style", "headlines", "--sample", "2032-Q2"]) == 0
         outputs.append(capsys.readouterr().out)
 
     assert outputs[0] == outputs[1]
     assert json.loads(outputs[0])["messages"][0]["content"].startswith(
-        "audience: insider\nstyle: headlines\nsample: 2032-Q2 "
+        "citations: none\nstyle: headlines\nsample: 2032-Q2 "
     )
 
 

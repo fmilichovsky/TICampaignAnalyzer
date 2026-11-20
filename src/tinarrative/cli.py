@@ -75,7 +75,7 @@ from .narrator.assembly import Assembly
 from .narrator.chapters import ChapterPlan, OverBudget, base_options, plan_chapters, validate
 from .narrator.councilors import article_requests, missing
 from .narrator.providers import Endpoint, endpoint
-from .narrator.request import AUDIENCES, CITATIONS, STYLES
+from .narrator.request import CITATIONS, STYLES
 from .narrator.run_directory import RunDirectory, RunDirectoryWriteError
 from .narrator.runs import (
     HistoryReadError,
@@ -1420,10 +1420,8 @@ def _run_narrate(args: argparse.Namespace) -> int:
             package,
             narrator,
             period=cast("str | None", args.period),
-            audience=cast("str | None", args.audience),
             citations=cast("str | None", args.citations),
             style=cast("str | None", args.style),
-            focus=cast("str | None", args.focus),
         )
         plan = plan_chapters(
             package, options, narrator, length=cast("int | None", args.length), requested=args.period is not None
@@ -1513,11 +1511,9 @@ _ASSEMBLE_EXCLUDED = (
     ("--min-significance", "min_significance"),
     ("--constituents", "constituents"),
     ("--period", "period"),
-    ("--audience", "audience"),
     ("--citations", "citations"),
     ("--style", "style"),
     ("--length", "length"),
-    ("--focus", "focus"),
     ("--output", "output"),
     ("--send", "send"),
     ("--force", "force"),
@@ -2100,11 +2096,6 @@ def _add_narrate_parser(subcommands: Subcommands) -> None:
         "--period", choices=PERIODS, help="The sections the history is told in (default: from the campaign's span)."
     )
     parser.add_argument(
-        "--audience",
-        choices=AUDIENCES,
-        help=f"Who the history is for; insider centres on the player faction (default {AUDIENCES[0]}).",
-    )
-    parser.add_argument(
         "--citations", choices=CITATIONS, help=f"Footnotes citing event IDs, or none (default {CITATIONS[0]})."
     )
     parser.add_argument("--style", choices=STYLES, help=f"Running prose or headlines (default {STYLES[0]}).")
@@ -2113,11 +2104,6 @@ def _add_narrate_parser(subcommands: Subcommands) -> None:
         type=_positive_int,
         metavar="WORDS",
         help="Target length of the whole history (default: from how much happened).",
-    )
-    parser.add_argument(
-        "--focus",
-        metavar="NAME",
-        help="A faction or nation to centre the account on (default: the player faction with --audience insider).",
     )
     parser.add_argument("--output", type=Path, metavar="DIR", help="Write the plan and one request per chapter here.")
     parser.add_argument(
