@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import assert_never
 
 from ..analyzers.common import Lookup, Side
-from ..analyzers.politics.nation_assets import assets, strength
+from ..analyzers.politics.nation_assets import BOOST, MISSION_CONTROL, assets, refs, region_sum, strength
 from ..config import PowerSettings, SignificanceSettings
 from ..model.entities import EntityId, EntityRef
 from ..model.kinds import Measure
@@ -263,6 +263,8 @@ class SaveShares:
     faction: Mapping[EntityId, float] = field(default_factory=dict)
     control_points: Mapping[EntityId, int] = field(default_factory=dict)
     """The control points each nation lists; a nation without any is not a key."""
+    boost: Mapping[EntityId, float] = field(default_factory=dict)  # PROTOTYPE #578
+    mission_control: Mapping[EntityId, float] = field(default_factory=dict)  # PROTOTYPE #578
     world_warheads: float | None = None
     """The warheads of every nation whose count is known (ADR-0005: absent is not zero); ``None`` when none is."""
     masses: ShipMasses = field(default_factory=lambda: ShipMasses({}, {}, {}))
@@ -288,6 +290,10 @@ class SaveShares:
                 return {**self.fleet, **self.hab}  # ship and hab IDs never collide
             case Measure.FACTION:
                 return self.faction
+            case Measure.BOOST:
+                return self.boost
+            case Measure.MISSION_CONTROL:
+                return self.mission_control
             case Measure.BATTLE:
                 raise ValueError("a battle share is read from a combat record, not from shares")
             case Measure.NUCLEAR:
@@ -334,6 +340,8 @@ def build_shares(snapshot: SaveSnapshot, settings: SignificanceSettings) -> Save
             for state in snapshot.nations
             if isinstance(listed := state.get("controlPoints"), tuple) and listed
         },
+        boost=_space_support_shares(snapshot, lookup, BOOST),
+        mission_control=_space_support_shares(snapshot, lookup, MISSION_CONTROL),
         world_warheads=math.fsum(warheads) if warheads else None,
         masses=masses,
         world_ship_mass=sum(
@@ -341,6 +349,19 @@ def build_shares(snapshot: SaveSnapshot, settings: SignificanceSettings) -> Save
             for entity, kind in kinds.items()
         ),
     )
+
+
+def _space_support_shares(snapshot: SaveSnapshot, lookup: Lookup, name: str) -> dict[EntityId, float]:
+    """PROTOTYPE #578: each nation's summed region field ``name`` over every nation's; unknown sums count nothing."""
+    held: dict[EntityId, float] = {}
+    for state in snapshot.nations:
+        regions = refs(state.get("regions"))
+        if regions is None:
+            continue
+        value = region_sum(lookup, regions, name, Side.AFTER)
+        if isinstance(value, float) and value > 0:
+            held[state.ref.entity_id] = value
+    return _normalized(held)
 
 
 def _faction_hab_weights(snapshot: SaveSnapshot, lookup: Lookup) -> dict[EntityId, float]:

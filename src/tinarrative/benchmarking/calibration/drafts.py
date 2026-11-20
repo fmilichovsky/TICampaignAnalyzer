@@ -50,7 +50,19 @@ class DraftShare:
     """The hypothetical base level; by default the base of the types' kind."""
 
 
-DRAFT_SHARES: tuple[DraftShare, ...] = ()
+# PROTOTYPE #578: the space program share of #361, tried as a draft.
+from tinarrative.model.kinds import Measure  # noqa: E402
+from tinarrative.narrative.significance import _actor  # noqa: E402
+
+DRAFT_SHARES: tuple[DraftShare, ...] = (
+    DraftShare(
+        name="space-program",
+        label="Space program share",
+        issue=361,
+        event_types=("nation.space_program_growth",),
+        readings=(ShareReading(Measure.BOOST, _actor), ShareReading(Measure.MISSION_CONTROL, _actor)),
+    ),
+)
 """The declared draft shares; read at call time, so tests patch it."""
 
 

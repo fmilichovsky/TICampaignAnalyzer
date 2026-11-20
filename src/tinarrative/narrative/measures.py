@@ -84,5 +84,16 @@ MEASURES: Mapping[Measure, MeasureSpec] = {
         label="Nuclear share",
         description="A nuclear arc's net move over the world's warheads at the arc's larger end.",
     ),
+    # PROTOTYPE #578: unexamined starting references for the space program draft share.
+    Measure.BOOST: MeasureSpec(
+        reference=0.01,
+        label="Boost",
+        description="A nation's share of world boost: the summed boost of its regions over every nation's.",
+    ),
+    Measure.MISSION_CONTROL: MeasureSpec(
+        reference=0.01,
+        label="Mission control",
+        description="A nation's share of world mission control: its regions' over every nation's.",
+    ),
 }
 """Every measure's calibration, one entry each."""

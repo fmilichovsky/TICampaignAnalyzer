@@ -45,6 +45,8 @@ class Measure(StrEnum):
     SPACE_LOSS = "space_loss"
     FACTION = "faction"
     NUCLEAR = "nuclear"
+    BOOST = "boost"  # PROTOTYPE #578
+    MISSION_CONTROL = "mission_control"  # PROTOTYPE #578
 
 
 class ShareOf(StrEnum):
