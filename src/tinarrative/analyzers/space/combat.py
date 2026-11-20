@@ -2,11 +2,7 @@
 
 An entry is dated by its record when it carries a date, else by the interval. The same combat may be logged by
 several factions, one event each; matching them is reconstruction. Removed entries are reported literally, never
-assumed pruned. Ship design names are campaign content and are not decoded.
-
-A recorded combat carries each side's dry mass (``side_dry_mass``), priced from the earlier snapshot: a live ship of
-the design there, else the median of its hull class there, else nothing. The snapshot is context; the record names
-the ships (ADR-0007). Weighting by faction kind and capping a lopsided battle are scoring.
+assumed pruned. Ship design names are campaign content and are not decoded. ``side_dry_mass`` prices each side.
 """
 
 from __future__ import annotations

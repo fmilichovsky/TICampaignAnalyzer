@@ -1,8 +1,4 @@
-"""Dry masses of the live ships of one snapshot: the pricing of a ship by its design (ADR-0007: snapshot context).
-
-Evidence: docs/game-data-notes/space-assets.md. The combat analyzer prices each side of a recorded combat from the
-earlier snapshot; the shares of a save sum the same masses.
-"""
+"""Dry masses of the live ships of one snapshot: the pricing of a ship by its design (ADR-0007: snapshot context)."""
 
 from __future__ import annotations
 
