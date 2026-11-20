@@ -17,6 +17,10 @@ from ..sequence import IntervalResult, event_stream
 
 Constituents = Literal["all", "evidence", "none"]
 CONSTITUENTS: Final[tuple[Constituents, ...]] = ("all", "evidence", "none")
+EVENTS_MIN_SIGNIFICANCE: Final = Significance.TRIVIAL
+"""What ``events`` lists without ``--min-significance``."""
+EVENTS_CONSTITUENTS: Final[Constituents] = "none"
+"""What ``events`` lists without ``--constituents``."""
 
 WITHHELD: Final = "omitted with --constituents none"
 NOT_CITED: Final = "omitted: not cited by a listed narrative event"

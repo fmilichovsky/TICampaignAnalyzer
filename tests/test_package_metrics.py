@@ -275,6 +275,19 @@ def test_a_measurement_runs_the_matrix_against_every_campaign(tmp_path: Path) ->
     assert tiny["exit"] == 2
 
 
+def _stub_python(tmp_path: Path, usage: str) -> tuple[Path, Path]:
+    """A fake interpreter whose ``--help`` prints ``usage`` and whose every other run is logged and fails."""
+    calls = tmp_path / "calls.txt"
+    python = tmp_path / "python"
+    python.write_text(
+        f'#!/bin/sh\ncase "$*" in *--help*) echo "usage: ... {usage} ..."; exit 0;; esac\n'
+        f'echo "$*" >> "{calls}"\necho "stub failure" >&2\nexit 1\n',
+        encoding="utf-8",
+    )
+    python.chmod(python.stat().st_mode | stat.S_IEXEC)
+    return python, calls
+
+
 @pytest.mark.skipif(sys.platform == "win32", reason="the fake interpreter is a POSIX shell script")
 @pytest.mark.parametrize(("usage", "serial"), [("[--jobs N]", True), ("[--campaign SELECTOR]", False)])
 def test_events_runs_get_one_job_only_where_the_revision_takes_it(tmp_path: Path, usage: str, serial: bool) -> None:
@@ -283,14 +296,7 @@ def test_events_runs_get_one_job_only_where_the_revision_takes_it(tmp_path: Path
     matrix.write_text('[[events]]\nid = "bare"\nargs = []\n', encoding="utf-8")
     config = tmp_path / "config.toml"
     config.write_text("", encoding="utf-8")
-    calls = tmp_path / "calls.txt"
-    python = tmp_path / "python"
-    python.write_text(
-        f'#!/bin/sh\ncase "$*" in *--help*) echo "usage: ... {usage} ..."; exit 0;; esac\n'
-        f'echo "$*" >> "{calls}"\nexit 1\n',
-        encoding="utf-8",
-    )
-    python.chmod(python.stat().st_mode | stat.S_IEXEC)
+    python, calls = _stub_python(tmp_path, usage)
 
     measure(
         python=str(python),
@@ -306,6 +312,137 @@ def test_events_runs_get_one_job_only_where_the_revision_takes_it(tmp_path: Path
     (run,) = calls.read_text(encoding="utf-8").splitlines()
     assert " events " in f" {run} "
     assert ("--jobs 1" in run) is serial
+
+
+GROUPABLE = (
+    '[[events]]\nid = "major"\nargs = ["--narrative", "--constituents", "evidence", "--format", "json", '
+    '"--min-significance", "major"]\n'
+    '[[events]]\nid = "bare"\nargs = ["--narrative", "--format", "json"]\n'
+    '[[events]]\nid = "minor-all"\nargs = ["--narrative", "--format", "json", "--min-significance=minor", '
+    '"--constituents=all"]\n'
+    '[[narrate]]\nid = "default"\npackage = "major"\nargs = []\n'
+)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake interpreter is a POSIX shell script")
+def test_a_revision_without_events_output_is_measured_per_entry_with_one_job(tmp_path: Path) -> None:
+    samples = synthetic_samples(tmp_path)
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text(GROUPABLE, encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    python, calls = _stub_python(tmp_path, "[--jobs N] [--campaign SELECTOR]")
+
+    measure(
+        python=str(python),
+        samples=samples,
+        matrix_path=matrix,
+        config=config,
+        out=tmp_path / "out",
+        label="test",
+        chars_per_token=3,
+        jobs=8,
+        log=None,
+    )
+
+    runs = calls.read_text(encoding="utf-8").splitlines()
+    assert len(runs) == 3
+    assert all("--jobs 1" in run and "--output" not in run for run in runs)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the fake interpreter is a POSIX shell script")
+def test_entries_sharing_their_analysis_run_as_one_process_and_fail_together(tmp_path: Path) -> None:
+    samples = _two_campaign_samples(tmp_path)
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text(GROUPABLE, encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+    python, calls = _stub_python(tmp_path, "[--jobs N] [--output MIN_SIGNIFICANCE:CONSTITUENTS:PATH]")
+    log = io.StringIO()
+
+    metrics = measure(
+        python=str(python),
+        samples=samples,
+        matrix_path=matrix,
+        config=config,
+        out=tmp_path / "out",
+        label="test",
+        chars_per_token=3,
+        jobs=8,
+        log=log,
+    )
+
+    runs = calls.read_text(encoding="utf-8").splitlines()
+    assert len(runs) == 2
+    for run in runs:
+        assert f"--jobs {benchmark_metrics.events_jobs(8, 2)}" in run
+        assert "--min-significance" not in run and "--constituents" not in run
+        outputs = [part for part in run.split() if part.count(":") >= 2]
+        assert [output.split(":", 2)[:2] for output in outputs] == [
+            ["major", "evidence"],
+            ["trivial", "none"],
+            ["minor", "all"],
+        ]
+    for results in metrics["campaigns"].values():
+        assert {run_id: result["exit"] for run_id, result in results["events"].items()} == {
+            "major": 1,
+            "bare": 1,
+            "minor-all": 1,
+        }
+        assert results["narrate"]["default"] == {"exit": None, "error": "events major failed"}
+    assert log.getvalue().count("major, bare, minor-all") == 2
+
+
+@pytest.mark.parametrize(("jobs", "processes", "workers"), [(4, 1, 4), (8, 3, 2), (4, 4, 1), (2, 6, 1), (1, 1, 1)])
+def test_a_grouped_events_process_gets_its_share_of_the_jobs(jobs: int, processes: int, workers: int) -> None:
+    assert benchmark_metrics.events_jobs(jobs, processes) == workers
+
+
+def test_entries_are_grouped_by_their_args_without_the_cut_and_the_constituents() -> None:
+    entries = [
+        {"id": "a", "args": ["--narrative", "--min-significance", "major", "--constituents", "evidence"]},
+        {"id": "b", "args": ["--narrative"]},
+        {"id": "c", "args": ["--format", "json"]},
+        {"id": "d", "args": ["--constituents=all", "--narrative"]},
+    ]
+
+    groups = benchmark_metrics.group_events(entries)
+
+    assert [(group.args, group.outputs) for group in groups] == [
+        (("--narrative",), (("a", "major", "evidence"), ("b", "trivial", "none"), ("d", "trivial", "all"))),
+        (("--format", "json"), (("c", "trivial", "none"),)),
+    ]
+
+
+def test_grouped_packages_are_byte_identical_to_per_entry_ones(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    samples = synthetic_samples(tmp_path)
+    matrix = tmp_path / "matrix.toml"
+    matrix.write_text(GROUPABLE, encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
+
+    def run(out: Path) -> dict[str, Any]:
+        return measure(
+            python=sys.executable,
+            samples=samples,
+            matrix_path=matrix,
+            config=config,
+            out=out,
+            label="test",
+            chars_per_token=3,
+            log=None,
+        )
+
+    grouped = run(tmp_path / "grouped")
+    # A stub interpreter cannot write real packages, so the fallback is forced through the help it reads.
+    monkeypatch.setattr(benchmark_metrics, "_events_help", lambda cli: "usage: ... [--jobs N] ...")
+    per_entry = run(tmp_path / "per-entry")
+
+    assert grouped == per_entry
+    for run_id in ("major", "bare", "minor-all"):
+        written = (tmp_path / "grouped" / "packages" / "politics" / f"{run_id}.json").read_bytes()
+        assert written == (tmp_path / "per-entry" / "packages" / "politics" / f"{run_id}.json").read_bytes()
+    assert grouped["campaigns"]["politics"]["narrate"]["default"]["chapters"] >= 1
 
 
 def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tmp_path: Path) -> None:
@@ -350,11 +487,11 @@ def test_concurrent_campaigns_keep_the_matrix_order_and_log_in_one_piece_each(tm
     assert len(headers) == 2
     assert sum(progress) == 10
     for start in headers:
-        block = lines[start + 1 : start + 8]
-        names = [line.split("─ ", 1)[1].split()[0] for line in block]
-        assert names == ["events", "bare", "major", "broken", "narrate", "default", "orphan"]
-        assert "failed (exit 2)" in block[3]
-        assert block[6].endswith("skipped: events broken failed")
+        block = lines[start + 1 : start + 7]
+        names = [line.split("─ ", 1)[1].split("  ")[0] for line in block]
+        assert names == ["events", "bare, major", "broken", "narrate", "default", "orphan"]
+        assert "failed (exit 2)" in block[2]
+        assert block[5].endswith("skipped: events broken failed")
 
 
 def test_a_malformed_matrix_is_a_usage_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

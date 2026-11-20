@@ -23,11 +23,19 @@ revision. Progress is shown as one aggregate terminal line while campaigns conti
 - each `[[narrate]]` run plans the package of the `events` run it names, with `narrate --package`, and writes
   `narrate/<campaign>/<id>/` (the plan and the requests). It never passes `--send`, so nothing is contacted.
 
-The campaigns are measured at once. Within a campaign every `events` run starts at once, and each `narrate` run as
-soon as the package it plans is written. `--jobs` bounds the commands running together (default: the CPU count). Each
-`events` run gets `events --jobs 1` when the revision measured takes it, so the runs do not each start workers. Each
-`events` run holds a whole campaign in memory, so lower it on a machine with little RAM. The log shows one tree per
-campaign, `events` and `narrate` runs with their times, written in one piece when the campaign is done.
+`[[events]]` entries whose args match once `--min-significance` and `--constituents` are removed form a group, and
+each group is one `events` process that analyses the campaign once and writes every entry's package with
+`events --output MIN_SIGNIFICANCE:CONSTITUENTS:PATH`; an entry without either option gets the `events` default. A
+failed process records its failure on every entry of its group. A revision whose `events --help` has no `--output`
+runs every entry as a process of its own, printing its package.
+
+The campaigns are measured at once. Within a campaign every `events` process starts at once, and each `narrate` run as
+soon as the package it plans is written. `--jobs` bounds the commands running together (default: the CPU count). A
+grouped process gets `events --jobs max(1, jobs // processes)`, `processes` being the groups times the campaigns; in
+the per-entry fallback each process gets `events --jobs 1`, so the runs do not each start workers. Either is passed
+only when the revision measured takes `--jobs`. Each `events` process holds a whole campaign in memory, so lower
+`--jobs` on a machine with little RAM. The log shows one tree per campaign, `events` processes (named by their entries)
+and `narrate` runs with their times, written in one piece when the campaign is done.
 
 Every command is given `--config config.toml`, and `TINARRATIVE_CONFIG` is removed from its environment. A failing
 run is recorded with its exit code and the end of its stderr. For an over-budget `narrate` run, the record also holds
