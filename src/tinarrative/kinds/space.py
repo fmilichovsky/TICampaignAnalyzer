@@ -373,7 +373,7 @@ FACTION_COMBAT_RECORDED = EventKind(
     "faction.combat_recorded",
     _combat_recorded,
     EvidenceRole.EVIDENCE,
-    frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on"}),
+    frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on", "side_dry_mass"}),
     share=ShareOf.COMBAT,
     base=Significance.MINOR,
 )

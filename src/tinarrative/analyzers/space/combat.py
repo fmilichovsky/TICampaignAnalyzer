@@ -3,9 +3,17 @@
 An entry is dated by its record when it carries a date, else by the interval. The same combat may be logged by
 several factions, one event each; matching them is reconstruction. Removed entries are reported literally, never
 assumed pruned. Ship design names are campaign content and are not decoded.
+
+A recorded combat carries each side's dry mass (``side_dry_mass``), priced from the earlier snapshot: a live ship of
+the design there, else the median of its hull class there, else nothing. The snapshot is context; the record names
+the ships (ADR-0007). Weighting by faction kind and capping a lopsided battle are scoring.
 """
 
 from __future__ import annotations
+
+import math
+from collections.abc import Callable
+from functools import cache
 
 from ...kinds.space import FACTION_COMBAT_ENTRY_REMOVED, FACTION_COMBAT_RECORDED
 from ...model.changes import ChangeKind, RecordsDetail, StateChange, StateDiff
@@ -13,8 +21,9 @@ from ...model.entities import EntityDomain, EntityId, EntityRef
 from ...model.events import Confidence, Event, EventSource, SourceRole
 from ...model.records import CombatEntry, RecordSet
 from ...model.snapshot import SaveSnapshot
-from ...model.values import Observed
+from ...model.values import Observed, Unknown
 from ..common import EventBuilder, Lookup, Side, is_unresolved
+from .masses import ShipMasses, ship_masses
 
 LOG_FIELD = "CombatLogs"
 COMBAT_RECORDED = FACTION_COMBAT_RECORDED.event_type
@@ -27,8 +36,9 @@ class CombatAnalyzer:
         lookup = Lookup(before, after)
         build = EventBuilder(before, after, lookup)
         events: list[Event] = []
+        masses = cache(lambda: ship_masses(before))  # the earlier snapshot, priced once and only if a combat needs it
         for change in index.fields(EntityDomain.FACTION, LOG_FIELD):
-            events.extend(_log_events(change, lookup, build))
+            events.extend(_log_events(change, lookup, build, masses))
         return events
 
 
@@ -44,7 +54,39 @@ def attack_count(attacks: Observed) -> Observed:
     return len(attacks) if isinstance(attacks, tuple) else attacks
 
 
-def _attributes(entry: CombatEntry) -> tuple[tuple[str, Observed], ...]:
+def side_dry_mass(entry: CombatEntry, masses: ShipMasses) -> Observed:
+    """Each side's dry mass (kg) in side order; ``Unknown`` when the record does not say enough to price it: sides or
+    ships that do not read, more than two sides, or a single side with a ``HabFaction`` (it does not name the hab).
+
+    A ship whose design and hull class have no live ship counts nothing.
+    """
+    if not isinstance(entry.designs, tuple) or not 1 <= len(entry.designs) <= 2:
+        return Unknown()
+    if len(entry.designs) == 1 and isinstance(entry.hab_faction, EntityRef):
+        return Unknown()
+    totals: list[float] = []
+    for side in entry.designs:
+        if not (isinstance(side, tuple) and isinstance(side[0], EntityRef) and isinstance(side[1], tuple)):
+            return Unknown()
+        parts: list[float] = []
+        for ship in side[1]:
+            if not (
+                isinstance(ship, tuple)
+                and len(ship) == 3
+                and isinstance(ship[0], str)
+                and isinstance(ship[1], str)
+                and isinstance(ship[2], int)
+            ):
+                continue  # not a design triple: it prices nothing
+            parts.append((masses.of(side[0].entity_id, ship[0], ship[1]) or 0.0) * ship[2])
+        totals.append(math.fsum(parts))
+    return tuple(totals)
+
+
+def _attributes(entry: CombatEntry, masses: ShipMasses | None = None) -> tuple[tuple[str, Observed], ...]:
+    priced: tuple[tuple[str, Observed], ...] = (
+        (("side_dry_mass", side_dry_mass(entry, masses)),) if masses is not None else ()
+    )
     return (
         ("sides", entry.sides),
         ("winner", entry.winner),
@@ -52,6 +94,7 @@ def _attributes(entry: CombatEntry) -> tuple[tuple[str, Observed], ...]:
         ("attack_count", attack_count(entry.attacks)),
         ("surprising", entry.surprising),
         ("recorded_on", entry.date),
+        *priced,
     )
 
 
@@ -76,7 +119,9 @@ def _source(change: StateChange, record_set: RecordSet | None, entry: CombatEntr
     return EventSource(change, SourceRole.PRIMARY, None, location)
 
 
-def _log_events(change: StateChange, lookup: Lookup, build: EventBuilder) -> list[Event]:
+def _log_events(
+    change: StateChange, lookup: Lookup, build: EventBuilder, masses: Callable[[], ShipMasses]
+) -> list[Event]:
     """One event per entry added (dated by the entry, else the interval) and per entry removed (interval)."""
     if change.kind is not ChangeKind.RECORDS or not isinstance(change.detail, RecordsDetail):
         return []
@@ -97,7 +142,7 @@ def _log_events(change: StateChange, lookup: Lookup, build: EventBuilder) -> lis
                 id_parts=(faction_id, entry.index),  # the index tells identical entries apart
                 sources=(_source(change, after_set, entry),),
                 entities=_entities(owner, entry, lookup),
-                attributes=_attributes(entry),
+                attributes=_attributes(entry, masses()),
                 confidence=_confidence(entry),
                 recorded_on=entry.date,
             )

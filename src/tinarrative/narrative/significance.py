@@ -14,7 +14,7 @@ from enum import StrEnum
 
 from ..analyzers.common import Lookup, Side
 from ..analyzers.politics.bands import ALWAYS_MAJOR, COHESION_EXTREMES, UNREST_SEVERE, crossed, crosses
-from ..analyzers.space.combat import LOG_FIELD as COMBAT_LOG
+from ..analyzers.space.combat import side_factions
 from ..kinds import kind_for
 from ..kinds.nations import REGION_NATION_CHANGED
 from ..kinds.space import SHIP_APPEARED
@@ -23,12 +23,11 @@ from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import SIGNIFICANCE_ORDER, Event, Role, Significance, SignificanceBasis
 from ..model.kinds import EventKind, Measure, Rule, ShareOf
-from ..model.records import CombatEntry
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
 from .measures import MEASURES, SCALE_MAX, SCALE_MIN
 from .milestones import MILESTONE_TEMPLATES, milestone_of
-from .shares import ALIEN_MASS_WEIGHT, FLEET_SATURATION, SaveShares, ShipMasses, contested_mass, total
+from .shares import ALIEN_MASS_WEIGHT, FLEET_SATURATION, SaveShares, contested_mass, total
 
 __all__ = [
     "RULE_IMPLEMENTATIONS",
@@ -244,67 +243,30 @@ class IntervalShares:
         return self._saves[side].world_warheads
 
 
-def _is_design_count(value: object) -> bool:
-    """A ``CombatEntry.designs`` triple: design, hull class, count."""
-    return (
-        isinstance(value, tuple)
-        and len(value) == 3
-        and isinstance(value[0], str)
-        and isinstance(value[1], str)
-        and isinstance(value[2], int)
-    )
-
-
-def _contested_share(
-    event: Event, shares: IntervalShares, lookup: Lookup
-) -> tuple[float, tuple[EntityRef, ...]] | None:
+def _contested_share(event: Event, shares: IntervalShares) -> tuple[float, tuple[EntityRef, ...]] | None:
     """A recorded combat's contested mass over the world's weighted ship mass in the interval's earlier snapshot,
-    with the factions of its sides; ``None`` when the record does not say enough to measure it.
+    with the factions of its sides; ``None`` when the event does not carry enough to measure it.
 
-    Each side's mass is its ships' dry mass (a live ship of the design in the earlier snapshot, else the median of
-    its hull class there, else nothing), alien ships weighted up. A record with one side and a ``HabFaction``
-    does not name the hab, so it is not measured; one side without is contested mass 0.
+    Each side's mass is the event's ``side_dry_mass`` (priced by the analyzer), alien ships weighted up by the
+    faction kinds the event carries. An event with one side is contested mass 0 (the analyzer leaves the mass of a
+    one-sided record with a ``HabFaction`` unknown, as the hab is not named).
     """
-    entry = _combat_entry(event, lookup)
-    if entry is None or not isinstance(entry.designs, tuple):
+    masses = event.attribute("side_dry_mass")
+    factions = side_factions(event.attribute("sides"))
+    if not isinstance(masses, tuple) or not 1 <= len(masses) <= 2 or len(masses) != len(factions):
         return None
-    sides: list[tuple[EntityRef, tuple[tuple[str, str, int], ...]]] = []
-    for side in entry.designs:
-        if not (isinstance(side, tuple) and isinstance(side[0], EntityRef) and isinstance(side[1], tuple)):
-            return None
-        sides.append((side[0], tuple(ship for ship in side[1] if _is_design_count(ship))))  # type: ignore[misc]
-    if not 1 <= len(sides) <= 2 or (len(sides) == 1 and isinstance(entry.hab_faction, EntityRef)):
+    kinds = event.attribute("faction_kinds")
+    kind_of = dict(kinds.items) if isinstance(kinds, FrozenMap) else {}
+    weighted = [
+        (ALIEN_MASS_WEIGHT if kind_of.get(str(faction.entity_id)) == "alien" else 1.0) * mass
+        for faction, mass in zip(factions, masses, strict=True)
+        if isinstance(mass, int | float)
+    ]
+    if len(weighted) != len(masses):
         return None
-    earlier = shares.save(Side.BEFORE)
-    masses = [_side_mass(faction, ships, earlier.masses, lookup) for faction, ships in sides]
-    contested = contested_mass(masses[0], masses[1]) if len(masses) == 2 else 0.0
-    world = max(earlier.world_ship_mass, FLEET_SATURATION)
-    return contested / world, tuple(lookup.resolve(faction) or faction for faction, _ in sides)
-
-
-def _side_mass(
-    faction: EntityRef, ships: tuple[tuple[str, str, int], ...], masses: ShipMasses, lookup: Lookup
-) -> float:
-    weight = ALIEN_MASS_WEIGHT if lookup.faction_kind(faction.entity_id) == "alien" else 1.0
-    return weight * math.fsum(
-        (masses.of(faction.entity_id, design, hull) or 0.0) * count for design, hull, count in ships
-    )
-
-
-def _combat_entry(event: Event, lookup: Lookup) -> CombatEntry | None:
-    """The entry a ``faction.combat_recorded`` event rests on, found by its record index."""
-    source = event.sources[0] if event.sources else None
-    location = source.entry if source is not None else None
-    owner = event.entities[0] if event.entities else None
-    if location is None or location.path is None or owner is None:
-        return None
-    tail = location.path.rsplit("/", 1)[-1]
-    record_set = lookup.record_set(owner.entity_id, COMBAT_LOG, Side.AFTER)
-    if not tail.isdigit() or record_set is None or not isinstance(record_set.entries, tuple):
-        return None
-    return next(
-        (item for item in record_set.entries if isinstance(item, CombatEntry) and item.index == int(tail)), None
-    )
+    contested = contested_mass(weighted[0], weighted[1]) if len(weighted) == 2 else 0.0
+    world = max(shares.save(Side.BEFORE).world_ship_mass, FLEET_SATURATION)
+    return contested / world, factions
 
 
 Selector = Callable[[Event, Sequence[Event]], tuple[EntityRef, ...]]
@@ -318,8 +280,8 @@ class ShareVariant(StrEnum):
     PER_POINT = "per_point"
     """The share of a single control point: the nation's, divided by the points it holds."""
     BATTLE = "battle"
-    """The share is read from the record entry the event rests on (``_contested_share``, which needs the snapshot
-    lookup), not from the shares of the entities."""
+    """The share is read from the side masses the event carries (``_contested_share``), not from the shares of the
+    entities."""
     NET_MOVE = "net_move"
     """The share is the arc's net move over the world total at its larger end (``_nuclear_share``)."""
 
@@ -524,13 +486,10 @@ def _basis(
     level: Significance,
     shares: IntervalShares,
     last: IntervalShares,
-    lookup: Lookup | None,
 ) -> SignificanceBasis | None:
     share: float | None
     if reading.variant is ShareVariant.BATTLE:
-        if lookup is None:
-            raise ValueError(f"a battle share of {event.event_type} needs the snapshot lookup")
-        measured = _contested_share(event, shares, lookup)
+        measured = _contested_share(event, shares)
         if measured is None:
             return None
         share, refs = measured
@@ -630,7 +589,7 @@ def score_event(
 
     ``shares`` are the saves' shares of the event's first interval, without them there is no basis; ``last`` those of
     its last interval (by default the first's), read only by the nuclear share. ``lookup`` is the snapshots' lookup,
-    for the rules and the battle share that need it. ``reading`` and ``base`` override the kind's own share and base
+    for the rules that need it. ``reading`` and ``base`` override the kind's own share and base
     level; the context rule still decides first, ``base`` applying only where it defers. ``floored`` is false where
     the cited events only locate the share's entities and their scores must not lift the event: an atomic event's
     evidence.
@@ -641,7 +600,7 @@ def score_event(
     named = kind.share
     reading = reading or (SHARE_IMPLEMENTATIONS[named] if named is not None else None)
     basis = (
-        _basis(reading, event, cited, level, shares, last or shares, lookup)
+        _basis(reading, event, cited, level, shares, last or shares)
         if reading is not None and shares is not None
         else None
     )
