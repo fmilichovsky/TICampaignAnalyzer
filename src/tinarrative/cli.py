@@ -128,10 +128,14 @@ _CONFIG: ExitCodes = ((EXIT_CONFIG_ERROR, "the settings file cannot be read or i
 EXIT_CODES: dict[str, ExitCodes] = {
     "campaigns": ((EXIT_SUCCESS, "the listing was printed."), *_USAGE, *_SAVE_INPUT),
     "events": (
-        (EXIT_SUCCESS, "the report was printed."),
-        (EXIT_USAGE_ERROR, "usage error or no campaign chosen."),
+        (EXIT_SUCCESS, "the report was printed, or every --output file was written."),
+        (
+            EXIT_USAGE_ERROR,
+            "usage error, no campaign chosen, or --output with --min-significance or --constituents.",
+        ),
         *_SAVE_INPUT,
         *_CONFIG,
+        (EXIT_OUTPUT_ERROR, "an --output file cannot be written; the files before it are kept."),
     ),
     "narrate": (
         (EXIT_SUCCESS, "the plan was printed; with --send, the history was assembled."),
@@ -273,6 +277,9 @@ EXIT_CODES: dict[str, ExitCodes] = {
 
 NARRATE_MIN_SIGNIFICANCE = Significance.MAJOR
 NARRATE_CONSTITUENTS: Constituents = "evidence"
+EVENTS_MIN_SIGNIFICANCE = Significance.TRIVIAL
+EVENTS_CONSTITUENTS: Constituents = "none"
+SIGNIFICANCE_LEVELS = tuple(level.value for level in SIGNIFICANCE_ORDER)
 BENCHMARK_ROOT = Path("benchmarks")
 BENCHMARK_SAMPLES_DIR = BENCHMARK_ROOT / "samples"
 CALIBRATION_OUT_DIR = Path("build") / "calibration"
@@ -305,6 +312,34 @@ def _positive_float(text: str) -> float:
     if value < 1:
         raise argparse.ArgumentTypeError(f"expected a value >= 1, got {value}")
     return value
+
+
+@dataclass(frozen=True)
+class _EventsOutput:
+    """One ``events --output`` value: the significance cut and constituents of one report, and where it goes."""
+
+    min_significance: Significance
+    constituents: Constituents
+    path: Path
+
+
+def _events_output(text: str) -> _EventsOutput:
+    """Parse ``MIN_SIGNIFICANCE:CONSTITUENTS:PATH``; the path may itself hold colons."""
+    parts = text.split(":", 2)
+    if len(parts) != 3:
+        raise argparse.ArgumentTypeError(f"expected MIN_SIGNIFICANCE:CONSTITUENTS:PATH, got {text!r}")
+    minimum, constituents, path = parts
+    if minimum not in SIGNIFICANCE_LEVELS:
+        raise argparse.ArgumentTypeError(
+            f"unknown significance {minimum!r} in {text!r}; expected one of {', '.join(SIGNIFICANCE_LEVELS)}"
+        )
+    if constituents not in CONSTITUENTS:
+        raise argparse.ArgumentTypeError(
+            f"unknown constituents {constituents!r} in {text!r}; expected one of {', '.join(CONSTITUENTS)}"
+        )
+    if not path:
+        raise argparse.ArgumentTypeError(f"no path in {text!r}")
+    return _EventsOutput(Significance(minimum), constituents, Path(path))
 
 
 def _run_inspect(args: argparse.Namespace) -> int:
@@ -1180,6 +1215,15 @@ def _dossier_summary(dossier: dict[str, Any]) -> str:
 
 def _run_events(args: argparse.Namespace) -> int:
     """Order saves by game time and report the analyzer results of every consecutive pair."""
+    outputs = cast("list[_EventsOutput]", args.output)
+    single = [flag for flag, key in _EVENTS_PER_OUTPUT if getattr(args, key) is not None]
+    if outputs and single:
+        print(
+            f"tinarrative events: {' and '.join(single)} with --output is ambiguous; give each report its own "
+            "MIN_SIGNIFICANCE:CONSTITUENTS in --output",
+            file=sys.stderr,
+        )
+        return EXIT_USAGE_ERROR
     settings = _resolve_settings("events", cast("Path | None", args.config))
     if isinstance(settings, int):
         return settings
@@ -1202,9 +1246,51 @@ def _run_events(args: argparse.Namespace) -> int:
     if isinstance(run, int):
         return run
     survey, analysis = run
+    if outputs:
+        for output in outputs:
+            rendered = _events_report(args, settings, survey, analysis, output.min_significance, output.constituents)
+            try:
+                output.path.parent.mkdir(parents=True, exist_ok=True)
+                output.path.write_text(rendered, encoding="utf-8", newline="\n")
+            except OSError as error:
+                print(f"tinarrative events: cannot write {output.path}: {error.strerror or error}", file=sys.stderr)
+                return EXIT_OUTPUT_ERROR
+    else:
+        given = cast("str | None", args.min_significance)
+        minimum = EVENTS_MIN_SIGNIFICANCE if given is None else Significance(given)
+        constituents = cast("Constituents | None", args.constituents) or EVENTS_CONSTITUENTS
+        sys.stdout.write(_events_report(args, settings, survey, analysis, minimum, constituents))
+        sys.stdout.flush()
+    plan, intervals, narrative = analysis.plan, analysis.intervals, analysis.narrative
+    logger.info(
+        "events done %s",
+        fields(
+            saves=len(plan.saves),
+            intervals=len(intervals),
+            skipped=len(plan.skipped),
+            events=len(event_stream(intervals)),
+            narrative=None if narrative is None else len(narrative),
+            outputs=len(outputs) or None,
+            exit=EXIT_SUCCESS,
+        ),
+    )
+    return EXIT_SUCCESS
+
+
+_EVENTS_PER_OUTPUT = (("--min-significance", "min_significance"), ("--constituents", "constituents"))
+"""The ``events`` options that ``--output`` sets per report, so they cannot be given with it."""
+
+
+def _events_report(
+    args: argparse.Namespace,
+    settings: Settings,
+    survey: Survey,
+    analysis: CampaignAnalysis,
+    minimum: Significance,
+    constituents: Constituents,
+) -> str:
+    """One ``events`` report of an analyzed campaign, cut at ``minimum`` and listing ``constituents``."""
     plan, intervals, campaign, narrative = analysis.plan, analysis.intervals, analysis.campaign, analysis.narrative
-    minimum = Significance(cast(str, args.min_significance))
-    constituents = cast(Constituents, args.constituents)
     if args.format == "json":
         document = build_document(
             plan,
@@ -1215,36 +1301,20 @@ def _run_events(args: argparse.Namespace) -> int:
             min_significance=minimum,
             constituents=constituents,
         )
-        rendered = json.dumps(document, indent=2, ensure_ascii=True) + "\n"
-    else:
-        left_out = len(survey.saves) - len(campaign.members)
-        rendered = render_sequence(
-            plan,
-            intervals,
-            min_significance=minimum,
-            constituents=constituents,
-            campaign=campaign,
-            left_out=left_out,
-            narrative=narrative,
-            changed_settings={
-                key: value for key, value in settings.differences(DEFAULT_SETTINGS).items() if key.startswith("events.")
-            },
-            period=cast(Period, args.period),
-        )
-    sys.stdout.write(rendered)
-    sys.stdout.flush()
-    logger.info(
-        "events done %s",
-        fields(
-            saves=len(plan.saves),
-            intervals=len(intervals),
-            skipped=len(plan.skipped),
-            events=len(event_stream(intervals)),
-            narrative=None if narrative is None else len(narrative),
-            exit=EXIT_SUCCESS,
-        ),
+        return json.dumps(document, indent=2, ensure_ascii=True) + "\n"
+    return render_sequence(
+        plan,
+        intervals,
+        min_significance=minimum,
+        constituents=constituents,
+        campaign=campaign,
+        left_out=len(survey.saves) - len(campaign.members),
+        narrative=narrative,
+        changed_settings={
+            key: value for key, value in settings.differences(DEFAULT_SETTINGS).items() if key.startswith("events.")
+        },
+        period=cast(Period, args.period),
     )
-    return EXIT_SUCCESS
 
 
 def _run_narrate(args: argparse.Namespace) -> int:
@@ -1918,15 +1988,24 @@ def _add_events_parser(subcommands: Subcommands) -> None:
     _add_format_argument(parser, ("markdown", "json"))
     parser.add_argument(
         "--min-significance",
-        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
-        default=Significance.TRIVIAL.value,
-        help="Lowest significance listed; with --narrative, of the narrative events (default %(default)s).",
+        choices=SIGNIFICANCE_LEVELS,
+        help="Lowest significance listed; with --narrative, of the narrative events "
+        f"(default {EVENTS_MIN_SIGNIFICANCE.value}).",
     )
     parser.add_argument(
         "--constituents",
         choices=CONSTITUENTS,
-        default="none",
-        help="With --narrative, which events behind the listed narrative events to list (default %(default)s).",
+        help="With --narrative, which events behind the listed narrative events to list "
+        f"(default {EVENTS_CONSTITUENTS}).",
+    )
+    parser.add_argument(
+        "--output",
+        type=_events_output,
+        action="append",
+        default=[],
+        metavar="MIN_SIGNIFICANCE:CONSTITUENTS:PATH",
+        help="Write the report to PATH with this significance cut and constituents instead of printing it; "
+        "repeatable, the campaign is analyzed once. Not with --min-significance or --constituents.",
     )
     parser.add_argument(
         "--period",
@@ -1964,7 +2043,7 @@ def _add_narrate_parser(subcommands: Subcommands) -> None:
     parser.add_argument("--campaign", metavar="SELECTOR", help=CAMPAIGN_HELP)
     parser.add_argument(
         "--min-significance",
-        choices=tuple(level.value for level in SIGNIFICANCE_ORDER),
+        choices=SIGNIFICANCE_LEVELS,
         default=None,
         help=f"Lowest significance of a narrative event told, from saves (default {NARRATE_MIN_SIGNIFICANCE.value}).",
     )

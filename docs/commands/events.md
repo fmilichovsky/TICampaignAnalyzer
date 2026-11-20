@@ -4,8 +4,9 @@
 ```
 tinarrative events [--campaign SELECTOR] [--format {markdown,json}]
                    [--min-significance {trivial,minor,major,campaign_defining}]
-                   [--constituents {all,evidence,none}] [--period {year,half,quarter}] [--inferred]
-                   [--changes] [--narrative] [--config FILE] [--jobs N]
+                   [--constituents {all,evidence,none}]
+                   [--output MIN_SIGNIFICANCE:CONSTITUENTS:PATH] [--period {year,half,quarter}]
+                   [--inferred] [--changes] [--narrative] [--config FILE] [--jobs N]
                    PATH [PATH ...]
 ```
 <!-- end generated -->
@@ -30,6 +31,10 @@ tinarrative events ~/saves --narrative --format json > package.json
 
 # Audit a package: every ID in it resolves here, with its sources.
 tinarrative events ~/saves --inferred --format json > audit.json
+
+# Two narrator packages from one analysis: a major digest and the full package.
+tinarrative events ~/saves --narrative --format json \
+  --output major:evidence:major.json --output trivial:all:full.json
 ```
 
 ## Options
@@ -42,6 +47,7 @@ tinarrative events ~/saves --inferred --format json > audit.json
 | `--format markdown\|json` | Report format (default markdown). |
 | `--min-significance trivial\|minor\|major\|campaign_defining` | Lowest significance listed; with --narrative, of the narrative events (default trivial). |
 | `--constituents all\|evidence\|none` | With --narrative, which events behind the listed narrative events to list (default none). |
+| `--output MIN_SIGNIFICANCE:CONSTITUENTS:PATH` | Write the report to PATH with this significance cut and constituents instead of printing it; repeatable, the campaign is analyzed once. Not with --min-significance or --constituents. |
 | `--period year\|half\|quarter` | How the Markdown narrative section is grouped (default year). |
 | `--inferred` | Also list the events inferred in each interval, with the results they rest on. |
 | `--changes` | Also list every literal state change under its interval; not with --narrative --format json. |
@@ -49,6 +55,9 @@ tinarrative events ~/saves --inferred --format json > audit.json
 | `--config FILE` | TOML settings file (default: $TINARRATIVE_CONFIG, else the built-in settings). |
 | `--jobs N` | Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs). |
 <!-- end generated -->
+
+Each `--output` file is byte for byte the report a separate run with that `--min-significance` and `--constituents`
+would print; every other option applies to all of them.
 
 The thresholds of the narrative rules are [settings](../configuration.md); a report built with non-default settings
 says so.
@@ -89,9 +98,10 @@ and, with `--constituents all` or `evidence`, the events behind them, but no fil
 <!-- generated: exit-codes events -->
 | Code | When |
 | --- | --- |
-| 0 | The report was printed. |
-| 2 | Usage error or no campaign chosen. |
+| 0 | The report was printed, or every --output file was written. |
+| 2 | Usage error, no campaign chosen, or --output with --min-significance or --constituents. |
 | 4 | A named path cannot be read, or a named directory holds no usable save. |
 | 5 | A named file is not a supported save or has no game time. |
 | 8 | The settings file cannot be read or is not valid settings. |
+| 9 | An --output file cannot be written; the files before it are kept. |
 <!-- end generated -->
