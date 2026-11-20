@@ -151,3 +151,13 @@ No evidence block is possible: the markdown output is not built.
 6. **Smell note, for the theme prototype**: this kind has only two scores, 37 and 62, yet flat scores would not be
    raised, because 10th to 90th percentile spans 25 points. A kind whose level is all rule and no share slips
    through.
+
+## Settled with the dev (2026-11-20)
+
+- **Rule switch in the calibration state**: a new build piece. The state can turn a type's context rule off, as it
+  switches a base level. That is how a share that retires a rule is tried.
+- **Steps reordered** as in point 2 above, with step 4 reading the movers, the events nearest each share and the
+  must-tell candidates. [SKILL.md](SKILL.md) is now v2.
+- **An existing item gets a comment and the add-draft PR**, never a new issue, then a stop for the dev.
+- **Held or moved is #361's own question**, recorded there with the other two. This ticket takes only the lesson: a
+  scoring question writes down what quantity, exactly, before any number.

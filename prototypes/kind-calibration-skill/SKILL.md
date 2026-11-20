@@ -1,14 +1,16 @@
 ---
 name: kind-calibration
-description: Calibrate one event kind's base level, reason line and scaling against the sample campaigns. Use inside a calibration review once it has classified a sign as a value or scoring question, or in a feature PR that adds an event kind.
+description: Calibrate one event kind's base level, reason line and scaling against the sample campaigns. Use inside a calibration review once it hands over a value or scoring question for a kind, or in a feature PR that adds an event kind.
 ---
 
-<!-- PROTOTYPE for https://github.com/fmilichovsky/TICampaignAnalyzer/issues/578. Throwaway; not the real skill. -->
+<!-- PROTOTYPE v2 for https://github.com/fmilichovsky/TICampaignAnalyzer/issues/578, revised after the walkthrough
+(walkthrough.md). Throwaway; not the real skill. Commands marked (build) do not exist yet. -->
 
 # Kind calibration
 
-Judge **one event kind**: its ordinary instance, base level, reason line and, if it scales, its measure and its rise
-and drop shares. The result is a **value proposal** (a PR) or a **scoring proposal** (an issue, then a draft share).
+Judge **one event kind**: what separates its instances, its measure, its base level with its rise and drop shares,
+and its reason line. The result is a **value proposal** (a PR) or a **scoring proposal** (an issue, then a draft
+share).
 
 Read first, every run: `docs/editorial-direction.md` (what each level means), `docs/calibration-principles.md` (how a
 base level and a scaling are judged). `CONTEXT.md` and ADR-0011 for lookup only.
@@ -17,73 +19,79 @@ base level and a scaling are judged). `CONTEXT.md` and ADR-0011 for lookup only.
 
 You arrive with exactly one of:
 
-- **From a review**: the review issue, the kind, the **sign** that sent you and the **reason** already written about
-  the class of events. Keep that reason; refine it, never replace it with one fitted to a state you tried.
-- **From a feature PR**: the new kind's types. There is no review issue; the proposal is the PR itself.
+- **A sign from a review**: the review issue, the kind, the sign and the reason already written about the class of
+  events. Keep that reason; refine it, never replace it with one fitted to a state you tried.
+- **An existing calibration item** (a registry seed, such as a scoring proposal filed earlier): the item's claim is
+  the sign and its class is given. Your output goes on that item; you never file a second issue for it.
+- **A feature PR**: the new kind's types. There is no review issue; the proposal is the PR itself.
 
 Record the code state before anything else: the commit and the `--state` hash of the code's calibration state.
 
 ## Steps
 
-### 1. The ordinary instance
-
-List every instance of the kind on every reviewable sample campaign:
+### 1. Instances and what separates them
 
 ```sh
-tinarrative benchmark calibrate report --view events --type <type> --format json
+tinarrative benchmark calibrate report --view events --type <type>   # (build)
 ```
 
-Done when you can name the instance between the kind's rise and drop shares (scaled) or the instance seen most often
-(unscaled), and quote two real events as examples of it.
+Name what makes one instance deserve more than another (who it happens to, how much moved, why) and quote real
+events for each side. Done when that difference is one sentence a game quantity could test, or you can say that
+nothing separates the instances, so the kind is unscaled.
 
-### 2. Base level and reason line
+### 2. The measure
 
-Judge the ordinary instance against the direction's four level meanings: what level does a reader need it at, told
-alone? Set the base level and write the reason line on the kind (`reason=`), naming the principle it applies. An
-unchanged base keeps its level and gets its reason; `unexamined` is gone after this step.
+Skip for an unscaled kind. Does a measure the kind reads, or could read, test step 1's sentence?
 
-Done when the kind's declaration has a reason line that cites a principle by name and holds no count or issue number.
+- **Yes, and the kind already reads it**: a value question. Go to step 3.
+- **No, or it reads the wrong quantity**: a scoring question. First write down **what quantity, exactly**: a share
+  held before, held after, or moved, and of which world total. Until that sentence is settled, do not try
+  any number. Then add a draft share:
+  - a new `Measure` and its share function if needed, a `DraftShare` with custom selectors where a reading must
+    skip candidates (for example the measures that did not move);
+  - `pytest --update-goldens` for the calibration table golden.
 
-### 3. Scaling
+  This is code you may write without the dev's go: a draft changes no real score
+  ([draft shares](../../docs/commands/benchmark.md#draft-shares)).
+- **A context rule decides what the share should**: switch the rule off in the state while you try the share
+  (`rule=<type>:off`, build).
 
-Skip when the instances all deserve the base level. Otherwise ask: **does the kind's measure order its instances the
-way they deserve?**
+Done when the measure is named and the quantity sentence is written.
+
+### 3. Base level, rise and drop shares, reason line
 
 ```sh
-tinarrative benchmark calibrate report --view distribution --type <type>
+tinarrative benchmark calibrate report --view distribution --type <type>   # (build)
 ```
 
-- **Yes, only the numbers sit wrong** → a value question. State the rise share (and a drop share only if the default
-  width is wrong) as a **game quantity**: the smallest entity whose instance still deserves one level more. Try it:
-  `--scaling <name>=rise:<share>` or a split scaling for this kind.
-- **No measure orders them, or it reads the wrong quantity** → a scoring question. Name what should separate the
-  instances and stop at step 5's scoring branch. If a measure is missing, a draft share can be tried (see
-  [draft shares](../../docs/commands/benchmark.md#draft-shares)) before the dev's go, because it changes no real score.
+Judge them together: the ordinary instance is the one between the rise and drop shares. State the rise share (and a
+drop share only if the default width is wrong) as a **game quantity**: the smallest entity whose instance still
+deserves one level more. Write the kind's reason line naming the principle it applies; it holds no count or issue
+number.
 
-Done when every rise and drop share has a game-quantity reason, or the scoring question is written down.
+Done when every share has a game-quantity reason and the base has its reason line.
 
-### 4. Every instance, every campaign
+### 4. Check
 
-Replay the tried state and read every instance of the kind on every campaign, not only the movers:
+Replay the tried state on every campaign and read:
 
-```sh
-tinarrative benchmark calibrate report --state '<hash>' --view events --type <type>
-tinarrative benchmark calibrate report --state '<hash>' --view must-tell --view smells
-```
+- every instance that moves level;
+- the instances nearest each rise and drop share;
+- every must-tell candidate of the kind (`--view must-tell`, build).
 
-Each instance either sits at the level it deserves or is listed with why not. A worsened must-tell verdict is listed
-first, never hidden; it may mean the entry is wrong rather than the state.
-
-Done when no instance is unaccounted for.
+Everything else you read as counts per level and campaign. A worsened must-tell verdict is listed first, never
+hidden; it may mean the entry is wrong rather than the state. Done when each instance read sits at the level it
+deserves or is listed with why not.
 
 ### 5. The proposal
 
 - **Value proposal**: one PR, label `calibration`, the evidence block generated by
-  `tinarrative benchmark calibrate report --state '<hash>' --format markdown`, with only the Reason written by you.
-  Draft PR with the open question on top when a must-tell verdict worsened or coverage is thin on everything it
-  touches.
-- **Scoring proposal**: an issue first (reason, event types, measure, what the share should separate, example events
-  from step 1), label `calibration`, a Touches line. When a measure is missing, the add-draft PR may follow at once.
+  `calibrate report --state '<hash>' --format markdown` (build), with only the Reason written by you. Draft PR with
+  the open question on top when a must-tell verdict worsened or coverage is thin on everything it touches.
+- **Scoring proposal, new**: an issue first (reason, event types, quantity sentence, measure, example events), label
+  `calibration`, a Touches line; the add-draft PR may follow at once.
+- **Scoring proposal, existing item**: a comment on the item with the reason, the quantity sentence or the question
+  that blocks it, and the draft's numbers; the add-draft PR. Then stop: graduating needs the dev's go on the item.
 - From a review, link the result on the review issue and record each rejected try there with its reason.
 
 ## Stops
