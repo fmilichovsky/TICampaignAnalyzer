@@ -217,6 +217,34 @@ def measure(
     }
 
 
+MERGE_METADATA = ("tool_version", "run", "args", "repeats", "samples_sha256")
+
+
+def merge(documents: Sequence[Mapping[str, Any]], *, samples_sha256: str | None) -> dict[str, Any]:
+    """One runtime file from per-campaign ones, as a single measurement of all the campaigns would have written it.
+
+    The files must agree on the tool version, run, args, repeats and samples hash, and no campaign may be in more
+    than one of them; otherwise ``ValueError``. The merged file records ``samples_sha256`` as the samples hash.
+    """
+    if not documents:
+        raise ValueError("nothing to merge")
+    first = documents[0]
+    for document in documents[1:]:
+        for key in MERGE_METADATA:
+            if first[key] != document[key]:
+                raise ValueError(f"the runtime files differ in {key}: {first[key]!r} and {document[key]!r}")
+    sides: dict[str, dict[str, Any]] = {
+        side: {"label": entry["label"], "campaigns": {}} for side, entry in first["sides"].items()
+    }
+    for document in documents:
+        for side, merged in sides.items():
+            for name, result in document["sides"][side]["campaigns"].items():
+                if name in merged["campaigns"]:
+                    raise ValueError(f"campaign {name!r} appears in more than one input")
+                merged["campaigns"][name] = result
+    return {**first, "samples_sha256": samples_sha256, "sides": sides}
+
+
 # Reporting
 
 

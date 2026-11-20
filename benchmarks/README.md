@@ -123,8 +123,8 @@ is the sign of superlinear cost.
 
 [`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) measures each sample campaign in a
 separate job. Each job measures the base and head on the same runner, with three repeats, and a final job combines the
-results into the report. Timings from different runners are not comparable, which is why each campaign's two revisions
-stay together.
+results with [`benchmark runtime merge`](../docs/commands/benchmark.md#benchmark-runtime-merge) into the report.
+Timings from different runners are not comparable, which is why each campaign's two revisions stay together.
 
 Locally:
 

@@ -229,6 +229,39 @@ tinarrative benchmark runtime measure --out build/runtime.json --base-python ../
 | 9 | The runtime JSON cannot be written. |
 <!-- end generated -->
 
+## `benchmark runtime merge`
+
+<!-- generated: synopsis benchmark runtime merge -->
+```
+tinarrative benchmark runtime merge --out FILE [--samples PATH] FILE [FILE ...]
+```
+<!-- end generated -->
+
+Combines the runtime JSON files of single campaigns (see `measure --campaign`) into the one file that `report` reads.
+The inputs must come from the same measurement setup, and no campaign may be in two of them.
+Otherwise nothing is written. The merged file records the hash of the `samples.json` under `--samples`.
+
+```sh
+tinarrative benchmark runtime merge build/protectorate/runtime.json build/resist/runtime.json --out build/runtime.json
+```
+
+<!-- generated: options benchmark runtime merge -->
+| Option | Meaning |
+| --- | --- |
+| `FILE...` | A per-campaign runtime JSON file. |
+| `--out FILE` | The merged runtime JSON file to write. |
+| `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
+<!-- end generated -->
+
+<!-- generated: exit-codes benchmark runtime merge -->
+| Code | When |
+| --- | --- |
+| 0 | The merged runtime JSON was written. |
+| 2 | Usage error, runtime files that differ in their metadata, or a campaign in two of them. |
+| 4 | A runtime file cannot be read or is not a runtime file, or --samples has no samples.json. |
+| 9 | The merged file cannot be written. |
+<!-- end generated -->
+
 ## `benchmark runtime report`
 
 <!-- generated: synopsis benchmark runtime report -->

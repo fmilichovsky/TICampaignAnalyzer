@@ -137,43 +137,8 @@ jobs:
           path: .bench/results
       - name: Combine measurements
         run: |
-          python - <<'PY'
-          import hashlib
-          import json
-          from pathlib import Path
-
-          result_paths = sorted(Path(".bench/results").glob("*/runtime.json"))
-          if not result_paths:
-              raise SystemExit("No per-sample runtime measurements were downloaded")
-
-          results = [json.loads(path.read_text(encoding="utf-8")) for path in result_paths]
-          combined = dict(results[0])
-          for key in ("tool_version", "run", "args", "repeats", "samples_sha256"):
-              if any(result[key] != combined[key] for result in results[1:]):
-                  raise SystemExit(f"Per-sample runtime metadata differs for {key}")
-
-          combined["sides"] = {
-              side: {
-                  "label": results[0]["sides"][side]["label"],
-                  "campaigns": {
-                      campaign: campaign_result
-                      for result in results
-                      for campaign, campaign_result in result["sides"][side]["campaigns"].items()
-                  },
-              }
-              for side in results[0]["sides"]
-          }
-          campaigns = [campaign for result in results for campaign in result["sides"]["head"]["campaigns"]]
-          if len(campaigns) != len(set(campaigns)):
-              raise SystemExit("A campaign appears in more than one runtime measurement")
-          combined["samples_sha256"] = hashlib.sha256(
-              Path("benchmarks/samples/samples.json").read_bytes()
-          ).hexdigest()
-
-          output = Path(".bench/runtime.json")
-          output.parent.mkdir(parents=True, exist_ok=True)
-          output.write_text(json.dumps(combined, indent=2) + "\n", encoding="utf-8")
-          PY
+          python -m tinarrative.cli benchmark runtime merge .bench/results/*/runtime.json \
+            --samples benchmarks/samples --out .bench/runtime.json
       - name: Report
         run: |
           python -m tinarrative.cli benchmark runtime report .bench/runtime.json --out .bench/runtime.md \
