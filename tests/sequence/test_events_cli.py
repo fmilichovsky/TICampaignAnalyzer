@@ -21,6 +21,7 @@ from tinarrative import campaign_analysis, cli
 from tinarrative.cli import (
     EXIT_CONFIG_ERROR,
     EXIT_INPUT_ERROR,
+    EXIT_OUTPUT_ERROR,
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED_INPUT,
     EXIT_USAGE_ERROR,
@@ -755,3 +756,95 @@ def test_the_narrator_package_refuses_literal_changes(
     captured = capsys.readouterr()
     assert captured.out == ""
     assert "carries no state changes" in captured.err
+
+
+OUTPUT_RUNS = [
+    ("major", "evidence"),
+    ("minor", "none"),
+    ("trivial", "all"),
+]
+"""``--output`` values with the significance cut and constituents each separate run is given."""
+
+
+@pytest.mark.parametrize("flags", [["--narrative"], ["--narrative", "--format", "json"], ["--inferred"]])
+def test_each_output_file_is_the_report_of_a_separate_run(
+    flags: list[str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    outputs = [f"{minimum}:{constituents}:{tmp_path / f'{minimum}.out'}" for minimum, constituents in OUTPUT_RUNS]
+
+    assert main(["events", *flags, *(f"--output={value}" for value in outputs), *SHUFFLED]) == EXIT_SUCCESS
+    assert capsys.readouterr().out == ""
+
+    for minimum, constituents in OUTPUT_RUNS:
+        assert (
+            main(["events", *flags, "--min-significance", minimum, "--constituents", constituents, *SHUFFLED])
+            == EXIT_SUCCESS
+        )
+        assert (tmp_path / f"{minimum}.out").read_bytes() == capsys.readouterr().out.encode("utf-8")
+
+
+def test_the_campaign_is_analyzed_once_for_every_output(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    analyzed = cli.analyze_campaign
+    calls: list[object] = []
+
+    def counted(*args: Any, **kwargs: Any) -> Any:
+        calls.append(args)
+        return analyzed(*args, **kwargs)
+
+    monkeypatch.setattr(cli, "analyze_campaign", counted)  # no public way to count analyses but timing
+    outputs = [f"--output={minimum}:{constituents}:{tmp_path / minimum}" for minimum, constituents in OUTPUT_RUNS]
+
+    assert main(["events", "--narrative", *outputs, *SHUFFLED]) == EXIT_SUCCESS
+
+    assert len(calls) == 1
+    assert sorted(path.name for path in tmp_path.iterdir()) == sorted(minimum for minimum, _ in OUTPUT_RUNS)
+
+
+@pytest.mark.parametrize(
+    ("value", "message"),
+    [
+        ("huge:none:report.md", "unknown significance 'huge'"),
+        ("major:some:report.md", "unknown constituents 'some'"),
+        ("major:none:", "no path"),
+        ("major:none", "expected MIN_SIGNIFICANCE:CONSTITUENTS:PATH"),
+    ],
+)
+def test_a_malformed_output_is_a_usage_error_before_any_save_is_read(
+    value: str, message: str, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    with pytest.raises(SystemExit) as result:
+        main(["events", f"--output={value}", str(tmp_path / "missing.json")])
+
+    assert result.value.code == EXIT_USAGE_ERROR
+    assert message in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("flag", [["--min-significance", "major"], ["--constituents", "all"]])
+def test_output_with_a_single_report_option_is_a_usage_error(
+    flag: list[str], capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    code = main(["events", *flag, f"--output=major:none:{tmp_path / 'a.md'}", str(tmp_path / "missing.json")])
+
+    assert code == EXIT_USAGE_ERROR
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert f"{flag[0]} with --output" in captured.err
+    assert not (tmp_path / "a.md").exists()
+
+
+def test_an_unwritable_output_is_an_output_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
+    monkeypatch.chdir(FIXTURE_DIR)
+    blocker = tmp_path / "file"
+    blocker.write_text("", encoding="utf-8")
+
+    assert main(["events", f"--output=major:none:{blocker / 'report.md'}", *SHUFFLED]) == EXIT_OUTPUT_ERROR
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.splitlines()[-1].startswith(f"tinarrative events: cannot write {blocker / 'report.md'}: ")
