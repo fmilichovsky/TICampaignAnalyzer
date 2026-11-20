@@ -55,7 +55,9 @@ Observations:
 - A combat record names each ship's design (`Item1`, a `dataName` such as `playerShipTemplate16`) beside its hull
   class (`Item2`); a live ship's `templateName` is the same `dataName`, and its hull class is the `hullName` of the
   design in its faction's `shipDesigns`. A battle share reads a record's ships through them: a live ship of the design,
-  else the median dry mass of the hull class, else nothing.
+  else the median dry mass of the hull class, else nothing. The combat analyzer does this against the earlier
+  snapshot and carries each side's dry mass on the `faction.combat_recorded` event (`side_dry_mass`, `Unknown` for a
+  one-sided record with a `HabFaction`); scoring reads the event, not the snapshots.
 
 ## Progression and combats (scan of 24 private saves, 2026-11-13)
 

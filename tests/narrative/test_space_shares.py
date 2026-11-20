@@ -18,6 +18,7 @@ from tests.analyzers.support import (
 )
 from tests.narrative.support import ref
 from tinarrative.analyzers.space import CombatAnalyzer, HabAnalyzer
+from tinarrative.analyzers.space.masses import dry_mass, ship_masses
 from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds import KINDS
 from tinarrative.model.entities import EntityDomain
@@ -33,9 +34,7 @@ from tinarrative.narrative.shares import (
     HAB_SATURATION,
     build_shares,
     contested_mass,
-    dry_mass,
     hab_share,
-    ship_masses,
     space_weight,
 )
 
@@ -196,6 +195,32 @@ def test_a_one_sided_record_stays_at_base_with_a_hab_and_has_no_contest_without(
     assert with_hab.significance_basis is None and with_hab.score == KINDS["faction.combat_recorded"].base.base
     assert without.significance_basis is not None and without.significance_basis.share == 0
     assert without.score < with_hab.score
+
+
+def test_a_combat_event_carries_each_sides_dry_mass_in_side_order() -> None:
+    event = only(
+        scored(combat(0, (HUMAN, ((H, "HumanHull", 3),)), (ALIEN, ((A, "AlienHull", 2), ("Gone", "NoSuchHull", 9))))),
+        "faction.combat_recorded",
+    )
+    # Dry, so the human ship's propellant is not counted; a design with no price counts nothing, unweighted by alien.
+    assert event.attribute("side_dry_mass") == (3 * 5 * KG, 2 * 5 * KG)
+
+
+def test_a_combat_event_prices_a_refit_by_its_hull_class_median() -> None:
+    event = only(
+        scored(combat(0, (HUMAN, (("HumanDesign Refit 1", "HumanHull", 3),)), (ALIEN, ((A, "AlienHull", 1),)))),
+        "faction.combat_recorded",
+    )
+    assert event.attribute("side_dry_mass") == (3 * 5 * KG, 5 * KG)
+
+
+def test_a_combat_with_no_priceable_record_carries_unknown_mass() -> None:
+    one_sided_hab = only(
+        scored(combat(0, (HUMAN, ((H, "HumanHull", 3),)), hab_faction=ALIEN)), "faction.combat_recorded"
+    )
+    assert isinstance(one_sided_hab.attribute("side_dry_mass"), Unknown)
+    one_sided = only(scored(combat(0, (HUMAN, ((H, "HumanHull", 3),)))), "faction.combat_recorded")
+    assert one_sided.attribute("side_dry_mass") == (3 * 5 * KG,)
 
 
 def test_design_ids_never_reach_the_event() -> None:
