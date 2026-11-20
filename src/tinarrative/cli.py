@@ -92,7 +92,7 @@ from .parsing.normalization import normalize
 from .parsing.unknowns import UnknownCollector
 from .picker import pick_campaign
 from .rendering.json_report import build_document
-from .rendering.listing import CONSTITUENTS, Constituents
+from .rendering.listing import CONSTITUENTS, EVENTS_CONSTITUENTS, EVENTS_MIN_SIGNIFICANCE, Constituents
 from .rendering.markdown import PERIODS, Period, render_sequence
 from .sequence import (
     event_stream,
@@ -283,8 +283,6 @@ EXIT_CODES: dict[str, ExitCodes] = {
 
 NARRATE_MIN_SIGNIFICANCE = Significance.MAJOR
 NARRATE_CONSTITUENTS: Constituents = "evidence"
-EVENTS_MIN_SIGNIFICANCE = Significance.TRIVIAL
-EVENTS_CONSTITUENTS: Constituents = "none"
 SIGNIFICANCE_LEVELS = tuple(level.value for level in SIGNIFICANCE_ORDER)
 BENCHMARK_ROOT = Path("benchmarks")
 BENCHMARK_SAMPLES_DIR = BENCHMARK_ROOT / "samples"

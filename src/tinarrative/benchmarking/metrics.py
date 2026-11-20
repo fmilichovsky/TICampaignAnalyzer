@@ -14,9 +14,11 @@ import time
 import tomllib
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..rendering.listing import EVENTS_CONSTITUENTS, EVENTS_MIN_SIGNIFICANCE
 from .manifest import MANIFEST, decompress_samples, sample_files, sha256_file
 
 TOOL_VERSION = 1
@@ -131,10 +133,72 @@ def _timed_run(command: Sequence[str]) -> Timed:
     return completed, time.perf_counter() - started
 
 
-def _serial(cli: Sequence[str]) -> list[str]:
-    """``--jobs 1`` when the revision's ``events`` takes it: the runs already fill the CPUs, and workers per run would
-    multiply processes and memory. An older revision is run as it is."""
-    return ["--jobs", "1"] if "--jobs" in _run([*cli, "events", "--help"]).stdout else []
+def _events_help(cli: Sequence[str]) -> str:
+    """The ``events --help`` of the revision measured, which tells the options it takes."""
+    return _run([*cli, "events", "--help"]).stdout
+
+
+OUTPUT_OPTION = "--output MIN_SIGNIFICANCE"
+"""``events --help`` shows this when the revision writes several reports from one analysis."""
+CUT_DEFAULTS = {"--min-significance": EVENTS_MIN_SIGNIFICANCE.value, "--constituents": EVENTS_CONSTITUENTS}
+"""The ``events`` options ``--output`` sets per report, and their defaults. They are the defaults of this checkout; a
+revision measured with ``--python`` has ``--output`` only from the release that brought it, whose defaults these are."""
+
+
+@dataclass(frozen=True)
+class EventsGroup:
+    """Matrix entries measured by one ``events`` process: the args they share, and each entry's id and cut.
+
+    A per-entry process has one output, a cut of ``None``, and the entry's own args; it prints its package.
+    """
+
+    args: tuple[str, ...]
+    outputs: tuple[tuple[str, str | None, str | None], ...]
+
+    @property
+    def ids(self) -> list[str]:
+        return [run_id for run_id, _, _ in self.outputs]
+
+    @property
+    def name(self) -> str:
+        """The group's name in the log: its entries' ids."""
+        return ", ".join(self.ids)
+
+    def command(self, cli: Sequence[str], saves: Path, packages: Path) -> list[str]:
+        """The ``events`` command, ``--jobs`` and ``--config`` aside; a grouped one writes each package itself."""
+        outputs = [
+            part
+            for run_id, minimum, constituents in self.outputs
+            if minimum is not None
+            for part in ("--output", f"{minimum}:{constituents}:{packages / f'{run_id}.json'}")
+        ]
+        return [*cli, "events", str(saves), *self.args, *outputs]
+
+
+def group_events(entries: Sequence[Mapping[str, Any]]) -> list[EventsGroup]:
+    """The ``events`` entries grouped by their args without ``--min-significance`` and ``--constituents``, in matrix
+    order; each entry is cut as its args say, or as ``events`` does by default."""
+    groups: dict[tuple[str, ...], list[tuple[str, str | None, str | None]]] = {}
+    for entry in entries:
+        shared: list[str] = []
+        cut = dict(CUT_DEFAULTS)
+        args = list(entry.get("args", []))
+        while args:
+            arg = args.pop(0)
+            option, equals, value = arg.partition("=")
+            if option in CUT_DEFAULTS and equals:
+                cut[option] = value
+            elif arg in CUT_DEFAULTS and args:
+                cut[arg] = args.pop(0)
+            else:
+                shared.append(arg)
+        groups.setdefault(tuple(shared), []).append((entry["id"], cut["--min-significance"], cut["--constituents"]))
+    return [EventsGroup(args, tuple(outputs)) for args, outputs in groups.items()]
+
+
+def events_jobs(jobs: int, processes: int) -> int:
+    """The workers of each grouped ``events`` process when ``processes`` of them share ``jobs`` CPUs."""
+    return max(1, jobs // processes)
 
 
 def _failure(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
@@ -146,11 +210,12 @@ def _failure(completed: subprocess.CompletedProcess[str]) -> dict[str, Any]:
 
 
 def _tree(groups: Sequence[tuple[str, Sequence[tuple[str, str]]]]) -> list[str]:
-    """The lines of a two-level tree: each group's label above its ``(name, note)`` rows, names padded to one width."""
-    width = max((len(name) for _, rows in groups for name, _ in rows), default=0)
+    """The lines of a two-level tree: each group's label above its ``(name, note)`` rows, names padded to one width
+    within the group."""
     lines = []
     for index, (label, rows) in enumerate(groups):
         last = index == len(groups) - 1
+        width = max((len(name) for name, _ in rows), default=0)
         lines.append(f"{'└─' if last else '├─'} {label}")
         for row, (name, note) in enumerate(rows):
             branch = "└─" if row == len(rows) - 1 else "├─"
@@ -217,7 +282,8 @@ def _measure_campaign(
     matrix: Mapping[str, Sequence[Mapping[str, Any]]],
     *,
     cli: Sequence[str],
-    serial: Sequence[str] = (),
+    groups: Sequence[EventsGroup],
+    workers: Sequence[str] = (),
     config: Path,
     scratch: Path,
     out: Path,
@@ -227,7 +293,8 @@ def _measure_campaign(
 ) -> tuple[dict[str, Any], list[str]]:
     """Run the matrix against one campaign on ``runs``; its results, in matrix order, and the lines of its log.
 
-    Every ``events`` run starts at once, and each ``narrate`` run as soon as the package it plans is written.
+    Every ``events`` process, one per group, starts at once, each with ``workers`` (its ``--jobs``), and each
+    ``narrate`` run as soon as the package it plans is written.
     """
     started = time.perf_counter()
     saves = scratch / campaign
@@ -238,33 +305,37 @@ def _measure_campaign(
     packages.mkdir(parents=True)
     results: dict[str, dict[str, Any]] = {"events": {}, "narrate": {}}
     seconds: dict[tuple[str, str], float] = {}
-    events: dict[Future[Timed], str] = {
-        runs.submit(
-            _timed_run, [*cli, "events", str(saves), *entry.get("args", []), *serial, "--config", str(config)]
-        ): entry["id"]
-        for entry in matrix["events"]
+    events: dict[Future[Timed], EventsGroup] = {
+        runs.submit(_timed_run, [*group.command(cli, saves, packages), *workers, "--config", str(config)]): group
+        for group in groups
     }
     narrations: dict[Future[Timed], Mapping[str, Any]] = {}
     for future in as_completed(events):
-        run_id = events[future]
-        completed, seconds["events", run_id] = future.result()
-        planned = [entry for entry in matrix["narrate"] if entry["package"] == run_id]
+        group = events[future]
+        completed, took = future.result()
+        seconds["events", group.name] = took
+        planned = [entry for entry in matrix["narrate"] if entry["package"] in group.ids]
         if completed.returncode != 0:
-            results["events"][run_id] = _failure(completed)
+            for run_id in group.ids:
+                results["events"][run_id] = _failure(completed)
+                (packages / f"{run_id}.json").unlink(missing_ok=True)
             for entry in planned:
-                results["narrate"][entry["id"]] = {"exit": None, "error": f"events {run_id} failed"}
+                results["narrate"][entry["id"]] = {"exit": None, "error": f"events {entry['package']} failed"}
             if on_progress is not None:
-                on_progress(1 + len(planned))
+                on_progress(len(group.ids) + len(planned))
             continue
-        package = packages / f"{run_id}.json"
-        package.write_text(completed.stdout, encoding="utf-8", newline="\n")
+        for run_id, minimum, _ in group.outputs:
+            package = packages / f"{run_id}.json"
+            if minimum is None:
+                package.write_text(completed.stdout, encoding="utf-8", newline="\n")
+            results["events"][run_id] = measure_package(package.read_text(encoding="utf-8"), chars_per_token)
         for entry in planned:
+            package = packages / f"{entry['package']}.json"
             target = out / "narrate" / campaign / entry["id"]
             command = [*cli, "narrate", "--package", str(package), "--output", str(target)]
             narrations[runs.submit(_timed_run, [*command, *entry.get("args", []), "--config", str(config)])] = entry
-        results["events"][run_id] = measure_package(completed.stdout, chars_per_token)
         if on_progress is not None:
-            on_progress(1)
+            on_progress(len(group.ids))
     for future in as_completed(narrations):
         entry = narrations[future]
         completed, seconds["narrate", entry["id"]] = future.result()
@@ -281,18 +352,21 @@ def _measure_campaign(
 
     ordered = {kind: {entry["id"]: results[kind][entry["id"]] for entry in matrix[kind]} for kind in results}
 
-    def row(kind: str, run_id: str) -> tuple[str, str]:
-        result = ordered[kind][run_id]
-        if (kind, run_id) not in seconds:
-            return run_id, f"skipped: {result['error']}"
-        took = f"{seconds[kind, run_id]:6.1f}s"
-        return run_id, took if _ok(result) else f"{took}  {_failed(result)}"
+    def row(kind: str, name: str, result: Mapping[str, Any]) -> tuple[str, str]:
+        if (kind, name) not in seconds:
+            return name, f"skipped: {result['error']}"
+        took = f"{seconds[kind, name]:6.1f}s"
+        return name, took if _ok(result) else f"{took}  {_failed(result)}"
 
     header = (
         f"package_metrics: {campaign} · {len(files)} saves · {time.perf_counter() - started:.1f}s "
         f"(decompressing {decompressed:.1f}s)"
     )
-    tree = _tree([(kind, [row(kind, run_id) for run_id in ordered[kind]]) for kind in ordered if ordered[kind]])
+    rows = {
+        "events": [row("events", group.name, ordered["events"][group.ids[0]]) for group in groups],
+        "narrate": [row("narrate", run_id, result) for run_id, result in ordered["narrate"].items()],
+    }
+    tree = _tree([(kind, rows[kind]) for kind in rows if rows[kind]])
     return ordered, [header, *tree]
 
 
@@ -323,17 +397,23 @@ def measure(
     for kept in ("packages", "narrate"):
         shutil.rmtree(out / kept, ignore_errors=True)
     found = select_campaigns(sample_files(samples), campaigns)
-    per_campaign = len(matrix["events"]) + len(matrix["narrate"])
+    cli = [python, "-m", "tinarrative.cli"]
+    usage = _events_help(cli)
+    if OUTPUT_OPTION in usage:
+        groups = group_events(matrix["events"])
+        workers = events_jobs(jobs, len(found) * len(groups))
+    else:
+        # The runs already fill the CPUs; workers per run would multiply processes and memory.
+        groups = [EventsGroup(tuple(entry.get("args", [])), ((entry["id"], None, None),)) for entry in matrix["events"]]
+        workers = 1
     print(
-        f"package_metrics: measuring {len(found)} campaigns ({', '.join(found)}), {per_campaign} runs each, "
-        f"{jobs} jobs",
+        f"package_metrics: measuring {len(found)} campaigns ({', '.join(found)}), {len(matrix['events'])} events "
+        f"entries in {len(groups)} processes and {len(matrix['narrate'])} narrate runs each, {jobs} jobs",
         file=log,
         flush=True,
     )
     started = time.perf_counter()
     measured: dict[str, Any] = {}
-    cli = [python, "-m", "tinarrative.cli"]
-    serial = _serial(cli)
     with (
         tempfile.TemporaryDirectory(prefix="package-metrics-") as scratch,
         ThreadPoolExecutor(max_workers=jobs) as runs,
@@ -347,7 +427,8 @@ def measure(
                 files,
                 matrix,
                 cli=cli,
-                serial=serial,
+                groups=groups,
+                workers=["--jobs", str(workers)] if "--jobs" in usage else [],
                 config=config,
                 scratch=Path(scratch),
                 out=out,
