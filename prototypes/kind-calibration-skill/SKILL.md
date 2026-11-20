@@ -46,15 +46,14 @@ Skip for an unscaled kind. Does a measure the kind reads, or could read, test st
 - **Yes, and the kind already reads it**: a value question. Go to step 3.
 - **No, or it reads the wrong quantity**: a scoring question. First write down **what quantity, exactly**: a share
   held before, held after, or moved, and of which world total. Until that sentence is settled, do not try
-  any number. Then add a draft share:
-  - a new `Measure` and its share function if needed, a `DraftShare` with custom selectors where a reading must
-    skip candidates (for example the measures that did not move);
-  - `pytest --update-goldens` for the calibration table golden.
-
-  This is code you may write without the dev's go: a draft changes no real score
-  ([draft shares](../../docs/commands/benchmark.md#draft-shares)).
-- **A context rule decides what the share should**: switch the rule off in the state while you try the share
-  (`rule=<type>:off`, build).
+  any number. Then judge the size of the change:
+  - **Straightforward** (a share of one quantity on the kind's own entities, with no context rule involved): add a
+    draft share, meaning a new `Measure` and its share function if needed, a `DraftShare` with custom selectors
+    where a reading must skip candidates, and `pytest --update-goldens` for the calibration table golden. You may
+    write this code without the dev's go: a draft changes no real score
+    ([draft shares](../../docs/commands/benchmark.md#draft-shares)).
+  - **Anything more** (it retires or reshapes a context rule, or the quantity is still open): no draft. The
+    proposal asks the dev for the full implementation; calibration resumes on it as a value question once it lands.
 
 Done when the measure is named and the quantity sentence is written.
 
@@ -89,9 +88,10 @@ deserves or is listed with why not.
   `calibrate report --state '<hash>' --format markdown` (build), with only the Reason written by you. Draft PR with
   the open question on top when a must-tell verdict worsened or coverage is thin on everything it touches.
 - **Scoring proposal, new**: an issue first (reason, event types, quantity sentence, measure, example events), label
-  `calibration`, a Touches line; the add-draft PR may follow at once.
+  `calibration`, a Touches line; for a straightforward candidate the add-draft PR may follow at once.
 - **Scoring proposal, existing item**: a comment on the item with the reason, the quantity sentence or the question
-  that blocks it, and the draft's numbers; the add-draft PR. Then stop: graduating needs the dev's go on the item.
+  that blocks it, and the draft's numbers if there is a draft; the add-draft PR. Then stop: graduating or
+  implementing needs the dev's go on the item.
 - From a review, link the result on the review issue and record each rejected try there with its reason.
 
 ## Stops

@@ -154,8 +154,11 @@ No evidence block is possible: the markdown output is not built.
 
 ## Settled with the dev (2026-11-20)
 
-- **Rule switch in the calibration state**: a new build piece. The state can turn a type's context rule off, as it
-  switches a base level. That is how a share that retires a rule is tried.
+- **No rule switch; drafts for straightforward candidates only.** First settled as a new build piece (a context-rule
+  switch in the calibration state), then withdrawn the same day. #361 was a poor test case for drafts because it
+  already carried design questions. A change that retires or reshapes a context rule, or whose quantity is still
+  open, is implemented in full on the dev's go and calibrated after it lands. Item 3 of the missing tooling above
+  is dropped.
 - **Steps reordered** as in point 2 above, with step 4 reading the movers, the events nearest each share and the
   must-tell candidates. [SKILL.md](SKILL.md) is now v2.
 - **An existing item gets a comment and the add-draft PR**, never a new issue, then a stop for the dev.
