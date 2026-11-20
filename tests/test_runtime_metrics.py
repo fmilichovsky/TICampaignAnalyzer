@@ -299,3 +299,72 @@ def test_timing_lines_change_neither_the_output_nor_the_default_log(
     assert timed.out == quiet.out
     assert "tinarrative.timing" not in quiet.err
     assert "INFO tinarrative.timing: interval index=1 diff=" in timed.err
+
+
+def _per_campaign_runtime(campaign: str, **overrides: Any) -> dict[str, Any]:
+    runtime = _runtime(None, _run(9.0, {"diff": 3.0}))
+    runtime["sides"] = {
+        "base": {"label": "main def", "campaigns": {campaign: _run(10.0, {"diff": 4.0})}},
+        "head": {"label": "#1 abc", "campaigns": {campaign: _run(9.0, {"diff": 3.0})}},
+    }
+    return {**runtime, **overrides}
+
+
+def test_merged_runtime_files_hold_every_campaign_with_the_given_samples_hash() -> None:
+    merged = benchmark_runtime.merge(
+        [_per_campaign_runtime("alpha"), _per_campaign_runtime("beta")], samples_sha256="fresh"
+    )
+
+    assert merged["samples_sha256"] == "fresh"
+    assert list(merged) == list(_per_campaign_runtime("alpha"))
+    assert list(merged["sides"]) == ["base", "head"]
+    assert merged["sides"]["head"]["label"] == "#1 abc"
+    assert list(merged["sides"]["base"]["campaigns"]) == ["alpha", "beta"]
+    assert list(merged["sides"]["head"]["campaigns"]) == ["alpha", "beta"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("tool_version", 2), ("run", "minor"), ("args", ["--x"]), ("repeats", 3), ("samples_sha256", "other")],
+)
+def test_runtime_merge_refuses_inputs_whose_metadata_differs(field: str, value: Any) -> None:
+    with pytest.raises(ValueError, match=field):
+        benchmark_runtime.merge(
+            [_per_campaign_runtime("alpha"), _per_campaign_runtime("beta", **{field: value})], samples_sha256="x"
+        )
+
+
+def test_runtime_merge_refuses_a_campaign_in_more_than_one_input() -> None:
+    with pytest.raises(ValueError, match="alpha"):
+        benchmark_runtime.merge([_per_campaign_runtime("alpha"), _per_campaign_runtime("alpha")], samples_sha256="x")
+
+
+def test_runtime_cli_merge_writes_one_file_and_names_its_failures(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    samples = synthetic_samples(tmp_path)
+    paths = []
+    for name in ("alpha", "beta"):
+        path = tmp_path / name / "runtime.json"
+        path.parent.mkdir()
+        path.write_text(json.dumps(_per_campaign_runtime(name, samples_sha256="old")), encoding="utf-8")
+        paths.append(str(path))
+    out = tmp_path / "merged" / "runtime.json"
+    argv = ["benchmark", "runtime", "merge", "--samples", str(samples), "--out", str(out)]
+
+    assert cli.main([*argv, *paths]) == cli.EXIT_SUCCESS
+    merged = json.loads(out.read_text(encoding="utf-8"))
+    assert list(merged["sides"]["head"]["campaigns"]) == ["alpha", "beta"]
+    assert merged["samples_sha256"] == benchmark_runtime.sha256_file(samples / "samples.json")
+    assert cli.main(["benchmark", "runtime", "report", str(out)]) == cli.EXIT_SUCCESS
+
+    assert cli.main([*argv, paths[0], paths[0]]) == cli.EXIT_USAGE_ERROR
+    assert "more than one" in capsys.readouterr().err
+    missing = str(tmp_path / "none.json")
+    assert cli.main([*argv, paths[0], missing]) == cli.EXIT_INPUT_ERROR
+    bad = tmp_path / "bad.json"
+    bad.write_text("[]", encoding="utf-8")
+    assert cli.main([*argv, str(bad)]) == cli.EXIT_INPUT_ERROR
+    assert cli.main([*argv[:-4], "--samples", str(tmp_path / "none"), "--out", str(out), paths[0]]) == (
+        cli.EXIT_INPUT_ERROR
+    )

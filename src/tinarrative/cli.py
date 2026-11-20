@@ -24,7 +24,7 @@ from .benchmarking.calibration import readout as calibration_readout
 from .benchmarking.calibration import replay as calibration_replay
 from .benchmarking.calibration import server as calibration_server
 from .benchmarking.calibration.table import CalibrationTableError
-from .benchmarking.manifest import MANIFEST, sample_files, update_samples, verify_samples
+from .benchmarking.manifest import MANIFEST, sample_files, sha256_file, update_samples, verify_samples
 from .benchmarking.samples import SampleImportError, import_sample_campaign
 from .campaign_analysis import (
     CampaignAnalysis,
@@ -259,6 +259,12 @@ EXIT_CODES: dict[str, ExitCodes] = {
         ),
         (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
         (EXIT_OUTPUT_ERROR, "--out cannot be written, or the port cannot be served on."),
+    ),
+    "benchmark runtime merge": (
+        (EXIT_SUCCESS, "the merged runtime JSON was written."),
+        (EXIT_USAGE_ERROR, "usage error, runtime files that differ in their metadata, or a campaign in two of them."),
+        (EXIT_INPUT_ERROR, f"a runtime file cannot be read or is not a runtime file, or --samples has no {MANIFEST}."),
+        (EXIT_OUTPUT_ERROR, "the merged file cannot be written."),
     ),
     "benchmark runtime report": (
         (EXIT_SUCCESS, "the report was written."),
@@ -905,8 +911,10 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
 
 
 def _run_benchmark_runtime(args: argparse.Namespace) -> int:
-    """Measure the runtime of ``events`` on one or two revisions, or write the report of a measurement."""
+    """Measure the runtime of ``events`` on one or two revisions, or report or merge measurements."""
     command = f"tinarrative benchmark runtime {args.runtime_command}"
+    if args.runtime_command == "merge":
+        return _merge_runtime(args)
     if args.runtime_command == "report":
         try:
             report = benchmark_runtime.report(
@@ -968,6 +976,43 @@ def _run_benchmark_runtime(args: argparse.Namespace) -> int:
     finally:
         if progress is not None:
             progress.finish("measurement")
+
+
+def _merge_runtime(args: argparse.Namespace) -> int:
+    """Combine per-campaign runtime files into one, with the samples hash of the manifest given."""
+    command = "tinarrative benchmark runtime merge"
+    try:
+        documents = [json.loads(path.read_text(encoding="utf-8")) for path in cast("list[Path]", args.inputs)]
+        samples_sha256 = sha256_file(cast(Path, args.samples) / MANIFEST)
+        for document in documents:
+            if not (
+                isinstance(document, dict)
+                and all(key in document for key in benchmark_runtime.MERGE_METADATA)
+                and isinstance(document.get("sides"), dict)
+                and all(
+                    isinstance(side, dict) and isinstance(side.get("campaigns"), dict) and "label" in side
+                    for side in document["sides"].values()
+                )
+            ):
+                raise ValueError("an input is not a runtime file")
+        if len({tuple(document["sides"]) for document in documents}) > 1:
+            raise ValueError("the runtime files differ in their sides")
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
+    try:
+        merged = benchmark_runtime.merge(documents, samples_sha256=samples_sha256)
+    except ValueError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    output = cast(Path, args.out)
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8", newline="\n")
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
+    return EXIT_SUCCESS
 
 
 def _resolve_settings(command: str, flag: Path | None) -> Settings | int:
@@ -2160,6 +2205,19 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
         help="Runs per side; the fastest is kept (default %(default)s).",
     )
     timed.set_defaults(handler=_run_benchmark_runtime)
+
+    merged = _add_command(
+        runtime_commands,
+        "merge",
+        "Combine per-campaign runtime JSON files into one.",
+        "benchmark runtime merge",
+    )
+    merged.add_argument("inputs", type=Path, nargs="+", metavar="FILE", help="A per-campaign runtime JSON file.")
+    merged.add_argument(
+        "--out", type=Path, required=True, metavar="FILE", help="The merged runtime JSON file to write."
+    )
+    _add_samples_argument(merged)
+    merged.set_defaults(handler=_run_benchmark_runtime)
 
     reported = _add_command(
         runtime_commands, "report", "Write the Markdown report of a runtime JSON file.", "benchmark runtime report"
