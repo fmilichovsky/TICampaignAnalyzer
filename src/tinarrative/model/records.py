@@ -148,8 +148,9 @@ class CombatEntry:
     ``Unknown``.
 
     ``designs`` has the same factions in the same order, each with its ships as ``(design dataName, hull class,
-    count)`` triples in order of first appearance. It is kept for computation only (a ship's mass is read from its
-    design) and never copied into an event attribute: design names are player-chosen campaign content.
+    count)`` triples in order of first appearance. It is kept for computation only and never copied into an event
+    attribute: design names are player-chosen campaign content. The combat analyzer prices each side from it and
+    carries the side masses on the event (``side_dry_mass``), so scoring never reads the entry.
     """
 
     index: int
