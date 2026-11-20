@@ -14,9 +14,9 @@ from pathlib import Path
 from typing import Any
 
 from tinarrative.narrator.chapters import PERIODS, glossary_for, referenced
-from tinarrative.narrator.request import AUDIENCES, CITATIONS, STYLES, build_request, render_request
+from tinarrative.narrator.request import CITATIONS, STYLES, build_request, render_request
 
-OPTIONS = ("period", "audience", "citations", "style", "length", "focus")
+OPTIONS = ("period", "citations", "style", "length")
 
 SAMPLE = re.compile(r"^(\d{4})(?:-(H[12]|Q[1-4]))?$")
 
@@ -65,11 +65,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("package", nargs="?", type=Path, help="Narrator package JSON (default: stdin).")
     parser.add_argument("--period", choices=PERIODS)
-    parser.add_argument("--audience", choices=AUDIENCES)
     parser.add_argument("--citations", choices=CITATIONS)
     parser.add_argument("--style", choices=STYLES)
     parser.add_argument("--length", help="A target length, for example '2000 words'.")
-    parser.add_argument("--focus", help="A faction or nation to centre the account on.")
     parser.add_argument("--sample", metavar="PERIOD", help="Trim the package to one period: YYYY, YYYY-H1 or YYYY-Q2.")
     args = parser.parse_args(argv)
     text = args.package.read_text(encoding="utf-8") if args.package else sys.stdin.read()

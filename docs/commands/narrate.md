@@ -5,9 +5,8 @@
 tinarrative narrate [--package FILE] [--campaign SELECTOR]
                     [--min-significance {trivial,minor,major,campaign_defining}]
                     [--constituents {all,evidence,none}] [--period {year,half,quarter}]
-                    [--audience {public,insider}] [--citations {footnotes,none}]
-                    [--style {chronicle,headlines}] [--length WORDS] [--focus NAME] [--output DIR]
-                    [--send] [--force] [--assemble DIR] [--profile NAME]
+                    [--citations {footnotes,none}] [--style {chronicle,headlines}] [--length WORDS]
+                    [--output DIR] [--send] [--force] [--assemble DIR] [--profile NAME]
                     [--provider {anthropic,openai,openrouter,ollama}] [--model MODEL]
                     [--base-url URL] [--max-input-tokens TOKENS] [--max-output-tokens TOKENS]
                     [--temperature TEMPERATURE] [--config FILE] [--jobs N]
@@ -29,8 +28,8 @@ tinarrative narrate ~/saves --campaign latest --output run/
 # Send them with the provider and model of the "local" settings profile.
 tinarrative narrate ~/saves --campaign latest --output run/ --send --profile local
 
-# An insider history of about 4000 words from a package built earlier.
-tinarrative narrate --package package.json --audience insider --length 4000 --output run/ --send
+# A history of about 4000 words from a package built earlier.
+tinarrative narrate --package package.json --length 4000 --output run/ --send
 
 # Rebuild history.md from a run directory, sending nothing.
 tinarrative narrate --assemble run/
@@ -51,11 +50,9 @@ from [`events --narrative --format json`](events.md#narrator-package) instead; s
 | `--min-significance trivial\|minor\|major\|campaign_defining` | Lowest significance of a narrative event told, from saves (default major). |
 | `--constituents all\|evidence\|none` | Which events behind the narrative events the model also gets (default evidence). |
 | `--period year\|half\|quarter` | The sections the history is told in (default: from the campaign's span). |
-| `--audience public\|insider` | Who the history is for; insider centres on the player faction (default public). |
 | `--citations footnotes\|none` | Footnotes citing event IDs, or none (default footnotes). |
 | `--style chronicle\|headlines` | Running prose or headlines (default chronicle). |
 | `--length WORDS` | Target length of the whole history (default: from how much happened). |
-| `--focus NAME` | A faction or nation to centre the account on (default: the player faction with --audience insider). |
 | `--output DIR` | Write the plan and one request per chapter here. |
 | `--send` | Send the requests to the provider and assemble history.md; needs --output. Hands the campaign to a third party unless the provider runs locally. |
 | `--force` | With --send, send every chapter again, even one with a matching stored response. |

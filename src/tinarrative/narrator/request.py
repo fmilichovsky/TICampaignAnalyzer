@@ -12,8 +12,7 @@ from importlib import resources
 from typing import Any
 
 # The first three are set by the chapter planner only.
-REQUEST_KEYS = ("chapter", "part", "covers", "period", "audience", "citations", "style", "length", "focus")
-AUDIENCES = ("public", "insider")
+REQUEST_KEYS = ("chapter", "part", "covers", "period", "citations", "style", "length")
 CITATIONS = ("footnotes", "none")
 STYLES = ("chronicle", "headlines")
 PROMPT_FILE = "prompt.md"

@@ -62,22 +62,21 @@ def test_the_request_matches_the_golden_and_is_deterministic(
 ) -> None:
     package = _package(monkeypatch, capsys)
 
-    request = build_request(package, {"period": "quarter", "audience": "public"})
+    request = build_request(package, {"period": "quarter", "style": "chronicle"})
 
-    assert request == build_request(json.loads(json.dumps(package)), {"audience": "public", "period": "quarter"})
+    assert request == build_request(json.loads(json.dumps(package)), {"style": "chronicle", "period": "quarter"})
     assert request["system"] == system_prompt()
     assert_golden(json.dumps(request["messages"], indent=2) + "\n", GOLDEN)
-    assert request["messages"][0]["content"].startswith("period: quarter\naudience: public\n\n")
+    assert request["messages"][0]["content"].startswith("period: quarter\nstyle: chronicle\n\n")
     assert _embedded(request) == package
 
 
 def test_the_request_block_has_a_fixed_key_order_and_only_the_keys_set() -> None:
-    options = {"focus": "ESA", "style": "headlines", "length": "2000 words", "period": "half", "citations": "none"}
+    options = {"style": "headlines", "length": "2000 words", "period": "half", "citations": "none"}
 
     content = build_request(MINIMAL, options)["messages"][0]["content"]
 
-    assert content.startswith("period: half\ncitations: none\nstyle: headlines\nlength: 2000 words\nfocus: ESA\n\n")
-    assert "audience" not in content.partition("\n\n")[0]
+    assert content.startswith("period: half\ncitations: none\nstyle: headlines\nlength: 2000 words\n\n")
 
 
 def test_an_empty_block_leaves_the_message_to_the_package() -> None:

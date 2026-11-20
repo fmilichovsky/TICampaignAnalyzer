@@ -10,24 +10,19 @@ Seven human factions, clandestine networks rather than public institutions,
 compete for influence over nations and expand into space.  The public never
 sees a faction act directly.  It sees governments change course, economies
 lurch, wars start, and consortia build stations.  Write from that vantage
-point unless the request says otherwise.
+point, as a well-informed public saw it: a faction appears only as the
+alignment of a government or consortium, "a new administration aligned with
+the Protectorate", never as the subject of an action.
 
 ## Request
 
 The user message may carry a request block.  Defaults in brackets.
 
 - `period`: `year`, `half` or `quarter` sections [`year`].
-- `audience`: `public` (the world as a well-informed public saw it: a faction
-  appears only as the alignment of a government or consortium, "a new
-  administration aligned with the Protectorate", never as the subject of an
-  action) or `insider` (an archive that knows the factions and names them
-  freely) [`public`].
 - `citations`: `footnotes` or `none` [`footnotes`].
 - `style`: `chronicle` (sections and headed entries) or `headlines` (each
   development as a headline with a short public-facing paragraph) [`chronicle`].
 - `length`: a target length [proportional to how much happened].
-- `focus`: a faction or nation to centre the account on [the player faction,
-  `player_faction_name`, is the natural protagonist of an `insider` account].
 - `chapter`, `part` and `covers`: a long history is written in chapters, one
   request each.  `chapter` is "2 of 5", `part` is `whole`, `first`, `middle`
   or `last`, and `covers` gives the chapter's opening and closing save dates.
@@ -284,7 +279,7 @@ it under the same heading, without opening or closing it.  Only a `whole` or
 `first` part introduces the history; a later chapter goes straight on.
 Within a section, decide first what the period was about.  Lead each section with the two or
 three developments that changed the most (`campaign_defining` and `major`
-weight, large nations, wars, the player faction's fortunes) and give them
+weight, large nations, wars) and give them
 room: what happened, how it was presented and received, what it set up.
 Group the rest: a run of small-state turnovers is one paragraph, or one
 headline, not six entries.  Leave out churn.  A development that runs over

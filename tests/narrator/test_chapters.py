@@ -620,14 +620,6 @@ def test_a_requested_period_is_kept_and_the_sparse_periods_are_reported() -> Non
     assert plan.sparse == ("2033-Q2", "2033-Q4")
 
 
-def test_an_insider_account_focuses_on_the_player_faction_unless_told_otherwise() -> None:
-    package = _package(QUARTERS[:2], [])
-
-    assert base_options(package, NarratorSettings(), audience="insider")["focus"] == "Fixture Resistance"
-    assert base_options(package, NarratorSettings(), audience="insider", focus="ESA")["focus"] == "ESA"
-    assert "focus" not in base_options(package, NarratorSettings(), audience="public")
-
-
 @pytest.mark.parametrize(
     ("date", "period", "label"),
     [

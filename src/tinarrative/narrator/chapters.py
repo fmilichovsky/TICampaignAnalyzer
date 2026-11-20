@@ -168,22 +168,13 @@ def base_options(
     settings: NarratorSettings,
     *,
     period: str | None = None,
-    audience: str | None = None,
     citations: str | None = None,
     style: str | None = None,
-    focus: str | None = None,
 ) -> dict[str, str]:
-    """``focus`` defaults to the player faction for an ``insider`` audience."""
-    if focus is None and audience == "insider":
-        situation = package["saves"][-1].get("situation") if package["saves"] else None
-        name = situation.get("player_faction_name") if isinstance(situation, dict) else None
-        focus = name if isinstance(name, str) and name else None
     chosen = {
         "period": period or derive_period(package, settings),
-        "audience": audience,
         "citations": citations,
         "style": style,
-        "focus": focus,
     }
     return {key: value for key, value in chosen.items() if value}
 
