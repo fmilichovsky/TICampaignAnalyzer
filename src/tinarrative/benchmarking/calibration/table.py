@@ -20,13 +20,25 @@ from tinarrative.benchmarking.calibration.drafts import (
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
-from tinarrative.model.events import SCORE_BANDS, SCORE_MAX, SCORE_MIN, SIGNIFICANCE_ORDER, Event, Significance
+from tinarrative.model.entities import EntityId
+from tinarrative.model.events import (
+    SCORE_BANDS,
+    SCORE_MAX,
+    SCORE_MIN,
+    SIGNIFICANCE_ORDER,
+    Event,
+    Role,
+    Significance,
+)
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.aggregation import interval_shares
 from tinarrative.narrative.chronology import interval_of
+from tinarrative.narrative.geopolitics import TERRITORY_GAINED, readings
 from tinarrative.narrative.measures import MEASURES
+from tinarrative.narrative.nation_metrics import BAND_CROSSED, band_explainers, explainer_of
 from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, ScalingSpec
 from tinarrative.narrative.significance import IntervalShares, decide, score_event
+from tinarrative.narrative.situation import SituationReport
 from tinarrative.sequence import (
     SaveRef,
     SurveyFailure,
@@ -38,7 +50,7 @@ from tinarrative.sequence import (
     survey_all,
 )
 
-SCHEMA_VERSION: Final = 5
+SCHEMA_VERSION: Final = 6
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -61,8 +73,9 @@ def declared_drafts(drafts: Sequence[DraftShare] | None = None) -> tuple[DraftSh
 
 
 def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftShare] | None = None) -> dict[str, Any]:
-    """The campaign document from a separate in-process run at code defaults: one row per finished event, and one
-    shadow row per draft share and event of its types (``drafts``, by default the declared ones)."""
+    """The campaign document from a separate in-process run at code defaults: one row per finished event, one
+    shadow row per draft share and event of its types (``drafts``, by default the declared ones), and the
+    ``names`` of the entities that were renamed (``name_history``)."""
     chosen = declared_drafts(drafts)
     outcomes = list(survey_all(list(saves)))
     failures = [outcome for outcome in outcomes if isinstance(outcome, SurveyFailure)]
@@ -72,23 +85,31 @@ def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftShare] | None 
     plan = plan_sequence(refs)
     intervals = list(run_sequence(plan, inferred=True))
     narrative = narrative_events(intervals)
-    rows = [_row(event, "atomic") for interval in intervals for event in interval.objective]
-    rows.extend(_row(event, "reconstructed") for interval in intervals for event in interval.inferred or ())
-    rows.extend(_row(event, "narrative") for event in narrative)
+    dates = {interval.key: (interval.before.date, interval.after.date) for interval in intervals}
+    explainers = explained_by((event for interval in intervals for event in interval.objective), narrative)
+    rows = [_row(event, "atomic", dates, explainers) for interval in intervals for event in interval.objective]
+    rows.extend(
+        _row(event, "reconstructed", dates, explainers) for interval in intervals for event in interval.inferred or ()
+    )
+    rows.extend(_row(event, "narrative", dates, explainers) for event in narrative)
     by_id = {event.id: event for interval in intervals for event in interval.events()}
     by_id.update((event.id, event) for event in narrative)
     shares = interval_shares(situations(intervals), save_shares(intervals))
     shadows = [
-        _draft_row(draft, event, by_id, shares)
+        _draft_row(draft, event, by_id, shares, dates)
         for draft in chosen
         for event in narrative
         if event.event_type in draft.event_types
     ]
-    return {"events": rows, "drafts": shadows}
+    return {"events": rows, "drafts": shadows, "names": name_history(situations(intervals))}
 
 
 def _draft_row(
-    draft: DraftShare, event: Event, by_id: Mapping[str, Event], shares: Mapping[str, IntervalShares]
+    draft: DraftShare,
+    event: Event,
+    by_id: Mapping[str, Event],
+    shares: Mapping[str, IntervalShares],
+    dates: Mapping[str, tuple[str, str]],
 ) -> dict[str, Any]:
     """The event scored by the draft's candidates, each as the pipeline would score it; the score is the highest
     of the candidates with a share, as the replay takes it."""
@@ -115,7 +136,7 @@ def _draft_row(
     scored = [result for result in results if result.basis is not None]
     score = max(result.score for result in scored) if scored else results[0].score
     return {
-        **_row(event, "narrative"),
+        **_row(event, "narrative", dates, {}),
         "id": draft_row_id(draft.name, event.id),
         "base": results[0].level.base,
         "shares": [
@@ -130,9 +151,53 @@ def _draft_row(
     }
 
 
-def _row(event: Event, tier: str) -> dict[str, Any]:
+def explained_by(atomic: Iterable[Event], narrative: Sequence[Event]) -> dict[str, str]:
+    """The ID of the narrative event that explains each atomic event the narrative rules leave out for it, by the
+    rules' own tests: a band crossing is explained by a shift covering its nation and interval, a territory gain by
+    a reading of its nation and interval."""
+    covering = readings(narrative)
+    found: dict[str, str] = {}
+    for event in atomic:
+        if not event.entities:
+            continue
+        nation = event.entities[0].entity_id
+        if event.event_type == TERRITORY_GAINED:
+            reading = covering.get((nation, interval_of(event.id)))
+            if reading is not None:
+                found[event.id] = reading.id
+        elif event.event_type == BAND_CROSSED:
+            statistic = event.attribute("statistic")
+            explainers = [
+                item
+                for item in narrative
+                if isinstance(statistic, str) and item.event_type in band_explainers(statistic)
+            ]
+            explainer = explainer_of(event, nation, explainers)
+            if explainer is not None:
+                found[event.id] = explainer.id
+    return found
+
+
+def _row(
+    event: Event,
+    tier: str,
+    dates: Mapping[str, tuple[str, str]] | None = None,
+    explainers: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """One row of a campaign file. Beside the id, type, tier, scores and citations, it carries:
+
+    - ``entities[].role`` and ``targets``: a narrative event's role for each entity (``actor``, ``target``, ...) and
+      its number of target entities; both ``None`` for an atomic or reconstructed event, which has no roles;
+    - ``explained_by``: the ID of the narrative event that explains the event without citing it, ``None`` for an
+      event nothing explains (the rules' own tests, see ``explained_by`` above);
+    - ``intervals``: the key, start and end date (the dates of its two saves) of each interval the event spans.
+
+    A renamed entity's names are in the index (``name_history``), not repeated in the rows.
+    """
     basis = event.significance_basis
     narrative = tier == "narrative"
+    roles = _roles(event) if narrative else {}
+    dates, explainers = dates or {}, explainers or {}
     return {
         "id": event.id,
         "type": event.event_type,
@@ -143,11 +208,54 @@ def _row(event: Event, tier: str) -> dict[str, Any]:
         "base": basis.base if basis is not None else _own_base(event, narrative),
         "rule": None if event.context_rule is None else event.context_rule.value,
         "shares": [{"measure": basis.measure.value, "share": basis.share}] if basis is not None else [],
-        "entities": [{"id": str(ref.entity_id), "name": ref.name or None} for ref in event.entities],
+        "entities": [
+            {"id": str(ref.entity_id), "name": ref.name or None, "role": roles.get(ref.entity_id)}
+            for ref in event.entities
+        ],
+        "targets": sum(1 for role in roles.values() if role == Role.TARGET.value) if narrative else None,
+        "explained_by": explainers.get(event.id),
+        "intervals": [
+            {"key": key, "start": dates[key][0], "end": dates[key][1]}
+            for key in (event.intervals if narrative else (interval_of(event.id),))
+            if key in dates
+        ],
         "cited": list(event.constituents) if narrative else [],
         "score": event.score,
         "level": event.significance.value,
     }
+
+
+def _roles(event: Event) -> dict[EntityId, str]:
+    """The role of each entity of a narrative event, the highest ranking one where it holds several."""
+    found: dict[EntityId, Role] = {}
+    for role, ref in event.roles:
+        if ref.entity_id not in found or role.rank < found[ref.entity_id].rank:
+            found[ref.entity_id] = role
+    return {entity: role.value for entity, role in found.items()}
+
+
+def name_history(reports: Sequence[SituationReport]) -> dict[str, list[dict[str, str]]]:
+    """Every name each renamed entity held, in order, with the first and last save date showing it; an entity that
+    kept one name is not listed, as a row's own entity names resolve it."""
+    held: dict[str, list[dict[str, str]]] = {}
+    for report in reports:
+        if not isinstance(report.date, str):
+            continue
+        refs = (
+            *(item.nation for item in report.nations),
+            *(item.federation for item in report.federations),
+            *(item.war for item in report.wars),
+            *(item.faction for item in report.factions),
+        )
+        for ref in refs:
+            if not ref.name:
+                continue
+            names = held.setdefault(str(ref.entity_id), [])
+            if names and names[-1]["name"] == ref.name:
+                names[-1]["last"] = report.date
+            else:
+                names.append({"name": ref.name, "first": report.date, "last": report.date})
+    return {entity: names for entity, names in sorted(held.items()) if len({item["name"] for item in names}) > 1}
 
 
 def _own_base(event: Event, narrative: bool) -> int:
@@ -199,12 +307,13 @@ def build_index(
     extracted_at: str,
     kinds: Mapping[str, Mapping[str, Any]],
     drafts: Sequence[DraftShare] | None = None,
+    names: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """The ``index.js`` document: what the rows cannot say about themselves, from the registry, the rules and the
     draft shares (``drafts``, by default the declared ones).
 
-    ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold. ``scalings`` holds every declared
-    scaling, then each draft's own, in draft order.
+    ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold; ``names`` is each campaign's
+    ``name_history``. ``scalings`` holds every declared scaling, then each draft's own, in draft order.
     """
     chosen = declared_drafts(drafts)
     scalings = {scaling.value: _scaling(spec) for scaling, spec in SCALINGS.items()}
@@ -240,6 +349,7 @@ def build_index(
         },
         "scalings": scalings,
         "kinds": {event_type: dict(kind) for event_type, kind in kinds.items()},
+        "names": {campaign: dict(history) for campaign, history in (names or {}).items()},
         "drafts": [
             {
                 "name": draft.name,
@@ -303,14 +413,19 @@ def extract_all(samples: Path, directory: Path, *, key: str, now: datetime | Non
     chosen = declared_drafts()
     names: list[str] = []
     types: set[str] = set()
+    histories: dict[str, Mapping[str, Any]] = {}
     for name, files in extractable_campaigns(samples).items():
         with tempfile.TemporaryDirectory(prefix="calibration-") as scratch:
             decompress_samples(files, Path(scratch))
             document = extract_campaign(sorted(Path(scratch).iterdir()), chosen)
         write_campaign(directory, name, document)
         names.append(name)
+        histories[name] = document["names"]
         types.update(row["type"] for row in document["events"])
-    write_index(directory, build_index(names, key=key, extracted_at=stamp, kinds=type_kinds(types), drafts=chosen))
+    write_index(
+        directory,
+        build_index(names, key=key, extracted_at=stamp, kinds=type_kinds(types), drafts=chosen, names=histories),
+    )
     return names
 
 

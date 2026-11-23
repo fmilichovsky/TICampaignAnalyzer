@@ -585,7 +585,7 @@ class CessionRule:
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
         reports = interval_reports(situations)
-        explained = _readings(stream)
+        explained = readings(stream)
         parties = MergerParties.of(stream)
         lost = {(subject_id(event), interval_of(event.id)): event for event in by_type(stream, TERRITORY_LOST)}
         built = []
@@ -725,10 +725,15 @@ def _merger_constituent(event: Event, gainer: EntityId, absorbed: Collection[Ent
     return False
 
 
-def _readings(stream: Iterable[Event]) -> set[tuple[EntityId, str]]:
-    return {
-        (key, interval_of(event.id)) for event in by_type(stream, *READINGS) if (key := subject_id(event)) is not None
-    }
+def readings(stream: Iterable[Event]) -> dict[tuple[EntityId, str], Event]:
+    """Each nation and interval a reading (unification, annexation or independence) covers, with the first such
+    reading by ID; a territory gain there is part of the reading."""
+    found: dict[tuple[EntityId, str], Event] = {}
+    for event in sorted(by_type(stream, *READINGS), key=lambda item: item.id):
+        key = subject_id(event)
+        if key is not None:
+            found.setdefault((key, interval_of(event.id)), event)
+    return found
 
 
 @dataclass(frozen=True)
@@ -877,7 +882,7 @@ class ExpansionRule:
         return self.settings.expansion_gap_days
 
     def apply(self, stream: EventStream, situations: Sequence[SituationReport], build: NarrativeBuilder) -> list[Event]:
-        explained = _readings(stream)
+        explained = readings(stream)
         nested = by_type(stream, CESSION, MERGER)
         gains: dict[EntityId, list[Event]] = defaultdict(list)
         for event in by_type(stream, ANNEXATION):
