@@ -125,15 +125,23 @@ def test_the_status_carries_what_a_reader_shows() -> None:
 
     status = progress.snapshot().to_status()
 
-    assert set(status) == {"percent", "elapsed_seconds", "remaining_seconds", "text", "campaigns"}
+    assert set(status) == {"percent", "elapsed_seconds", "remaining_seconds", "text", "summary", "campaigns"}
     assert 0 < status["percent"] < 100
     assert status["elapsed_seconds"] == 4
     assert isinstance(status["remaining_seconds"], int)
     assert status["campaigns"] == [
-        {"name": "first", "phase": "survey", "done": 2, "total": 2},
-        {"name": "second", "phase": "sequence", "done": 0, "total": 1},
+        {"name": "first", "phase": "survey", "done": 2, "total": 2, "step": "survey 2/2"},
+        {"name": "second", "phase": "sequence", "done": 0, "total": 1, "step": "sequence 0/1"},
     ]
-    assert "first" in status["text"] and "second" in status["text"]
+    assert status["text"] == f"first: survey 2/2, second: sequence 0/1 · {status['summary']}"
+    assert status["summary"].endswith(" left") and "first" not in status["summary"]
+
+
+def test_the_summary_and_the_percent_agree_where_floating_point_falls_short() -> None:
+    snapshot = ProgressSnapshot((), done_work=58, total_work=100, elapsed=42)
+
+    assert snapshot.to_status()["percent"] == 58.0
+    assert snapshot.summary() == "58% · about 30 s left"
 
 
 def test_no_work_counts_as_done() -> None:

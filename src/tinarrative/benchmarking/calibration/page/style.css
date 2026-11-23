@@ -152,7 +152,68 @@ button:disabled { cursor: default; }
   border-bottom: 1px solid var(--rule);
 }
 .banner[data-tone="error"], .banner[data-tone="link"] { background: var(--error-ground); }
+.banner-body { display: grid; gap: 5px; min-width: 0; }
 .banner-text { margin: 0; max-width: 110ch; }
+
+/* The rebuild's progress: one fixed-width bar with the share and time left, then every campaign as a name and a
+   mark, the running ones with their step, so twenty campaigns still fit in two lines. Marks fill like the level
+   gauges: hollow waiting, half running, full done. */
+.banner-meter { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.banner-bar {
+  flex: none;
+  width: 220px;
+  height: 6px;
+  border: 0;
+  border-radius: 3px;
+  background: var(--rule);
+  color: var(--focus);
+  accent-color: var(--focus);
+  appearance: none;
+}
+.banner-bar::-webkit-progress-bar { background: var(--rule); border-radius: 3px; }
+.banner-bar::-webkit-progress-value { background: var(--focus); border-radius: 3px; transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1); }
+.banner-bar::-moz-progress-bar { background: var(--focus); border-radius: 3px; }
+.banner-detail { min-width: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.banner-campaigns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.banner-campaign { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.banner-campaign::before {
+  content: "";
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  box-shadow: inset 0 0 0 1px var(--ink-3);
+}
+.banner-campaign[data-phase="waiting"] { color: var(--ink-3); }
+.banner-campaign[data-phase="waiting"]::before { box-shadow: inset 0 0 0 1px var(--rule-strong); }
+.banner-campaign[data-state="running"] { color: var(--ink); font-weight: 600; }
+.banner-campaign[data-state="running"]::before {
+  background: linear-gradient(90deg, var(--focus) 0 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+.banner-step { color: var(--ink-2); font-weight: 400; }
+.banner-campaign[data-phase="done"]::before { background: var(--ink-2); box-shadow: none; }
+/* No progress in status.js yet: one slow sweep says the rebuild is alive without claiming how far it is. */
+.banner-bar:indeterminate {
+  background: linear-gradient(90deg, var(--rule) 0 35%, var(--focus) 50%, var(--rule) 65% 100%) 0 0 / 300% 100%;
+  animation: banner-sweep 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.banner-bar:indeterminate::-webkit-progress-bar { background: transparent; }
+.banner-bar:indeterminate::-moz-progress-bar { background: transparent; }
+@keyframes banner-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .banner-bar::-webkit-progress-value { transition: none; }
+  .banner-bar:indeterminate { animation: none; background: var(--rule); }
+}
 .banner-action {
   height: 26px;
   padding: 0 10px;

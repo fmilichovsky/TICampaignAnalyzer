@@ -13,7 +13,16 @@
 </head>
 <body>
 <div class="banner" id="banner" role="status" hidden>
-  <p class="banner-text" id="banner-text"></p>
+  <div class="banner-body">
+    <p class="banner-text" id="banner-text"></p>
+    <div class="banner-progress" id="banner-progress" aria-live="off" hidden>
+      <div class="banner-meter">
+        <progress class="banner-bar" id="banner-bar" max="100" aria-label="Rebuild progress"></progress>
+        <span class="banner-detail" id="banner-detail"></span>
+      </div>
+      <ol class="banner-campaigns" id="banner-campaigns" aria-label="Campaigns"></ol>
+    </div>
+  </div>
   <button type="button" class="banner-action" id="banner-action" hidden>Reload</button>
 </div>
 

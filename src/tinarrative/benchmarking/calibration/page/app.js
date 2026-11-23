@@ -178,6 +178,42 @@
       banner.hidden = text === "";
       banner.dataset.tone = tone;
       $("banner-text").textContent = text;
+      this.showProgress(!this.lost && status && status.state === "rebuilding" ? status : null);
+    },
+
+    // The rebuild's progress, all worded by status.js: the share and time left beside the bar, then every campaign
+    // in extraction order, the running ones with their step. A status without progress leaves the bar indeterminate.
+    showProgress(status) {
+      $("banner-progress").hidden = !status;
+      if (!status) return;
+      const progress = status.progress;
+      const bar = $("banner-bar");
+      if (progress) bar.value = progress.percent;
+      else bar.removeAttribute("value");
+      bar.setAttribute("aria-valuetext", progress ? progress.text : "Starting");
+      $("banner-detail").textContent = progress ? (progress.summary ?? progress.text) : "";
+      const list = $("banner-campaigns");
+      const campaigns = (progress && progress.campaigns) || [];
+      list.hidden = campaigns.length === 0;
+      list.replaceChildren(
+        ...campaigns.map((campaign) => {
+          const running = campaign.phase !== "waiting" && campaign.phase !== "done";
+          const step = campaign.step ?? campaign.phase;
+          return el(
+            "li",
+            {
+              class: "banner-campaign",
+              "data-phase": campaign.phase,
+              "data-state": running ? "running" : null,
+              title: `${campaign.name}: ${step}`,
+            },
+            campaign.name,
+            running
+              ? el("span", { class: "banner-step", text: step })
+              : el("span", { class: "visually-hidden", text: `, ${step}` }),
+          );
+        }),
+      );
     },
 
     schedule() {
