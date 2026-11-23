@@ -5,6 +5,7 @@ snapshots. Most of the work happens in a repeatable, deterministic process that
 constructs a filtered, ranked and partially interpreted package.
 The package gets fed to an LLM to tie them together, wrap them in a readable story,
 and justify how the general public would realistically perceive the events.
+The tone and shape of the final content is stated in the [editorial direction](docs/editorial-direction.md).
 
 - Most of the work happens locally without LLMs.
 - Narrative layer (LLM interaction) supports multiple API providers (OpenAI, Anthropic, OpenRouter, Local Ollama).

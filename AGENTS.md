@@ -51,6 +51,8 @@ worktree); `make` targets handle it themselves.
 ## Agent-only rules
 
 - Do not add agent attribution lines to commits or PR descriptions.
+- Never edit [docs/editorial-direction.md](docs/editorial-direction.md). If you think it is wrong, file a structural
+  finding ("the direction is missing a rule") and carry on under the current text.
 
 ## Agent skills
 

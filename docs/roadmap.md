@@ -121,7 +121,7 @@ Target: the [narrator package](commands/events.md#narrator-package).
 Target: agents that judge event kinds, base levels and scalings against the sample campaigns (#531).
 
 - [ ] Repo skills in `.agents/skills`, symlinked from `.claude/skills` (#641).
-- [ ] Editorial direction (#642).
+- [x] Editorial direction (#642).
 - [ ] Scaling engine: a scaling per kind in place of the reference and the clamp (#643).
 - [ ] Calibration table: roles, explained events, interval dates and name history (#644).
 - [ ] Themes file (#645).
