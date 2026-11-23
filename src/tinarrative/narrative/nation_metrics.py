@@ -86,7 +86,7 @@ class BandShiftRule:
 
     @property
     def explains(self) -> frozenset[str]:
-        return SHIFT_EXPLAINERS | (frozenset({WAR_ARC}) if self.statistic in {"unrest", "cohesion"} else frozenset())
+        return band_explainers(self.statistic)
 
     @property
     def name(self) -> str:
@@ -122,7 +122,7 @@ class BandShiftRule:
                 and not _holds(later, nation.entity_id, self.statistic, before, boundary)
             ):
                 continue
-            if _explained(crossing, nation.entity_id, explainers):
+            if explainer_of(crossing, nation.entity_id, explainers) is not None:
                 continue
             rank = pair[1].rank(nation.entity_id, GDP)
             roles = [(Role.ACTOR, nation)]
@@ -182,11 +182,21 @@ def _holds(report: SituationReport, nation_id: EntityId, statistic: str, before:
     return value is not None and crosses(boundary, before, value)
 
 
-def _explained(crossing: Event, nation_id: EntityId, explainers: Sequence[Event]) -> bool:
+def band_explainers(statistic: str) -> frozenset[str]:
+    """The narrative types whose events explain a crossing of ``statistic``."""
+    return SHIFT_EXPLAINERS | (frozenset({WAR_ARC}) if statistic in REST_VALUE_FILTERED else frozenset())
+
+
+def explainer_of(crossing: Event, nation_id: EntityId, explainers: Sequence[Event]) -> Event | None:
+    """The first of ``explainers`` by ID that covers the crossing's interval with the nation in a role, if any."""
     key = interval_of(crossing.id)
-    return any(
-        key in explainer.intervals and any(ref.entity_id == nation_id for _, ref in explainer.roles)
-        for explainer in explainers
+    return next(
+        (
+            explainer
+            for explainer in sorted(explainers, key=lambda item: item.id)
+            if key in explainer.intervals and any(ref.entity_id == nation_id for _, ref in explainer.roles)
+        ),
+        None,
     )
 
 
