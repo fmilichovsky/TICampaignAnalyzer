@@ -33,6 +33,8 @@ from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_
 from tinarrative.kinds.nations import BAND_SHIFTS, POPULATION_COLLAPSE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import (
+    SCORE_MAX,
+    SCORE_MIN,
     SIGNIFICANCE_ORDER,
     Confidence,
     DateBasis,
@@ -45,6 +47,7 @@ from tinarrative.model.kinds import Measure, Rule, ShareOf
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance_of
+from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.shares import SaveShares
 from tinarrative.narrative.significance import (
@@ -54,7 +57,10 @@ from tinarrative.narrative.significance import (
     ShareVariant,
     arithmetic,
     decide,
+    own_score,
+    scale,
     score_event,
+    settled_score,
 )
 
 COUNCILOR = EntityDomain.COUNCILOR
@@ -751,3 +757,16 @@ def test_a_technology_milestone_takes_its_curated_tier() -> None:
         narrative_level("technology.milestone", template="".join(MILESTONE_TEMPLATES) + "Unlisted", rationale="r")
         is Significance.MINOR
     )
+
+
+def test_the_plain_number_steps_bound_the_scale_and_the_score_and_take_the_highest_input() -> None:
+    # Public because the calibration replay scores table rows, not events, through the same steps.
+    assert scale(0.0, 1.0) == SCALE_MIN
+    assert scale(10.0**SCALE_MAX, 1.0) == SCALE_MAX
+    assert scale(1.0, 1.0) == 0
+    assert own_score(40, ()) == 40
+    assert own_score(40, (-3, 5, 2)) == own_score(40, (5,)) == 40 + 5
+    assert own_score(SCORE_MAX, (SCALE_MAX,)) == SCORE_MAX
+    assert own_score(SCORE_MIN, (SCALE_MIN,)) == SCORE_MIN
+    assert settled_score(45, (30, 61)) == 61
+    assert settled_score(45, (30,)) == 45

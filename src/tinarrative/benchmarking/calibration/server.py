@@ -23,6 +23,7 @@ from tinarrative.benchmarking.calibration import replay as calibration
 from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.replay import ReplayError, ReplayState, ReplayStateError
 from tinarrative.benchmarking.calibration.table import CalibrationTableError, read_index
+from tinarrative.model.events import Significance
 
 HOST: Final = "127.0.0.1"
 DEFAULT_PORT: Final = 8769
@@ -169,8 +170,8 @@ def meta(index: Mapping[str, Any], drafts: Tables) -> dict[str, Any]:
     a base level gives, and the draft each draft row belongs to."""
     constants = index["constants"]
     return {
-        "window": calibration.cutoff_offsets(constants),
-        "level_bases": {level: (int(low) + int(high)) // 2 for level, (low, high) in constants["level_bands"].items()},
+        "window": calibration.cutoff_offsets(),
+        "level_bases": {level: Significance(level).base for level in constants["level_bands"]},
         "draft_names": {name: [draft_name(row["id"]) for row in rows] for name, rows in drafts.items()},
     }
 

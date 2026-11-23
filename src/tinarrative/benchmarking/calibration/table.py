@@ -14,7 +14,7 @@ from tinarrative.benchmarking.calibration.drafts import DraftShare, draft_base, 
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
-from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Event, Significance
+from tinarrative.model.events import SCORE_BANDS, SCORE_MAX, SCORE_MIN, SIGNIFICANCE_ORDER, Event, Significance
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.aggregation import interval_shares
 from tinarrative.narrative.chronology import interval_of
@@ -36,8 +36,6 @@ CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
 SUFFIX: Final = ";"
-SCORE_MIN: Final = 0
-SCORE_MAX: Final = 100
 NEIGHBOURS: Final = 5
 """Events the calibration page lists on each side of a cut-off."""
 PACKAGE_LEVEL: Final = Significance.MAJOR.value

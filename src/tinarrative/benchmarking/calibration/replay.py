@@ -17,9 +17,15 @@ from typing import Any, Final, Literal, TypedDict
 from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.table import SCHEMA_VERSION as SCHEMA_VERSION
 from tinarrative.benchmarking.calibration.table import read_campaign, read_index
+from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Significance
+from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
+from tinarrative.narrative.significance import own_score, scale, settled_score
 
 STATE_KEYS: Final = ("ref", "campaigns", "types", "base", "focus")
 """The hash keys, in the order ``encode_state`` writes them."""
+
+LEVELS: Final = [level.value for level in SIGNIFICANCE_ORDER]
+"""The levels, least significant first: the code's, not the index's."""
 
 Row = Mapping[str, Any]
 Verdict = Literal["keeps_members", "loses_members", "falls_apart", "could_become_member"]
@@ -245,7 +251,7 @@ def replay(
     state = _with_bases(index, state)
     _validate(index, tables, state)
     constants = index["constants"]
-    levels = list(constants["level_bands"])
+    levels = LEVELS
     gates = [
         _Gate(frozenset(gate["group_types"]), gate["member_type"], frozenset(gate["admitted_levels"]), gate["minimum"])
         for gate in index["member_gates"]
@@ -328,13 +334,13 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
     if sorted(state.bases) != sorted(names):
         raise ReplayStateError(f"the state needs a base for exactly the draft shares {', '.join(names) or '(none)'}")
     for name, level in state.bases.items():
-        if level not in index["constants"]["level_bands"]:
+        if level not in LEVELS:
             raise ReplayStateError(f"the base of draft share {name} must be a level, not {level!r}")
     unswitchable = sorted(set(state.type_bases) - set(index["kinds"]))
     if unswitchable:
         raise ReplayStateError(f"unknown event type(s) in the base levels: {', '.join(unswitchable)}")
     for event_type, level in state.type_bases.items():
-        if level not in index["constants"]["level_bands"]:
+        if level not in LEVELS:
             raise ReplayStateError(f"the base level of {event_type} must be a level, not {level!r}")
 
 
@@ -342,9 +348,7 @@ def _replay_campaign(
     index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row], state: ReplayState, gates: Sequence[_Gate]
 ) -> tuple[list[_Scored], list[_Scored]]:
     """The rows and the draft rows rescored; a draft row may cite only real rows of an earlier layer."""
-    constants = index["constants"]
     layer_of = index["layers"]
-    bands = [(level, low, high) for level, (low, high) in constants["level_bands"].items()]
 
     def layer(row: Row) -> int:
         return int(layer_of.get(row["type"], 0)) if row["tier"] == "narrative" else 0
@@ -357,7 +361,7 @@ def _replay_campaign(
     def start(row: Row) -> int:
         """The row's base, or the tried base level of its type where no context rule decided."""
         if row["rule"] is None and row["type"] in switched:
-            return _level_base(constants, switched[row["type"]])
+            return Significance(switched[row["type"]]).base
         return int(row["base"])
 
     def draft_start(row: Row, name: str) -> int:
@@ -367,7 +371,7 @@ def _replay_campaign(
         level = state.bases[name]
         if level == own_bases.get(name) and row["type"] in switched:
             level = switched[row["type"]]
-        return _level_base(constants, level)
+        return Significance(level).base
 
     def settle(row: Row, base: int) -> _Scored:
         own_layer = layer(row)
@@ -386,14 +390,11 @@ def _replay_campaign(
                 if item.row["type"] == gate.member_type and item.level not in gate.admitted
             ]
             cited_rows = [item for item in cited_rows if item.row["id"] not in lost]
-        own = _own_score(row, base, state, constants)
+        own = own_score(base, (scale(share["share"], state.references[share["measure"]]) for share in row["shares"]))
         best = max(cited_rows, key=lambda item: item.score, default=None)
-        if best is None or own >= best.score:
-            score, decided_by = own, row["id"]
-        else:
-            score, decided_by = best.score, best.decided_by
-        level = next(level for level, low, high in bands if low <= score <= high)
-        item = _Scored(row, score, level, decided_by)
+        score = settled_score(own, (item.score for item in cited_rows))
+        decided_by = row["id"] if best is None or score == own else best.decided_by
+        item = _Scored(row, score, Significance.of(score).value, decided_by)
         if gate is not None:
             item.member = _group_verdict(row, gate, cited_rows, lost)
         return item
@@ -426,29 +427,6 @@ def _replay_campaign(
         item.member = None
         drafted.append(item)
     return [done[row["id"]] for row in rows], drafted
-
-
-def _level_base(constants: Mapping[str, Any], level: str) -> int:
-    """The midpoint of the level's band: the score of an event whose base alone decides its level."""
-    low, high = constants["level_bands"][level]
-    return (int(low) + int(high)) // 2
-
-
-def _own_score(row: Row, base: int, state: ReplayState, constants: Mapping[str, Any]) -> int:
-    """``base`` moved by the highest candidate scale, inside the score bound."""
-    if not row["shares"]:
-        return base
-    scales = [_scale(share["share"], state.references[share["measure"]], constants) for share in row["shares"]]
-    return max(int(constants["score_min"]), min(int(constants["score_max"]), base + max(scales)))
-
-
-def _scale(share: float, reference: float, constants: Mapping[str, Any]) -> int:
-    """``round(10 * log10(share / reference))``, bounded by ``scale_min`` and ``scale_max``; no share takes
-    ``scale_min``."""
-    low, high = int(constants["scale_min"]), int(constants["scale_max"])
-    if share <= 0:
-        return low
-    return max(low, min(high, round(10 * math.log10(share / reference))))
 
 
 def _group_verdict(row: Row, gate: _Gate, kept_rows: Sequence[_Scored], lost: Sequence[str]) -> MemberResult:
@@ -540,22 +518,21 @@ def _moves(items: Sequence[_Scored], levels: Sequence[str]) -> list[Move]:
     ]
 
 
-def cutoff_offsets(constants: Mapping[str, Any]) -> list[float]:
+def cutoff_offsets() -> list[float]:
     """Every ``log10(share / reference)`` at which a share moves an event of some base level one more level, ascending.
 
     A base sits mid-band, so the score crosses a band edge where ``10 * offset`` is half a point past it. Only the
     offsets the scale window reaches are kept.
     """
-    bands = list(constants["level_bands"].values())
     offsets: set[float] = set()
-    for low, high in bands:
-        base = (low + high) // 2
-        for other_low, other_high in bands:
+    for level in SCORE_BANDS:
+        base = level.base
+        for other_low, other_high in SCORE_BANDS.values():
             if other_low > base:
                 offsets.add((other_low - base - 0.5) / 10)
             if other_high < base:
                 offsets.add((other_high - base + 0.5) / 10)
-    return sorted(offset for offset in offsets if constants["scale_min"] <= 10 * offset <= constants["scale_max"])
+    return sorted(offset for offset in offsets if SCALE_MIN <= 10 * offset <= SCALE_MAX)
 
 
 def _cutoffs(
@@ -580,7 +557,7 @@ def _cutoffs(
     drafted = candidates(shadowed)
     names = [draft["name"] for draft in index["drafts"]]
     result: list[Cutoff] = []
-    for offset in cutoff_offsets(constants):
+    for offset in cutoff_offsets():
         cut = reference * 10**offset
         below, above = _sides(real, cut, offset, state.campaigns, constants["neighbours"])
         drafts: dict[str, Sides] = {}
@@ -721,7 +698,7 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
 def _decode_bases(value: str, index: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
     """The draft bases and the event types' base levels of a ``base`` value."""
     names = [draft["name"] for draft in index["drafts"]]
-    levels = list(index["constants"]["level_bands"])
+    levels = LEVELS
     bases: dict[str, str] = {}
     type_bases: dict[str, str] = {}
     if not value:

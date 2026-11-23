@@ -21,7 +21,7 @@ from ..kinds.space import SHIP_APPEARED
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import SIGNIFICANCE_ORDER, Event, Role, Significance, SignificanceBasis
+from ..model.events import SCORE_MAX, SCORE_MIN, SIGNIFICANCE_ORDER, Event, Role, Significance, SignificanceBasis
 from ..model.kinds import EventKind, Measure, Rule, ShareOf
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
@@ -42,7 +42,10 @@ __all__ = [
     "arithmetic",
     "assign_significance",
     "decide",
+    "own_score",
+    "scale",
     "score_event",
+    "settled_score",
     "significance_of",
 ]
 
@@ -445,7 +448,9 @@ SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
 """Every ``ShareOf``'s implementation; any kind may declare any of them."""
 
 
-def _scale(share: float, reference: float) -> int:
+def scale(share: float, reference: float) -> int:
+    """``round(10 * log10(share / reference))``, bounded by ``SCALE_MIN`` and ``SCALE_MAX``; no share takes
+    ``SCALE_MIN``."""
     if share <= 0:
         return SCALE_MIN
     return max(SCALE_MIN, min(SCALE_MAX, round(10 * math.log10(share / reference))))
@@ -507,9 +512,20 @@ def _basis(
         base=level.base,
         measure=reading.measure,
         share=share,
-        scale=_scale(share, MEASURES[reading.measure].reference),
+        scale=scale(share, MEASURES[reading.measure].reference),
         entities=refs,
     )
+
+
+def own_score(base: int, scales: Iterable[int]) -> int:
+    """``base`` moved by the highest of ``scales``, inside the score bound; no scale leaves the base."""
+    moved = max(scales, default=None)
+    return base if moved is None else max(SCORE_MIN, min(SCORE_MAX, base + moved))
+
+
+def settled_score(own: int, cited_scores: Iterable[int]) -> int:
+    """The higher of an event's own score and the highest score it cites (ADR-0011)."""
+    return max([own, *cited_scores])
 
 
 def arithmetic(
@@ -517,9 +533,9 @@ def arithmetic(
 ) -> tuple[int, Significance]:
     """The score and its level from the starting ``level``, the share's ``basis`` (``None`` for no share) and the
     scores of the cited events (ADR-0011): the higher of the level's base moved by the share and the highest cited
-    score. The one place the arithmetic lives; the calibration replay can point at it."""
-    own = level.base if basis is None else max(0, min(100, basis.base + basis.scale))
-    score = max([own, *cited_scores])
+    score. The plain-number steps are ``own_score`` and ``settled_score``."""
+    own = level.base if basis is None else own_score(basis.base, (basis.scale,))
+    score = settled_score(own, cited_scores)
     return score, Significance.of(score)
 
 

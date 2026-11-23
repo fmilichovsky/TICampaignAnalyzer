@@ -64,7 +64,7 @@ def golden_tables() -> dict[str, dict[str, Any]]:
     minimum = GATE["minimum"]
     chain_rows, shadows = drafted()
     top = (CONSTANTS["level_bands"]["campaign_defining"][0] - base("major")) - 1
-    window = cutoff_offsets(CONSTANTS)
+    window = cutoff_offsets()
     low = window[0]
     alpha = [
         row("atomic", "atomic.thing", shares=power(3)),
