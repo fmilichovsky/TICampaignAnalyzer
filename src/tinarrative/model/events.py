@@ -36,17 +36,15 @@ class Significance(StrEnum):
     """How much an event matters to a campaign history; independent of confidence (ADR-0011).
 
     Assigned by ``tinarrative.narrative.significance``; ``SIGNIFICANCE_ORDER`` is the ranking. Each level is a fixed
-    band of the 0-100 ``Event.score`` (``SCORE_BANDS``).
+    band of the 0-100 ``Event.score`` (``SCORE_BANDS``). What each level means to a reader is stated in
+    ``docs/editorial-direction.md``.
     """
 
     TRIVIAL = "trivial"
-    """Routine churn or bookkeeping that no history level shows (recruit-pool councilors, log pruning)."""
     MINOR = "minor"
-    """Worth a forensic log line, not a history entry; the default for an unclassified type."""
+    """The default for an unclassified type."""
     MAJOR = "major"
-    """A narrative event a normal campaign history reports."""
     CAMPAIGN_DEFINING = "campaign_defining"
-    """A narrative event even a concise summary keeps."""
 
     @property
     def rank(self) -> int:
