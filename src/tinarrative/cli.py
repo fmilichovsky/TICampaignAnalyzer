@@ -20,6 +20,7 @@ from . import __version__
 from .benchmarking import metrics as benchmark_metrics
 from .benchmarking import runtime as benchmark_runtime
 from .benchmarking.calibration import cache as calibration_cache
+from .benchmarking.calibration import progress as calibration_progress
 from .benchmarking.calibration import readout as calibration_readout
 from .benchmarking.calibration import replay as calibration_replay
 from .benchmarking.calibration import server as calibration_server
@@ -612,6 +613,26 @@ class _ProgressTracker:
         sys.stderr.flush()
         self.width = len(label)
 
+    def show(self, text: str) -> None:
+        """Replace the live line with ``text`` behind the command prefix."""
+        if not self.terminal:
+            return
+        with self.lock:
+            label = f"tinarrative {self.command}: {text}"
+            self.label = label
+            sys.stderr.write("\r" + label + " " * max(self.width - len(label), 0))
+            sys.stderr.flush()
+            self.width = len(label)
+
+    def clear(self) -> None:
+        """Remove the live line, for a message that ends the work early."""
+        with self.lock:
+            if self.terminal and self.width:
+                sys.stderr.write("\r" + " " * self.width + "\r")
+                sys.stderr.flush()
+            self.width = 0
+            self.label = ""
+
     def report(self, lines: Sequence[str]) -> None:
         """Write a completed work group without colliding with the live progress line."""
         with self.lock:
@@ -818,6 +839,43 @@ def _calibration_samples_error(command: str, samples: Path) -> int | None:
     return EXIT_USAGE_ERROR if errors else None
 
 
+class _ExtractionReporter:
+    """Show an extraction of the calibration table on stderr: a live line on a terminal, a line per finished
+    campaign, and the time it took."""
+
+    def __init__(self, command: str) -> None:
+        self.command = command
+        self.tracker: _ProgressTracker | None = None
+        self.rebuilding = False
+        self.finished: set[str] = set()
+
+    def stale(self, found: calibration_cache.CacheCheck) -> None:
+        self.rebuilding = found.existing is not None
+        self.tracker = _ProgressTracker(self.command.removeprefix("tinarrative "), 0)
+
+    def progress(self, snapshot: calibration_progress.ProgressSnapshot) -> None:
+        if self.tracker is None:
+            return
+        for step in snapshot.campaigns:
+            if step.phase == "done" and step.name not in self.finished:
+                self.finished.add(step.name)
+                self.tracker.report(
+                    [
+                        f"{self.command}: {'Rebuilt' if self.rebuilding else 'Extracted'} {step.name} "
+                        f"({step.total} saves) after {snapshot.elapsed:.1f}s"
+                    ]
+                )
+        self.tracker.show(f"{'Rebuilding' if self.rebuilding else 'Extracting'} {snapshot.text()}")
+
+    def done(self, *, failed: bool = False) -> None:
+        if self.tracker is None:
+            return
+        if failed:
+            self.tracker.clear()
+        else:
+            self.tracker.finish(f"{'rebuilding' if self.rebuilding else 'extracting'} the calibration table")
+
+
 def _run_benchmark_calibrate_open(args: argparse.Namespace) -> int:
     """Serve the calibration page on 127.0.0.1, open it, keep its table current, and serve until interrupted.
 
@@ -849,6 +907,8 @@ def _run_benchmark_calibrate_open(args: argparse.Namespace) -> int:
         if not args.no_open:
             _open_page(command, page)
 
+    reporter = _ExtractionReporter(command)
+
     def stale(found: calibration_cache.CacheCheck) -> None:
         if found.existing is not None:
             show()
@@ -857,17 +917,23 @@ def _run_benchmark_calibrate_open(args: argparse.Namespace) -> int:
             )
         else:
             print(f"{command}: Extracting the calibration table in {out}...", file=sys.stderr)
+        reporter.stale(found)
 
     code = EXIT_SUCCESS
     try:
         try:
-            calibration_cache.refresh(samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale)
+            calibration_cache.refresh(
+                samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale, on_progress=reporter.progress
+            )
+            reporter.done()
         except calibration_cache.CalibrationCacheError as error:
+            reporter.done(failed=True)
             print(f"{command}: {error}", file=sys.stderr)
             if not shown:
                 return EXIT_USAGE_ERROR
             code = EXIT_USAGE_ERROR
         except OSError as error:
+            reporter.done(failed=True)
             print(f"{command}: {error}", file=sys.stderr)
             return EXIT_OUTPUT_ERROR
         show()
@@ -905,16 +971,24 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
     if failed is not None:
         return failed
 
+    reporter = _ExtractionReporter(command)
+
     def stale(found: calibration_cache.CacheCheck) -> None:
         what = "Rebuilding" if found.existing is not None else "Extracting"
         print(f"{command}: {what} the calibration table in {out}...", file=sys.stderr)
+        reporter.stale(found)
 
     try:
-        calibration_cache.refresh(samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale)
+        calibration_cache.refresh(
+            samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale, on_progress=reporter.progress
+        )
+        reporter.done()
     except calibration_cache.CalibrationCacheError as error:
+        reporter.done(failed=True)
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_USAGE_ERROR
     except OSError as error:
+        reporter.done(failed=True)
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_OUTPUT_ERROR
     try:

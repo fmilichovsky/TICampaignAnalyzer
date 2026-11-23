@@ -252,6 +252,12 @@ A share tried on the events of an existing event type before its kind declares o
 first. It is scored beside the real events and never changes their scores.
 _Avoid_: draft stake, design series, series builder
 
+**Calibration table**:
+Every event of the sample campaigns, scored at the code's defaults, with what a calibration state needs to score it
+again. It is extracted from the saves once per version of the code and replayed many times; an extraction from an
+empty cache and a rebuild of an outdated table are the same work.
+_Avoid_: calibration cache (the cache is where the table is kept), dataset, build
+
 **Calibration state**:
 What a replay of the calibration table is asked: the rise share and any drop share of each scaling, a scaling and
 a base level per event type, the enabled campaigns and a type filter. Each is either the code's or one being tried;

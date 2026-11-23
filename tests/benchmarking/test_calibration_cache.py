@@ -10,6 +10,7 @@ import pytest
 
 from tests.benchmark_support import synthetic_samples
 from tinarrative.benchmarking.calibration import cache, table
+from tinarrative.benchmarking.calibration.progress import ProgressSnapshot
 from tinarrative.benchmarking.manifest import MANIFEST
 
 
@@ -122,6 +123,25 @@ def test_a_stale_cache_calls_back_before_the_rebuild_starts(
         "written_at": "",
     }
     assert sorted(path.name for path in out.iterdir()) == ["index.js", "status.js", "tables"]
+
+
+def test_an_extraction_reports_its_progress_in_the_status_and_to_the_caller(copy: tuple[Path, Path]) -> None:
+    samples, out = copy
+    statuses: list[dict[str, Any]] = []
+    snapshots: list[ProgressSnapshot] = []
+
+    def observed(snapshot: ProgressSnapshot) -> None:
+        snapshots.append(snapshot)
+        statuses.append(table.read_status(out / "status.js"))
+
+    cache.refresh(samples, out, rebuild=True, on_progress=observed)
+
+    assert statuses and all(status["state"] == "rebuilding" for status in statuses)
+    assert statuses[-1]["progress"] == snapshots[-1].to_status()
+    assert [snapshot.done_work for snapshot in snapshots] == sorted(snapshot.done_work for snapshot in snapshots)
+    assert snapshots[-1].fraction == 1.0
+    assert {step.phase for step in snapshots[-1].campaigns} == {"done"}
+    assert "progress" not in table.read_status(out / "status.js")
 
 
 def test_a_failed_rebuild_keeps_the_old_table_and_says_failed(
