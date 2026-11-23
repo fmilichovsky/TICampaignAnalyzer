@@ -13,7 +13,6 @@ from tests.analyzers.support import (
     by_type,
     faction_ref,
     fleet_ref,
-    hab_ref,
     named,
     pair,
     ranked,
@@ -239,26 +238,54 @@ def landed(core: Core | None = None, *, held: bool = False) -> Scenario:
 # --- Scenarios: hab destroyed -----------------------------------------------------------------------------------
 
 
-def unique_destruction() -> Scenario:
+def destroyed_notice(date: str) -> tuple[str, str, EntityRef]:
+    """A ``LogHabDestroyed`` on ``date``; its subject is the destroyer's fleet, as the game writes for stations."""
+    return ("LogHabDestroyed", date, fleet_ref("95"))
+
+
+def unique_destruction(*, notified: bool = False) -> Scenario:
     """Faction 16's Base 70 on body 900 vanishes and its log records one Base destroyed there by faction 15."""
+    notes = (destroyed_notice(IN_INTERVAL),) if notified else ()
     return space_pair(
         {"70": ("16", "Base", "900"), "71": ("16", "Station", "900")},
         {"71": ("16", "Station", "900")},
-        records_before=(destruction_log(BEFORE, ENEMY),),
-        records_after=(destruction_log(AFTER, ENEMY, destruction(0, "Base", "900", IN_INTERVAL)),),
+        records_before=(destruction_log(BEFORE, ENEMY), notifications(BEFORE)),
+        records_after=(
+            destruction_log(AFTER, ENEMY, destruction(0, "Base", "900", IN_INTERVAL)),
+            notifications(AFTER, *notes),
+        ),
     )
 
 
-def ambiguous_destruction(entries: int, *, pinned: bool = False) -> Scenario:
-    """Two Bases of faction 16 on body 900 vanish; the log records ``entries`` Base destructions there."""
+def ambiguous_destruction(
+    entries: int,
+    *,
+    habs: int = 2,
+    mixed: bool = False,
+    notified: bool = False,
+    gained: Mapping[EntityRef, tuple[str, ...]] | None = None,
+) -> Scenario:
+    """``habs`` Bases of faction 16 on body 900 (72, 73, ...) vanish; the log records ``entries`` Base destructions
+    there by faction 15, the second by faction 17 when ``mixed``; each killer's ``Kills`` against faction 16 gains
+    the names in ``gained``."""
     dates = (IN_INTERVAL, LATER_IN_INTERVAL)
-    logged = tuple(destruction(index, "Base", "900", dates[index]) for index in range(entries))
-    notes = (("LogHabDestroyed", LATER_IN_INTERVAL, hab_ref("73")),) if pinned else ()
+    destroyers = (PLAYER, THIRD if mixed else PLAYER)
+    logged = tuple(destruction(index, "Base", "900", dates[index], destroyers[index]) for index in range(entries))
+    notes = (destroyed_notice(LATER_IN_INTERVAL),) if notified else ()
+    killers = gained or {}
     return space_pair(
-        {"72": ("16", "Base", "900"), "73": ("16", "Base", "900")},
+        {str(72 + index): ("16", "Base", "900") for index in range(habs)},
         {},
-        records_before=(destruction_log(BEFORE, ENEMY), notifications(BEFORE)),
-        records_after=(destruction_log(AFTER, ENEMY, *logged), notifications(AFTER, *notes)),
+        records_before=(
+            destruction_log(BEFORE, ENEMY),
+            notifications(BEFORE),
+            *(kills(BEFORE, killer, (ENEMY, (OLD_KILL,))) for killer in killers),
+        ),
+        records_after=(
+            destruction_log(AFTER, ENEMY, *logged),
+            notifications(AFTER, *notes),
+            *(kills(AFTER, killer, (ENEMY, (OLD_KILL, *names))) for killer, names in killers.items()),
+        ),
     )
 
 
@@ -275,6 +302,8 @@ def mismatched_destruction() -> Scenario:
 # --- Scenarios: space losses -------------------------------------------------------------------------------------
 
 OLD_KILL = "Fixture earlier kill"
+HAB_73 = "Fixture space object 73"
+"""The display name the fixture gives hab 73."""
 
 
 def losses(
@@ -330,7 +359,9 @@ SCENARIOS: dict[str, Callable[[], Scenario]] = {
     "unique_destruction": unique_destruction,
     "ambiguous_destruction": lambda: ambiguous_destruction(2),
     "short_destruction": lambda: ambiguous_destruction(1),
-    "pinned_destruction": lambda: ambiguous_destruction(2, pinned=True),
+    "mixed_destruction": lambda: ambiguous_destruction(2, mixed=True),
+    "notified_destruction": lambda: ambiguous_destruction(2, mixed=True, notified=True),
+    "kills_tied_destruction": lambda: ambiguous_destruction(2, mixed=True, gained={THIRD: (HAB_73,)}),
     "ship_losses": lambda: losses(vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}),
     "ship_and_hab_losses": lambda: losses(
         vanished=vanished_ships("Alpha"), gained={PLAYER: ("Alpha",)}, hab_destroyed=True
@@ -470,20 +501,36 @@ def test_one_vanished_hab_and_one_matching_entry_is_a_high_destruction_dated_by_
     assert [source.change.entity_id for source in primary] == [EntityId(HAB, "70")]
 
 
-def test_two_entries_for_two_vanished_habs_are_medium_and_ambiguous() -> None:
+def test_entries_naming_one_destroyer_tie_every_hab_to_it_dated_by_the_interval() -> None:
     _, inferred = run(ambiguous_destruction(2))
-    events = by_type(inferred, HAB_DESTROYED)
-    assert [event.id for event in sorted(events, key=lambda e: e.id)] == [
-        "hab.destroyed/space object:72",
-        "hab.destroyed/space object:73",
-    ]
+    events = sorted(by_type(inferred, HAB_DESTROYED), key=lambda event: event.id)
+    assert [event.id for event in events] == ["hab.destroyed/space object:72", "hab.destroyed/space object:73"]
     for event in events:
-        assert event.confidence is Confidence.MEDIUM
+        assert (event.confidence, event.attribute("ambiguous")) == (Confidence.HIGH, False)
+        assert event.attribute("destroyer") == named(PLAYER)
         assert event.date_basis is DateBasis.INTERVAL
-        assert event.attribute("ambiguous") is True
+        assert event.attribute("recorded_dates") == (IN_INTERVAL, LATER_IN_INTERVAL)
+    assert only(inferred, SPACE_LOSSES).attribute("habs_lost") == 2
+
+
+def test_more_entries_naming_one_destroyer_than_habs_is_medium() -> None:
+    _, inferred = run(ambiguous_destruction(2, habs=1))
+    event = only(inferred, HAB_DESTROYED)
+    assert (event.confidence, event.attribute("ambiguous")) == (Confidence.MEDIUM, False)
+    assert event.attribute("destroyer") == named(PLAYER)
+
+
+def test_entries_naming_several_destroyers_are_medium_and_ambiguous() -> None:
+    _, inferred = run(ambiguous_destruction(2, mixed=True))
+    events = by_type(inferred, HAB_DESTROYED)
+    assert len(events) == 2
+    for event in events:
+        assert (event.confidence, event.attribute("ambiguous")) == (Confidence.MEDIUM, True)
+        assert event.date_basis is DateBasis.INTERVAL
         assert (event.attribute("candidates"), event.attribute("vanished")) == (2, 2)
         assert event.attribute("recorded_dates") == (IN_INTERVAL, LATER_IN_INTERVAL)
-        assert ids(event.attribute("destroyers")) == ["faction:15"]
+        assert ids(event.attribute("destroyers")) == ["faction:15", "faction:17"]
+    assert by_type(inferred, SPACE_LOSSES) == []
 
 
 def test_fewer_entries_than_vanished_habs_is_low() -> None:
@@ -491,17 +538,44 @@ def test_fewer_entries_than_vanished_habs_is_low() -> None:
     events = by_type(inferred, HAB_DESTROYED)
     assert len(events) == 2
     assert {event.confidence for event in events} == {Confidence.LOW}
+    assert all(event.attribute("ambiguous") is True for event in events)
 
 
-def test_a_notification_naming_the_hab_on_an_entrys_date_pins_the_pair() -> None:
-    _, inferred = run(ambiguous_destruction(2, pinned=True))
+def test_a_hab_name_one_destroyer_alone_gained_ties_it_to_that_destroyer() -> None:
+    _, inferred = run(ambiguous_destruction(2, mixed=True, gained={THIRD: (HAB_73,)}))
     by_id = {event.id: event for event in by_type(inferred, HAB_DESTROYED)}
-    pinned = by_id["hab.destroyed/space object:73"]
-    assert pinned.confidence is Confidence.HIGH
-    assert (pinned.date, pinned.attribute("signals")) == (LATER_IN_INTERVAL, ("destruction_log", "notification"))
-    assert "notification.LogHabDestroyed/notification queue:80/0" in pinned.constituents
-    rest = by_id["hab.destroyed/space object:72"]  # the other hab takes the remaining entry
-    assert (rest.confidence, rest.date, rest.attribute("ambiguous")) == (Confidence.HIGH, IN_INTERVAL, False)
+    tied = by_id["hab.destroyed/space object:73"]
+    assert (tied.confidence, tied.attribute("ambiguous")) == (Confidence.HIGH, False)
+    assert tied.attribute("destroyer") == named(THIRD)
+    assert (tied.date, tied.attribute("signals")) == (LATER_IN_INTERVAL, ("destruction_log", "kills"))
+    rest = by_id["hab.destroyed/space object:72"]
+    assert (rest.attribute("ambiguous"), rest.attribute("vanished")) == (True, 1)
+
+
+def test_a_hab_name_several_destroyers_gained_ties_it_to_none() -> None:
+    _, inferred = run(ambiguous_destruction(2, mixed=True, gained={PLAYER: (HAB_73,), THIRD: (HAB_73,)}))
+    assert all(event.attribute("ambiguous") is True for event in by_type(inferred, HAB_DESTROYED))
+
+
+def test_a_notification_dated_like_the_entry_is_cited_as_corroboration() -> None:
+    _, inferred = run(unique_destruction(notified=True))
+    event = only(inferred, HAB_DESTROYED)
+    assert event.confidence is Confidence.HIGH
+    assert event.attribute("signals") == ("destruction_log", "notification")
+    assert "notification.LogHabDestroyed/notification queue:80/0" in event.constituents
+
+
+def test_a_notification_dated_like_one_entry_never_picks_a_hab() -> None:
+    _, plain = run(ambiguous_destruction(2, mixed=True))
+    _, notified = run(ambiguous_destruction(2, mixed=True, notified=True))
+    for before, after in zip(
+        sorted(by_type(plain, HAB_DESTROYED), key=lambda e: e.id),
+        sorted(by_type(notified, HAB_DESTROYED), key=lambda e: e.id),
+        strict=True,
+    ):
+        assert (after.confidence, after.attribute("ambiguous")) == (before.confidence, True)
+        assert after.attribute("signals") == ("destruction_log", "notification")
+        assert "notification.LogHabDestroyed/notification queue:80/0" in after.constituents
 
 
 def test_a_vanished_hab_of_another_type_or_body_is_not_joined() -> None:
@@ -628,7 +702,11 @@ def test_lines_name_the_reading_and_significance_ranks_it() -> None:
     )
     assert lines_of(ambiguous_destruction(2))["hab.destroyed/space object:72"][0] == (
         "Fixture space object 72 (space object:72) was destroyed by Fixture faction 15 (faction:15) "
-        '(type "Base" at space body:900): one of 2 recorded destructions for 2 vanished habs'
+        f'between {IN_INTERVAL} and {LATER_IN_INTERVAL} (type "Base" at space body:900)'
+    )
+    assert lines_of(ambiguous_destruction(2, mixed=True))["hab.destroyed/space object:72"][0] == (
+        "Fixture space object 72 (space object:72) was destroyed by Fixture faction 15 (faction:15), Fixture "
+        'faction 17 (faction:17) (type "Base" at space body:900): one of 2 recorded destructions for 2 vanished habs'
     )
     assert lines_of(SCENARIOS["ship_and_hab_losses"]())["faction.space_losses/faction:15/faction:16"] == (
         "Fixture faction 15 (faction:15) destroyed 1 ship and 1 hab of Fixture faction 16 (faction:16)",

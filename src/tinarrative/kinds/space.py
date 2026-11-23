@@ -97,7 +97,11 @@ def _hab_destroyed(event: Event) -> str:
             f"{_attr(event, 'candidates')} recorded destructions for {_attr(event, 'vanished')} vanished habs"
         )
     by = "" if event.attribute("destroyer") is None else f" by {_attr(event, 'destroyer')}"
-    on = "" if event.attribute("recorded_on") is None else f" on {_text(event, 'recorded_on')}"
+    dates = event.attribute("recorded_dates")
+    if isinstance(dates, tuple) and len(set(dates)) > 1 and all(isinstance(date, str) for date in dates):
+        on = f" between {dates[0]} and {dates[-1]}"
+    else:
+        on = "" if event.attribute("recorded_on") is None else f" on {_text(event, 'recorded_on')}"
     return f"{_subject(event)} was destroyed{by}{on} {where}"
 
 
