@@ -1,0 +1,272 @@
+# The themes a calibration review reads a campaign by; what a theme is and who owns what: README.md#themes.
+
+[[themes]]
+name = "Nations' internal fortunes"
+description = """
+How each nation fares within its own borders: its economy, population, education, inequality, cohesion and unrest,
+its government and leadership, its armed forces and nuclear arsenal, its standing among nations, and the regions
+that break away or win independence from it.
+"""
+event_types = [
+  "nation.band_crossed",
+  "nation.breakaway",
+  "nation.breakaway_parent_changed",
+  "nation.breakaways_changed",
+  "nation.capital_changed",
+  "nation.cohesion_shift",
+  "nation.demobilization",
+  "nation.economic_trajectory",
+  "nation.education_shift",
+  "nation.government_shift",
+  "nation.independence",
+  "nation.inequality_shift",
+  "nation.military_buildup",
+  "nation.miltech_shift",
+  "nation.navy_established",
+  "nation.new_government_recorded",
+  "nation.nuclear_armament",
+  "nation.nuclear_buildup",
+  "nation.nuclear_disarmament",
+  "nation.nuclear_program_changed",
+  "nation.pcgdp_trend",
+  "nation.policy_changed",
+  "nation.population_changed",
+  "nation.population_collapse",
+  "nation.rank_changed",
+  "nation.release",
+  "nation.renamed",
+  "nation.statistic_shifted",
+  "nation.unrest_attempts_changed",
+  "nation.unrest_shift",
+  "world.ranking_changed",
+]
+
+[[themes]]
+name = "Control of nations"
+description = """
+Who holds power over each nation's government: the factions gaining and losing control points and executives, and
+the takeovers that hand whole nations to a faction, whatever front or proxy the faction acts through.
+"""
+event_types = [
+  "control_point.controller_changed",
+  "control_point.loss_recorded",
+  "faction.control_points_changed",
+  "faction.nation_control_changed",
+  "faction.takeover",
+  "faction.takeover_wave",
+  "nation.control_points_changed",
+  "nation.executive_change_recorded",
+  "nation.unrest_attempts_changed",
+]
+
+[[themes]]
+name = "Blocs and unions"
+description = """
+Nations drawing together or apart: alliances and rivalries, diplomatic realignments, federations forming, growing,
+shrinking and dissolving, and nations unifying, merging or annexing one another into larger states.
+"""
+event_types = [
+  "federation.appeared",
+  "federation.disappeared",
+  "federation.lifecycle",
+  "federation.members_changed",
+  "federation.renamed",
+  "nation.allies_changed",
+  "nation.annexation",
+  "nation.appeared",
+  "nation.diplomatic_realignment",
+  "nation.disappeared",
+  "nation.federation_changed",
+  "nation.merger",
+  "nation.regions_changed",
+  "nation.relation_changed",
+  "nation.rivals_changed",
+  "nation.unification",
+  "region.nation_changed",
+]
+
+[[themes]]
+name = "Wars"
+description = """
+Armed conflict between nations on Earth: claims pressed, wars declared, joined and ended, armies built up and
+destroyed, territory taken and ceded, and nuclear weapons used.
+"""
+event_types = [
+  "army.destroyed_changed",
+  "campaign.interstate_wars_changed",
+  "campaign.nuclear_strikes_changed",
+  "nation.annexation",
+  "nation.cession",
+  "nation.claims_changed",
+  "nation.claims_declared",
+  "nation.demobilization",
+  "nation.expansion",
+  "nation.hostile_claims_changed",
+  "nation.military_buildup",
+  "nation.regions_changed",
+  "nation.territory_gained",
+  "nation.territory_lost",
+  "nation.wars_changed",
+  "region.nation_changed",
+  "war.alliance_changed",
+  "war.appeared",
+  "war.arc",
+  "war.attacker_changed",
+  "war.attacking_alliance_changed",
+  "war.defender_changed",
+  "war.defending_alliance_changed",
+  "war.disappeared",
+  "war.last_fighting_changed",
+]
+
+[[themes]]
+name = "Public opinion and ideology"
+description = """
+What the people of each nation believe about the alien question: the shares of public opinion each ideology holds
+and the undecided, how they shift, and the public's discontent and its say in government.
+"""
+event_types = [
+  "nation.band_crossed",
+  "nation.government_shift",
+  "nation.statistic_shifted",
+  "nation.unrest_shift",
+]
+
+[[themes]]
+name = "Alien activity on Earth"
+description = """
+The aliens' presence on Earth itself: crashdowns, landings, alien facilities built in regions and the xenoforming
+that spreads from them.
+"""
+event_types = [
+  "region.alien_facility_changed",
+  "region.crashdown_changed",
+  "region.landing_changed",
+  "region.xenoforming_changed",
+]
+
+[[themes]]
+name = "Expansion into space"
+description = """
+Humanity and the aliens moving off Earth: national space programs and assets, the first habs on each body,
+stations and bases founded, upgraded and completed, waves of colonisation, and the fleets built to hold them.
+"""
+event_types = [
+  "campaign.first_milestone",
+  "campaign.global_milestone_recorded",
+  "faction.colonisation_wave",
+  "faction.first_hab_on_body",
+  "faction.fleet_buildup",
+  "hab.appeared",
+  "hab.core_completed_changed",
+  "hab.disappeared",
+  "hab.established",
+  "hab.tier_changed",
+  "hab.type_changed",
+  "nation.space_assets_changed",
+  "nation.space_defences_established",
+  "nation.space_program_growth",
+]
+
+[[themes]]
+name = "Conflict in space"
+description = """
+Fighting beyond Earth: fleet battles, habs assaulted, bombarded, captured and destroyed, the losses each faction
+takes, the campaigns those fights add up to, and the fleets and defences built for them.
+"""
+event_types = [
+  "faction.combat_recorded",
+  "faction.fleet_buildup",
+  "faction.hab_destruction_recorded",
+  "faction.space_campaign",
+  "faction.space_losses",
+  "fleet.in_combat_changed",
+  "hab.destroyed",
+  "hab.disappeared",
+  "hab.faction_changed",
+  "hab.in_combat_changed",
+  "hab.under_assault_changed",
+  "hab.under_bombardment_changed",
+  "nation.space_defences_established",
+]
+
+[[themes]]
+name = "Technology and firsts"
+description = """
+What the factions learn and achieve: technologies researched, projects completed, the milestone discoveries among
+them, and the global firsts the game records for whoever reaches them.
+"""
+event_types = [
+  "campaign.first_milestone",
+  "campaign.global_milestone_recorded",
+  "faction.finished_project_names_changed",
+  "faction.project_completed",
+  "research.finished_techs_changed",
+  "technology.completed",
+  "technology.finished_changed",
+  "technology.milestone",
+]
+
+[unthemed]
+# Bookkeeping that states no area (entity lifecycle, movement, list churn), councilor and organization types whose
+# effect the type does not make clear, and save-supplied notifications and narrative events, which span every theme.
+event_types = [
+  "army.appeared",
+  "army.deployment_type_changed",
+  "army.disappeared",
+  "army.faction_changed",
+  "army.home_region_changed",
+  "army.region_changed",
+  "army.strength_changed",
+  "army.type_changed",
+  "campaign.global_milestone_changed",
+  "campaign.global_value_changed",
+  "campaign.global_values_appeared",
+  "campaign.global_values_disappeared",
+  "campaign.narrative_event_triggered",
+  "campaign.sea_level_rise_triggered",
+  "control_point.appeared",
+  "control_point.disappeared",
+  "control_point.nation_changed",
+  "councilor.appeared",
+  "councilor.detaining_faction_changed",
+  "councilor.disappeared",
+  "councilor.faction_changed",
+  "councilor.location_changed",
+  "councilor.orgs_changed",
+  "councilor.status_changed",
+  "faction.armies_changed",
+  "faction.combat_entry_removed",
+  "faction.councilors_changed",
+  "faction.fleets_changed",
+  "faction.transaction_recorded",
+  "faction.unassigned_orgs_changed",
+  "fleet.appeared",
+  "fleet.barycenter_changed",
+  "fleet.disappeared",
+  "fleet.docked_location_changed",
+  "fleet.faction_changed",
+  "fleet.orbit_changed",
+  "fleet.parent_fleet_changed",
+  "fleet.ships_changed",
+  "hab.docked_fleets_changed",
+  "nation.armies_changed",
+  "notification.*",
+  "notification.entry_changed",
+  "notification.entry_removed",
+  "notification.queue_appeared",
+  "notification.queue_disappeared",
+  "notification.queue_value_changed",
+  "notification.unknown_template",
+  "organization.appeared",
+  "organization.assigned_councilor_changed",
+  "organization.disappeared",
+  "organization.faction_orbit_changed",
+  "region.armies_changed",
+  "ship.appeared",
+  "ship.disappeared",
+  "ship.fleet_changed",
+  "ship.last_refit_date_changed",
+  "technology.appeared",
+  "technology.disappeared",
+]
