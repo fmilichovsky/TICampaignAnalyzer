@@ -2,6 +2,11 @@
 real_saves/
 output_samples/
 
+# Ignore locally installed skills by default.
+# Put skills on an explicit allowlist to track them.
+*/skills/*
+!*/skills/narrator-contract-iteration
+
 # Local config
 configuration.local.toml
 
