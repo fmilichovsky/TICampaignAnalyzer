@@ -27,7 +27,6 @@ from tests.benchmarking.calibration_support import (
     with_oracle,
 )
 from tests.fixtures import FIXTURES_ROOT
-from tinarrative.benchmarking.calibration.replay import cutoff_offsets
 from tinarrative.benchmarking.calibration.table import build_index
 
 GOLDEN = FIXTURES_ROOT / "benchmarking" / "calibration_table_v1" / "golden"
@@ -48,15 +47,15 @@ def spread() -> list[dict[str, Any]]:
     """Seeded rows across five decades of power and population: many distinct cut-off distances."""
     rng = random.Random(462)
     levels = list(CONSTANTS["level_bands"])
-    return [
-        row(
-            f"spread-{n}",
-            "atomic.spread",
-            level=rng.choice(levels),
-            shares=((rng.choice(("power", "population")), POWER * 10 ** rng.uniform(-3.5, 1.5)),),
-        )
-        for n in range(48)
-    ]
+    rows = []
+    for n in range(48):
+        level = rng.choice(levels)
+        measure = rng.choice(("power", "population"))
+        share = POWER * 10 ** rng.uniform(-3.5, 1.5)
+        # One type per measure: a kind's scaling reads one measure.
+        kind = "atomic.spread" if measure == "power" else "atomic.scatter"
+        rows.append(row(f"spread-{n}", kind, level=level, shares=((measure, share),)))
+    return rows
 
 
 def golden_tables() -> dict[str, dict[str, Any]]:
@@ -64,12 +63,12 @@ def golden_tables() -> dict[str, dict[str, Any]]:
     minimum = GATE["minimum"]
     chain_rows, shadows = drafted()
     top = (CONSTANTS["level_bands"]["campaign_defining"][0] - base("major")) - 1
-    window = cutoff_offsets()
+    # The drop and rise shares of the starting power scaling, in log10 against its midpoint.
+    window = (-1.25, 1.25)
     low = window[0]
     alpha = [
         row("atomic", "atomic.thing", shares=power(3)),
         row("no-share", "atomic.plain"),
-        row("both", "atomic.thing", shares=(("power", POWER), ("population", POPULATION * 10))),
         row("zero", "atomic.thing", shares=(("power", 0.0),)),
         row("organized", "atomic.other", level="major", shares=(("organization", 0.004),)),
         row("at-cut", "atomic.thing", shares=(("power", POWER * 10**low),)),
@@ -81,13 +80,13 @@ def golden_tables() -> dict[str, dict[str, Any]]:
         *members("kept", [0.0] * minimum),
         *members("shrunk", [top, *([0.0] * minimum)]),
         *members("gone", [top, *([0.0] * (minimum - 1))]),
-        row("outside", MEMBER, tier="narrative", level="major", shares=power(CONSTANTS["scale_max"])),
+        row("outside", MEMBER, tier="narrative", level="major", shares=power(15)),
     ]
     beta = [
         row("atomic", "atomic.thing", shares=power(3)),
         row("lean", "atomic.thing", level="major", shares=power(-8)),
         row("judged", "atomic.thing", level="major", shares=power(2), rule="judged"),
-        row("land", "atomic.other", shares=(("population", POPULATION * 3),)),
+        row("land", "atomic.land", shares=(("population", POPULATION * 3),)),
         row("quiet", "atomic.plain", level="trivial"),
         *spread(),
     ]

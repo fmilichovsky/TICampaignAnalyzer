@@ -105,15 +105,28 @@ def test_a_table_at_an_older_schema_is_refused_with_the_rebuild_hint(paths: tupl
     assert "--rebuild" in stderr
 
 
-def test_references_accumulate_over_commas_and_repeats(paths: tuple[Path, Path]) -> None:
-    document = report_json(paths, "--reference", "power=0.002,hab=0.03", "--reference", "battle=0.001")
+def test_rise_and_drop_shares_accumulate_over_commas_and_repeats(paths: tuple[Path, Path]) -> None:
+    document = report_json(paths, "--rise", "power=0.002,hab=0.03", "--rise", "battle=0.001", "--drop", "power=0.0001")
 
-    assert {key: document["state"]["references"][key] for key in ("power", "hab", "battle")} == {
+    assert {key: document["state"]["rises"][key] for key in ("power", "hab", "battle")} == {
         "power": 0.002,
         "hab": 0.03,
         "battle": 0.001,
     }
-    assert document["hash"] == "ref=power:0.002,hab:0.03,battle:0.001"
+    assert document["state"]["drops"] == {"power": 0.0001}
+    assert document["hash"] == "rise=power:0.002,hab:0.03,battle:0.001&drop=power:0.0001"
+
+
+def test_a_scaling_flag_splits_a_type_off_and_its_rise_share_follows(paths: tuple[Path, Path]) -> None:
+    _, out = paths
+    index, _, _ = load(out)
+    scaled = next(name for name, kind in index["kinds"].items() if kind["scaling"] is not None)
+
+    document = report_json(paths, "--scaling", f"{scaled}={scaled}", "--rise", f"{scaled}=0.5")
+
+    assert document["state"]["scalings"] == {scaled: scaled}
+    assert document["state"]["rises"][scaled] == 0.5
+    assert document["hash"] == f"rise={scaled}:0.5&scaling={scaled}:{scaled}"
 
 
 def test_campaign_and_type_flags_reach_the_state(paths: tuple[Path, Path]) -> None:
@@ -129,10 +142,10 @@ def test_campaign_and_type_flags_reach_the_state(paths: tuple[Path, Path]) -> No
 
 
 def test_explicit_flags_override_the_state_hash(paths: tuple[Path, Path]) -> None:
-    document = report_json(paths, "--state", "#ref=power:0.002,hab:0.03", "--reference", "power=0.005")
+    document = report_json(paths, "--state", "#rise=power:0.002,hab:0.03", "--rise", "power=0.005")
 
-    assert document["state"]["references"]["power"] == 0.005
-    assert document["state"]["references"]["hab"] == 0.03
+    assert document["state"]["rises"]["power"] == 0.005
+    assert document["state"]["rises"]["hab"] == 0.03
     assert report_json(paths, "--state", document["hash"])["state"] == document["state"]
 
 
@@ -171,13 +184,16 @@ def test_the_json_readout_carries_the_state_aggregates_and_edges(paths: tuple[Pa
 @pytest.mark.parametrize(
     "flags",
     [
-        ["--reference", "warp=0.1"],
-        ["--reference", "power=0.1", "--reference", "power=0.2"],
-        ["--reference", "power=-1"],
+        ["--rise", "warp=0.1"],
+        ["--rise", "power=0.1", "--rise", "power=0.2"],
+        ["--rise", "power=-1"],
+        ["--drop", "power=1"],
+        ["--scaling", "no.such_type=power"],
+        ["--state", "ref=power:0.1"],
         ["--campaign", "nowhere"],
         ["--type", "no.such_type"],
         ["--state", "speed=1"],
-        ["--state", "ref=power:0.1,power:0.2"],
+        ["--state", "rise=power:0.1,power:0.2"],
         ["--base", "no.such_type=major"],
         ["--base", "region.nation_changed=huge"],
         ["--state", "base=no.such_type:major"],

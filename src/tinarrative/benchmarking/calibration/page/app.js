@@ -3,7 +3,8 @@
 // A classic script served by that command. index.js and status.js are loaded by index.html; the campaign tables are
 // injected here. The server replays the table: this page holds no scoring, no state codec and no readout wording,
 // and the hash is an opaque string the server gives it (ADR-0022). The layout is built once and then updated in
-// place, so the slider keeps its focus and nothing in the left column changes size while a reference slides.
+// place, so the slider keeps its focus and nothing in the left column changes size while a rise share slides. The
+// slider sets the rise share of the focus measure's starting scaling; the page holds no other scaling control.
 (function () {
   "use strict";
 
@@ -55,7 +56,7 @@
     return node;
   }
 
-  // A share or reference for reading: three significant figures, written as JavaScript writes the number.
+  // A share for reading: three significant figures, written as JavaScript writes the number.
   function fmt(value) {
     if (!Number.isFinite(value)) return "—";
     return String(Number(value.toPrecision(3)));
@@ -300,12 +301,12 @@
       }
       const local = this.state;
       this.state = answer.state;
-      if (this.dragging && local) this.state.references = local.references;
+      if (this.dragging && local) this.state.rises = local.rises;
       this.hash = answer.hash;
       this.isCode = answer.is_code;
       this.readout = { paragraph: answer.paragraph, snippet: answer.snippet };
       this.meta = answer.meta;
-      if (answer.error) this.hashError = `The link's state could not be read (${answer.error}), so the page shows the code's references.`;
+      if (answer.error) this.hashError = `The link's state could not be read (${answer.error}), so the page shows the code's scalings.`;
       this.result = this.expand(answer.replay);
       this.full = answer.unfiltered ? this.withUnfiltered(this.result, answer.unfiltered) : this.result;
       this.lookup = null;
@@ -344,7 +345,7 @@
       return Object.assign({}, result, { moves: unfiltered.moves, campaigns });
     },
 
-    // Everything the reference does not change: row positions, the types each measure shares, the chart domains.
+    // Everything the rise share does not change: row positions, the types each measure shares, the chart domains.
     prepare() {
       const types = new Set();
       const shares = {};
@@ -380,7 +381,8 @@
       const events = (type) => Object.values(this.typeCounts).reduce((sum, counts) => sum + ((counts.get(type) || {}).events || 0), 0);
       this.baseOrder = Object.keys(this.index.kinds).sort((a, b) => events(b) - events(a) || (a < b ? -1 : 1));
       for (const measure of this.measures) {
-        const code = Math.log10(this.index.measures[measure].reference);
+        // Around the code scaling's midpoint, from below its drop share to above its rise share.
+        const code = Math.log10(this.codeRise(measure)) - Math.log10(this.index.constants.default_width) / 2;
         let low = code - 1.75;
         let high = code + 1.75;
         for (const share of shares[measure]) {
@@ -470,7 +472,7 @@
         const number = /^(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(text) ? Number(text) : NaN;
         if (!Number.isFinite(number) || number <= 0) {
           value.setAttribute("aria-invalid", "true");
-          $("ref-error").textContent = `Enter a positive share, such as ${fmt(this.index.measures[this.focus].reference)}.`;
+          $("ref-error").textContent = `Enter a positive share, such as ${fmt(this.codeRise(this.focus))}.`;
           return;
         }
         value.removeAttribute("aria-invalid");
@@ -482,13 +484,13 @@
       value.addEventListener("keydown", (event) => {
         if (event.key === "Enter") commit();
         if (event.key === "Escape") {
-          value.value = String(this.state.references[this.focus]);
+          value.value = String(this.state.rises[this.focus]);
           value.removeAttribute("aria-invalid");
           $("ref-error").textContent = "";
         }
       });
       $("ref-code").addEventListener("click", () => {
-        this.setReference(this.index.measures[this.focus].reference, { from: "code" });
+        this.setReference(this.codeRise(this.focus), { from: "code" });
         this.settle();
       });
 
@@ -592,7 +594,7 @@
       });
     },
 
-    // The reference control and the chart stay under the header bar while the column scrolls, so the cut-offs or
+    // The rise share control and the chart stay under the header bar while the column scrolls, so the cut-offs or
     // the drafts below can be read with the slider in reach. The bar's height (it wraps on narrow screens) sets
     // where they stick, and a rule marks the edge only once the column runs under them.
     buildDial() {
@@ -679,7 +681,7 @@
               el("button", { type: "button", class: "link-button", text: spec.label, title: spec.description, onclick: () => this.setFocus(measure) }),
             ),
             el("td", { class: "num ref-current" }),
-            el("td", { class: "num", text: fmt(spec.reference), title: String(spec.reference) }),
+            el("td", { class: "num", text: fmt(this.codeRise(measure)), title: String(this.codeRise(measure)) }),
             el("td", { class: "num", text: String(measured) }),
           ),
         );
@@ -707,14 +709,19 @@
     // --- State changes ------------------------------------------------------------------------------------
 
     sliderReference(position) {
-      const code = this.index.measures[this.focus].reference;
+      const code = this.codeRise(this.focus);
       if (Math.abs(position - Math.log10(code)) < SLIDER_STEP / 2) return code;
       return Number(Math.pow(10, position).toPrecision(3));
     },
 
     // A slider moves only its own readout until it is let go (settle); the replay is asked then.
     setReference(value, { from }) {
-      this.state.references = Object.assign({}, this.state.references, { [this.focus]: value });
+      this.state.rises = Object.assign({}, this.state.rises, { [this.focus]: value });
+      // A drop share the new rise share would pass is dropped: the scaling keeps the default width.
+      if (this.state.drops && this.state.drops[this.focus] >= value) {
+        this.state.drops = Object.assign({}, this.state.drops);
+        delete this.state.drops[this.focus];
+      }
       if (from === "slider") this.renderControl({ from });
       else this.update({ resort: true, from });
     },
@@ -813,27 +820,27 @@
       const focus = this.focus;
       for (const chip of document.querySelectorAll("#chips .chip")) {
         const measure = chip.dataset.measure;
-        const value = this.state.references[measure];
-        const changed = value !== this.index.measures[measure].reference;
+        const value = this.state.rises[measure];
+        const changed = value !== this.codeRise(measure);
         chip.setAttribute("aria-pressed", String(measure === focus));
         chip.classList.toggle("chip-changed", changed);
         chip.querySelector(".chip-value").textContent = fmt(value);
       }
-      const reference = this.state.references[focus];
-      const code = this.index.measures[focus].reference;
+      const rise = this.state.rises[focus];
+      const code = this.codeRise(focus);
       const domain = this.domains[focus];
       const slider = $("ref-slider");
       slider.min = String(domain.low);
       slider.max = String(domain.high);
-      if (options.from !== "slider") slider.value = String(Math.log10(reference));
-      slider.setAttribute("aria-valuetext", `${fmt(reference)} (code's ${fmt(code)})`);
+      if (options.from !== "slider") slider.value = String(Math.log10(rise));
+      slider.setAttribute("aria-valuetext", `${fmt(rise)} (code's ${fmt(code)})`);
       const field = $("ref-value");
-      if (options.from !== "field" && document.activeElement !== field) field.value = String(reference);
-      else if (options.from === "field") field.value = String(reference);
-      $("ref-code").disabled = reference === code;
+      if (options.from !== "field" && document.activeElement !== field) field.value = String(rise);
+      else if (options.from === "field") field.value = String(rise);
+      $("ref-code").disabled = rise === code;
       $("ref-code").title = `Set ${this.index.measures[focus].label} back to the code's ${code}`;
-      const [low, high] = this.windowEdges();
-      $("ref-window").textContent = `window ${fmt(reference * Math.pow(10, low))} – ${fmt(reference * Math.pow(10, high))}`;
+      const [drop] = this.windowShares();
+      $("ref-window").textContent = `keeps ${fmt(drop)} – ${fmt(rise)}`;
       if (options.layout || !this.typeOptions) this.renderTypeFilter();
     },
 
@@ -856,11 +863,16 @@
       this.typeOptions = true;
     },
 
-    windowEdges() {
-      const offsets = this.meta.window;
-      const below = offsets.filter((offset) => offset < 0);
-      const above = offsets.filter((offset) => offset > 0);
-      return [below.length ? Math.max(...below) : 0, above.length ? Math.min(...above) : 0];
+    // The rise share of a measure's starting scaling in the code.
+    codeRise(measure) {
+      return this.index.scalings[measure].rise;
+    },
+
+    // The focus scaling's window: an event keeps its starting level between the drop share and the rise share.
+    windowShares() {
+      const rise = this.state.rises[this.focus];
+      const drop = this.state.drops ? this.state.drops[this.focus] : undefined;
+      return [drop === undefined ? rise / this.index.constants.default_width : drop, rise];
     },
 
     // --- The window chart -----------------------------------------------------------------------------------
@@ -909,11 +921,9 @@
       const x = (log) => plotLeft + ((log - model.domain.low) / span) * (plotRight - plotLeft);
       const yMax = niceMax(model.max);
       const y = (count) => plotBottom - (count / yMax) * (plotBottom - plotTop);
-      const reference = this.state.references[this.focus];
-      const code = this.index.measures[this.focus].reference;
-      const [low, high] = this.windowEdges();
-      const lowCut = reference * Math.pow(10, low);
-      const highCut = reference * Math.pow(10, high);
+      const rise = this.state.rises[this.focus];
+      const code = this.codeRise(this.focus);
+      const [lowCut, highCut] = this.windowShares();
       const filtered = this.state.types.length > 0;
 
       chart.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -985,17 +995,17 @@
         nodes.push(svg("line", { class: "cut", x1: at, x2: at, y1: plotTop - 4, y2: plotBottom }));
       }
 
-      // The code's reference and the current one.
+      // The code's rise share and the current one.
       const codeAt = x(Math.log10(code));
-      if (codeAt >= plotLeft && codeAt <= plotRight && code !== reference) {
+      if (codeAt >= plotLeft && codeAt <= plotRight && code !== rise) {
         nodes.push(svg("line", { class: "code-line", x1: codeAt, x2: codeAt, y1: plotTop, y2: plotBottom }));
         nodes.push(svg("text", { class: "code-text", x: codeAt + 4, y: plotTop + 10, "text-anchor": "start" }, "code's"));
       }
-      const refAt = x(Math.log10(reference));
+      const refAt = x(Math.log10(rise));
       if (refAt >= plotLeft && refAt <= plotRight) {
         nodes.push(svg("line", { class: "ref-line", x1: refAt, x2: refAt, y1: plotTop - 4, y2: plotBottom }));
         const anchor = refAt < plotLeft + 40 ? "start" : refAt > plotRight - 40 ? "end" : "middle";
-        nodes.push(svg("text", { class: "ref-text", x: refAt, y: plotTop - 8, "text-anchor": anchor }, fmt(reference)));
+        nodes.push(svg("text", { class: "ref-text", x: refAt, y: plotTop - 8, "text-anchor": anchor }, fmt(rise)));
       }
 
       // The pointer's share.
@@ -1009,7 +1019,7 @@
         `Share distribution of ${this.index.measures[this.focus].label}: ${plural(
           model.bins.reduce((sum, bin) => sum + bin.items.length, 0),
           "measured event",
-        )}, reference ${fmt(reference)}, window ${fmt(lowCut)} to ${fmt(highCut)}. Arrow keys step through the bars.`,
+        )}, rise share ${fmt(rise)}, drop share ${fmt(lowCut)}. Arrow keys step through the bars.`,
       );
       this.chartGeometry = { plotLeft, plotRight, binWidth, x, y, span };
     },
@@ -1089,11 +1099,10 @@
       if (cutoffs.length <= 2) return cutoffs;
       const chosen = this.chosenCuts[this.focus];
       if (chosen) {
-        const picked = cutoffs.filter((cutoff) => chosen.includes(cutoff.offset));
+        const picked = cutoffs.filter((cutoff) => chosen.includes(cutoff.step));
         if (picked.length === 2) return picked;
       }
-      const [low, high] = this.windowEdges();
-      const inside = cutoffs.filter((cutoff) => cutoff.offset === low || cutoff.offset === high);
+      const inside = cutoffs.filter((cutoff) => Math.abs(cutoff.step) === 1);
       return inside.length === 2 ? inside : cutoffs.slice(0, 2);
     },
 
@@ -1108,9 +1117,9 @@
               type: "button",
               class: "chip chip-small",
               "aria-pressed": String(shown.includes(cutoff)),
-              title: `Cut-off at ${cutoff.share} (reference × 10^${cutoff.offset})`,
+              title: `Cut-off at ${cutoff.share} (${cutoff.step > 0 ? "rises" : "drops"} ${plural(Math.abs(cutoff.step), "level")})`,
               text: fmt(cutoff.share),
-              onclick: () => this.toggleCut(cutoff.offset),
+              onclick: () => this.toggleCut(cutoff.step),
             }),
           ),
         );
@@ -1122,12 +1131,12 @@
       [0, 1].forEach((slot) => this.renderTide($(`tide-${slot}`), shown[slot] || null, slot));
     },
 
-    toggleCut(offset) {
-      const shown = this.shownCutoffs().map((cutoff) => cutoff.offset);
-      if (shown.includes(offset)) return;
+    toggleCut(step) {
+      const shown = this.shownCutoffs().map((cutoff) => cutoff.step);
+      if (shown.includes(step)) return;
       // The clicked cut-off replaces the one picked longest ago.
       const last = this.chosenCuts[this.focus] ? this.chosenCuts[this.focus][1] : shown[1];
-      this.chosenCuts[this.focus] = [shown.includes(last) ? last : shown[1], offset];
+      this.chosenCuts[this.focus] = [shown.includes(last) ? last : shown[1], step];
       this.renderTides();
       this.renderDrafts();
     },
@@ -1148,10 +1157,14 @@
       tide.classList.remove("tide-empty");
       figure.textContent = fmt(cutoff.share);
       figure.title = String(cutoff.share);
-      const levels = Math.round((Math.abs(cutoff.offset) + 1.25) / 2.5);
-      const direction = cutoff.offset < 0 ? "below drops" : "above rises";
+      const levels = Math.abs(cutoff.step);
+      const direction = cutoff.step < 0 ? "below drops" : "above rises";
       const amount = levels === 1 ? "a level" : `${["", "", "two", "three"][levels] || levels} levels`;
-      caption.textContent = `reference ${cutoff.offset < 0 ? "÷" : "×"} ${fmt(Math.pow(10, Math.abs(cutoff.offset)))} · ${direction} ${amount}`;
+      // Each further level is as wide as the starting one: the cut-off as a multiple of the rise or drop share.
+      const [drop, rise] = this.windowShares();
+      const edge = cutoff.step < 0 ? "drop share" : "rise share";
+      const factor = fmt(cutoff.step < 0 ? drop / cutoff.share : cutoff.share / rise);
+      caption.textContent = `${factor === "1" ? edge : `${edge} ${cutoff.step < 0 ? "÷" : "×"} ${factor}`} · ${direction} ${amount}`;
       caption.title = `A mid-band base ${direction.replace("below ", "").replace("above ", "")} ${amount} past this share.`;
       // Shares descend down the column, as on a scale: the five above, the cut, the five below.
       const above = [...cutoff.above].sort((a, b) => b.share - a.share);
@@ -1254,7 +1267,7 @@
     // One row per event type: the levels its events hold now, a band under the stretch that rose or dropped into
     // each level, and the exact changes beside it. Measured types come first, by their measured events or, if chosen,
     // by how many of their events change level; types that move without a share on the focused measure follow.
-    // Rows only change place when the reference settles, never while it slides.
+    // Rows only change place when the rise share settles, never while it slides.
 
     setCountOrder(order) {
       if (order === this.countOrder) return;
@@ -1303,7 +1316,7 @@
         this.countsLayout = focus;
         this.countRows.clear();
         this.countExtras = [];
-        // The static order: by the type's measured rows in the whole table, which the reference never changes.
+        // The static order: by the type's measured rows in the whole table, which the rise share never changes.
         const types = [...measured.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
         this.countStatic = types.map(([type]) => type);
         list.replaceChildren(...types.map(([type]) => this.countRow(type)));
@@ -1369,7 +1382,7 @@
       const via = shown.reduce((sum, move) => sum + move.via_cited, 0);
       $("counts-note").textContent = shown.length
         ? `${plural(shown.length, "change")} · ${plural(this.result.totals.events_moved, "event")}${via ? `, ${via} via a cited event` : ""}`
-        : "Nothing moves at these references";
+        : "Nothing moves at these rise shares";
     },
 
     countRow(type) {
@@ -1514,13 +1527,13 @@
       return { type, title: `${type} · ${rose ? "rose" : "dropped"} to ${levelName(level)}`, note: plural(items.length, "event"), items, full };
     },
 
-    // --- References and drafts --------------------------------------------------------------------------------
+    // --- Rise shares and drafts --------------------------------------------------------------------------------
 
     renderReferences() {
       for (const row of document.querySelectorAll("#references tr")) {
         const measure = row.dataset.measure;
-        const value = this.state.references[measure];
-        const changed = value !== this.index.measures[measure].reference;
+        const value = this.state.rises[measure];
+        const changed = value !== this.codeRise(measure);
         const cell = row.querySelector(".ref-current");
         cell.textContent = fmt(value);
         cell.title = String(value);
@@ -1681,7 +1694,7 @@
     // Each draft with a candidate on the focused measure gets a panel: its base selector, its rows' levels at that
     // base against its own, how many rows a cited event or the kind's context rule decides, and its own rows nearest
     // the two cut-offs the tides show. Its rows never enter the real panels. A panel's size is fixed per focus,
-    // campaigns and types, so nothing grows while a reference slides.
+    // campaigns and types, so nothing grows while a rise share slides.
 
     draftRowsOn(draft, measure) {
       const types = new Set(this.state.types);
@@ -2213,7 +2226,7 @@
 
   // --- The event inspector: one drawer for the event a row opened. -------------------------------------------
   //
-  // Page state only, never in the hash. The parts that the reference cannot change are built once per event; level,
+  // Page state only, never in the hash. The parts that the rise share cannot change are built once per event; level,
   // score, decided-by and the cited rows are refilled in place on every render, so focus inside the drawer survives
   // the slider. Cited and decided-by rows swap the drawer to that event, and Back walks the chain.
 
@@ -2449,16 +2462,15 @@
       this.parts = { campaign, id, position, row, level, score, base, baseButtons: options ? options.buttons : [], baseCode, ruled, decided, decidedSection, shareRows, cited, off };
     },
 
-    // The focused share against the current reference, written as the tide captions write a cut-off, and which side
-    // of the window around the reference the share falls on.
+    // The focused share against the current rise share, written as the tide captions write a cut-off, and which side
+    // of the window between the drop and the rise share the share falls on.
     compareText(share) {
       if (!(share > 0)) return "no share";
-      const reference = App.state.references[App.focus];
-      const ratio = share / reference;
-      const [low, high] = App.windowEdges();
-      const side = share < reference * Math.pow(10, low) ? "below the window" : share > reference * Math.pow(10, high) ? "above the window" : "in the window";
+      const [drop, rise] = App.windowShares();
+      const ratio = share / rise;
+      const side = share < drop ? "below the window" : share > rise ? "above the window" : "in the window";
       const factor = fmt(ratio >= 1 ? ratio : 1 / ratio);
-      return `${factor === "1" ? "at the reference" : `reference ${ratio >= 1 ? "×" : "÷"} ${factor}`} · ${side}`;
+      return `${factor === "1" ? "at the rise share" : `rise share ${ratio >= 1 ? "×" : "÷"} ${factor}`} · ${side}`;
     },
 
     // The values the replay decides, from the current result; a campaign switched off falls back to the code's.

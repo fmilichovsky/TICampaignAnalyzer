@@ -20,7 +20,7 @@ from tinarrative.benchmarking.calibration.table import read_index, write_index, 
 
 PAGE = files("tinarrative.benchmarking.calibration").joinpath("page")
 INDEX, TABLES, DRAFTS = load(GOLDEN)
-LOWER = "ref=power:0.002"
+LOWER = "rise=power:0.002"
 
 
 @pytest.fixture
@@ -146,11 +146,15 @@ def test_a_type_filter_also_answers_the_replay_without_it(calibration: server.Ca
 @pytest.mark.parametrize(
     "body",
     [
-        {"hash": "ref=nope:1"},
+        {"hash": "rise=nope:1"},
+        {"hash": "ref=power:1"},
         {"hash": "types=no.such.type"},
         {"hash": 3},
-        {"state": {"references": {"power": -1}}},
-        {"state": {"references": {"power": True}}},
+        {"state": {"rises": {"power": -1}}},
+        {"state": {"rises": {"power": True}}},
+        {"state": {"drops": {"power": 1}}},
+        {"state": {"scalings": {"war.arc": "population"}}},
+        {"state": {"references": {"power": 0.1}}},
         {"state": {"clamp": False}},
         {"state": {"campaigns": ["gamma"]}},
         {"state": {"bases": {"nope": "major"}}},
@@ -191,11 +195,10 @@ def test_a_rebuilt_table_is_read_again(calibration: server.Calibration) -> None:
     assert answer["key"] == "rebuilt"
 
 
-def test_the_meta_names_the_window_the_level_bases_and_each_draft_row(calibration: server.Calibration) -> None:
+def test_the_meta_names_the_level_bases_and_each_draft_row(calibration: server.Calibration) -> None:
     _, answer = ask(calibration, {"hash": ""})
 
     meta = answer["meta"]
-    assert meta["window"] == [offset for offset in meta["window"] if offset != 0]
     assert set(meta["level_bases"]) == set(INDEX["constants"]["level_bands"])
     assert {name: len(names) for name, names in meta["draft_names"].items()} == {
         name: len(rows) for name, rows in DRAFTS.items()

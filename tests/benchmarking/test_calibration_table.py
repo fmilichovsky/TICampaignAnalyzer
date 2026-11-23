@@ -31,6 +31,7 @@ from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SIGNIFICANCE_ORDER
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates
 from tinarrative.narrative.measures import MEASURES
+from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, UNEXAMINED
 from tinarrative.narrative.significance import decide
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
@@ -102,12 +103,17 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
         "member_gates",
         "constants",
         "measures",
+        "scalings",
         "kinds",
         "drafts",
     }
     assert index["schema_version"] == SCHEMA_VERSION
     assert index["key"] == "k1"
     assert set(index["measures"]) == {measure.value for measure in MEASURES}
+    assert {name: spec["measure"] for name, spec in index["scalings"].items()} == {
+        scaling.value: spec.measure.value for scaling, spec in SCALINGS.items()
+    }
+    assert all(spec["drop"] is None and spec["reason"] == UNEXAMINED for spec in index["scalings"].values())
     assert {gate["member_type"] for gate in index["member_gates"]} == {
         gate.member_type for gate in default_member_gates().values()
     }
@@ -117,6 +123,7 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
     assert index["constants"]["score_min"] == 0
     assert index["constants"]["score_max"] == 100
     assert index["constants"]["neighbours"] == 5
+    assert index["constants"]["default_width"] == DEFAULT_WIDTH
     assert index["constants"]["package_level"] in index["constants"]["level_bands"]
 
 
@@ -141,14 +148,19 @@ def test_extraction_writes_the_index_and_skips_a_prefix_campaign(tmp_path: Path)
     check_rows(events)
 
 
-def test_the_kinds_map_holds_each_types_code_base_level_and_rule() -> None:
-    ruled, plain = KINDS["councilor.appeared"], KINDS["faction.transaction_recorded"]
-    kinds = type_kinds([ruled.event_type, plain.event_type, ruled.event_type])
+def test_the_kinds_map_holds_each_types_code_base_level_rule_and_scaling() -> None:
+    ruled, plain, scaled = KINDS["councilor.appeared"], KINDS["faction.transaction_recorded"], KINDS["war.arc"]
+    kinds = type_kinds([ruled.event_type, plain.event_type, ruled.event_type, scaled.event_type])
 
-    assert ruled.rule is not None and plain.rule is None
+    assert ruled.rule is not None and plain.rule is None and scaled.scaling is not None
     assert kinds == {
-        ruled.event_type: {"base": ruled.base.value, "rule": ruled.rule.value},
-        plain.event_type: {"base": plain.base.value, "rule": None},
+        ruled.event_type: {"base": ruled.base.value, "rule": ruled.rule.value, "scaling": None},
+        plain.event_type: {"base": plain.base.value, "rule": None, "scaling": None},
+        scaled.event_type: {
+            "base": scaled.base.value,
+            "rule": None if scaled.rule is None else scaled.rule.value,
+            "scaling": scaled.scaling.value,
+        },
     }
     with pytest.raises(CalibrationTableError, match="no.such"):
         type_kinds(["no.such"])

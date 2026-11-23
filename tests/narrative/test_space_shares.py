@@ -22,11 +22,10 @@ from tinarrative.analyzers.space.masses import dry_mass, ship_masses
 from tinarrative.config import DEFAULT_SETTINGS
 from tinarrative.kinds import KINDS
 from tinarrative.model.entities import EntityDomain
-from tinarrative.model.events import Confidence, DateBasis, Event, EventStatus
+from tinarrative.model.events import SCORE_BANDS, SCORE_MAX, Confidence, DateBasis, Event, EventStatus, Significance
 from tinarrative.model.records import CombatEntry, RecordKind
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import FrozenMap, Unknown
-from tinarrative.narrative.measures import SCALE_MIN
 from tinarrative.narrative.shares import (
     CONTEST_RATIO,
     FLEET_SATURATION,
@@ -257,7 +256,7 @@ def test_a_defection_is_scaled_by_the_share_of_the_faction_left() -> None:
     base = KINDS["councilor.faction_changed"].base.base
     # The faction left holds nothing here (no nations, habs or ships): the lowest share.
     assert event.significance_basis is not None and event.significance_basis.share == 0
-    assert event.score == base + SCALE_MIN
+    assert event.score == max(base - SCORE_MAX, SCORE_BANDS[Significance.MINOR][0])
 
 
 def loss(ships: tuple[str, ...] = (), habs: tuple[str, ...] = ()) -> Event:

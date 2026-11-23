@@ -301,12 +301,14 @@ tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [
 ```
 <!-- end generated -->
 
-Serves the share calibration page on `127.0.0.1` and opens it: a page for choosing the share references of the
-measures against the sample campaigns. Slide a measure's reference to see which events change significance level,
+Serves the share calibration page on `127.0.0.1` and opens it: a page for choosing the rise shares of the starting
+scalings against the sample campaigns. Slide a measure's rise share to see which events change significance level,
 how the narrator package and the takeover waves change, and which events sit nearest each cut-off; open an event to
-see why it has its level. Base levels, under References, switches an event type's base level, as `report --base`
+see why it has its level. Base levels, under Rise shares, switches an event type's base level, as `report --base`
 does; the event inspector switches the type of the event it shows, and says when a context rule decided the event's
-level, so the switch passes it by. The page's URL hash holds the explored state, which `report --state` reads.
+level, so the switch passes it by. The page's URL hash holds the explored state, which `report --state` reads. The
+page slides only the rise share of each measure's starting scaling; drop shares and split-off or joined scalings
+come from `report` flags or a hash, and the page keeps them.
 
 The command replays the table in Python for every change on the page; the page only draws the answer
 ([ADR-0022](../adr/0022-the-calibration-table-is-replayed-once-in-python.md)). It keeps serving until it is
@@ -350,16 +352,24 @@ tinarrative benchmark calibrate open --port 8770
 <!-- generated: synopsis benchmark calibrate report -->
 ```
 tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
-                                       [--reference MEASURE=VALUE] [--campaign NAME]
+                                       [--rise SCALING=VALUE] [--drop SCALING=VALUE]
+                                       [--scaling TYPE=SCALING] [--campaign NAME]
                                        [--type EVENT_TYPE] [--base TYPE=LEVEL] [--state HASH]
                                        [--format {text,json}]
 ```
 <!-- end generated -->
 
-Replays the share calibration table of the sample campaigns at other references and prints what would change: which
+Replays the share calibration table of the sample campaigns at other scalings and prints what would change: which
 events move level, how the narrator package grows or shrinks, which takeover waves lose members, and the events
-nearest each cut-off. It ends with the changed references written as measure registry entries, ready to paste,
-followed by one comment line for each event type whose base level was switched.
+nearest each cut-off. It ends with the changed scalings written as scaling registry entries, ready to paste, followed
+by one comment line for each event type moved to another scaling and each type whose base level was switched.
+
+A scaling is a rise share, at which an event rises a level above the level it starts from, and an optional drop
+share, at which it drops one ([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-share.md)).
+`--rise` and `--drop` set a scaling's shares;
+`--scaling TYPE=SCALING` moves an event type to another scaling on its measure, and `--scaling TYPE=TYPE` splits it
+off into a scaling of its own, starting as a copy of its code scaling. The cut-offs are listed per scaling, one at
+each level its events can reach.
 
 The table is cached in `--out`, shared with the page, and rebuilt when the package or `samples.json` changed, or
 with `--rebuild`.
@@ -375,17 +385,20 @@ state holds a base level for each draft, and its own section of the readout repo
 scored fails the rebuild.
 
 ```sh
-# What would a lower power reference do?
-tinarrative benchmark calibrate report --reference power=0.002
+# What would a lower power rise share do?
+tinarrative benchmark calibrate report --rise power=0.05
 
-# Two measures, one campaign, as JSON.
-tinarrative benchmark calibrate report --reference power=0.002,hab=0.03 --campaign resist --format json
+# Two scalings, one campaign, as JSON.
+tinarrative benchmark calibrate report --rise power=0.05,hab=0.4 --campaign resist --format json
+
+# War arcs on a scaling of their own, ten times as narrow as the default.
+tinarrative benchmark calibrate report --scaling war.arc=war.arc --rise war.arc=0.3 --drop war.arc=0.01
 
 # What if nation changes were minor events?
 tinarrative benchmark calibrate report --base region.nation_changed=minor
 
 # A state copied from the calibration page.
-tinarrative benchmark calibrate report --state 'ref=power:0.002'
+tinarrative benchmark calibrate report --state 'rise=power:0.05'
 ```
 
 <!-- generated: options benchmark calibrate report -->
@@ -394,7 +407,9 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002'
 | `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
 | `--out PATH` | The calibration cache directory (default build/calibration). |
 | `--rebuild` | Rebuild the cache even when it is fresh. |
-| `--reference MEASURE=VALUE` | A measure's reference share; comma-separated, repeatable (default: the code's). |
+| `--rise SCALING=VALUE` | A scaling's rise share; comma-separated, repeatable (default: the code's). |
+| `--drop SCALING=VALUE` | A scaling's drop share, below its rise share; comma-separated, repeatable (default: the code's). |
+| `--scaling TYPE=SCALING` | Move an event type to another scaling on its measure, or to its own name to split it off into a scaling of its own, starting as a copy; comma-separated, repeatable (default: the code's). |
 | `--campaign NAME` | Replay only these sample campaigns; comma-separated, repeatable (default: every one). |
 | `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
 | `--base TYPE=LEVEL` | Try a base level on an event type; comma-separated, repeatable (default: the code's). |
@@ -406,7 +421,7 @@ tinarrative benchmark calibrate report --state 'ref=power:0.002'
 | Code | When |
 | --- | --- |
 | 0 | The readout was printed. |
-| 2 | Usage error, a sample that does not match samples.json, an unknown measure, campaign or type, a base level that is not a level, an invalid --state, a measure or switched type given twice, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
+| 2 | Usage error, a sample that does not match samples.json, an unknown scaling, campaign or type, a share that is not a positive number or a drop share at or above its rise share, a scaling on another measure than its type's, a base level that is not a level, an invalid --state (a link with ref= was made before scalings), a scaling or switched type given twice, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
 | 4 | --samples is not a directory or its samples.json cannot be read. |
 | 9 | --out cannot be written. |
 <!-- end generated -->
@@ -441,11 +456,14 @@ One small PR:
 2. Add a `DraftShare` to `DRAFT_SHARES` in `benchmarking/calibration/drafts.py`: a slug `name`, a `label`, the
    `issue` it calibrates for, the existing narrative `event_types` it is tried on, one `ShareReading` per
    candidate (the highest scale wins) and, if its types' kinds do not share one, a `base`.
-3. Run `tinarrative benchmark calibrate open`, which rebuilds the table, and calibrate the draft's reference and base
-   on the page.
+   A draft reads its measure's starting scaling unless it names one of its own in `scalings`: a `ScalingSpec` on a
+   measure one of its readings reads, at most one per measure.
+3. Run `tinarrative benchmark calibrate open`, which rebuilds the table, and calibrate the draft's rise share and base
+   on the page, or its own scaling with `report --rise`/`--drop`.
 
 #### Graduating a draft
 
 One PR as well: add a `ShareOf` member, move the draft's share reading into `SHARE_IMPLEMENTATIONS`, set `share=`
-(and `base=` if the calibrated base differs) on the kinds of the draft's types, write the calibrated reference into
-the measure's registry entry, and delete the draft from `DRAFT_SHARES`.
+(and `base=` if the calibrated base differs) on the kinds of the draft's types, set `scaling=` beside `share=`
+(the measure's starting scaling, or a new `Scaling` member whose `SCALINGS` entry holds the calibrated rise and drop
+shares and the game quantity that explains them), and delete the draft from `DRAFT_SHARES`.

@@ -344,6 +344,11 @@ only the large ones keep or exceed their level: of the organization assignments 
 `minor`, the split the former top-tier rule drew by tier alone. The references were left at 0.01 (*hypothesis*: a
 reference near the median share would lift most events instead of lowering them, which the clamp bounds either way).
 
+Since 2026-11-23 a scaling replaces the reference and the clamp. Each measure's starting scaling has a rise
+share of the old reference × 10^1.25 (0.178 for 0.01) at the default width, so its midpoint is the old reference.
+The scale stays `10·log10(share / reference)` points, but it is no longer clamped. The −20 low end of the ranges
+above became the bottom of `minor`: size never drops an event below minor.
+
 ### Scaled nation narrative events
 
 Band shifts, per-capita GDP trajectories, diplomatic realignments, military buildups and demobilizations and navies
@@ -363,3 +368,6 @@ with raising a top-ten GDP nation's event one level:
 - The top-ten economies drop one level too. Their share adds 3 to 12 points, while a level is 25 points wide and
   starts 13 points above a base. Rising a level takes a share of about 20 %, which no nation of the Protectorate
   saves holds (the largest is 14 to 16 %, table above).
+- Since 2026-11-23 these levels are read against the power scaling: a nation event rises a level at a power
+  share of 0.178 (the rise share), and nothing drops it below `minor`, so the small states that dropped from `minor`
+  keep it.

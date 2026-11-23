@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from tests.narrative.support import aggregated, atomic, nation, nation_row, powered, situation, with_rest
+from tests.narrative.support import GREAT_SCALE, aggregated, atomic, nation, nation_row, powered, situation, with_rest
 from tinarrative.config import NarrativeSettings, NationMetricsSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import RANK_CHANGED, SPACE_ASSETS_CHANGED
@@ -23,7 +23,6 @@ from tinarrative.narrative.assets import (
     SPACE_DEFENCES_ESTABLISHED,
     SPACE_PROGRAM_GROWTH,
 )
-from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.situation import NationSituation, SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -152,7 +151,7 @@ def test_an_army_event_scales_with_its_nations_power_share(
         base=Significance.MAJOR.base,
         measure=Measure.POWER,
         share=pytest.approx(0.4),
-        scale=SCALE_MAX,
+        scale=GREAT_SCALE,
         entities=(NORTH,),
     )
     assert micro.significance is Significance.MINOR

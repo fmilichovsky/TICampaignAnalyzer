@@ -10,7 +10,13 @@ from pathlib import Path
 from typing import Any, Final
 
 from tinarrative.benchmarking.calibration import drafts as draft_shares
-from tinarrative.benchmarking.calibration.drafts import DraftShare, draft_base, draft_row_id, validate_drafts
+from tinarrative.benchmarking.calibration.drafts import (
+    DraftShare,
+    draft_base,
+    draft_row_id,
+    draft_scalings,
+    validate_drafts,
+)
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
@@ -18,7 +24,8 @@ from tinarrative.model.events import SCORE_BANDS, SCORE_MAX, SCORE_MIN, SIGNIFIC
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.aggregation import interval_shares
 from tinarrative.narrative.chronology import interval_of
-from tinarrative.narrative.measures import MEASURES, SCALE_MAX, SCALE_MIN
+from tinarrative.narrative.measures import MEASURES
+from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, ScalingSpec
 from tinarrative.narrative.significance import IntervalShares, decide, score_event
 from tinarrative.sequence import (
     SaveRef,
@@ -31,7 +38,7 @@ from tinarrative.sequence import (
     survey_all,
 )
 
-SCHEMA_VERSION: Final = 4
+SCHEMA_VERSION: Final = 5
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -91,8 +98,18 @@ def _draft_row(
     cited = [by_id[item] for item in event.constituents]
     first, last = shares.get(event.intervals[0]), shares.get(event.intervals[-1])
     base = draft_base(draft)
+    scalings = draft_scalings(draft)
     results = [
-        score_event(kind, event, cited, reading=reading, base=base, shares=first, last=last)
+        score_event(
+            kind,
+            event,
+            cited,
+            reading=reading,
+            scaling=scalings[reading.measure][1],
+            base=base,
+            shares=first,
+            last=last,
+        )
         for reading in draft.readings
     ]
     scored = [result for result in results if result.basis is not None]
@@ -160,14 +177,18 @@ def layers() -> dict[str, int]:
 
 
 def type_kinds(types: Iterable[str]) -> dict[str, dict[str, Any]]:
-    """The ``kinds`` map of the index: each distinct type's code base level and context rule (``None`` for none),
-    sorted by type; ``CalibrationTableError`` for a type no kind declares."""
+    """The ``kinds`` map of the index: each distinct type's code base level, context rule and scaling (``None`` for
+    none), sorted by type; ``CalibrationTableError`` for a type no kind declares."""
     kinds: dict[str, dict[str, Any]] = {}
     for event_type in sorted(set(types)):
         kind = kind_for(event_type)
         if kind is None:
             raise CalibrationTableError(f"event type {event_type} is declared by no kind")
-        kinds[event_type] = {"base": kind.base.value, "rule": None if kind.rule is None else kind.rule.value}
+        kinds[event_type] = {
+            "base": kind.base.value,
+            "rule": None if kind.rule is None else kind.rule.value,
+            "scaling": None if kind.scaling is None else kind.scaling.value,
+        }
     return kinds
 
 
@@ -182,9 +203,13 @@ def build_index(
     """The ``index.js`` document: what the rows cannot say about themselves, from the registry, the rules and the
     draft shares (``drafts``, by default the declared ones).
 
-    ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold.
+    ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold. ``scalings`` holds every declared
+    scaling, then each draft's own, in draft order.
     """
     chosen = declared_drafts(drafts)
+    scalings = {scaling.value: _scaling(spec) for scaling, spec in SCALINGS.items()}
+    for draft in chosen:
+        scalings.update((name, _scaling(spec)) for name, spec in draft_scalings(draft).values() if name not in scalings)
     rules = {rule.name: rule for rule in NARRATIVE_RULES}
     return {
         "schema_version": SCHEMA_VERSION,
@@ -204,17 +229,16 @@ def build_index(
         ],
         "constants": {
             "level_bands": {level.value: list(SCORE_BANDS[level]) for level in SIGNIFICANCE_ORDER},
-            "scale_min": SCALE_MIN,
-            "scale_max": SCALE_MAX,
+            "default_width": DEFAULT_WIDTH,
             "score_min": SCORE_MIN,
             "score_max": SCORE_MAX,
             "neighbours": NEIGHBOURS,
             "package_level": PACKAGE_LEVEL,
         },
         "measures": {
-            measure.value: {"reference": spec.reference, "label": spec.label, "description": spec.description}
-            for measure, spec in MEASURES.items()
+            measure.value: {"label": spec.label, "description": spec.description} for measure, spec in MEASURES.items()
         },
+        "scalings": scalings,
         "kinds": {event_type: dict(kind) for event_type, kind in kinds.items()},
         "drafts": [
             {
@@ -223,10 +247,15 @@ def build_index(
                 "issue": draft.issue,
                 "base": draft_base(draft).value,
                 "measures": list(dict.fromkeys(reading.measure.value for reading in draft.readings)),
+                "scalings": {measure.value: name for measure, (name, _) in draft_scalings(draft).items()},
             }
             for draft in chosen
         ],
     }
+
+
+def _scaling(spec: ScalingSpec) -> dict[str, Any]:
+    return {"measure": spec.measure.value, "rise": spec.rise, "drop": spec.drop, "reason": spec.reason}
 
 
 def write_campaign(directory: Path, name: str, document: Mapping[str, Any]) -> Path:

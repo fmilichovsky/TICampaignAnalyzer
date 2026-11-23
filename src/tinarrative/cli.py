@@ -243,8 +243,10 @@ EXIT_CODES: dict[str, ExitCodes] = {
         (EXIT_SUCCESS, "the readout was printed."),
         (
             EXIT_USAGE_ERROR,
-            f"usage error, a sample that does not match {MANIFEST}, an unknown measure, campaign or type, a base "
-            "level that is not a level, an invalid --state, a measure or switched type given twice, a table at "
+            f"usage error, a sample that does not match {MANIFEST}, an unknown scaling, campaign or type, a "
+            "share that is not a positive number or a drop share at or above its rise share, a scaling on another "
+            "measure than its type's, a base level that is not a level, an invalid --state (a link with ref= was "
+            "made before scalings), a scaling or switched type given twice, a table at "
             "another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old "
             "table stays).",
         ),
@@ -925,7 +927,9 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
         state = calibration_readout.override_state(
             state,
             index,
-            references=cast("list[str] | None", args.reference) or [],
+            rises=cast("list[str] | None", args.rise) or [],
+            drops=cast("list[str] | None", args.drop) or [],
+            scalings=cast("list[str] | None", args.scaling) or [],
             campaigns=cast("list[str] | None", args.campaign) or [],
             types=cast("list[str] | None", args.type) or [],
             bases=cast("list[str] | None", args.base) or [],
@@ -2289,7 +2293,7 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     _add_report_arguments(reported)
     reported.set_defaults(handler=_run_benchmark_runtime)
 
-    summary = "Replay the share calibration table for other references."
+    summary = "Replay the share calibration table for other scalings and base levels."
     calibrate = commands.add_parser("calibrate", help=summary, description=summary)
     calibrate_commands = calibrate.add_subparsers(dest="calibrate_command", metavar="OPERATION", required=True)
     opened = _add_command(
@@ -2317,10 +2321,25 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     _add_calibration_cache_arguments(report)
     report.add_argument(
-        "--reference",
+        "--rise",
         action="append",
-        metavar="MEASURE=VALUE",
-        help="A measure's reference share; comma-separated, repeatable (default: the code's).",
+        metavar="SCALING=VALUE",
+        help="A scaling's rise share; comma-separated, repeatable (default: the code's).",
+    )
+    report.add_argument(
+        "--drop",
+        action="append",
+        metavar="SCALING=VALUE",
+        help="A scaling's drop share, below its rise share; comma-separated, repeatable (default: the code's).",
+    )
+    report.add_argument(
+        "--scaling",
+        action="append",
+        metavar="TYPE=SCALING",
+        help=(
+            "Move an event type to another scaling on its measure, or to its own name to split it off into a scaling "
+            "of its own, starting as a copy; comma-separated, repeatable (default: the code's)."
+        ),
     )
     report.add_argument(
         "--campaign",

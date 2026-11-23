@@ -4,7 +4,17 @@ from __future__ import annotations
 
 import pytest
 
-from tests.narrative.support import aggregated, atomic, faction, nation, nation_row, powered, situation, with_rest
+from tests.narrative.support import (
+    GREAT_SCALE,
+    aggregated,
+    atomic,
+    faction,
+    nation,
+    nation_row,
+    powered,
+    situation,
+    with_rest,
+)
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.control import NATION_CONTROL_CHANGED
@@ -15,7 +25,6 @@ from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import narrative_rules
 from tinarrative.narrative.diplomacy import REALIGNMENT
-from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.situation import SituationReport
 
 K0 = "2032-01-01T00:00:00"
@@ -209,7 +218,7 @@ def test_a_realignment_scales_with_its_nations_power_share_alone() -> None:
         base=Significance.MAJOR.base,
         measure=Measure.POWER,
         share=pytest.approx(0.4),
-        scale=SCALE_MAX,
+        scale=GREAT_SCALE,
         entities=(NORTH,),
     )
     assert [item.significance for item in micro] == [Significance.MINOR]

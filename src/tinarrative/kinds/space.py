@@ -6,7 +6,7 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, ShareOf, Template
+from ..model.kinds import EventKind, EvidenceRole, Scaling, ShareOf, Template
 from ..model.values import FrozenMap, Observed, Unknown
 from .narrative import count as _count
 from .narrative import narrative_kind, role
@@ -197,6 +197,7 @@ FLEET_FACTION_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     share=ShareOf.FLEET,
+    scaling=Scaling.FLEET,
     base=Significance.MAJOR,
 )
 FLEET_DOCKED_LOCATION_CHANGED = EventKind(
@@ -305,6 +306,7 @@ HAB_FACTION_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     share=ShareOf.HAB,
+    scaling=Scaling.HAB,
     base=Significance.MINOR,
 )
 HAB_TYPE_CHANGED = EventKind(
@@ -356,6 +358,7 @@ HAB_APPEARED = EventKind(
     frozenset({"side"}),
     frozenset({"core_completed", "projected_arrival", "projected_completion"}),
     share=ShareOf.HAB,
+    scaling=Scaling.HAB,
     base=Significance.MINOR,
 )
 HAB_DISAPPEARED = EventKind(
@@ -379,6 +382,7 @@ FACTION_COMBAT_RECORDED = EventKind(
     EvidenceRole.EVIDENCE,
     frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on", "side_dry_mass"}),
     share=ShareOf.COMBAT,
+    scaling=Scaling.BATTLE,
     base=Significance.MINOR,
 )
 FACTION_COMBAT_ENTRY_REMOVED = EventKind(
@@ -398,6 +402,7 @@ FACTION_FIRST_HAB_ON_BODY = EventKind(
     EvidenceRole.EVIDENCE,
     frozenset({"body", "habs", "hab_count", "first_of_any_faction", "milestones"}),
     share=ShareOf.HAB,
+    scaling=Scaling.HAB,
     base=Significance.MAJOR,
 )
 HAB_DESTROYED = EventKind(
@@ -407,6 +412,7 @@ HAB_DESTROYED = EventKind(
     frozenset({"hab_type", "body", "signals", "ambiguous"}),
     frozenset({"destroyer", "recorded_on", "destroyers", "recorded_dates", "candidates", "vanished"}),
     share=ShareOf.HAB,
+    scaling=Scaling.HAB,
     base=Significance.MAJOR,
 )
 FACTION_SPACE_LOSSES = EventKind(
@@ -415,6 +421,7 @@ FACTION_SPACE_LOSSES = EventKind(
     EvidenceRole.EVIDENCE,
     frozenset({"victim", "ships_lost", "habs_lost", "ships", "habs"}),
     share=ShareOf.SPACE_LOSSES,
+    scaling=Scaling.SPACE_LOSS,
     base=Significance.MAJOR,
 )
 
@@ -485,6 +492,7 @@ SPACE_CAMPAIGN = narrative_kind(
     ),
     base=Significance.MINOR,
     share=ShareOf.SPACE_CAMPAIGN,
+    scaling=Scaling.SPACE_LOSS,
 )
 COLONISATION_WAVE = narrative_kind(
     "faction.colonisation_wave",
@@ -492,6 +500,7 @@ COLONISATION_WAVE = narrative_kind(
     required=frozenset({"bodies", "hab_count", "first_of_any_faction"}),
     base=Significance.MAJOR,
     share=ShareOf.COLONY,
+    scaling=Scaling.HAB,
 )
 FLEET_BUILDUP = narrative_kind(
     "faction.fleet_buildup",
@@ -499,6 +508,7 @@ FLEET_BUILDUP = narrative_kind(
     required=frozenset({"hull", "count"}),
     base=Significance.MINOR,
     share=ShareOf.NEW_SHIPS,
+    scaling=Scaling.FLEET,
 )
 
 KINDS = (

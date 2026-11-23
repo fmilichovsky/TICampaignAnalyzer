@@ -98,7 +98,8 @@ UNSCORED: Final = -1
 
 @dataclass(frozen=True)
 class SignificanceBasis:
-    """How a share moved an event's score: ``score = clamp(base + scale, 0, 100)`` (ADR-0011)."""
+    """How a share moved an event's score: ``score = base + scale``, clipped at 100 and at the bottom of minor (of
+    trivial for a trivial base); ``scale`` is what the kind's scaling made of ``share`` (ADR-0011)."""
 
     base: int
     measure: Measure

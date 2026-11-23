@@ -1,19 +1,21 @@
 {
-  "schema_version": 4,
+  "schema_version": 5,
   "key": "golden",
-  "hash": "ref=power:0.006309573444801933,faction:0.0000001",
+  "hash": "rise=power:0.11220184543019635,faction:0.0000001",
   "state": {
-    "references": {
-      "power": 0.006309573444801933,
-      "population": 0.01,
-      "organization": 0.01,
-      "hab": 0.015,
-      "fleet": 0.01,
-      "battle": 0.0033,
-      "space_loss": 0.01,
+    "rises": {
+      "power": 0.11220184543019635,
+      "population": 0.1778279410038923,
+      "organization": 0.1778279410038923,
+      "hab": 0.2667419115058384,
+      "fleet": 0.1778279410038923,
+      "battle": 0.058683220531284455,
+      "space_loss": 0.1778279410038923,
       "faction": 1e-07,
-      "nuclear": 0.01
+      "nuclear": 0.1778279410038923
     },
+    "drops": {},
+    "scalings": {},
     "campaigns": [
       "alpha",
       "beta"
@@ -27,7 +29,7 @@
     "focus": null
   },
   "totals": {
-    "events_moved": 9,
+    "events_moved": 2,
     "package": {
       "replay": 13,
       "baseline": 14,
@@ -37,24 +39,10 @@
   },
   "moves": [
     {
-      "type": "atomic.near",
-      "from_level": "trivial",
-      "to_level": "minor",
-      "count": 6,
-      "via_cited": 0
-    },
-    {
       "type": "faction.takeover",
       "from_level": "major",
       "to_level": "campaign_defining",
       "count": 2,
-      "via_cited": 0
-    },
-    {
-      "type": "atomic.far",
-      "from_level": "trivial",
-      "to_level": "minor",
-      "count": 1,
       "via_cited": 0
     }
   ],
@@ -67,22 +55,36 @@
         "campaign_defining": 0
       },
       "baseline": {
-        "trivial": 1,
-        "minor": 1,
+        "trivial": 0,
+        "minor": 2,
+        "major": 0,
+        "campaign_defining": 0
+      }
+    },
+    "atomic.land": {
+      "replay": {
+        "trivial": 0,
+        "minor": 2,
+        "major": 0,
+        "campaign_defining": 0
+      },
+      "baseline": {
+        "trivial": 0,
+        "minor": 2,
         "major": 0,
         "campaign_defining": 0
       }
     },
     "atomic.near": {
       "replay": {
-        "trivial": 1,
-        "minor": 7,
+        "trivial": 0,
+        "minor": 8,
         "major": 0,
         "campaign_defining": 0
       },
       "baseline": {
-        "trivial": 7,
-        "minor": 1,
+        "trivial": 0,
+        "minor": 8,
         "major": 0,
         "campaign_defining": 0
       }
@@ -90,13 +92,13 @@
     "atomic.other": {
       "replay": {
         "trivial": 0,
-        "minor": 1,
+        "minor": 0,
         "major": 1,
         "campaign_defining": 0
       },
       "baseline": {
         "trivial": 0,
-        "minor": 1,
+        "minor": 0,
         "major": 1,
         "campaign_defining": 0
       }
@@ -115,30 +117,44 @@
         "campaign_defining": 0
       }
     },
-    "atomic.spread": {
+    "atomic.scatter": {
       "replay": {
-        "trivial": 23,
+        "trivial": 9,
         "minor": 11,
-        "major": 8,
-        "campaign_defining": 6
+        "major": 3,
+        "campaign_defining": 2
       },
       "baseline": {
-        "trivial": 23,
+        "trivial": 9,
         "minor": 11,
-        "major": 8,
-        "campaign_defining": 6
+        "major": 3,
+        "campaign_defining": 2
+      }
+    },
+    "atomic.spread": {
+      "replay": {
+        "trivial": 5,
+        "minor": 9,
+        "major": 5,
+        "campaign_defining": 4
+      },
+      "baseline": {
+        "trivial": 5,
+        "minor": 9,
+        "major": 5,
+        "campaign_defining": 4
       }
     },
     "atomic.thing": {
       "replay": {
-        "trivial": 1,
-        "minor": 5,
+        "trivial": 0,
+        "minor": 4,
         "major": 2,
         "campaign_defining": 0
       },
       "baseline": {
-        "trivial": 1,
-        "minor": 5,
+        "trivial": 0,
+        "minor": 4,
         "major": 2,
         "campaign_defining": 0
       }
@@ -252,111 +268,6 @@
   "moved": [
     {
       "campaign": "alpha",
-      "id": "near-0",
-      "type": "atomic.near",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.0005248074602497726
-        }
-      ],
-      "score": 26,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "near-0"
-    },
-    {
-      "campaign": "alpha",
-      "id": "near-1",
-      "type": "atomic.near",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.0004897788193684462
-        }
-      ],
-      "score": 26,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "near-1"
-    },
-    {
-      "campaign": "alpha",
-      "id": "near-2",
-      "type": "atomic.near",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.00045708818961487493
-        }
-      ],
-      "score": 26,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "near-2"
-    },
-    {
-      "campaign": "alpha",
-      "id": "near-3",
-      "type": "atomic.near",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.0004265795188015928
-        }
-      ],
-      "score": 25,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "near-3"
-    },
-    {
-      "campaign": "alpha",
-      "id": "near-4",
-      "type": "atomic.near",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.00039810717055349735
-        }
-      ],
-      "score": 25,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "near-4"
-    },
-    {
-      "campaign": "alpha",
-      "id": "near-5",
-      "type": "atomic.near",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.0003715352290971724
-        }
-      ],
-      "score": 25,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "near-5"
-    },
-    {
-      "campaign": "alpha",
-      "id": "far-low",
-      "type": "atomic.far",
-      "shares": [
-        {
-          "measure": "power",
-          "share": 0.000446683592150963
-        }
-      ],
-      "score": 25,
-      "level": "minor",
-      "code_level": "trivial",
-      "decided_by": "far-low"
-    },
-    {
-      "campaign": "alpha",
       "id": "shrunk-0",
       "type": "faction.takeover",
       "shares": [
@@ -389,17 +300,81 @@
   "cutoffs": {
     "power": [
       {
+        "step": -2,
+        "offset": -3.75,
+        "share": 1.1220184543019633e-06,
+        "below": [],
+        "above": [
+          {
+            "campaign": "beta",
+            "id": "spread-6",
+            "type": "atomic.spread",
+            "share": 6.146964517784923e-06,
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-6",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-1",
+            "type": "atomic.spread",
+            "share": 9.40774451069289e-06,
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-1",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-41",
+            "type": "atomic.spread",
+            "share": 1.60295744366109e-05,
+            "score": 0,
+            "level": "trivial",
+            "code_level": "trivial",
+            "decided_by": "spread-41",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-36",
+            "type": "atomic.spread",
+            "share": 2.074493200252908e-05,
+            "score": 37,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-36",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-3",
+            "type": "atomic.spread",
+            "share": 2.6949195570515778e-05,
+            "score": 0,
+            "level": "trivial",
+            "code_level": "trivial",
+            "decided_by": "spread-3",
+            "decisive": true
+          }
+        ]
+      },
+      {
+        "step": -1,
         "offset": -1.25,
-        "share": 0.0003548133892335755,
+        "share": 0.00035481338923357543,
         "below": [
           {
             "campaign": "alpha",
             "id": "near-6",
             "type": "atomic.near",
             "share": 0.00034673685045253164,
-            "score": 24,
-            "level": "trivial",
-            "code_level": "trivial",
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
             "decided_by": "near-6",
             "decisive": true
           },
@@ -419,9 +394,9 @@
             "id": "spread-38",
             "type": "atomic.spread",
             "share": 0.00016080631234569647,
-            "score": 21,
-            "level": "trivial",
-            "code_level": "trivial",
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
             "decided_by": "spread-38",
             "decisive": true
           },
@@ -430,9 +405,9 @@
             "id": "spread-44",
             "type": "atomic.spread",
             "share": 0.00013857777954856483,
-            "score": 20,
-            "level": "trivial",
-            "code_level": "trivial",
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
             "decided_by": "spread-44",
             "decisive": true
           },
@@ -456,7 +431,7 @@
             "share": 0.0003715352290971724,
             "score": 25,
             "level": "minor",
-            "code_level": "trivial",
+            "code_level": "minor",
             "decided_by": "near-5",
             "decisive": true
           },
@@ -467,7 +442,7 @@
             "share": 0.00039810717055349735,
             "score": 25,
             "level": "minor",
-            "code_level": "trivial",
+            "code_level": "minor",
             "decided_by": "near-4",
             "decisive": true
           },
@@ -478,7 +453,7 @@
             "share": 0.0004265795188015928,
             "score": 25,
             "level": "minor",
-            "code_level": "trivial",
+            "code_level": "minor",
             "decided_by": "near-3",
             "decisive": true
           },
@@ -489,7 +464,7 @@
             "share": 0.000446683592150963,
             "score": 25,
             "level": "minor",
-            "code_level": "trivial",
+            "code_level": "minor",
             "decided_by": "far-low",
             "decisive": true
           },
@@ -500,15 +475,16 @@
             "share": 0.00045708818961487493,
             "score": 26,
             "level": "minor",
-            "code_level": "trivial",
+            "code_level": "minor",
             "decided_by": "near-2",
             "decisive": true
           }
         ]
       },
       {
+        "step": 1,
         "offset": 1.25,
-        "share": 0.11220184543019636,
+        "share": 0.11220184543019635,
         "below": [
           {
             "campaign": "beta",
@@ -605,7 +581,7 @@
             "id": "far-high",
             "type": "atomic.far",
             "share": 0.223872113856834,
-            "score": 27,
+            "score": 28,
             "level": "minor",
             "code_level": "minor",
             "decided_by": "far-high",
@@ -616,24 +592,214 @@
             "id": "spread-15",
             "type": "atomic.spread",
             "share": 0.2408214607095533,
-            "score": 77,
+            "score": 78,
             "level": "campaign_defining",
             "code_level": "campaign_defining",
             "decided_by": "spread-15",
             "decisive": true
           }
         ]
+      },
+      {
+        "step": 2,
+        "offset": 3.75,
+        "share": 35.48133892335755,
+        "below": [
+          {
+            "campaign": "alpha",
+            "id": "outside",
+            "type": "faction.takeover",
+            "share": 0.31622776601683794,
+            "score": 79,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "outside",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-9",
+            "type": "atomic.spread",
+            "share": 0.2948639032053965,
+            "score": 79,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-9",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-15",
+            "type": "atomic.spread",
+            "share": 0.2408214607095533,
+            "score": 78,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-15",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
+            "id": "far-high",
+            "type": "atomic.far",
+            "share": 0.223872113856834,
+            "score": 28,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "far-high",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
+            "id": "gone-0",
+            "type": "faction.takeover",
+            "share": 0.15848931924611134,
+            "score": 76,
+            "level": "campaign_defining",
+            "code_level": "major",
+            "decided_by": "gone-0",
+            "decisive": true
+          }
+        ],
+        "above": []
+      },
+      {
+        "step": 3,
+        "offset": 6.25,
+        "share": 11220.184543019635,
+        "below": [
+          {
+            "campaign": "alpha",
+            "id": "outside",
+            "type": "faction.takeover",
+            "share": 0.31622776601683794,
+            "score": 79,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "outside",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-9",
+            "type": "atomic.spread",
+            "share": 0.2948639032053965,
+            "score": 79,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-9",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-15",
+            "type": "atomic.spread",
+            "share": 0.2408214607095533,
+            "score": 78,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-15",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
+            "id": "far-high",
+            "type": "atomic.far",
+            "share": 0.223872113856834,
+            "score": 28,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "far-high",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
+            "id": "gone-0",
+            "type": "faction.takeover",
+            "share": 0.15848931924611134,
+            "score": 76,
+            "level": "campaign_defining",
+            "code_level": "major",
+            "decided_by": "gone-0",
+            "decisive": true
+          }
+        ],
+        "above": []
       }
     ],
     "population": [
       {
+        "step": -2,
+        "offset": -3.75,
+        "share": 1.7782794100389227e-06,
+        "below": [],
+        "above": [
+          {
+            "campaign": "beta",
+            "id": "spread-11",
+            "type": "atomic.scatter",
+            "share": 3.6460266336209123e-06,
+            "score": 0,
+            "level": "trivial",
+            "code_level": "trivial",
+            "decided_by": "spread-11",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-39",
+            "type": "atomic.scatter",
+            "share": 1.4457308007496916e-05,
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-39",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-20",
+            "type": "atomic.scatter",
+            "share": 1.4621761428853033e-05,
+            "score": 34,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-20",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-21",
+            "type": "atomic.scatter",
+            "share": 1.6588701294174738e-05,
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-21",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-16",
+            "type": "atomic.scatter",
+            "share": 2.0457646530596124e-05,
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-16",
+            "decisive": true
+          }
+        ]
+      },
+      {
+        "step": -1,
         "offset": -1.25,
         "share": 0.0005623413251903491,
         "below": [
           {
             "campaign": "beta",
             "id": "spread-34",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.0005013673674649359,
             "score": 0,
             "level": "trivial",
@@ -644,7 +810,7 @@
           {
             "campaign": "beta",
             "id": "spread-37",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.00041667181102794535,
             "score": 0,
             "level": "trivial",
@@ -655,18 +821,18 @@
           {
             "campaign": "beta",
             "id": "spread-46",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.0003926065202781359,
-            "score": 23,
-            "level": "trivial",
-            "code_level": "trivial",
+            "score": 25,
+            "level": "minor",
+            "code_level": "minor",
             "decided_by": "spread-46",
             "decisive": true
           },
           {
             "campaign": "beta",
             "id": "spread-8",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.00020228076698374043,
             "score": 45,
             "level": "minor",
@@ -677,9 +843,9 @@
           {
             "campaign": "beta",
             "id": "spread-24",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 7.271023365395853e-05,
-            "score": 67,
+            "score": 66,
             "level": "major",
             "code_level": "major",
             "decided_by": "spread-24",
@@ -690,7 +856,7 @@
           {
             "campaign": "beta",
             "id": "spread-22",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.0006482801522003475,
             "score": 0,
             "level": "trivial",
@@ -701,7 +867,7 @@
           {
             "campaign": "beta",
             "id": "spread-40",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.0009188846860734026,
             "score": 27,
             "level": "minor",
@@ -712,7 +878,7 @@
           {
             "campaign": "beta",
             "id": "spread-43",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.0032319981253120535,
             "score": 7,
             "level": "trivial",
@@ -723,7 +889,7 @@
           {
             "campaign": "beta",
             "id": "spread-45",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.003605438252785662,
             "score": 33,
             "level": "minor",
@@ -734,7 +900,7 @@
           {
             "campaign": "beta",
             "id": "spread-18",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.0038033857974013874,
             "score": 8,
             "level": "trivial",
@@ -745,24 +911,14 @@
         ]
       },
       {
+        "step": 1,
         "offset": 1.25,
         "share": 0.1778279410038923,
         "below": [
           {
             "campaign": "alpha",
-            "id": "both",
-            "type": "atomic.thing",
-            "share": 0.1,
-            "score": 47,
-            "level": "minor",
-            "code_level": "minor",
-            "decided_by": "both",
-            "decisive": true
-          },
-          {
-            "campaign": "alpha",
             "id": "land",
-            "type": "atomic.thing",
+            "type": "atomic.land",
             "share": 0.1,
             "score": 47,
             "level": "minor",
@@ -773,7 +929,7 @@
           {
             "campaign": "beta",
             "id": "spread-33",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.05685760924256614,
             "score": 95,
             "level": "campaign_defining",
@@ -784,7 +940,7 @@
           {
             "campaign": "beta",
             "id": "spread-4",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.04622250481591863,
             "score": 94,
             "level": "campaign_defining",
@@ -795,12 +951,23 @@
           {
             "campaign": "beta",
             "id": "land",
-            "type": "atomic.other",
+            "type": "atomic.land",
             "share": 0.03,
             "score": 42,
             "level": "minor",
             "code_level": "minor",
             "decided_by": "land",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-7",
+            "type": "atomic.scatter",
+            "share": 0.022666501952008606,
+            "score": 66,
+            "level": "major",
+            "code_level": "major",
+            "decided_by": "spread-7",
             "decisive": true
           }
         ],
@@ -808,7 +975,7 @@
           {
             "campaign": "beta",
             "id": "spread-27",
-            "type": "atomic.spread",
+            "type": "atomic.scatter",
             "share": 0.2585935167531833,
             "score": 26,
             "level": "minor",
@@ -817,10 +984,137 @@
             "decisive": true
           }
         ]
+      },
+      {
+        "step": 2,
+        "offset": 3.75,
+        "share": 56.234132519034915,
+        "below": [
+          {
+            "campaign": "beta",
+            "id": "spread-27",
+            "type": "atomic.scatter",
+            "share": 0.2585935167531833,
+            "score": 26,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-27",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
+            "id": "land",
+            "type": "atomic.land",
+            "share": 0.1,
+            "score": 47,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "land",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-33",
+            "type": "atomic.scatter",
+            "share": 0.05685760924256614,
+            "score": 95,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-33",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-4",
+            "type": "atomic.scatter",
+            "share": 0.04622250481591863,
+            "score": 94,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-4",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "land",
+            "type": "atomic.land",
+            "share": 0.03,
+            "score": 42,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "land",
+            "decisive": true
+          }
+        ],
+        "above": []
+      },
+      {
+        "step": 3,
+        "offset": 6.25,
+        "share": 17782.79410038923,
+        "below": [
+          {
+            "campaign": "beta",
+            "id": "spread-27",
+            "type": "atomic.scatter",
+            "share": 0.2585935167531833,
+            "score": 26,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "spread-27",
+            "decisive": true
+          },
+          {
+            "campaign": "alpha",
+            "id": "land",
+            "type": "atomic.land",
+            "share": 0.1,
+            "score": 47,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "land",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-33",
+            "type": "atomic.scatter",
+            "share": 0.05685760924256614,
+            "score": 95,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-33",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "spread-4",
+            "type": "atomic.scatter",
+            "share": 0.04622250481591863,
+            "score": 94,
+            "level": "campaign_defining",
+            "code_level": "campaign_defining",
+            "decided_by": "spread-4",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "land",
+            "type": "atomic.land",
+            "share": 0.03,
+            "score": 42,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "land",
+            "decisive": true
+          }
+        ],
+        "above": []
       }
     ],
     "organization": [
       {
+        "step": -1,
         "offset": -1.25,
         "share": 0.0005623413251903491,
         "below": [],
@@ -839,6 +1133,7 @@
         ]
       },
       {
+        "step": 1,
         "offset": 1.25,
         "share": 0.1778279410038923,
         "below": [
@@ -857,90 +1152,12 @@
         "above": []
       }
     ],
-    "hab": [
-      {
-        "offset": -1.25,
-        "share": 0.0008435119877855236,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.2667419115058384,
-        "below": [],
-        "above": []
-      }
-    ],
-    "fleet": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ],
-    "battle": [
-      {
-        "offset": -1.25,
-        "share": 0.0001855726373128152,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.058683220531284455,
-        "below": [],
-        "above": []
-      }
-    ],
-    "space_loss": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ],
-    "faction": [
-      {
-        "offset": -1.25,
-        "share": 5.623413251903491e-09,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 1.7782794100389227e-06,
-        "below": [],
-        "above": []
-      }
-    ],
-    "nuclear": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ]
+    "hab": [],
+    "fleet": [],
+    "battle": [],
+    "space_loss": [],
+    "faction": [],
+    "nuclear": []
   },
   "drafts": [
     {
@@ -970,11 +1187,16 @@
           "campaign_defining": 0
         }
       },
+      "scalings": {
+        "power": "power",
+        "population": "population"
+      },
       "cutoffs": {
         "power": [
           {
-            "offset": -1.25,
-            "share": 0.0003548133892335755,
+            "step": -2,
+            "offset": -3.75,
+            "share": 1.1220184543019633e-06,
             "below": [],
             "above": [
               {
@@ -1016,8 +1238,141 @@
             ]
           },
           {
+            "step": -1,
+            "offset": -1.25,
+            "share": 0.00035481338923357543,
+            "below": [],
+            "above": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:deal",
+                "type": "nation.cession",
+                "share": 0.001,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.003981071705534972,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:grow",
+                "type": "nation.expansion",
+                "share": 0.015848931924611138,
+                "score": 66,
+                "level": "major",
+                "code_level": "major",
+                "decided_by": "draft:held:grow",
+                "decisive": true,
+                "ruled": true
+              }
+            ]
+          },
+          {
+            "step": 1,
             "offset": 1.25,
-            "share": 0.11220184543019636,
+            "share": 0.11220184543019635,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:grow",
+                "type": "nation.expansion",
+                "share": 0.015848931924611138,
+                "score": 66,
+                "level": "major",
+                "code_level": "major",
+                "decided_by": "draft:held:grow",
+                "decisive": true,
+                "ruled": true
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.003981071705534972,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:deal",
+                "type": "nation.cession",
+                "share": 0.001,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          },
+          {
+            "step": 2,
+            "offset": 3.75,
+            "share": 35.48133892335755,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:grow",
+                "type": "nation.expansion",
+                "share": 0.015848931924611138,
+                "score": 66,
+                "level": "major",
+                "code_level": "major",
+                "decided_by": "draft:held:grow",
+                "decisive": true,
+                "ruled": true
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.003981071705534972,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              },
+              {
+                "campaign": "alpha",
+                "id": "draft:held:deal",
+                "type": "nation.cession",
+                "share": 0.001,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          },
+          {
+            "step": 3,
+            "offset": 6.25,
+            "share": 11220.184543019635,
             "below": [
               {
                 "campaign": "alpha",
@@ -1061,6 +1416,27 @@
         ],
         "population": [
           {
+            "step": -2,
+            "offset": -3.75,
+            "share": 1.7782794100389227e-06,
+            "below": [],
+            "above": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.019952623149688795,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ]
+          },
+          {
+            "step": -1,
             "offset": -1.25,
             "share": 0.0005623413251903491,
             "below": [],
@@ -1080,8 +1456,49 @@
             ]
           },
           {
+            "step": 1,
             "offset": 1.25,
             "share": 0.1778279410038923,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.019952623149688795,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          },
+          {
+            "step": 2,
+            "offset": 3.75,
+            "share": 56.234132519034915,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:held:arc",
+                "type": "campaign.first_milestone",
+                "share": 0.019952623149688795,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          },
+          {
+            "step": 3,
+            "offset": 6.25,
+            "share": 17782.79410038923,
             "below": [
               {
                 "campaign": "alpha",
@@ -1127,9 +1544,33 @@
           "campaign_defining": 0
         }
       },
+      "scalings": {
+        "population": "population"
+      },
       "cutoffs": {
         "population": [
           {
+            "step": -2,
+            "offset": -3.75,
+            "share": 1.7782794100389227e-06,
+            "below": [],
+            "above": [
+              {
+                "campaign": "alpha",
+                "id": "draft:moved:deal",
+                "type": "nation.cession",
+                "share": 0.15848931924611134,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ]
+          },
+          {
+            "step": -1,
             "offset": -1.25,
             "share": 0.0005623413251903491,
             "below": [],
@@ -1149,8 +1590,49 @@
             ]
           },
           {
+            "step": 1,
             "offset": 1.25,
             "share": 0.1778279410038923,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:moved:deal",
+                "type": "nation.cession",
+                "share": 0.15848931924611134,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          },
+          {
+            "step": 2,
+            "offset": 3.75,
+            "share": 56.234132519034915,
+            "below": [
+              {
+                "campaign": "alpha",
+                "id": "draft:moved:deal",
+                "type": "nation.cession",
+                "share": 0.15848931924611134,
+                "score": 47,
+                "level": "minor",
+                "code_level": "minor",
+                "decided_by": "land",
+                "decisive": false,
+                "ruled": false
+              }
+            ],
+            "above": []
+          },
+          {
+            "step": 3,
+            "offset": 6.25,
+            "share": 17782.79410038923,
             "below": [
               {
                 "campaign": "alpha",

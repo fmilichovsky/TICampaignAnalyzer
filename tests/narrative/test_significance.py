@@ -33,6 +33,7 @@ from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_
 from tinarrative.kinds.nations import BAND_SHIFTS, POPULATION_COLLAPSE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import (
+    SCORE_BANDS,
     SCORE_MAX,
     SCORE_MIN,
     SIGNIFICANCE_ORDER,
@@ -43,12 +44,12 @@ from tinarrative.model.events import (
     Significance,
     SignificanceBasis,
 )
-from tinarrative.model.kinds import Measure, Rule, ShareOf
+from tinarrative.model.kinds import EventKind, EvidenceRole, Measure, Rule, Scaling, ShareOf
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance_of
-from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
+from tinarrative.narrative.scalings import SCALINGS
 from tinarrative.narrative.shares import SaveShares
 from tinarrative.narrative.significance import (
     RULE_IMPLEMENTATIONS,
@@ -524,14 +525,83 @@ def test_a_micro_states_disappearance_is_major_and_a_large_states_campaign_defin
     assert big.significance is Significance.CAMPAIGN_DEFINING
 
 
-def test_a_share_at_the_reference_share_keeps_the_level_and_the_clamp_bounds_the_scale() -> None:
-    at_reference = scored(scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 0.01, OTHER: 0.99})
-    assert at_reference.score == Significance.CAMPAIGN_DEFINING.base
-    assert at_reference.significance_basis is not None and at_reference.significance_basis.scale == 0
+def test_a_share_at_the_midpoint_keeps_the_level_and_size_never_drops_an_event_below_minor() -> None:
+    at_midpoint = scored(scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 0.01, OTHER: 0.99})
+    assert at_midpoint.score == Significance.CAMPAIGN_DEFINING.base
+    assert at_midpoint.significance_basis is not None and at_midpoint.significance_basis.scale == 0
     tiny = scored(scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 1e-12, OTHER: 1.0})
-    assert tiny.significance_basis is not None and tiny.significance_basis.scale == -20
+    assert tiny.significance_basis is not None and tiny.significance_basis.scale == -100
+    assert tiny.significance is Significance.MINOR and tiny.score == SCORE_BANDS[Significance.MINOR][0]
     empty = scored(scaled_event("nation.disappeared", nation_ref(BIG)), power={BIG: 0.0})
-    assert empty.significance_basis is not None and empty.significance_basis.scale == -20
+    assert empty.significance is Significance.MINOR
+
+
+def test_a_share_moves_an_event_past_the_former_clamp() -> None:
+    event = scaled_event("nation.executive_change_recorded", nation_ref(BIG), cause="Politics")
+    whole = scored(event, power={BIG: 1.0})
+    # Minor at a share 100x the midpoint: +20 points, past the former clamp of +15, into major.
+    assert whole.significance_basis is not None and whole.significance_basis.scale == 20
+    assert whole.score == Significance.MINOR.base + 20
+    assert whole.significance is Significance.MAJOR
+
+
+def test_a_context_rule_sets_the_starting_level_and_the_share_moves_from_there() -> None:
+    def recorded(cause: str, share: float) -> Event:
+        event = scaled_event("nation.executive_change_recorded", nation_ref(BIG), cause=cause)
+        return scored(event, power={BIG: share, OTHER: 1 - share})
+
+    coup = recorded("Coup", 0.001)
+    assert coup.context_rule is Rule.EXECUTIVE_CHANGE and coup.significance_basis is not None
+    assert coup.significance_basis.base == Significance.MAJOR.base
+    assert coup.score == Significance.MAJOR.base - 10
+    assert recorded("Politics", 0.001).score == Significance.MINOR.base - 10
+    assert recorded("Coup", 1e-9).significance is Significance.MINOR
+
+
+def test_a_context_rule_that_names_trivial_decides_outright() -> None:
+    kind = EventKind(
+        "councilor.scaled",
+        lambda event: "",
+        EvidenceRole.EVIDENCE,
+        frozenset({"side"}),
+        base=Significance.MINOR,
+        rule=Rule.COUNCILOR_PRESENCE,
+        share=ShareOf.NATION,
+        scaling=Scaling.POWER,
+    )
+    event = replace(
+        bare_event("nation.appeared"), event_type=kind.event_type, entities=(councilor_ref("100"), nation_ref(BIG))
+    )
+    event = replace(event, attributes=(("side", "before"),))
+    lookup = Lookup(snapshot(BEFORE, state(COUNCILOR, "100", BEFORE, faction=None)), snapshot(AFTER))
+    shares = IntervalShares(saved(power={BIG: 1.0}), saved(power={BIG: 1.0}))
+    result = score_event(kind, event, shares=shares, lookup=lookup)
+    assert result.rule is Rule.COUNCILOR_PRESENCE and result.level is Significance.TRIVIAL
+    assert result.basis is None and result.score == Significance.TRIVIAL.base
+
+
+def test_a_kind_declares_a_scaling_exactly_with_a_share() -> None:
+    with pytest.raises(ValueError, match="declared together"):
+        EventKind(
+            "x.y", lambda event: "", EvidenceRole.EVIDENCE, frozenset(), base=Significance.MINOR, share=ShareOf.NATION
+        )
+    with pytest.raises(ValueError, match="declared together"):
+        EventKind(
+            "x.y", lambda event: "", EvidenceRole.EVIDENCE, frozenset(), base=Significance.MINOR, scaling=Scaling.POWER
+        )
+
+
+def test_a_scaling_on_another_measure_than_the_reading_is_a_code_bug() -> None:
+    kind = next(kind for kind in KINDS.values() if kind.share is ShareOf.NATION)
+    shares = IntervalShares(saved(power={BIG: 1.0}), saved(power={BIG: 1.0}))
+    with pytest.raises(ValueError, match="cannot read"):
+        score_event(
+            kind,
+            scaled_event(kind.event_type, nation_ref(BIG)),
+            shares=shares,
+            reading=SHARE_IMPLEMENTATIONS[ShareOf.NATION],
+            scaling=SCALINGS[Scaling.POPULATION],
+        )
 
 
 def test_the_share_is_read_on_the_later_side_for_an_entity_that_exists_only_there() -> None:
@@ -759,14 +829,16 @@ def test_a_technology_milestone_takes_its_curated_tier() -> None:
     )
 
 
-def test_the_plain_number_steps_bound_the_scale_and_the_score_and_take_the_highest_input() -> None:
+def test_the_plain_number_steps_clip_the_score_and_take_the_highest_input() -> None:
     # Public because the calibration replay scores table rows, not events, through the same steps.
-    assert scale(0.0, 1.0) == SCALE_MIN
-    assert scale(10.0**SCALE_MAX, 1.0) == SCALE_MAX
-    assert scale(1.0, 1.0) == 0
+    rise = 10**1.25
+    assert scale(0.0, rise) == -SCORE_MAX
+    assert scale(1.0, rise) == 0
+    assert scale(10.0**5, rise) == 50
     assert own_score(40, ()) == 40
     assert own_score(40, (-3, 5, 2)) == own_score(40, (5,)) == 40 + 5
-    assert own_score(SCORE_MAX, (SCALE_MAX,)) == SCORE_MAX
-    assert own_score(SCORE_MIN, (SCALE_MIN,)) == SCORE_MIN
+    assert own_score(SCORE_MAX, (50,)) == SCORE_MAX
+    assert own_score(Significance.MAJOR.base, (-100,)) == SCORE_BANDS[Significance.MINOR][0]
+    assert own_score(Significance.TRIVIAL.base, (-100,)) == SCORE_MIN
     assert settled_score(45, (30, 61)) == 61
     assert settled_score(45, (30,)) == 45
