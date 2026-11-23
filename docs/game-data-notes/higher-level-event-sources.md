@@ -426,8 +426,9 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
   three older intervals that had any (3, 2, 10 entries) matched at least one hab absent from the later save
   by owning faction (the log's owner, the hab's earlier `faction`), `HabType`/`habType` and
   `SpaceBody`/`barycenter`; 9 of the 15 had two or three such candidates, and every entry's `Date` fell
-  inside its interval. One `LogHabDestroyed` notification named the vanished hab and carried the same
-  `dateTime` as its destruction entry, to the millisecond. Habs appearing on a body where their faction had
+  inside its interval. One `LogHabDestroyed` notification carried the same `dateTime` as its destruction
+  entry, to the millisecond (its subject was then read as the vanished hab; the later re-check below found no
+  hab subject). Habs appearing on a body where their faction had
   none before: 0, 0, 2, 5 in the older intervals, 0, 2 in the newer. `Kills` lists also grew under the
   owning faction's own key (three factions); what they count is not known (*hypothesis:* assets of the
   faction's own that it destroyed, or kills of unaligned targets). One faction's kills against another grew
@@ -436,6 +437,24 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
   sample; the labels of the latest older save (`FirstBaseOnLuna`, `FirstBaseOnMars`, `FirstAsteroidBase`,
   `FirstMercuryBase`, `FirstKuiperBeltObjectBase`, `FirstJupiterSystemBase`, `FirstUranusSystemBase`,
   `FirstWarship`, `FirstSpaceCombatVictoryAgainstAliens`) name places or achievements, never a body ID.
+- **Hab destruction notifications** (observed 2026-11-23, every save of the Protectorate (00087–00119, game
+  1.0.53b) and Resist (00021–00083, game 1.0.28–1.0.32) benchmark samples, structure and counts only; cited by
+  the `hab.destroyed` rule in `reconstruction/space.py`).
+  - *Observed:* 64 distinct `LogHabDestroyed` entries (15 Protectorate, 49 Resist). Each carried the same
+    `dateTime` as exactly one `HabDestructionLog` entry, to the millisecond (64 of 64).
+  - *Observed:* `gotoGameState` was never the hab. It was the hab site for every Base (38) and, for Stations,
+    the orbit in Resist (13) and a fleet of the destroying faction (10) or `null` (3) in Protectorate.
+  - *Observed:* a fleet subject's `barycenter` is the fleet's position at the save, not at the destruction: one
+    of 10 no longer matched the entry's `SpaceBody`.
+  - *Observed:* a site subject matched the earlier `habSite` of exactly one vanished hab in 34 of 38 cases (none
+    in the other 4); an orbit subject matched one vanished hab in 7 of 13, two in 4 and none in 2.
+  - *Observed:* `summaryLogFactions` listed every faction but the victim (64 of 64).
+  - *Observed:* of the destruction entries added per interval, those whose owner was the player's faction had no
+    notification (0 of 25); entries the player destroyed had one in 51 of 118, the rest in 13 of 27.
+  - *Observed:* of the 14 groups of vanished habs and entries sharing (owner, type, body) that had more than one
+    hab or entry, 12 named a single destroyer; a site subject would have tied 6 habs of those 12 to an entry,
+    and none of the other 2.
+  - *Hypothesis:* the subject depends on the game version (orbit before 1.0.53b, destroyer's fleet in it).
 - **Hab lifecycle** (observed 2026-11-03, Protectorate saves 00087–00102 and Resist saves 00079–00083, every
   consecutive pair, structure and counts only; read by `parsing/cores.py` and the `hab.established` rule in
   `reconstruction/space.py`).

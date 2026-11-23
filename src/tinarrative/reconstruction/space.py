@@ -8,7 +8,7 @@ evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space jo
 - ``faction.first_hab_on_body``: habs of a faction are established on a body where it had no working hab; high. A
   ``First*Base*`` milestone is cited only when it is unambiguous (labels name places, not body IDs).
 - ``hab.destroyed``: a vanished hab joined to destruction log entries by faction, hab type and body; high when
-  one entry matches or a ``LogHabDestroyed`` notification pins the date, else medium (``ambiguous``) or low.
+  one entry matches, else medium (``ambiguous``) or low; a ``LogHabDestroyed`` dated like an entry is only cited.
 - ``faction.space_losses``: the victim's vanished ships whose names its destroyer's ``Kills`` gained, and the habs
   of non-ambiguous ``hab.destroyed``; high (ADR-0023).
 """
@@ -16,7 +16,7 @@ evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space jo
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from ..analyzers.campaign.global_values import MILESTONE_RECORDED
@@ -259,11 +259,10 @@ def _destroyed_habs(context: SpaceContext) -> list[Event]:
         key = _destruction_key(context, event)
         if key is not None and key in groups:
             groups[key].entries.append(event)
-    notifications: dict[EntityId, list[Event]] = defaultdict(list)
+    notifications: dict[str, list[Event]] = defaultdict(list)
     for event in context.of_type(HAB_DESTROYED_NOTIFICATION):
-        subject = event.attribute("subject")
-        if isinstance(subject, EntityRef):
-            notifications[subject.entity_id].append(event)
+        if isinstance(event.date, str):
+            notifications[event.date].append(event)
 
     inferred_events: list[Event] = []
     for key, group in groups.items():
@@ -271,54 +270,42 @@ def _destroyed_habs(context: SpaceContext) -> list[Event]:
             continue  # nothing records a destruction: the hab stays ``hab.disappeared``
         habs = sorted(group.habs, key=lambda event: _subject(event).entity_id.sort_key)
         entries = sorted(group.entries, key=lambda event: event.id)
-        unpinned: list[Event] = []
+        notes = _corroborating(entries, notifications)
+        if len(habs) == 1 and len(entries) == 1:
+            inferred_events.append(_destroyed(context, key, habs[0], entries[0], notes))
+            continue
         for hab in habs:
-            pinned = _pin(hab, entries, notifications[_subject(hab).entity_id])
-            if pinned is None:
-                unpinned.append(hab)
-                continue
-            entry, notification = pinned
-            entries.remove(entry)
-            inferred_events.append(_destroyed(context, key, hab, entry, notification))
-        if not entries:
-            continue
-        if len(unpinned) == 1 and len(entries) == 1:
-            inferred_events.append(_destroyed(context, key, unpinned[0], entries[0], None))
-            continue
-        for hab in unpinned:
-            inferred_events.append(_ambiguous_destroyed(context, key, hab, entries, len(unpinned)))
+            inferred_events.append(_ambiguous_destroyed(context, key, hab, entries, len(habs), notes))
     return inferred_events
 
 
-def _pin(hab: Event, entries: Sequence[Event], notifications: Sequence[Event]) -> tuple[Event, Event] | None:
-    """The entry dated like a ``LogHabDestroyed`` notification naming ``hab``, with that notification."""
-    for notification in sorted(notifications, key=lambda event: event.id):
-        for entry in entries:
-            if isinstance(notification.date, str) and entry.attribute("recorded_on") == notification.date:
-                return entry, notification
-    return None
+def _corroborating(entries: Sequence[Event], notifications: Mapping[str, Sequence[Event]]) -> tuple[Event, ...]:
+    """The ``LogHabDestroyed`` notifications dated like one of ``entries``; cited, never used to pick a hab."""
+    dates = {date for entry in entries if isinstance(date := entry.attribute("recorded_on"), str)}
+    return tuple(sorted((event for date in dates for event in notifications.get(date, ())), key=lambda e: e.id))
 
 
-def _destroyed(
-    context: SpaceContext, key: DestructionKey, hab: Event, entry: Event, notification: Event | None
-) -> Event:
+def _signals(notes: Sequence[Event]) -> tuple[str, ...]:
+    return ("destruction_log", "notification") if notes else ("destruction_log",)
+
+
+def _destroyed(context: SpaceContext, key: DestructionKey, hab: Event, entry: Event, notes: Sequence[Event]) -> Event:
     faction, hab_type, body_id = key
     destroyer = entry.attribute("destroyer")
     body = entry.attribute("space_body")
-    signals = ("destruction_log", "notification") if notification is not None else ("destruction_log",)
     return inferred(
         context.build,
         space.HAB_DESTROYED,
         id_parts=(_subject(hab).entity_id,),
         primary=(hab,),
-        support=Support(events=(entry,) if notification is None else (entry, notification)),
+        support=Support(events=(entry, *notes)),
         entities=(_subject(hab), context.ref(faction), _named(context, body), _named(context, destroyer)),
         attributes=(
             ("hab_type", hab_type),
             ("body", _named(context, body) or body),
             ("destroyer", _named(context, destroyer) or destroyer),
             ("recorded_on", entry.attribute("recorded_on")),
-            ("signals", signals),
+            ("signals", _signals(notes)),
             ("ambiguous", False),
         ),
         confidence=Confidence.LOW if entry.confidence is Confidence.LOW else Confidence.HIGH,
@@ -327,7 +314,12 @@ def _destroyed(
 
 
 def _ambiguous_destroyed(
-    context: SpaceContext, key: DestructionKey, hab: Event, entries: Sequence[Event], vanished: int
+    context: SpaceContext,
+    key: DestructionKey,
+    hab: Event,
+    entries: Sequence[Event],
+    vanished: int,
+    notes: Sequence[Event],
 ) -> Event:
     """A hab one of several entries may record: medium when the entries cover every vanished hab, low otherwise."""
     faction, hab_type, body_id = key
@@ -339,7 +331,7 @@ def _ambiguous_destroyed(
         space.HAB_DESTROYED,
         id_parts=(_subject(hab).entity_id,),
         primary=(hab,),
-        support=Support(events=tuple(entries)),
+        support=Support(events=(*entries, *notes)),
         entities=(_subject(hab), context.ref(faction), _named(context, body), *destroyers),
         attributes=(
             ("hab_type", hab_type),
@@ -348,7 +340,7 @@ def _ambiguous_destroyed(
             ("recorded_dates", dates),
             ("candidates", len(entries)),
             ("vanished", vanished),
-            ("signals", ("destruction_log",)),
+            ("signals", _signals(notes)),
             ("ambiguous", True),
         ),
         confidence=Confidence.MEDIUM if len(entries) >= vanished else Confidence.LOW,
