@@ -56,6 +56,8 @@ worktree); `make` targets handle it themselves.
 
 ## Agent skills
 
+Repo skills live in `.agents/skills/`; `.claude/skills/` contains symlinks to those canonical copies.
+
 ### Issue tracker
 
 GitHub Issues on fmilichovsky/TICampaignAnalyzer via `gh`.

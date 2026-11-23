@@ -66,3 +66,38 @@ the suite is in [the testing guide](docs/testing.md).
 `make package-metrics` measures what `events` and `narrate` would send to an LLM for the real sample campaigns in
 `benchmarks/`, and `make runtime-metrics` measures how long `events` takes on them. Every pull request gets both
 measurements for its base and head as comments. See [benchmarks/README.md](benchmarks/README.md).
+
+## Repository skills
+
+Repo skills have one canonical copy in `.agents/skills/<name>/`.
+Codex discovers skills there. Claude Code discovers them in `.claude/skills/<name>/`, so each supported repo skill
+has a relative directory symlink from that location to its canonical copy. The allowlist in `.gitignore` ignores
+locally installed skills and includes only skills deliberately committed to both discovery directories.
+
+On Windows, enable Developer Mode to create symlinks without administrator rights, then set
+`git config --global core.symlinks true` before cloning. In an existing clone, set `git config core.symlinks true`
+before checking out symlink entries. Git may check out those entries as regular files when `core.symlinks` is
+false. On Unix, symlinks generally work without extra setup; the filesystem must support them.
+
+Run these commands from the repository root to create the symlink for the current repo skill:
+
+```powershell
+git config core.symlinks true
+New-Item -ItemType Directory -Force .claude/skills | Out-Null
+New-Item -ItemType SymbolicLink `
+  -Path .claude/skills/narrator-contract-iteration `
+  -Target ..\..\.agents\skills\narrator-contract-iteration
+```
+
+```sh
+mkdir -p .claude/skills
+ln -s ../../.agents/skills/narrator-contract-iteration \
+  .claude/skills/narrator-contract-iteration
+```
+
+The shared ignore rules are:
+
+```gitignore
+*/skills/*
+!*/skills/narrator-contract-iteration
+```
