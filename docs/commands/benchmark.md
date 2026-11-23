@@ -313,7 +313,8 @@ come from `report` flags or a hash, and the page keeps them.
 The command replays the table in Python for every change on the page; the page only draws the answer
 ([ADR-0022](../adr/0022-the-calibration-table-is-replayed-once-in-python.md)). It keeps serving until it is
 interrupted with Ctrl-C. A stale table is served while it is rebuilt, and the page offers to reload once the new one
-is ready. The extraction's progress shows on stderr as for `report`. A failed rebuild keeps the old table served and the command exits with 2 when interrupted; with no old
+is ready. The extraction's progress shows on stderr as for `report`, and on the page as a bar with the time left
+and every campaign's step. A failed rebuild keeps the old table served and the command exits with 2 when interrupted; with no old
 table it stops at once. A slider replays when it is let go. Opened from disk, or once the command has stopped, the
 page says so and names the command to run.
 

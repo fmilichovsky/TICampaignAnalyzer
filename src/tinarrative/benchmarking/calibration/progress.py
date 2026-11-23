@@ -46,6 +46,12 @@ class ProgressSnapshot:
         return 1.0 if self.total_work <= 0 else min(round(self.done_work / self.total_work, 9), 1.0)
 
     @property
+    def percent(self) -> float:
+        """The share done in percent, to one decimal and rounded down, so 100 means all of it."""
+        # The tenths are rounded first: 0.58 * 1000 is 579.9999… in floating point.
+        return math.floor(round(self.fraction * 1000, 6)) / 10
+
+    @property
     def remaining(self) -> float | None:
         """Seconds left at the throughput so far; None before ``ESTIMATE_FROM`` of the work is done or once it is all
         done."""
@@ -60,22 +66,26 @@ class ProgressSnapshot:
 
     def text(self) -> str:
         """One line for a person, e.g. ``resist-long: sequence 41/63 · 58% · about 30 s left``."""
-        parts = [", ".join(_step_text(step) for step in self.running), f"{math.floor(self.fraction * 100)}%"]
+        running = ", ".join(f"{step.name}: {_step(step)}" for step in self.running)
+        return " · ".join(part for part in (running, self.summary()) if part)
+
+    def summary(self) -> str:
+        """The share done and the time left, without the campaigns, e.g. ``58% · about 30 s left``."""
         remaining = self.remaining
-        if remaining is not None:
-            parts.append(f"{_duration(remaining)} left")
-        return " · ".join(part for part in parts if part)
+        left = "" if remaining is None else f"{_duration(remaining)} left"
+        return " · ".join(part for part in (f"{math.floor(self.percent)}%", left) if part)
 
     def to_status(self) -> dict[str, Any]:
         """The ``progress`` member of ``status.js``: everything a reader shows, worked out here."""
         remaining = self.remaining
         return {
-            "percent": math.floor(self.fraction * 1000) / 10,
+            "percent": self.percent,
             "elapsed_seconds": round(self.elapsed),
             "remaining_seconds": None if remaining is None else round(remaining),
             "text": self.text(),
+            "summary": self.summary(),
             "campaigns": [
-                {"name": step.name, "phase": step.phase, "done": step.done, "total": step.total}
+                {"name": step.name, "phase": step.phase, "done": step.done, "total": step.total, "step": _step(step)}
                 for step in self.campaigns
             ],
         }
@@ -175,10 +185,11 @@ class CampaignProgress:
         self.extraction.saves_done(self.name, names)
 
 
-def _step_text(step: CampaignStep) -> str:
+def _step(step: CampaignStep) -> str:
+    """Where a campaign is, e.g. ``sequence 41/63``; a phase that reports no saves is named alone."""
     if step.phase in SAVE_PHASES:
-        return f"{step.name}: {step.phase} {step.done}/{step.total}"
-    return f"{step.name}: {step.phase}"
+        return f"{step.phase} {step.done}/{step.total}"
+    return step.phase
 
 
 def _duration(seconds: float) -> str:
