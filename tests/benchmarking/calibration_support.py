@@ -12,6 +12,7 @@ from tinarrative.benchmarking.calibration.table import build_index, layers, type
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, Significance
 from tinarrative.model.kinds import Measure, ShareOf
+from tinarrative.narrative.scalings import midpoint
 from tinarrative.narrative.significance import SHARE_IMPLEMENTATIONS, ShareReading
 
 ROW_FIELDS = {
@@ -71,7 +72,7 @@ def check_rows(rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = ()
 def check_parity(
     rows: list[dict[str, Any]], drafts: Sequence[dict[str, Any]] = (), declared: Sequence[DraftShare] = ()
 ) -> None:
-    """At the code's references and each draft's own base, the replay is the pipeline: every score
+    """At the code's scalings and each draft's own base, the replay is the pipeline: every score
     and level, every group, every draft row of the ``declared`` drafts."""
     kinds = type_kinds(row["type"] for row in rows)
     index = build_index(["campaign"], key="", extracted_at="", kinds=kinds, drafts=declared)
@@ -92,10 +93,11 @@ def check_parity(
 
 # --- Hand-built rows ---------------------------------------------------------------------------------------
 
-INDEX = build_index(["one", "two"], key="", extracted_at="", kinds={})
+INDEX = build_index(["one", "two"], key="", extracted_at="", kinds=type_kinds(("war.arc", "faction.takeover")))
 CONSTANTS = INDEX["constants"]
-POWER = INDEX["measures"]["power"]["reference"]
-POPULATION = INDEX["measures"]["population"]["reference"]
+POWER = midpoint(INDEX["scalings"]["power"]["rise"], None)
+"""The power share that leaves a score at its base: the starting power scaling's midpoint."""
+POPULATION = midpoint(INDEX["scalings"]["population"]["rise"], None)
 GATE = INDEX["member_gates"][0]
 GROUP = GATE["group_types"][0]
 MEMBER = GATE["member_type"]
@@ -139,9 +141,10 @@ def row(
 
 
 def synthetic_kinds(tables: Mapping[str, Sequence[dict[str, Any]]]) -> dict[str, dict[str, Any]]:
-    """The ``kinds`` map of hand-built rows: a declared type's code base level and rule, and for a type no kind
-    declares, the level of the base score its first rule-free row starts from (else its first row's) and the first
-    rule any of its rows names."""
+    """The ``kinds`` map of hand-built rows: a declared type's code base level, rule and scaling, and for a type no
+    kind declares, the level of the base score its first rule-free row starts from (else its first row's), the first
+    rule any of its rows names and the starting scaling of the measure its first share reads. A declared type whose
+    rows carry a share its kind's scaling does not read takes that measure's starting scaling."""
     every = [item for rows in tables.values() for item in rows]
     types = {item["type"] for item in every}
     declared = type_kinds(event_type for event_type in types if kind_for(event_type) is not None)
@@ -151,7 +154,13 @@ def synthetic_kinds(tables: Mapping[str, Sequence[dict[str, Any]]]) -> dict[str,
         own = [item for item in every if item["type"] == event_type]
         free = next((item for item in own if item["rule"] is None), own[0])
         rule = next((item["rule"] for item in own if item["rule"] is not None), None)
-        synthetic[event_type] = {"base": level_of[free["base"]], "rule": rule}
+        scaling = next((item["shares"][0]["measure"] for item in own if item["shares"]), None)
+        synthetic[event_type] = {"base": level_of[free["base"]], "rule": rule, "scaling": scaling}
+    for event_type, kind in declared.items():
+        # A hand-built row may carry a share on a type its kind does not scale: it reads the measure's starting one.
+        measures = {share["measure"] for item in every if item["type"] == event_type for share in item["shares"]}
+        if measures and kind["scaling"] not in measures:
+            declared[event_type] = {**kind, "scaling": sorted(measures)[0]}
     return dict(sorted({**synthetic, **declared}.items()))
 
 
@@ -172,7 +181,7 @@ def chain() -> list[dict[str, Any]]:
     first, second, third = (next(name for name, number in layers.items() if number == n) for n in (1, 2, 3))
     return with_oracle(
         [
-            row("land", shares=(("population", POPULATION * 10),)),
+            row("land", "atomic.land", shares=(("population", POPULATION * 10),)),
             row("deal", first, tier="narrative", level="trivial", shares=power(-10), cited=("land",)),
             row("grow", second, tier="narrative", level="trivial", cited=("deal",)),
             row("arc", third, tier="narrative", level="trivial", cited=("grow",)),
@@ -279,16 +288,25 @@ def drafted() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
 INVALID_HASHES = [
     ("speed=1", "unknown state hash key 'speed'"),
     ("clamp=off", "unknown state hash key 'clamp'"),
-    ("ref=power:0.002&clamp=on", "unknown state hash key 'clamp'"),
+    ("rise=power:0.2&clamp=on", "unknown state hash key 'clamp'"),
+    ("ref=power:0.002", "the reference was replaced by scalings"),
     ("campaigns", "not key=value"),
-    ("ref=warp:0.1", "unknown measure 'warp'"),
-    ("ref=power:0.1,power:0.2", "'power' is repeated"),
-    ("ref=power:0", "positive number"),
-    ("ref=power:-1", "positive number"),
-    ("ref=power:1e999", "positive number"),
-    ("ref=power:1_0", "positive number"),
-    ("ref=power", "measure:number"),
-    ("ref=", "lists no reference"),
+    ("rise=warp:0.1", "unknown scaling 'warp'"),
+    ("rise=power:0.1,power:0.2", "'power' is repeated"),
+    ("rise=power:0", "positive number"),
+    ("rise=power:-1", "positive number"),
+    ("rise=power:1e999", "positive number"),
+    ("rise=power:1_0", "positive number"),
+    ("rise=power", "scaling:number"),
+    ("rise=", "lists no rise share"),
+    ("drop=power:1", "below its rise share"),
+    ("drop=", "lists no drop share"),
+    ("scaling=", "lists no scaling"),
+    ("scaling=war.arc", "type:scaling"),
+    ("scaling=war.arc:population", "reads another measure"),
+    ("scaling=war.arc:nobody", "unknown scaling 'nobody'"),
+    ("scaling=atomic.plain:atomic.plain", "has no scaling to reassign"),
+    ("rise=war.arc:0.2", "unknown scaling 'war.arc'"),
     ("campaigns=three", "unknown campaign"),
     ("campaigns=one,one", "repeated"),
     ("types=war.arc,war.arc", "repeated"),

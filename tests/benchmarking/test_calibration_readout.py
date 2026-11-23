@@ -25,22 +25,27 @@ from tinarrative.benchmarking.calibration.replay import (
     encode_state,
     load,
     replay,
+    with_scalings,
 )
 
 READOUT = GOLDEN.parent / "readout"
 INDEX, TABLES, DRAFTS = load(GOLDEN)
 CODE = default_state(INDEX)
-POWER = CODE.references["power"]
+POWER = CODE.rises["power"]
 
 STATES: dict[str, ReplayState] = {
     "code": CODE,
-    "lower": replace(CODE, references={**CODE.references, "power": POWER * 10**-0.2, "faction": 1e-7}),
+    "lower": replace(CODE, rises={**CODE.rises, "power": POWER * 10**-0.2, "faction": 1e-7}),
     "free": replace(CODE, campaigns=("beta",), types=("atomic.thing",)),
     "switched": replace(CODE, type_bases={"atomic.thing": "major", "atomic.far": "trivial"}),
+    "split": replace(
+        with_scalings(CODE, INDEX, {"atomic.near": "atomic.near", "atomic.far": "atomic.near"}),
+        rises={**CODE.rises, "atomic.near": POWER * 10**0.5},
+        drops={"atomic.near": POWER / 10},
+    ),
 }
-"""The golden states: the code's, members falling apart under a lower power reference, a campaign and type
-filter and two
-switched base levels."""
+"""The golden states: the code's, members falling apart under a lower power rise share, a campaign and type
+filter, two switched base levels, and a split-off scaling that a second type joins."""
 SECTIONS = [
     "Calibration state",
     "Summary",
@@ -69,21 +74,21 @@ def test_the_readouts_of_the_golden_states_are_current(name: str, assert_golden:
 def test_the_text_readout_has_its_eight_sections_in_order(name: str) -> None:
     result = replay(INDEX, TABLES, STATES[name], DRAFTS)
     text = render_text(INDEX, result, state_hash=encode_state(STATES[name], INDEX), drafts=DRAFTS)
-    drafted = [f"{draft['name']} on {measure}" for draft in INDEX["drafts"] for measure in draft["measures"]]
+    drafted = [f"{draft['name']} on {name}" for draft in INDEX["drafts"] for name in draft["scalings"].values()]
 
     assert re.findall(r"^## (.+)$", text, re.MULTILINE) == SECTIONS
-    assert re.findall(r"^### (.+)$", text, re.MULTILINE) == [*INDEX["measures"], *drafted]
+    assert re.findall(r"^### (.+)$", text, re.MULTILINE) == [*result["state"]["rises"], *drafted]
 
 
-def test_the_paragraph_and_the_snippet_are_ascii_and_name_only_changed_references() -> None:
+def test_the_paragraph_and_the_snippet_are_ascii_and_name_only_changed_scalings() -> None:
     result = replay(INDEX, TABLES, STATES["lower"])
 
     for text in (shared_paragraph(INDEX, result), snippet(INDEX, result)):
         assert text.isascii()
     lines = snippet(INDEX, result).splitlines()
-    assert [line.split(":")[0] for line in lines] == ["Measure.POWER", "Measure.FACTION"]
-    assert "every other measure at the code's" in shared_paragraph(INDEX, result)
-    assert "every measure at the code's" in shared_paragraph(INDEX, replay(INDEX, TABLES, CODE))
+    assert [line.split(":")[0] for line in lines] == ["Scaling.POWER", "Scaling.FACTION"]
+    assert "every other scaling at the code's" in shared_paragraph(INDEX, result)
+    assert "every scaling at the code's" in shared_paragraph(INDEX, replay(INDEX, TABLES, CODE))
 
 
 def test_the_paragraph_and_the_snippet_state_the_switched_base_levels() -> None:
@@ -98,7 +103,7 @@ def test_the_paragraph_and_the_snippet_state_the_switched_base_levels() -> None:
     )
 
     assert "Base levels: every type at the code's. " in shared_paragraph(INDEX, none)
-    assert snippet(INDEX, none) == "# Every reference and base level is the code's."
+    assert snippet(INDEX, none) == "# Every scaling, kind's scaling and base level is the code's."
     assert "Base levels: atomic.thing major (code minor); every other type at the code's. " in shared_paragraph(
         INDEX, one
     )
@@ -114,11 +119,11 @@ def test_the_paragraph_and_the_snippet_state_the_switched_base_levels() -> None:
     assert "; every other type" not in shared_paragraph(INDEX, every)
 
 
-def test_the_snippet_lists_the_changed_references_before_the_switched_base_levels() -> None:
+def test_the_snippet_lists_the_changed_scalings_before_the_switched_base_levels() -> None:
     state = replace(STATES["lower"], type_bases={"atomic.thing": "major"})
     lines = snippet(INDEX, replay(INDEX, TABLES, state)).splitlines()
 
-    assert [line.split(":")[0] for line in lines] == ["Measure.POWER", "Measure.FACTION", "# atomic.thing"]
+    assert [line.split(":")[0] for line in lines] == ["Scaling.POWER", "Scaling.FACTION", "# atomic.thing"]
 
 
 def test_the_reports_carry_the_switched_base_levels_of_the_state() -> None:
@@ -229,12 +234,14 @@ def test_flags_override_the_state_and_accumulate() -> None:
     state = override_state(
         STATES["free"],
         INDEX,
-        references=["power=0.002,hab=0.03", "battle=1e-3"],
+        rises=["power=0.002,hab=0.03", "battle=1e-3"],
+        drops=["power=0.0001"],
         campaigns=["beta", "alpha"],
         types=["atomic.thing,atomic.near"],
     )
 
-    assert state.references == {**CODE.references, "power": 0.002, "hab": 0.03, "battle": 0.001}
+    assert state.rises == {**CODE.rises, "power": 0.002, "hab": 0.03, "battle": 0.001}
+    assert state.drops == {"power": 0.0001}
     assert state.campaigns == ("alpha", "beta")
     assert state.types == ("atomic.near", "atomic.thing")
     assert override_state(state, INDEX) == state
@@ -243,12 +250,17 @@ def test_flags_override_the_state_and_accumulate() -> None:
 @pytest.mark.parametrize(
     ("flags", "message"),
     [
-        ({"references": ["warp=0.1"]}, "unknown measure 'warp'"),
-        ({"references": ["power=0.1,power=0.2"]}, "'power' is given twice"),
-        ({"references": ["power=0.1", "power=0.2"]}, "'power' is given twice"),
-        ({"references": ["power"]}, "MEASURE=VALUE"),
-        ({"references": ["power=0"]}, "positive number"),
-        ({"references": ["power=nan"]}, "positive number"),
+        ({"rises": ["warp=0.1"]}, "unknown scaling 'warp'"),
+        ({"rises": ["power=0.1,power=0.2"]}, "'power' is given twice"),
+        ({"drops": ["power=0.01", "power=0.02"]}, "'power' is given twice"),
+        ({"rises": ["power"]}, "SCALING=VALUE"),
+        ({"rises": ["power=0"]}, "positive number"),
+        ({"rises": ["power=nan"]}, "positive number"),
+        ({"drops": ["power=1"]}, "below its rise share"),
+        ({"scalings": ["atomic.thing"]}, "TYPE=SCALING"),
+        ({"scalings": ["atomic.thing=population"]}, "reads another measure"),
+        ({"scalings": ["atomic.plain=power"]}, "has no scaling to reassign"),
+        ({"scalings": ["atomic.thing=power", "atomic.thing=power"]}, "'atomic.thing' is given twice"),
         ({"campaigns": ["gamma"]}, "unknown campaign"),
         ({"campaigns": ["alpha", "alpha"]}, "given twice"),
         ({"types": ["atomic.thing,atomic.thing"]}, "given twice"),
@@ -275,3 +287,14 @@ def test_base_flags_switch_types_and_a_switch_to_the_codes_level_clears_it() -> 
     )
     assert cleared == CODE
     assert encode_state(cleared, INDEX) == ""
+
+
+def test_scaling_flags_split_and_join_types_and_a_split_copies_its_code_scalings_shares() -> None:
+    state = override_state(
+        CODE, INDEX, scalings=["atomic.near=atomic.near,atomic.far=atomic.near"], rises=["atomic.near=0.3"]
+    )
+
+    assert state.scalings == {"atomic.far": "atomic.near", "atomic.near": "atomic.near"}
+    assert state.rises["atomic.near"] == 0.3
+    assert override_state(CODE, INDEX, scalings=["atomic.near=atomic.near"]).rises["atomic.near"] == POWER
+    assert override_state(state, INDEX, scalings=["atomic.near=power", "atomic.far=power"]) == CODE

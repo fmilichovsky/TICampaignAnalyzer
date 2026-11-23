@@ -2,17 +2,19 @@
 
 ## Calibration state
 
-| Measure | Reference | Code's |
-| --- | ---: | ---: |
-| power | 0.01 | 0.01 |
-| population | 0.01 | 0.01 |
-| organization | 0.01 | 0.01 |
-| hab | 0.015 | 0.015 |
-| fleet | 0.01 | 0.01 |
-| battle | 0.0033 | 0.0033 |
-| space_loss | 0.01 | 0.01 |
-| faction | 0.14285714285714285 | 0.14285714285714285 |
-| nuclear | 0.01 | 0.01 |
+| Scaling | Measure | Rise share | Drop share | Code's |
+| --- | --- | ---: | ---: | ---: |
+| power | power | 0.1778279410038923 | default | 0.1778279410038923 / default |
+| population | population | 0.1778279410038923 | default | 0.1778279410038923 / default |
+| organization | organization | 0.1778279410038923 | default | 0.1778279410038923 / default |
+| hab | hab | 0.2667419115058384 | default | 0.2667419115058384 / default |
+| fleet | fleet | 0.1778279410038923 | default | 0.1778279410038923 / default |
+| battle | battle | 0.058683220531284455 | default | 0.058683220531284455 / default |
+| space_loss | space_loss | 0.1778279410038923 | default | 0.1778279410038923 / default |
+| faction | faction | 2.540399157198461 | default | 2.540399157198461 / default |
+| nuclear | nuclear | 0.1778279410038923 | default | 0.1778279410038923 / default |
+
+Every event type is on its code scaling.
 
 Every event type is at the code's base level.
 
@@ -23,7 +25,7 @@ Every event type is at the code's base level.
 
 ## Summary
 
-References: every measure at the code's. Base levels: every type at the code's. Campaigns: beta. Types: atomic.thing. 0 events move level; the narrator package goes from 0 to 0 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 0 events, 0 set by a cited event; moved (#2) at base trivial: 0 events, 0 set by a cited event.
+Scalings: every scaling at the code's. Kinds: every type on its code scaling. Base levels: every type at the code's. Campaigns: beta. Types: atomic.thing. 0 events move level; the narrator package goes from 0 to 0 events at major or above (0); 0 events with members change. What moves: nothing. Drafts: held (#1) at base minor: 0 events, 0 set by a cited event; moved (#2) at base trivial: 0 events, 0 set by a cited event.
 
 ## Level counts
 
@@ -46,7 +48,7 @@ Every group keeps its members.
 
 ### power
 
-Cut-off at share 0.000562 (offset -1.25):
+Drop share at share 0.000562:
 
 | Side | Campaign | Event | Type | Share | Score | Level | Code level | Decided by |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -54,7 +56,15 @@ Cut-off at share 0.000562 (offset -1.25):
 | above | beta | `judged` | atomic.thing | 0.0158 | 64 | major | major | own |
 | above | beta | `atomic` | atomic.thing | 0.02 | 40 | minor | minor | own |
 
-Cut-off at share 0.178 (offset 1.25):
+Rise share at share 0.178:
+
+| Side | Campaign | Event | Type | Share | Score | Level | Code level | Decided by |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| below | beta | `atomic` | atomic.thing | 0.02 | 40 | minor | minor | own |
+| below | beta | `judged` | atomic.thing | 0.0158 | 64 | major | major | own |
+| below | beta | `lean` | atomic.thing | 0.00158 | 54 | major | major | own |
+
+Rise 2 levels at share 56.2:
 
 | Side | Campaign | Event | Type | Share | Score | Level | Code level | Decided by |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -64,83 +74,35 @@ Cut-off at share 0.178 (offset 1.25):
 
 ### population
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### organization
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### hab
 
-Cut-off at share 0.000844 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.267 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### fleet
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### battle
 
-Cut-off at share 0.000186 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.0587 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### space_loss
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### faction
 
-Cut-off at share 0.00803 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 2.54 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ### nuclear
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No event has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No event has this share.
+No cut-off.
 
 ## Draft shares
 
@@ -155,36 +117,28 @@ No draft rows.
 
 ### held on power
 
-Cut-off at share 0.000562 (offset -1.25):
+Drop share at share 0.000562:
 
 No row of this draft has this share.
 
-Cut-off at share 0.178 (offset 1.25):
+Rise share at share 0.178:
+
+No row of this draft has this share.
+
+Rise 2 levels at share 56.2:
 
 No row of this draft has this share.
 
 ### held on population
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No row of this draft has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No row of this draft has this share.
+No cut-off.
 
 ### moved on population
 
-Cut-off at share 0.000562 (offset -1.25):
-
-No row of this draft has this share.
-
-Cut-off at share 0.178 (offset 1.25):
-
-No row of this draft has this share.
+No cut-off.
 
 ## Snippet
 
 ```python
-# Every reference and base level is the code's.
+# Every scaling, kind's scaling and base level is the code's.
 ```

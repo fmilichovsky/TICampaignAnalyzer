@@ -77,7 +77,7 @@ def test_a_draft_scores_one_shadow_row_per_event_of_its_types(drafted: dict[str,
     check_rows(events, shadows)
 
 
-def test_the_shadow_rows_replay_to_their_scores_at_the_code_references(drafted: dict[str, Any]) -> None:
+def test_the_shadow_rows_replay_to_their_scores_at_the_code_scalings(drafted: dict[str, Any]) -> None:
     check_parity(drafted["events"], drafted["drafts"], (TERRITORY, CESSION_ONLY))
 
 
@@ -119,6 +119,7 @@ def test_the_declared_drafts_are_read_when_extraction_runs(monkeypatch: pytest.M
             "issue": CESSION_ONLY.issue,
             "base": kind_for(CESSION).base.value,  # type: ignore[union-attr]
             "measures": [REGIONS.measure.value],
+            "scalings": {REGIONS.measure.value: REGIONS.measure.value},
         }
     ]
 

@@ -6,7 +6,6 @@ One path scores atomic and narrative events alike; evidence for the entries is i
 from __future__ import annotations
 
 import logging
-import math
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -21,12 +20,12 @@ from ..kinds.space import SHIP_APPEARED
 from ..log import fields as log_fields
 from ..log import get_logger
 from ..model.entities import EntityDomain, EntityId, EntityRef
-from ..model.events import SCORE_MAX, SCORE_MIN, SIGNIFICANCE_ORDER, Event, Role, Significance, SignificanceBasis
-from ..model.kinds import EventKind, Measure, Rule, ShareOf
+from ..model.events import SIGNIFICANCE_ORDER, Event, Role, Significance, SignificanceBasis
+from ..model.kinds import EventKind, Measure, Rule, Scaling, ShareOf
 from ..model.snapshot import SaveSnapshot
 from ..model.values import FrozenMap, Observed, number
-from .measures import MEASURES, SCALE_MAX, SCALE_MIN
 from .milestones import MILESTONE_TEMPLATES, milestone_of
+from .scalings import SCALINGS, ScalingSpec, decided_outright, own_score, scale
 from .shares import ALIEN_MASS_WEIGHT, FLEET_SATURATION, SaveShares, contested_mass, total
 
 __all__ = [
@@ -47,6 +46,7 @@ __all__ = [
     "score_event",
     "settled_score",
     "significance_of",
+    "starting_scaling",
 ]
 
 logger = get_logger(__name__)
@@ -448,14 +448,6 @@ SHARE_IMPLEMENTATIONS: Mapping[ShareOf, ShareReading] = {
 """Every ``ShareOf``'s implementation; any kind may declare any of them."""
 
 
-def scale(share: float, reference: float) -> int:
-    """``round(10 * log10(share / reference))``, bounded by ``SCALE_MIN`` and ``SCALE_MAX``; no share takes
-    ``SCALE_MIN``."""
-    if share <= 0:
-        return SCALE_MIN
-    return max(SCALE_MIN, min(SCALE_MAX, round(10 * math.log10(share / reference))))
-
-
 def _points(shares: IntervalShares, nation: EntityId) -> int:
     for side in (Side.BEFORE, Side.AFTER):
         if held := shares.save(side).control_points.get(nation):
@@ -486,6 +478,7 @@ def _unique(refs: Iterable[EntityRef]) -> tuple[EntityRef, ...]:
 
 def _basis(
     reading: ShareReading,
+    scaling: ScalingSpec,
     event: Event,
     cited: Sequence[Event],
     level: Significance,
@@ -512,15 +505,9 @@ def _basis(
         base=level.base,
         measure=reading.measure,
         share=share,
-        scale=scale(share, MEASURES[reading.measure].reference),
+        scale=scale(share, scaling.rise, scaling.drop),
         entities=refs,
     )
-
-
-def own_score(base: int, scales: Iterable[int]) -> int:
-    """``base`` moved by the highest of ``scales``, inside the score bound; no scale leaves the base."""
-    moved = max(scales, default=None)
-    return base if moved is None else max(SCORE_MIN, min(SCORE_MAX, base + moved))
 
 
 def settled_score(own: int, cited_scores: Iterable[int]) -> int:
@@ -537,6 +524,11 @@ def arithmetic(
     own = level.base if basis is None else own_score(basis.base, (basis.scale,))
     score = settled_score(own, cited_scores)
     return score, Significance.of(score)
+
+
+def starting_scaling(measure: Measure) -> ScalingSpec:
+    """The measure's starting scaling: the one named after it."""
+    return SCALINGS[Scaling(measure.value)]
 
 
 # --- Entry points -----------------------------------------------------------------------------------------
@@ -597,27 +589,35 @@ def score_event(
     last: IntervalShares | None = None,
     lookup: Lookup | None = None,
     reading: ShareReading | None = None,
+    scaling: ScalingSpec | None = None,
     base: Significance | None = None,
     floored: bool = True,
 ) -> EventScore:
-    """The one scoring path of every event: the kind's context rule, else its base level, moved by its share, never
-    below the highest score among the ``cited`` events (ADR-0011).
+    """The one scoring path of every event: the kind's context rule, else its base level, moved by its share through
+    its scaling, never below the highest score among the ``cited`` events (ADR-0011). A context rule that names
+    trivial decides outright: trivial is a role, so no share moves it.
 
     ``shares`` are the saves' shares of the event's first interval, without them there is no basis; ``last`` those of
     its last interval (by default the first's), read only by the nuclear share. ``lookup`` is the snapshots' lookup,
-    for the rules that need it. ``reading`` and ``base`` override the kind's own share and base
-    level; the context rule still decides first, ``base`` applying only where it defers. ``floored`` is false where
+    for the rules that need it. ``reading``, ``scaling`` and ``base`` override the kind's own share, scaling and base
+    level; the context rule still decides first, ``base`` applying only where it defers. A ``reading`` without a
+    ``scaling`` takes the measure's starting scaling. ``floored`` is false where
     the cited events only locate the share's entities and their scores must not lift the event: an atomic event's
     evidence.
     """
     cited = tuple(cited)
     decided, rule = decide(kind, event, lookup)
     level = decided if rule is not None else (base if base is not None else kind.base)
-    named = kind.share
-    reading = reading or (SHARE_IMPLEMENTATIONS[named] if named is not None else None)
+    if reading is None and kind.share is not None and kind.scaling is not None:
+        reading, scaling = SHARE_IMPLEMENTATIONS[kind.share], SCALINGS[kind.scaling]
+    elif reading is not None and scaling is None:
+        scaling = starting_scaling(reading.measure)
+    if reading is not None and scaling is not None and scaling.measure is not reading.measure:
+        raise ValueError(f"{event.event_type}: a scaling on {scaling.measure} cannot read a share on {reading.measure}")
+    outright = decided_outright(rule is not None, level.base)
     basis = (
-        _basis(reading, event, cited, level, shares, last or shares)
-        if reading is not None and shares is not None
+        _basis(reading, scaling, event, cited, level, shares, last or shares)
+        if reading is not None and scaling is not None and shares is not None and not outright
         else None
     )
     score, _ = arithmetic(level, basis, (item.score for item in cited) if floored else ())

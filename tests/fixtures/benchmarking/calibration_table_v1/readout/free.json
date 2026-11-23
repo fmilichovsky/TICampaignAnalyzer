@@ -1,19 +1,21 @@
 {
-  "schema_version": 5,
+  "schema_version": 6,
   "key": "golden",
   "hash": "campaigns=beta&types=atomic.thing",
   "state": {
-    "references": {
-      "power": 0.01,
-      "population": 0.01,
-      "organization": 0.01,
-      "hab": 0.015,
-      "fleet": 0.01,
-      "battle": 0.0033,
-      "space_loss": 0.01,
-      "faction": 0.14285714285714285,
-      "nuclear": 0.01
+    "rises": {
+      "power": 0.1778279410038923,
+      "population": 0.1778279410038923,
+      "organization": 0.1778279410038923,
+      "hab": 0.2667419115058384,
+      "fleet": 0.1778279410038923,
+      "battle": 0.058683220531284455,
+      "space_loss": 0.1778279410038923,
+      "faction": 2.540399157198461,
+      "nuclear": 0.1778279410038923
     },
+    "drops": {},
+    "scalings": {},
     "campaigns": [
       "beta"
     ],
@@ -58,6 +60,7 @@
   "cutoffs": {
     "power": [
       {
+        "step": -1,
         "offset": -1.25,
         "share": 0.0005623413251903491,
         "below": [],
@@ -98,6 +101,7 @@
         ]
       },
       {
+        "step": 1,
         "offset": 1.25,
         "share": 0.1778279410038923,
         "below": [
@@ -136,120 +140,57 @@
           }
         ],
         "above": []
-      }
-    ],
-    "population": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
       },
       {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ],
-    "organization": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ],
-    "hab": [
-      {
-        "offset": -1.25,
-        "share": 0.0008435119877855236,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.2667419115058384,
-        "below": [],
-        "above": []
-      }
-    ],
-    "fleet": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
+        "step": 2,
+        "offset": 3.75,
+        "share": 56.234132519034915,
+        "below": [
+          {
+            "campaign": "beta",
+            "id": "atomic",
+            "type": "atomic.thing",
+            "share": 0.019952623149688795,
+            "score": 40,
+            "level": "minor",
+            "code_level": "minor",
+            "decided_by": "atomic",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "judged",
+            "type": "atomic.thing",
+            "share": 0.015848931924611138,
+            "score": 64,
+            "level": "major",
+            "code_level": "major",
+            "decided_by": "judged",
+            "decisive": true
+          },
+          {
+            "campaign": "beta",
+            "id": "lean",
+            "type": "atomic.thing",
+            "share": 0.0015848931924611134,
+            "score": 54,
+            "level": "major",
+            "code_level": "major",
+            "decided_by": "lean",
+            "decisive": true
+          }
+        ],
         "above": []
       }
     ],
-    "battle": [
-      {
-        "offset": -1.25,
-        "share": 0.0001855726373128152,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.058683220531284455,
-        "below": [],
-        "above": []
-      }
-    ],
-    "space_loss": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ],
-    "faction": [
-      {
-        "offset": -1.25,
-        "share": 0.008033447502719273,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 2.540399157198461,
-        "below": [],
-        "above": []
-      }
-    ],
-    "nuclear": [
-      {
-        "offset": -1.25,
-        "share": 0.0005623413251903491,
-        "below": [],
-        "above": []
-      },
-      {
-        "offset": 1.25,
-        "share": 0.1778279410038923,
-        "below": [],
-        "above": []
-      }
-    ]
+    "population": [],
+    "organization": [],
+    "hab": [],
+    "fleet": [],
+    "battle": [],
+    "space_loss": [],
+    "faction": [],
+    "nuclear": []
   },
   "drafts": [
     {
@@ -279,35 +220,35 @@
           "campaign_defining": 0
         }
       },
+      "scalings": {
+        "power": "power",
+        "population": "population"
+      },
       "cutoffs": {
         "power": [
           {
+            "step": -1,
             "offset": -1.25,
             "share": 0.0005623413251903491,
             "below": [],
             "above": []
           },
           {
+            "step": 1,
             "offset": 1.25,
             "share": 0.1778279410038923,
+            "below": [],
+            "above": []
+          },
+          {
+            "step": 2,
+            "offset": 3.75,
+            "share": 56.234132519034915,
             "below": [],
             "above": []
           }
         ],
-        "population": [
-          {
-            "offset": -1.25,
-            "share": 0.0005623413251903491,
-            "below": [],
-            "above": []
-          },
-          {
-            "offset": 1.25,
-            "share": 0.1778279410038923,
-            "below": [],
-            "above": []
-          }
-        ]
+        "population": []
       }
     },
     {
@@ -336,21 +277,11 @@
           "campaign_defining": 0
         }
       },
+      "scalings": {
+        "population": "population"
+      },
       "cutoffs": {
-        "population": [
-          {
-            "offset": -1.25,
-            "share": 0.0005623413251903491,
-            "below": [],
-            "above": []
-          },
-          {
-            "offset": 1.25,
-            "share": 0.1778279410038923,
-            "below": [],
-            "above": []
-          }
-        ]
+        "population": []
       }
     }
   ]

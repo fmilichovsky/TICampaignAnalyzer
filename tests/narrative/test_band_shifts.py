@@ -7,6 +7,8 @@ from collections.abc import Sequence
 import pytest
 
 from tests.narrative.support import (
+    GREAT_SCALE,
+    MICRO_SCALE,
     WORLD_POWER,
     aggregated,
     atomic,
@@ -31,7 +33,6 @@ from tinarrative.model.events import Event, EventStatus, Role, Significance, Sig
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed
 from tinarrative.narrative import Join, NarrativeBuilder, narrative_rules
-from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.nation_metrics import BAND_SHIFTS, BandShiftRule
 from tinarrative.narrative.situation import SituationReport
 
@@ -224,10 +225,12 @@ def test_a_shift_scales_with_its_nations_power_share_and_a_landless_nation_dilut
     assert great.significance_basis is not None and micro.significance_basis is not None
     level = Significance.of(great.significance_basis.base)
     assert great.significance_basis == SignificanceBasis(
-        base=level.base, measure=Measure.POWER, share=pytest.approx(0.4), scale=SCALE_MAX, entities=(NORTH,)
+        base=level.base, measure=Measure.POWER, share=pytest.approx(0.4), scale=GREAT_SCALE, entities=(NORTH,)
     )
     assert great.significance.rank == level.rank + 1
-    assert micro.significance_basis.scale == SCALE_MIN and micro.significance.rank == level.rank - 1
+    # Size never drops a shift below minor.
+    assert micro.significance_basis.scale == MICRO_SCALE
+    assert micro.significance.rank == max(level.rank - 1, Significance.MINOR.rank)
 
 
 def test_an_event_naming_the_nation_in_the_interval_explains_the_shift() -> None:

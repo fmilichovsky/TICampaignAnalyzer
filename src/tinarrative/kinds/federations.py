@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, ShareOf
+from ..model.kinds import EventKind, EvidenceRole, Scaling, ShareOf
 from .narrative import count, narrative_kind, role
 from .text import attribute_label, list_changed, plain, subject_label
 
@@ -60,6 +60,7 @@ NATION_FEDERATION_CHANGED = EventKind(
     BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     share=ShareOf.NATION,
+    scaling=Scaling.POWER,
     base=Significance.MAJOR,
 )
 
@@ -89,6 +90,7 @@ LIFECYCLE = narrative_kind(
     required=frozenset({"members_initial", "member_changes", "members_final", "metric_shifts"}),
     base=Significance.MAJOR,
     share=ShareOf.MEMBERS,
+    scaling=Scaling.POWER,
 )
 
 KINDS = (APPEARED, DISAPPEARED, MEMBERS_CHANGED, RENAMED, NATION_FEDERATION_CHANGED, LIFECYCLE)

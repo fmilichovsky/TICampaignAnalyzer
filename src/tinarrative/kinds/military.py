@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, ShareOf
+from ..model.kinds import EventKind, EvidenceRole, Rule, Scaling, ShareOf
 from .narrative import count, narrative_kind, role
 from .text import TRANSITION, attribute_label, contextual, list_changed, subject_label, transition_label
 
@@ -155,6 +155,7 @@ MILITARY_BUILDUP = narrative_kind(
     required=_ARMY_COUNT,
     base=Significance.MAJOR,
     share=ShareOf.ACTOR,
+    scaling=Scaling.POWER,
 )
 DEMOBILIZATION = narrative_kind(
     "nation.demobilization",
@@ -162,6 +163,7 @@ DEMOBILIZATION = narrative_kind(
     required=_ARMY_COUNT,
     base=Significance.MAJOR,
     share=ShareOf.ACTOR,
+    scaling=Scaling.POWER,
 )
 NAVY_ESTABLISHED = narrative_kind(
     "nation.navy_established",
@@ -169,6 +171,7 @@ NAVY_ESTABLISHED = narrative_kind(
     required=frozenset({"navies", "gdp_rank", "strength_rank"}),
     base=Significance.MAJOR,
     share=ShareOf.ACTOR,
+    scaling=Scaling.POWER,
 )
 
 KINDS = (

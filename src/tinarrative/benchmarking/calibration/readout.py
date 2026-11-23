@@ -20,8 +20,11 @@ from tinarrative.benchmarking.calibration.replay import (
     Replay,
     ReplayState,
     ReplayStateError,
+    code_scaling,
     number_text,
     switched_types,
+    with_scalings,
+    with_shares,
 )
 
 TOP_MOVES: Final = 5
@@ -35,33 +38,36 @@ def override_state(
     state: ReplayState,
     index: Mapping[str, Any],
     *,
-    references: Sequence[str] = (),
+    rises: Sequence[str] = (),
+    drops: Sequence[str] = (),
+    scalings: Sequence[str] = (),
     campaigns: Sequence[str] = (),
     types: Sequence[str] = (),
     bases: Sequence[str] = (),
 ) -> ReplayState:
     """``state`` with the report's flags applied; each flag value is a comma-separated list, and repeats accumulate.
 
-    ``references`` override the named measures only; given ``campaigns`` or ``types`` replace the state's. ``bases``
-    (``TYPE=LEVEL``) switch the named event types only, and one at the code's base level clears its switch. Raises
-    ``ReplayStateError`` for an unknown or repeated measure, campaign or switched type, a reference that is not a
-    positive number and a base level that is not a level; ``replay`` checks the filter's types against the rows.
+    ``scalings`` (``TYPE=SCALING``, the type's own name to split it off) reassign the named types first, so a split
+    scaling can take ``rises`` and ``drops`` (``SCALING=VALUE``), which change the named scalings only; given
+    ``campaigns`` or ``types`` replace the state's. ``bases`` (``TYPE=LEVEL``) switch the named event types only, and
+    one at the code's base level clears its switch. Raises ``ReplayStateError`` for an unknown or repeated scaling,
+    campaign or switched type, a share that is not a positive number, a drop share not below its rise share, a type
+    reassigned across measures and a base level that is not a level; ``replay`` checks the filter's types against
+    the rows.
     """
-    changed: dict[str, float] = {}
-    for item in _items(references):
-        measure, separator, number = item.partition("=")
-        if not separator:
-            raise ReplayStateError(f"--reference {item!r} is not MEASURE=VALUE")
-        if measure not in index["measures"]:
-            raise ReplayStateError(f"unknown measure {measure!r} (known: {', '.join(index['measures'])})")
-        if measure in changed:
-            raise ReplayStateError(f"measure {measure!r} is given twice")
-        value = float(number) if _NUMBER.fullmatch(number) else math.nan
-        if not math.isfinite(value) or value <= 0:
-            raise ReplayStateError(f"the reference of {measure} must be a positive number, not {number!r}")
-        changed[measure] = value
-    if changed:
-        state = replace(state, references={**state.references, **changed})
+    reassigned: dict[str, str] = {}
+    for item in _items(scalings):
+        event_type, separator, name = item.partition("=")
+        if not separator or not name:
+            raise ReplayStateError(f"--scaling {item!r} is not TYPE=SCALING")
+        if event_type not in index["kinds"]:
+            raise ReplayStateError(f"unknown event type {event_type!r} (known: the table's event types)")
+        if event_type in reassigned:
+            raise ReplayStateError(f"event type {event_type!r} is given twice")
+        reassigned[event_type] = name
+    if reassigned:
+        state = with_scalings(state, index, reassigned)
+    state = with_shares(state, index, rises=_shares(rises, "rise"), drops=_shares(drops, "drop"))
     if campaigns:
         names = _items(campaigns)
         unknown = [name for name in names if name not in index["campaigns"]]
@@ -99,6 +105,21 @@ def override_state(
     return state
 
 
+def _shares(values: Sequence[str], what: str) -> dict[str, float]:
+    changed: dict[str, float] = {}
+    for item in _items(values):
+        name, separator, number = item.partition("=")
+        if not separator:
+            raise ReplayStateError(f"--{what} {item!r} is not SCALING=VALUE")
+        if name in changed:
+            raise ReplayStateError(f"scaling {name!r} is given twice")
+        value = float(number) if _NUMBER.fullmatch(number) else math.nan
+        if not math.isfinite(value) or value <= 0:
+            raise ReplayStateError(f"the {what} share of {name} must be a positive number, not {number!r}")
+        changed[name] = value
+    return changed
+
+
 def _items(values: Sequence[str]) -> list[str]:
     return [item.strip() for value in values for item in value.split(",") if item.strip()]
 
@@ -107,21 +128,20 @@ def _items(values: Sequence[str]) -> list[str]:
 
 
 def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
-    """One paragraph: the references and base levels against the code's, campaigns and types, the totals,
-    the top moves and every draft share with its issue, so a draft left behind after its issue closed still shows."""
+    """One paragraph: the scalings' rise and drop shares and the reassigned kinds against the code's, the base levels,
+    campaigns and types, the totals, the top moves and every draft share with its issue, so a draft left behind after
+    its issue closed still shows."""
     state = result["state"]
-    code = index["measures"]
-    changed = [
-        f"{measure} {number_text(state['references'][measure])} (code {number_text(code[measure]['reference'])})"
-        for measure in code
-        if state["references"][measure] != code[measure]["reference"]
-    ]
+    changed = [_scaling_change(index, result, name) for name in state["rises"] if _scaling_changed(index, result, name)]
     if not changed:
-        references = "every measure at the code's"
-    elif len(changed) == len(code):
-        references = ", ".join(changed)
+        scalings = "every scaling at the code's"
     else:
-        references = ", ".join(changed) + "; every other measure at the code's"
+        scalings = ", ".join(changed) + "; every other scaling at the code's"
+    reassigned = [
+        f"{event_type} {_assignment(event_type, name)} (code {index['kinds'][event_type]['scaling']})"
+        for event_type, name in state["scalings"].items()
+    ]
+    kinds = ", ".join(reassigned) if reassigned else "every type on its code scaling"
     switched = [
         f"{event_type} {level} (code {index['kinds'][event_type]['base']})"
         for event_type, level in result["state"]["type_bases"].items()
@@ -136,7 +156,8 @@ def shared_paragraph(index: Mapping[str, Any], result: Replay) -> str:
     package = totals["package"]
     moves = "; ".join(_move(move) for move in result["moves"][:TOP_MOVES]) or "nothing"
     return (
-        f"References: {references}. "
+        f"Scalings: {scalings}. "
+        f"Kinds: {kinds}. "
         f"Base levels: {bases}. "
         f"Campaigns: {', '.join(state['campaigns']) or 'none'}. "
         f"Types: {', '.join(state['types']) or 'all'}. "
@@ -178,20 +199,64 @@ def _drafts(index: Mapping[str, Any], result: Replay) -> str:
 
 
 def snippet(index: Mapping[str, Any], result: Replay) -> str:
-    """The changed references as measure registry entries, one line each in index order, then one comment line per
-    switched event type, sorted by type."""
-    references = result["state"]["references"]
-    lines = [
-        f"Measure.{measure.upper()}: MeasureSpec(reference={number_text(references[measure])}, ...),"
-        f"  # code: {number_text(spec['reference'])}"
-        for measure, spec in index["measures"].items()
-        if references[measure] != spec["reference"]
+    """The changed scalings as scaling registry entries, one line each in the state's scaling order (a split one as
+    a new entry named after its type), then one comment line per reassigned type and per switched event type, each
+    sorted by type."""
+    state = result["state"]
+    lines = []
+    for name in state["rises"]:
+        if not _scaling_changed(index, result, name):
+            continue
+        code = code_scaling(index, name)
+        rise, drop = state["rises"][name], state["drops"].get(name)
+        shares = f"rise={number_text(rise)}" + ("" if drop is None else f", drop={number_text(drop)}")
+        was = f"rise {number_text(code['rise'])}" + (
+            "" if code["drop"] is None else f", drop {number_text(code['drop'])}"
+        )
+        key, note = (
+            (name.upper(), f"code: {was}") if name in index["scalings"] else (_constant(name), f"new; copies {was}")
+        )
+        lines.append(f"Scaling.{key}: ScalingSpec(Measure.{code['measure'].upper()}, {shares}, ...),  # {note}")
+    lines += [
+        f"# {event_type}: scaling=Scaling.{index['kinds'][event_type]['scaling'].upper()} -> "
+        f"Scaling.{_constant(name) if name not in index['scalings'] else name.upper()}"
+        for event_type, name in state["scalings"].items()
     ]
     lines += [
         f"# {event_type}: base {index['kinds'][event_type]['base'].upper()} -> {level.upper()}"
-        for event_type, level in result["state"]["type_bases"].items()
+        for event_type, level in state["type_bases"].items()
     ]
-    return "\n".join(lines) if lines else "# Every reference and base level is the code's."
+    return "\n".join(lines) if lines else "# Every scaling, kind's scaling and base level is the code's."
+
+
+def _constant(name: str) -> str:
+    return name.replace(".", "_").replace("-", "_").upper()
+
+
+def _scaling_changed(index: Mapping[str, Any], result: Replay, name: str) -> bool:
+    """A split scaling always counts as changed: it is a new scaling, even at its copy's shares."""
+    if name not in index["scalings"]:
+        return True
+    code = index["scalings"][name]
+    state = result["state"]
+    return bool(state["rises"][name] != code["rise"] or state["drops"].get(name) != code["drop"])
+
+
+def _scaling_change(index: Mapping[str, Any], result: Replay, name: str) -> str:
+    state = result["state"]
+    code = code_scaling(index, name)
+    rise = f"rise {number_text(state['rises'][name])} (code {number_text(code['rise'])})"
+    drop = state["drops"].get(name)
+    if drop is not None or code["drop"] is not None:
+        shown = "default" if drop is None else number_text(drop)
+        coded = "default" if code["drop"] is None else number_text(code["drop"])
+        rise += f", drop {shown} (code {coded})"
+    own = " (split off)" if name not in index["scalings"] else ""
+    return f"{name}{own} {rise}"
+
+
+def _assignment(event_type: str, name: str) -> str:
+    return "split off" if name == event_type else f"joined to {name}"
 
 
 def _move(move: Mapping[str, Any]) -> str:
@@ -216,11 +281,24 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
     state = result["state"]
     levels = list(index["constants"]["level_bands"])
     lines = ["# Share calibration readout", "", "## Calibration state", ""]
-    lines += ["| Measure | Reference | Code's |", "| --- | ---: | ---: |"]
-    for measure, spec in index["measures"].items():
-        value = state["references"][measure]
-        mark = " (changed)" if value != spec["reference"] else ""
-        lines.append(f"| {measure} | {number_text(value)}{mark} | {number_text(spec['reference'])} |")
+    lines += ["| Scaling | Measure | Rise share | Drop share | Code's |", "| --- | --- | ---: | ---: | ---: |"]
+    for name, rise in state["rises"].items():
+        code = code_scaling(index, name)
+        drop = state["drops"].get(name)
+        mark = " (changed)" if _scaling_changed(index, result, name) else ""
+        coded = f"{number_text(code['rise'])} / {'default' if code['drop'] is None else number_text(code['drop'])}"
+        lines.append(
+            f"| {name}{mark} | {code['measure']} | {number_text(rise)} "
+            f"| {'default' if drop is None else number_text(drop)} | {coded} |"
+        )
+    if state["scalings"]:
+        lines += ["", "| Event type | Scaling | Code's |", "| --- | --- | ---: |"]
+        lines += [
+            f"| {event_type} | {_assignment(event_type, name)} | {index['kinds'][event_type]['scaling']} |"
+            for event_type, name in state["scalings"].items()
+        ]
+    else:
+        lines += ["", "Every event type is on its code scaling."]
     switched = state["type_bases"]
     if switched:
         lines += ["", "| Event type | Base level | Code's |", "| --- | --- | ---: |"]
@@ -285,12 +363,12 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
         "Every group keeps its members.",
     )
     lines += ["", "## Cut-offs", ""]
-    for measure, cutoffs in result["cutoffs"].items():
-        lines += [f"### {measure}", ""]
+    for name, cutoffs in result["cutoffs"].items():
+        lines += [f"### {name}", ""]
         if not cutoffs:
             lines += ["No cut-off.", ""]
         for cutoff in cutoffs:
-            lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {number_text(cutoff['offset'])}):", ""]
+            lines += [f"{_step(cutoff['step'])} at share {cutoff['share']:.3g}:", ""]
             lines += _table(
                 ["Side", "Campaign", "Event", "Type", "Share", "Score", "Level", "Code level", "Decided by"],
                 [_neighbour_row("below", item) for item in cutoff["below"]]
@@ -332,12 +410,12 @@ def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> lis
     )
     lines.append("")
     for item in summaries:
-        for measure, cutoffs in item["cutoffs"].items():
-            lines += [f"### {item['name']} on {measure}", ""]
+        for name, cutoffs in item["cutoffs"].items():
+            lines += [f"### {item['name']} on {name}", ""]
             if not cutoffs:
                 lines += ["No cut-off.", ""]
             for cutoff in cutoffs:
-                lines += [f"Cut-off at share {cutoff['share']:.3g} (offset {number_text(cutoff['offset'])}):", ""]
+                lines += [f"{_step(cutoff['step'])} at share {cutoff['share']:.3g}:", ""]
                 lines += _table(
                     ["Side", "Campaign", "Event", "Share", "Score", "Level", "Own base level", "Decided by", "Ruled"],
                     [_draft_neighbour_row("below", entry) for entry in cutoff["below"]]
@@ -348,10 +426,17 @@ def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> lis
     return lines
 
 
+def _step(step: int) -> str:
+    """A cut-off by the levels it moves an event from its starting level."""
+    what = "Rise" if step > 0 else "Drop"
+    count = abs(step)
+    return f"{what} share" if count == 1 else f"{what} {count} levels"
+
+
 def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) -> list[dict[str, Any]]:
     """Each draft share as the page's draft panel shows it, in index order: its base against its own, its rows'
     levels, how many are ruled (their kind's context rule sets the level, so the base does not apply) or set by a
-    cited event, and its own nearest rows at every cut-off of its measures. Rows of the enabled campaigns and
+    cited event, and its own nearest rows at every cut-off of its scalings. Rows of the enabled campaigns and
     types only."""
     types = set(result["state"]["types"])
     ruled = {
@@ -376,17 +461,19 @@ def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) ->
                 "ruled": sum(1 for (_, row_id), flag in ruled.items() if flag and draft_name(row_id) == name),
                 "floored": own["floored"],
                 "level_counts": own["level_counts"],
+                "scalings": dict(draft["scalings"]),
                 "cutoffs": {
-                    measure: [
+                    scaling: [
                         {
+                            "step": cutoff["step"],
                             "offset": cutoff["offset"],
                             "share": cutoff["share"],
                             "below": [_draft_neighbour(entry, ruled) for entry in cutoff["drafts"][name]["below"]],
                             "above": [_draft_neighbour(entry, ruled) for entry in cutoff["drafts"][name]["above"]],
                         }
-                        for cutoff in result["cutoffs"][measure]
+                        for cutoff in result["cutoffs"][scaling]
                     ]
-                    for measure in draft["measures"]
+                    for scaling in dict.fromkeys(draft["scalings"].values())
                 },
             }
         )
@@ -446,8 +533,9 @@ def render_json(
         ],
         "moved": moved,
         "cutoffs": {
-            measure: [
+            name: [
                 {
+                    "step": cutoff["step"],
                     "offset": cutoff["offset"],
                     "share": cutoff["share"],
                     "below": [_neighbour(item) for item in cutoff["below"]],
@@ -455,7 +543,7 @@ def render_json(
                 }
                 for cutoff in cutoffs
             ]
-            for measure, cutoffs in result["cutoffs"].items()
+            for name, cutoffs in result["cutoffs"].items()
         },
         "drafts": draft_summaries(index, result, drafts or {}),
     }

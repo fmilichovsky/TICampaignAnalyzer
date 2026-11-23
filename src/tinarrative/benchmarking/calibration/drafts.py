@@ -13,6 +13,8 @@ from typing import Final
 
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import Significance
+from tinarrative.model.kinds import Measure, Scaling
+from tinarrative.narrative.scalings import SCALINGS, ScalingSpec
 from tinarrative.narrative.significance import ShareReading
 
 ROW_PREFIX: Final = "draft:"
@@ -21,7 +23,7 @@ _SLUG = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 
 class DraftShareError(ValueError):
     """A draft share that cannot be scored: an unknown or atomic event type, a repeated or malformed name, no
-    reading, or no single base to default to."""
+    reading, no single base to default to, or a scaling on a measure no reading reads or on a measure twice."""
 
 
 @dataclass(frozen=True)
@@ -34,7 +36,10 @@ class DraftShare:
         issue=361,
         event_types=("nation.space_program_growth",),
         readings=(ShareReading(Measure.BOOST, actor), ShareReading(Measure.MISSION_CONTROL, actor)),
+        scalings=(ScalingSpec(Measure.BOOST, rise=0.2, reason=UNEXAMINED), Scaling.MISSION_CONTROL),
     )
+
+    A reading's measure without a scaling here takes that measure's starting scaling.
     """
 
     name: str
@@ -48,6 +53,9 @@ class DraftShare:
     """Each is a candidate of the rows' shares; the highest scale wins."""
     base: Significance | None = None
     """The hypothetical base level; by default the base of the types' kind."""
+    scalings: tuple[Scaling | ScalingSpec, ...] = ()
+    """The scaling of each measure its readings read: a shared one, or its own (``ScalingSpec``), unexamined or
+    with a reason."""
 
 
 DRAFT_SHARES: tuple[DraftShare, ...] = ()
@@ -76,6 +84,32 @@ def validate_drafts(drafts: Sequence[DraftShare]) -> None:
                     f"draft share {draft.name!r}: event type {event_type!r} is not a narrative event type"
                 )
         draft_base(draft)
+        draft_scalings(draft)
+
+
+def draft_scalings(draft: DraftShare) -> dict[Measure, tuple[str, ScalingSpec]]:
+    """The name and scaling of each measure the draft's readings read, in reading order: its own scaling is named
+    ``<draft>-<measure>``, a shared one by its own name. ``DraftShareError`` for a scaling on a measure no reading
+    reads or a measure given two."""
+    declared: dict[Measure, tuple[str, ScalingSpec]] = {}
+    for item in draft.scalings:
+        spec = SCALINGS[item] if isinstance(item, Scaling) else item
+        if spec.measure in declared:
+            raise DraftShareError(f"draft share {draft.name!r} gives the measure {spec.measure} two scalings")
+        name = item.value if isinstance(item, Scaling) else own_scaling_name(draft.name, spec.measure)
+        declared[spec.measure] = (name, spec)
+    measures = list(dict.fromkeys(reading.measure for reading in draft.readings))
+    unread = sorted(set(declared) - set(measures))
+    if unread:
+        raise DraftShareError(
+            f"draft share {draft.name!r} has a scaling on {', '.join(unread)}, which no reading reads"
+        )
+    return {measure: declared.get(measure) or (measure.value, SCALINGS[Scaling(measure.value)]) for measure in measures}
+
+
+def own_scaling_name(draft: str, measure: Measure) -> str:
+    """The name of a draft's own scaling on ``measure``: never a measure's, a split type's or another draft's."""
+    return f"{draft}-{measure.value}"
 
 
 def draft_base(draft: DraftShare) -> Significance:

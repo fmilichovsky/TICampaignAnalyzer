@@ -166,11 +166,10 @@ def compact(index: Mapping[str, Any], tables: Tables, drafts: Tables, result: ca
 
 
 def meta(index: Mapping[str, Any], drafts: Tables) -> dict[str, Any]:
-    """What the page needs of the replay that no state changes: the cut-off offsets in the scale window, the score
-    a base level gives, and the draft each draft row belongs to."""
+    """What the page needs of the replay that no state changes: the score a base level gives, and the draft each
+    draft row belongs to."""
     constants = index["constants"]
     return {
-        "window": calibration.cutoff_offsets(),
         "level_bases": {level: Significance(level).base for level in constants["level_bands"]},
         "draft_names": {name: [draft_name(row["id"]) for row in rows] for name, rows in drafts.items()},
     }
@@ -179,25 +178,30 @@ def meta(index: Mapping[str, Any], drafts: Tables) -> dict[str, Any]:
 def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
     """The state the page's controls give, as ``StateResult`` writes it; keys left out keep the code's.
 
-    Raises ``ReplayStateError`` for a value of the wrong shape, an unknown measure, campaign, draft or type, a
-    reference that is not a positive number or a base that is not a level. The filter's types are checked by
-    ``replay``.
+    Raises ``ReplayStateError`` for a value of the wrong shape, an unknown scaling, measure, campaign, draft or type,
+    a share that is not a positive number, a drop share not below its rise share, a type reassigned across measures
+    or a base that is not a level. The filter's types are checked by ``replay``.
     """
     if not isinstance(values, dict):
         raise ReplayStateError("the state is not an object")
-    known = {"references", "campaigns", "types", "bases", "type_bases", "focus"}
+    if "references" in values:
+        raise ReplayStateError(calibration.REFERENCE_RETIRED)
+    known = {"rises", "drops", "scalings", "campaigns", "types", "bases", "type_bases", "focus"}
     unknown = sorted(set(values) - known)
     if unknown:
         raise ReplayStateError(f"unknown state key(s): {', '.join(unknown)}")
     default = calibration.default_state(index)
     levels = list(index["constants"]["level_bands"])
-    references = dict(default.references)
-    for measure, number in _mapping(values.get("references", {}), "references").items():
-        if measure not in index["measures"]:
-            raise ReplayStateError(f"unknown measure {measure!r} (known: {', '.join(index['measures'])})")
-        if isinstance(number, bool) or not isinstance(number, int | float) or not math.isfinite(number) or number <= 0:
-            raise ReplayStateError(f"the reference of {measure} must be a positive number, not {number!r}")
-        references[measure] = float(number)
+    reassigned = _mapping(values.get("scalings", {}), "scalings")
+    if not all(isinstance(name, str) for name in reassigned.values()):
+        raise ReplayStateError("the state's scalings do not name scalings")
+    shares: dict[str, dict[str, float]] = {}
+    for what in ("rises", "drops"):
+        shares[what] = {}
+        for name, number in _mapping(values.get(what, {}), what).items():
+            if isinstance(number, bool) or not isinstance(number, int | float) or not math.isfinite(number):
+                raise ReplayStateError(f"the {what[:-1]} share of {name} must be a positive number, not {number!r}")
+            shares[what][name] = float(number)
     campaigns = _names(values.get("campaigns", list(default.campaigns)), "campaigns")
     unknown = [name for name in campaigns if name not in index["campaigns"]]
     if unknown:
@@ -224,12 +228,15 @@ def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
     if focus is not None and focus not in index["measures"]:
         raise ReplayStateError(f"unknown focus measure {focus!r}")
     state = ReplayState(
-        references=references,
+        rises=default.rises,
+        drops=default.drops,
         campaigns=tuple(name for name in index["campaigns"] if name in campaigns),
         types=tuple(sorted(_names(values.get("types", []), "types"))),
         focus=focus,
         bases=bases,
     )
+    state = calibration.with_scalings(state, index, reassigned)
+    state = calibration.with_shares(state, index, rises=shares["rises"], drops=shares["drops"])
     return replace(state, type_bases=calibration.switched_types(replace(state, type_bases=type_bases), index))
 
 

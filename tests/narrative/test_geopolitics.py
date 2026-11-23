@@ -8,6 +8,8 @@ from dataclasses import replace
 import pytest
 
 from tests.narrative.support import (
+    GREAT_SCALE,
+    MICRO_SCALE,
     aggregated,
     atomic,
     faction,
@@ -40,7 +42,6 @@ from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap, Observed, Unknown
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, narrative_rules, rule_layers
 from tinarrative.narrative.geopolitics import TakeoverWaveRule
-from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.rulekit import bounded_shifts
 from tinarrative.narrative.situation import SituationReport
 
@@ -385,10 +386,10 @@ def test_a_takeover_scales_with_its_nations_power_share_before_it() -> None:
         base=Significance.MAJOR.base,
         measure=Measure.POWER,
         share=pytest.approx(0.4),
-        scale=SCALE_MAX,
+        scale=GREAT_SCALE,
         entities=(NORTH,),
     )
-    assert micro.significance_basis is not None and micro.significance_basis.scale == SCALE_MIN
+    assert micro.significance_basis is not None and micro.significance_basis.scale == MICRO_SCALE
     assert micro.significance.rank < Significance.MAJOR.rank
 
 
@@ -397,7 +398,7 @@ def test_a_low_share_never_pulls_a_takeover_below_its_highest_cited_score() -> N
 
     takeover = only(built(stream, [powers(K0, (SOUTH, 0.1)), powers(K1)]), TAKEOVER)
 
-    assert takeover.significance_basis is not None and takeover.significance_basis.scale == SCALE_MIN
+    assert takeover.significance_basis is not None and takeover.significance_basis.scale == MICRO_SCALE
     assert takeover.score == 70
 
 
@@ -1275,7 +1276,7 @@ def test_a_release_is_scaled_by_the_new_nations_power_share_read_after_it_appear
 
     assert large.significance_basis is not None and micro.significance_basis is not None
     assert large.significance_basis.entities == (EAST,) and large.significance_basis.share == pytest.approx(0.1)
-    assert large.significance_basis.scale > 0 and micro.significance_basis.scale == SCALE_MIN
+    assert large.significance_basis.scale > 0 and micro.significance_basis.scale == MICRO_SCALE
     assert large.score == micro.score == Significance.MAJOR.base  # the independence it cites sets the floor
 
 

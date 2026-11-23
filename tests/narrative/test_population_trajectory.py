@@ -6,7 +6,7 @@ from collections.abc import Sequence
 
 import pytest
 
-from tests.narrative.support import aggregated, atomic, nation, nation_row, powers, situation
+from tests.narrative.support import GREAT_SCALE, aggregated, atomic, nation, nation_row, powers, situation
 from tinarrative.config import GeopoliticsSettings, NarrativeSettings
 from tinarrative.kinds import attributes, describe_event
 from tinarrative.kinds.nations import PCGDP_TREND, POPULATION_CHANGED
@@ -14,7 +14,6 @@ from tinarrative.model.events import DateBasis, Event, Significance, Significanc
 from tinarrative.model.kinds import Measure
 from tinarrative.model.values import FrozenMap
 from tinarrative.narrative import narrative_rules
-from tinarrative.narrative.measures import SCALE_MAX
 from tinarrative.narrative.nation_metrics import ECONOMIC_TRAJECTORY, POPULATION_COLLAPSE
 from tinarrative.narrative.situation import SituationReport
 
@@ -165,7 +164,7 @@ def test_a_backstory_trajectory_is_closed_before_the_last_interval_and_scales_wi
         base=Significance.MAJOR.base,
         measure=Measure.POWER,
         share=pytest.approx(0.4),
-        scale=SCALE_MAX,
+        scale=GREAT_SCALE,
         entities=(NORTH,),
     )
     assert micro.significance is Significance.MINOR

@@ -12,7 +12,6 @@ from tests.golden import AssertGolden
 from tinarrative.benchmarking.calibration.replay import (
     SCHEMA_VERSION,
     ReplayError,
-    cutoff_offsets,
     default_state,
     load,
     replay,
@@ -32,16 +31,16 @@ def test_the_golden_calibration_table_is_current(assert_golden: AssertGolden, tm
 def test_the_golden_table_moves_members_and_cut_offs_when_the_state_changes() -> None:
     index, tables, _ = load(GOLDEN)
     code = default_state(index)
-    power = code.references["power"]
+    power = code.rises["power"]
 
     def verdicts(factor: float) -> set[str]:
-        state = replace(code, references={**code.references, "power": power * factor})
+        state = replace(code, rises={**code.rises, "power": power * factor})
         return {member["verdict"] for member in replay(index, tables, state)["campaigns"]["alpha"]["members"]}
 
     assert verdicts(1.0) == {"keeps_members"}
     assert verdicts(10**-0.2) == {"keeps_members", "loses_members", "falls_apart"}
     assert "could_become_member" in verdicts(10**0.5)
-    assert len(replay(index, tables, code)["cutoffs"]["power"]) == len(cutoff_offsets())
+    assert [cutoff["step"] for cutoff in replay(index, tables, code)["cutoffs"]["power"]] == [-2, -1, 1, 2, 3]
     assert {event["decided_by"] for event in replay(index, tables, code)["campaigns"]["alpha"]["events"]} > {"land"}
 
 

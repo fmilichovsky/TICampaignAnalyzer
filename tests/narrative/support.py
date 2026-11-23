@@ -25,10 +25,11 @@ from tinarrative.model.events import (
     Significance,
 )
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.kinds import EventKind
+from tinarrative.model.kinds import EventKind, Scaling
 from tinarrative.model.values import FrozenMap, Observed, Unknown, number
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, NarrativeRule, aggregate
 from tinarrative.narrative.chronology import qualified_id
+from tinarrative.narrative.scalings import SCALINGS, scale
 from tinarrative.narrative.shares import SaveShares, population_shares, power_inputs, power_shares
 from tinarrative.narrative.situation import (
     FactionSituation,
@@ -374,3 +375,9 @@ def loyalty_keys(document: object) -> list[str]:
     if isinstance(document, list):
         return [key for item in document for key in loyalty_keys(item)]
     return []
+
+
+GREAT_SCALE = scale(0.4, SCALINGS[Scaling.POWER].rise)
+"""The scale of the great power's 0.4 power share the rule tests report, on the starting power scaling."""
+MICRO_SCALE = scale(0.0001, SCALINGS[Scaling.POWER].rise)
+"""The scale of the micro-state's 0.0001 power share the rule tests report, on the starting power scaling."""

@@ -33,7 +33,7 @@ class Rule(StrEnum):
 
 
 class Measure(StrEnum):
-    """The world total a share is taken of. Each measure's reference, label and description are its entry in
+    """The world total a share is taken of. Each measure's label and description are its entry in
     ``narrative.measures.MEASURES``."""
 
     POWER = "power"
@@ -87,6 +87,21 @@ class ShareOf(StrEnum):
     """A narrative-event share: the nuclear share of the arc's net move, its actor the nation."""
 
 
+class Scaling(StrEnum):
+    """How a share moves a kind's level: a named scaling, whose measure, rise share, drop share and reason are its
+    entry in ``narrative.scalings.SCALINGS``. Kinds share one only when the same reason holds for both (ADR-0011)."""
+
+    POWER = "power"
+    POPULATION = "population"
+    ORGANIZATION = "organization"
+    HAB = "hab"
+    FLEET = "fleet"
+    BATTLE = "battle"
+    SPACE_LOSS = "space_loss"
+    FACTION = "faction"
+    NUCLEAR = "nuclear"
+
+
 class EvidenceRole(StrEnum):
     """Whether the narrator package lists an event of the kind when a narrative event cites it."""
 
@@ -119,6 +134,8 @@ class EventKind:
     optional: frozenset[str] = frozenset()
     rule: Rule | None = None
     share: ShareOf | None = None
+    scaling: Scaling | None = None
+    """How the share moves the level; declared exactly when ``share`` is."""
     narrative: bool = False
     digests_members: bool = False
     exclusive_constituents: bool = False
@@ -136,3 +153,5 @@ class EventKind:
         shared = self.required & self.optional
         if shared:
             raise ValueError(f"kind {self.event_type}: {sorted(shared)} are both required and optional")
+        if (self.share is None) != (self.scaling is None):
+            raise ValueError(f"kind {self.event_type}: a share and a scaling are declared together or not at all")

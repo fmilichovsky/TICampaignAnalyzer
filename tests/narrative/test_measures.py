@@ -10,6 +10,6 @@ def test_every_measure_has_exactly_one_registry_entry() -> None:
     assert list(MEASURES) == list(Measure)
 
 
-def test_every_entry_has_a_positive_reference_a_label_and_a_description() -> None:
+def test_every_entry_has_a_label_and_a_description() -> None:
     for spec in MEASURES.values():
-        assert spec.reference > 0 and spec.label and spec.description
+        assert spec.label and spec.description
