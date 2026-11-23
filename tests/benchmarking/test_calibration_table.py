@@ -12,14 +12,16 @@ import pytest
 from tests.benchmark_support import synthetic_samples
 from tests.benchmarking.calibration_support import check_rows
 from tests.fixtures import fixture_path
-from tests.narrative.support import atomic, nation
+from tests.narrative.support import atomic, faction, nation, situation, unification
 from tinarrative.benchmarking.calibration.table import (
     SCHEMA_VERSION,
     CalibrationTableError,
     _row,
     build_index,
+    explained_by,
     extract_all,
     extract_campaign,
+    name_history,
     read_campaign,
     read_index,
     type_kinds,
@@ -28,7 +30,7 @@ from tinarrative.benchmarking.calibration.table import (
 from tinarrative.benchmarking.manifest import MANIFEST, extractable_campaigns, prefix_of
 from tinarrative.kinds import KINDS
 from tinarrative.kinds.registry import kind_for
-from tinarrative.model.events import SIGNIFICANCE_ORDER
+from tinarrative.model.events import SIGNIFICANCE_ORDER, Role
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates
 from tinarrative.narrative.measures import MEASURES
 from tinarrative.narrative.significance import decide
@@ -94,6 +96,7 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
     index = build_index(["politics"], key="k1", extracted_at="2030-01-01T00:00:00+00:00", kinds={})
 
     assert set(index) == {
+        "names",
         "schema_version",
         "campaigns",
         "key",
@@ -174,4 +177,81 @@ def test_a_row_lists_its_entities_as_id_and_name_or_null() -> None:
     )
     row = _row(event, "atomic")
 
-    assert row["entities"] == [{"id": "nation:20", "name": "Northland"}, {"id": "nation:21", "name": None}]
+    assert row["entities"] == [
+        {"id": "nation:20", "name": "Northland", "role": None},
+        {"id": "nation:21", "name": None, "role": None},
+    ]
+
+
+def test_a_narrative_row_names_each_entitys_role_the_target_count_and_its_interval_dates(rows: list[dict]) -> None:
+    takeover = next(row for row in rows if row["id"].startswith("faction.takeover/nation:20/faction:15@"))
+    claims = next(row for row in rows if row["id"].startswith("nation.claims_declared/"))
+    atomic_row = next(row for row in rows if row["tier"] == "atomic")
+
+    assert {entity["id"]: entity["role"] for entity in takeover["entities"]} == {
+        "faction:15": "actor",
+        "nation:20": "target",
+        "faction:16": "loser",
+    }
+    assert takeover["targets"] == claims["targets"] == 1
+    assert takeover["intervals"] == [
+        {"key": "2032-04-01T00:00:00", "start": "2032-01-01T00:00:00", "end": "2032-04-01T00:00:00"}
+    ]
+    assert {entity["role"] for entity in atomic_row["entities"]} <= {None}
+    assert atomic_row["targets"] is None
+    assert [item["key"] for item in atomic_row["intervals"]] == [atomic_row["interval"]]
+
+
+def test_a_multi_interval_row_lists_every_interval_with_its_own_dates(rows: list[dict]) -> None:
+    wave = next(row for row in rows if len(row["intervals"]) > 1)
+
+    assert all(item["start"] < item["end"] for item in wave["intervals"])
+    assert [item["end"] for item in wave["intervals"]] == sorted(item["end"] for item in wave["intervals"])
+
+
+def test_an_event_a_reading_or_a_shift_covers_is_explained_by_it() -> None:
+    key = "2032-04-01T00:00:00"
+    north, south, resistance = nation("20", "North"), nation("21", "South"), faction("15", "Resistance")
+    gain = atomic("nation.territory_gained/nation:21", key, entities=(south,), attributes=(("counterparts", (north,)),))
+    elsewhere = atomic("nation.territory_gained/nation:20", key, entities=(north,))
+    reading = unification(key, south, north, not_before="2032-01-01T00:00:00")
+    crossing = atomic(
+        "nation.band_crossed/nation:20",
+        key,
+        entities=(north,),
+        attributes=(("statistic", "unrest"),),
+    )
+    takeover = replace(
+        atomic("faction.takeover/nation:20/faction:15", key, entities=(resistance, north)),
+        intervals=(key,),
+        roles=((Role.ACTOR, resistance), (Role.TARGET, north)),
+    )
+
+    found = explained_by([gain, elsewhere, crossing], [reading, takeover])
+
+    assert found == {gain.id: reading.id, crossing.id: takeover.id}
+
+
+def test_a_renamed_entity_lists_its_names_with_the_saves_that_show_them() -> None:
+    old, new = nation("30", "Russia"), nation("30", "Eurasian Union")
+    steady = nation("31", "Steady")
+    reports = [
+        situation("2032-01-01T00:00:00", nations=[old, steady]),
+        situation("2032-04-01T00:00:00", nations=[old, steady]),
+        situation("2032-07-01T00:00:00", nations=[new, steady]),
+    ]
+
+    assert name_history(reports) == {
+        "nation:30": [
+            {"name": "Russia", "first": "2032-01-01T00:00:00", "last": "2032-04-01T00:00:00"},
+            {"name": "Eurasian Union", "first": "2032-07-01T00:00:00", "last": "2032-07-01T00:00:00"},
+        ]
+    }
+
+
+def test_the_index_carries_each_campaigns_name_history() -> None:
+    history = {"politics": {"nation:30": [{"name": "Russia", "first": "a", "last": "b"}]}}
+    index = build_index(["politics"], key="k", extracted_at="t", kinds={}, names=history)
+
+    assert index["names"] == history
+    assert build_index(["politics"], key="k", extracted_at="t", kinds={})["names"] == {}
