@@ -116,6 +116,39 @@ Target: the [narrator package](commands/events.md#narrator-package).
   - [ ] Apply slimming to continuing events (#273)
 - [x] Chapter length by narrative weight within an output budget (#418).
 
+## Agent calibration framework
+
+Target: agents that judge event kinds, base levels and scalings against the sample campaigns (#531).
+
+- [ ] Repo skills in `.agents/skills`, symlinked from `.claude/skills` (#641).
+- [ ] Editorial direction (#642).
+- [ ] Scaling engine: a scaling per kind in place of the reference and the clamp (#643).
+- [ ] Calibration table: roles, explained events, interval dates and name history (#644).
+- [ ] Themes file (#645).
+- [ ] Sample profile in `samples.json` (#646).
+- [ ] Calibration registry script (#647).
+- [ ] Coverage labels (#648).
+- [ ] Calibration principles (#649).
+- [ ] Calibration page: a row per scaling (#650).
+- [ ] Kind reasons (#651).
+- [ ] Report views: `--view`, period and tiers (#652).
+- [ ] Events view (#653).
+- [ ] Distribution view (#654).
+- [ ] Must-tell lists and the must-tell view (#655).
+- [ ] Theme view and `--theme` (#656).
+- [ ] Crowding view (#657).
+- [ ] Smells view and thresholds (#658).
+- [ ] Must-tell drafting tools (#659).
+- [ ] Sample admission: coverage delta and as-found report (#660).
+- [ ] Markdown evidence block (#661).
+- [ ] Calibration evidence CI job (#662).
+- [ ] Calibration reviews parent and the first registry members (#663).
+- [ ] `kind-calibration` skill (#664).
+- [ ] `calibration-review` skill (#665).
+- [ ] `recollection-dissection` skill (#666).
+- [ ] Must-tell list for `protectorate` (#667).
+- [ ] Must-tell list for `resist-long` (#668).
+
 ## CLI user experience
 
 - [x] Split `diff` and `events` by layer (#90).
