@@ -33,6 +33,8 @@ from tinarrative.kinds.campaign import NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_
 from tinarrative.kinds.nations import BAND_SHIFTS, POPULATION_COLLAPSE
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef
 from tinarrative.model.events import (
+    SCORE_MAX,
+    SCORE_MIN,
     SIGNIFICANCE_ORDER,
     Confidence,
     DateBasis,
@@ -757,13 +759,14 @@ def test_a_technology_milestone_takes_its_curated_tier() -> None:
     )
 
 
-def test_the_plain_number_arithmetic_scales_a_share_and_moves_a_base_by_the_highest_scale() -> None:
+def test_the_plain_number_steps_bound_the_scale_and_the_score_and_take_the_highest_input() -> None:
+    # Public because the calibration replay scores table rows, not events, through the same steps.
     assert scale(0.0, 1.0) == SCALE_MIN
-    assert scale(10**3, 1.0) == SCALE_MAX
+    assert scale(10.0**SCALE_MAX, 1.0) == SCALE_MAX
     assert scale(1.0, 1.0) == 0
     assert own_score(40, ()) == 40
-    assert own_score(40, (-3, 5, 2)) == 45
-    assert own_score(98, (15,)) == 100
-    assert own_score(2, (-20,)) == 0
+    assert own_score(40, (-3, 5, 2)) == own_score(40, (5,)) == 40 + 5
+    assert own_score(SCORE_MAX, (SCALE_MAX,)) == SCORE_MAX
+    assert own_score(SCORE_MIN, (SCALE_MIN,)) == SCORE_MIN
     assert settled_score(45, (30, 61)) == 61
-    assert settled_score(45, ()) == 45
+    assert settled_score(45, (30,)) == 45

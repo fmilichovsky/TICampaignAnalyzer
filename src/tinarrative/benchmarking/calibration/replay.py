@@ -17,12 +17,15 @@ from typing import Any, Final, Literal, TypedDict
 from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.table import SCHEMA_VERSION as SCHEMA_VERSION
 from tinarrative.benchmarking.calibration.table import read_campaign, read_index
-from tinarrative.model.events import SCORE_BANDS, Significance
+from tinarrative.model.events import SCORE_BANDS, SIGNIFICANCE_ORDER, Significance
 from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.significance import own_score, scale, settled_score
 
 STATE_KEYS: Final = ("ref", "campaigns", "types", "base", "focus")
 """The hash keys, in the order ``encode_state`` writes them."""
+
+LEVELS: Final = [level.value for level in SIGNIFICANCE_ORDER]
+"""The levels, least significant first: the code's, not the index's."""
 
 Row = Mapping[str, Any]
 Verdict = Literal["keeps_members", "loses_members", "falls_apart", "could_become_member"]
@@ -248,7 +251,7 @@ def replay(
     state = _with_bases(index, state)
     _validate(index, tables, state)
     constants = index["constants"]
-    levels = list(constants["level_bands"])
+    levels = LEVELS
     gates = [
         _Gate(frozenset(gate["group_types"]), gate["member_type"], frozenset(gate["admitted_levels"]), gate["minimum"])
         for gate in index["member_gates"]
@@ -331,13 +334,13 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
     if sorted(state.bases) != sorted(names):
         raise ReplayStateError(f"the state needs a base for exactly the draft shares {', '.join(names) or '(none)'}")
     for name, level in state.bases.items():
-        if level not in index["constants"]["level_bands"]:
+        if level not in LEVELS:
             raise ReplayStateError(f"the base of draft share {name} must be a level, not {level!r}")
     unswitchable = sorted(set(state.type_bases) - set(index["kinds"]))
     if unswitchable:
         raise ReplayStateError(f"unknown event type(s) in the base levels: {', '.join(unswitchable)}")
     for event_type, level in state.type_bases.items():
-        if level not in index["constants"]["level_bands"]:
+        if level not in LEVELS:
             raise ReplayStateError(f"the base level of {event_type} must be a level, not {level!r}")
 
 
@@ -695,7 +698,7 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
 def _decode_bases(value: str, index: Mapping[str, Any]) -> tuple[dict[str, str], dict[str, str]]:
     """The draft bases and the event types' base levels of a ``base`` value."""
     names = [draft["name"] for draft in index["drafts"]]
-    levels = list(index["constants"]["level_bands"])
+    levels = LEVELS
     bases: dict[str, str] = {}
     type_bases: dict[str, str] = {}
     if not value:

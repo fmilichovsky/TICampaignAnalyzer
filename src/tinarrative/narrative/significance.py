@@ -533,8 +533,8 @@ def arithmetic(
 ) -> tuple[int, Significance]:
     """The score and its level from the starting ``level``, the share's ``basis`` (``None`` for no share) and the
     scores of the cited events (ADR-0011): the higher of the level's base moved by the share and the highest cited
-    score. The numbers' arithmetic is ``own_score`` and ``settled_score``, which the calibration replay calls too."""
-    own = own_score(level.base, ()) if basis is None else own_score(basis.base, (basis.scale,))
+    score. The plain-number steps are ``own_score`` and ``settled_score``."""
+    own = level.base if basis is None else own_score(basis.base, (basis.scale,))
     score = settled_score(own, cited_scores)
     return score, Significance.of(score)
 
