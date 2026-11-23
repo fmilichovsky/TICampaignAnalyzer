@@ -9,6 +9,7 @@ benchmarks/
   samples/samples.json           # the manifest: size and SHA-256 of every file, a description per campaign
   matrix.toml                    # the events and narrate runs made against every campaign
   config.toml                    # the settings file every run is given: empty, so the code's defaults apply
+  themes.toml                    # the themes a calibration review reads a campaign by
 ```
 
 The tool is `tinarrative benchmark metrics`. Its CLI code runs from the current checkout; it runs `events` and
@@ -191,3 +192,13 @@ events are already in the longer one.
 The samples also feed the share calibration: `tinarrative benchmark calibrate open` serves a page that replays their
 events at other share references, and `tinarrative benchmark calibrate report` prints the same readout
 ([command page](../docs/commands/benchmark.md#benchmark-calibrate-open)).
+
+## Themes
+
+`themes.toml` lists the [themes](../CONTEXT.md) a calibration review reads a campaign by. Every declared event type
+sits in at least one theme or in `[unthemed]`, so a new event type is always a decision
+(`tests/benchmarking/test_calibration_themes.py`). A theme is no weight and no quota: a thin theme in a campaign is a
+finding to read. `events`, `narrate` and the narrator never read the file.
+
+The dev owns the names and descriptions. An agent proposes the event types under each theme and the dev approves them
+in the pull request; later corrections are ordinary pull requests.

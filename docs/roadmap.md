@@ -124,7 +124,7 @@ Target: agents that judge event kinds, base levels and scalings against the samp
 - [x] Editorial direction (#642).
 - [ ] Scaling engine: a scaling per kind in place of the reference and the clamp (#643).
 - [x] Calibration table: roles, explained events, interval dates and name history (#644).
-- [ ] Themes file (#645).
+- [x] Themes file (#645).
 - [ ] Sample profile in `samples.json` (#646).
 - [ ] Calibration registry script (#647).
 - [ ] Coverage labels (#648).
