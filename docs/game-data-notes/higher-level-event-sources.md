@@ -453,7 +453,9 @@ trade, transfers, `Effect.*`, org trades, rewards and hashed labels are counted 
     notification (0 of 25); entries the player destroyed had one in 51 of 118, the rest in 13 of 27.
   - *Observed:* of the 14 groups of vanished habs and entries sharing (owner, type, body) that had more than one
     hab or entry, 12 named a single destroyer; a site subject would have tied 6 habs of those 12 to an entry,
-    and none of the other 2.
+    and none of the other 2. In those 2, each vanished hab's display name was gained against its owner by
+    exactly one of the group's destroyers, in the `Kills` growth of the same interval (8 of 8 habs), and no name
+    repeated within a group (14 of 14 groups).
   - *Hypothesis:* the subject depends on the game version (orbit before 1.0.53b, destroyer's fleet in it).
 - **Hab lifecycle** (observed 2026-11-03, Protectorate saves 00087–00102 and Resist saves 00079–00083, every
   consecutive pair, structure and counts only; read by `parsing/cores.py` and the `hab.established` rule in

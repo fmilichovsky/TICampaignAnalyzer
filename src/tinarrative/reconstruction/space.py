@@ -7,8 +7,9 @@ evidence are in ``docs/game-data-notes/higher-level-event-sources.md`` (space jo
   completion when that falls inside the interval.
 - ``faction.first_hab_on_body``: habs of a faction are established on a body where it had no working hab; high. A
   ``First*Base*`` milestone is cited only when it is unambiguous (labels name places, not body IDs).
-- ``hab.destroyed``: a vanished hab joined to destruction log entries by faction, hab type and body; high when
-  one entry matches, else medium (``ambiguous``) or low; a ``LogHabDestroyed`` dated like an entry is only cited.
+- ``hab.destroyed``: a vanished hab joined to destruction log entries by faction, hab type and body and tied to
+  the one destroyer they name, or that alone gained its name in ``Kills``; else medium (``ambiguous``) or low. A
+  ``LogHabDestroyed`` dated like an entry is only cited.
 - ``faction.space_losses``: the victim's vanished ships whose names its destroyer's ``Kills`` gained, and the habs
   of non-ambiguous ``hab.destroyed``; high (ADR-0023).
 """
@@ -78,12 +79,13 @@ def space_events(events: Iterable[Event], before: SaveSnapshot, after: SaveSnaps
     """Every space inference of one interval (unsorted)."""
     context = SpaceContext(events, before, after, diff)
     foundings = _foundings(context)
-    destroyed = _destroyed_habs(context)
+    gained = _gained(context)
+    destroyed = _destroyed_habs(context, gained)
     return [
         *(_established(context, founding) for founding in foundings),
         *_first_habs(context, foundings),
         *destroyed,
-        *_space_losses(context, destroyed),
+        *_space_losses(context, destroyed, gained),
     ]
 
 
@@ -249,7 +251,7 @@ def _destruction_key(context: SpaceContext, event: Event) -> DestructionKey | No
     return (faction, hab_type, body.entity_id)
 
 
-def _destroyed_habs(context: SpaceContext) -> list[Event]:
+def _destroyed_habs(context: SpaceContext, gained: Sequence[_Gained]) -> list[Event]:
     groups: dict[DestructionKey, _DestructionGroup] = defaultdict(_DestructionGroup)
     for event in context.of_type(space.HAB_DISAPPEARED.event_type):
         key = _destruction_key(context, event)
@@ -270,13 +272,61 @@ def _destroyed_habs(context: SpaceContext) -> list[Event]:
             continue  # nothing records a destruction: the hab stays ``hab.disappeared``
         habs = sorted(group.habs, key=lambda event: _subject(event).entity_id.sort_key)
         entries = sorted(group.entries, key=lambda event: event.id)
+        by_destroyer = _by_destroyer(entries)
+        tied = _tied(key[0], habs, by_destroyer, gained)
+        for destroyer, (tied_habs, kills) in tied.items():
+            tied_entries = by_destroyer[destroyer]
+            notes = _corroborating(tied_entries, notifications)
+            for hab in tied_habs:
+                inferred_events.append(_destroyed(context, key, hab, tied_entries, len(tied_habs), notes, kills))
+        rest = [hab for hab in habs if not any(hab in tied_habs for tied_habs, _ in tied.values())]
         notes = _corroborating(entries, notifications)
-        if len(habs) == 1 and len(entries) == 1:
-            inferred_events.append(_destroyed(context, key, habs[0], entries[0], notes))
-            continue
-        for hab in habs:
-            inferred_events.append(_ambiguous_destroyed(context, key, hab, entries, len(habs), notes))
+        for hab in rest:
+            inferred_events.append(_ambiguous_destroyed(context, key, hab, entries, len(rest), notes))
     return inferred_events
+
+
+def _by_destroyer(entries: Sequence[Event]) -> dict[EntityId, list[Event]]:
+    """``entries`` by the destroyer they name; empty when any names none, so no hab is tied to a destroyer."""
+    found: dict[EntityId, list[Event]] = defaultdict(list)
+    for entry in entries:
+        destroyer = entry.attribute("destroyer")
+        if not isinstance(destroyer, EntityRef):
+            return {}
+        found[destroyer.entity_id].append(entry)
+    return found
+
+
+def _tied(
+    owner: EntityId, habs: Sequence[Event], by_destroyer: Mapping[EntityId, Sequence[Event]], gained: Sequence[_Gained]
+) -> dict[EntityId, tuple[list[Event], EventSource | None]]:
+    """The habs the save ties to one destroyer, with the ``Kills`` entry that tied them (ADR-0023).
+
+    Every hab of a group whose entries all name one destroyer, when they are at least as many as the habs. In a group
+    naming several, a hab whose display name one of them alone gained against ``owner``, unique among ``habs``; a
+    destroyer tied to more habs than it has entries ties none."""
+    if len(by_destroyer) == 1:
+        ((destroyer, entries),) = by_destroyer.items()
+        return {destroyer: (list(habs), None)} if len(entries) >= len(habs) else {}
+    names = Counter(_subject(hab).name for hab in habs)
+    gainers: dict[str, set[EntityId]] = defaultdict(set)
+    sources: dict[EntityId, EventSource] = {}
+    for entry in gained:
+        if entry.victim.entity_id != owner:
+            continue
+        sources[entry.destroyer] = entry.source
+        for name in entry.names:
+            gainers[name].add(entry.destroyer)
+    tied: dict[EntityId, tuple[list[Event], EventSource | None]] = {}
+    for hab in habs:
+        hab_name = _subject(hab).name
+        if hab_name is None or names[hab_name] > 1 or len(gainers[hab_name]) != 1:
+            continue  # a name shared in the group or gained by several destroyers ties no one, as for ships
+        (destroyer,) = gainers[hab_name]
+        if destroyer not in by_destroyer:
+            continue
+        tied.setdefault(destroyer, ([], sources[destroyer]))[0].append(hab)
+    return {destroyer: pair for destroyer, pair in tied.items() if len(pair[0]) <= len(by_destroyer[destroyer])}
 
 
 def _corroborating(entries: Sequence[Event], notifications: Mapping[str, Sequence[Event]]) -> tuple[Event, ...]:
@@ -285,31 +335,52 @@ def _corroborating(entries: Sequence[Event], notifications: Mapping[str, Sequenc
     return tuple(sorted((event for date in dates for event in notifications.get(date, ())), key=lambda e: e.id))
 
 
-def _signals(notes: Sequence[Event]) -> tuple[str, ...]:
-    return ("destruction_log", "notification") if notes else ("destruction_log",)
+def _signals(notes: Sequence[Event], kills: EventSource | None = None) -> tuple[str, ...]:
+    return ("destruction_log", *(("kills",) if kills else ()), *(("notification",) if notes else ()))
 
 
-def _destroyed(context: SpaceContext, key: DestructionKey, hab: Event, entry: Event, notes: Sequence[Event]) -> Event:
+def _destroyed(
+    context: SpaceContext,
+    key: DestructionKey,
+    hab: Event,
+    entries: Sequence[Event],
+    vanished: int,
+    notes: Sequence[Event],
+    kills: EventSource | None,
+) -> Event:
+    """A hab tied to the one destroyer ``entries`` name: high when they are as many as the habs tied to it, medium
+    when more; dated by the entry only when all share one date."""
     faction, hab_type, body_id = key
-    destroyer = entry.attribute("destroyer")
-    body = entry.attribute("space_body")
+    destroyer = entries[0].attribute("destroyer")
+    body = entries[0].attribute("space_body")
+    dates = tuple(sorted(str(entry.attribute("recorded_on")) for entry in entries))
+    recorded_on = dates[0] if len(set(dates)) == 1 else None
+    several = (
+        (("recorded_dates", dates), ("candidates", len(entries)), ("vanished", vanished)) if len(entries) > 1 else ()
+    )
+    if any(entry.confidence is Confidence.LOW for entry in entries):
+        confidence = Confidence.LOW
+    else:
+        confidence = Confidence.HIGH if len(entries) == vanished else Confidence.MEDIUM
     return inferred(
         context.build,
         space.HAB_DESTROYED,
         id_parts=(_subject(hab).entity_id,),
         primary=(hab,),
-        support=Support(events=(entry, *notes)),
+        primary_changes=(kills,) if kills else (),
+        support=Support(events=(*entries, *notes)),
         entities=(_subject(hab), context.ref(faction), _named(context, body), _named(context, destroyer)),
         attributes=(
             ("hab_type", hab_type),
             ("body", _named(context, body) or body),
             ("destroyer", _named(context, destroyer) or destroyer),
-            ("recorded_on", entry.attribute("recorded_on")),
-            ("signals", _signals(notes)),
+            *((("recorded_on", recorded_on),) if recorded_on is not None else ()),
+            *several,
+            ("signals", _signals(notes, kills)),
             ("ambiguous", False),
         ),
-        confidence=Confidence.LOW if entry.confidence is Confidence.LOW else Confidence.HIGH,
-        recorded_on=entry.attribute("recorded_on"),
+        confidence=confidence,
+        recorded_on=recorded_on,
     )
 
 
@@ -400,7 +471,7 @@ class _Losses:
     kills: list[EventSource] = field(default_factory=list)
 
 
-def _space_losses(context: SpaceContext, destroyed: Sequence[Event]) -> list[Event]:
+def _space_losses(context: SpaceContext, destroyed: Sequence[Event], gained: Sequence[_Gained]) -> list[Event]:
     pairs: dict[tuple[EntityId, EntityId], _Losses] = defaultdict(_Losses)
     victims: dict[EntityId, EntityRef] = {}
 
@@ -411,7 +482,6 @@ def _space_losses(context: SpaceContext, destroyed: Sequence[Event]) -> list[Eve
         if owner is not None and name is not None:
             vanished[(owner.entity_id, name)].append(event)
 
-    gained = _gained(context)
     destroyers: dict[tuple[EntityId, str], set[EntityId]] = defaultdict(set)
     for entry in gained:
         victims[entry.victim.entity_id] = entry.victim
