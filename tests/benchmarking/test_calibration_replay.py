@@ -183,7 +183,7 @@ def test_totals_and_moves_count_the_moved_rows_most_first_and_follow_the_type_fi
 
 
 def test_a_measure_has_the_two_window_ends_as_cut_offs() -> None:
-    window = cutoff_offsets(CONSTANTS)
+    window = cutoff_offsets()
 
     assert len(window) == 2
     assert window[0] == -window[1]
@@ -194,7 +194,7 @@ def test_a_measure_has_the_two_window_ends_as_cut_offs() -> None:
 
 
 def test_a_cut_off_lists_the_nearest_events_on_each_side_and_flags_those_a_cited_row_decided() -> None:
-    low = cutoff_offsets(CONSTANTS)[0]
+    low = cutoff_offsets()[0]
     rows = [row(f"near-{n}", shares=power(10 * low - 0.1 * (n + 1))) for n in range(CONSTANTS["neighbours"] + 2)]
     rows.append(row("inside", shares=power(10 * low + 0.1)))
     rows.extend(chain())

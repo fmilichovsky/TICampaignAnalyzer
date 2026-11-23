@@ -45,6 +45,7 @@ from tinarrative.model.kinds import Measure, Rule, ShareOf
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance_of
+from tinarrative.narrative.measures import SCALE_MAX, SCALE_MIN
 from tinarrative.narrative.milestones import MILESTONE_TEMPLATES
 from tinarrative.narrative.shares import SaveShares
 from tinarrative.narrative.significance import (
@@ -54,7 +55,10 @@ from tinarrative.narrative.significance import (
     ShareVariant,
     arithmetic,
     decide,
+    own_score,
+    scale,
     score_event,
+    settled_score,
 )
 
 COUNCILOR = EntityDomain.COUNCILOR
@@ -751,3 +755,15 @@ def test_a_technology_milestone_takes_its_curated_tier() -> None:
         narrative_level("technology.milestone", template="".join(MILESTONE_TEMPLATES) + "Unlisted", rationale="r")
         is Significance.MINOR
     )
+
+
+def test_the_plain_number_arithmetic_scales_a_share_and_moves_a_base_by_the_highest_scale() -> None:
+    assert scale(0.0, 1.0) == SCALE_MIN
+    assert scale(10**3, 1.0) == SCALE_MAX
+    assert scale(1.0, 1.0) == 0
+    assert own_score(40, ()) == 40
+    assert own_score(40, (-3, 5, 2)) == 45
+    assert own_score(98, (15,)) == 100
+    assert own_score(2, (-20,)) == 0
+    assert settled_score(45, (30, 61)) == 61
+    assert settled_score(45, ()) == 45

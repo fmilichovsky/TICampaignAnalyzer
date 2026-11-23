@@ -90,6 +90,10 @@ SCORE_BANDS: Mapping[Significance, tuple[int, int]] = {
 }
 """Fixed, so an event's score and level can never disagree; the scaling that moves a score is configured."""
 
+SCORE_MIN: Final = 0
+SCORE_MAX: Final = 100
+"""The bounds of an ``Event.score``."""
+
 UNSCORED: Final = -1
 """The ``Event.score`` default: replaced by the base of the event's level on construction."""
 
