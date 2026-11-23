@@ -9,13 +9,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 import tinarrative
 from tinarrative.benchmarking.calibration import table
+from tinarrative.benchmarking.calibration.progress import ProgressSnapshot
 from tinarrative.benchmarking.manifest import MANIFEST
 
 Status = Literal["fresh", "rebuilding", "failed"]
+STATUS_INTERVAL: Final = 1.0
+"""The fewest seconds between two writes of ``status.js`` during an extraction, unless a campaign changes phase."""
 REBUILD_PREFIX: Final = ".rebuild-"
 RETIRED_PREFIX: Final = ".retired-"
 
@@ -75,12 +78,14 @@ def refresh(
     *,
     rebuild: bool = False,
     on_stale: Callable[[CacheCheck], None] | None = None,
+    on_progress: Callable[[ProgressSnapshot], None] | None = None,
 ) -> CacheCheck:
     """Make the table under ``out`` current for ``samples`` and write ``status.js``; the check it acted on.
 
     ``on_stale`` runs after a stale (or ``rebuild``) table is found and before the rebuild starts, so a caller can
-    show the old table first. Raises ``CalibrationCacheError`` when the extraction fails, after writing ``failed``;
-    an ``OSError`` means ``out`` cannot be written.
+    show the old table first. While the table is extracted, ``status.js`` carries its ``progress``
+    (``ProgressSnapshot.to_status``) and ``on_progress`` is told every change. Raises ``CalibrationCacheError``
+    when the extraction fails, after writing ``failed``; an ``OSError`` means ``out`` cannot be written.
     """
     out.mkdir(parents=True, exist_ok=True)
     found = check(samples, out)
@@ -93,7 +98,7 @@ def refresh(
     scratch = Path(tempfile.mkdtemp(prefix=REBUILD_PREFIX, dir=out))
     try:
         try:
-            table.extract_all(samples, scratch, key=found.key)
+            table.extract_all(samples, scratch, key=found.key, on_progress=_reporter(out, found.key, on_progress))
         except Exception as error:  # any pipeline failure is reported as a failed rebuild (exit 2)
             message = f"{type(error).__name__}: {error}"
             _status(out, found.key, "failed", message)
@@ -124,6 +129,27 @@ def _swap(scratch: Path, out: Path) -> None:
         shutil.rmtree(retired, ignore_errors=True)
 
 
-def _status(out: Path, key: str, state: Status, message: str = "") -> None:
+def _reporter(
+    out: Path, key: str, on_progress: Callable[[ProgressSnapshot], None] | None
+) -> Callable[[ProgressSnapshot], None]:
+    """Write each progress snapshot to ``status.js`` (at most every ``STATUS_INTERVAL`` seconds, or when a campaign
+    changes phase) and pass it on."""
+    last: list[tuple[float, tuple[str, ...]]] = []
+
+    def report(snapshot: ProgressSnapshot) -> None:
+        phases = tuple(step.phase for step in snapshot.campaigns)
+        if not last or phases != last[0][1] or snapshot.elapsed - last[0][0] >= STATUS_INTERVAL:
+            _status(out, key, "rebuilding", progress=snapshot.to_status())
+            last[:] = [(snapshot.elapsed, phases)]
+        if on_progress is not None:
+            on_progress(snapshot)
+
+    return report
+
+
+def _status(out: Path, key: str, state: Status, message: str = "", *, progress: dict[str, Any] | None = None) -> None:
     written_at = datetime.now(UTC).isoformat(timespec="seconds")
-    table.write_status(out, {"key": key, "state": state, "message": message, "written_at": written_at})
+    status: dict[str, Any] = {"key": key, "state": state, "message": message, "written_at": written_at}
+    if progress is not None:
+        status["progress"] = progress
+    table.write_status(out, status)

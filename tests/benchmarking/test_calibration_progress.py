@@ -1,0 +1,140 @@
+"""The progress of an extraction of the calibration table: the work credited, the time left and its reading."""
+
+from __future__ import annotations
+
+import pytest
+
+from tinarrative.benchmarking.calibration.progress import (
+    ESTIMATE_FROM,
+    PHASE_WEIGHTS,
+    ExtractionProgress,
+    ProgressSnapshot,
+)
+
+SIZES = {"first": {"a.json": 100, "b.json": 300}, "second": {"c.json": 600}}
+TOTAL = sum(sum(saves.values()) for saves in SIZES.values())
+SURVEY, SEQUENCE = PHASE_WEIGHTS["survey"], PHASE_WEIGHTS["sequence"]
+
+
+class Clock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def test_the_weights_cover_the_whole_work() -> None:
+    assert sum(PHASE_WEIGHTS.values()) == pytest.approx(1.0)
+    assert ExtractionProgress(SIZES).snapshot().total_work == pytest.approx(TOTAL)
+
+
+def test_each_save_is_credited_by_its_size_and_phase_weight_once_whatever_order_it_finishes_in() -> None:
+    progress = ExtractionProgress(SIZES)
+    first = progress.campaign("first")
+
+    first.phase("survey")
+    first.saves_done(["b.json"])
+    first.saves_done(["b.json", "unknown.json"])
+    assert progress.snapshot().done_work == pytest.approx(300 * SURVEY)
+
+    first.saves_done(["a.json"])
+    first.phase("sequence")
+    first.saves_done(["b.json", "a.json"])
+
+    assert progress.snapshot().done_work == pytest.approx(400 * (SURVEY + SEQUENCE))
+
+
+def test_a_phase_that_reports_no_saves_is_credited_whole_when_it_ends() -> None:
+    progress = ExtractionProgress(SIZES)
+    first = progress.campaign("first")
+
+    first.phase("decompress")
+    first.saves_done(["a.json", "b.json"])
+    assert progress.snapshot().done_work == 0
+
+    first.phase("survey")
+    assert progress.snapshot().done_work == pytest.approx(400 * PHASE_WEIGHTS["decompress"])
+
+
+def test_leaving_a_save_phase_credits_the_saves_it_did_not_report() -> None:
+    """A merged duplicate is never reported by the sequence phase, yet a finished campaign is fully credited."""
+    progress = ExtractionProgress(SIZES)
+    first = progress.campaign("first")
+
+    first.phase("survey")
+    first.saves_done(["a.json"])
+    first.phase("sequence")
+    first.phase("narrative")
+    first.phase("done")
+
+    snapshot = progress.snapshot()
+    assert snapshot.done_work == pytest.approx(400 - 400 * PHASE_WEIGHTS["decompress"])
+    assert [(step.name, step.phase, step.done, step.total) for step in snapshot.campaigns] == [
+        ("first", "done", 2, 2),
+        ("second", "waiting", 0, 1),
+    ]
+
+
+def test_the_time_left_follows_the_throughput_once_enough_work_is_done() -> None:
+    clock = Clock()
+    progress = ExtractionProgress(SIZES, clock=clock)
+    second = progress.campaign("second")
+    second.phase("survey")
+
+    clock.now = 10.0
+    assert progress.snapshot().fraction < ESTIMATE_FROM
+    assert progress.snapshot().remaining is None
+
+    second.saves_done(["c.json"])
+    done = 600 * SURVEY
+    assert progress.snapshot().remaining == pytest.approx(10.0 * (TOTAL - done) / done)
+
+
+def test_no_time_left_is_estimated_once_all_is_done() -> None:
+    clock = Clock()
+    progress = ExtractionProgress(SIZES, clock=clock)
+    clock.now = 5.0
+    for name in SIZES:
+        for phase in ("decompress", "survey", "sequence", "narrative", "done"):
+            progress.campaign(name).phase(phase)
+
+    assert progress.snapshot().fraction == 1.0
+    assert progress.snapshot().remaining is None
+
+
+def test_every_change_is_told_with_a_snapshot() -> None:
+    seen: list[ProgressSnapshot] = []
+    progress = ExtractionProgress(SIZES, on_change=seen.append)
+    first = progress.campaign("first")
+
+    first.phase("survey")
+    first.saves_done(["a.json"])
+    first.saves_done(["a.json"])
+
+    assert [snapshot.done_work for snapshot in seen] == [0, pytest.approx(100 * SURVEY)]
+
+
+def test_the_status_carries_what_a_reader_shows() -> None:
+    clock = Clock()
+    progress = ExtractionProgress(SIZES, clock=clock)
+    progress.campaign("first").phase("survey")
+    progress.campaign("first").saves_done(["a.json", "b.json"])
+    progress.campaign("second").phase("sequence")
+    clock.now = 4.0
+
+    status = progress.snapshot().to_status()
+
+    assert set(status) == {"percent", "elapsed_seconds", "remaining_seconds", "text", "campaigns"}
+    assert 0 < status["percent"] < 100
+    assert status["elapsed_seconds"] == 4
+    assert isinstance(status["remaining_seconds"], int)
+    assert status["campaigns"] == [
+        {"name": "first", "phase": "survey", "done": 2, "total": 2},
+        {"name": "second", "phase": "sequence", "done": 0, "total": 1},
+    ]
+    assert "first" in status["text"] and "second" in status["text"]
+
+
+def test_no_work_counts_as_done() -> None:
+    assert ExtractionProgress({}).snapshot().fraction == 1.0

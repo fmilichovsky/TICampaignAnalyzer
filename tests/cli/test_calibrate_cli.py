@@ -67,6 +67,10 @@ def test_the_first_run_builds_the_cache_and_prints_the_text_readout(paths: tuple
 
     assert code == cli.EXIT_SUCCESS
     assert "Extracting the calibration table" in stderr
+    lines = stderr.splitlines()
+    assert any("politics" in line for line in lines[1:-1]), "a line per finished campaign"
+    assert "took" in lines[-1], "the time the extraction took"
+    assert "\r" not in stderr, "no live line off a terminal"
     assert stdout.startswith("# Share calibration readout")
     assert "## Snippet" in stdout
     assert table.read_status(out / "status.js")["state"] == "fresh"

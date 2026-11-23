@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import tempfile
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final
@@ -17,7 +17,8 @@ from tinarrative.benchmarking.calibration.drafts import (
     draft_scalings,
     validate_drafts,
 )
-from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns
+from tinarrative.benchmarking.calibration.progress import CampaignProgress, ExtractionProgress, ProgressSnapshot
+from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns, raw_sizes
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.entities import EntityId
@@ -40,6 +41,7 @@ from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, ScalingSpec
 from tinarrative.narrative.significance import IntervalShares, decide, score_event
 from tinarrative.narrative.situation import SituationReport
 from tinarrative.sequence import (
+    IntervalResult,
     SaveRef,
     SurveyFailure,
     narrative_events,
@@ -72,18 +74,38 @@ def declared_drafts(drafts: Sequence[DraftShare] | None = None) -> tuple[DraftSh
     return chosen
 
 
-def extract_campaign(saves: Sequence[Path], drafts: Sequence[DraftShare] | None = None) -> dict[str, Any]:
+def extract_campaign(
+    saves: Sequence[Path], drafts: Sequence[DraftShare] | None = None, progress: CampaignProgress | None = None
+) -> dict[str, Any]:
     """The campaign document from a separate in-process run at code defaults: one row per finished event, one
     shadow row per draft share and event of its types (``drafts``, by default the declared ones), and the
-    ``names`` of the entities that were renamed (``name_history``)."""
+    ``names`` of the entities that were renamed (``name_history``). ``progress`` is told each phase and each save
+    a phase finishes."""
     chosen = declared_drafts(drafts)
-    outcomes = list(survey_all(list(saves)))
+    paths = list(saves)
+    if progress is not None:
+        progress.phase("survey")
+    outcomes: list[SaveRef | SurveyFailure] = []
+    for path, outcome in zip(paths, survey_all(paths), strict=True):
+        outcomes.append(outcome)
+        if progress is not None:
+            progress.saves_done([path.name])
     failures = [outcome for outcome in outcomes if isinstance(outcome, SurveyFailure)]
     if failures:
         raise CalibrationTableError(f"cannot survey {len(failures)} save(s): {failures[0]}")
     refs = [outcome for outcome in outcomes if isinstance(outcome, SaveRef)]
     plan = plan_sequence(refs)
-    intervals = list(run_sequence(plan, inferred=True))
+    if progress is not None:
+        progress.phase("sequence")
+    intervals: list[IntervalResult] = []
+    for interval in run_sequence(plan, inferred=True):
+        intervals.append(interval)
+        if progress is not None:
+            # The first interval finishes the first two saves; each later one finishes its second save.
+            finished = plan.saves[:2] if len(intervals) == 1 else plan.saves[len(intervals) : len(intervals) + 1]
+            progress.saves_done(Path(path).name for save in finished for path in (save.source, *save.aliases))
+    if progress is not None:
+        progress.phase("narrative")
     narrative = narrative_events(intervals)
     dates = {interval.key: (interval.before.date, interval.after.date) for interval in intervals}
     explainers = explained_by((event for interval in intervals for event in interval.objective), narrative)
@@ -407,18 +429,35 @@ def read_status(path: Path) -> dict[str, Any]:
     return _unwrap(path.read_text(encoding="utf-8").rstrip("\n"), STATUS_PREFIX, path)
 
 
-def extract_all(samples: Path, directory: Path, *, key: str, now: datetime | None = None) -> list[str]:
-    """Extract every campaign that is not a ``prefix_of`` another into ``directory``; the campaigns extracted."""
+def extract_all(
+    samples: Path,
+    directory: Path,
+    *,
+    key: str,
+    now: datetime | None = None,
+    on_progress: Callable[[ProgressSnapshot], None] | None = None,
+) -> list[str]:
+    """Extract every campaign that is not a ``prefix_of`` another into ``directory``; the campaigns extracted.
+
+    ``on_progress`` is called with the extraction's progress after every change, from the extracting thread.
+    """
     stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
     chosen = declared_drafts()
     names: list[str] = []
     types: set[str] = set()
     histories: dict[str, Mapping[str, Any]] = {}
-    for name, files in extractable_campaigns(samples).items():
+    campaigns = extractable_campaigns(samples)
+    progress = ExtractionProgress(
+        {name: raw_sizes(samples, name, files) for name, files in campaigns.items()}, on_change=on_progress
+    )
+    for name, files in campaigns.items():
+        campaign = progress.campaign(name)
         with tempfile.TemporaryDirectory(prefix="calibration-") as scratch:
+            campaign.phase("decompress")
             decompress_samples(files, Path(scratch))
-            document = extract_campaign(sorted(Path(scratch).iterdir()), chosen)
+            document = extract_campaign(sorted(Path(scratch).iterdir()), chosen, campaign)
         write_campaign(directory, name, document)
+        campaign.phase("done")
         names.append(name)
         histories[name] = document["names"]
         types.update(row["type"] for row in document["events"])

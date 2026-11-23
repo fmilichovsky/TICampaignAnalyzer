@@ -102,6 +102,18 @@ def extractable_campaigns(samples: Path) -> dict[str, list[Path]]:
     return {name: files for name, files in sample_files(samples).items() if name not in prefixes}
 
 
+def raw_sizes(samples: Path, campaign: str, files: Iterable[Path]) -> dict[str, int]:
+    """The decompressed size of each of ``files`` of ``campaign``, by decompressed name, as the manifest lists it; a
+    file it lists without one counts as its compressed size."""
+    manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
+    listed = manifest["campaigns"].get(campaign, {}).get("files", {})
+    sizes: dict[str, int] = {}
+    for file in files:
+        raw = listed.get(file.name, {}).get("raw_bytes")
+        sizes[file.name.removesuffix(".xz")] = raw if isinstance(raw, int) else file.stat().st_size
+    return sizes
+
+
 def prefix_of(samples: Path, campaign: str) -> str | None:
     """The campaign ``campaign`` is a leading slice of, or None."""
     manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
