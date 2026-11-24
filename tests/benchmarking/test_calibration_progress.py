@@ -8,14 +8,14 @@ import pytest
 
 from tinarrative.benchmarking.calibration.progress import (
     ESTIMATE_FROM,
-    PHASE_WEIGHTS,
     ExtractionProgress,
     ProgressSnapshot,
+    phase_weights,
 )
 
 SIZES = {"first": {"a.json": 100, "b.json": 300}, "second": {"c.json": 600}}
 TOTAL = sum(sum(saves.values()) for saves in SIZES.values())
-SURVEY, SEQUENCE = PHASE_WEIGHTS["survey"], PHASE_WEIGHTS["sequence"]
+SURVEY, SEQUENCE = phase_weights(1)["survey"], phase_weights(1)["sequence"]
 
 
 class Clock:
@@ -26,9 +26,18 @@ class Clock:
         return self.now
 
 
-def test_the_weights_cover_the_whole_work() -> None:
-    assert sum(PHASE_WEIGHTS.values()) == pytest.approx(1.0)
+def test_the_weights_of_one_process_cover_the_whole_work_and_those_of_more_workers_less() -> None:
+    assert sum(phase_weights(1).values()) == pytest.approx(1.0)
+    assert sum(phase_weights(14).values()) < sum(phase_weights(4).values()) < 1.0
+    assert phase_weights(14)["narrative"] == phase_weights(1)["narrative"]
     assert ExtractionProgress(SIZES).snapshot().total_work == pytest.approx(TOTAL)
+
+
+def test_a_campaign_with_more_workers_has_less_work_in_the_total() -> None:
+    jobs = {"first": 1, "second": 14}
+    expected = 400 * sum(phase_weights(1).values()) + 600 * sum(phase_weights(14).values())
+
+    assert ExtractionProgress(SIZES, jobs).snapshot().total_work == pytest.approx(expected)
 
 
 def test_each_save_is_credited_by_its_size_and_phase_weight_once_whatever_order_it_finishes_in() -> None:
@@ -56,7 +65,7 @@ def test_a_phase_that_reports_no_saves_is_credited_whole_when_it_ends() -> None:
     assert progress.snapshot().done_work == 0
 
     first.phase("survey")
-    assert progress.snapshot().done_work == pytest.approx(400 * PHASE_WEIGHTS["decompress"])
+    assert progress.snapshot().done_work == pytest.approx(400 * phase_weights(1)["decompress"])
 
 
 def test_leaving_a_save_phase_credits_the_saves_it_did_not_report() -> None:
@@ -71,7 +80,7 @@ def test_leaving_a_save_phase_credits_the_saves_it_did_not_report() -> None:
     first.phase("done")
 
     snapshot = progress.snapshot()
-    assert snapshot.done_work == pytest.approx(400 - 400 * PHASE_WEIGHTS["decompress"])
+    assert snapshot.done_work == pytest.approx(400 - 400 * phase_weights(1)["decompress"])
     assert [(step.name, step.phase, step.done, step.total) for step in snapshot.campaigns] == [
         ("first", "done", 2, 2),
         ("second", "waiting", 0, 1),
