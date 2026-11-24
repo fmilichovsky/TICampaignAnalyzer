@@ -100,7 +100,7 @@ def test_another_revision_is_measured_through_its_own_interpreter_and_lacks_n_a_
 ) -> None:
     python = _fake_revision(tmp_path, _measured(without=timing.BASE_SWITCH))
 
-    report = timing.measure(calibration, repeats=2, base_python=python, samples=tmp_path)
+    report = timing.measure(calibration, repeats=2, base_python=python, base_samples=tmp_path)
 
     base = report["base"]
     assert json.loads(json.dumps(report)) == report
@@ -122,14 +122,14 @@ def test_an_interpreter_that_fails_is_a_timing_error(calibration: server.Calibra
     script.chmod(0o755)
 
     with pytest.raises(timing.TimingError, match="ImportError"):
-        timing.measure(calibration, repeats=1, base_python=str(script), samples=tmp_path)
+        timing.measure(calibration, repeats=1, base_python=str(script), base_samples=tmp_path)
 
 
 def test_the_markdown_lists_base_and_head_figures_per_request_type_with_n_a_and_row_counts(
     calibration: server.Calibration, tmp_path: Path
 ) -> None:
     python = _fake_revision(tmp_path, _measured(without=timing.BASE_SWITCH))
-    report = timing.measure(calibration, repeats=2, base_python=python, samples=tmp_path)
+    report = timing.measure(calibration, repeats=2, base_python=python, base_samples=tmp_path)
 
     text = timing.markdown(report, report["base"], head_label="head abc", base_label="main def")
 
@@ -138,3 +138,20 @@ def test_the_markdown_lists_base_and_head_figures_per_request_type_with_n_a_and_
     assert "| full answer | 0.750 | " in text
     assert "| base switch | n/a | " in text
     assert f"`main def`: 7 table rows. Head `head abc`: {sum(report['campaigns'].values()):,} table rows." in text
+
+
+def test_the_other_revision_extracts_from_the_samples_it_is_given(
+    calibration: server.Calibration, tmp_path: Path
+) -> None:
+    seen = tmp_path / "seen"
+    output = tmp_path / "measured.json"
+    output.write_text(json.dumps(_measured()), encoding="utf-8")
+    script = tmp_path / "recording-python"
+    script.write_text(f"#!/bin/sh\necho \"$3\" > '{seen}'\ncat '{output}'\n", encoding="utf-8")
+    script.chmod(0o755)
+    base_samples = tmp_path / "base-samples"
+    base_samples.mkdir()
+
+    timing.measure(calibration, repeats=1, base_python=str(script), base_samples=base_samples)
+
+    assert Path(seen.read_text(encoding="utf-8").strip()) == base_samples.resolve()

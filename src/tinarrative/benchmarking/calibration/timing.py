@@ -48,12 +48,12 @@ def requests(index: Mapping[str, Any], tables: Tables) -> dict[str, list[Body]]:
 
 
 def measure(
-    calibration: Calibration, *, repeats: int, base_python: str | None = None, samples: Path | None = None
+    calibration: Calibration, *, repeats: int, base_python: str | None = None, base_samples: Path | None = None
 ) -> dict[str, Any]:
     """Each request of ``requests`` sent ``repeats`` times through ``calibration.handle``, timed one by one.
 
     The table is loaded, and one answer given, first, so the load is not in any timing. With ``base_python`` (and
-    the ``samples`` it extracts from) the same requests are also timed on that revision (``measure_revision``) and
+    the ``base_samples`` it extracts from) the same requests are also timed on that revision (``measure_revision``) and
     its report is under ``base``. Raises ``TimingError`` when the table cannot be read or a request is not answered.
     """
     try:
@@ -65,8 +65,8 @@ def measure(
     seconds, sizes = collect(lambda body: _answer(calibration, body), asked, repeats=repeats)
     measured = report(key, tables, asked, seconds, sizes, repeats=repeats)
     if base_python is not None:
-        assert samples is not None
-        measured["base"] = measure_revision(base_python, samples, asked, repeats=repeats)
+        assert base_samples is not None
+        measured["base"] = measure_revision(base_python, base_samples, asked, repeats=repeats)
     return measured
 
 
