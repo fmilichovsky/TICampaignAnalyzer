@@ -67,8 +67,8 @@ def test_the_report_names_each_request_type_with_its_figures_and_the_tables_row_
     assert report["sweep_answers"] == timing.SWEEP_ANSWERS
     assert set(report["requests"]) == {timing.FULL, timing.SWEEP, timing.TYPE_FILTER, timing.BASE_SWITCH}
     for figures in report["requests"].values():
-        assert set(figures) == {"count", "median_seconds", "p95_seconds", "answer_bytes"}
-        assert figures["median_seconds"] <= figures["p95_seconds"]
+        assert set(figures) == {"count", "median_ms", "p95_ms", "answer_bytes"}
+        assert figures["median_ms"] <= figures["p95_ms"]
         assert figures["answer_bytes"] > 0
     assert report["requests"][timing.SWEEP]["count"] == 2 * len(timing.requests(INDEX, TABLES)[timing.SWEEP])
     assert report["requests"][timing.FULL]["count"] == 2
@@ -124,8 +124,8 @@ def test_another_revision_is_measured_through_its_own_interpreter_and_lacks_n_a_
     assert base["requests"][timing.BASE_SWITCH] is None
     assert base["requests"][timing.FULL] == {
         "count": 2,
-        "median_seconds": 0.75,
-        "p95_seconds": 1.0,
+        "median_ms": 750.0,
+        "p95_ms": 1000.0,
         "answer_bytes": 200,
     }
     assert set(base["requests"]) == set(report["requests"])
@@ -149,42 +149,42 @@ def test_the_markdown_lists_base_and_head_figures_per_request_type_with_n_a_and_
     text = timing.markdown(report, report["base"], head_label="head abc", base_label="main def")
 
     assert text.startswith(timing.MARKER + "\n")
-    assert "| Request | Median s (base) | Median s (head)" in text
-    assert "| full answer | 0.750 | " in text
+    assert "| Request | Median ms (base) | Median ms (head)" in text
+    assert "| full answer | 750.0 | " in text
     assert "| base switch | n/a | " in text
     assert "`main def`: 7 table rows." in text
     assert f"Head `head abc`: {sum(report['campaigns'].values()):,} table rows." in text
 
 
 def _report(median: float, size: int, *, kinds: tuple[str, ...] = (timing.FULL, timing.SWEEP)) -> dict[str, object]:
-    figures = {"count": 5, "median_seconds": median, "p95_seconds": median, "answer_bytes": size}
+    figures = {"count": 5, "median_ms": median, "p95_ms": median, "answer_bytes": size}
     return {"key": "k", "campaigns": {"alpha": 7}, "repeats": 5, "requests": {kind: figures for kind in kinds}}
 
 
 def test_the_markdown_leads_with_the_changes_of_each_request_and_keeps_the_raw_figures_below() -> None:
-    base, head = _report(2.0, 1000), _report(2.5, 1000)
+    base, head = _report(2000.0, 1000), _report(2500.0, 1000)
 
     text = timing.markdown(head, base, head_label="h", base_label="b")
 
-    assert "Changed: full answer median ▲ +0.500 s (+25.0%); sweep request median ▲ +0.500 s (+25.0%)." in text
-    assert "| full answer | ▲ +0.500 s (+25.0%) | ▲ +0.500 s (+25.0%) | 0 |" in text
+    assert "Changed: full answer median ▲ +500.0 ms (+25.0%); sweep request median ▲ +500.0 ms (+25.0%)." in text
+    assert "| full answer | ▲ +500.0 ms (+25.0%) | ▲ +500.0 ms (+25.0%) | 0 |" in text
     assert "| type filter | – | – | – |" in text
-    assert text.index("| Request | Δ median s") < text.index("<details>") < text.index("| Median s (base)")
-    assert "| full answer | 2.000 | 2.500 |" in text
+    assert text.index("| Request | Δ median ms") < text.index("<details>") < text.index("| Median ms (base)")
+    assert "| full answer | 2,000.0 | 2,500.0 |" in text
 
 
 def test_the_markdown_flags_neither_a_median_change_under_the_threshold_nor_a_one_byte_change() -> None:
-    base, head = _report(2.0, 1_000_000), _report(2.2, 1_000_001)
+    base, head = _report(2000.0, 1_000_000), _report(2200.0, 1_000_001)
 
     text = timing.markdown(head, base, head_label="h", base_label="b")
 
     assert "Changed:" not in text
     assert "No median change of 15%+ nor answer size change of 1%+." in text
-    assert "▲ +0.200 s (+10.0%)" in text
+    assert "▲ +200.0 ms (+10.0%)" in text
 
 
 def test_the_markdown_flags_a_size_change_of_one_per_cent() -> None:
-    base, head = _report(2.0, 1000), _report(2.0, 900)
+    base, head = _report(2000.0, 1000), _report(2000.0, 900)
 
     text = timing.markdown(head, base, head_label="h", base_label="b")
 
