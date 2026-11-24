@@ -138,7 +138,12 @@ _Avoid_: reference, rate, clamp
 The share at which an event rises one level above the level it starts from, and the share at which it drops one
 below it. A scaling declares its rise share; without a drop share it keeps the default width. A share never drops
 an event below minor.
-_Avoid_: cut-off, threshold, reference window
+_Avoid_: cut-off (the rise share is only the first cut-off above), threshold, reference window
+
+**Cut-off**:
+The share at which an event moves a given number of levels from the level it starts from. The rise share is the
+first cut-off above and the drop share the first below; every further one is as far again, by the scaling's width.
+_Avoid_: threshold, band edge
 
 **Nuclear share**:
 The warheads a nuclear arc built or dismantled, net, as a share of the world's warheads: the larger world total of
