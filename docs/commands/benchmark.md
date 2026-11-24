@@ -355,8 +355,8 @@ tinarrative benchmark calibrate open --port 8770
 ```
 tinarrative benchmark calibrate time [--samples PATH] [--out PATH] [--rebuild] [--jobs N]
                                      [--repeats N] [--output PATH] [--base-python PYTHON]
-                                     [--base-label LABEL] [--label LABEL] [--run-url URL]
-                                     [--report PATH]
+                                     [--base-samples PATH] [--base-label LABEL] [--label LABEL]
+                                     [--run-url URL] [--report PATH]
 ```
 <!-- end generated -->
 
@@ -364,7 +364,7 @@ Measures how long the calibration page takes to get its answers, so you can see 
 the answers it sends made the page slower. It refreshes the cache the way [`calibrate report`](#benchmark-calibrate-report)
 does, then prints (or writes) JSON with the median and 95th-percentile seconds and the size of the answers, for the
 kinds of request the page makes. It measures the code in this checkout, unless `--base-python` names another
-revision's interpreter: that interpreter extracts its own table from `--samples` and times the same requests through
+revision's interpreter: that interpreter extracts its own table from `--base-samples` (default `--samples`, so the same campaigns) and times the same requests through
 its own server handler, and the JSON gains a `base` report beside the head's figures. A request type the other
 revision cannot answer has `null` figures and shows as `n/a`. `--report` writes the base-versus-head Markdown table
 that the `calibration-metrics` workflow posts ([benchmarks](../../benchmarks/README.md#on-demand-runs)).
@@ -389,7 +389,8 @@ tinarrative benchmark calibrate time --base-python ../main/.venv/bin/python --re
 | `--jobs N` | Worker processes for a rebuild; 1 runs everything in one process; the table is the same (default: the CPUs, at most what memory holds). |
 | `--repeats N` | Times each request is sent (default 5). |
 | `--output PATH` | Write the timing JSON here (default: stdout). |
-| `--base-python PYTHON` | Another revision's interpreter: it extracts its own table from --samples and times the same requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report. |
+| `--base-python PYTHON` | Another revision's interpreter: it extracts its own table (from --base-samples) and times the same requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report. |
+| `--base-samples PATH` | The samples directory the base extracts from (default: --samples), so a changed sample shows its effect. |
 | `--base-label LABEL` | The base revision's name in --report (default base). |
 | `--label LABEL` | This revision's name in --report (default head). |
 | `--run-url URL` | The workflow run the --report links to. |

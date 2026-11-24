@@ -141,3 +141,12 @@ def test_an_interpreter_that_cannot_be_run_is_a_usage_error(paths: tuple[Path, P
 
     assert code == cli.EXIT_USAGE_ERROR
     assert "no-python" in stderr
+
+
+def test_base_samples_that_are_not_a_directory_are_an_input_error(paths: tuple[Path, Path], tmp_path: Path) -> None:
+    code, _, stderr = timed(
+        paths, "--base-python", _fake_python(tmp_path), "--base-samples", str(tmp_path / "none"), "--repeats", "1"
+    )
+
+    assert code == cli.EXIT_INPUT_ERROR
+    assert "not a directory" in stderr

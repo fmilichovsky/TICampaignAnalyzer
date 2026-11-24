@@ -140,8 +140,10 @@ Timings from different runners are not comparable, which is why each campaign's 
 server (see [Samples](#samples)) in one job, not a per-sample matrix: all sample campaigns go into one table. It
 installs base and head in their own environments on one runner and runs head's
 [`benchmark calibrate time`](../docs/commands/benchmark.md#benchmark-calibrate-time) with `--base-python`. The base's
-interpreter extracts that revision's own table and answers the same request list through its own server handler, so a
-change to the replay or the server shows its effect. An answer type the base cannot give, such as the summary answer
+interpreter extracts that revision's own table from the samples in the base checkout (`--base-samples`) and answers
+the same request list through its own server handler, so a
+change to the replay or the server, or to a sample, shows its effect. (The request list is built from head's table; a
+request the base's table cannot answer is `n/a`.) An answer type the base cannot give, such as the summary answer
 before it exists, is reported as `n/a`. The comment has its own marker and lists, per request type, base and head
 median and p95 seconds and answer bytes, with each table's row count.
 
