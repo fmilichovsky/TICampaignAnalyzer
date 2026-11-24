@@ -150,3 +150,39 @@ def test_base_samples_that_are_not_a_directory_are_an_input_error(paths: tuple[P
 
     assert code == cli.EXIT_INPUT_ERROR
     assert "not a directory" in stderr
+
+
+def test_progress_goes_to_stderr_by_round_and_group_and_leaves_stdout_as_the_json(paths: tuple[Path, Path]) -> None:
+    code, stdout, stderr = timed(paths, "--repeats", "2")
+
+    assert code == cli.EXIT_SUCCESS, stderr
+    json.loads(stdout)
+    lines = stderr.splitlines()
+    prefix = "tinarrative benchmark calibrate time: "
+    assert all(line.startswith(prefix) for line in lines)
+    body = [line.removeprefix(prefix) for line in lines]
+    assert "The calibration table in" in body[0] and body[0].endswith("is fresh.")
+    assert body[1].startswith("head: 2 rounds of ")
+    assert body[2] == "head: starting round 1/2"
+    assert body[3].startswith("  full: 1 request in ")
+    assert body[4].startswith("  sweep: ") and " requests in " in body[4]
+    assert body[5].startswith("  type filter: 1 request in ")
+    assert body[6].startswith("  base switch: 1 request in ")
+    assert body[7].startswith("head: round 1/2 done in ")
+    assert [line for line in body if line.startswith("head: starting round")] == [
+        "head: starting round 1/2",
+        "head: starting round 2/2",
+    ]
+    assert body[-1].startswith("head: measured in ")
+
+
+def test_the_base_side_is_announced_and_its_time_reported_after_the_head(
+    paths: tuple[Path, Path], tmp_path: Path
+) -> None:
+    code, _, stderr = timed(paths, "--repeats", "1", "--base-python", _fake_python(tmp_path))
+
+    assert code == cli.EXIT_SUCCESS, stderr
+    lines = stderr.splitlines()
+    announced = next(i for i, line in enumerate(lines) if ": base: extracting its table from " in line)
+    assert "head: measured in " in lines[announced - 1]
+    assert ": base: done in " in lines[-1]

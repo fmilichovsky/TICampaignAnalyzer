@@ -155,3 +155,37 @@ def test_the_other_revision_extracts_from_the_samples_it_is_given(
     timing.measure(calibration, repeats=1, base_python=str(script), base_samples=base_samples)
 
     assert Path(seen.read_text(encoding="utf-8").strip()) == base_samples.resolve()
+
+
+def test_progress_is_told_in_order_with_each_group_and_round_summed_from_the_timed_requests(
+    calibration: server.Calibration,
+) -> None:
+    steps: list[timing.Progress] = []
+
+    report = timing.measure(calibration, repeats=2, on_progress=steps.append)
+
+    sizes = {kind: len(bodies) for kind, bodies in timing.requests(INDEX, TABLES).items()}
+    per_round = sum(sizes.values())
+    assert [step.event for step in steps[:3]] == ["start", "warm_up", "round"]
+    assert steps[0] == timing.Progress("start", rounds=2, total=per_round)
+    assert steps[-1].event == "head_done"
+    assert [step.event for step in steps].count("request") == 2 * per_round
+    groups = [step for step in steps if step.event == "group" and step.round == 1]
+    assert {step.kind: step.total for step in groups} == sizes
+    done = [step for step in steps if step.event == "round_done"]
+    assert [(step.round, step.rounds) for step in done] == [(1, 2), (2, 2)]
+    assert sum(step.seconds for step in done) == pytest.approx(steps[-1].seconds)
+    figures = report["requests"][timing.SWEEP]
+    assert figures["count"] == 2 * sizes[timing.SWEEP]
+    sweep_requests = [
+        step for step in steps if step.event == "request" and step.kind == timing.SWEEP and step.round == 1
+    ]
+    assert [step.done for step in sweep_requests] == list(range(1, sizes[timing.SWEEP] + 1))
+
+
+def test_a_report_without_a_listener_is_the_same_shape(calibration: server.Calibration) -> None:
+    quiet = timing.measure(calibration, repeats=1)
+    heard = timing.measure(calibration, repeats=1, on_progress=lambda _: None)
+
+    assert quiet.keys() == heard.keys()
+    assert quiet["requests"].keys() == heard["requests"].keys()

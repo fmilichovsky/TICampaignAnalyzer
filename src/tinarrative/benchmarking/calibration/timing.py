@@ -10,9 +10,10 @@ import subprocess
 import tempfile
 import time
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from http import HTTPStatus
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 from tinarrative.benchmarking.calibration.replay import LEVELS, ReplayError
 from tinarrative.benchmarking.calibration.server import Calibration, Request, Tables
@@ -31,6 +32,32 @@ _WINDOW: Final = 1.75
 
 Body = dict[str, Any]
 
+Event = Literal["start", "warm_up", "round", "request", "group", "round_done", "head_done", "base", "base_done"]
+
+
+@dataclass(frozen=True)
+class Progress:
+    """One step of a measurement, told to ``on_progress`` as it happens; the fields each event fills are:
+
+    - ``start``: ``rounds``, and ``total`` the requests of one round.
+    - ``warm_up``: nothing; the untimed request before the first round.
+    - ``round``: ``round`` and ``rounds``; a round begins.
+    - ``request``: ``kind`` and its ``done`` of ``total`` requests in this round (sent and timed already).
+    - ``group``: ``kind``, ``total`` requests, and the ``seconds`` they took, as timed.
+    - ``round_done``: ``round``, ``rounds`` and the ``seconds`` its requests took, as timed.
+    - ``head_done``: ``seconds`` of every timed request, so the warm-up and the reporting are not in it.
+    - ``base``: the other revision is about to extract and time; it reports nothing until it is done.
+    - ``base_done``: ``seconds`` of the wall clock it took, extraction included.
+    """
+
+    event: Event
+    round: int = 0
+    rounds: int = 0
+    kind: str = ""
+    done: int = 0
+    total: int = 0
+    seconds: float = 0.0
+
 
 class TimingError(Exception):
     """The server could not answer a request of the list."""
@@ -48,41 +75,73 @@ def requests(index: Mapping[str, Any], tables: Tables) -> dict[str, list[Body]]:
 
 
 def measure(
-    calibration: Calibration, *, repeats: int, base_python: str | None = None, base_samples: Path | None = None
+    calibration: Calibration,
+    *,
+    repeats: int,
+    base_python: str | None = None,
+    base_samples: Path | None = None,
+    on_progress: Callable[[Progress], None] | None = None,
 ) -> dict[str, Any]:
     """Each request of ``requests`` sent ``repeats`` times through ``calibration.handle``, timed one by one.
 
     The table is loaded, and one answer given, first, so the load is not in any timing. With ``base_python`` (and
     the ``base_samples`` it extracts from) the same requests are also timed on that revision (``measure_revision``) and
-    its report is under ``base``. Raises ``TimingError`` when the table cannot be read or a request is not answered.
+    its report is under ``base``. ``on_progress`` is told each step (``Progress``) after the timer of the request that
+    caused it has stopped, so reporting is never inside a timing. Raises ``TimingError`` when the table cannot be read
+    or a request is not answered.
     """
+    tell = on_progress or (lambda _: None)
     try:
         key, index, tables, _ = calibration.load()
     except (OSError, ReplayError, CalibrationTableError) as error:
         raise TimingError(str(error)) from error
     asked = requests(index, tables)
+    tell(Progress("start", rounds=repeats, total=sum(len(bodies) for bodies in asked.values())))
+    tell(Progress("warm_up"))
     _answer(calibration, asked[FULL][0])
-    seconds, sizes = collect(lambda body: _answer(calibration, body), asked, repeats=repeats)
+    seconds, sizes = collect(lambda body: _answer(calibration, body), asked, repeats=repeats, on_progress=tell)
+    tell(Progress("head_done", seconds=sum(sum(values) for values in seconds.values())))
     measured = report(key, tables, asked, seconds, sizes, repeats=repeats)
     if base_python is not None:
         assert base_samples is not None
+        tell(Progress("base"))
+        started = time.perf_counter()
         measured["base"] = measure_revision(base_python, base_samples, asked, repeats=repeats)
+        tell(Progress("base_done", seconds=time.perf_counter() - started))
     return measured
 
 
 def collect(
-    answer: Callable[[Body], int], asked: Mapping[str, Sequence[Body]], *, repeats: int
+    answer: Callable[[Body], int],
+    asked: Mapping[str, Sequence[Body]],
+    *,
+    repeats: int,
+    on_progress: Callable[[Progress], None] | None = None,
 ) -> tuple[dict[str, list[float]], dict[str, list[int]]]:
-    """The seconds and answer bytes of each request of ``asked`` sent ``repeats`` times through ``answer``."""
+    """The seconds and answer bytes of each request of ``asked`` sent ``repeats`` times through ``answer``.
+
+    ``on_progress`` hears each round begin, each request once it is timed, each group of one type and each round
+    once it is done.
+    """
+    tell = on_progress or (lambda _: None)
     seconds: dict[str, list[float]] = {kind: [] for kind in asked}
     sizes: dict[str, list[int]] = {kind: [] for kind in asked}
-    for _ in range(repeats):
+    for number in range(1, repeats + 1):
+        tell(Progress("round", round=number, rounds=repeats))
+        round_seconds = 0.0
         for kind, bodies in asked.items():
-            for body in bodies:
+            group_seconds = 0.0
+            for position, body in enumerate(bodies, 1):
                 started = time.perf_counter()
                 size = answer(body)
-                seconds[kind].append(time.perf_counter() - started)
+                elapsed = time.perf_counter() - started
+                seconds[kind].append(elapsed)
                 sizes[kind].append(size)
+                group_seconds += elapsed
+                tell(Progress("request", round=number, rounds=repeats, kind=kind, done=position, total=len(bodies)))
+            round_seconds += group_seconds
+            tell(Progress("group", round=number, rounds=repeats, kind=kind, total=len(bodies), seconds=group_seconds))
+        tell(Progress("round_done", round=number, rounds=repeats, seconds=round_seconds))
     return seconds, sizes
 
 

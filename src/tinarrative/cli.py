@@ -981,12 +981,18 @@ def _open_page(command: str, page: str) -> None:
         print(f"{command}: warning: cannot open a browser; open {page} by hand.", file=sys.stderr)
 
 
-def _refresh_calibration_cache(command: str, args: argparse.Namespace) -> int | None:
-    """Refresh the calibration cache for ``args`` with progress on stderr; the exit code if that fails, else None."""
+def _refresh_calibration_cache(command: str, args: argparse.Namespace, *, announce_fresh: bool = False) -> int | None:
+    """Refresh the calibration cache for ``args`` with progress on stderr; the exit code if that fails, else None.
+
+    A cache that is already fresh says so on stderr only with ``announce_fresh``, for a command whose log should
+    start with where its table came from."""
     out = cast(Path, args.out)
     reporter = _ExtractionReporter(command)
+    rebuilt = False
 
     def stale(found: calibration_cache.CacheCheck) -> None:
+        nonlocal rebuilt
+        rebuilt = True
         what = "Rebuilding" if found.existing is not None else "Extracting"
         print(f"{command}: {what} the calibration table in {out}...", file=sys.stderr)
         reporter.stale(found)
@@ -1001,6 +1007,8 @@ def _refresh_calibration_cache(command: str, args: argparse.Namespace) -> int | 
             on_progress=reporter.progress,
         )
         reporter.done()
+        if announce_fresh and not rebuilt:
+            print(f"{command}: The calibration table in {out} is fresh.", file=sys.stderr)
     except KeyboardInterrupt:
         reporter.done(failed=True)
         raise
@@ -1013,6 +1021,61 @@ def _refresh_calibration_cache(command: str, args: argparse.Namespace) -> int | 
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_OUTPUT_ERROR
     return None
+
+
+class _TimingReporter:
+    """Show a calibration timing on stderr: a live line on a terminal, and lines for each round, each group of
+    requests in it, and each side measured.
+
+    The live line counts the requests timed so far; there is no estimate of the time left, since this is a
+    measurement.
+    """
+
+    def __init__(self, command: str, *, base_python: str | None = None, base_samples: Path | None = None) -> None:
+        self.command = command
+        self.base_python = base_python
+        self.base_samples = base_samples
+        self.tracker = _ProgressTracker(command.removeprefix("tinarrative "), 0)
+        self.requests = 0
+        self.total = 0
+
+    def progress(self, step: calibration_timing.Progress) -> None:
+        match step.event:
+            case "start":
+                self.total = step.rounds * step.total
+                self._line(f"head: {step.rounds} rounds of {_count(step.total, 'request')}")
+            case "warm_up":
+                self.tracker.show("head: warming up")
+            case "round":
+                self._line(f"head: starting round {step.round}/{step.rounds}")
+            case "request":
+                self.requests += 1
+                percent = 100 * self.requests // self.total
+                label = step.kind.replace("_", " ")
+                self.tracker.show(
+                    f"head: round {step.round}/{step.rounds} · {label} {step.done}/{step.total} · {percent}%"
+                )
+            case "group":
+                self._line(f"  {step.kind.replace('_', ' ')}: {_count(step.total, 'request')} in {step.seconds:.3f}s")
+            case "round_done":
+                self._line(f"head: round {step.round}/{step.rounds} done in {step.seconds:.3f}s")
+            case "head_done":
+                self._line(f"head: measured in {step.seconds:.3f}s")
+            case "base":
+                self.tracker.clear()
+                self._line(
+                    f"base: extracting its table from {self.base_samples} and timing with {self.base_python}; "
+                    "it reports nothing until it is done..."
+                )
+            case "base_done":
+                self._line(f"base: done in {step.seconds:.1f}s")
+
+    def done(self) -> None:
+        """Remove the live line."""
+        self.tracker.clear()
+
+    def _line(self, text: str) -> None:
+        self.tracker.report([f"{self.command}: {text}"])
 
 
 def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
@@ -1068,19 +1131,24 @@ def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
         failed = _calibration_samples_error(command, cast(Path, args.base_samples))
     if failed is not None:
         return failed
-    failed = _refresh_calibration_cache(command, args)
+    failed = _refresh_calibration_cache(command, args, announce_fresh=True)
     if failed is not None:
         return failed
+    base_samples = cast("Path | None", args.base_samples) or cast(Path, args.samples)
+    reporter = _TimingReporter(command, base_python=cast("str | None", args.base_python), base_samples=base_samples)
     try:
         report = calibration_timing.measure(
             calibration_server.Calibration(cast(Path, args.out)),
             repeats=cast(int, args.repeats),
             base_python=cast("str | None", args.base_python),
-            base_samples=cast("Path | None", args.base_samples) or cast(Path, args.samples),
+            base_samples=base_samples,
+            on_progress=reporter.progress,
         )
     except calibration_timing.TimingError as error:
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_USAGE_ERROR
+    finally:
+        reporter.done()
     text = json.dumps(report, indent=2) + "\n"
     output = cast("Path | None", args.output)
     table = cast("Path | None", args.report)
