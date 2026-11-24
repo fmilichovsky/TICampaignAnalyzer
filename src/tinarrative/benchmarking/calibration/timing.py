@@ -223,9 +223,8 @@ def markdown(
 
     lines = [
         MARKER,
-        "## Calibration timing",
+        "## Calibration requests timing",
         "",
-        "Informational: a slower answer never fails the check. Both revisions ran on one runner, one after the other.",
         *([f"[View workflow run]({run_url})"] if run_url else []),
         "",
         "| Request | Median s (base) | Median s (head) | p95 s (base) | p95 s (head) | Bytes (base) | Bytes (head) |",
@@ -237,8 +236,9 @@ def markdown(
     base_rows, head_rows = sum(base["campaigns"].values()), sum(head["campaigns"].values())
     lines += [
         "",
-        f"Base `{base_label}`: {base_rows:,} table rows. Head `{head_label}`: {head_rows:,} table rows. "
-        f"Each request is sent {head['repeats']} times; `{NOT_AVAILABLE}` means the revision cannot answer it.",
+        f"Base `{base_label}`: {base_rows:,} table rows.",
+        "",
+        f"Head `{head_label}`: {head_rows:,} table rows.",
     ]
     return "\n".join(lines) + "\n"
 

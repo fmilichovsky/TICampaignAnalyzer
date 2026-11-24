@@ -137,7 +137,8 @@ def test_the_markdown_lists_base_and_head_figures_per_request_type_with_n_a_and_
     assert "| Request | Median s (base) | Median s (head)" in text
     assert "| full answer | 0.750 | " in text
     assert "| base switch | n/a | " in text
-    assert f"`main def`: 7 table rows. Head `head abc`: {sum(report['campaigns'].values()):,} table rows." in text
+    assert "`main def`: 7 table rows." in text
+    assert f"Head `head abc`: {sum(report['campaigns'].values()):,} table rows." in text
 
 
 def test_the_other_revision_extracts_from_the_samples_it_is_given(
