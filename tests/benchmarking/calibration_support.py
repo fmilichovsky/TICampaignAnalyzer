@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import json
+import random
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
+from tinarrative.benchmarking.calibration import server
 from tinarrative.benchmarking.calibration.drafts import ROW_PREFIX, DraftShare, draft_row_id
 from tinarrative.benchmarking.calibration.replay import default_state, replay
 from tinarrative.benchmarking.calibration.table import build_index, layers, type_kinds
@@ -317,3 +322,88 @@ INVALID_HASHES = [
     ("base=nobody:major", "unknown draft share or event type 'nobody'"),
 ]
 """State hashes both codecs reject, with the start of the Python error."""
+
+
+# --- Cached-versus-fresh answers -----------------------------------------------------------------------------
+
+
+def page_session(index: Mapping[str, Any], tables: Mapping[str, Sequence[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """The states a page session sends, as ``POST /replay`` bodies: a drag of one rise share with a base-level switch
+    and a split-off scaling partway through, the type filter on and off, a campaign turned off, and a drop share set
+    and cleared."""
+    scaling = next(
+        name for name in index["scalings"] if any(kind["scaling"] == name for kind in index["kinds"].values())
+    )
+    rise = float(index["scalings"][scaling]["rise"])
+    switched = next(event_type for event_type, kind in index["kinds"].items() if kind["base"] != "major")
+    split = next(event_type for event_type, kind in index["kinds"].items() if kind["scaling"] == scaling)
+    commonest = Counter(row["type"] for rows in tables.values() for row in rows).most_common(1)[0][0]
+    state: dict[str, Any] = {}
+    bodies: list[dict[str, Any]] = [{"state": {}}]
+    for step in range(12):
+        state = {**state, "rises": {scaling: rise * 10 ** (-1 + step / 6)}}
+        if step == 4:
+            state = {**state, "scalings": {split: split}}
+        if step == 6:
+            state = {**state, "type_bases": {switched: "major"}}
+        if step == 9:
+            state = {key: value for key, value in state.items() if key != "scalings"}
+        bodies.append({"state": state})
+    state = {**state, "types": [commonest]}
+    bodies.append({"state": state})
+    state = {key: value for key, value in state.items() if key != "types"}
+    bodies.append({"state": state})
+    state = {**state, "campaigns": list(index["campaigns"])[1:]}
+    bodies.append({"state": state})
+    state = {**state, "drops": {scaling: state["rises"][scaling] / 30}}
+    bodies.append({"state": state})
+    state = {key: value for key, value in state.items() if key != "drops"}
+    bodies.append({"state": state})
+    return bodies
+
+
+def random_states(
+    index: Mapping[str, Any], tables: Mapping[str, Sequence[dict[str, Any]]], seed: int, count: int
+) -> list[dict[str, Any]]:
+    """``count`` seeded states over every control, as ``POST /replay`` bodies."""
+    rng = random.Random(seed)
+    scaled = sorted(event_type for event_type, kind in index["kinds"].items() if kind["scaling"] is not None)
+    types = sorted({row["type"] for rows in tables.values() for row in rows})
+    levels = list(index["constants"]["level_bands"])
+    bodies: list[dict[str, Any]] = []
+    for _ in range(count):
+        split = rng.sample(scaled, k=min(len(scaled), rng.randint(0, 2)))
+        names = [*index["scalings"], *split]
+        rises = {
+            name: float(index["scalings"][index["kinds"][name]["scaling"] if name in split else name]["rise"])
+            * 10 ** rng.uniform(-1.5, 1.5)
+            for name in names
+            if rng.random() < 0.4
+        }
+        drops = {
+            name: rises.get(name, float(index["scalings"].get(name, {"rise": 1})["rise"])) / 10 ** rng.uniform(0.5, 3)
+            for name in index["scalings"]
+            if rng.random() < 0.2
+        }
+        state: dict[str, Any] = {
+            "rises": rises,
+            "drops": drops,
+            "scalings": {event_type: event_type for event_type in split},
+            "campaigns": [name for name in index["campaigns"] if rng.random() < 0.8],
+            "types": rng.sample(types, k=rng.choice((0, 0, 1, 2))),
+            "bases": {draft["name"]: rng.choice(levels) for draft in index["drafts"] if rng.random() < 0.5},
+            "type_bases": {event_type: rng.choice(levels) for event_type in rng.sample(scaled, k=rng.randint(0, 2))},
+        }
+        bodies.append({"state": state})
+    return bodies
+
+
+def check_cached_answers(out: Path, bodies: Sequence[dict[str, Any]]) -> None:
+    """One long-lived server answers each of ``bodies`` in turn as a fresh server answers it alone."""
+    lasting = server.Calibration(out)
+    for body in bodies:
+        request = server.Request("POST", "/replay", json.dumps(body).encode("utf-8"))
+        cached = lasting.handle(request)
+        fresh = server.Calibration(out).handle(request)
+        assert (cached.status, json.loads(cached.body)) == (fresh.status, json.loads(fresh.body)), body
+        assert "error" not in json.loads(cached.body), body

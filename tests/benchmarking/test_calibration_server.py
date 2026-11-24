@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 
 from tests.benchmarking.calibration_golden import GOLDEN
+from tests.benchmarking.calibration_support import check_cached_answers, page_session, random_states
 from tinarrative.benchmarking.calibration import readout, server
 from tinarrative.benchmarking.calibration.replay import Replay, decode_state, default_state, load, replay
 from tinarrative.benchmarking.calibration.table import read_index, write_index, write_status
@@ -224,3 +225,17 @@ def test_the_server_answers_over_a_socket(calibration: server.Calibration) -> No
         http.shutdown()
         http.server_close()
         thread.join(timeout=30)
+
+
+def test_a_long_lived_server_answers_a_page_session_as_a_fresh_server_does(calibration: server.Calibration) -> None:
+    bodies = page_session(INDEX, TABLES)
+
+    check_cached_answers(calibration.out, bodies)
+
+
+def test_a_long_lived_server_answers_random_states_as_a_fresh_server_does(calibration: server.Calibration) -> None:
+    bodies = random_states(INDEX, TABLES, seed=683, count=40)
+
+    assert any(body["state"]["types"] for body in bodies)
+    assert any(body["state"]["scalings"] for body in bodies)
+    check_cached_answers(calibration.out, bodies)
