@@ -7,8 +7,9 @@ from __future__ import annotations
 
 import math
 import re
+import threading
 from collections import Counter
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
@@ -218,8 +219,6 @@ class _Scored:
     decided_by: str
     start: int
     """The base the row's own score started from."""
-    scalings: tuple[str, ...]
-    """The scaling of each of the row's shares."""
     member: MemberResult | None = None
 
 
@@ -320,26 +319,157 @@ def replay(
     have, and ``ReplayError`` for a table whose citations do not run to earlier layers or a draft row of no declared
     draft.
     """
+    return prepare(index, tables, drafts).replay(state)
+
+
+class Unfiltered(TypedDict):
+    """The aggregates of a filtered state's replay without its type filter."""
+
+    moves: list[Move]
+    level_counts: dict[str, dict[str, LevelCounts]]
+    """Each enabled campaign's."""
+    members: dict[str, list[MemberResult]]
+    """Each enabled campaign's."""
+
+
+@dataclass(frozen=True)
+class _Plan:
+    """One campaign's rows and draft rows as the replay walks them, their citations checked once."""
+
+    rows: Sequence[Row]
+    order: tuple[int, ...]
+    """The row positions in layer order."""
+    cited: tuple[tuple[int, ...], ...]
+    """The positions of the rows each row cites."""
+    gates: tuple[_Gate | None, ...]
+    """The member gate each row is a group of."""
+    member_gates: tuple[_Gate | None, ...]
+    """The member gate each row is a member type of."""
+    code_scalings: tuple[tuple[str, ...], ...]
+    """The scaling of each share of each row at its kind's scaling."""
+    by_type: Mapping[str, tuple[int, ...]]
+    shadows: Sequence[Row]
+    shadow_cited: tuple[tuple[int, ...], ...]
+    shadow_gates: tuple[_Gate | None, ...]
+    shadow_drafts: tuple[str, ...]
+    """The draft each draft row belongs to."""
+    shadow_scalings: tuple[tuple[str, ...], ...]
+    """The scaling of each share of each draft row: its draft's per measure."""
+    positions: Mapping[str, int]
+    """The row positions by id."""
+
+
+@dataclass(frozen=True)
+class _Scaled:
+    """What one choice of reassigned scalings fixes: each row's scaling per share, and each scaling's cut-off
+    candidates as ``(position, share)`` pairs per campaign, the real rows' and the draft rows'."""
+
+    scalings: Mapping[str, Sequence[tuple[str, ...]]]
+    candidates: Mapping[str, Mapping[str, tuple[list[tuple[int, float]], list[tuple[int, float]]]]]
+
+
+_SCALED_KEPT: Final = 16
+"""The scalings choices a prepared table keeps derived: a page session tries a few at a time."""
+
+
+@dataclass(frozen=True, eq=False)
+class Prepared:
+    """A calibration table with the work no calibration state changes done once (``prepare``); its replays equal
+    ``replay``'s. What depends only on the state's reassigned scalings is derived on first use and kept for the last
+    ``_SCALED_KEPT`` choices. Safe to share between threads."""
+
+    index: Mapping[str, Any]
+    plans: Mapping[str, _Plan]
+    types: frozenset[str]
+    """The event types of every row."""
+    _scaled: dict[tuple[tuple[str, str], ...], _Scaled] = field(default_factory=dict, repr=False)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    @property
+    def positions(self) -> dict[str, Mapping[str, int]]:
+        """Each campaign's row positions by id."""
+        return {name: plan.positions for name, plan in self.plans.items()}
+
+    def replay(self, state: ReplayState) -> Replay:
+        """``replay`` of this table for ``state``."""
+        return self._replay(state, unfiltered=False)[0]
+
+    def replay_with_unfiltered(self, state: ReplayState) -> tuple[Replay, Unfiltered | None]:
+        """``replay`` for ``state`` and, when it filters types, the aggregates without the filter, counted from the
+        same scored rows; ``None`` without a filter."""
+        return self._replay(state, unfiltered=True)
+
+    def _replay(self, state: ReplayState, *, unfiltered: bool) -> tuple[Replay, Unfiltered | None]:
+        index = self.index
+        state = _with_bases(index, state)
+        _validate(index, self.plans, self.types, state)
+        scaled = self._scaled_for(state)
+        types = frozenset(state.types)
+        scored: dict[str, list[_Scored]] = {}
+        shadows: dict[str, list[_Scored]] = {}
+        for name in state.campaigns:
+            scored[name], shadows[name] = _replay_campaign(index, self.plans[name], scaled.scalings[name], state)
+        selected = _of_types(scored, types)
+        shadowed = _of_types(shadows, types)
+        result = _result(index, state, scored, shadows, selected, shadowed, scaled)
+        if not unfiltered or not types:
+            return result, None
+        return result, {
+            "moves": _moves([item for items in scored.values() for item in items], LEVELS),
+            "level_counts": {name: _level_counts(items, LEVELS) for name, items in scored.items()},
+            "members": {
+                name: [item.member for item in items if item.member is not None] for name, items in scored.items()
+            },
+        }
+
+    def _scaled_for(self, state: ReplayState) -> _Scaled:
+        key = tuple(sorted(state.scalings.items()))
+        with self._lock:
+            found = self._scaled.get(key)
+        if found is not None:
+            return found
+        derived = _derive_scaled(self.plans, state)
+        with self._lock:
+            if len(self._scaled) >= _SCALED_KEPT:
+                del self._scaled[next(iter(self._scaled))]
+            self._scaled[key] = derived
+        return derived
+
+
+def _of_types(groups: Mapping[str, list[_Scored]], types: frozenset[str]) -> dict[str, list[_Scored]]:
+    """Each campaign's items of the filtered ``types``; every item for no filter."""
+    return {name: [item for item in items if not types or item.row["type"] in types] for name, items in groups.items()}
+
+
+def prepare(
+    index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], drafts: Mapping[str, Sequence[Row]] | None = None
+) -> Prepared:
+    """The table ready to replay any state. Raises ``ReplayError`` for a table whose citations do not run to earlier
+    layers, a share no scaling of its row's type reads, or a draft row of no declared draft."""
     drafts = drafts or {}
-    state = _with_bases(index, state)
-    _validate(index, tables, state)
-    constants = index["constants"]
-    levels = LEVELS
     gates = [
         _Gate(frozenset(gate["group_types"]), gate["member_type"], frozenset(gate["admitted_levels"]), gate["minimum"])
         for gate in index["member_gates"]
     ]
-    types = frozenset(state.types)
-    scored: dict[str, list[_Scored]] = {}
-    shadows: dict[str, list[_Scored]] = {}
-    for name in state.campaigns:
-        scored[name], shadows[name] = _replay_campaign(index, tables[name], drafts.get(name, ()), state, gates)
-    selected = {
-        name: [item for item in items if not types or item.row["type"] in types] for name, items in scored.items()
-    }
-    shadowed = {
-        name: [item for item in items if not types or item.row["type"] in types] for name, items in shadows.items()
-    }
+    plans = {name: _plan(index, rows, drafts.get(name, ()), gates) for name, rows in tables.items()}
+    return Prepared(
+        index=index,
+        plans=plans,
+        types=frozenset(row["type"] for rows in tables.values() for row in rows),
+    )
+
+
+def _result(
+    index: Mapping[str, Any],
+    state: ReplayState,
+    scored: Mapping[str, Sequence[_Scored]],
+    shadows: Mapping[str, Sequence[_Scored]],
+    selected: Mapping[str, Sequence[_Scored]],
+    shadowed: Mapping[str, Sequence[_Scored]],
+    scaled: _Scaled,
+) -> Replay:
+    constants = index["constants"]
+    levels = LEVELS
     every = [item for items in selected.values() for item in items]
     return {
         "schema_version": SCHEMA_VERSION,
@@ -364,7 +494,9 @@ def replay(
         },
         "totals": _totals(every, levels, constants["package_level"]),
         "moves": _moves(every, levels),
-        "cutoffs": {name: _cutoffs(name, state, index, selected, shadowed) for name in scaling_order(index, state)},
+        "cutoffs": {
+            name: _cutoffs(name, state, index, scaled, scored, shadows) for name in scaling_order(index, state)
+        },
         "drafts": _drafts(index, state, shadowed, levels),
     }
 
@@ -399,7 +531,7 @@ def _with_bases(index: Mapping[str, Any], state: ReplayState) -> ReplayState:
     return replace(state, bases=default_state(index).bases)
 
 
-def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], state: ReplayState) -> None:
+def _validate(index: Mapping[str, Any], campaigns: Collection[str], known: frozenset[str], state: ReplayState) -> None:
     measures = list(index["measures"])
     split = sorted(name for event_type, name in state.scalings.items() if name == event_type)
     names = [*index["scalings"], *split]
@@ -416,9 +548,8 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
     if with_scalings(replace(state, scalings={}), index, state.scalings).scalings != dict(state.scalings):
         raise ReplayStateError("the state's scalings are not reassigned types (use with_scalings)")
     for name in state.campaigns:
-        if name not in tables:
-            raise ReplayStateError(f"unknown campaign {name!r} (known: {', '.join(tables)})")
-    known = {row["type"] for rows in tables.values() for row in rows}
+        if name not in campaigns:
+            raise ReplayStateError(f"unknown campaign {name!r} (known: {', '.join(campaigns)})")
     unknown = sorted(set(state.types) - known)
     if unknown:
         raise ReplayStateError(f"unknown event type(s) in the filter: {', '.join(unknown)}")
@@ -438,62 +569,112 @@ def _validate(index: Mapping[str, Any], tables: Mapping[str, Sequence[Row]], sta
             raise ReplayStateError(f"the base level of {event_type} must be a level, not {level!r}")
 
 
-def _replay_campaign(
-    index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row], state: ReplayState, gates: Sequence[_Gate]
-) -> tuple[list[_Scored], list[_Scored]]:
-    """The rows and the draft rows rescored; a draft row may cite only real rows of an earlier layer."""
+def _plan(index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row], gates: Sequence[_Gate]) -> _Plan:
+    """The walk of one campaign's rows: their layer order, citations, gates and code scalings, checked once; a draft
+    row may cite only real rows of an earlier layer."""
     layer_of = index["layers"]
+    declared = {draft["name"]: draft for draft in index["drafts"]}
 
     def layer(row: Row) -> int:
         return int(layer_of.get(row["type"], 0)) if row["tier"] == "narrative" else 0
 
-    by_id = {row["id"]: row for row in rows}
-    done: dict[str, _Scored] = {}
-    switched = switched_types(state, index)
-    own_bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
+    positions = {row["id"]: position for position, row in enumerate(rows)}
 
-    def scalings_of(row: Row, name: str) -> tuple[str, ...]:
-        """The scaling of each share of the row: its draft's per measure, else its type's."""
+    def cited(row: Row) -> tuple[int, ...]:
+        own_layer = layer(row)
+        for name in row["cited"]:
+            if name not in positions:
+                raise ReplayError(f"{row['id']} cites {name}, which is not a row of its campaign")
+            if layer(rows[positions[name]]) >= own_layer:
+                raise ReplayError(f"{row['id']} (layer {own_layer}) cites {name}, which is not in an earlier layer")
+        return tuple(positions[name] for name in row["cited"])
+
+    def group_gate(row: Row) -> _Gate | None:
+        return next((gate for gate in gates if row["type"] in gate.group_types), None)
+
+    def scalings_of(row: Row, draft: str) -> tuple[str, ...]:
+        """The scaling of each share of the row: its draft's per measure, else its kind's."""
         named: list[str] = []
         for share in row["shares"]:
-            if name:
-                scaling = next(
-                    (item["scalings"].get(share["measure"]) for item in index["drafts"] if item["name"] == name), None
-                )
+            if draft:
+                scaling = declared[draft]["scalings"].get(share["measure"])
             elif row["type"] not in index["kinds"]:
                 # Only a hand-built table holds a type its index does not: it reads the measure's starting scaling.
                 scaling = share["measure"] if share["measure"] in index["scalings"] else None
             else:
-                scaling = type_scaling(index, state, row["type"])
+                scaling = index["kinds"][row["type"]].get("scaling")
             if scaling is None or code_scaling(index, scaling)["measure"] != share["measure"]:
                 raise ReplayError(f"{row['id']} has a share on {share['measure']}, which no scaling of its type reads")
             named.append(scaling)
         return tuple(named)
 
-    def start(row: Row) -> int:
-        """The row's base, or the tried base level of its type where no context rule decided."""
-        if row["rule"] is None and row["type"] in switched:
-            return Significance(switched[row["type"]]).base
-        return int(row["base"])
+    order = tuple(sorted(range(len(rows)), key=lambda position: layer(rows[position])))
+    cites: list[tuple[int, ...]] = [()] * len(rows)
+    code: list[tuple[str, ...]] = [()] * len(rows)
+    for position in order:
+        cites[position] = cited(rows[position])
+        code[position] = scalings_of(rows[position], "")
+    by_type: dict[str, list[int]] = {}
+    for position, row in enumerate(rows):
+        by_type.setdefault(row["type"], []).append(position)
+    names: list[str] = []
+    for row in shadows:
+        name = draft_name(row["id"])
+        if name not in declared:
+            raise ReplayError(f"{row['id']} is a row of no declared draft share")
+        names.append(name)
+    shadow_cited = tuple(cited(row) for row in shadows)
+    return _Plan(
+        rows=rows,
+        order=order,
+        cited=tuple(cites),
+        gates=tuple(group_gate(row) for row in rows),
+        member_gates=tuple(next((gate for gate in gates if row["type"] == gate.member_type), None) for row in rows),
+        code_scalings=tuple(code),
+        by_type={event_type: tuple(found) for event_type, found in by_type.items()},
+        shadows=shadows,
+        shadow_cited=shadow_cited,
+        shadow_gates=tuple(group_gate(row) for row in shadows),
+        shadow_drafts=tuple(names),
+        shadow_scalings=tuple(scalings_of(row, name) for row, name in zip(shadows, names, strict=True)),
+        positions=positions,
+    )
 
-    def draft_start(row: Row, name: str) -> int:
-        """A ruled draft row's own base; else the draft's switched base, its type's tried level or its own base."""
-        if row["ruled"]:
-            return int(row["base"])
-        level = state.bases[name]
-        if level == own_bases.get(name) and row["type"] in switched:
-            level = switched[row["type"]]
-        return Significance(level).base
 
-    def settle(row: Row, base: int, name: str = "") -> _Scored:
-        own_layer = layer(row)
-        for cited in row["cited"]:
-            if cited not in by_id:
-                raise ReplayError(f"{row['id']} cites {cited}, which is not a row of its campaign")
-            if layer(by_id[cited]) >= own_layer:
-                raise ReplayError(f"{row['id']} (layer {own_layer}) cites {cited}, which is not in an earlier layer")
-        gate = next((gate for gate in gates if row["type"] in gate.group_types), None)
-        cited_rows = [done[cited] for cited in row["cited"]]
+def _derive_scaled(plans: Mapping[str, _Plan], state: ReplayState) -> _Scaled:
+    """Each row's scalings under ``state.scalings``, and each scaling's cut-off candidates; nothing else of
+    ``state`` is read."""
+    scalings: dict[str, list[tuple[str, ...]]] = {}
+    candidates: dict[str, dict[str, tuple[list[tuple[int, float]], list[tuple[int, float]]]]] = {}
+    for campaign, plan in plans.items():
+        own = list(plan.code_scalings)
+        for event_type, name in state.scalings.items():
+            for position in plan.by_type.get(event_type, ()):
+                own[position] = (name,) * len(own[position])
+        scalings[campaign] = own
+        for side, (named, rows) in enumerate(((own, plan.rows), (plan.shadow_scalings, plan.shadows))):
+            for position, (row, row_scalings) in enumerate(zip(rows, named, strict=True)):
+                for share, scaling in zip(row["shares"], row_scalings, strict=True):
+                    if share["share"] > 0:
+                        sides = candidates.setdefault(scaling, {}).setdefault(campaign, ([], []))
+                        sides[side].append((position, float(share["share"])))
+    return _Scaled(scalings=scalings, candidates=candidates)
+
+
+def _replay_campaign(
+    index: Mapping[str, Any], plan: _Plan, scalings: Sequence[tuple[str, ...]], state: ReplayState
+) -> tuple[list[_Scored], list[_Scored]]:
+    """The rows and the draft rows rescored, in table order."""
+    switched = switched_types(state, index)
+    switched_bases = {event_type: Significance(level).base for event_type, level in switched.items()}
+    own_bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
+    rises, drops = state.rises, state.drops
+    level_of: dict[int, str] = {}
+
+    def settle(
+        row: Row, base: int, cited: tuple[int, ...], gate: _Gate | None, row_scalings: tuple[str, ...]
+    ) -> _Scored:
+        cited_rows = [done[position] for position in cited]
         lost: list[str] = []
         if gate is not None:
             lost = [
@@ -502,29 +683,35 @@ def _replay_campaign(
                 if item.row["type"] == gate.member_type and item.level not in gate.admitted
             ]
             cited_rows = [item for item in cited_rows if item.row["id"] not in lost]
-        scalings = scalings_of(row, name)
         outright = decided_outright(row["rule"] is not None, base)
         scales = (
             ()
             if outright
             else (
-                scale(share["share"], state.rises[scaling], state.drops.get(scaling))
-                for share, scaling in zip(row["shares"], scalings, strict=True)
+                scale(share["share"], rises[scaling], drops.get(scaling))
+                for share, scaling in zip(row["shares"], row_scalings, strict=True)
             )
         )
         own = own_score(base, scales)
         best = max(cited_rows, key=lambda item: item.score, default=None)
         score = settled_score(own, (item.score for item in cited_rows))
         decided_by = row["id"] if best is None or score == own else best.decided_by
-        item = _Scored(row, score, Significance.of(score).value, decided_by, base, scalings)
+        level = level_of.get(score)
+        if level is None:
+            level = level_of[score] = Significance.of(score).value
+        item = _Scored(row, score, level, decided_by, base)
         if gate is not None:
             item.member = _group_verdict(row, gate, cited_rows, lost)
         return item
 
-    for row in sorted(rows, key=layer):
-        done[row["id"]] = settle(row, start(row))
-    for item in done.values():
-        member_gate = next((gate for gate in gates if item.row["type"] == gate.member_type), None)
+    rows = plan.rows
+    done: list[_Scored] = [None] * len(rows)  # type: ignore[list-item]  # each set in layer order below
+    for position in plan.order:
+        row = rows[position]
+        # A context rule's decision keeps the row's own base; a tried base level replaces only the type's default.
+        base = switched_bases[row["type"]] if row["rule"] is None and row["type"] in switched else int(row["base"])
+        done[position] = settle(row, base, plan.cited[position], plan.gates[position], scalings[position])
+    for item, member_gate in zip(done, plan.member_gates, strict=True):
         if (
             member_gate is not None
             and item.row["level"] not in member_gate.admitted
@@ -541,14 +728,22 @@ def _replay_campaign(
                 "stale_share": False,
             }
     drafted: list[_Scored] = []
-    for row in shadows:
-        name = draft_name(row["id"])
-        if name not in state.bases:
-            raise ReplayError(f"{row['id']} is a row of no declared draft share")
-        item = settle(row, draft_start(row, name), name)
+    for position, row in enumerate(plan.shadows):
+        name = plan.shadow_drafts[position]
+        # A switched draft base wins over a tried type level; a ruled row keeps the base its rule set.
+        if row["ruled"]:
+            base = int(row["base"])
+        else:
+            level = state.bases[name]
+            if level == own_bases.get(name) and row["type"] in switched:
+                level = switched[row["type"]]
+            base = Significance(level).base
+        item = settle(
+            row, base, plan.shadow_cited[position], plan.shadow_gates[position], plan.shadow_scalings[position]
+        )
         item.member = None
         drafted.append(item)
-    return [done[row["id"]] for row in rows], drafted
+    return done, drafted
 
 
 def _group_verdict(row: Row, gate: _Gate, kept_rows: Sequence[_Scored], lost: Sequence[str]) -> MemberResult:
@@ -658,34 +853,37 @@ def _cutoffs(
     name: str,
     state: ReplayState,
     index: Mapping[str, Any],
-    selected: Mapping[str, Sequence[_Scored]],
-    shadowed: Mapping[str, Sequence[_Scored]],
+    scaled: _Scaled,
+    scored: Mapping[str, Sequence[_Scored]],
+    shadows: Mapping[str, Sequence[_Scored]],
 ) -> list[Cutoff]:
     """The cut-offs of scaling ``name`` at every step its rows' starting levels reach, each with the nearest rows
-    of the scaling on each side; a row decided outright never counts."""
+    of the scaling on each side, of the enabled campaigns and the filtered types; a row decided outright never
+    counts."""
     constants = index["constants"]
     rise, drop = state.rises[name], state.drops.get(name)
     centre = midpoint(rise, drop)
-
-    def candidates(groups: Mapping[str, Sequence[_Scored]]) -> list[tuple[str, _Scored, float]]:
-        return [
-            (campaign, item, float(share["share"]))
-            for campaign, items in groups.items()
-            for item in items
-            for share, scaling in zip(item.row["shares"], item.scalings, strict=True)
-            if scaling == name and share["share"] > 0
-        ]
-
-    real = candidates(selected)
-    drafted = candidates(shadowed)
+    types = frozenset(state.types)
+    of_scaling = scaled.candidates.get(name, {})
+    real: list[tuple[str, _Scored, float]] = []
+    drafted: list[tuple[str, _Scored, float]] = []
+    for campaign in state.campaigns:
+        own_real, own_drafted = of_scaling.get(campaign, ([], []))
+        for found, pairs, items in ((real, own_real, scored[campaign]), (drafted, own_drafted, shadows[campaign])):
+            found.extend(
+                (campaign, items[position], share)
+                for position, share in pairs
+                if not types or items[position].row["type"] in types
+            )
     names = [draft["name"] for draft in index["drafts"] if name in draft["scalings"].values()]
+    by_draft = {draft: [entry for entry in drafted if draft_name(entry[1].row["id"]) == draft] for draft in names}
     result: list[Cutoff] = []
     for step in cutoff_steps(item.start for _, item, _ in [*real, *drafted]):
         cut = cut_off(step, rise, drop)
         below, above = _sides(real, cut, step, state.campaigns, constants["neighbours"])
         drafts: dict[str, Sides] = {}
         for draft in names:
-            own = [entry for entry in drafted if draft_name(entry[1].row["id"]) == draft]
+            own = by_draft[draft]
             draft_below, draft_above = _sides(own, cut, step, state.campaigns, constants["neighbours"])
             drafts[draft] = {"below": draft_below, "above": draft_above}
         result.append(

@@ -58,6 +58,7 @@ class Calibration:
 
     out: Path
     _loaded: tuple[str, dict[str, Any], Tables, Tables] | None = field(default=None, repr=False)
+    _prepared: calibration.Prepared | None = field(default=None, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def handle(self, request: Request) -> Response:
@@ -80,12 +81,18 @@ class Calibration:
 
     def load(self) -> tuple[str, dict[str, Any], Tables, Tables]:
         """The cache key, index, rows and draft rows of ``out``, read again only once ``index.js`` names a new key."""
+        return self._current()[0]
+
+    def _current(self) -> tuple[tuple[str, dict[str, Any], Tables, Tables], calibration.Prepared]:
+        """``load`` and the table prepared for the replay, both kept under the cache key."""
         key = read_index(self.out / "index.js").get("key")
         with self._lock:
-            if self._loaded is None or self._loaded[0] != key:
+            if self._loaded is None or self._prepared is None or self._loaded[0] != key:
                 index, tables, drafts = calibration.load(self.out)
+                prepared = calibration.prepare(index, tables, drafts)
                 self._loaded = (str(index.get("key")), index, tables, drafts)
-            return self._loaded
+                self._prepared = prepared
+            return self._loaded, self._prepared
 
     def _replay(self, body: bytes) -> Response:
         if len(body) > MAX_BODY:
@@ -97,18 +104,28 @@ class Calibration:
         if not isinstance(asked, dict) or len(asked) != 1 or not ({"hash", "state"} & asked.keys()):
             return _text(HTTPStatus.BAD_REQUEST, 'the request is {"hash": "..."} or {"state": {...}}')
         try:
-            _, index, tables, drafts = self.load()
-            return _json(answer(index, tables, drafts, asked))
+            (_, index, tables, drafts), prepared = self._current()
+            return _json(answer(index, tables, drafts, asked, prepared=prepared))
         except (OSError, ReplayError, CalibrationTableError) as error:
             return _json({"fatal": str(error)}, HTTPStatus.SERVICE_UNAVAILABLE)
 
 
-def answer(index: Mapping[str, Any], tables: Tables, drafts: Tables, asked: Mapping[str, Any]) -> dict[str, Any]:
+def answer(
+    index: Mapping[str, Any],
+    tables: Tables,
+    drafts: Tables,
+    asked: Mapping[str, Any],
+    *,
+    prepared: calibration.Prepared | None = None,
+) -> dict[str, Any]:
     """The page's answer to ``{"hash": text}`` or ``{"state": values}``: the state, its hash, the compact replay and
-    the readout texts. A state that cannot be read answers with ``error`` and the code's state.
+    the readout texts. A state that cannot be read answers with ``error`` and the code's state. ``prepared`` is the
+    table already prepared for the replay (``calibration.prepare``); without it the table is prepared here.
 
     Raises ``ReplayError`` (not a state error) for a table the replay cannot evaluate.
     """
+    if prepared is None:
+        prepared = calibration.prepare(index, tables, drafts)
     error = ""
     try:
         state = (
@@ -116,12 +133,11 @@ def answer(index: Mapping[str, Any], tables: Tables, drafts: Tables, asked: Mapp
             if "hash" in asked
             else state_from_values(asked["state"], index)
         )
-        result = calibration.replay(index, tables, state, drafts)
+        result, unfiltered = prepared.replay_with_unfiltered(state)
     except ReplayStateError as failure:
         error = str(failure)
         state = calibration.default_state(index)
-        result = calibration.replay(index, tables, state, drafts)
-    unfiltered = calibration.replay(index, tables, replace(state, types=()), drafts) if state.types else None
+        result, unfiltered = prepared.replay_with_unfiltered(state)
     state_hash = calibration.encode_state(state, index)
     document: dict[str, Any] = {
         "schema_version": calibration.SCHEMA_VERSION,
@@ -129,16 +145,8 @@ def answer(index: Mapping[str, Any], tables: Tables, drafts: Tables, asked: Mapp
         "hash": state_hash,
         "is_code": calibration.encode_state(replace(state, focus=None), index) == "",
         "state": result["state"],
-        "replay": compact(index, tables, drafts, result),
-        "unfiltered": (
-            None
-            if unfiltered is None
-            else {
-                "moves": unfiltered["moves"],
-                "level_counts": {name: item["level_counts"] for name, item in unfiltered["campaigns"].items()},
-                "members": {name: item["members"] for name, item in unfiltered["campaigns"].items()},
-            }
-        ),
+        "replay": compact(index, tables, drafts, result, positions=prepared.positions),
+        "unfiltered": unfiltered,
         "paragraph": readout.shared_paragraph(index, result),
         "snippet": readout.snippet(index, result),
         "meta": meta(index, drafts),
@@ -148,17 +156,29 @@ def answer(index: Mapping[str, Any], tables: Tables, drafts: Tables, asked: Mapp
     return document
 
 
-def compact(index: Mapping[str, Any], tables: Tables, drafts: Tables, result: calibration.Replay) -> dict[str, Any]:
+def compact(
+    index: Mapping[str, Any],
+    tables: Tables,
+    drafts: Tables,
+    result: calibration.Replay,
+    *,
+    positions: Mapping[str, Mapping[str, int]] | None = None,
+) -> dict[str, Any]:
     """``result`` with each campaign's events and draft rows as columns: ``score``, ``level`` (its position in the
     level bands) and ``decided`` (the position in the campaign's rows of the row that decided it; ``None`` for a draft
-    row that decided itself). Everything else is as ``replay`` gives it."""
+    row that decided itself). Everything else is as ``replay`` gives it. ``positions`` are each campaign's row
+    positions by id (``Prepared.positions``), counted here when left out."""
     levels = list(index["constants"]["level_bands"])
     campaigns: dict[str, Any] = {}
     for name, item in result["campaigns"].items():
-        positions = {row["id"]: position for position, row in enumerate(tables[name])}
+        own = (
+            positions[name]
+            if positions is not None
+            else {row["id"]: position for position, row in enumerate(tables[name])}
+        )
         campaigns[name] = {
-            "events": _columns(item["events"], levels, positions),
-            "drafts": _columns(item["drafts"], levels, positions),
+            "events": _columns(item["events"], levels, own),
+            "drafts": _columns(item["drafts"], levels, own),
             "level_counts": item["level_counts"],
             "members": item["members"],
         }
