@@ -349,6 +349,48 @@ tinarrative benchmark calibrate open --port 8770
 | 9 | --out cannot be written, or the port cannot be served on. |
 <!-- end generated -->
 
+## `benchmark calibrate time`
+
+<!-- generated: synopsis benchmark calibrate time -->
+```
+tinarrative benchmark calibrate time [--samples PATH] [--out PATH] [--rebuild] [--jobs N]
+                                     [--repeats N] [--output PATH]
+```
+<!-- end generated -->
+
+Measures how long the calibration page takes to get its answers, so you can see whether a change to the replay or to
+the answers it sends made the page slower. It refreshes the cache the way [`calibrate report`](#benchmark-calibrate-report)
+does, then prints (or writes) JSON with the median and 95th-percentile seconds and the size of the answers, for the
+kinds of request the page makes. It measures the code in this checkout only.
+
+```sh
+# Time the server against the samples and print the JSON.
+tinarrative benchmark calibrate time
+
+# Ten answers per request, written to a file.
+tinarrative benchmark calibrate time --repeats 10 --output timing.json
+```
+
+<!-- generated: options benchmark calibrate time -->
+| Option | Meaning |
+| --- | --- |
+| `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
+| `--out PATH` | The calibration cache directory (default build/calibration). |
+| `--rebuild` | Rebuild the cache even when it is fresh. |
+| `--jobs N` | Worker processes for a rebuild; 1 runs everything in one process; the table is the same (default: the CPUs, at most what memory holds). |
+| `--repeats N` | Times each request is sent (default 5). |
+| `--output PATH` | Write the timing JSON here (default: stdout). |
+<!-- end generated -->
+
+<!-- generated: exit-codes benchmark calibrate time -->
+| Code | When |
+| --- | --- |
+| 0 | The timing JSON was printed or written. |
+| 2 | Usage error, a sample that does not match samples.json, a failed extraction (status.js says failed; the old table stays), or a table the server cannot answer from. |
+| 4 | --samples is not a directory or its samples.json cannot be read. |
+| 9 | --out or --output cannot be written. |
+<!-- end generated -->
+
 ## `benchmark calibrate report`
 
 <!-- generated: synopsis benchmark calibrate report -->
