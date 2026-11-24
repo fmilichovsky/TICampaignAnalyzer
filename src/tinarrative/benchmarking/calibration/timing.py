@@ -15,6 +15,7 @@ from http import HTTPStatus
 from pathlib import Path
 from typing import Any, Final, Literal
 
+from tinarrative.benchmarking.calibration.progress import CampaignStep, ProgressSnapshot
 from tinarrative.benchmarking.calibration.replay import LEVELS, ReplayError
 from tinarrative.benchmarking.calibration.server import Calibration, Request, Tables
 from tinarrative.benchmarking.calibration.table import CalibrationTableError
@@ -33,22 +34,25 @@ _WINDOW: Final = 1.75
 
 Body = dict[str, Any]
 
-Event = Literal["start", "warm_up", "round", "request", "group", "round_done", "head_done", "base", "base_done"]
+Event = Literal["start", "warm_up", "skipped", "round", "request", "group", "round_done", "measured", "base"]
+Side = Literal["head", "base"]
 
 
 @dataclass(frozen=True)
 class Progress:
-    """One step of a measurement, told to ``on_progress`` as it happens; the fields each event fills are:
+    """One step of a measurement, told to ``on_progress`` as it happens; ``side`` is the revision it is on, and the
+    fields each event fills are:
 
     - ``start``: ``rounds``, and ``total`` the requests of one round.
-    - ``warm_up``: nothing; the untimed request before the first round.
+    - ``warm_up``: nothing; the untimed requests before the first round. The base sends one of each request first,
+      to find the types it cannot answer, so its ``warm_up`` comes before its ``start``.
+    - ``skipped``: ``kind``, a request type the base cannot answer and does not time.
     - ``round``: ``round`` and ``rounds``; a round begins.
     - ``request``: ``kind`` and its ``done`` of ``total`` requests in this round (sent and timed already).
     - ``group``: ``kind``, ``total`` requests, and the ``seconds`` they took, as timed.
     - ``round_done``: ``round``, ``rounds`` and the ``seconds`` its requests took, as timed.
-    - ``head_done``: ``seconds`` of every timed request, so the warm-up and the reporting are not in it.
-    - ``base``: the other revision is about to extract and time; it reports nothing until it is done.
-    - ``base_done``: ``seconds`` of the wall clock it took, extraction included.
+    - ``measured``: ``seconds`` of every timed request, so the warm-up and the reporting are not in it.
+    - ``base`` (on the head): the other revision is about to extract its table and time it.
     """
 
     event: Event
@@ -58,6 +62,7 @@ class Progress:
     done: int = 0
     total: int = 0
     seconds: float = 0.0
+    side: Side = "head"
 
 
 class TimingError(Exception):
@@ -81,14 +86,17 @@ def measure(
     repeats: int,
     base_python: str | None = None,
     base_samples: Path | None = None,
+    base_jobs: int | None = None,
     on_progress: Callable[[Progress], None] | None = None,
+    on_extraction: Callable[[ProgressSnapshot], None] | None = None,
 ) -> dict[str, Any]:
     """Each request of ``requests`` sent ``repeats`` times through ``calibration.handle``, timed one by one.
 
     The table is loaded, and one answer given, first, so the load is not in any timing. With ``base_python`` (and
-    the ``base_samples`` it extracts from) the same requests are also timed on that revision (``measure_revision``) and
-    its report is under ``base``. ``on_progress`` is told each step (``Progress``) after the timer of the request that
-    caused it has stopped, so reporting is never inside a timing. Raises ``TimingError`` when the table cannot be read
+    the ``base_samples`` it extracts from with ``base_jobs`` workers) the same requests are also timed on that revision
+    (``measure_revision``) and its report is under ``base``. ``on_progress`` is told each step (``Progress``) of both
+    sides after the timer of the request that caused it has stopped, so reporting is never inside a timing;
+    ``on_extraction`` is told the base's extraction as it goes. Raises ``TimingError`` when the table cannot be read
     or a request is not answered.
     """
     tell = on_progress or (lambda _: None)
@@ -101,14 +109,20 @@ def measure(
     tell(Progress("warm_up"))
     _answer(calibration, asked[FULL][0])
     seconds, sizes = collect(lambda body: _answer(calibration, body), asked, repeats=repeats, on_progress=tell)
-    tell(Progress("head_done", seconds=sum(sum(values) for values in seconds.values())))
+    tell(Progress("measured", seconds=sum(sum(values) for values in seconds.values())))
     measured = report(key, tables, asked, seconds, sizes, repeats=repeats)
     if base_python is not None:
         assert base_samples is not None
         tell(Progress("base"))
-        started = time.perf_counter()
-        measured["base"] = measure_revision(base_python, base_samples, asked, repeats=repeats)
-        tell(Progress("base_done", seconds=time.perf_counter() - started))
+        measured["base"] = measure_revision(
+            base_python,
+            base_samples,
+            asked,
+            repeats=repeats,
+            jobs=base_jobs,
+            on_progress=tell,
+            on_extraction=on_extraction,
+        )
     return measured
 
 
@@ -175,15 +189,48 @@ def report(
     }
 
 
-_REVISION_SCRIPT: Final = """
-import json, sys, time
+PROGRESS_PREFIX: Final = "tinarrative-progress "
+"""Starts each stderr line of the revision script that is a step of its progress, a JSON object after it; any other
+line is the revision's own output, shown only when it fails."""
+
+_REVISION_SCRIPT: Final = (
+    f"PREFIX = {PROGRESS_PREFIX!r}\n"
+    """
+import inspect, json, sys, threading, time
 from pathlib import Path
 from http import HTTPStatus
 from tinarrative.benchmarking.calibration import cache
 from tinarrative.benchmarking.calibration.server import Calibration, Request
 
-samples, out, asked, repeats = Path(sys.argv[1]), Path(sys.argv[2]), json.loads(sys.argv[3]), int(sys.argv[4])
-cache.refresh(samples, out)
+samples, out, result = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+asked, repeats, jobs = json.loads(sys.argv[4]), int(sys.argv[5]), json.loads(sys.argv[6])
+lock = threading.Lock()
+
+
+def tell(event, **fields):
+    line = PREFIX + json.dumps({"event": event, **fields}) + "\\n"
+    with lock:
+        sys.stderr.write(line)
+        sys.stderr.flush()
+
+
+def extracted(snapshot):
+    tell(
+        "extraction",
+        campaigns=[[step.name, step.phase, step.done, step.total] for step in snapshot.campaigns],
+        done_work=snapshot.done_work,
+        total_work=snapshot.total_work,
+        elapsed=snapshot.elapsed,
+    )
+
+
+accepted = inspect.signature(cache.refresh).parameters
+options = {}
+if jobs is not None and "jobs" in accepted:
+    options["jobs"] = jobs
+if "on_progress" in accepted:
+    options["on_progress"] = extracted
+cache.refresh(samples, out, **options)
 calibration = Calibration(out)
 key, _, tables, _ = calibration.load()
 
@@ -197,62 +244,129 @@ def answer(body):
 
 seconds = {kind: [] for kind in asked}
 sizes = {kind: [] for kind in asked}
+tell("warm_up")
 for kind, bodies in asked.items():
     if any(answer(body) is None for body in bodies):
         seconds[kind] = sizes[kind] = None
-for _ in range(repeats):
-    for kind, bodies in asked.items():
-        if seconds[kind] is None:
-            continue
-        for body in bodies:
+        tell("skipped", kind=kind)
+timed = {kind: bodies for kind, bodies in asked.items() if seconds[kind] is not None}
+tell("start", rounds=repeats, total=sum(len(bodies) for bodies in timed.values()))
+measured = 0.0
+for number in range(1, repeats + 1):
+    tell("round", round=number, rounds=repeats)
+    round_seconds = 0.0
+    for kind, bodies in timed.items():
+        group_seconds = 0.0
+        for position, body in enumerate(bodies, 1):
             started = time.perf_counter()
             size = answer(body)
-            seconds[kind].append(time.perf_counter() - started)
+            elapsed = time.perf_counter() - started
+            seconds[kind].append(elapsed)
             sizes[kind].append(size)
-json.dump(
-    {"key": key, "campaigns": {name: len(rows) for name, rows in tables.items()}, "seconds": seconds, "sizes": sizes},
-    sys.stdout,
-)
+            group_seconds += elapsed
+            tell("request", round=number, rounds=repeats, kind=kind, done=position, total=len(bodies))
+        round_seconds += group_seconds
+        tell("group", round=number, rounds=repeats, kind=kind, total=len(bodies), seconds=group_seconds)
+    measured += round_seconds
+    tell("round_done", round=number, rounds=repeats, seconds=round_seconds)
+tell("measured", seconds=measured)
+campaigns = {name: len(rows) for name, rows in tables.items()}
+document = {"key": key, "campaigns": campaigns, "seconds": seconds, "sizes": sizes}
+result.write_text(json.dumps(document), encoding="utf-8")
 """
-"""Run by another revision's interpreter: its own table extraction and its own request handler.
+)
+"""Run by another revision's interpreter: its own table extraction and its own request handler, timed as ``collect``
+times the head's and telling the same steps on stderr behind ``PROGRESS_PREFIX``, its extraction's as ``extraction``.
 
-A request type that revision does not answer (any body refused, or answered with an ``error``) has ``null`` figures.
+It passes ``jobs`` and ``on_progress`` to the revision's ``cache.refresh`` only if that takes them, so an older
+revision is timed with no extraction progress. A request type that revision does not answer (any body refused, or
+answered with an ``error``) has ``null`` figures.
 """
 
 
 def measure_revision(
-    python: str, samples: Path, asked: Mapping[str, Sequence[Body]], *, repeats: int
+    python: str,
+    samples: Path,
+    asked: Mapping[str, Sequence[Body]],
+    *,
+    repeats: int,
+    jobs: int | None = None,
+    on_progress: Callable[[Progress], None] | None = None,
+    on_extraction: Callable[[ProgressSnapshot], None] | None = None,
 ) -> dict[str, Any]:
     """The timing report of the revision whose interpreter is ``python``, for the requests ``asked``.
 
-    That interpreter extracts its own table from ``samples`` and times its own server handler; an answer type it
-    cannot give is ``None``. Raises ``TimingError`` when it cannot be run or does not extract.
+    That interpreter extracts its own table from ``samples`` with ``jobs`` workers and times its own server handler;
+    an answer type it cannot give is ``None``. ``on_progress`` is told each step of its timing (``side`` ``base``) and
+    ``on_extraction`` each step of its extraction as it reports them. Raises ``TimingError`` when it cannot be run,
+    does not extract, or reports a step that cannot be read.
     """
     if os.sep in python:
         python = os.path.abspath(python)  # not resolved: a virtual environment's interpreter is a symlink
     with tempfile.TemporaryDirectory(prefix="calibration-base-") as scratch:
+        result = Path(scratch) / "measured.json"
+        arguments = [str(samples.resolve()), str(Path(scratch) / "table"), str(result), json.dumps(asked)]
         try:
-            completed = subprocess.run(
-                [python, "-c", _REVISION_SCRIPT, str(samples.resolve()), scratch, json.dumps(asked), str(repeats)],
-                capture_output=True,
+            child = subprocess.Popen(
+                [python, "-c", _REVISION_SCRIPT, *arguments, str(repeats), json.dumps(jobs)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
+                errors="replace",
                 cwd=scratch,
-                check=False,
             )
         except OSError as error:
             raise TimingError(f"cannot run {python}: {error}") from error
-    if completed.returncode != 0:
-        tail = completed.stderr.strip().splitlines()[-1:] or [f"exit code {completed.returncode}"]
-        raise TimingError(f"{python} could not extract and time its table: {tail[0]}")
-    try:
-        measured = json.loads(completed.stdout)
-        seconds = {kind: measured["seconds"][kind] or [] for kind in asked}
-        sizes = {kind: measured["sizes"][kind] or [] for kind in asked}
-        tables: Tables = {name: [{}] * count for name, count in measured["campaigns"].items()}
-        return report(str(measured["key"]), tables, asked, seconds, sizes, repeats=repeats)
-    except (json.JSONDecodeError, KeyError, TypeError) as error:
-        raise TimingError(f"{python} gave no readable timing: {error}") from error
+        try:
+            said = _follow(child, on_progress or (lambda _: None), on_extraction or (lambda _: None))
+            returncode = child.wait()
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait()
+        if returncode != 0:
+            tail = said[-1:] or [f"exit code {returncode}"]
+            raise TimingError(f"{python} could not extract and time its table: {tail[0]}")
+        try:
+            measured = json.loads(result.read_text(encoding="utf-8"))
+            seconds = {kind: measured["seconds"][kind] or [] for kind in asked}
+            sizes = {kind: measured["sizes"][kind] or [] for kind in asked}
+            tables: Tables = {name: [{}] * count for name, count in measured["campaigns"].items()}
+            return report(str(measured["key"]), tables, asked, seconds, sizes, repeats=repeats)
+        except (OSError, json.JSONDecodeError, KeyError, TypeError) as error:
+            raise TimingError(f"{python} gave no readable timing: {error}") from error
+
+
+def _follow(
+    child: subprocess.Popen[str],
+    on_progress: Callable[[Progress], None],
+    on_extraction: Callable[[ProgressSnapshot], None],
+) -> list[str]:
+    """Tell each progress line of ``child``'s stderr as it comes, until it closes; its other non-blank lines."""
+    assert child.stderr is not None
+    said: list[str] = []
+    for line in child.stderr:
+        if not line.startswith(PROGRESS_PREFIX):
+            if line.strip():
+                said.append(line.strip())
+            continue
+        try:
+            fields = json.loads(line.removeprefix(PROGRESS_PREFIX))
+            if fields.get("event") == "extraction":
+                on_extraction(
+                    ProgressSnapshot(
+                        tuple(CampaignStep(*step) for step in fields["campaigns"]),
+                        done_work=float(fields["done_work"]),
+                        total_work=float(fields["total_work"]),
+                        elapsed=float(fields["elapsed"]),
+                    )
+                )
+            else:
+                on_progress(Progress(**fields, side="base"))
+        except (json.JSONDecodeError, AttributeError, KeyError, TypeError, ValueError) as error:
+            raise TimingError(f"the other revision reported progress that cannot be read: {line.strip()}") from error
+    return said
 
 
 MARKER: Final = "<!-- calibration-metrics -->"
