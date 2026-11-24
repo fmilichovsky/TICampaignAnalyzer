@@ -10,9 +10,25 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal
 
 Phase = Literal["waiting", "decompress", "survey", "sequence", "narrative", "done"]
-PHASE_WEIGHTS: Final[Mapping[Phase, float]] = {"decompress": 0.07, "survey": 0.10, "sequence": 0.54, "narrative": 0.29}
-"""Each phase's share of a campaign's time, as measured on a clean extraction at the default job count; they add up to
-1. With fewer workers the survey and the sequence take a larger share."""
+PHASE_COSTS: Final[Mapping[Phase, tuple[float, float]]] = {
+    "decompress": (0.017, 0.001),
+    "survey": (0.019, 0.081),
+    "sequence": (0.090, 0.698),
+    "narrative": (0.094, 0.0),
+}
+"""Each phase's time per byte, as ``(serial, parallel)``, in units where a campaign extracted by one process takes 1:
+with ``jobs`` workers a phase takes ``serial + parallel / jobs``. Fitted by least squares to timed extractions of two
+real campaigns at 1, 4, 7, 10 and 14 jobs on a 14-core machine; it holds to about 15% on that machine and drifts on
+others. The narrative stage runs in one process, so it has no parallel part; the serial part also holds the
+workers' start and the repeated boundary save of each chunk."""
+
+
+def phase_weights(jobs: int) -> Mapping[Phase, float]:
+    """Each phase's time per byte of a campaign extracted by ``jobs`` workers, so that the weights of one process add
+    up to 1 and those of more workers to less."""
+    return {phase: serial + parallel / max(jobs, 1) for phase, (serial, parallel) in PHASE_COSTS.items()}
+
+
 SAVE_PHASES: Final[tuple[Phase, ...]] = ("survey", "sequence")
 """The phases that report each save they finish; the others are credited whole when they end."""
 ESTIMATE_FROM: Final = 0.05
@@ -96,23 +112,28 @@ class ExtractionProgress:
     """The progress of one extraction, told to ``on_change`` after every change; safe to update from any thread, and
     ``on_change`` is called one snapshot at a time, in the order of the changes.
 
-    A save's decompressed size, times a phase's weight, is credited once per phase: when a save phase finishes the
-    save, or when any other phase ends. The order in which saves finish does not matter.
+    A save's decompressed size, times its campaign's weight for the phase, is credited once per phase: when a save
+    phase finishes the save, or when any other phase ends. The order in which saves finish does not matter.
     """
 
     def __init__(
         self,
         campaigns: Mapping[str, Mapping[str, int]],
+        jobs: Mapping[str, int] | None = None,
         *,
         on_change: Callable[[ProgressSnapshot], None] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        """``campaigns`` gives, in extraction order, each campaign's decompressed save names and their sizes."""
+        """``campaigns`` gives, in extraction order, each campaign's decompressed save names and their sizes; ``jobs``
+        the workers each is extracted by (one for a campaign it does not list), which sets its phases' weights."""
         self._sizes = {name: dict(saves) for name, saves in campaigns.items()}
+        self._weights = {name: phase_weights((jobs or {}).get(name, 1)) for name in self._sizes}
         self._phases: dict[str, Phase] = dict.fromkeys(self._sizes, "waiting")
         self._credited: dict[str, set[str]] = {name: set() for name in self._sizes}
         self._done_work = 0.0
-        self._total_work = sum(sum(saves.values()) for saves in self._sizes.values()) * sum(PHASE_WEIGHTS.values())
+        self._total_work = sum(
+            sum(saves.values()) * sum(self._weights[name].values()) for name, saves in self._sizes.items()
+        )
         self._on_change = on_change
         self._clock = clock
         self._started = clock()
@@ -139,7 +160,7 @@ class ExtractionProgress:
             if not fresh:
                 return
             self._credited[campaign] |= fresh
-            self._done_work += sum(sizes[name] for name in fresh) * PHASE_WEIGHTS[phase]
+            self._done_work += sum(sizes[name] for name in fresh) * self._weights[campaign][phase]
             self._tell(self._snapshot())
 
     def snapshot(self) -> ProgressSnapshot:
@@ -150,7 +171,7 @@ class ExtractionProgress:
         return CampaignProgress(self, name)
 
     def _top_up(self, campaign: str) -> None:
-        weight = PHASE_WEIGHTS.get(self._phases[campaign], 0.0)
+        weight = self._weights[campaign].get(self._phases[campaign], 0.0)
         sizes = self._sizes[campaign]
         self._done_work += sum(size for name, size in sizes.items() if name not in self._credited[campaign]) * weight
 

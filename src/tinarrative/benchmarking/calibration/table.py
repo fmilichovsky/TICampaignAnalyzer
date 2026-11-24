@@ -455,10 +455,14 @@ def extract_all(
     histories: dict[str, Mapping[str, Any]] = {}
     campaigns = extractable_campaigns(samples)
     sizes = {name: raw_sizes(samples, name, files) for name, files in campaigns.items()}
-    progress = ExtractionProgress(sizes, on_change=on_progress)
+    workers_by_campaign = {
+        name: default_jobs(list(saves.values())) if jobs is None else jobs for name, saves in sizes.items()
+    }
+    busy = {name: min(workers, len(sizes[name])) for name, workers in workers_by_campaign.items()}
+    progress = ExtractionProgress(sizes, busy, on_change=on_progress)
     for name, files in campaigns.items():
         campaign = progress.campaign(name)
-        workers = default_jobs(list(sizes[name].values())) if jobs is None else jobs
+        workers = workers_by_campaign[name]
         with tempfile.TemporaryDirectory(prefix="calibration-") as scratch:
             campaign.phase("decompress")
             decompress_samples(files, Path(scratch))
