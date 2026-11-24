@@ -233,6 +233,21 @@ def test_a_long_lived_server_answers_a_page_session_as_a_fresh_server_does(calib
     check_cached_answers(calibration.out, bodies)
 
 
+def test_a_long_lived_server_answers_more_base_level_choices_than_it_keeps_as_a_fresh_server_does(
+    calibration: server.Calibration,
+) -> None:
+    present = {row["type"] for rows in TABLES.values() for row in rows}
+    unscaled = next(
+        event_type for event_type, kind in INDEX["kinds"].items() if kind["scaling"] is None and event_type in present
+    )
+    levels = list(INDEX["constants"]["level_bands"])
+    # Every level, the first again after the others have pushed it out, then the code's.
+    tried = [*levels, levels[0], *levels[:2]]
+    bodies = [{"state": {"type_bases": {unscaled: level}}} for level in tried] + [{"state": {}}]
+
+    check_cached_answers(calibration.out, bodies)
+
+
 def test_a_long_lived_server_answers_random_states_as_a_fresh_server_does(calibration: server.Calibration) -> None:
     bodies = random_states(INDEX, TABLES, seed=683, count=40)
 
