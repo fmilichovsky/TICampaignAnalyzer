@@ -25,7 +25,7 @@
   const POP_MIN_WIDTH = 320;
   const ORDER_KEY = "ti-calibration-count-order";
   const VIEW_KEY = "ti-calibration-under-chart";
-  const STATUS_POLL = 2000;
+  const STATUS_POLL = 500;
   const STATUS_GRACE = 20000;
   const SLIDER_STEP = 0.01;
   const CHART_HEIGHT = 270;
@@ -150,6 +150,8 @@
     start(index) {
       this.index = index;
       this.started = Date.now();
+      // The bar glides to each polled share for as long as the next poll takes, so it never waits at rest.
+      $("banner-bar").style.setProperty("--glide", `${STATUS_POLL}ms`);
       $("banner-action").addEventListener("click", () => window.location.reload());
       this.show();
       this.schedule();
@@ -188,8 +190,14 @@
       if (!status) return;
       const progress = status.progress;
       const bar = $("banner-bar");
-      if (progress) bar.value = progress.percent;
-      else bar.removeAttribute("value");
+      bar.dataset.indeterminate = progress ? "false" : "true";
+      if (progress) {
+        bar.setAttribute("aria-valuenow", String(progress.percent));
+        bar.style.setProperty("--share", String(progress.percent / 100));
+      } else {
+        bar.removeAttribute("aria-valuenow");
+        bar.style.setProperty("--share", "0");
+      }
       bar.setAttribute("aria-valuetext", progress ? progress.text : "Starting");
       $("banner-detail").textContent = progress ? (progress.summary ?? progress.text) : "";
       const list = $("banner-campaigns");

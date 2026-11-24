@@ -291,7 +291,7 @@ def analyze_campaign(
         progress.update("Processing saves", 0, len(plan.saves))
     loaded = 0
 
-    def on_save() -> None:
+    def on_save(_: SaveRef) -> None:
         nonlocal loaded
         loaded += 1
         if progress is not None:

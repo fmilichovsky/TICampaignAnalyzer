@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import signal
 import sys
 import threading
 from collections.abc import Callable, Iterator, Sequence
@@ -33,32 +34,37 @@ _ticks: SimpleQueue[Any] | None = None
 def _initialize(level: str, timing_on: bool, ticks: SimpleQueue[Any]) -> None:
     global _ticks
     configure_logging(level, timing=timing_on)  # spawned processes start without the coordinator's handlers
+    # Ctrl-C reaches the whole process group, and a worker that dies of it can leave the executor waiting forever on a
+    # replacement worker or a half-sent result; the coordinator alone handles it, in ``pool``.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     _ticks = ticks
 
 
-def tick() -> None:
-    """Report one unit of work to the coordinator's progress; nothing outside a worker."""
+def tick(unit: int) -> None:
+    """Report that unit ``unit`` of the work is done to the coordinator's progress; nothing outside a worker."""
     if _ticks is not None:
-        _ticks.put(1)
+        _ticks.put(unit)
 
 
 @contextmanager
 def pool(
-    jobs: int, progress: Callable[[], None] | None = None, *, tasks_per_child: int | None = None
+    jobs: int, progress: Callable[[int], None] | None = None, *, tasks_per_child: int | None = None
 ) -> Iterator[ProcessPoolExecutor]:
-    """A pool of ``jobs`` spawned workers; every ``tick`` in a worker calls ``progress`` on a coordinator thread.
+    """A pool of ``jobs`` spawned workers; every ``tick`` in a worker calls ``progress`` with its unit on one
+    coordinator thread.
 
     Spawn on every platform, so a test on Linux starts workers as macOS and Windows do. On an exception (or a closed
-    generator) the pending tasks are cancelled before the running ones are waited for.
+    generator), Ctrl-C included, the pending tasks are cancelled before the running ones are waited for; the workers
+    ignore Ctrl-C themselves.
     """
     context = multiprocessing.get_context("spawn")
     ticks: SimpleQueue[Any] = context.SimpleQueue()
     level, timing_on = logging_state()
 
     def drain() -> None:
-        while ticks.get() is not None:
+        while (unit := ticks.get()) is not None:
             if progress is not None:
-                progress()
+                progress(unit)
 
     drainer = threading.Thread(target=drain, name="tinarrative-progress", daemon=True)
     drainer.start()

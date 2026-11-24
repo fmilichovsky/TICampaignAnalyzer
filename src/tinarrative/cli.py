@@ -923,9 +923,17 @@ def _run_benchmark_calibrate_open(args: argparse.Namespace) -> int:
     try:
         try:
             calibration_cache.refresh(
-                samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale, on_progress=reporter.progress
+                samples,
+                out,
+                rebuild=cast(bool, args.rebuild),
+                jobs=cast("int | None", args.jobs),
+                on_stale=stale,
+                on_progress=reporter.progress,
             )
             reporter.done()
+        except KeyboardInterrupt:
+            reporter.done(failed=True)
+            raise
         except calibration_cache.CalibrationCacheError as error:
             reporter.done(failed=True)
             print(f"{command}: {error}", file=sys.stderr)
@@ -980,9 +988,17 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
 
     try:
         calibration_cache.refresh(
-            samples, out, rebuild=cast(bool, args.rebuild), on_stale=stale, on_progress=reporter.progress
+            samples,
+            out,
+            rebuild=cast(bool, args.rebuild),
+            jobs=cast("int | None", args.jobs),
+            on_stale=stale,
+            on_progress=reporter.progress,
         )
         reporter.done()
+    except KeyboardInterrupt:
+        reporter.done(failed=True)
+        raise
     except calibration_cache.CalibrationCacheError as error:
         reporter.done(failed=True)
         print(f"{command}: {error}", file=sys.stderr)
@@ -1929,6 +1945,10 @@ CAMPAIGN_HELP = (
 FORMAT_HELP = "Report format (default %(default)s)."
 CONFIG_HELP = f"TOML settings file (default: ${CONFIG_ENV_VAR}, else the built-in settings)."
 JOBS_HELP = "Worker processes; 1 runs everything in one process; the output is the same (default: processing.jobs)."
+CALIBRATION_JOBS_HELP = (
+    "Worker processes for a rebuild; 1 runs everything in one process; the table is the same "
+    "(default: the CPUs, at most what memory holds)."
+)
 
 
 class _HelpFormatter(argparse.HelpFormatter):
@@ -2450,6 +2470,7 @@ def _add_calibration_cache_arguments(parser: argparse.ArgumentParser) -> None:
         help="The calibration cache directory (default %(default)s).",
     )
     parser.add_argument("--rebuild", action="store_true", help="Rebuild the cache even when it is fresh.")
+    parser.add_argument("--jobs", type=_positive_int, metavar="N", help=CALIBRATION_JOBS_HELP)
 
 
 def _add_python_argument(parser: argparse.ArgumentParser) -> None:

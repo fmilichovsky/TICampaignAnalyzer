@@ -168,6 +168,29 @@ def test_a_failed_rebuild_keeps_the_old_table_and_says_failed(
     assert sorted(path.name for path in out.iterdir()) == ["index.js", "status.js", "tables"]
 
 
+def test_an_interrupted_rebuild_keeps_the_old_table_and_says_failed(
+    copy: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    samples, out = copy
+    before = {path.relative_to(out): path.read_bytes() for path in out.rglob("*.js") if path.name != "status.js"}
+
+    def interrupted(samples: Path, directory: Path, **kwargs: Any) -> list[str]:
+        (directory / "tables").mkdir()
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(table, "extract_all", interrupted)
+
+    with pytest.raises(KeyboardInterrupt):
+        cache.refresh(samples, out, rebuild=True)
+
+    after = {path.relative_to(out): path.read_bytes() for path in out.rglob("*.js") if path.name != "status.js"}
+    assert after == before
+    status = table.read_status(out / "status.js")
+    assert (status["state"], status["message"]) == ("failed", cache.INTERRUPTED)
+    assert "progress" not in status
+    assert sorted(path.name for path in out.iterdir()) == ["index.js", "status.js", "tables"]
+
+
 def test_a_broken_index_is_stale(copy: tuple[Path, Path]) -> None:
     samples, out = copy
     (out / "index.js").write_text("not a wrapper", encoding="utf-8")

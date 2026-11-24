@@ -247,15 +247,22 @@ def test_chunks_cover_every_interval_once_in_contiguous_near_equal_ranges() -> N
 def test_workers_give_the_results_and_reports_of_one_process(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)  # two chunks over the three fixture saves
     plan = plan_sequence(surveyed(*(fixture(name) for name in SEQUENCE)))
-    loads: list[int] = []
+    serial_saves: list[str] = []
+    parallel_saves: list[str] = []
 
-    serial = list(run_sequence(plan, inferred=True, changes=True))
-    parallel = list(run_sequence(plan, inferred=True, changes=True, jobs=2, on_save=lambda: loads.append(1)))
+    serial = list(
+        run_sequence(plan, inferred=True, changes=True, on_save=lambda save: serial_saves.append(save.source))
+    )
+    parallel = list(
+        run_sequence(plan, inferred=True, changes=True, jobs=2, on_save=lambda save: parallel_saves.append(save.source))
+    )
 
     assert [result.to_dict() for result in parallel] == [result.to_dict() for result in serial]
     assert situations(parallel) == situations(serial)
     assert event_stream(parallel) == event_stream(serial)
-    assert len(loads) == len(SEQUENCE)  # the boundary save of the second chunk is not counted twice
+    assert serial_saves == [save.source for save in plan.saves]
+    # Every save once, the boundary save of the second chunk included, in whatever order the chunks finish.
+    assert sorted(parallel_saves) == sorted(serial_saves)
 
 
 # Private seam: a chunk runs in a spawned worker, where the monkeypatched analyzers would not reach.
@@ -272,12 +279,12 @@ def test_a_later_chunk_does_not_run_the_first_interval_analyzers(monkeypatch: py
     options = _Options(inferred=False, changes=False, load=load_snapshot)
     loads: list[int] = []
 
-    later = list(_interval_results(_Chunk(1, plan.saves[1:], plan.keys[1:], options), lambda: loads.append(1)))
+    later = list(_interval_results(_Chunk(1, plan.saves[1:], plan.keys[1:], options), loads.append))
 
     assert seen == []
     assert [result.index for result in later] == [1]
     assert later[0].key == plan.keys[2]
-    assert len(loads) == 1
+    assert loads == [2]
     list(_interval_results(_Chunk(0, plan.saves[:2], plan.keys[:2], options), None))
     assert seen == [DATES[0]]
 

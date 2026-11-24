@@ -296,8 +296,8 @@ tinarrative benchmark runtime report build/runtime.json --out build/runtime.md
 
 <!-- generated: synopsis benchmark calibrate open -->
 ```
-tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [--port PORT]
-                                     [--no-open]
+tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [--jobs N]
+                                     [--port PORT] [--no-open]
 ```
 <!-- end generated -->
 
@@ -335,6 +335,7 @@ tinarrative benchmark calibrate open --port 8770
 | `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
 | `--out PATH` | The calibration cache directory (default build/calibration). |
 | `--rebuild` | Rebuild the cache even when it is fresh. |
+| `--jobs N` | Worker processes for a rebuild; 1 runs everything in one process; the table is the same (default: the CPUs, at most what memory holds). |
 | `--port PORT` | The port on 127.0.0.1 to serve the page on (default 8769). |
 | `--no-open` | Print the page's URL without opening a browser. |
 <!-- end generated -->
@@ -352,7 +353,7 @@ tinarrative benchmark calibrate open --port 8770
 
 <!-- generated: synopsis benchmark calibrate report -->
 ```
-tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
+tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild] [--jobs N]
                                        [--rise SCALING=VALUE] [--drop SCALING=VALUE]
                                        [--scaling TYPE=SCALING] [--campaign NAME]
                                        [--type EVENT_TYPE] [--base TYPE=LEVEL] [--state HASH]
@@ -373,8 +374,11 @@ off into a scaling of its own, starting as a copy of its code scaling. The cut-o
 each level its events can reach.
 
 The table is cached in `--out`, shared with the page, and rebuilt when the package or `samples.json` changed, or
-with `--rebuild`. While it is extracted, stderr shows how far it has come and the time left on one live line in a
-terminal, a line per finished campaign, and the time the extraction took.
+with `--rebuild`. The campaigns are extracted one after another, each by as many worker processes as the CPUs and
+memory allow; `--jobs` sets the number, and the table is the same for any. While it is extracted, stderr shows how
+far it has come and the time left on one live line in a terminal, a line per finished campaign, and the time the
+extraction took. A rebuild interrupted with Ctrl-C keeps the old table, and a page serving it says the rebuild
+failed.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
@@ -409,6 +413,7 @@ tinarrative benchmark calibrate report --state 'rise=power:0.05'
 | `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
 | `--out PATH` | The calibration cache directory (default build/calibration). |
 | `--rebuild` | Rebuild the cache even when it is fresh. |
+| `--jobs N` | Worker processes for a rebuild; 1 runs everything in one process; the table is the same (default: the CPUs, at most what memory holds). |
 | `--rise SCALING=VALUE` | A scaling's rise share; comma-separated, repeatable (default: the code's). |
 | `--drop SCALING=VALUE` | A scaling's drop share, below its rise share; comma-separated, repeatable (default: the code's). |
 | `--scaling TYPE=SCALING` | Move an event type to another scaling on its measure, or to its own name to split it off into a scaling of its own, starting as a copy; comma-separated, repeatable (default: the code's). |

@@ -343,13 +343,14 @@ def run_sequence(
     load: Callable[[str], SaveSnapshot] = load_snapshot,
     narrative: NarrativeSettings = DEFAULT_SETTINGS.narrative,
     jobs: int = 1,
-    on_save: Callable[[], None] | None = None,
+    on_save: Callable[[SaveRef], None] | None = None,
 ) -> Iterator[IntervalResult]:
     """The results of every interval in order; each save is normalized once and at most two are held at a time.
 
     With ``changes`` every result also keeps its literal state changes. With ``jobs`` above one the intervals are cut
     into contiguous chunks run by worker processes (``load`` must then be picklable); each chunk normalizes its first
-    save once more, and the results are the same. ``on_save`` is called once per save of the plan.
+    save once more, and the results are the same. ``on_save`` is told each save of the plan once, when its work is
+    done; with workers the saves of different chunks arrive in any order, from one coordinator thread.
     """
     if len(plan.saves) < 2:
         return
@@ -358,14 +359,19 @@ def run_sequence(
         _Chunk(start, plan.saves[start : end + 1], plan.keys[start : end + 1], options)
         for start, end in _chunks(len(plan.saves) - 1, jobs)
     ]
+    report = None if on_save is None else _save_reporter(plan, on_save)
     if len(chunks) == 1:
-        yield from _interval_results(chunks[0], on_save)
+        yield from _interval_results(chunks[0], report)
         return
     logger.info("sequence parallel %s", fields(workers=len(chunks)))
-    with pool(len(chunks), on_save, tasks_per_child=1) as executor:  # one chunk per process: its memory line is its own
+    with pool(len(chunks), report, tasks_per_child=1) as executor:  # one chunk per process: its memory line is its own
         futures: list[Future[list[IntervalResult]]] = [executor.submit(_run_chunk, chunk) for chunk in chunks]
         for future in futures:
             yield from future.result()
+
+
+def _save_reporter(plan: SequencePlan, on_save: Callable[[SaveRef], None]) -> Callable[[int], None]:
+    return lambda index: on_save(plan.saves[index])
 
 
 def _chunks(intervals: int, jobs: int) -> list[tuple[int, int]]:
@@ -388,13 +394,12 @@ def _run_chunk(chunk: _Chunk) -> list[IntervalResult]:
     return results
 
 
-def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iterator[IntervalResult]:
-    """The intervals of one chunk; the first save of a later chunk is not reported to ``on_save`` again."""
+def _interval_results(chunk: _Chunk, on_save: Callable[[int], None] | None) -> Iterator[IntervalResult]:
+    """The intervals of one chunk; ``on_save`` is told a save's index in the plan once its interval is analyzed (the
+    first save of the plan once it is prepared). The first save of a later chunk is not reported again."""
     options = chunk.options
 
     def prepared(offset: int) -> tuple[SaveSnapshot, SituationReport, SaveShares]:
-        if on_save is not None and (offset > 0 or chunk.start == 0):
-            on_save()
         index = chunk.start + offset
         started = time.perf_counter()
         snapshot = options.load(chunk.saves[offset].source)
@@ -414,6 +419,8 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
         return snapshot, situation, shares
 
     before, before_situation, before_shares = prepared(0)
+    if on_save is not None and chunk.start == 0:
+        on_save(0)
     for offset in range(1, len(chunk.saves)):
         index = chunk.start + offset
         after, after_situation, after_shares = prepared(offset)
@@ -454,6 +461,8 @@ def _interval_results(chunk: _Chunk, on_save: Callable[[], None] | None) -> Iter
             ),
         )
         del analysis  # its diff holds both snapshots; the next load must find only ``after`` alive
+        if on_save is not None:
+            on_save(index)
         yield result
         before, before_situation, before_shares = after, after_situation, after_shares
 
