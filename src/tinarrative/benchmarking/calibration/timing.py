@@ -19,6 +19,7 @@ from tinarrative.benchmarking.calibration.progress import CampaignStep, Progress
 from tinarrative.benchmarking.calibration.replay import LEVELS, ReplayError
 from tinarrative.benchmarking.calibration.server import Calibration, Request, Tables
 from tinarrative.benchmarking.calibration.table import CalibrationTableError
+from tinarrative.benchmarking.metrics import delta
 
 FULL: Final = "full"
 SWEEP: Final = "sweep"
@@ -370,6 +371,10 @@ def _follow(
 
 MARKER: Final = "<!-- calibration-metrics -->"
 NOT_AVAILABLE: Final = "n/a"
+TIMING_THRESHOLD: Final = 0.15
+"""The change of a median that is flagged; CI runs of one unchanged revision against itself differed by up to 14%."""
+BYTES_THRESHOLD: Final = 0.01
+"""The change of an answer's size that is flagged; sizes do not vary between runs."""
 _KINDS: Final = {
     FULL: "full answer",
     SWEEP: "sweep request",
@@ -386,32 +391,71 @@ def markdown(
     base_label: str,
     run_url: str | None = None,
 ) -> str:
-    """The PR comment: ``MARKER``, then per request type base and head median and p95 seconds and answer bytes, and
-    the tables' row counts."""
+    """The PR comment: ``MARKER``, the changes worth a look, then per request type the change of the median and p95
+    seconds and of the answer bytes, and under them the base and head figures themselves and the tables' row counts."""
 
-    def cells(figures: Mapping[str, Any] | None) -> list[str]:
-        if figures is None:
+    def figures(side: Mapping[str, Any], kind: str) -> Mapping[str, Any] | None:
+        found: Mapping[str, Any] | None = side["requests"].get(kind)
+        return found
+
+    def value(found: Mapping[str, Any] | None, key: str) -> float | None:
+        return None if found is None else float(found[key])
+
+    def cells(found: Mapping[str, Any] | None) -> list[str]:
+        if found is None:
             return [NOT_AVAILABLE] * 3
-        return [f"{figures['median_seconds']:.3f}", f"{figures['p95_seconds']:.3f}", f"{figures['answer_bytes']:,}"]
+        return [f"{found['median_seconds']:.3f}", f"{found['p95_seconds']:.3f}", f"{found['answer_bytes']:,}"]
 
+    def change(old: Mapping[str, Any] | None, new: Mapping[str, Any] | None, key: str) -> float | None:
+        before, after = value(old, key), value(new, key)
+        return None if not before or after is None else after / before - 1
+
+    flagged = []
+    deltas = ["| Request | Δ median s | Δ p95 s | Δ bytes |", "| --- | ---: | ---: | ---: |"]
+    raw = [
+        "| Request | Median s (base) | Median s (head) | p95 s (base) | p95 s (head) | Bytes (base) | Bytes (head) |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    for kind, name in _KINDS.items():
+        old, new = figures(base, kind), figures(head, kind)
+        steps = [
+            delta(value(old, key), value(new, key), digits=digits, unit=unit)
+            for key, digits, unit in (("median_seconds", 3, " s"), ("p95_seconds", 3, " s"), ("answer_bytes", 0, ""))
+        ]
+        deltas.append(f"| {name} | {steps[0]} | {steps[1]} | {steps[2]} |")
+        slower = change(old, new, "median_seconds")
+        if slower is not None and abs(slower) >= TIMING_THRESHOLD:
+            flagged.append(f"{name} median {steps[0]}")
+        resized = change(old, new, "answer_bytes")
+        if resized is not None and abs(resized) >= BYTES_THRESHOLD:
+            flagged.append(f"{name} bytes {steps[2]}")
+        before, after = cells(old), cells(new)
+        raw.append(f"| {name} | {before[0]} | {after[0]} | {before[1]} | {after[1]} | {before[2]} | {after[2]} |")
+    base_rows, head_rows = sum(base["campaigns"].values()), sum(head["campaigns"].values())
+    summary = (
+        "Changed: " + "; ".join(flagged) + "."
+        if flagged
+        else f"No median change of {TIMING_THRESHOLD:.0%}+ nor answer size change of {BYTES_THRESHOLD:.0%}+."
+    )
     lines = [
         MARKER,
         "## Calibration requests timing",
         "",
         *([f"[View workflow run]({run_url})"] if run_url else []),
         "",
-        "| Request | Median s (base) | Median s (head) | p95 s (base) | p95 s (head) | Bytes (base) | Bytes (head) |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
-    ]
-    for kind, name in _KINDS.items():
-        old, new = cells(base["requests"].get(kind)), cells(head["requests"].get(kind))
-        lines.append(f"| {name} | {old[0]} | {new[0]} | {old[1]} | {new[1]} | {old[2]} | {new[2]} |")
-    base_rows, head_rows = sum(base["campaigns"].values()), sum(head["campaigns"].values())
-    lines += [
+        summary,
+        "",
+        *deltas,
+        "",
+        "<details><summary>Base and head figures</summary>",
+        "",
+        *raw,
         "",
         f"Base `{base_label}`: {base_rows:,} table rows.",
         "",
         f"Head `{head_label}`: {head_rows:,} table rows.",
+        "",
+        "</details>",
     ]
     return "\n".join(lines) + "\n"
 

@@ -14,7 +14,7 @@ import pytest
 from tests.benchmark_support import synthetic_samples
 from tests.benchmarking.calibration_golden import GOLDEN
 from tinarrative import cli
-from tinarrative.benchmarking.calibration import cache, timing
+from tinarrative.benchmarking.calibration import cache, progress, timing
 
 COMMAND = ["benchmark", "calibrate", "time"]
 
@@ -215,7 +215,7 @@ def test_the_base_side_reports_its_extraction_and_rounds_like_the_head(
     assert body[announced - 1].startswith("head: measured in ")
     assert "reports nothing" not in body[announced]
     base = body[announced + 1 :]
-    assert base[0] == "base: Extracted alpha (3 saves) after 2.5s"
+    assert base[0] == "base: Extracted alpha (3 saves) in 2.5s"
     assert base[1].startswith("base: extracting the calibration table took ")
     assert base[2:] == [
         "base: cannot answer base switch; skipped",
@@ -226,3 +226,19 @@ def test_the_base_side_reports_its_extraction_and_rounds_like_the_head(
         "base: round 1/1 done in 0.600s",
         "base: measured in 0.600s",
     ]
+
+
+def test_each_campaign_extraction_is_timed_from_the_one_before_it_finished(capsys: pytest.CaptureFixture[str]) -> None:
+    reporter = cli._ExtractionReporter("tinarrative benchmark calibrate time: base")
+    reporter.stale(cache.CacheCheck(Path("out"), "key", None))
+
+    def snapshot(elapsed: float, alpha: progress.Phase, beta: progress.Phase) -> progress.ProgressSnapshot:
+        steps = (progress.CampaignStep("alpha", alpha, 34, 34), progress.CampaignStep("beta", beta, 1, 34))
+        return progress.ProgressSnapshot(steps, 0.0, 1.0, elapsed)
+
+    reporter.progress(snapshot(34.1, "done", "survey"))
+    reporter.progress(snapshot(95.9, "done", "done"))
+
+    err = capsys.readouterr().err
+    assert "Extracted alpha (34 saves) in 34.1s" in err
+    assert "Extracted beta (34 saves) in 61.8s" in err

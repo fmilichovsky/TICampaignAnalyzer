@@ -852,13 +852,14 @@ def _calibration_samples_error(command: str, samples: Path) -> int | None:
 
 class _ExtractionReporter:
     """Show an extraction of the calibration table on stderr: a live line on a terminal, a line per finished
-    campaign, and the time it took."""
+    campaign, and the time it took: each one's own, counted from when the one before it finished (or from the start)."""
 
     def __init__(self, command: str) -> None:
         self.command = command
         self.tracker: _ProgressTracker | None = None
         self.rebuilding = False
         self.finished: set[str] = set()
+        self.last_finished = 0.0
 
     def stale(self, found: calibration_cache.CacheCheck) -> None:
         self.begin(rebuilding=found.existing is not None)
@@ -878,10 +879,12 @@ class _ExtractionReporter:
         for step in snapshot.campaigns:
             if step.phase == "done" and step.name not in self.finished:
                 self.finished.add(step.name)
+                took = snapshot.elapsed - self.last_finished
+                self.last_finished = snapshot.elapsed
                 self.tracker.report(
                     [
                         f"{self.command}: {'Rebuilt' if self.rebuilding else 'Extracted'} {step.name} "
-                        f"({step.total} saves) after {snapshot.elapsed:.1f}s"
+                        f"({step.total} saves) in {took:.1f}s"
                     ]
                 )
         self.tracker.show(f"{'Rebuilding' if self.rebuilding else 'Extracting'} {snapshot.text()}")
