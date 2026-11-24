@@ -389,7 +389,7 @@ tinarrative benchmark calibrate time --base-python ../main/.venv/bin/python --re
 | `--jobs N` | Worker processes for a rebuild; 1 runs everything in one process; the table is the same (default: the CPUs, at most what memory holds). |
 | `--repeats N` | Times each request is sent (default 5). |
 | `--output PATH` | Write the timing JSON here (default: stdout). |
-| `--base-python PYTHON` | Another revision's interpreter: it extracts its own table (from --base-samples) and times the same requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report. |
+| `--base-python PYTHON` | Another revision's interpreter: it extracts its own table (from --base-samples, with --jobs) and times the same requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report. |
 | `--base-samples PATH` | The samples directory the base extracts from (default: --samples), so a changed sample shows its effect. |
 | `--base-label LABEL` | The base revision's name in --report (default base). |
 | `--label LABEL` | This revision's name in --report (default head). |
