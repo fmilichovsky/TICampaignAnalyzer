@@ -1064,6 +1064,8 @@ def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
         print(f"{command}: --report compares two revisions and needs --base-python.", file=sys.stderr)
         return EXIT_USAGE_ERROR
     failed = _calibration_samples_error(command, cast(Path, args.samples))
+    if failed is None and args.base_samples is not None:
+        failed = _calibration_samples_error(command, cast(Path, args.base_samples))
     if failed is not None:
         return failed
     failed = _refresh_calibration_cache(command, args)
@@ -1074,7 +1076,7 @@ def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
             calibration_server.Calibration(cast(Path, args.out)),
             repeats=cast(int, args.repeats),
             base_python=cast("str | None", args.base_python),
-            samples=cast(Path, args.samples),
+            base_samples=cast("Path | None", args.base_samples) or cast(Path, args.samples),
         )
     except calibration_timing.TimingError as error:
         print(f"{command}: {error}", file=sys.stderr)
@@ -2493,8 +2495,14 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     timed.add_argument(
         "--base-python",
         metavar="PYTHON",
-        help="Another revision's interpreter: it extracts its own table from --samples and times the same requests "
-        "through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report.",
+        help="Another revision's interpreter: it extracts its own table (from --base-samples) and times the same "
+        "requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report.",
+    )
+    timed.add_argument(
+        "--base-samples",
+        type=Path,
+        metavar="PATH",
+        help="The samples directory the base extracts from (default: --samples), so a changed sample shows its effect.",
     )
     timed.add_argument(
         "--base-label",

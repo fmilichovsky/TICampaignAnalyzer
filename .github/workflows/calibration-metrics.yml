@@ -1,6 +1,6 @@
 name: Calibration metrics
 
-# Times the calibration server's fixed requests on demand: base and head each extract their own table from the
+# Times the calibration server's fixed requests on demand: base and head each extract their own table from their own
 # committed sample campaigns and answer the same list, one after the other on one runner. Timings from different
 # runners are not comparable. Informational: a slower answer never fails the check. See benchmarks/README.md.
 
@@ -49,7 +49,8 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     steps:
-      # The head checkout supplies the CLI, the samples and the request list used to measure both revisions.
+      # The head checkout supplies the CLI and the request list; each revision brings its own samples, so a changed
+      # sample shows its effect.
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve.outputs.head_checkout_ref }}
@@ -70,6 +71,7 @@ jobs:
         run: >-
           .bench/venv-head/bin/python -m tinarrative.cli benchmark calibrate time --repeats 5
           --samples benchmarks/samples --out .bench/calibration-head
+          --base-samples .bench/base-src/benchmarks/samples
           --base-python .bench/venv-base/bin/python --base-label "$BASE_LABEL ${GITHUB_BASE_SHA::7}"
           --label "$HEAD_LABEL ${GITHUB_HEAD_SHA::7}"
           --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
