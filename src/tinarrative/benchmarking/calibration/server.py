@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import math
 import re
@@ -59,6 +60,8 @@ class Calibration:
     out: Path
     _loaded: tuple[str, dict[str, Any], Tables, Tables] | None = field(default=None, repr=False)
     _prepared: calibration.Prepared | None = field(default=None, repr=False)
+    _frozen: calibration.Prepared | None = field(default=None, repr=False)
+    """The table last kept out of the garbage collector's passes (``gc.freeze``)."""
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def handle(self, request: Request) -> Response:
@@ -105,9 +108,18 @@ class Calibration:
             return _text(HTTPStatus.BAD_REQUEST, 'the request is {"hash": "..."} or {"state": {...}}')
         try:
             (_, index, tables, drafts), prepared = self._current()
-            return _json(answer(index, tables, drafts, asked, prepared=prepared))
+            derived = prepared.derived
+            response = _json(answer(index, tables, drafts, asked, prepared=prepared))
         except (OSError, ReplayError, CalibrationTableError) as error:
             return _json({"fatal": str(error)}, HTTPStatus.SERVICE_UNAVAILABLE)
+        if prepared is not self._frozen or prepared.derived != derived:
+            # The table and its caches live as long as the server. Left to the collector, every full collection walks
+            # their millions of objects and pauses an answer by 100 ms or more; frozen, they are skipped. Collecting
+            # first keeps the garbage of earlier answers from being frozen with them.
+            gc.collect()
+            gc.freeze()
+            self._frozen = prepared
+        return response
 
 
 def answer(

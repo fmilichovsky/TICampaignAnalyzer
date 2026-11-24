@@ -328,26 +328,40 @@ INVALID_HASHES = [
 
 
 def page_session(index: Mapping[str, Any], tables: Mapping[str, Sequence[dict[str, Any]]]) -> list[dict[str, Any]]:
-    """The states a page session sends, as ``POST /replay`` bodies: a drag of one rise share with a base-level switch
-    and a split-off scaling partway through, the type filter on and off, a campaign turned off, and a drop share set
-    and cleared."""
+    """The states a page session sends, as ``POST /replay`` bodies: a drag of one rise share with, partway through, a
+    base-level switch, a split-off scaling, and the base levels of an unscaled type and of a draft share switched back
+    and forth; then the type filter on and off, a campaign turned off, and a drop share set and cleared. The drag is
+    the first 13 bodies."""
     scaling = next(
         name for name in index["scalings"] if any(kind["scaling"] == name for kind in index["kinds"].values())
     )
     rise = float(index["scalings"][scaling]["rise"])
     switched = next(event_type for event_type, kind in index["kinds"].items() if kind["base"] != "major")
     split = next(event_type for event_type, kind in index["kinds"].items() if kind["scaling"] == scaling)
-    commonest = Counter(row["type"] for rows in tables.values() for row in rows).most_common(1)[0][0]
+    counts = Counter(row["type"] for rows in tables.values() for row in rows)
+    commonest = counts.most_common(1)[0][0]
+    unscaled = next(
+        event_type
+        for event_type, _ in counts.most_common()
+        if event_type in index["kinds"] and index["kinds"][event_type]["scaling"] is None
+    )
+    unscaled_level = "major" if index["kinds"][unscaled]["base"] != "major" else "minor"
+    draft = next(iter(index["drafts"]), None)
+    draft_level = None if draft is None else ("major" if draft["base"] != "major" else "minor")
     state: dict[str, Any] = {}
     bodies: list[dict[str, Any]] = [{"state": {}}]
     for step in range(12):
         state = {**state, "rises": {scaling: rise * 10 ** (-1 + step / 6)}}
         if step == 4:
             state = {**state, "scalings": {split: split}}
-        if step == 6:
-            state = {**state, "type_bases": {switched: "major"}}
         if step == 9:
             state = {key: value for key, value in state.items() if key != "scalings"}
+        type_bases = {switched: "major"} if step >= 6 else {}
+        if step == 2 or step >= 8:
+            type_bases = {**type_bases, unscaled: unscaled_level}
+        state = {**state, "type_bases": type_bases}
+        if draft is not None:
+            state = {**state, "bases": {draft["name"]: draft_level} if step in (4, 7, 8, 9, 10, 11) else {}}
         bodies.append({"state": state})
     state = {**state, "types": [commonest]}
     bodies.append({"state": state})

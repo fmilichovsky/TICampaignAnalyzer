@@ -9,7 +9,7 @@ import math
 import re
 import threading
 from collections import Counter
-from collections.abc import Collection, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import Decimal
 from pathlib import Path
@@ -211,7 +211,7 @@ class _Gate:
     minimum: int
 
 
-@dataclass
+@dataclass(slots=True)
 class _Scored:
     row: Row
     score: int
@@ -357,6 +357,79 @@ class _Plan:
     """The scaling of each share of each draft row: its draft's per measure."""
     positions: Mapping[str, int]
     """The row positions by id."""
+    reachable: tuple[int, ...]
+    """The positions, in layer order, of the rows a share can reach: a row with a share, or one citing such a row."""
+    unreachable: tuple[int, ...]
+    """The other positions, in layer order: no rise, drop or scaling changes their scores."""
+    member_positions: tuple[int, ...]
+    """The positions, in table order, of the rows a member result can be given: groups and member types."""
+
+
+@dataclass(frozen=True)
+class _Tally:
+    """What the aggregates count of a set of scored rows, by event type; two tallies of disjoint rows add up to the
+    tally of both."""
+
+    replayed: Counter[tuple[str, str]]
+    """Rows by type and level after the replay; a group that falls apart is not counted."""
+    baseline: Counter[tuple[str, str]]
+    """Rows by type and oracle level."""
+    moved: Counter[tuple[str, str, str]]
+    """Rows by type, oracle level and level after the replay, where the two differ; a fallen group is not counted."""
+    via_cited: Counter[tuple[str, str, str]]
+    """The rows of ``moved`` a cited row decided."""
+    package: Counter[str]
+    """Narrative rows by type at the package level or above after the replay, a fallen group not counted."""
+    package_baseline: Counter[str]
+    """Narrative rows by type at the package level or above at the oracle."""
+    members_changed: Counter[str]
+    """Groups by type that lose members or fall apart."""
+
+    def __add__(self, other: _Tally) -> _Tally:
+        return _Tally(
+            *(
+                getattr(self, name) + getattr(other, name)
+                for name in (
+                    "replayed",
+                    "baseline",
+                    "moved",
+                    "via_cited",
+                    "package",
+                    "package_baseline",
+                    "members_changed",
+                )
+            )
+        )
+
+    def of_types(self, types: frozenset[str]) -> _Tally:
+        """The tally of the rows of ``types``; all of them for no filter."""
+        if not types:
+            return self
+
+        def kept(counter: Counter[Any], typed: bool) -> Counter[Any]:
+            return Counter({key: count for key, count in counter.items() if (key[0] if typed else key) in types})
+
+        return _Tally(
+            kept(self.replayed, True),
+            kept(self.baseline, True),
+            kept(self.moved, True),
+            kept(self.via_cited, True),
+            kept(self.package, False),
+            kept(self.package_baseline, False),
+            kept(self.members_changed, False),
+        )
+
+
+@dataclass(frozen=True)
+class _Fixed:
+    """One campaign's rows no share reaches, scored for one choice of switched base levels. Shared between replays
+    and never changed: a replay copies ``done`` and ``events`` before it fills in the reachable rows."""
+
+    done: list[_Scored]
+    """The scored rows at the unreachable positions; ``None`` at the reachable ones."""
+    events: list[EventResult]
+    """``done`` as the replay's events; ``None`` at the reachable positions."""
+    tally: _Tally
 
 
 @dataclass(frozen=True)
@@ -371,19 +444,35 @@ class _Scaled:
 _SCALED_KEPT: Final = 16
 """The scalings choices a prepared table keeps derived: a page session tries a few at a time."""
 
+_FIXED_KEPT: Final = 4
+"""The base-level choices a prepared table keeps its unreachable rows scored for; each holds every such row, about
+30 MB on the two full sample campaigns."""
+
 
 @dataclass(frozen=True, eq=False)
 class Prepared:
     """A calibration table with the work no calibration state changes done once (``prepare``); its replays equal
     ``replay``'s. What depends only on the state's reassigned scalings is derived on first use and kept for the last
-    ``_SCALED_KEPT`` choices. Safe to share between threads."""
+    ``_SCALED_KEPT`` choices; the rows no share reaches are scored on first use of a choice of switched base levels
+    and kept for the ``_FIXED_KEPT`` used last. Safe to share between threads. Its replays share their unreachable
+    rows' events and members with each other: read them, never change them."""
 
     index: Mapping[str, Any]
     plans: Mapping[str, _Plan]
     types: frozenset[str]
     """The event types of every row."""
+    fixed_types: frozenset[str]
+    """The event types of the rows no share reaches: only their switched base levels change those rows."""
     _scaled: dict[tuple[tuple[str, str], ...], _Scaled] = field(default_factory=dict, repr=False)
+    _fixed: dict[tuple[str, tuple[tuple[str, str], ...]], _Fixed] = field(default_factory=dict, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _derived: list[int] = field(default_factory=lambda: [0], repr=False)
+
+    @property
+    def derived(self) -> int:
+        """How many scalings or base-level choices have been derived and kept so far; it grows whenever the table
+        keeps more objects for later replays."""
+        return self._derived[0]
 
     @property
     def positions(self) -> dict[str, Mapping[str, int]]:
@@ -405,22 +494,66 @@ class Prepared:
         _validate(index, self.plans, self.types, state)
         scaled = self._scaled_for(state)
         types = frozenset(state.types)
-        scored: dict[str, list[_Scored]] = {}
-        shadows: dict[str, list[_Scored]] = {}
+        package = _package_levels(index)
+        campaigns: dict[str, _Campaign] = {}
         for name in state.campaigns:
-            scored[name], shadows[name] = _replay_campaign(index, self.plans[name], scaled.scalings[name], state)
-        selected = _of_types(scored, types)
-        shadowed = _of_types(shadows, types)
-        result = _result(index, state, scored, shadows, selected, shadowed, scaled)
+            plan = self.plans[name]
+            fixed = self._fixed_for(name, state)
+            done = list(fixed.done)
+            _score(index, plan, plan.reachable, done, scaled.scalings[name], state)
+            fresh = [done[position] for position in plan.reachable]
+            events = list(fixed.events)
+            for position, item in zip(plan.reachable, fresh, strict=True):
+                events[position] = _event(item)
+            campaigns[name] = _Campaign(
+                done=done,
+                events=events,
+                tally=fixed.tally + _tally(fresh, package),
+                members=[
+                    item.member
+                    for item in (done[position] for position in plan.member_positions)
+                    if item.member is not None
+                ],
+                shadows=_score_drafts(index, plan, done, state),
+            )
+        result = _result(index, state, campaigns, types, scaled)
         if not unfiltered or not types:
             return result, None
         return result, {
-            "moves": _moves([item for items in scored.values() for item in items], LEVELS),
-            "level_counts": {name: _level_counts(items, LEVELS) for name, items in scored.items()},
-            "members": {
-                name: [item.member for item in items if item.member is not None] for name, items in scored.items()
-            },
+            "moves": _moves(sum((campaign.tally for campaign in campaigns.values()), _empty_tally()), LEVELS),
+            "level_counts": {name: _level_counts(campaign.tally, LEVELS) for name, campaign in campaigns.items()},
+            "members": {name: list(campaign.members) for name, campaign in campaigns.items()},
         }
+
+    def _fixed_for(self, campaign: str, state: ReplayState) -> _Fixed:
+        """The campaign's unreachable rows scored for ``state``'s switched base levels of their types."""
+        switched = switched_types(state, self.index)
+        key = (
+            campaign,
+            tuple((event_type, level) for event_type, level in switched.items() if event_type in self.fixed_types),
+        )
+        with self._lock:
+            found = self._fixed.pop(key, None)
+            if found is not None:
+                # Kept last, so the choices evicted are the least recently used.
+                self._fixed[key] = found
+        if found is not None:
+            return found
+        plan = self.plans[campaign]
+        done: list[_Scored] = [None] * len(plan.rows)  # type: ignore[list-item]  # the reachable rows stay None
+        _score(self.index, plan, plan.unreachable, done, plan.code_scalings, state)
+        events: list[EventResult] = [None] * len(plan.rows)  # type: ignore[list-item]  # likewise
+        for position in plan.unreachable:
+            events[position] = _event(done[position])
+        derived = _Fixed(
+            done, events, _tally([done[position] for position in plan.unreachable], _package_levels(self.index))
+        )
+        with self._lock:
+            if len(self._fixed) >= _FIXED_KEPT * len(self.plans):
+                del self._fixed[next(iter(self._fixed))]
+            self._fixed[key] = derived
+            self._derived[0] += 1
+        return derived
 
     def _scaled_for(self, state: ReplayState) -> _Scaled:
         key = tuple(sorted(state.scalings.items()))
@@ -433,12 +566,23 @@ class Prepared:
             if len(self._scaled) >= _SCALED_KEPT:
                 del self._scaled[next(iter(self._scaled))]
             self._scaled[key] = derived
+            self._derived[0] += 1
         return derived
 
 
-def _of_types(groups: Mapping[str, list[_Scored]], types: frozenset[str]) -> dict[str, list[_Scored]]:
-    """Each campaign's items of the filtered ``types``; every item for no filter."""
-    return {name: [item for item in items if not types or item.row["type"] in types] for name, items in groups.items()}
+@dataclass(frozen=True)
+class _Campaign:
+    """One enabled campaign of a replay: the cached unreachable rows with the reachable ones rescored."""
+
+    done: list[_Scored]
+    """Every row scored, in table order."""
+    events: list[EventResult]
+    tally: _Tally
+    """Every row's, unfiltered."""
+    members: list[MemberResult]
+    """Every row's, unfiltered, in table order."""
+    shadows: list[_Scored]
+    """The draft rows scored, in table order."""
 
 
 def prepare(
@@ -456,21 +600,24 @@ def prepare(
         index=index,
         plans=plans,
         types=frozenset(row["type"] for rows in tables.values() for row in rows),
+        fixed_types=frozenset(plan.rows[position]["type"] for plan in plans.values() for position in plan.unreachable),
     )
 
 
 def _result(
     index: Mapping[str, Any],
     state: ReplayState,
-    scored: Mapping[str, Sequence[_Scored]],
-    shadows: Mapping[str, Sequence[_Scored]],
-    selected: Mapping[str, Sequence[_Scored]],
-    shadowed: Mapping[str, Sequence[_Scored]],
+    campaigns: Mapping[str, _Campaign],
+    types: frozenset[str],
     scaled: _Scaled,
 ) -> Replay:
-    constants = index["constants"]
     levels = LEVELS
-    every = [item for items in selected.values() for item in items]
+    tallies = {name: campaign.tally.of_types(types) for name, campaign in campaigns.items()}
+    every = sum(tallies.values(), _empty_tally())
+    shadowed = {
+        name: [item for item in campaign.shadows if not types or item.row["type"] in types]
+        for name, campaign in campaigns.items()
+    }
     return {
         "schema_version": SCHEMA_VERSION,
         "state": {
@@ -485,18 +632,16 @@ def _result(
         },
         "campaigns": {
             name: {
-                "events": [_event(item) for item in scored[name]],
-                "level_counts": _level_counts(selected[name], levels),
-                "members": [item.member for item in selected[name] if item.member is not None],
-                "drafts": [_event(item) for item in shadows[name]],
+                "events": campaign.events,
+                "level_counts": _level_counts(tallies[name], levels),
+                "members": [member for member in campaign.members if not types or member["type"] in types],
+                "drafts": [_event(item) for item in campaign.shadows],
             }
-            for name in state.campaigns
+            for name, campaign in campaigns.items()
         },
-        "totals": _totals(every, levels, constants["package_level"]),
+        "totals": _totals(every),
         "moves": _moves(every, levels),
-        "cutoffs": {
-            name: _cutoffs(name, state, index, scaled, scored, shadows) for name in scaling_order(index, state)
-        },
+        "cutoffs": {name: _cutoffs(name, state, index, scaled, campaigns) for name in scaling_order(index, state)},
         "drafts": _drafts(index, state, shadowed, levels),
     }
 
@@ -624,12 +769,18 @@ def _plan(index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row],
             raise ReplayError(f"{row['id']} is a row of no declared draft share")
         names.append(name)
     shadow_cited = tuple(cited(row) for row in shadows)
+    # A row's citations are scored before it, so layer order settles reach in one pass.
+    reached = [False] * len(rows)
+    for position in order:
+        reached[position] = bool(rows[position]["shares"]) or any(reached[found] for found in cites[position])
+    group_gates = tuple(group_gate(row) for row in rows)
+    member_gates = tuple(next((gate for gate in gates if row["type"] == gate.member_type), None) for row in rows)
     return _Plan(
         rows=rows,
         order=order,
         cited=tuple(cites),
-        gates=tuple(group_gate(row) for row in rows),
-        member_gates=tuple(next((gate for gate in gates if row["type"] == gate.member_type), None) for row in rows),
+        gates=group_gates,
+        member_gates=member_gates,
         code_scalings=tuple(code),
         by_type={event_type: tuple(found) for event_type, found in by_type.items()},
         shadows=shadows,
@@ -638,6 +789,13 @@ def _plan(index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row],
         shadow_drafts=tuple(names),
         shadow_scalings=tuple(scalings_of(row, name) for row, name in zip(shadows, names, strict=True)),
         positions=positions,
+        reachable=tuple(position for position in order if reached[position]),
+        unreachable=tuple(position for position in order if not reached[position]),
+        member_positions=tuple(
+            position
+            for position in range(len(rows))
+            if group_gates[position] is not None or member_gates[position] is not None
+        ),
     )
 
 
@@ -661,20 +819,17 @@ def _derive_scaled(plans: Mapping[str, _Plan], state: ReplayState) -> _Scaled:
     return _Scaled(scalings=scalings, candidates=candidates)
 
 
-def _replay_campaign(
-    index: Mapping[str, Any], plan: _Plan, scalings: Sequence[tuple[str, ...]], state: ReplayState
-) -> tuple[list[_Scored], list[_Scored]]:
-    """The rows and the draft rows rescored, in table order."""
-    switched = switched_types(state, index)
-    switched_bases = {event_type: Significance(level).base for event_type, level in switched.items()}
-    own_bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
+_Settle = Callable[[Row, int, list[_Scored], _Gate | None, tuple[str, ...]], _Scored]
+
+
+def _settler(state: ReplayState) -> _Settle:
+    """Score one row from its base, the rows it cites (already scored), its member gate and its shares' scalings."""
     rises, drops = state.rises, state.drops
     level_of: dict[int, str] = {}
 
     def settle(
-        row: Row, base: int, cited: tuple[int, ...], gate: _Gate | None, row_scalings: tuple[str, ...]
+        row: Row, base: int, cited_rows: list[_Scored], gate: _Gate | None, row_scalings: tuple[str, ...]
     ) -> _Scored:
-        cited_rows = [done[position] for position in cited]
         lost: list[str] = []
         if gate is not None:
             lost = [
@@ -704,14 +859,32 @@ def _replay_campaign(
             item.member = _group_verdict(row, gate, cited_rows, lost)
         return item
 
+    return settle
+
+
+def _score(
+    index: Mapping[str, Any],
+    plan: _Plan,
+    positions: Sequence[int],
+    done: list[_Scored],
+    scalings: Sequence[tuple[str, ...]],
+    state: ReplayState,
+) -> None:
+    """Score the rows at ``positions`` into ``done``: in layer order, each row's citations scored already, here or
+    before."""
+    switched = switched_types(state, index)
+    switched_bases = {event_type: Significance(level).base for event_type, level in switched.items()}
+    settle = _settler(state)
     rows = plan.rows
-    done: list[_Scored] = [None] * len(rows)  # type: ignore[list-item]  # each set in layer order below
-    for position in plan.order:
+    for position in positions:
         row = rows[position]
         # A context rule's decision keeps the row's own base; a tried base level replaces only the type's default.
         base = switched_bases[row["type"]] if row["rule"] is None and row["type"] in switched else int(row["base"])
-        done[position] = settle(row, base, plan.cited[position], plan.gates[position], scalings[position])
-    for item, member_gate in zip(done, plan.member_gates, strict=True):
+        cited_rows = [done[found] for found in plan.cited[position]]
+        done[position] = settle(row, base, cited_rows, plan.gates[position], scalings[position])
+    for position in positions:
+        member_gate = plan.member_gates[position]
+        item = done[position]
         if (
             member_gate is not None
             and item.row["level"] not in member_gate.admitted
@@ -727,6 +900,13 @@ def _replay_campaign(
                 "minimum": member_gate.minimum,
                 "stale_share": False,
             }
+
+
+def _score_drafts(index: Mapping[str, Any], plan: _Plan, done: Sequence[_Scored], state: ReplayState) -> list[_Scored]:
+    """The draft rows scored, in table order, against the scored real rows ``done``."""
+    switched = switched_types(state, index)
+    own_bases = {draft["name"]: draft["base"] for draft in index["drafts"]}
+    settle = _settler(state)
     drafted: list[_Scored] = []
     for position, row in enumerate(plan.shadows):
         name = plan.shadow_drafts[position]
@@ -738,12 +918,11 @@ def _replay_campaign(
             if level == own_bases.get(name) and row["type"] in switched:
                 level = switched[row["type"]]
             base = Significance(level).base
-        item = settle(
-            row, base, plan.shadow_cited[position], plan.shadow_gates[position], plan.shadow_scalings[position]
-        )
+        cited_rows = [done[found] for found in plan.shadow_cited[position]]
+        item = settle(row, base, cited_rows, plan.shadow_gates[position], plan.shadow_scalings[position])
         item.member = None
         drafted.append(item)
-    return done, drafted
+    return drafted
 
 
 def _group_verdict(row: Row, gate: _Gate, kept_rows: Sequence[_Scored], lost: Sequence[str]) -> MemberResult:
@@ -770,31 +949,55 @@ def _fallen(item: _Scored) -> bool:
     return item.member is not None and item.member["verdict"] == "falls_apart"
 
 
-def _level_counts(items: Sequence[_Scored], levels: Sequence[str]) -> dict[str, LevelCounts]:
-    replayed = Counter((item.row["type"], item.level) for item in items if not _fallen(item))
-    baseline = Counter((item.row["type"], item.row["level"]) for item in items)
+def _package_levels(index: Mapping[str, Any]) -> frozenset[str]:
+    """The levels the narrator package holds: the index's ``package_level`` and above."""
+    return frozenset(LEVELS[LEVELS.index(index["constants"]["package_level"]) :])
+
+
+def _empty_tally() -> _Tally:
+    return _Tally(Counter(), Counter(), Counter(), Counter(), Counter(), Counter(), Counter())
+
+
+def _tally(items: Iterable[_Scored], package: frozenset[str]) -> _Tally:
+    """What the aggregates count of ``items``."""
+    tally = _empty_tally()
+    for item in items:
+        row = item.row
+        event_type, oracle, level = row["type"], row["level"], item.level
+        fallen = _fallen(item)
+        tally.baseline[event_type, oracle] += 1
+        if not fallen:
+            tally.replayed[event_type, level] += 1
+            if level != oracle:
+                tally.moved[event_type, oracle, level] += 1
+                if item.decided_by != row["id"]:
+                    tally.via_cited[event_type, oracle, level] += 1
+        if row["tier"] == "narrative":
+            if oracle in package:
+                tally.package_baseline[event_type] += 1
+            if level in package and not fallen:
+                tally.package[event_type] += 1
+        if item.member is not None and item.member["verdict"] in {"loses_members", "falls_apart"}:
+            tally.members_changed[event_type] += 1
+    return tally
+
+
+def _level_counts(tally: _Tally, levels: Sequence[str]) -> dict[str, LevelCounts]:
     return {
         event_type: {
-            "replay": {level: replayed[event_type, level] for level in levels},
-            "baseline": {level: baseline[event_type, level] for level in levels},
+            "replay": {level: tally.replayed[event_type, level] for level in levels},
+            "baseline": {level: tally.baseline[event_type, level] for level in levels},
         }
-        for event_type in sorted({item.row["type"] for item in items})
+        for event_type in sorted({event_type for event_type, _ in tally.baseline})
     }
 
 
-def _totals(items: Sequence[_Scored], levels: Sequence[str], package_level: str) -> Totals:
-    package = levels[levels.index(package_level) :]
-    narrative = [item for item in items if item.row["tier"] == "narrative"]
-    replayed = sum(1 for item in narrative if item.level in package and not _fallen(item))
-    baseline = sum(1 for item in narrative if item.row["level"] in package)
+def _totals(tally: _Tally) -> Totals:
+    replayed, baseline = tally.package.total(), tally.package_baseline.total()
     return {
-        "events_moved": sum(1 for item in items if item.level != item.row["level"] and not _fallen(item)),
+        "events_moved": tally.moved.total(),
         "package": {"replay": replayed, "baseline": baseline, "change": replayed - baseline},
-        "members_changed": sum(
-            1
-            for item in items
-            if item.member is not None and item.member["verdict"] in {"loses_members", "falls_apart"}
-        ),
+        "members_changed": tally.members_changed.total(),
     }
 
 
@@ -819,15 +1022,8 @@ def _drafts(
     return result
 
 
-def _moves(items: Sequence[_Scored], levels: Sequence[str]) -> list[Move]:
-    counts: Counter[tuple[str, str, str]] = Counter()
-    via: Counter[tuple[str, str, str]] = Counter()
-    for item in items:
-        if item.level == item.row["level"] or _fallen(item):
-            continue
-        key = (item.row["type"], item.row["level"], item.level)
-        counts[key] += 1
-        via[key] += item.decided_by != item.row["id"]
+def _moves(tally: _Tally, levels: Sequence[str]) -> list[Move]:
+    counts, via = tally.moved, tally.via_cited
     ordered = sorted(counts, key=lambda key: (-counts[key], key[0], levels.index(key[1]), levels.index(key[2])))
     return [
         {"type": key[0], "from_level": key[1], "to_level": key[2], "count": counts[key], "via_cited": via[key]}
@@ -854,8 +1050,7 @@ def _cutoffs(
     state: ReplayState,
     index: Mapping[str, Any],
     scaled: _Scaled,
-    scored: Mapping[str, Sequence[_Scored]],
-    shadows: Mapping[str, Sequence[_Scored]],
+    campaigns: Mapping[str, _Campaign],
 ) -> list[Cutoff]:
     """The cut-offs of scaling ``name`` at every step its rows' starting levels reach, each with the nearest rows
     of the scaling on each side, of the enabled campaigns and the filtered types; a row decided outright never
@@ -869,7 +1064,8 @@ def _cutoffs(
     drafted: list[tuple[str, _Scored, float]] = []
     for campaign in state.campaigns:
         own_real, own_drafted = of_scaling.get(campaign, ([], []))
-        for found, pairs, items in ((real, own_real, scored[campaign]), (drafted, own_drafted, shadows[campaign])):
+        scored = campaigns[campaign]
+        for found, pairs, items in ((real, own_real, scored.done), (drafted, own_drafted, scored.shadows)):
             found.extend(
                 (campaign, items[position], share)
                 for position, share in pairs
