@@ -84,8 +84,29 @@ def test_repeats_must_be_positive(paths: tuple[Path, Path]) -> None:
         timed(paths, "--repeats", "0")
 
 
+def _progress(event: str, **fields: object) -> str:
+    return timing.PROGRESS_PREFIX + json.dumps({"event": event, **fields})
+
+
+BASE_PROGRESS = [
+    _progress("extraction", campaigns=[["alpha", "sequence", 1, 3]], done_work=1.0, total_work=3.0, elapsed=1.0),
+    _progress("extraction", campaigns=[["alpha", "done", 3, 3]], done_work=3.0, total_work=3.0, elapsed=2.5),
+    _progress("warm_up"),
+    _progress("skipped", kind=timing.BASE_SWITCH),
+    _progress("start", rounds=1, total=2),
+    _progress("round", round=1, rounds=1),
+    _progress("request", round=1, rounds=1, kind=timing.FULL, done=1, total=1),
+    _progress("group", round=1, rounds=1, kind=timing.FULL, total=1, seconds=0.2),
+    _progress("request", round=1, rounds=1, kind=timing.SWEEP, done=1, total=1),
+    _progress("group", round=1, rounds=1, kind=timing.SWEEP, total=1, seconds=0.4),
+    _progress("round_done", round=1, rounds=1, seconds=0.6),
+    _progress("measured", seconds=0.6),
+]
+
+
 def _fake_python(tmp_path: Path) -> str:
-    """An interpreter standing in for another revision: it answers every request type but the base switch."""
+    """An interpreter standing in for another revision: it answers every request type but the base switch, and
+    streams ``BASE_PROGRESS`` on stderr as the revision script does."""
     kinds = [timing.FULL, timing.SWEEP, timing.TYPE_FILTER, timing.BASE_SWITCH]
     document = {
         "key": "base-key",
@@ -95,8 +116,10 @@ def _fake_python(tmp_path: Path) -> str:
     }
     data = tmp_path / "base.json"
     data.write_text(json.dumps(document), encoding="utf-8")
+    lines = tmp_path / "base-progress.txt"
+    lines.write_text("".join(f"{line}\n" for line in BASE_PROGRESS), encoding="utf-8")
     script = tmp_path / "fake-python"
-    script.write_text(f"#!/bin/sh\ncat '{data}'\n", encoding="utf-8")
+    script.write_text(f"#!/bin/sh\ncat '{lines}' >&2\ncp '{data}' \"$5\"\n", encoding="utf-8")
     script.chmod(0o755)
     return str(script)
 
@@ -176,13 +199,29 @@ def test_progress_goes_to_stderr_by_round_and_group_and_leaves_stdout_as_the_jso
     assert body[-1].startswith("head: measured in ")
 
 
-def test_the_base_side_is_announced_and_its_time_reported_after_the_head(
+def test_the_base_side_reports_its_extraction_and_rounds_like_the_head(
     paths: tuple[Path, Path], tmp_path: Path
 ) -> None:
-    code, _, stderr = timed(paths, "--repeats", "1", "--base-python", _fake_python(tmp_path))
+    code, stdout, stderr = timed(paths, "--repeats", "1", "--base-python", _fake_python(tmp_path))
 
     assert code == cli.EXIT_SUCCESS, stderr
+    json.loads(stdout)
+    prefix = "tinarrative benchmark calibrate time: "
     lines = stderr.splitlines()
-    announced = next(i for i, line in enumerate(lines) if ": base: extracting its table from " in line)
-    assert "head: measured in " in lines[announced - 1]
-    assert ": base: done in " in lines[-1]
+    assert all(line.startswith(prefix) for line in lines)
+    body = [line.removeprefix(prefix) for line in lines]
+    announced = next(i for i, line in enumerate(body) if line.startswith("base: extracting its table from "))
+    assert body[announced - 1].startswith("head: measured in ")
+    assert "reports nothing" not in body[announced]
+    base = body[announced + 1 :]
+    assert base[0] == "base: Extracted alpha (3 saves) after 2.5s"
+    assert base[1].startswith("base: extracting the calibration table took ")
+    assert base[2:] == [
+        "base: cannot answer base switch; skipped",
+        "base: 1 rounds of 2 requests",
+        "base: starting round 1/1",
+        "  full: 1 request in 0.200s",
+        "  sweep: 1 request in 0.400s",
+        "base: round 1/1 done in 0.600s",
+        "base: measured in 0.600s",
+    ]

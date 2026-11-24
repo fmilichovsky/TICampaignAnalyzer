@@ -861,8 +861,16 @@ class _ExtractionReporter:
         self.finished: set[str] = set()
 
     def stale(self, found: calibration_cache.CacheCheck) -> None:
-        self.rebuilding = found.existing is not None
+        self.begin(rebuilding=found.existing is not None)
+
+    def begin(self, *, rebuilding: bool = False) -> None:
+        """Start showing an extraction, of a new table or a rebuilt one."""
+        self.rebuilding = rebuilding
         self.tracker = _ProgressTracker(self.command.removeprefix("tinarrative "), 0)
+
+    @property
+    def started(self) -> bool:
+        return self.tracker is not None
 
     def progress(self, snapshot: calibration_progress.ProgressSnapshot) -> None:
         if self.tracker is None:
@@ -879,12 +887,14 @@ class _ExtractionReporter:
         self.tracker.show(f"{'Rebuilding' if self.rebuilding else 'Extracting'} {snapshot.text()}")
 
     def done(self, *, failed: bool = False) -> None:
+        """Remove the live line and, unless it ``failed``, say how long the extraction took; once."""
         if self.tracker is None:
             return
         if failed:
             self.tracker.clear()
         else:
             self.tracker.finish(f"{'rebuilding' if self.rebuilding else 'extracting'} the calibration table")
+        self.tracker = None
 
 
 def _run_benchmark_calibrate_open(args: argparse.Namespace) -> int:
@@ -1025,7 +1035,8 @@ def _refresh_calibration_cache(command: str, args: argparse.Namespace, *, announ
 
 class _TimingReporter:
     """Show a calibration timing on stderr: a live line on a terminal, and lines for each round, each group of
-    requests in it, and each side measured.
+    requests in it, and each side measured, behind the side's name. The base's extraction is shown as the head's is
+    (``_ExtractionReporter``).
 
     The live line counts the requests timed so far; there is no estimate of the time left, since this is a
     measurement.
@@ -1036,42 +1047,51 @@ class _TimingReporter:
         self.base_python = base_python
         self.base_samples = base_samples
         self.tracker = _ProgressTracker(command.removeprefix("tinarrative "), 0)
+        self.base_extraction = _ExtractionReporter(f"{command}: base")
         self.requests = 0
         self.total = 0
 
     def progress(self, step: calibration_timing.Progress) -> None:
+        side = step.side
+        if side == "base":
+            self.base_extraction.done()
         match step.event:
             case "start":
+                self.requests = 0
                 self.total = step.rounds * step.total
-                self._line(f"head: {step.rounds} rounds of {_count(step.total, 'request')}")
+                self._line(f"{side}: {step.rounds} rounds of {_count(step.total, 'request')}")
             case "warm_up":
-                self.tracker.show("head: warming up")
+                self.tracker.show(f"{side}: warming up")
+            case "skipped":
+                self._line(f"{side}: cannot answer {step.kind.replace('_', ' ')}; skipped")
             case "round":
-                self._line(f"head: starting round {step.round}/{step.rounds}")
+                self._line(f"{side}: starting round {step.round}/{step.rounds}")
             case "request":
                 self.requests += 1
-                percent = 100 * self.requests // self.total
+                percent = 100 * self.requests // max(self.total, 1)
                 label = step.kind.replace("_", " ")
                 self.tracker.show(
-                    f"head: round {step.round}/{step.rounds} · {label} {step.done}/{step.total} · {percent}%"
+                    f"{side}: round {step.round}/{step.rounds} · {label} {step.done}/{step.total} · {percent}%"
                 )
             case "group":
                 self._line(f"  {step.kind.replace('_', ' ')}: {_count(step.total, 'request')} in {step.seconds:.3f}s")
             case "round_done":
-                self._line(f"head: round {step.round}/{step.rounds} done in {step.seconds:.3f}s")
-            case "head_done":
-                self._line(f"head: measured in {step.seconds:.3f}s")
+                self._line(f"{side}: round {step.round}/{step.rounds} done in {step.seconds:.3f}s")
+            case "measured":
+                self._line(f"{side}: measured in {step.seconds:.3f}s")
             case "base":
                 self.tracker.clear()
-                self._line(
-                    f"base: extracting its table from {self.base_samples} and timing with {self.base_python}; "
-                    "it reports nothing until it is done..."
-                )
-            case "base_done":
-                self._line(f"base: done in {step.seconds:.1f}s")
+                self._line(f"base: extracting its table from {self.base_samples} and timing with {self.base_python}")
+
+    def extraction(self, snapshot: calibration_progress.ProgressSnapshot) -> None:
+        """Show a step of the base's extraction."""
+        if not self.base_extraction.started:
+            self.base_extraction.begin()
+        self.base_extraction.progress(snapshot)
 
     def done(self) -> None:
-        """Remove the live line."""
+        """Remove the live lines."""
+        self.base_extraction.done(failed=True)
         self.tracker.clear()
 
     def _line(self, text: str) -> None:
@@ -1142,7 +1162,9 @@ def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
             repeats=cast(int, args.repeats),
             base_python=cast("str | None", args.base_python),
             base_samples=base_samples,
+            base_jobs=cast("int | None", args.jobs),
             on_progress=reporter.progress,
+            on_extraction=reporter.extraction,
         )
     except calibration_timing.TimingError as error:
         print(f"{command}: {error}", file=sys.stderr)
@@ -2563,8 +2585,9 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     timed.add_argument(
         "--base-python",
         metavar="PYTHON",
-        help="Another revision's interpreter: it extracts its own table (from --base-samples) and times the same "
-        "requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report.",
+        help="Another revision's interpreter: it extracts its own table (from --base-samples, with --jobs) and times "
+        "the same requests through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` "
+        "report.",
     )
     timed.add_argument(
         "--base-samples",

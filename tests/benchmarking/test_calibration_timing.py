@@ -4,12 +4,16 @@ from __future__ import annotations
 
 import json
 import shutil
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
 
+from tests.benchmark_support import synthetic_samples
 from tests.benchmarking.calibration_golden import GOLDEN
 from tinarrative.benchmarking.calibration import replay, server, timing
+from tinarrative.benchmarking.calibration.progress import CampaignStep, ProgressSnapshot
 from tinarrative.benchmarking.calibration.table import write_status
 
 INDEX, TABLES, DRAFTS = replay.load(GOLDEN)
@@ -75,14 +79,25 @@ def test_a_server_that_cannot_answer_is_an_error(tmp_path: Path) -> None:
         timing.measure(server.Calibration(tmp_path), repeats=1)
 
 
-def _fake_revision(tmp_path: Path, document: dict[str, object]) -> str:
-    """An interpreter that ignores its arguments and prints ``document``, as the other revision's script would."""
+def _fake_revision(
+    tmp_path: Path, document: dict[str, object], *, stderr: Sequence[str] = (), before: str = "", status: int = 0
+) -> str:
+    """An interpreter that writes ``stderr`` lines, then ``document`` as its result (the script's third argument), as
+    the other revision's script would; ``before`` runs first and ``status`` is its exit code."""
     output = tmp_path / "measured.json"
     output.write_text(json.dumps(document), encoding="utf-8")
+    lines = tmp_path / "stderr.txt"
+    lines.write_text("".join(f"{line}\n" for line in stderr), encoding="utf-8")
     script = tmp_path / "fake-python"
-    script.write_text(f"#!/bin/sh\ncat '{output}'\n", encoding="utf-8")
+    script.write_text(
+        f"#!/bin/sh\n{before}\ncat '{lines}' >&2\ncp '{output}' \"$5\"\nexit {status}\n", encoding="utf-8"
+    )
     script.chmod(0o755)
     return str(script)
+
+
+def _line(event: str, **fields: object) -> str:
+    return timing.PROGRESS_PREFIX + json.dumps({"event": event, **fields})
 
 
 def _measured(*, without: str | None = None) -> dict[str, object]:
@@ -144,17 +159,15 @@ def test_the_other_revision_extracts_from_the_samples_it_is_given(
     calibration: server.Calibration, tmp_path: Path
 ) -> None:
     seen = tmp_path / "seen"
-    output = tmp_path / "measured.json"
-    output.write_text(json.dumps(_measured()), encoding="utf-8")
-    script = tmp_path / "recording-python"
-    script.write_text(f"#!/bin/sh\necho \"$3\" > '{seen}'\ncat '{output}'\n", encoding="utf-8")
-    script.chmod(0o755)
+    script = _fake_revision(tmp_path, _measured(), before=f"echo \"$3\" > '{seen}'\necho \"$8\" >> '{seen}'")
     base_samples = tmp_path / "base-samples"
     base_samples.mkdir()
 
-    timing.measure(calibration, repeats=1, base_python=str(script), base_samples=base_samples)
+    timing.measure(calibration, repeats=1, base_python=script, base_samples=base_samples, base_jobs=3)
 
-    assert Path(seen.read_text(encoding="utf-8").strip()) == base_samples.resolve()
+    samples, jobs = seen.read_text(encoding="utf-8").splitlines()
+    assert Path(samples) == base_samples.resolve()
+    assert jobs == "3"
 
 
 def test_progress_is_told_in_order_with_each_group_and_round_summed_from_the_timed_requests(
@@ -168,7 +181,7 @@ def test_progress_is_told_in_order_with_each_group_and_round_summed_from_the_tim
     per_round = sum(sizes.values())
     assert [step.event for step in steps[:3]] == ["start", "warm_up", "round"]
     assert steps[0] == timing.Progress("start", rounds=2, total=per_round)
-    assert steps[-1].event == "head_done"
+    assert steps[-1] == timing.Progress("measured", seconds=steps[-1].seconds)
     assert [step.event for step in steps].count("request") == 2 * per_round
     groups = [step for step in steps if step.event == "group" and step.round == 1]
     assert {step.kind: step.total for step in groups} == sizes
@@ -189,3 +202,112 @@ def test_a_report_without_a_listener_is_the_same_shape(calibration: server.Calib
 
     assert quiet.keys() == heard.keys()
     assert quiet["requests"].keys() == heard["requests"].keys()
+
+
+def test_the_other_revision_streams_its_extraction_and_its_timing_as_it_goes(
+    calibration: server.Calibration, tmp_path: Path
+) -> None:
+    python = _fake_revision(
+        tmp_path,
+        _measured(without=timing.BASE_SWITCH),
+        stderr=[
+            _line("extraction", campaigns=[["alpha", "sequence", 2, 3]], done_work=1.0, total_work=4.0, elapsed=2.0),
+            "a warning the revision printed",
+            _line("warm_up"),
+            _line("skipped", kind=timing.BASE_SWITCH),
+            _line("start", rounds=1, total=2),
+            _line("round", round=1, rounds=1),
+            _line("request", round=1, rounds=1, kind=timing.FULL, done=1, total=1),
+            _line("group", round=1, rounds=1, kind=timing.FULL, total=1, seconds=0.5),
+            _line("round_done", round=1, rounds=1, seconds=0.5),
+            _line("measured", seconds=0.5),
+        ],
+    )
+    steps: list[timing.Progress] = []
+    snapshots: list[ProgressSnapshot] = []
+
+    timing.measure(
+        calibration,
+        repeats=1,
+        base_python=python,
+        base_samples=tmp_path,
+        on_progress=steps.append,
+        on_extraction=snapshots.append,
+    )
+
+    assert snapshots == [
+        ProgressSnapshot((CampaignStep("alpha", "sequence", 2, 3),), done_work=1.0, total_work=4.0, elapsed=2.0)
+    ]
+    head = [step.event for step in steps if step.side == "head"]
+    base = [step for step in steps if step.side == "base"]
+    assert head[-2:] == ["measured", "base"]
+    assert [step.event for step in base] == [
+        "warm_up",
+        "skipped",
+        "start",
+        "round",
+        "request",
+        "group",
+        "round_done",
+        "measured",
+    ]
+    assert base[1].kind == timing.BASE_SWITCH
+    assert base[-1].seconds == 0.5
+
+
+def test_a_revision_that_dies_mid_stream_names_its_last_line_that_is_not_progress(
+    calibration: server.Calibration, tmp_path: Path
+) -> None:
+    python = _fake_revision(
+        tmp_path,
+        _measured(),
+        stderr=[_line("warm_up"), "RuntimeError: the table broke", _line("start", rounds=1, total=2)],
+        status=1,
+    )
+    steps: list[timing.Progress] = []
+
+    with pytest.raises(timing.TimingError, match="the table broke"):
+        timing.measure(calibration, repeats=1, base_python=python, base_samples=tmp_path, on_progress=steps.append)
+
+    assert [step.event for step in steps if step.side == "base"] == ["warm_up", "start"]
+
+
+def test_a_progress_line_that_cannot_be_read_is_a_timing_error(calibration: server.Calibration, tmp_path: Path) -> None:
+    python = _fake_revision(tmp_path, _measured(), stderr=[timing.PROGRESS_PREFIX + "{not json"])
+
+    with pytest.raises(timing.TimingError, match="progress"):
+        timing.measure(calibration, repeats=1, base_python=python, base_samples=tmp_path)
+
+
+def test_the_revision_script_run_by_this_interpreter_reports_like_the_head(
+    calibration: server.Calibration, tmp_path: Path
+) -> None:
+    samples = synthetic_samples(tmp_path)
+    steps: list[timing.Progress] = []
+    snapshots: list[ProgressSnapshot] = []
+
+    report = timing.measure(
+        calibration,
+        repeats=2,
+        base_python=sys.executable,
+        base_samples=samples,
+        base_jobs=1,
+        on_progress=steps.append,
+        on_extraction=snapshots.append,
+    )
+
+    assert snapshots and snapshots[-1].fraction == 1.0
+    assert {step.name for step in snapshots[-1].campaigns} == {"politics"}
+    base = [step for step in steps if step.side == "base"]
+    head = [step for step in steps if step.side == "head" and step.event != "base"]
+    skipped = {step.kind for step in base if step.event == "skipped"}
+    assert base[0].event == "warm_up"  # the check of which types it answers, before it knows its total
+    assert [(step.event, step.kind) for step in base if step.event not in {"warm_up", "skipped"}] == [
+        (step.event, step.kind) for step in head if step.event != "warm_up" and step.kind not in skipped
+    ]
+    timed = [step for step in base if step.event == "request"]
+    assert len(timed) == base[[step.event for step in base].index("start")].total * 2
+    assert {step.kind for step in timed} == set(report["base"]["requests"]) - skipped
+    assert base[-1].event == "measured"
+    for kind in skipped:
+        assert report["base"]["requests"][kind] is None
