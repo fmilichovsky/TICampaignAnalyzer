@@ -173,7 +173,55 @@ def test_an_invalid_state_answers_the_error_and_the_code_state(calibration: serv
     assert (answer["hash"], answer["is_code"]) == ("", True)
 
 
-@pytest.mark.parametrize("body", [b"not json", b"[]", b'{"hash": "", "state": {}}', b"{}"])
+def without_row_columns(answer: dict[str, Any]) -> dict[str, Any]:
+    """A full answer as a summary answer is meant to read: no per-campaign event and draft-row columns, no readout."""
+    campaigns = {
+        name: {key: value for key, value in campaign.items() if key not in {"events", "drafts"}}
+        for name, campaign in answer["replay"]["campaigns"].items()
+    }
+    summary = {key: value for key, value in answer.items() if key not in {"paragraph", "snippet"}}
+    summary["replay"] = {**answer["replay"], "campaigns": campaigns}
+    return summary
+
+
+def a_state_of_each_kind() -> list[dict[str, Any]]:
+    event_type = TABLES["alpha"][0]["type"]
+    return [
+        {"hash": ""},
+        {"hash": LOWER},
+        {"hash": f"{LOWER}&types={event_type}"},
+        {"hash": "rise=nope:1"},
+        {"state": {"focus": "population", "campaigns": ["alpha"]}},
+    ]
+
+
+@pytest.mark.parametrize("body", a_state_of_each_kind())
+def test_a_summary_answer_is_the_full_answer_without_the_row_columns_and_readout(
+    calibration: server.Calibration, body: dict[str, Any]
+) -> None:
+    _, full = ask(calibration, body)
+    status, summary = ask(calibration, {**body, "summary": True})
+
+    assert status == 200
+    assert summary == without_row_columns(full)
+
+
+@pytest.mark.parametrize("body", a_state_of_each_kind())
+def test_a_request_not_asking_for_a_summary_gets_the_full_answer(
+    calibration: server.Calibration, body: dict[str, Any]
+) -> None:
+    _, plain = ask(calibration, body)
+    _, declined = ask(calibration, {**body, "summary": False})
+
+    assert declined == plain
+    assert {"paragraph", "snippet"} <= plain.keys()
+    assert all({"events", "drafts"} <= item.keys() for item in plain["replay"]["campaigns"].values())
+
+
+@pytest.mark.parametrize(
+    "body",
+    [b"not json", b"[]", b'{"hash": "", "state": {}}', b"{}", b'{"summary": true}', b'{"hash": "", "summary": 1}'],
+)
 def test_a_request_of_another_shape_is_a_bad_request(calibration: server.Calibration, body: bytes) -> None:
     assert calibration.handle(server.Request("POST", "/replay", body)).status == 400
 

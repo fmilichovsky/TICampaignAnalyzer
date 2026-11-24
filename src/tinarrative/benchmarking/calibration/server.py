@@ -104,8 +104,16 @@ class Calibration:
             asked = json.loads(body)
         except (json.JSONDecodeError, UnicodeDecodeError):
             return _text(HTTPStatus.BAD_REQUEST, "the request is not JSON")
-        if not isinstance(asked, dict) or len(asked) != 1 or not ({"hash", "state"} & asked.keys()):
-            return _text(HTTPStatus.BAD_REQUEST, 'the request is {"hash": "..."} or {"state": {...}}')
+        if (
+            not isinstance(asked, dict)
+            or len(asked.keys() & {"hash", "state"}) != 1
+            or asked.keys() - {"hash", "state", "summary"}
+            or not isinstance(asked.get("summary", False), bool)
+        ):
+            return _text(
+                HTTPStatus.BAD_REQUEST,
+                'the request is {"hash": "..."} or {"state": {...}}, with an optional "summary": true',
+            )
         try:
             (_, index, tables, drafts), prepared = self._current()
             derived = prepared.derived
@@ -131,8 +139,10 @@ def answer(
     prepared: calibration.Prepared | None = None,
 ) -> dict[str, Any]:
     """The page's answer to ``{"hash": text}`` or ``{"state": values}``: the state, its hash, the compact replay and
-    the readout texts. A state that cannot be read answers with ``error`` and the code's state. ``prepared`` is the
-    table already prepared for the replay (``calibration.prepare``); without it the table is prepared here.
+    the readout texts. With ``"summary": true`` the answer leaves out the campaigns' event and draft-row columns and
+    the readout texts, which the page does not draw while a control moves (ADR-0022). A state that cannot be read
+    answers with ``error`` and the code's state. ``prepared`` is the table already prepared for the replay
+    (``calibration.prepare``); without it the table is prepared here.
 
     Raises ``ReplayError`` (not a state error) for a table the replay cannot evaluate.
     """
@@ -151,18 +161,20 @@ def answer(
         state = calibration.default_state(index)
         result, unfiltered = prepared.replay_with_unfiltered(state)
     state_hash = calibration.encode_state(state, index)
+    summary = asked.get("summary") is True
     document: dict[str, Any] = {
         "schema_version": calibration.SCHEMA_VERSION,
         "key": index.get("key"),
         "hash": state_hash,
         "is_code": calibration.encode_state(replace(state, focus=None), index) == "",
         "state": result["state"],
-        "replay": compact(index, tables, drafts, result, positions=prepared.positions),
+        "replay": compact(index, tables, drafts, result, positions=prepared.positions, summary=summary),
         "unfiltered": unfiltered,
-        "paragraph": readout.shared_paragraph(index, result),
-        "snippet": readout.snippet(index, result),
         "meta": meta(index, drafts),
     }
+    if not summary:
+        document["paragraph"] = readout.shared_paragraph(index, result)
+        document["snippet"] = readout.snippet(index, result)
     if error:
         document["error"] = error
     return document
@@ -175,14 +187,18 @@ def compact(
     result: calibration.Replay,
     *,
     positions: Mapping[str, Mapping[str, int]] | None = None,
+    summary: bool = False,
 ) -> dict[str, Any]:
     """``result`` with each campaign's events and draft rows as columns: ``score``, ``level`` (its position in the
     level bands) and ``decided`` (the position in the campaign's rows of the row that decided it; ``None`` for a draft
     row that decided itself). Everything else is as ``replay`` gives it. ``positions`` are each campaign's row
-    positions by id (``Prepared.positions``), counted here when left out."""
+    positions by id (``Prepared.positions``), counted here when left out. A ``summary`` leaves the columns out."""
     levels = list(index["constants"]["level_bands"])
     campaigns: dict[str, Any] = {}
     for name, item in result["campaigns"].items():
+        if summary:
+            campaigns[name] = {"level_counts": item["level_counts"], "members": item["members"]}
+            continue
         own = (
             positions[name]
             if positions is not None
