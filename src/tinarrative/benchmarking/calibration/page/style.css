@@ -159,20 +159,24 @@ button:disabled { cursor: default; }
    mark, the running ones with their step, so twenty campaigns still fit in two lines. Marks fill like the level
    gauges: hollow waiting, half running, full done. */
 .banner-meter { display: flex; align-items: center; gap: 12px; min-width: 0; }
+/* A drawn bar rather than <progress>, whose fill Firefox cannot animate. The fill glides linearly
+   to each polled share over one poll (--glide, set by the page), so the bar moves steadily instead of jumping;
+   scaleX keeps the animation off layout. */
 .banner-bar {
   flex: none;
   width: 220px;
   height: 6px;
-  border: 0;
   border-radius: 3px;
   background: var(--rule);
-  color: var(--focus);
-  accent-color: var(--focus);
-  appearance: none;
+  overflow: hidden;
 }
-.banner-bar::-webkit-progress-bar { background: var(--rule); border-radius: 3px; }
-.banner-bar::-webkit-progress-value { background: var(--focus); border-radius: 3px; transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1); }
-.banner-bar::-moz-progress-bar { background: var(--focus); border-radius: 3px; }
+.banner-fill {
+  height: 100%;
+  background: var(--focus);
+  transform: scaleX(var(--share, 0));
+  transform-origin: left;
+  transition: transform var(--glide, 500ms) linear;
+}
 .banner-detail { min-width: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .banner-campaigns {
   display: flex;
@@ -203,16 +207,15 @@ button:disabled { cursor: default; }
 .banner-step { color: var(--ink-2); font-weight: 400; }
 .banner-campaign[data-phase="done"]::before { background: var(--ink-2); box-shadow: none; }
 /* No progress in status.js yet: one slow sweep says the rebuild is alive without claiming how far it is. */
-.banner-bar:indeterminate {
+.banner-bar[data-indeterminate="true"] {
   background: linear-gradient(90deg, var(--rule) 0 35%, var(--focus) 50%, var(--rule) 65% 100%) 0 0 / 300% 100%;
   animation: banner-sweep 1.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
-.banner-bar:indeterminate::-webkit-progress-bar { background: transparent; }
-.banner-bar:indeterminate::-moz-progress-bar { background: transparent; }
+.banner-bar[data-indeterminate="true"] .banner-fill { visibility: hidden; transition: none; }
 @keyframes banner-sweep { from { background-position: 100% 0; } to { background-position: 0 0; } }
 @media (prefers-reduced-motion: reduce) {
-  .banner-bar::-webkit-progress-value { transition: none; }
-  .banner-bar:indeterminate { animation: none; background: var(--rule); }
+  .banner-fill { transition: none; }
+  .banner-bar[data-indeterminate="true"] { animation: none; background: var(--rule); }
 }
 .banner-action {
   height: 26px;

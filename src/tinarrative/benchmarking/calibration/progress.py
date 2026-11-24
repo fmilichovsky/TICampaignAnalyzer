@@ -10,8 +10,9 @@ from dataclasses import dataclass
 from typing import Any, Final, Literal
 
 Phase = Literal["waiting", "decompress", "survey", "sequence", "narrative", "done"]
-PHASE_WEIGHTS: Final[Mapping[Phase, float]] = {"decompress": 0.03, "survey": 0.14, "sequence": 0.75, "narrative": 0.08}
-"""Each phase's share of a campaign's work, as measured on a clean extraction; they add up to 1."""
+PHASE_WEIGHTS: Final[Mapping[Phase, float]] = {"decompress": 0.07, "survey": 0.10, "sequence": 0.54, "narrative": 0.29}
+"""Each phase's share of a campaign's time, as measured on a clean extraction at the default job count; they add up to
+1. With fewer workers the survey and the sequence take a larger share."""
 SAVE_PHASES: Final[tuple[Phase, ...]] = ("survey", "sequence")
 """The phases that report each save they finish; the others are credited whole when they end."""
 ESTIMATE_FROM: Final = 0.05
@@ -92,7 +93,8 @@ class ProgressSnapshot:
 
 
 class ExtractionProgress:
-    """The progress of one extraction, told to ``on_change`` after every change; safe to update from any thread.
+    """The progress of one extraction, told to ``on_change`` after every change; safe to update from any thread, and
+    ``on_change`` is called one snapshot at a time, in the order of the changes.
 
     A save's decompressed size, times a phase's weight, is credited once per phase: when a save phase finishes the
     save, or when any other phase ends. The order in which saves finish does not matter.
@@ -123,8 +125,7 @@ class ExtractionProgress:
             self._top_up(campaign)
             self._phases[campaign] = phase
             self._credited[campaign] = set()
-            snapshot = self._snapshot()
-        self._tell(snapshot)
+            self._tell(self._snapshot())
 
     def saves_done(self, campaign: str, names: Iterable[str]) -> None:
         """Credit the saves ``names`` (decompressed file names) to ``campaign``'s current phase; a save already
@@ -139,8 +140,7 @@ class ExtractionProgress:
                 return
             self._credited[campaign] |= fresh
             self._done_work += sum(sizes[name] for name in fresh) * PHASE_WEIGHTS[phase]
-            snapshot = self._snapshot()
-        self._tell(snapshot)
+            self._tell(self._snapshot())
 
     def snapshot(self) -> ProgressSnapshot:
         with self._lock:
@@ -167,6 +167,7 @@ class ExtractionProgress:
         return ProgressSnapshot(steps, self._done_work, self._total_work, self._clock() - self._started)
 
     def _tell(self, snapshot: ProgressSnapshot) -> None:
+        """Called under the lock, so the snapshots reach ``on_change`` one at a time and in order."""
         if self._on_change is not None:
             self._on_change(snapshot)
 

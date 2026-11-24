@@ -61,7 +61,7 @@ nation, leader and councilor names.
 - `--config FILE`, else the `TINARRATIVE_CONFIG` environment variable, names the [settings file](../configuration.md);
   without either, the built-in settings apply.
 - `--jobs N` sets the worker processes for reading and analyzing saves; `1` runs everything in one process. The output
-  is the same for every value.
+  is the same for every value. Ctrl-C stops once the workers finish the part they are on, usually a few seconds.
 
 ## Exit codes
 

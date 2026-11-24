@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 import pytest
 
 from tinarrative.benchmarking.calibration.progress import (
@@ -115,12 +117,40 @@ def test_every_change_is_told_with_a_snapshot() -> None:
     assert [snapshot.done_work for snapshot in seen] == [0, pytest.approx(100 * SURVEY)]
 
 
+def test_changes_from_several_threads_are_told_one_at_a_time_and_in_order() -> None:
+    sizes = {"many": {f"{index}.json": 1 for index in range(400)}}
+    seen: list[float] = []
+    inside = threading.Lock()
+
+    def observed(snapshot: ProgressSnapshot) -> None:
+        assert inside.acquire(blocking=False), "two snapshots were told at once"
+        seen.append(snapshot.done_work)
+        inside.release()
+
+    progress = ExtractionProgress(sizes, on_change=observed)
+    many = progress.campaign("many")
+    many.phase("survey")
+    names = list(sizes["many"])
+    threads = [
+        threading.Thread(target=lambda part=names[start::4]: [many.saves_done([name]) for name in part])
+        for start in range(4)
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert seen == sorted(seen)
+    assert seen[-1] == pytest.approx(400 * SURVEY)
+
+
 def test_the_status_carries_what_a_reader_shows() -> None:
     clock = Clock()
     progress = ExtractionProgress(SIZES, clock=clock)
     progress.campaign("first").phase("survey")
     progress.campaign("first").saves_done(["a.json", "b.json"])
     progress.campaign("second").phase("sequence")
+    progress.campaign("second").saves_done(["c.json"])
     clock.now = 4.0
 
     status = progress.snapshot().to_status()
@@ -131,9 +161,9 @@ def test_the_status_carries_what_a_reader_shows() -> None:
     assert isinstance(status["remaining_seconds"], int)
     assert status["campaigns"] == [
         {"name": "first", "phase": "survey", "done": 2, "total": 2, "step": "survey 2/2"},
-        {"name": "second", "phase": "sequence", "done": 0, "total": 1, "step": "sequence 0/1"},
+        {"name": "second", "phase": "sequence", "done": 1, "total": 1, "step": "sequence 1/1"},
     ]
-    assert status["text"] == f"first: survey 2/2, second: sequence 0/1 · {status['summary']}"
+    assert status["text"] == f"first: survey 2/2, second: sequence 1/1 · {status['summary']}"
     assert status["summary"].endswith(" left") and "first" not in status["summary"]
 
 

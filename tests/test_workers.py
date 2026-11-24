@@ -1,8 +1,9 @@
-"""The default worker count and the physical memory it is bounded by."""
+"""The worker pool, the default worker count and the physical memory it is bounded by."""
 
 from __future__ import annotations
 
 import os
+import signal
 
 import pytest
 
@@ -11,6 +12,21 @@ from tinarrative.workers import MIN_PARALLEL_BYTES, UNKNOWN_MEMORY_JOBS, default
 
 GIB = 1 << 30
 SAVE = 80_000_000
+
+
+def _interrupt_handling(unit: int) -> bool:
+    workers.tick(unit)
+    return signal.getsignal(signal.SIGINT) is signal.SIG_IGN
+
+
+def test_workers_ignore_ctrl_c_and_tick_their_units_to_the_coordinator() -> None:
+    units: list[int] = []
+
+    with workers.pool(2, units.append) as executor:
+        ignored = list(executor.map(_interrupt_handling, [3, 5]))
+
+    assert ignored == [True, True]
+    assert sorted(units) == [3, 5]
 
 
 def test_small_inputs_run_in_one_process(monkeypatch: pytest.MonkeyPatch) -> None:

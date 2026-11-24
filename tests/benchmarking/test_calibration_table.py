@@ -13,6 +13,7 @@ from tests.benchmark_support import synthetic_samples
 from tests.benchmarking.calibration_support import check_rows
 from tests.fixtures import fixture_path
 from tests.narrative.support import atomic, faction, nation, situation, unification
+from tinarrative.benchmarking.calibration.progress import ProgressSnapshot
 from tinarrative.benchmarking.calibration.table import (
     SCHEMA_VERSION,
     CalibrationTableError,
@@ -149,6 +150,29 @@ def test_extraction_writes_the_index_and_skips_a_prefix_campaign(tmp_path: Path)
     assert index["campaigns"] == ["politics"]
     assert set(index["kinds"]) == {row["type"] for row in events}
     check_rows(events)
+
+
+def test_workers_extract_the_same_table_as_one_process_and_report_every_save(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr("tinarrative.sequence.MIN_CHUNK_INTERVALS", 1)  # two chunks over the three fixture saves
+    samples = synthetic_samples(tmp_path)
+    stamp = datetime(2030, 1, 1, tzinfo=UTC)
+    snapshots: list[ProgressSnapshot] = []
+
+    extract_all(samples, tmp_path / "one", key="k", now=stamp, jobs=1)
+    extract_all(samples, tmp_path / "two", key="k", now=stamp, jobs=2, on_progress=snapshots.append)
+
+    def written(directory: Path) -> dict[Path, bytes]:
+        return {path.relative_to(directory): path.read_bytes() for path in sorted(directory.rglob("*.js"))}
+
+    assert written(tmp_path / "two") == written(tmp_path / "one")
+    # Each save is credited by its own phase as it finishes, not topped up when the phase ends.
+    reported = {
+        phase: max(step.done for snapshot in snapshots for step in snapshot.campaigns if step.phase == phase)
+        for phase in ("survey", "sequence")
+    }
+    assert reported == {"survey": len(SEQUENCE), "sequence": len(SEQUENCE)}
 
 
 def test_the_kinds_map_holds_each_types_code_base_level_rule_and_scaling() -> None:

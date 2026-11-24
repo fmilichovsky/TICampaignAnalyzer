@@ -41,7 +41,6 @@ from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, ScalingSpec
 from tinarrative.narrative.significance import IntervalShares, decide, score_event
 from tinarrative.narrative.situation import SituationReport
 from tinarrative.sequence import (
-    IntervalResult,
     SaveRef,
     SurveyFailure,
     narrative_events,
@@ -51,6 +50,7 @@ from tinarrative.sequence import (
     situations,
     survey_all,
 )
+from tinarrative.workers import default_jobs
 
 SCHEMA_VERSION: Final = 6
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
@@ -75,21 +75,22 @@ def declared_drafts(drafts: Sequence[DraftShare] | None = None) -> tuple[DraftSh
 
 
 def extract_campaign(
-    saves: Sequence[Path], drafts: Sequence[DraftShare] | None = None, progress: CampaignProgress | None = None
+    saves: Sequence[Path],
+    drafts: Sequence[DraftShare] | None = None,
+    progress: CampaignProgress | None = None,
+    *,
+    jobs: int = 1,
 ) -> dict[str, Any]:
-    """The campaign document from a separate in-process run at code defaults: one row per finished event, one
-    shadow row per draft share and event of its types (``drafts``, by default the declared ones), and the
-    ``names`` of the entities that were renamed (``name_history``). ``progress`` is told each phase and each save
-    a phase finishes."""
+    """The campaign document from a separate run at code defaults: one row per finished event, one shadow row per
+    draft share and event of its types (``drafts``, by default the declared ones), and the ``names`` of the entities
+    that were renamed (``name_history``). ``jobs`` worker processes survey and analyze the saves; the document is the
+    same for any number. ``progress`` is told each phase and each save a phase finishes."""
     chosen = declared_drafts(drafts)
     paths = list(saves)
     if progress is not None:
         progress.phase("survey")
-    outcomes: list[SaveRef | SurveyFailure] = []
-    for path, outcome in zip(paths, survey_all(paths), strict=True):
-        outcomes.append(outcome)
-        if progress is not None:
-            progress.saves_done([path.name])
+    surveyed = None if progress is None else _surveyed(progress)
+    outcomes = list(survey_all(paths, jobs=jobs, on_save=surveyed))
     failures = [outcome for outcome in outcomes if isinstance(outcome, SurveyFailure)]
     if failures:
         raise CalibrationTableError(f"cannot survey {len(failures)} save(s): {failures[0]}")
@@ -97,13 +98,8 @@ def extract_campaign(
     plan = plan_sequence(refs)
     if progress is not None:
         progress.phase("sequence")
-    intervals: list[IntervalResult] = []
-    for interval in run_sequence(plan, inferred=True):
-        intervals.append(interval)
-        if progress is not None:
-            # The first interval finishes the first two saves; each later one finishes its second save.
-            finished = plan.saves[:2] if len(intervals) == 1 else plan.saves[len(intervals) : len(intervals) + 1]
-            progress.saves_done(Path(path).name for save in finished for path in (save.source, *save.aliases))
+    analyzed = None if progress is None else _analyzed(progress)
+    intervals = list(run_sequence(plan, inferred=True, jobs=jobs, on_save=analyzed))
     if progress is not None:
         progress.phase("narrative")
     narrative = narrative_events(intervals)
@@ -124,6 +120,14 @@ def extract_campaign(
         if event.event_type in draft.event_types
     ]
     return {"events": rows, "drafts": shadows, "names": name_history(situations(intervals))}
+
+
+def _surveyed(progress: CampaignProgress) -> Callable[[Path], None]:
+    return lambda path: progress.saves_done([path.name])
+
+
+def _analyzed(progress: CampaignProgress) -> Callable[[SaveRef], None]:
+    return lambda save: progress.saves_done(Path(path).name for path in (save.source, *save.aliases))
 
 
 def _draft_row(
@@ -435,11 +439,14 @@ def extract_all(
     *,
     key: str,
     now: datetime | None = None,
+    jobs: int | None = None,
     on_progress: Callable[[ProgressSnapshot], None] | None = None,
 ) -> list[str]:
-    """Extract every campaign that is not a ``prefix_of`` another into ``directory``; the campaigns extracted.
+    """Extract every campaign that is not a ``prefix_of`` another into ``directory``, one after another; the
+    campaigns extracted.
 
-    ``on_progress`` is called with the extraction's progress after every change, from the extracting thread.
+    ``jobs`` worker processes extract each campaign; None gives ``workers.default_jobs`` for its decompressed saves.
+    ``on_progress`` is called with the extraction's progress after every change, one call at a time, from any thread.
     """
     stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
     chosen = declared_drafts()
@@ -447,15 +454,15 @@ def extract_all(
     types: set[str] = set()
     histories: dict[str, Mapping[str, Any]] = {}
     campaigns = extractable_campaigns(samples)
-    progress = ExtractionProgress(
-        {name: raw_sizes(samples, name, files) for name, files in campaigns.items()}, on_change=on_progress
-    )
+    sizes = {name: raw_sizes(samples, name, files) for name, files in campaigns.items()}
+    progress = ExtractionProgress(sizes, on_change=on_progress)
     for name, files in campaigns.items():
         campaign = progress.campaign(name)
+        workers = default_jobs(list(sizes[name].values())) if jobs is None else jobs
         with tempfile.TemporaryDirectory(prefix="calibration-") as scratch:
             campaign.phase("decompress")
             decompress_samples(files, Path(scratch))
-            document = extract_campaign(sorted(Path(scratch).iterdir()), chosen, campaign)
+            document = extract_campaign(sorted(Path(scratch).iterdir()), chosen, campaign, jobs=workers)
         write_campaign(directory, name, document)
         campaign.phase("done")
         names.append(name)

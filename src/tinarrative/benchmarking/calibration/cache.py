@@ -17,10 +17,13 @@ from tinarrative.benchmarking.calibration.progress import ProgressSnapshot
 from tinarrative.benchmarking.manifest import MANIFEST
 
 Status = Literal["fresh", "rebuilding", "failed"]
-STATUS_INTERVAL: Final = 1.0
-"""The fewest seconds between two writes of ``status.js`` during an extraction, unless a campaign changes phase."""
+STATUS_INTERVAL: Final = 0.25
+"""The fewest seconds between two writes of ``status.js`` during an extraction, unless a campaign changes phase; about
+how often a save finishes with every worker busy, so a shorter one would show nothing new."""
 REBUILD_PREFIX: Final = ".rebuild-"
 RETIRED_PREFIX: Final = ".retired-"
+INTERRUPTED: Final = "Interrupted."
+"""The message of a ``failed`` status left by an interrupted rebuild."""
 
 
 class CalibrationCacheError(ValueError):
@@ -77,15 +80,17 @@ def refresh(
     out: Path,
     *,
     rebuild: bool = False,
+    jobs: int | None = None,
     on_stale: Callable[[CacheCheck], None] | None = None,
     on_progress: Callable[[ProgressSnapshot], None] | None = None,
 ) -> CacheCheck:
     """Make the table under ``out`` current for ``samples`` and write ``status.js``; the check it acted on.
 
     ``on_stale`` runs after a stale (or ``rebuild``) table is found and before the rebuild starts, so a caller can
-    show the old table first. While the table is extracted, ``status.js`` carries its ``progress``
-    (``ProgressSnapshot.to_status``) and ``on_progress`` is told every change. Raises ``CalibrationCacheError``
-    when the extraction fails, after writing ``failed``; an ``OSError`` means ``out`` cannot be written.
+    show the old table first. ``jobs`` is passed to ``table.extract_all``. While the table is extracted,
+    ``status.js`` carries its ``progress`` (``ProgressSnapshot.to_status``) and ``on_progress`` is told every change.
+    Raises ``CalibrationCacheError`` when the extraction fails, after writing ``failed``; an interrupt also writes
+    ``failed`` and is raised as it is. An ``OSError`` means ``out`` cannot be written.
     """
     out.mkdir(parents=True, exist_ok=True)
     found = check(samples, out)
@@ -98,7 +103,13 @@ def refresh(
     scratch = Path(tempfile.mkdtemp(prefix=REBUILD_PREFIX, dir=out))
     try:
         try:
-            table.extract_all(samples, scratch, key=found.key, on_progress=_reporter(out, found.key, on_progress))
+            table.extract_all(
+                samples, scratch, key=found.key, jobs=jobs, on_progress=_reporter(out, found.key, on_progress)
+            )
+        except KeyboardInterrupt:
+            # Without this a page served from the same ``out`` by another process would show a rebuild that stopped.
+            _status(out, found.key, "failed", INTERRUPTED)
+            raise
         except Exception as error:  # any pipeline failure is reported as a failed rebuild (exit 2)
             message = f"{type(error).__name__}: {error}"
             _status(out, found.key, "failed", message)
