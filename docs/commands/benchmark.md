@@ -362,7 +362,7 @@ tinarrative benchmark calibrate time [--samples PATH] [--out PATH] [--rebuild] [
 
 Measures how long the calibration page takes to get its answers, so you can see whether a change to the replay or to
 the answers it sends made the page slower. It refreshes the cache the way [`calibrate report`](#benchmark-calibrate-report)
-does, then prints (or writes) JSON with the median and 95th-percentile seconds and the size of the answers, for the
+does, then prints (or writes) JSON with the median and 95th-percentile milliseconds and the size of the answers, for the
 kinds of request the page makes. It measures the code in this checkout, unless `--base-python` names another
 revision's interpreter: that interpreter extracts its own table from `--base-samples` (default `--samples`, so the same campaigns) and times the same requests through
 its own server handler, and the JSON gains a `base` report beside the head's figures. A request type the other

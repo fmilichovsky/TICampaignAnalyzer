@@ -1077,11 +1077,13 @@ class _TimingReporter:
                     f"{side}: round {step.round}/{step.rounds} · {label} {step.done}/{step.total} · {percent}%"
                 )
             case "group":
-                self._line(f"  {step.kind.replace('_', ' ')}: {_count(step.total, 'request')} in {step.seconds:.3f}s")
+                self._line(
+                    f"  {step.kind.replace('_', ' ')}: {_count(step.total, 'request')} in {step.seconds * 1000:,.0f} ms"
+                )
             case "round_done":
-                self._line(f"{side}: round {step.round}/{step.rounds} done in {step.seconds:.3f}s")
+                self._line(f"{side}: round {step.round}/{step.rounds} done in {step.seconds * 1000:,.0f} ms")
             case "measured":
-                self._line(f"{side}: measured in {step.seconds:.3f}s")
+                self._line(f"{side}: measured in {step.seconds * 1000:,.0f} ms")
             case "base":
                 self.tracker.clear()
                 self._line(f"base: extracting its table from {self.base_samples} and timing with {self.base_python}")
