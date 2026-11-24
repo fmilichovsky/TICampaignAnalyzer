@@ -366,7 +366,8 @@ does, then prints (or writes) JSON with the median and 95th-percentile seconds a
 kinds of request the page makes. It measures the code in this checkout, unless `--base-python` names another
 revision's interpreter: that interpreter extracts its own table from `--base-samples` (default `--samples`, so the same campaigns) and times the same requests through
 its own server handler, and the JSON gains a `base` report beside the head's figures. A request type the other
-revision cannot answer has `null` figures and shows as `n/a`. `--report` writes the base-versus-head Markdown table
+revision cannot answer has `null` figures and shows as `n/a`. `--report` writes the base-versus-head Markdown report (the changes of each request first, the base and head figures
+in a collapsed table below)
 that the `calibration-metrics` workflow posts ([benchmarks](../../benchmarks/README.md#on-demand-runs)).
 
 ```sh

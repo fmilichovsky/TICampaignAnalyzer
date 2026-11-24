@@ -141,6 +141,41 @@ def test_the_markdown_lists_base_and_head_figures_per_request_type_with_n_a_and_
     assert f"Head `head abc`: {sum(report['campaigns'].values()):,} table rows." in text
 
 
+def _report(median: float, size: int, *, kinds: tuple[str, ...] = (timing.FULL, timing.SWEEP)) -> dict[str, object]:
+    figures = {"count": 5, "median_seconds": median, "p95_seconds": median, "answer_bytes": size}
+    return {"key": "k", "campaigns": {"alpha": 7}, "repeats": 5, "requests": {kind: figures for kind in kinds}}
+
+
+def test_the_markdown_leads_with_the_changes_of_each_request_and_keeps_the_raw_figures_below() -> None:
+    base, head = _report(2.0, 1000), _report(2.5, 1000)
+
+    text = timing.markdown(head, base, head_label="h", base_label="b")
+
+    assert "Changed: full answer median ▲ +0.500 s (+25.0%); sweep request median ▲ +0.500 s (+25.0%)." in text
+    assert "| full answer | ▲ +0.500 s (+25.0%) | ▲ +0.500 s (+25.0%) | 0 |" in text
+    assert "| type filter | – | – | – |" in text
+    assert text.index("| Request | Δ median s") < text.index("<details>") < text.index("| Median s (base)")
+    assert "| full answer | 2.000 | 2.500 |" in text
+
+
+def test_the_markdown_flags_neither_a_median_change_under_the_threshold_nor_a_one_byte_change() -> None:
+    base, head = _report(2.0, 1_000_000), _report(2.2, 1_000_001)
+
+    text = timing.markdown(head, base, head_label="h", base_label="b")
+
+    assert "Changed:" not in text
+    assert "No median change of 15%+ nor answer size change of 1%+." in text
+    assert "▲ +0.200 s (+10.0%)" in text
+
+
+def test_the_markdown_flags_a_size_change_of_one_per_cent() -> None:
+    base, head = _report(2.0, 1000), _report(2.0, 900)
+
+    text = timing.markdown(head, base, head_label="h", base_label="b")
+
+    assert "full answer bytes ▼ -100 (-10.0%)" in text
+
+
 def test_the_other_revision_extracts_from_the_samples_it_is_given(
     calibration: server.Calibration, tmp_path: Path
 ) -> None:

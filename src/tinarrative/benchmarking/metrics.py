@@ -495,7 +495,8 @@ def _number(value: int | None) -> str:
     return "–" if value is None else f"{value:,}"
 
 
-def _delta(base: int | None, head: int | None) -> str:
+def delta(base: float | None, head: float | None, *, digits: int = 0, unit: str = "") -> str:
+    """``▲ +12 (+3.4%)`` for the change from ``base`` to ``head``, ``0`` when none, ``–`` when either is missing."""
     if base is None or head is None:
         return "–"
     change = head - base
@@ -503,7 +504,7 @@ def _delta(base: int | None, head: int | None) -> str:
         return "0"
     mark = "▲" if change > 0 else "▼"
     percent = f" ({change / base:+.1%})" if base else ""
-    return f"{mark} {change:+,}{percent}"
+    return f"{mark} {change:+,.{digits}f}{unit}{percent}"
 
 
 def _failed(result: Mapping[str, Any] | None) -> str:
@@ -574,7 +575,7 @@ def _highlights(base: Mapping[str, Any], head: Mapping[str, Any], threshold: flo
         listed = ", ".join(f"`{member}` {delta:+,}" for member, delta in changes[:3])
         if kind == "narrate" and before["chapters"] != after["chapters"]:
             listed = f"{before['chapters']} → {after['chapters']} chapters; {listed}"
-        cells = f"{_number(old)} → {_number(new)} | {_delta(old, new)} | {listed or '–'}"
+        cells = f"{_number(old)} → {_number(new)} | {delta(old, new)} | {listed or '–'}"
         rows.append((max(shares), f"| {campaign} · {kind} `{run_id}` | {cells} |"))
     rows.sort(key=lambda row: -row[0])
     return rows
@@ -587,8 +588,8 @@ def _members_table(before: Mapping[str, int], after: Mapping[str, int], total: i
         share = (new or 0) / total * 100 if total else 0.0
         if old == new and share < MEMBER_FLOOR:
             continue
-        delta = _delta(old or 0, new or 0)
-        lines.append(f"| `{member}` | {_number(old)} | {_number(new)} | {delta} | {share:.1f}% |")
+        change = delta(old or 0, new or 0)
+        lines.append(f"| `{member}` | {_number(old)} | {_number(new)} | {change} | {share:.1f}% |")
     return lines
 
 
@@ -715,16 +716,16 @@ def _row(
         return f"{_failed(before) if old is None else _number(old)} → {_failed(after) if new is None else _number(new)}"
 
     if kind == "events":
-        delta = _delta(get(before, "est_tokens"), get(after, "est_tokens"))
+        token_change = delta(get(before, "est_tokens"), get(after, "est_tokens"))
         counts = [pair("counts", name) for name in ("narrative", "interval_events", "glossary")]
-        return f"| {campaign} | `{run_id}` | {pair('est_tokens')} | {delta} | {' | '.join(counts)} |"
+        return f"| {campaign} | `{run_id}` | {pair('est_tokens')} | {token_change} | {' | '.join(counts)} |"
     reductions = {
         side: ", ".join(f"{name} ×{count}" for name, count in (get(result, "reductions") or {}).items()) or "–"
         for side, result in (("base", before), ("head", after))
     }
     reduced = reductions["head"] if reductions["base"] == reductions["head"] else " → ".join(reductions.values())
-    delta = _delta(get(before, "estimate_total"), get(after, "estimate_total"))
+    total_change = delta(get(before, "estimate_total"), get(after, "estimate_total"))
     return (
-        f"| {campaign} | `{run_id}` | {pair('chapters')} | {pair('estimate_total')} | {delta} | "
+        f"| {campaign} | `{run_id}` | {pair('chapters')} | {pair('estimate_total')} | {total_change} | "
         f"{pair('estimate_max')} | {reduced} |"
     )
