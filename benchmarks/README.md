@@ -193,6 +193,12 @@ The samples also feed the share calibration: `tinarrative benchmark calibrate op
 events at other share references, and `tinarrative benchmark calibrate report` prints the same readout
 ([command page](../docs/commands/benchmark.md#benchmark-calibrate-open)).
 
+`tinarrative benchmark calibrate time` measures how long the calibration server takes to answer a fixed list of
+requests against those samples ([command page](../docs/commands/benchmark.md#benchmark-calibrate-time)). On the two
+full campaigns (`protectorate` and `resist-long`, about 118,000 table rows), a full answer takes about 0.95 s at the
+median and 1.0 s at p95 and is about 1.46 MB; a sweep request, which asks for full answers, costs the same; a type
+filter takes about 1.3 s (p95 1.5 s) and is 1.40 MB. Timings vary with the machine.
+
 ## Themes
 
 `themes.toml` lists the [themes](../CONTEXT.md) a calibration review reads a campaign by. Every declared event type

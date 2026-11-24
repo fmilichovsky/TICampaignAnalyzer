@@ -24,6 +24,7 @@ from .benchmarking.calibration import progress as calibration_progress
 from .benchmarking.calibration import readout as calibration_readout
 from .benchmarking.calibration import replay as calibration_replay
 from .benchmarking.calibration import server as calibration_server
+from .benchmarking.calibration import timing as calibration_timing
 from .benchmarking.calibration.table import CalibrationTableError
 from .benchmarking.manifest import MANIFEST, sample_files, sha256_file, update_samples, verify_samples
 from .benchmarking.samples import SampleImportError, import_sample_campaign
@@ -253,6 +254,16 @@ EXIT_CODES: dict[str, ExitCodes] = {
         ),
         (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
         (EXIT_OUTPUT_ERROR, "--out cannot be written."),
+    ),
+    "benchmark calibrate time": (
+        (EXIT_SUCCESS, "the timing JSON was printed or written."),
+        (
+            EXIT_USAGE_ERROR,
+            f"usage error, a sample that does not match {MANIFEST}, a failed extraction (status.js says failed; the "
+            "old table stays), or a table the server cannot answer from.",
+        ),
+        (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
+        (EXIT_OUTPUT_ERROR, "--out or --output cannot be written."),
     ),
     "benchmark calibrate open": (
         (
@@ -970,15 +981,9 @@ def _open_page(command: str, page: str) -> None:
         print(f"{command}: warning: cannot open a browser; open {page} by hand.", file=sys.stderr)
 
 
-def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
-    """Refresh the calibration cache, replay it for the requested state and print the readout."""
-    command = "tinarrative benchmark calibrate report"
-    samples = cast(Path, args.samples)
+def _refresh_calibration_cache(command: str, args: argparse.Namespace) -> int | None:
+    """Refresh the calibration cache for ``args`` with progress on stderr; the exit code if that fails, else None."""
     out = cast(Path, args.out)
-    failed = _calibration_samples_error(command, samples)
-    if failed is not None:
-        return failed
-
     reporter = _ExtractionReporter(command)
 
     def stale(found: calibration_cache.CacheCheck) -> None:
@@ -988,7 +993,7 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
 
     try:
         calibration_cache.refresh(
-            samples,
+            cast(Path, args.samples),
             out,
             rebuild=cast(bool, args.rebuild),
             jobs=cast("int | None", args.jobs),
@@ -1007,6 +1012,21 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
         reporter.done(failed=True)
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_OUTPUT_ERROR
+    return None
+
+
+def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
+    """Refresh the calibration cache, replay it for the requested state and print the readout."""
+    command = "tinarrative benchmark calibrate report"
+    samples = cast(Path, args.samples)
+    out = cast(Path, args.out)
+    failed = _calibration_samples_error(command, samples)
+    if failed is not None:
+        return failed
+
+    failed = _refresh_calibration_cache(command, args)
+    if failed is not None:
+        return failed
     try:
         index, tables, drafts = calibration_replay.load(out)
         state = (
@@ -1034,6 +1054,35 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
         sys.stdout.write(json.dumps(document, indent=2) + "\n")
     else:
         sys.stdout.write(calibration_readout.render_text(index, result, state_hash=state_hash, drafts=drafts))
+    return EXIT_SUCCESS
+
+
+def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
+    """Refresh the calibration cache, time the server's fixed requests against it and print or write the JSON."""
+    command = "tinarrative benchmark calibrate time"
+    failed = _calibration_samples_error(command, cast(Path, args.samples))
+    if failed is not None:
+        return failed
+    failed = _refresh_calibration_cache(command, args)
+    if failed is not None:
+        return failed
+    try:
+        report = calibration_timing.measure(
+            calibration_server.Calibration(cast(Path, args.out)), repeats=cast(int, args.repeats)
+        )
+    except calibration_timing.TimingError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_USAGE_ERROR
+    text = json.dumps(report, indent=2) + "\n"
+    output = cast("Path | None", args.output)
+    if output is None:
+        sys.stdout.write(text)
+        return EXIT_SUCCESS
+    try:
+        output.write_text(text, encoding="utf-8", newline="\n")
+    except OSError as error:
+        print(f"{command}: {error}", file=sys.stderr)
+        return EXIT_OUTPUT_ERROR
     return EXIT_SUCCESS
 
 
@@ -2406,6 +2455,23 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     opened.add_argument("--no-open", action="store_true", help="Print the page's URL without opening a browser.")
     opened.set_defaults(handler=_run_benchmark_calibrate_open)
+
+    timed = _add_command(
+        calibrate_commands,
+        "time",
+        "Refresh the calibration cache and time the calibration server's answers to a fixed list of requests.",
+        "benchmark calibrate time",
+    )
+    _add_calibration_cache_arguments(timed)
+    timed.add_argument(
+        "--repeats",
+        type=_positive_int,
+        default=5,
+        metavar="N",
+        help="Times each request is sent (default %(default)s).",
+    )
+    timed.add_argument("--output", type=Path, metavar="PATH", help="Write the timing JSON here (default: stdout).")
+    timed.set_defaults(handler=_run_benchmark_calibrate_time)
 
     report = _add_command(
         calibrate_commands,
