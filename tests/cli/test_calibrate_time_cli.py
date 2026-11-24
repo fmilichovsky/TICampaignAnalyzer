@@ -126,7 +126,8 @@ def test_another_revision_adds_a_base_report_with_n_a_and_a_markdown_table(
     assert report["base"]["requests"][timing.FULL]["answer_bytes"] == 20
     text = table.read_text(encoding="utf-8")
     assert "| base switch | n/a | " in text
-    assert "`main abc1234`: 3 table rows. Head `pr def5678`:" in text
+    assert "`main abc1234`: 3 table rows."
+    assert "Head `pr def5678`:" in text
 
 
 def test_a_report_needs_another_revision_to_compare(paths: tuple[Path, Path], tmp_path: Path) -> None:
