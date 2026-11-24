@@ -353,14 +353,24 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .chip-value { font-variant-numeric: tabular-nums; color: var(--ink-3); font-weight: 400; }
 .chip[aria-pressed="true"] .chip-value { color: var(--ink); }
 .chip-changed .chip-value, .chip-changed[aria-pressed="true"] .chip-value { color: var(--rise-ink); font-weight: 600; }
+/* A figure stacked on a hidden bold copy of the widest figure it can show: the slot keeps that width whatever the
+   figure, its weight included. */
+.slot { display: inline-grid; justify-items: start; font-variant-numeric: tabular-nums; }
+.slot > * { grid-area: 1 / 1; }
+.slot-end { justify-items: end; }
+.slot-ghost { visibility: hidden; font-weight: 700; }
+.chip-value.slot { justify-items: end; }
+.chip-small .slot { justify-items: center; }
 .chip-small { height: 24px; padding: 0 8px; font-size: 12px; }
 .chip-small[aria-pressed="true"] { border-color: var(--rise); color: var(--rise-ink); }
 
 .control { margin-top: 14px; }
-.control-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The row wraps the type filter onto its own line before anything in it would squeeze or overlap; the share
+   window holds slots as wide as its widest figures, so where it wraps depends on the width, never on the slider. */
+.control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .control-label { flex: none; color: var(--ink-2); }
-.control-spacer { flex: 1; }
 .control-window { color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.control-type { display: flex; flex: 1 1 12rem; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; }
 .ref-value {
   width: 12ch;
   height: 28px;
@@ -375,7 +385,7 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .ref-error { min-height: 0; margin: 0; color: var(--rise-ink); font-size: 12px; }
 .ref-error:empty { display: none; }
 .type-filter {
-  flex: 0 1 auto;
+  flex: 0 1 17rem;
   min-width: 5rem;
   max-width: 17rem;
   height: 28px;

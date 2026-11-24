@@ -62,6 +62,28 @@
     return String(Number(value.toPrecision(3)));
   }
 
+  // The longest figure fmt writes for a share anywhere from 10^low to 10^high: three significant figures in the
+  // decade with the most leading zeros, or the most whole digits.
+  function widestFigure(low, high) {
+    let widest = "";
+    for (let decade = Math.floor(low); decade <= Math.ceil(high); decade += 1) {
+      const figure = fmt(1.23 * 10 ** decade);
+      if (figure.length > widest.length) widest = figure;
+    }
+    return widest;
+  }
+
+  // Writes a figure into a slot as wide as the widest figure it can show, so a figure that changes while the rise
+  // share slides never moves what sits beside it. The slot stacks the figure on a hidden bold copy of the widest.
+  function setSlot(node, text, widest) {
+    if (!node.classList.contains("slot") || node.childElementCount !== 2) {
+      node.classList.add("slot");
+      node.replaceChildren(el("span", { class: "slot-figure" }), el("span", { class: "slot-ghost", "aria-hidden": "true" }));
+    }
+    node.firstChild.textContent = text;
+    node.lastChild.textContent = widest;
+  }
+
   const plural = (count, one, many) => `${count} ${count === 1 ? one : many || `${one}s`}`;
   const signed = (number) => (number > 0 ? `+${number}` : number < 0 ? `−${-number}` : "±0");
   // Some save strings keep JSON escapes such as \u00e3; show the character they stand for.
@@ -920,7 +942,7 @@
         const changed = value !== this.codeRise(measure);
         chip.setAttribute("aria-pressed", String(measure === focus));
         chip.classList.toggle("chip-changed", changed);
-        chip.querySelector(".chip-value").textContent = fmt(value);
+        setSlot(chip.querySelector(".chip-value"), fmt(value), this.widestCut(measure, 1));
       }
       const rise = this.state.rises[focus];
       const code = this.codeRise(focus);
@@ -936,7 +958,13 @@
       $("ref-code").disabled = rise === code;
       $("ref-code").title = `Set ${this.index.measures[focus].label} back to the code's ${code}`;
       const [drop] = this.windowShares();
-      $("ref-window").textContent = `keeps ${fmt(drop)} – ${fmt(rise)}`;
+      const range = $("ref-window");
+      if (!range.querySelector(".slot")) {
+        range.replaceChildren("keeps ", el("span", { class: "slot slot-end" }), " – ", el("span", { class: "slot" }));
+      }
+      const [low, high] = range.querySelectorAll(".slot");
+      setSlot(low, fmt(drop), this.widestCut(focus, -1));
+      setSlot(high, fmt(rise), this.widestCut(focus, 1));
       if (options.layout || !this.typeOptions) this.renderTypeFilter();
     },
 
@@ -962,6 +990,14 @@
     // The rise share of a measure's starting scaling in the code.
     codeRise(measure) {
       return this.index.scalings[measure].rise;
+    },
+
+    // The widest figure a cut-off `step` levels out can show while the measure's rise share slides over its
+    // domain: step 1 is the rise share itself, step -1 the default drop share, each further step one width out.
+    widestCut(measure, step) {
+      const domain = this.domains[measure];
+      const shift = (step > 0 ? step - 1 : step) * Math.log10(this.index.constants.default_width);
+      return widestFigure(domain.low + shift, domain.high + shift);
     },
 
     // The focus scaling's window: an event keeps its starting level between the drop share and the rise share.
@@ -1208,16 +1244,17 @@
       const chips = $("cutoff-chips");
       if (cutoffs.length > 2) {
         chips.replaceChildren(
-          ...cutoffs.map((cutoff) =>
-            el("button", {
+          ...cutoffs.map((cutoff) => {
+            const figure = el("span");
+            setSlot(figure, fmt(cutoff.share), this.widestCut(this.focus, cutoff.step));
+            return el("button", {
               type: "button",
               class: "chip chip-small",
               "aria-pressed": String(shown.includes(cutoff)),
               title: `Cut-off at ${cutoff.share} (${cutoff.step > 0 ? "rises" : "drops"} ${plural(Math.abs(cutoff.step), "level")})`,
-              text: fmt(cutoff.share),
               onclick: () => this.toggleCut(cutoff.step),
-            }),
-          ),
+            }, figure);
+          }),
         );
       } else {
         const drafts = this.view === "drafts" && this.index.drafts.some((draft) => draft.measures.includes(this.focus));
@@ -1251,7 +1288,7 @@
         return;
       }
       tide.classList.remove("tide-empty");
-      figure.textContent = fmt(cutoff.share);
+      setSlot(figure, fmt(cutoff.share), this.widestCut(this.focus, cutoff.step));
       figure.title = String(cutoff.share);
       const levels = Math.abs(cutoff.step);
       const direction = cutoff.step < 0 ? "below drops" : "above rises";
