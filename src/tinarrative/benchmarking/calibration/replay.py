@@ -5,6 +5,7 @@ It is the only replay; the calibration page draws what the server answers from i
 
 from __future__ import annotations
 
+import heapq
 import math
 import re
 import threading
@@ -433,12 +434,38 @@ class _Fixed:
 
 
 @dataclass(frozen=True)
+class _Group:
+    """The reachable rows of one campaign that the same scalings reach: through their own shares or the rows they
+    cite, transitively. Only those scalings' shares change their scores."""
+
+    scalings: tuple[str, ...]
+    """Sorted."""
+    positions: tuple[int, ...]
+    """In layer order."""
+
+
+@dataclass(frozen=True)
+class _Part:
+    """One group's rows scored for one choice of its scalings' shares and the switched base levels. Shared between
+    replays and never changed."""
+
+    done: tuple[_Scored, ...]
+    """Aligned with the group's positions."""
+    events: tuple[EventResult, ...]
+    tally: _Tally
+
+
+@dataclass(frozen=True)
 class _Scaled:
-    """What one choice of reassigned scalings fixes: each row's scaling per share, and each scaling's cut-off
-    candidates as ``(position, share)`` pairs per campaign, the real rows' and the draft rows'."""
+    """What one choice of reassigned scalings fixes: each row's scaling per share, each scaling's cut-off
+    candidates as ``(position, share)`` pairs per campaign, the real rows' and the draft rows', and each campaign's
+    reachable rows grouped by the scalings that reach them."""
 
     scalings: Mapping[str, Sequence[tuple[str, ...]]]
     candidates: Mapping[str, Mapping[str, tuple[list[tuple[int, float]], list[tuple[int, float]]]]]
+    groups: Mapping[str, tuple[_Group, ...]]
+    group_of: Mapping[str, Mapping[int, int]]
+    """Each reachable position's group, by its index in ``groups``."""
 
 
 _SCALED_KEPT: Final = 16
@@ -448,14 +475,25 @@ _FIXED_KEPT: Final = 4
 """The base-level choices a prepared table keeps its unreachable rows scored for; each holds every such row, about
 30 MB on the two full sample campaigns."""
 
+_PARTS_KEPT: Final = 4
+"""The share choices a prepared table keeps each group of reachable rows scored for, on average: a drag over one
+scaling's rise share rescores only the groups it reaches, and stepping back finds the last few kept."""
+
+_CUTS_KEPT: Final = 64
+"""The cut-off picks a prepared table keeps: every scaling's for the last few states, so a drag over one scaling
+picks the nearest rows of only that one."""
+
 
 @dataclass(frozen=True, eq=False)
 class Prepared:
     """A calibration table with the work no calibration state changes done once (``prepare``); its replays equal
     ``replay``'s. What depends only on the state's reassigned scalings is derived on first use and kept for the last
     ``_SCALED_KEPT`` choices; the rows no share reaches are scored on first use of a choice of switched base levels
-    and kept for the ``_FIXED_KEPT`` used last. Safe to share between threads. Its replays share their unreachable
-    rows' events and members with each other: read them, never change them."""
+    and kept for the ``_FIXED_KEPT`` used last. The reachable rows are scored per group of the scalings that reach
+    them, and kept for the last few choices of those scalings' shares; the nearest rows of each cut-off are picked
+    per scaling and kept likewise, so a replay that changes one scaling's shares redoes only what that scaling
+    reaches. Neither cache changes ``derived``: both turn over while a slider moves. Safe to share between threads.
+    Its replays share their scored rows' events and members with each other: read them, never change them."""
 
     index: Mapping[str, Any]
     plans: Mapping[str, _Plan]
@@ -465,6 +503,8 @@ class Prepared:
     """The event types of the rows no share reaches: only their switched base levels change those rows."""
     _scaled: dict[tuple[tuple[str, str], ...], _Scaled] = field(default_factory=dict, repr=False)
     _fixed: dict[tuple[str, tuple[tuple[str, str], ...]], _Fixed] = field(default_factory=dict, repr=False)
+    _parts: dict[tuple[Any, ...], _Part] = field(default_factory=dict, repr=False)
+    _cuts: dict[tuple[Any, ...], list[_Pick]] = field(default_factory=dict, repr=False)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _derived: list[int] = field(default_factory=lambda: [0], repr=False)
 
@@ -494,21 +534,21 @@ class Prepared:
         _validate(index, self.plans, self.types, state)
         scaled = self._scaled_for(state)
         types = frozenset(state.types)
-        package = _package_levels(index)
         campaigns: dict[str, _Campaign] = {}
         for name in state.campaigns:
             plan = self.plans[name]
             fixed = self._fixed_for(name, state)
             done = list(fixed.done)
-            _score(index, plan, plan.reachable, done, scaled.scalings[name], state)
-            fresh = [done[position] for position in plan.reachable]
             events = list(fixed.events)
-            for position, item in zip(plan.reachable, fresh, strict=True):
-                events[position] = _event(item)
+            tally = fixed.tally
+            for group, part in zip(scaled.groups[name], self._parts_for(name, state, scaled, done), strict=True):
+                for position, event in zip(group.positions, part.events, strict=True):
+                    events[position] = event
+                tally = tally + part.tally
             campaigns[name] = _Campaign(
                 done=done,
                 events=events,
-                tally=fixed.tally + _tally(fresh, package),
+                tally=tally,
                 members=[
                     item.member
                     for item in (done[position] for position in plan.member_positions)
@@ -516,7 +556,7 @@ class Prepared:
                 ],
                 shadows=_score_drafts(index, plan, done, state),
             )
-        result = _result(index, state, campaigns, types, scaled)
+        result = _result(index, state, campaigns, types, scaled, self._picks)
         if not unfiltered or not types:
             return result, None
         return result, {
@@ -554,6 +594,64 @@ class Prepared:
             self._fixed[key] = derived
             self._derived[0] += 1
         return derived
+
+    def _parts_for(self, campaign: str, state: ReplayState, scaled: _Scaled, done: list[_Scored]) -> list[_Part]:
+        """The campaign's groups of reachable rows scored for ``state``, in group order, their rows filled into
+        ``done``; the groups no kept part has are scored together, in layer order, after the kept ones are filled
+        in, since a group cites only rows of groups whose scalings it shares."""
+        plan = self.plans[campaign]
+        switched = tuple(switched_types(state, self.index).items())
+        common = (campaign, tuple(sorted(state.scalings.items())), switched)
+        keys = [
+            (*common, group.scalings, tuple((state.rises[name], state.drops.get(name)) for name in group.scalings))
+            for group in scaled.groups[campaign]
+        ]
+        parts: list[_Part | None] = []
+        with self._lock:
+            for key in keys:
+                found = self._parts.pop(key, None)
+                if found is not None:
+                    # Kept last, so the parts evicted are the least recently used.
+                    self._parts[key] = found
+                parts.append(found)
+        for group, part in zip(scaled.groups[campaign], parts, strict=True):
+            if part is not None:
+                for position, item in zip(group.positions, part.done, strict=True):
+                    done[position] = item
+        missing = {index for index, part in enumerate(parts) if part is None}
+        if not missing:
+            return parts  # type: ignore[return-value]  # every group was kept
+        group_of = scaled.group_of[campaign]
+        positions = [position for position in plan.reachable if group_of[position] in missing]
+        _score(self.index, plan, positions, done, scaled.scalings[campaign], state)
+        package = _package_levels(self.index)
+        fresh: list[tuple[tuple[Any, ...], _Part]] = []
+        for index in sorted(missing):
+            items = tuple(done[position] for position in scaled.groups[campaign][index].positions)
+            part = _Part(items, tuple(_event(item) for item in items), _tally(items, package))
+            parts[index] = part
+            fresh.append((keys[index], part))
+        with self._lock:
+            for key, part in fresh:
+                if len(self._parts) >= _PARTS_KEPT * sum(len(groups) for groups in scaled.groups.values()):
+                    del self._parts[next(iter(self._parts))]
+                self._parts[key] = part
+        return parts  # type: ignore[return-value]  # every group is scored now
+
+    def _picks(self, key: tuple[Any, ...], pick: Callable[[], list[_Pick]]) -> list[_Pick]:
+        """The cut-off picks kept under ``key``, picked now when none are."""
+        with self._lock:
+            found = self._cuts.pop(key, None)
+            if found is not None:
+                self._cuts[key] = found
+        if found is not None:
+            return found
+        picked = pick()
+        with self._lock:
+            if len(self._cuts) >= _CUTS_KEPT:
+                del self._cuts[next(iter(self._cuts))]
+            self._cuts[key] = picked
+        return picked
 
     def _scaled_for(self, state: ReplayState) -> _Scaled:
         key = tuple(sorted(state.scalings.items()))
@@ -610,6 +708,7 @@ def _result(
     campaigns: Mapping[str, _Campaign],
     types: frozenset[str],
     scaled: _Scaled,
+    picks: Callable[[tuple[Any, ...], Callable[[], list[_Pick]]], list[_Pick]],
 ) -> Replay:
     levels = LEVELS
     tallies = {name: campaign.tally.of_types(types) for name, campaign in campaigns.items()}
@@ -641,7 +740,9 @@ def _result(
         },
         "totals": _totals(every),
         "moves": _moves(every, levels),
-        "cutoffs": {name: _cutoffs(name, state, index, scaled, campaigns) for name in scaling_order(index, state)},
+        "cutoffs": {
+            name: _cutoffs(name, state, index, scaled, campaigns, picks) for name in scaling_order(index, state)
+        },
         "drafts": _drafts(index, state, shadowed, levels),
     }
 
@@ -800,10 +901,12 @@ def _plan(index: Mapping[str, Any], rows: Sequence[Row], shadows: Sequence[Row],
 
 
 def _derive_scaled(plans: Mapping[str, _Plan], state: ReplayState) -> _Scaled:
-    """Each row's scalings under ``state.scalings``, and each scaling's cut-off candidates; nothing else of
-    ``state`` is read."""
+    """Each row's scalings under ``state.scalings``, each scaling's cut-off candidates and the groups of reachable
+    rows; nothing else of ``state`` is read."""
     scalings: dict[str, list[tuple[str, ...]]] = {}
     candidates: dict[str, dict[str, tuple[list[tuple[int, float]], list[tuple[int, float]]]]] = {}
+    groups: dict[str, tuple[_Group, ...]] = {}
+    group_of: dict[str, dict[int, int]] = {}
     for campaign, plan in plans.items():
         own = list(plan.code_scalings)
         for event_type, name in state.scalings.items():
@@ -816,7 +919,19 @@ def _derive_scaled(plans: Mapping[str, _Plan], state: ReplayState) -> _Scaled:
                     if share["share"] > 0:
                         sides = candidates.setdefault(scaling, {}).setdefault(campaign, ([], []))
                         sides[side].append((position, float(share["share"])))
-    return _Scaled(scalings=scalings, candidates=candidates)
+        # Layer order scores a row's citations first, so the scalings reaching them are known by then; a cited row
+        # outside the reachable ones is reached by none.
+        reach: dict[int, frozenset[str]] = {}
+        by_scalings: dict[tuple[str, ...], list[int]] = {}
+        for position in plan.reachable:
+            names = frozenset(own[position]).union(*(reach.get(found, frozenset()) for found in plan.cited[position]))
+            reach[position] = names
+            by_scalings.setdefault(tuple(sorted(names)), []).append(position)
+        groups[campaign] = tuple(_Group(names, tuple(found)) for names, found in sorted(by_scalings.items()))
+        group_of[campaign] = {
+            position: index for index, group in enumerate(groups[campaign]) for position in group.positions
+        }
+    return _Scaled(scalings=scalings, candidates=candidates, groups=groups, group_of=group_of)
 
 
 _Settle = Callable[[Row, int, list[_Scored], _Gate | None, tuple[str, ...]], _Scored]
@@ -1051,65 +1166,126 @@ def _cutoffs(
     index: Mapping[str, Any],
     scaled: _Scaled,
     campaigns: Mapping[str, _Campaign],
+    picks: Callable[[tuple[Any, ...], Callable[[], list[_Pick]]], list[_Pick]],
 ) -> list[Cutoff]:
     """The cut-offs of scaling ``name`` at every step its rows' starting levels reach, each with the nearest rows
     of the scaling on each side, of the enabled campaigns and the filtered types; a row decided outright never
-    counts."""
+    counts. Which rows are nearest reads only their shares, ids, types and starting levels, so ``picks`` may keep
+    the picks of a scaling whose shares a replay leaves alone; each pick is scored for this replay."""
+    key = (
+        name,
+        tuple(sorted(state.scalings.items())),
+        state.rises[name],
+        state.drops.get(name),
+        tuple(state.campaigns),
+        tuple(sorted(state.types)),
+        tuple(switched_types(state, index).items()),
+        tuple(sorted(state.bases.items())),
+    )
+
+    def neighbours(chosen: Sequence[_Chosen]) -> list[Neighbour]:
+        return [
+            _neighbour(
+                campaign, (campaigns[campaign].shadows if drafted else campaigns[campaign].done)[position], *rest
+            )
+            for campaign, drafted, position, *rest in chosen
+        ]
+
+    return [
+        {
+            "step": pick.step,
+            "offset": pick.offset,
+            "share": pick.share,
+            "below": neighbours(pick.below),
+            "above": neighbours(pick.above),
+            "drafts": {
+                draft: {"below": neighbours(below), "above": neighbours(above)}
+                for draft, (below, above) in pick.drafts.items()
+            },
+        }
+        for pick in picks(key, lambda: _pick(name, state, index, scaled, campaigns))
+    ]
+
+
+_Chosen = tuple[str, bool, int, float, float]
+"""A row nearest a cut-off: its campaign, whether it is a draft row, its position, share and distance."""
+
+
+@dataclass(frozen=True)
+class _Pick:
+    """One cut-off of a scaling and the rows nearest it on each side, not yet scored."""
+
+    step: int
+    offset: float
+    share: float
+    below: tuple[_Chosen, ...]
+    above: tuple[_Chosen, ...]
+    drafts: Mapping[str, tuple[tuple[_Chosen, ...], tuple[_Chosen, ...]]]
+
+
+_Candidate = tuple[str, bool, int, _Scored, float]
+
+
+def _pick(
+    name: str, state: ReplayState, index: Mapping[str, Any], scaled: _Scaled, campaigns: Mapping[str, _Campaign]
+) -> list[_Pick]:
     constants = index["constants"]
     rise, drop = state.rises[name], state.drops.get(name)
     centre = midpoint(rise, drop)
     types = frozenset(state.types)
     of_scaling = scaled.candidates.get(name, {})
-    real: list[tuple[str, _Scored, float]] = []
-    drafted: list[tuple[str, _Scored, float]] = []
+    real: list[_Candidate] = []
+    drafted: list[_Candidate] = []
     for campaign in state.campaigns:
         own_real, own_drafted = of_scaling.get(campaign, ([], []))
         scored = campaigns[campaign]
-        for found, pairs, items in ((real, own_real, scored.done), (drafted, own_drafted, scored.shadows)):
+        for found, is_draft, pairs, items in (
+            (real, False, own_real, scored.done),
+            (drafted, True, own_drafted, scored.shadows),
+        ):
             found.extend(
-                (campaign, items[position], share)
+                (campaign, is_draft, position, items[position], share)
                 for position, share in pairs
                 if not types or items[position].row["type"] in types
             )
     names = [draft["name"] for draft in index["drafts"] if name in draft["scalings"].values()]
-    by_draft = {draft: [entry for entry in drafted if draft_name(entry[1].row["id"]) == draft] for draft in names}
-    result: list[Cutoff] = []
-    for step in cutoff_steps(item.start for _, item, _ in [*real, *drafted]):
+    by_draft = {draft: [entry for entry in drafted if draft_name(entry[3].row["id"]) == draft] for draft in names}
+    result: list[_Pick] = []
+    for step in cutoff_steps({entry[3].start for entry in real} | {entry[3].start for entry in drafted}):
         cut = cut_off(step, rise, drop)
         below, above = _sides(real, cut, step, state.campaigns, constants["neighbours"])
-        drafts: dict[str, Sides] = {}
-        for draft in names:
-            own = by_draft[draft]
-            draft_below, draft_above = _sides(own, cut, step, state.campaigns, constants["neighbours"])
-            drafts[draft] = {"below": draft_below, "above": draft_above}
-        result.append(
-            {
-                "step": step,
-                "offset": math.log10(cut / centre),
-                "share": cut,
-                "below": below,
-                "above": above,
-                "drafts": drafts,
-            }
-        )
+        drafts = {
+            draft: _sides(by_draft[draft], cut, step, state.campaigns, constants["neighbours"]) for draft in names
+        }
+        result.append(_Pick(step, math.log10(cut / centre), cut, below, above, drafts))
     return result
 
 
 def _sides(
-    candidates: Sequence[tuple[str, _Scored, float]], cut: float, step: int, campaigns: Sequence[str], count: int
-) -> tuple[list[Neighbour], list[Neighbour]]:
-    below: list[Neighbour] = []
-    above: list[Neighbour] = []
-    for name, item, share in candidates:
+    candidates: Sequence[_Candidate], cut: float, step: int, campaigns: Sequence[str], count: int
+) -> tuple[tuple[_Chosen, ...], tuple[_Chosen, ...]]:
+    rank = {name: order for order, name in enumerate(campaigns)}
+    below: list[_Ranked] = []
+    above: list[_Ranked] = []
+    for order, (name, _, _, item, share) in enumerate(candidates):
         # A share on the cut-off moves past it: above a rise cut-off, below a drop one.
         side = below if share < cut or (share == cut and step < 0) else above
-        side.append(_neighbour(name, item, share, abs(math.log10(share / cut))))
-    return _nearest(below, campaigns, count), _nearest(above, campaigns, count)
+        side.append((abs(math.log10(share / cut)), rank[name], item.row["id"], order))
+    return _nearest(below, candidates, count), _nearest(above, candidates, count)
 
 
-def _nearest(side: list[Neighbour], campaigns: Sequence[str], neighbours: int) -> list[Neighbour]:
-    ranked = sorted(side, key=lambda item: (item["distance"], campaigns.index(item["campaign"]), item["id"]))
-    return ranked[:neighbours]
+_Ranked = tuple[float, int, str, int]
+"""A cut-off candidate's distance, campaign rank, row id and position among the candidates; the last keeps ties in
+candidate order."""
+
+
+def _nearest(side: list[_Ranked], candidates: Sequence[_Candidate], count: int) -> tuple[_Chosen, ...]:
+    """The ``count`` nearest of ``side``, out of thousands of candidates."""
+    nearest: list[_Chosen] = []
+    for distance, _, _, order in heapq.nsmallest(count, side):
+        campaign, is_draft, position, _, share = candidates[order]
+        nearest.append((campaign, is_draft, position, share, distance))
+    return tuple(nearest)
 
 
 def _neighbour(campaign: str, item: _Scored, share: float, distance: float) -> Neighbour:

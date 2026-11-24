@@ -315,8 +315,8 @@ The command replays the table in Python for every change on the page; the page o
 interrupted with Ctrl-C. A stale table is served while it is rebuilt, and the page offers to reload once the new one
 is ready. The extraction's progress shows on stderr as for `report`, and on the page as a bar with the time left
 and every campaign's step. A failed rebuild keeps the old table served and the command exits with 2 when interrupted; with no old
-table it stops at once. A slider replays when it is let go. Opened from disk, or once the command has stopped, the
-page says so and names the command to run.
+table it stops at once. Opened from disk, or once the command has stopped, the page says so and names the command to
+run.
 
 ```sh
 # Build the table if needed, serve the page and open it.

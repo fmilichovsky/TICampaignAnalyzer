@@ -296,6 +296,7 @@
     lastAsked: null,
     built: false,
     frame: 0,
+    chartFrame: 0,
     dragging: false,
     dragFlight: false,
     dragStale: false,
@@ -332,7 +333,8 @@
 
     // Ask the server to replay a state hash or the controls' values. Only the latest request's answer is drawn; a
     // request the same as the last one is not sent again. A summary request (options.summary, the drag's) is always
-    // sent, and does not count as the last one: the page then shows no full answer.
+    // sent, and does not count as the last one: the page then shows no full answer. options.answered runs once the
+    // latest answer is read, before it is drawn; options.finished runs after, whatever the outcome.
     ask(body, options) {
       const text = JSON.stringify(body);
       if (options.summary) this.lastAsked = null;
@@ -348,6 +350,7 @@
             fatal("The table could not be replayed.", `${answer.fatal || "The server refused the request."} Run ${SERVE} --rebuild.`);
             return;
           }
+          if (options.answered) options.answered();
           this.apply(answer, options);
         })
         .catch(() => {
@@ -366,7 +369,8 @@
     },
 
     // While the pointer drags the slider: summary answers for the controls' state, one request in flight. When it
-    // answers and the slider has moved since, the latest value goes next. Release asks for the full answer instead.
+    // answers and the slider has moved since, the latest value goes next, before the answer is drawn, so the server
+    // replays while the page draws. Release asks for the full answer instead.
     drag() {
       if (this.dragFlight) {
         this.dragStale = true;
@@ -374,16 +378,14 @@
       }
       this.dragFlight = true;
       this.dragStale = false;
-      this.ask(
-        { state: this.state, summary: true },
-        {
-          summary: true,
-          finished: () => {
-            this.dragFlight = false;
-            if (this.dragStale && this.dragging) this.drag();
-          },
-        },
-      );
+      let done = false;
+      const next = () => {
+        if (done) return;
+        done = true;
+        this.dragFlight = false;
+        if (this.dragStale && this.dragging) this.drag();
+      };
+      this.ask({ state: this.state, summary: true }, { summary: true, answered: next, finished: next });
     },
 
     apply(answer, options) {
@@ -829,8 +831,20 @@
         this.state.drops = Object.assign({}, this.state.drops);
         delete this.state.drops[this.focus];
       }
-      if (from === "slider") this.renderControl({ from });
-      else this.update({ resort: true, from });
+      if (from === "slider") {
+        this.renderControl({ from });
+        this.followChart();
+      } else this.update({ resort: true, from });
+    },
+
+    // The chart draws its window, bars and lines from the controls' state and the table's shares, so it follows the
+    // slider every frame; only the counts and lists wait for an answer.
+    followChart() {
+      if (this.chartFrame || !this.result) return;
+      this.chartFrame = window.requestAnimationFrame(() => {
+        this.chartFrame = 0;
+        this.renderChart();
+      });
     },
 
     setFocus(measure) {
@@ -1120,9 +1134,11 @@
         nodes.push(label);
       }
 
-      // The cut-offs of the current state: the window's two.
+      // The cut-offs of the current state, placed by their offset from the window's midpoint: exact for the answer's
+      // own state, and they keep pace with the window while the slider is ahead of the last answer.
+      const centre = (Math.log10(lowCut) + Math.log10(highCut)) / 2;
       for (const cutoff of this.result.cutoffs[this.focus] || []) {
-        const at = x(Math.log10(cutoff.share));
+        const at = x(centre + cutoff.offset);
         if (at < plotLeft || at > plotRight) continue;
         nodes.push(svg("line", { class: "cut", x1: at, x2: at, y1: plotTop - 4, y2: plotBottom }));
       }

@@ -14,6 +14,8 @@ changes. Each of those changes is a replay of the calibration table, and the sam
   aggregates the page shows; the page reads the row facts that never change from the tables it loads as files.
   While a control moves, the page may ask for a summary answer instead: the same answer without the per-row columns
   and the readout texts, which only a settled state draws. It asks for the full answer when the control settles.
+  Between answers, the window chart follows the slider from the controls' state and the table's shares, and places
+  the last answer's cut-offs by their offset from the window's midpoint; it classifies no event and scores nothing.
 
 ## Considered options
 
