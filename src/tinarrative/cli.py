@@ -1060,6 +1060,9 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
 def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
     """Refresh the calibration cache, time the server's fixed requests against it and print or write the JSON."""
     command = "tinarrative benchmark calibrate time"
+    if args.report is not None and args.base_python is None:
+        print(f"{command}: --report compares two revisions and needs --base-python.", file=sys.stderr)
+        return EXIT_USAGE_ERROR
     failed = _calibration_samples_error(command, cast(Path, args.samples))
     if failed is not None:
         return failed
@@ -1068,17 +1071,33 @@ def _run_benchmark_calibrate_time(args: argparse.Namespace) -> int:
         return failed
     try:
         report = calibration_timing.measure(
-            calibration_server.Calibration(cast(Path, args.out)), repeats=cast(int, args.repeats)
+            calibration_server.Calibration(cast(Path, args.out)),
+            repeats=cast(int, args.repeats),
+            base_python=cast("str | None", args.base_python),
+            samples=cast(Path, args.samples),
         )
     except calibration_timing.TimingError as error:
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_USAGE_ERROR
     text = json.dumps(report, indent=2) + "\n"
     output = cast("Path | None", args.output)
-    if output is None:
-        sys.stdout.write(text)
-        return EXIT_SUCCESS
+    table = cast("Path | None", args.report)
     try:
+        if table is not None:
+            table.write_text(
+                calibration_timing.markdown(
+                    report,
+                    report["base"],
+                    head_label=cast(str, args.label),
+                    base_label=cast(str, args.base_label),
+                    run_url=cast("str | None", args.run_url),
+                ),
+                encoding="utf-8",
+                newline="\n",
+            )
+        if output is None:
+            sys.stdout.write(text)
+            return EXIT_SUCCESS
         output.write_text(text, encoding="utf-8", newline="\n")
     except OSError as error:
         print(f"{command}: {error}", file=sys.stderr)
@@ -2471,6 +2490,28 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
         help="Times each request is sent (default %(default)s).",
     )
     timed.add_argument("--output", type=Path, metavar="PATH", help="Write the timing JSON here (default: stdout).")
+    timed.add_argument(
+        "--base-python",
+        metavar="PYTHON",
+        help="Another revision's interpreter: it extracts its own table from --samples and times the same requests "
+        "through its own server handler; an answer it cannot give is n/a. The JSON gains a `base` report.",
+    )
+    timed.add_argument(
+        "--base-label",
+        default="base",
+        metavar="LABEL",
+        help="The base revision's name in --report (default %(default)s).",
+    )
+    timed.add_argument(
+        "--label", default="head", metavar="LABEL", help="This revision's name in --report (default %(default)s)."
+    )
+    timed.add_argument("--run-url", metavar="URL", help="The workflow run the --report links to.")
+    timed.add_argument(
+        "--report",
+        type=Path,
+        metavar="PATH",
+        help="Write the base-versus-head Markdown table here (needs --base-python).",
+    )
     timed.set_defaults(handler=_run_benchmark_calibrate_time)
 
     report = _add_command(

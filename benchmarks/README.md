@@ -59,8 +59,9 @@ the one that `compare` reads; see the [command page](../docs/commands/benchmark.
 
 ## On-demand runs
 
-[`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml) and
-[`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) run from Actions using **Run workflow**,
+[`.github/workflows/package-metrics.yml`](../.github/workflows/package-metrics.yml),
+[`.github/workflows/runtime-metrics.yml`](../.github/workflows/runtime-metrics.yml) and
+[`.github/workflows/calibration-metrics.yml`](../.github/workflows/calibration-metrics.yml) run from Actions using **Run workflow**,
 or when any user comments exactly `/benchmarks` on a pull request. Manual runs compare the selected branch with the
 default branch; comment-triggered runs compare that pull request's base and head. Measurements are informational and never fail because of a change.
 
@@ -134,6 +135,15 @@ is the sign of superlinear cost.
 separate job. Each job measures the base and head on the same runner, with three repeats, and a final job combines the
 results with [`benchmark runtime merge`](../docs/commands/benchmark.md#benchmark-runtime-merge) into the report.
 Timings from different runners are not comparable, which is why each campaign's two revisions stay together.
+
+[`.github/workflows/calibration-metrics.yml`](../.github/workflows/calibration-metrics.yml) times the calibration
+server (see [Samples](#samples)) in one job, not a per-sample matrix: all sample campaigns go into one table. It
+installs base and head in their own environments on one runner and runs head's
+[`benchmark calibrate time`](../docs/commands/benchmark.md#benchmark-calibrate-time) with `--base-python`. The base's
+interpreter extracts that revision's own table and answers the same request list through its own server handler, so a
+change to the replay or the server shows its effect. An answer type the base cannot give, such as the summary answer
+before it exists, is reported as `n/a`. The comment has its own marker and lists, per request type, base and head
+median and p95 seconds and answer bytes, with each table's row count.
 
 Locally:
 

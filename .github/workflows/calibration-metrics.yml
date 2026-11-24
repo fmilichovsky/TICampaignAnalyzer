@@ -1,0 +1,121 @@
+name: Calibration metrics
+
+# Times the calibration server's fixed requests on demand: base and head each extract their own table from the
+# committed sample campaigns and answer the same list, one after the other on one runner. Timings from different
+# runners are not comparable. Informational: a slower answer never fails the check. See benchmarks/README.md.
+
+on:
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: calibration-metrics-${{ (github.event_name == 'issue_comment' && github.event.comment.body == '/benchmarks' && github.event.issue.pull_request && github.event.issue.number) || (github.event_name == 'workflow_dispatch' && github.ref) || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && github.event.comment.body == '/benchmarks')
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: none
+    uses: ./.github/workflows/resolve-metrics-refs.yml
+
+  placeholder-comment:
+    needs: resolve
+    if: needs.resolve.outputs.pr_number != ''
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      benchmark_name: 'Calibration metrics'
+      artifact_name: calibration-metrics
+      report_path: calibration.md
+      comment_marker: '<!-- calibration-metrics -->'
+      status: in_progress
+      base_sha: ${{ needs.resolve.outputs.base_sha }}
+      head_sha: ${{ needs.resolve.outputs.head_sha }}
+
+  measure:
+    needs: resolve
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      # The head checkout supplies the CLI, the samples and the request list used to measure both revisions.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.head_checkout_ref }}
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.base_sha }}
+          path: .bench/base-src
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install base and head
+        run: |
+          python -m venv .bench/venv-base
+          .bench/venv-base/bin/python -m pip install --quiet ./.bench/base-src
+          python -m venv .bench/venv-head
+          .bench/venv-head/bin/python -m pip install --quiet .
+      - name: Measure
+        run: >-
+          .bench/venv-head/bin/python -m tinarrative.cli benchmark calibrate time --repeats 5
+          --samples benchmarks/samples --out .bench/calibration-head
+          --base-python .bench/venv-base/bin/python --base-label "$BASE_LABEL ${GITHUB_BASE_SHA::7}"
+          --label "$HEAD_LABEL ${GITHUB_HEAD_SHA::7}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          --output .bench/calibration.json --report .bench/calibration.md
+        env:
+          GITHUB_BASE_SHA: ${{ needs.resolve.outputs.base_sha }}
+          GITHUB_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          BASE_LABEL: ${{ needs.resolve.outputs.base_ref }}
+          HEAD_LABEL: ${{ needs.resolve.outputs.head_ref }}
+      - name: Summary
+        run: cat .bench/calibration.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: calibration-metrics
+          path: |
+            .bench/calibration.json
+            .bench/calibration.md
+          retention-days: 14
+
+  post-comment:
+    needs: [resolve, measure, placeholder-comment]
+    if: needs.resolve.outputs.pr_number != ''
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      benchmark_name: 'Calibration metrics'
+      artifact_name: calibration-metrics
+      report_path: calibration.md
+      comment_marker: '<!-- calibration-metrics -->'
+
+  failure-comment:
+    needs: [resolve, placeholder-comment, measure]
+    if: always() && !cancelled() && needs.resolve.outputs.pr_number != '' && needs.measure.result == 'failure'
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ needs.resolve.outputs.pr_number }}
+      benchmark_name: 'Calibration metrics'
+      artifact_name: calibration-metrics
+      report_path: calibration.md
+      comment_marker: '<!-- calibration-metrics -->'
+      status: failed
+      base_sha: ${{ needs.resolve.outputs.base_sha }}
+      head_sha: ${{ needs.resolve.outputs.head_sha }}

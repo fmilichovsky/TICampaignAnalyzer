@@ -73,3 +73,68 @@ def test_the_report_names_each_request_type_with_its_figures_and_the_tables_row_
 def test_a_server_that_cannot_answer_is_an_error(tmp_path: Path) -> None:
     with pytest.raises(timing.TimingError):
         timing.measure(server.Calibration(tmp_path), repeats=1)
+
+
+def _fake_revision(tmp_path: Path, document: dict[str, object]) -> str:
+    """An interpreter that ignores its arguments and prints ``document``, as the other revision's script would."""
+    output = tmp_path / "measured.json"
+    output.write_text(json.dumps(document), encoding="utf-8")
+    script = tmp_path / "fake-python"
+    script.write_text(f"#!/bin/sh\ncat '{output}'\n", encoding="utf-8")
+    script.chmod(0o755)
+    return str(script)
+
+
+def _measured(*, without: str | None = None) -> dict[str, object]:
+    asked = timing.requests(INDEX, TABLES)
+    return {
+        "key": "base-key",
+        "campaigns": {"alpha": 7},
+        "seconds": {kind: None if kind == without else [0.5, 1.0] for kind in asked},
+        "sizes": {kind: None if kind == without else [100, 300] for kind in asked},
+    }
+
+
+def test_another_revision_is_measured_through_its_own_interpreter_and_lacks_n_a_answer_types(
+    calibration: server.Calibration, tmp_path: Path
+) -> None:
+    python = _fake_revision(tmp_path, _measured(without=timing.BASE_SWITCH))
+
+    report = timing.measure(calibration, repeats=2, base_python=python, samples=tmp_path)
+
+    base = report["base"]
+    assert json.loads(json.dumps(report)) == report
+    assert base["key"] == "base-key"
+    assert base["campaigns"] == {"alpha": 7}
+    assert base["requests"][timing.BASE_SWITCH] is None
+    assert base["requests"][timing.FULL] == {
+        "count": 2,
+        "median_seconds": 0.75,
+        "p95_seconds": 1.0,
+        "answer_bytes": 200,
+    }
+    assert set(base["requests"]) == set(report["requests"])
+
+
+def test_an_interpreter_that_fails_is_a_timing_error(calibration: server.Calibration, tmp_path: Path) -> None:
+    script = tmp_path / "broken-python"
+    script.write_text("#!/bin/sh\necho 'ImportError: no cache' >&2\nexit 1\n", encoding="utf-8")
+    script.chmod(0o755)
+
+    with pytest.raises(timing.TimingError, match="ImportError"):
+        timing.measure(calibration, repeats=1, base_python=str(script), samples=tmp_path)
+
+
+def test_the_markdown_lists_base_and_head_figures_per_request_type_with_n_a_and_row_counts(
+    calibration: server.Calibration, tmp_path: Path
+) -> None:
+    python = _fake_revision(tmp_path, _measured(without=timing.BASE_SWITCH))
+    report = timing.measure(calibration, repeats=2, base_python=python, samples=tmp_path)
+
+    text = timing.markdown(report, report["base"], head_label="head abc", base_label="main def")
+
+    assert text.startswith(timing.MARKER + "\n")
+    assert "| Request | Median s (base) | Median s (head)" in text
+    assert "| full answer | 0.750 | " in text
+    assert "| base switch | n/a | " in text
+    assert f"`main def`: 7 table rows. Head `head abc`: {sum(report['campaigns'].values()):,} table rows." in text
