@@ -51,7 +51,7 @@ def test_the_report_is_printed_as_json_with_a_figure_set_per_request_type(paths:
     report = json.loads(stdout)
     assert set(report["requests"]) == {timing.FULL, timing.SWEEP, timing.TYPE_FILTER, timing.BASE_SWITCH}
     for figures in report["requests"].values():
-        assert set(figures) == {"count", "median_seconds", "p95_seconds", "answer_bytes"}
+        assert set(figures) == {"count", "median_ms", "p95_ms", "answer_bytes"}
     assert report["campaigns"]
 
 
@@ -221,10 +221,10 @@ def test_the_base_side_reports_its_extraction_and_rounds_like_the_head(
         "base: cannot answer base switch; skipped",
         "base: 1 rounds of 2 requests",
         "base: starting round 1/1",
-        "  full: 1 request in 0.200s",
-        "  sweep: 1 request in 0.400s",
-        "base: round 1/1 done in 0.600s",
-        "base: measured in 0.600s",
+        "  full: 1 request in 200 ms",
+        "  sweep: 1 request in 400 ms",
+        "base: round 1/1 done in 600 ms",
+        "base: measured in 600 ms",
     ]
 
 

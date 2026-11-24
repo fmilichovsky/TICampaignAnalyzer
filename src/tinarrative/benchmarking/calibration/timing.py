@@ -180,14 +180,17 @@ def report(
             if not seconds[kind]
             else {
                 "count": len(seconds[kind]),
-                "median_seconds": statistics.median(seconds[kind]),
-                "p95_seconds": _percentile(seconds[kind], 0.95),
+                "median_ms": statistics.median(seconds[kind]) * MS,
+                "p95_ms": _percentile(seconds[kind], 0.95) * MS,
                 "answer_bytes": int(statistics.median(sizes[kind])),
             }
             for kind in asked
         },
     }
 
+
+MS: Final = 1000
+"""Milliseconds in a second; the requests are timed in seconds and reported in milliseconds."""
 
 PROGRESS_PREFIX: Final = "tinarrative-progress "
 """Starts each stderr line of the revision script that is a step of its progress, a JSON object after it; any other
@@ -392,7 +395,7 @@ def markdown(
     run_url: str | None = None,
 ) -> str:
     """The PR comment: ``MARKER``, the changes worth a look, then per request type the change of the median and p95
-    seconds and of the answer bytes, and under them the base and head figures themselves and the tables' row counts."""
+    milliseconds and of the answer bytes, and under them the base and head figures and the tables' row counts."""
 
     def figures(side: Mapping[str, Any], kind: str) -> Mapping[str, Any] | None:
         found: Mapping[str, Any] | None = side["requests"].get(kind)
@@ -404,26 +407,27 @@ def markdown(
     def cells(found: Mapping[str, Any] | None) -> list[str]:
         if found is None:
             return [NOT_AVAILABLE] * 3
-        return [f"{found['median_seconds']:.3f}", f"{found['p95_seconds']:.3f}", f"{found['answer_bytes']:,}"]
+        return [f"{found['median_ms']:,.1f}", f"{found['p95_ms']:,.1f}", f"{found['answer_bytes']:,}"]
 
     def change(old: Mapping[str, Any] | None, new: Mapping[str, Any] | None, key: str) -> float | None:
         before, after = value(old, key), value(new, key)
         return None if not before or after is None else after / before - 1
 
     flagged = []
-    deltas = ["| Request | Δ median s | Δ p95 s | Δ bytes |", "| --- | ---: | ---: | ---: |"]
+    deltas = ["| Request | Δ median ms | Δ p95 ms | Δ bytes |", "| --- | ---: | ---: | ---: |"]
     raw = [
-        "| Request | Median s (base) | Median s (head) | p95 s (base) | p95 s (head) | Bytes (base) | Bytes (head) |",
+        "| Request | Median ms (base) | Median ms (head) | p95 ms (base) | p95 ms (head) "
+        "| Bytes (base) | Bytes (head) |",
         "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
     for kind, name in _KINDS.items():
         old, new = figures(base, kind), figures(head, kind)
         steps = [
             delta(value(old, key), value(new, key), digits=digits, unit=unit)
-            for key, digits, unit in (("median_seconds", 3, " s"), ("p95_seconds", 3, " s"), ("answer_bytes", 0, ""))
+            for key, digits, unit in (("median_ms", 1, " ms"), ("p95_ms", 1, " ms"), ("answer_bytes", 0, ""))
         ]
         deltas.append(f"| {name} | {steps[0]} | {steps[1]} | {steps[2]} |")
-        slower = change(old, new, "median_seconds")
+        slower = change(old, new, "median_ms")
         if slower is not None and abs(slower) >= TIMING_THRESHOLD:
             flagged.append(f"{name} median {steps[0]}")
         resized = change(old, new, "answer_bytes")
