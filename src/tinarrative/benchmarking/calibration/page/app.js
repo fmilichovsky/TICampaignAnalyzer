@@ -275,6 +275,8 @@
     built: false,
     frame: 0,
     dragging: false,
+    dragFlight: false,
+    dragStale: false,
     chartWidth: 600,
     chartModel: null,
     chartCursor: -1,
@@ -307,11 +309,13 @@
     // --- The server ---------------------------------------------------------------------------------------
 
     // Ask the server to replay a state hash or the controls' values. Only the latest request's answer is drawn; a
-    // request the same as the last one is not sent again.
+    // request the same as the last one is not sent again. A summary request (options.summary, the drag's) is always
+    // sent, and does not count as the last one: the page then shows no full answer.
     ask(body, options) {
       const text = JSON.stringify(body);
-      if (text === this.lastAsked) return;
-      this.lastAsked = text;
+      if (options.summary) this.lastAsked = null;
+      else if (text === this.lastAsked) return;
+      else this.lastAsked = text;
       const asked = ++this.asked;
       window
         .fetch("replay", { method: "POST", headers: { "Content-Type": "application/json" }, body: text })
@@ -333,10 +337,36 @@
           }
           Status.lost = `The server stopped answering, so this page shows the last replay. Run ${SERVE} and reload.`;
           Status.show();
+        })
+        .finally(() => {
+          if (options.finished) options.finished();
         });
     },
 
+    // While the pointer drags the slider: summary answers for the controls' state, one request in flight. When it
+    // answers and the slider has moved since, the latest value goes next. Release asks for the full answer instead.
+    drag() {
+      if (this.dragFlight) {
+        this.dragStale = true;
+        return;
+      }
+      this.dragFlight = true;
+      this.dragStale = false;
+      this.ask(
+        { state: this.state, summary: true },
+        {
+          summary: true,
+          finished: () => {
+            this.dragFlight = false;
+            if (this.dragStale && this.dragging) this.drag();
+          },
+        },
+      );
+    },
+
     apply(answer, options) {
+      // A drag answer that comes after the pointer let go is older than the state the controls hold.
+      if (options.summary && !this.dragging) return;
       if (answer.key !== this.index.key) {
         // The table was rebuilt under the page: its rows are no longer the ones the answer counts.
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${answer.hash ? `#${answer.hash}` : ""}`);
@@ -345,11 +375,17 @@
       }
       const local = this.state;
       this.state = answer.state;
-      if (this.dragging && local) this.state.rises = local.rises;
-      this.hash = answer.hash;
-      this.isCode = answer.is_code;
-      this.readout = { paragraph: answer.paragraph, snippet: answer.snippet };
+      if (options.summary && local) {
+        // The slider has moved on since the request: its readout keeps the value under the pointer.
+        this.state.rises = local.rises;
+        if (local.drops) this.state.drops = local.drops;
+      }
       this.meta = answer.meta;
+      if (!options.summary) {
+        this.hash = answer.hash;
+        this.isCode = answer.is_code;
+        this.readout = { paragraph: answer.paragraph, snippet: answer.snippet };
+      }
       if (answer.error) this.hashError = `The link's state could not be read (${answer.error}), so the page shows the code's scalings.`;
       this.result = this.expand(answer.replay);
       this.full = answer.unfiltered ? this.withUnfiltered(this.result, answer.unfiltered) : this.result;
@@ -359,7 +395,8 @@
         this.build();
         $("layout").setAttribute("aria-busy", "false");
       }
-      this.render(options);
+      if (options.summary) this.renderDrag();
+      else this.render(options);
     },
 
     // The compact answer's event columns as the per-row results the views read, by row position.
@@ -375,7 +412,9 @@
             level: this.levels[columns.level[position]],
             decided_by: columns.decided[position] === null ? own[position].id : rows[columns.decided[position]].id,
           }));
-        campaigns[name] = Object.assign({}, campaign, { events: column(campaign.events, rows), drafts: column(campaign.drafts, drafts) });
+        // A summary answer has no row columns; the lists that read them are not drawn until the full answer.
+        const events = campaign.events ? column(campaign.events, rows) : [];
+        campaigns[name] = Object.assign({}, campaign, { events, drafts: campaign.drafts ? column(campaign.drafts, drafts) : [] });
       }
       return Object.assign({}, replay, { campaigns });
     },
@@ -502,6 +541,7 @@
       window.addEventListener("pointercancel", release);
       slider.addEventListener("input", () => {
         this.setReference(this.sliderReference(Number(slider.value)), { from: "slider" });
+        if (this.dragging) this.drag();
       });
       slider.addEventListener("keydown", () => {
         this.dragging = false;
@@ -758,7 +798,8 @@
       return Number(Math.pow(10, position).toPrecision(3));
     },
 
-    // A slider moves only its own readout until it is let go (settle); the replay is asked then.
+    // A slider moves its own readout at once; the views follow by summary answers while it drags (drag), and the
+    // full replay is asked when it is let go (settle).
     setReference(value, { from }) {
       this.state.rises = Object.assign({}, this.state.rises, { [this.focus]: value });
       // A drop share the new rise share would pass is dropped: the scaling keeps the default width.
@@ -840,6 +881,17 @@
       this.writeHash();
       Pop.refresh();
       Inspector.refresh();
+    },
+
+    // What a drag answer redraws: the views that follow the rise share, without re-sorting and without the URL hash,
+    // the event lists, the base-level rows, the members, the drawer and the readout.
+    renderDrag() {
+      this.renderControl({ from: "slider" });
+      this.renderChart();
+      this.renderTides();
+      this.renderDrafts();
+      this.renderCounts();
+      this.renderTotals();
     },
 
     renderHeader() {
