@@ -54,6 +54,36 @@ Scalings: power rise 0.11220184543019635 (code 0.1778279410038923), faction rise
 | nation.cession | minor | 1 | 1 | 0 |
 | nation.expansion | minor | 1 | 1 | 0 |
 
+## Coverage
+
+| Type | Coverage | Total | alpha | beta |
+| --- | --- | --- | --- | --- |
+| atomic.far | thin | 2 | 2 | 0 |
+| atomic.land | thin | 2 | 1 | 1 |
+| atomic.near | thin | 8 | 8 | 0 |
+| atomic.other | thin | 1 | 1 | 0 |
+| atomic.plain | thin | 2 | 1 | 1 |
+| atomic.scatter | thin | 25 | 0 | 25 |
+| atomic.spread | thin | 23 | 0 | 23 |
+| atomic.thing | covered | 6 | 3 | 3 |
+| campaign.first_milestone | thin | 1 | 1 | 0 |
+| faction.takeover | thin | 11 | 11 | 0 |
+| faction.takeover_wave | thin | 3 | 3 | 0 |
+| nation.cession | thin | 1 | 1 | 0 |
+| nation.expansion | thin | 1 | 1 | 0 |
+
+| Measure | Coverage | Total | alpha | beta |
+| --- | --- | --- | --- | --- |
+| power | covered | 51 | 25 | 26 |
+| population | covered | 27 | 1 | 26 |
+| organization | thin | 1 | 1 | 0 |
+| hab | thin | 0 | 0 | 0 |
+| fleet | thin | 0 | 0 | 0 |
+| battle | thin | 0 | 0 | 0 |
+| space_loss | thin | 0 | 0 | 0 |
+| faction | thin | 0 | 0 | 0 |
+| nuclear | thin | 0 | 0 | 0 |
+
 ## What moves
 
 | Type | From | To | Count | Via a cited event |

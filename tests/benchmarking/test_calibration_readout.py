@@ -50,6 +50,7 @@ SECTIONS = [
     "Calibration state",
     "Summary",
     "Level counts",
+    "Coverage",
     "What moves",
     "Member verdicts",
     "Cut-offs",
@@ -65,15 +66,15 @@ def test_the_readouts_of_the_golden_states_are_current(name: str, assert_golden:
     state_hash = encode_state(state, INDEX)
 
     assert_golden(shared_paragraph(INDEX, result) + "\n" + snippet(INDEX, result) + "\n", READOUT / f"{name}.txt")
-    assert_golden(render_text(INDEX, result, state_hash=state_hash, drafts=DRAFTS), READOUT / f"{name}.md")
+    assert_golden(render_text(INDEX, TABLES, result, state_hash=state_hash, drafts=DRAFTS), READOUT / f"{name}.md")
     document = render_json(INDEX, TABLES, result, state_hash=state_hash, drafts=DRAFTS)
     assert_golden(json.dumps(document, indent=2) + "\n", READOUT / f"{name}.json")
 
 
 @pytest.mark.parametrize("name", list(STATES))
-def test_the_text_readout_has_its_eight_sections_in_order(name: str) -> None:
+def test_the_text_readout_has_its_nine_sections_in_order(name: str) -> None:
     result = replay(INDEX, TABLES, STATES[name], DRAFTS)
-    text = render_text(INDEX, result, state_hash=encode_state(STATES[name], INDEX), drafts=DRAFTS)
+    text = render_text(INDEX, TABLES, result, state_hash=encode_state(STATES[name], INDEX), drafts=DRAFTS)
     drafted = [f"{draft['name']} on {name}" for draft in INDEX["drafts"] for name in draft["scalings"].values()]
 
     assert re.findall(r"^## (.+)$", text, re.MULTILINE) == SECTIONS
@@ -131,7 +132,7 @@ def test_the_reports_carry_the_switched_base_levels_of_the_state() -> None:
     result = replay(INDEX, TABLES, state, DRAFTS)
     state_hash = encode_state(state, INDEX)
     document = render_json(INDEX, TABLES, result, state_hash=state_hash, drafts=DRAFTS)
-    text = render_text(INDEX, result, state_hash=state_hash, drafts=DRAFTS)
+    text = render_text(INDEX, TABLES, result, state_hash=state_hash, drafts=DRAFTS)
 
     assert document["state"]["type_bases"] == {"atomic.far": "trivial", "atomic.thing": "major"}
     assert "| atomic.thing | major (changed) | minor |" in text
@@ -172,6 +173,7 @@ def test_the_json_readout_holds_only_the_edges() -> None:
         "totals",
         "moves",
         "level_counts",
+        "coverage",
         "members",
         "moved",
         "cutoffs",
@@ -218,7 +220,7 @@ def test_a_table_without_drafts_says_so() -> None:
     result = replay(bare, TABLES, replace(CODE, bases={}))
 
     assert shared_paragraph(bare, result).endswith(" Drafts: none.")
-    assert "No draft shares are declared." in render_text(bare, result, state_hash="")
+    assert "No draft shares are declared." in render_text(bare, TABLES, result, state_hash="")
     assert render_json(bare, TABLES, result, state_hash="")["drafts"] == []
 
 

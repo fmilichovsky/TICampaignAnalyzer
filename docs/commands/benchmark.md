@@ -440,6 +440,9 @@ failed.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
+The readout's Coverage section counts each event type's and each measure's occurrences in every sample campaign and
+labels it `thin` or `covered`. The JSON readout carries the same under `coverage`.
+
 `--base TYPE=LEVEL` shows what changing an event type's base level would do. Events whose level a context rule
 decides keep it. `--base` applies even to types that `--type` leaves out of the count. The readout's state lists the switched
 base levels against the code's.

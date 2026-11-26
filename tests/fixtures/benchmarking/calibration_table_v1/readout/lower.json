@@ -230,6 +230,188 @@
       }
     }
   },
+  "coverage": {
+    "types": {
+      "atomic.far": {
+        "campaigns": {
+          "alpha": 2,
+          "beta": 0
+        },
+        "total": 2,
+        "label": "thin"
+      },
+      "atomic.land": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 1
+        },
+        "total": 2,
+        "label": "thin"
+      },
+      "atomic.near": {
+        "campaigns": {
+          "alpha": 8,
+          "beta": 0
+        },
+        "total": 8,
+        "label": "thin"
+      },
+      "atomic.other": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 0
+        },
+        "total": 1,
+        "label": "thin"
+      },
+      "atomic.plain": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 1
+        },
+        "total": 2,
+        "label": "thin"
+      },
+      "atomic.scatter": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 25
+        },
+        "total": 25,
+        "label": "thin"
+      },
+      "atomic.spread": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 23
+        },
+        "total": 23,
+        "label": "thin"
+      },
+      "atomic.thing": {
+        "campaigns": {
+          "alpha": 3,
+          "beta": 3
+        },
+        "total": 6,
+        "label": "covered"
+      },
+      "campaign.first_milestone": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 0
+        },
+        "total": 1,
+        "label": "thin"
+      },
+      "faction.takeover": {
+        "campaigns": {
+          "alpha": 11,
+          "beta": 0
+        },
+        "total": 11,
+        "label": "thin"
+      },
+      "faction.takeover_wave": {
+        "campaigns": {
+          "alpha": 3,
+          "beta": 0
+        },
+        "total": 3,
+        "label": "thin"
+      },
+      "nation.cession": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 0
+        },
+        "total": 1,
+        "label": "thin"
+      },
+      "nation.expansion": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 0
+        },
+        "total": 1,
+        "label": "thin"
+      }
+    },
+    "measures": {
+      "power": {
+        "campaigns": {
+          "alpha": 25,
+          "beta": 26
+        },
+        "total": 51,
+        "label": "covered"
+      },
+      "population": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 26
+        },
+        "total": 27,
+        "label": "covered"
+      },
+      "organization": {
+        "campaigns": {
+          "alpha": 1,
+          "beta": 0
+        },
+        "total": 1,
+        "label": "thin"
+      },
+      "hab": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 0
+        },
+        "total": 0,
+        "label": "thin"
+      },
+      "fleet": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 0
+        },
+        "total": 0,
+        "label": "thin"
+      },
+      "battle": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 0
+        },
+        "total": 0,
+        "label": "thin"
+      },
+      "space_loss": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 0
+        },
+        "total": 0,
+        "label": "thin"
+      },
+      "faction": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 0
+        },
+        "total": 0,
+        "label": "thin"
+      },
+      "nuclear": {
+        "campaigns": {
+          "alpha": 0,
+          "beta": 0
+        },
+        "total": 0,
+        "label": "thin"
+      }
+    }
+  },
   "members": [
     {
       "campaign": "alpha",

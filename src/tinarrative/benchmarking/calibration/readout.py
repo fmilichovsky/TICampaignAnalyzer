@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final
 
+from tinarrative.benchmarking.calibration.coverage import Tables, coverage
 from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.replay import (
     SCHEMA_VERSION,
@@ -30,8 +31,6 @@ from tinarrative.benchmarking.calibration.replay import (
 TOP_MOVES: Final = 5
 """The What moves rows the shared paragraph names."""
 _NUMBER = re.compile(r"(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?", re.ASCII)
-
-Tables = Mapping[str, Sequence[Mapping[str, Any]]]
 
 
 def override_state(
@@ -275,9 +274,11 @@ def _signed(number: int) -> str:
 # --- Report formats ----------------------------------------------------------------------------------------
 
 
-def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, drafts: Tables | None = None) -> str:
-    """The Markdown readout, in eight sections: state, summary, level counts, What moves, members, cut-offs, draft
-    shares, snippet. ``drafts`` are the draft rows of each campaign, which say which rows are ruled."""
+def render_text(
+    index: Mapping[str, Any], tables: Tables, result: Replay, *, state_hash: str, drafts: Tables | None = None
+) -> str:
+    """The Markdown readout, in nine sections: state, summary, level counts, coverage, What moves, members, cut-offs,
+    draft shares, snippet. ``drafts`` are the draft rows of each campaign, which say which rows are ruled."""
     state = result["state"]
     levels = list(index["constants"]["level_bands"])
     lines = ["# Share calibration readout", "", "## Calibration state", ""]
@@ -331,6 +332,8 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
         if replayed or baseline
     ]
     lines += _table(["Type", "Level", "Replay", "Baseline", "Change"], rows, "No events.")
+    lines += ["", "## Coverage", ""]
+    lines += _coverage_text(index, tables)
     lines += ["", "## What moves", ""]
     lines += _table(
         ["Type", "From", "To", "Count", "Via a cited event"],
@@ -380,6 +383,26 @@ def render_text(index: Mapping[str, Any], result: Replay, *, state_hash: str, dr
     lines += _draft_text(index, result, drafts or {})
     lines += ["## Snippet", "", "```python", snippet(index, result), "```", ""]
     return "\n".join(lines)
+
+
+def _coverage_text(index: Mapping[str, Any], tables: Tables) -> list[str]:
+    """Occurrences per sample campaign of each event type and measure, each with its coverage label."""
+    found = coverage(index, tables)
+    campaigns = list(tables)
+    lines: list[str] = []
+    for heading, key in (("Type", "types"), ("Measure", "measures")):
+        lines += _table(
+            [heading, "Coverage", "Total", *campaigns],
+            [
+                f"| {name} | {entry['label']} | {entry['total']} | "
+                + " | ".join(str(entry["campaigns"][campaign]) for campaign in campaigns)
+                + " |"
+                for name, entry in found[key].items()
+            ],
+            f"No {key}.",
+        )
+        lines.append("")
+    return lines[:-1]
 
 
 def _draft_text(index: Mapping[str, Any], result: Replay, drafts: Tables) -> list[str]:
@@ -496,7 +519,7 @@ def render_json(
     index: Mapping[str, Any], tables: Tables, result: Replay, *, state_hash: str, drafts: Tables | None = None
 ) -> dict[str, Any]:
     """The JSON readout: the state, the aggregates, only the edges (moved events and cut-off neighbours) and the
-    draft shares (``draft_summaries`` of the ``drafts`` rows)."""
+    draft shares (``draft_summaries`` of the ``drafts`` rows), and the coverage labels of every type and measure."""
     levels = list(index["constants"]["level_bands"])
     types = set(result["state"]["types"])
     moved: list[dict[str, Any]] = []
@@ -525,6 +548,7 @@ def render_json(
         "totals": result["totals"],
         "moves": result["moves"],
         "level_counts": level_counts(result, levels),
+        "coverage": coverage(index, tables),
         "members": [
             {"campaign": name, **member}
             for name, campaign in result["campaigns"].items()
