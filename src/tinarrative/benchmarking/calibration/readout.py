@@ -13,7 +13,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from typing import Any, Final
 
-from tinarrative.benchmarking.calibration.coverage import THIN_TOTAL, coverage
+from tinarrative.benchmarking.calibration.coverage import Tables, coverage
 from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.replay import (
     SCHEMA_VERSION,
@@ -31,8 +31,6 @@ from tinarrative.benchmarking.calibration.replay import (
 TOP_MOVES: Final = 5
 """The What moves rows the shared paragraph names."""
 _NUMBER = re.compile(r"(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?", re.ASCII)
-
-Tables = Mapping[str, Sequence[Mapping[str, Any]]]
 
 
 def override_state(
@@ -391,11 +389,7 @@ def _coverage_text(index: Mapping[str, Any], tables: Tables) -> list[str]:
     """Occurrences per sample campaign of each event type and measure, each with its coverage label."""
     found = coverage(index, tables)
     campaigns = list(tables)
-    lines = [
-        "Thin: in one campaign only, or fewer than "
-        f"{THIN_TOTAL} occurrences in total. Counts are rows of the sample campaigns, unaffected by the state.",
-        "",
-    ]
+    lines = ["Counts are rows of the sample campaigns, whatever the state.", ""]
     for heading, key in (("Type", "types"), ("Measure", "measures")):
         lines += _table(
             [heading, "Coverage", "Total", *campaigns],

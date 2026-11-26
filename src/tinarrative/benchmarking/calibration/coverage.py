@@ -1,8 +1,6 @@
-"""How much of each event type and measure the sample campaigns cover.
+"""How much of each event type and measure the sample campaigns cover, and which of them read thin.
 
-``coverage_label`` is the one place that decides *thin*; the report, and later the evidence block and sample
-admission, reuse it. The campaigns counted are the table's, which holds the reviewable ones only (a campaign that is
-a ``prefix_of`` another is never extracted).
+``coverage_label`` is the one place that decides thin.
 """
 
 from __future__ import annotations
@@ -12,7 +10,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Final
 
 THIN_TOTAL: Final = 5
-"""Fewer occurrences than this in total read thin, as does a count in one campaign only."""
+"""Fewer occurrences than this in total read thin."""
 THIN: Final = "thin"
 COVERED: Final = "covered"
 
@@ -20,7 +18,7 @@ Tables = Mapping[str, Sequence[Mapping[str, Any]]]
 
 
 def coverage_label(campaigns: Mapping[str, int]) -> str:
-    """``thin`` when the occurrences, per campaign, fall in one campaign only or total fewer than ``THIN_TOTAL``."""
+    """``thin`` when the occurrences, per campaign, are in one campaign only or total under ``THIN_TOTAL``."""
     present = sum(1 for count in campaigns.values() if count > 0)
     return THIN if present < 2 or sum(campaigns.values()) < THIN_TOTAL else COVERED
 

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
-
 from tests.benchmarking.calibration_support import row
 from tinarrative.benchmarking.calibration.coverage import THIN_TOTAL, coverage, coverage_label
 
@@ -22,10 +20,10 @@ def _rows(prefix: str, count: int, type: str, *shares: tuple[str, float]) -> lis
 def test_the_label_is_thin_for_one_campaign_or_a_small_total() -> None:
     assert coverage_label({}) == "thin"
     assert coverage_label({"one": 40, "two": 0}) == "thin"
-    assert coverage_label({"one": 2, "two": 2}) == "thin"
+    assert coverage_label({"one": 1, "two": THIN_TOTAL - 3}) == "thin"
     assert coverage_label({"one": THIN_TOTAL - 1}) == "thin"
-    assert coverage_label({"one": 4, "two": 1}) == "covered"
-    assert coverage_label({"one": 1, "two": 4}) == "covered"
+    assert coverage_label({"one": THIN_TOTAL - 1, "two": 1}) == "covered"
+    assert coverage_label({"one": 1, "two": THIN_TOTAL - 1}) == "covered"
 
 
 def test_a_type_is_thin_by_campaign_count_and_by_total() -> None:
@@ -38,7 +36,7 @@ def test_a_type_is_thin_by_campaign_count_and_by_total() -> None:
 
     assert types["a.many"] == {"campaigns": {"one": 6, "two": 5}, "total": 11, "label": "covered"}
     assert types["a.once"] == {"campaigns": {"one": 9, "two": 0}, "total": 9, "label": "thin"}, "one campaign only"
-    assert types["a.few"] == {"campaigns": {"one": 2, "two": 2}, "total": 4, "label": "thin"}, "fewer than 5 in total"
+    assert types["a.few"] == {"campaigns": {"one": 2, "two": 2}, "total": 4, "label": "thin"}, "under the total"
     assert types["a.none"]["total"] == 0 and types["a.none"]["label"] == "thin"
 
 
@@ -53,9 +51,3 @@ def test_a_measure_counts_the_rows_that_carry_a_share_on_it() -> None:
     assert measures["power"] == {"campaigns": {"one": 5, "two": 5}, "total": 10, "label": "covered"}
     assert measures["fleet"] == {"campaigns": {"one": 5, "two": 5}, "total": 10, "label": "covered"}
     assert measures["nuclear"] == {"campaigns": {"one": 0, "two": 0}, "total": 0, "label": "thin"}
-
-
-@pytest.mark.parametrize("campaigns", [{"only": 7}, {"a": 1, "b": 1}])
-def test_the_threshold_is_five_occurrences(campaigns: dict[str, int]) -> None:
-    assert THIN_TOTAL == 5
-    assert coverage_label(campaigns) == "thin"

@@ -61,7 +61,7 @@ Scalings: atomic.near (split off) rise 0.5623413251903492 (code 0.17782794100389
 
 ## Coverage
 
-Thin: in one campaign only, or fewer than 5 occurrences in total. Counts are rows of the sample campaigns, unaffected by the state.
+Counts are rows of the sample campaigns, whatever the state.
 
 | Type | Coverage | Total | alpha | beta |
 | --- | --- | --- | --- | --- |

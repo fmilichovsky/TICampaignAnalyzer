@@ -36,7 +36,7 @@ Scalings: every scaling at the code's. Kinds: every type on its code scaling. Ba
 
 ## Coverage
 
-Thin: in one campaign only, or fewer than 5 occurrences in total. Counts are rows of the sample campaigns, unaffected by the state.
+Counts are rows of the sample campaigns, whatever the state.
 
 | Type | Coverage | Total | alpha | beta |
 | --- | --- | --- | --- | --- |
