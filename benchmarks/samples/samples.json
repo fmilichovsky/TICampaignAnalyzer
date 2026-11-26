@@ -1,39 +1,22 @@
 {
   "max_file_bytes": 5000000,
   "campaigns": {
-    "protectorate-short": {
-      "prefix_of": "protectorate",
-      "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political narrative events that needs several chapters.",
-      "files": {
-        "Protectorate00087_2026-2-13.json.xz": {
-          "sha256": "450fd8c47b384f06df412d0c5e21069916cc71974a51e18eb95a668a0f78fd5f",
-          "bytes": 299984,
-          "raw_bytes": 28918552
-        },
-        "Protectorate00088_2026-4-15.json.xz": {
-          "sha256": "64063d70f9dbe9e39da957a611e58fdf9fedcdc4faea69f52e2a230fef8dee94",
-          "bytes": 364320,
-          "raw_bytes": 32310547
-        },
-        "Protectorate00090_2026-12-16.json.xz": {
-          "sha256": "19dd04af8aecd744e874674d45da310ea2af4b7d43acc65cf4c2b21b00f8ecb3",
-          "bytes": 486952,
-          "raw_bytes": 44537873
-        },
-        "Protectorate00091_2027-4-1.json.xz": {
-          "sha256": "6d0a07992cbfa8d36444cd0d0f58110ebe87614179d1a88539868400aa9782ae",
-          "bytes": 517764,
-          "raw_bytes": 47772458
-        },
-        "Protectorate00092_2027-7-16.json.xz": {
-          "sha256": "b8b6d89eb618428583f7609791878a0a1415db43c840d4833857a99b6a915b48",
-          "bytes": 542860,
-          "raw_bytes": 49532018
-        }
-      }
-    },
     "protectorate": {
       "description": "Approximately 10 years of campaign time from early to mid-game (21 saves). Enough to start splitting into 1-year narrative intervals.",
+      "profile": {
+        "player_faction": "AppeaseCouncil",
+        "difficulty": "Normal",
+        "custom_difficulty": false,
+        "scenario": "FullScenario/2026Scenario",
+        "mods": false,
+        "alien_progression_speed": 1.0,
+        "research_speed": 1.0,
+        "first_save": "2026-02-13",
+        "last_save": "2037-09-16",
+        "saves": 34,
+        "longest_gap_days": 375,
+        "non_standard": []
+      },
       "files": {
         "Protectorate00087_2026-2-13.json.xz": {
           "sha256": "732ef1d334ad7349a0b97b8e332bbaf9a65ef01b263879838b435e2aed246d1c",
@@ -207,8 +190,67 @@
         }
       }
     },
+    "protectorate-short": {
+      "description": "Protectorate campaign, early game: 5 saves from 2026-02 to 2027-07; a package dense in political narrative events that needs several chapters.",
+      "prefix_of": "protectorate",
+      "profile": {
+        "player_faction": "AppeaseCouncil",
+        "difficulty": "Normal",
+        "custom_difficulty": false,
+        "scenario": "FullScenario/2026Scenario",
+        "mods": false,
+        "alien_progression_speed": 1.0,
+        "research_speed": 1.0,
+        "first_save": "2026-02-13",
+        "last_save": "2027-07-16",
+        "saves": 5,
+        "longest_gap_days": 245,
+        "non_standard": []
+      },
+      "files": {
+        "Protectorate00087_2026-2-13.json.xz": {
+          "sha256": "450fd8c47b384f06df412d0c5e21069916cc71974a51e18eb95a668a0f78fd5f",
+          "bytes": 299984,
+          "raw_bytes": 28918552
+        },
+        "Protectorate00088_2026-4-15.json.xz": {
+          "sha256": "64063d70f9dbe9e39da957a611e58fdf9fedcdc4faea69f52e2a230fef8dee94",
+          "bytes": 364320,
+          "raw_bytes": 32310547
+        },
+        "Protectorate00090_2026-12-16.json.xz": {
+          "sha256": "19dd04af8aecd744e874674d45da310ea2af4b7d43acc65cf4c2b21b00f8ecb3",
+          "bytes": 486952,
+          "raw_bytes": 44537873
+        },
+        "Protectorate00091_2027-4-1.json.xz": {
+          "sha256": "6d0a07992cbfa8d36444cd0d0f58110ebe87614179d1a88539868400aa9782ae",
+          "bytes": 517764,
+          "raw_bytes": 47772458
+        },
+        "Protectorate00092_2027-7-16.json.xz": {
+          "sha256": "b8b6d89eb618428583f7609791878a0a1415db43c840d4833857a99b6a915b48",
+          "bytes": 542860,
+          "raw_bytes": 49532018
+        }
+      }
+    },
     "resist-long": {
       "description": "Almost entire campaign (20 years) from start to almost victory.",
+      "profile": {
+        "player_faction": "ResistCouncil",
+        "difficulty": "Veteran",
+        "custom_difficulty": false,
+        "scenario": "FullScenario/2026Scenario",
+        "mods": false,
+        "alien_progression_speed": 1.0,
+        "research_speed": 1.0,
+        "first_save": "2026-08-01",
+        "last_save": "2046-10-08",
+        "saves": 63,
+        "longest_gap_days": 547,
+        "non_standard": []
+      },
       "files": {
         "Resistsave00021_2026-8-1.json.xz": {
           "sha256": "3b214f31f0b3e7ddcc6846d9a263804a269244ab16815dadebeeafeb36bae46c",

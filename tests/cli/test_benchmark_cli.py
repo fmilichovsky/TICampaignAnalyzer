@@ -127,6 +127,29 @@ def test_refresh_reuses_identical_file_and_recompresses_changed_content(tmp_path
     assert lzma.decompress(imported.read_bytes()) == source.read_bytes()
 
 
+def test_import_profiles_the_campaign_and_a_re_import_or_update_reproduces_it(tmp_path: Path, monkeypatch) -> None:
+    samples = tmp_path / "samples"
+    samples.mkdir()
+    monkeypatch.setattr(cli, "BENCHMARK_SAMPLES_DIR", samples)
+    saves = [
+        str(fixture_path("io", "terra_invicta_json_v1", name))
+        for name in ("settings_standard_early.json", "settings_standard_late.json")
+    ]
+
+    def profile() -> dict[str, object]:
+        manifest = json.loads((samples / "samples.json").read_text(encoding="utf-8"))
+        return manifest["campaigns"]["fixture"]["profile"]
+
+    assert run_cli(["benchmark", "sample", "fixture", *saves, "--description", "Fixture campaign."])[0] == 0
+    imported = profile()
+    assert (imported["player_faction"], imported["saves"], imported["non_standard"]) == ("ResistCouncil", 2, [])
+
+    assert run_cli(["benchmark", "sample", "fixture", *saves])[0] == 0
+    assert profile() == imported
+    assert run_cli(["benchmark", "metrics", "samples", "--samples", str(samples), "--update"])[0] == 0
+    assert profile() == imported
+
+
 def test_progress_tracker_reports_phase_filename_and_count_only_on_tty(monkeypatch) -> None:
     class TerminalBuffer(StringIO):
         def isatty(self) -> bool:

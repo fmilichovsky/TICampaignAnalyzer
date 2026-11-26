@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import lzma
 import shutil
@@ -25,7 +24,7 @@ from ..config import DEFAULT_SETTINGS
 from ..grouping import CampaignGroup, group_saves
 from ..io.save_discovery import SaveInput, expand_inputs
 from ..sequence import SaveRef, SkippedSave
-from .manifest import MANIFEST
+from .manifest import MANIFEST, campaign_entry
 
 DEFAULT_MAX_FILE_BYTES = 5_000_000
 CHUNK_BYTES = 1 << 20
@@ -91,9 +90,8 @@ def import_sample_campaign(
                     progress,
                     samples_dir / name,
                 )
-                file_entries = _sample_entries(staged_campaign)
                 updated_manifest = _updated_manifest(
-                    name, campaign_description, file_entries, previous_campaigns, max_file_bytes
+                    name, campaign_description, staged_campaign, previous_campaigns, max_file_bytes
                 )
                 manifest_temp = temporary_root / MANIFEST
                 _write_manifest(updated_manifest, manifest_temp, progress)
@@ -237,45 +235,17 @@ def _same_uncompressed_content(source: Path, compressed: Path) -> bool:
         return False
 
 
-def _sample_entries(staged_campaign: Path) -> dict[str, dict[str, int | str]]:
-    """Describe compressed files using the manifest's byte counts and SHA-256 digests."""
-    entries: dict[str, dict[str, int | str]] = {}
-    for path in sorted(staged_campaign.iterdir()):
-        raw_size = 0
-        with lzma.open(path, "rb") as stream:
-            while block := stream.read(CHUNK_BYTES):
-                raw_size += len(block)
-        entries[path.name] = {
-            "sha256": _sha256(path),
-            "bytes": path.stat().st_size,
-            "raw_bytes": raw_size,
-        }
-    return entries
-
-
-def _sha256(path: Path) -> str:
-    """Hash a file in bounded-memory chunks."""
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(CHUNK_BYTES), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
 def _updated_manifest(
     name: str,
     description: str,
-    entries: dict[str, dict[str, int | str]],
+    staged_campaign: Path,
     existing_campaigns: dict[str, Any],
     max_file_bytes: int,
 ) -> dict[str, Any]:
     """Replace one campaign entry while preserving the other manifest entries."""
     campaigns = dict(existing_campaigns)
-    entry: dict[str, Any] = {"description": description, "files": entries}
-    previous = existing_campaigns.get(name)
-    if isinstance(previous, dict) and isinstance(previous.get("prefix_of"), str):
-        entry = {"description": description, "prefix_of": previous["prefix_of"], "files": entries}
-    campaigns[name] = entry
+    files = sorted(staged_campaign.iterdir())
+    campaigns[name] = campaign_entry(description, files, existing_campaigns.get(name))
     return {"max_file_bytes": max_file_bytes, "campaigns": campaigns}
 
 

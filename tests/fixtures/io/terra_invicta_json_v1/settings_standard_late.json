@@ -1,0 +1,170 @@
+{
+  "currentID": {
+    "value": 999
+  },
+  "gamestates": {
+    "PavonisInteractive.TerraInvicta.TIMetadataState": [
+      {
+        "Key": {
+          "value": 1
+        },
+        "Value": {
+          "ID": {
+            "value": 1
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "playerFactionName": "Fixture Resistance",
+          "gameTimeString": "8/1/2026 12:00:00 AM",
+          "difficulty": "Normal",
+          "requiredDLC": [],
+          "playedWithMods": false,
+          "customDifficulty": false,
+          "selectedFactionsForScenario": [
+            "ResistCouncil",
+            "DestroyCouncil",
+            "ExploitCouncil",
+            "SubmitCouncil",
+            "AppeaseCouncil",
+            "CooperateCouncil",
+            "EscapeCouncil",
+            "AlienCouncil"
+          ],
+          "researchSpeedMultiplier": "100%",
+          "alienProgressionSpeed": "100%",
+          "$type": "PavonisInteractive.TerraInvicta.TIMetadataState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TITimeState": [
+      {
+        "Key": {
+          "value": 2
+        },
+        "Value": {
+          "ID": {
+            "value": 2
+          },
+          "templateName": "FixtureTime",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "currentDateTime": {
+            "year": 2026,
+            "month": 8,
+            "day": 1,
+            "hour": 0,
+            "minute": 0,
+            "second": 0,
+            "millisecond": 0
+          },
+          "masterMetaTemplateName": "FullScenario",
+          "scenarioMetaTemplateName": "2026Scenario",
+          "$type": "PavonisInteractive.TerraInvicta.TITimeState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIGlobalValuesState": [
+      {
+        "Key": {
+          "value": 3
+        },
+        "Value": {
+          "ID": {
+            "value": 3
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "realWorldCampaignStart": {
+            "year": 2026,
+            "month": 1,
+            "day": 4,
+            "hour": 11,
+            "minute": 37,
+            "second": 51,
+            "millisecond": 759
+          },
+          "moddingActive": false,
+          "moddingUsedAnytime": false,
+          "$type": "PavonisInteractive.TerraInvicta.TIGlobalValuesState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIPlayerState": [
+      {
+        "Key": {
+          "value": 60
+        },
+        "Value": {
+          "ID": {
+            "value": 60
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "isAI": false,
+          "faction": {
+            "value": 15
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIPlayerState"
+        }
+      },
+      {
+        "Key": {
+          "value": 61
+        },
+        "Value": {
+          "ID": {
+            "value": 61
+          },
+          "templateName": null,
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "isAI": true,
+          "faction": {
+            "value": 16
+          },
+          "$type": "PavonisInteractive.TerraInvicta.TIPlayerState"
+        }
+      }
+    ],
+    "PavonisInteractive.TerraInvicta.TIFactionState": [
+      {
+        "Key": {
+          "value": 15
+        },
+        "Value": {
+          "ID": {
+            "value": 15
+          },
+          "templateName": "ResistCouncil",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      },
+      {
+        "Key": {
+          "value": 16
+        },
+        "Value": {
+          "ID": {
+            "value": 16
+          },
+          "templateName": "AlienCouncil",
+          "displayName": null,
+          "archived": false,
+          "exists": true,
+          "$type": "PavonisInteractive.TerraInvicta.TIFactionState"
+        }
+      }
+    ]
+  }
+}

@@ -7,10 +7,12 @@ import json
 import lzma
 import os
 import shutil
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
+
+from .profile import PROFILE_FIELDS, read_samples, sample_profile
 
 MANIFEST = "samples.json"
 SAMPLE_SUFFIX = ".json.xz"
@@ -58,6 +60,7 @@ def verify_samples(samples: Path) -> list[str]:
         if not str(entry.get("description", "")).strip():
             errors.append(f"{campaign}: no description")
         files = entry.get("files", {})
+        errors.extend(_profile_errors(campaign, entry.get("profile"), len(files)))
         paths = {path.name: path for path in found.get(campaign, [])}
         if not paths:
             errors.append(f"{campaign}: no {SAMPLE_SUFFIX} files")
@@ -75,23 +78,41 @@ def verify_samples(samples: Path) -> list[str]:
     return errors
 
 
+def _profile_errors(campaign: str, profile: object, listed: int) -> list[str]:
+    fix = "run benchmark metrics samples --update"
+    if not isinstance(profile, dict):
+        return [f"{campaign}: no profile; {fix}"]
+    if tuple(profile) != PROFILE_FIELDS:
+        return [f"{campaign}: profile fields are not {', '.join(PROFILE_FIELDS)}; {fix}"]
+    if profile["saves"] != listed:
+        return [f"{campaign}: profile counts {profile['saves']} saves, {listed} listed; {fix}"]
+    return []
+
+
+def campaign_entry(description: str, files: Sequence[Path], previous: object) -> dict[str, Any]:
+    """The manifest entry of one campaign's compressed ``files``: its profile and each file's size and SHA-256,
+    keeping the ``prefix_of`` of the ``previous`` entry."""
+    saves = read_samples(files)
+    entry: dict[str, Any] = {"description": description}
+    if isinstance(previous, dict) and isinstance(previous.get("prefix_of"), str):
+        entry["prefix_of"] = previous["prefix_of"]
+    entry["profile"] = sample_profile(saves)
+    entry["files"] = {
+        file.name: {"sha256": sha256_file(file), "bytes": file.stat().st_size, "raw_bytes": save.raw_bytes}
+        for file, save in zip(files, saves, strict=True)
+    }
+    return entry
+
+
 def update_samples(samples: Path) -> dict[str, Any]:
     """The manifest for the files under ``samples``, keeping the limit and the descriptions of the current one."""
     path = samples / MANIFEST
     current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     previous = current.get("campaigns", {})
-    descriptions = {name: entry.get("description", "") for name, entry in previous.items()}
-    campaigns: dict[str, Any] = {}
-    for campaign, files in sample_files(samples).items():
-        entries = {}
-        for file in files:
-            with lzma.open(file) as handle:
-                raw = sum(len(block) for block in iter(lambda: handle.read(1 << 20), b""))
-            entries[file.name] = {"sha256": sha256_file(file), "bytes": file.stat().st_size, "raw_bytes": raw}
-        campaigns[campaign] = {"description": descriptions.get(campaign, "")}
-        if isinstance(prefix := previous.get(campaign, {}).get("prefix_of"), str):
-            campaigns[campaign]["prefix_of"] = prefix
-        campaigns[campaign]["files"] = entries
+    campaigns = {
+        campaign: campaign_entry(previous.get(campaign, {}).get("description", ""), files, previous.get(campaign))
+        for campaign, files in sample_files(samples).items()
+    }
     return {"max_file_bytes": current.get("max_file_bytes", 5_000_000), "campaigns": campaigns}
 
 

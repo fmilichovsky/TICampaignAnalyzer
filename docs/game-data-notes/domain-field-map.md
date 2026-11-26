@@ -390,4 +390,5 @@ See [snapshot-diff observations](diff-observations.md) for aggregate evidence th
 - `currentDateTime` is the best candidate for normalized chronology because it is componentized, but the project has not yet compared it against `gameTimeString` across a sequence.
 - A missing entity from a later map may mean destruction, archival, a filter, or a serialization change. Diff code must preserve that ambiguity.
 - `TIGlobalValuesState` carries `campaignStartVersion` and `latestSaveVersion` strings; `detect_game_version` reads `latestSaveVersion` from the raw save into `SaveSnapshot.game_version` without normalizing the field itself.
+- The game settings the sample profile reads from the raw save (difficulty, mods, speeds, faction set) are described in [campaign settings](campaign-settings.md); the normalizer does not read them.
 - Field names suggest domain semantics, but a field's units, lifecycle, and causal meaning require before/after validation before an analyzer labels an event.

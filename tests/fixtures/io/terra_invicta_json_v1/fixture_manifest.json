@@ -348,6 +348,39 @@
       "version_assumption": "Observed JSON envelope and observed field names.",
       "sha256": "401e5d09ef9aa61258368a7189bb59e7092eec68bb3e970b3d707f0ebb4ca225",
       "purpose": "Normalize alien armies into the army domain with typed army references from a region and a faction, launch facilities with their region back-reference, and a launch facility as a typed mission target."
+    },
+    {
+      "path": "settings_standard_early.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/campaign-settings.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "413a504082ed444fdcb6e7a066946432a928139ab0e6be5e47bc9b291cf72b43",
+      "purpose": "First save of a synthetic standard campaign for the sample profile: the human player's faction resolves to ResistCouncil; Normal difficulty without custom modifiers, no mods, the eight standard factions on FullScenario/2026Scenario, alien progression and research speed 100%. Pair with settings_standard_late.json."
+    },
+    {
+      "path": "settings_standard_late.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/campaign-settings.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "22544a2516e542a9047de6d05d5dae40fffd60ebd9695ff72f69df4f77f187cc",
+      "purpose": "Later save of the same synthetic standard campaign as settings_standard_early.json, with identical settings and a later game date, so the profile has a span and a gap."
+    },
+    {
+      "path": "settings_custom.json",
+      "kind": "synthetic_parser_fixture",
+      "json_valid": true,
+      "expected_loader_outcome": "raw_save",
+      "format_assumption": "terra_invicta_json_v1",
+      "format_documentation": "docs/game-data-notes/campaign-settings.md",
+      "version_assumption": "Observed JSON envelope and observed field names.",
+      "sha256": "ace77ef6fc03bea60097811662a597a916ca7cb6b0da22a6956d0b03e91c880e",
+      "purpose": "Synthetic non-standard save for the sample profile: the settings of settings_standard_early.json with mods, custom difficulty, the 2022Scenario scenario, seven factions (DestroyCouncil left out), 150% alien progression speed and 50% research speed."
     }
   ]
 }

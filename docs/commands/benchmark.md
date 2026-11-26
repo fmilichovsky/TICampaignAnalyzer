@@ -14,7 +14,7 @@ tinarrative benchmark sample [--description TEXT] [--campaign SELECTOR] name PAT
 
 Adds a campaign to the samples, or replaces it. Afterwards, add a description in `samples.json` if it has none, and
 add runs for the campaign to `benchmarks/matrix.toml` if needed. On refresh, unchanged files with the same name are
-reused without recompression.
+reused without recompression. Every import writes the campaign's [profile](../../benchmarks/README.md#profile).
 
 ```sh
 # Import one campaign from a save directory.
@@ -51,7 +51,8 @@ tinarrative benchmark metrics samples [--samples PATH] [--update]
 ```
 <!-- end generated -->
 
-Checks the sample files against `samples.json`, for example after editing them by hand.
+Checks the sample files against `samples.json`, for example after editing them by hand. `--update` rewrites it from
+the files, recomputing every campaign's [profile](../../benchmarks/README.md#profile) without re-importing it.
 
 ```sh
 tinarrative benchmark metrics samples
@@ -61,7 +62,7 @@ tinarrative benchmark metrics samples
 | Option | Meaning |
 | --- | --- |
 | `--samples PATH` | Benchmark samples directory (default benchmarks/samples). |
-| `--update` | Rewrite samples.json from the files. |
+| `--update` | Rewrite samples.json from the files, profiles included. |
 <!-- end generated -->
 
 <!-- generated: exit-codes benchmark metrics samples -->

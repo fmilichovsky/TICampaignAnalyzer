@@ -29,6 +29,7 @@ from tinarrative.benchmarking.metrics import (
     measure_package,
     member_changes,
 )
+from tinarrative.benchmarking.profile import PROFILE_FIELDS
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
@@ -142,6 +143,23 @@ def test_the_samples_manifest_catches_changed_and_unlisted_files(tmp_path: Path)
         "politics/extra.json.xz: not listed in samples.json",
         f"politics/{SAVES[0]}.xz: does not match its size and SHA-256 in samples.json",
     ]
+
+
+def test_the_samples_manifest_requires_a_profile_of_every_listed_save(tmp_path: Path) -> None:
+    samples = synthetic_samples(tmp_path)
+    manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
+    entry = manifest["campaigns"]["politics"]
+    assert tuple(entry["profile"]) == PROFILE_FIELDS
+
+    entry["profile"]["saves"] += 1
+    (samples / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+    assert verify_samples(samples) == [
+        f"politics: profile counts {len(SAVES) + 1} saves, {len(SAVES)} listed; run benchmark metrics samples --update"
+    ]
+
+    del entry["profile"]
+    (samples / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+    assert verify_samples(samples) == ["politics: no profile; run benchmark metrics samples --update"]
 
 
 def test_decompressing_many_files_concurrently_yields_the_original_bytes(tmp_path: Path) -> None:

@@ -2432,7 +2432,7 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
         "benchmark metrics samples",
     )
     _add_samples_argument(samples)
-    samples.add_argument("--update", action="store_true", help=f"Rewrite {MANIFEST} from the files.")
+    samples.add_argument("--update", action="store_true", help=f"Rewrite {MANIFEST} from the files, profiles included.")
     samples.set_defaults(handler=_run_benchmark_metrics)
 
     measure = _add_command(

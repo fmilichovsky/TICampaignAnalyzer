@@ -35,6 +35,9 @@ combat, exit and quick saves), how each write and rotation shows in the director
 and the identity rule that partitions a mixed directory into campaigns when no
 explicit campaign identifier is serialized.
 
+[Campaign settings](campaign-settings.md) records where a save carries the game settings a campaign was
+started with (difficulty, mods, speeds, scenario, faction set), which the benchmark sample profile reads.
+
 [Sources for higher-level events](higher-level-event-sources.md) records the
 observed shape and lifecycle of the structures that carry wars, federations,
 alien activity on Earth, the game's own notification log, combat logs and the
