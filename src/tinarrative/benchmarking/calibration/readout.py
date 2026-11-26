@@ -389,7 +389,7 @@ def _coverage_text(index: Mapping[str, Any], tables: Tables) -> list[str]:
     """Occurrences per sample campaign of each event type and measure, each with its coverage label."""
     found = coverage(index, tables)
     campaigns = list(tables)
-    lines = ["Counts are rows of the sample campaigns, whatever the state.", ""]
+    lines: list[str] = []
     for heading, key in (("Type", "types"), ("Measure", "measures")):
         lines += _table(
             [heading, "Coverage", "Total", *campaigns],

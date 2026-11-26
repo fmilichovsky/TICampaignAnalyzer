@@ -56,8 +56,6 @@ Scalings: every scaling at the code's. Kinds: every type on its code scaling. Ba
 
 ## Coverage
 
-Counts are rows of the sample campaigns, whatever the state.
-
 | Type | Coverage | Total | alpha | beta |
 | --- | --- | --- | --- | --- |
 | atomic.far | thin | 2 | 2 | 0 |

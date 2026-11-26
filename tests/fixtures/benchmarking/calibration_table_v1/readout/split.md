@@ -61,8 +61,6 @@ Scalings: atomic.near (split off) rise 0.5623413251903492 (code 0.17782794100389
 
 ## Coverage
 
-Counts are rows of the sample campaigns, whatever the state.
-
 | Type | Coverage | Total | alpha | beta |
 | --- | --- | --- | --- | --- |
 | atomic.far | thin | 2 | 2 | 0 |

@@ -56,8 +56,6 @@ Scalings: power rise 0.11220184543019635 (code 0.1778279410038923), faction rise
 
 ## Coverage
 
-Counts are rows of the sample campaigns, whatever the state.
-
 | Type | Coverage | Total | alpha | beta |
 | --- | --- | --- | --- | --- |
 | atomic.far | thin | 2 | 2 | 0 |
