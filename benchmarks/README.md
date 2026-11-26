@@ -6,7 +6,7 @@ an LLM (package size, below), and how long `events` takes ([runtime](#runtime)).
 ```text
 benchmarks/
   samples/<campaign>/*.json.xz   # real saves, one directory per campaign, xz-compressed
-  samples/samples.json           # the manifest: size and SHA-256 of every file, a description per campaign
+  samples/samples.json           # the manifest: size and SHA-256 of every file, a description and a profile per campaign
   matrix.toml                    # the events and narrate runs made against every campaign
   config.toml                    # the settings file every run is given: empty, so the code's defaults apply
   themes.toml                    # the themes a calibration review reads a campaign by
@@ -210,6 +210,32 @@ requests against those samples ([command page](../docs/commands/benchmark.md#ben
 full campaigns (`protectorate` and `resist-long`, about 118,000 table rows), a full answer takes about 0.95 s at the
 median and 1.0 s at p95 and is about 1.46 MB; a sweep request, which asks for full answers, costs the same; a type
 filter takes about 1.3 s (p95 1.5 s) and is 1.40 MB. Timings vary with the machine.
+
+### Profile
+
+Every campaign entry carries a `profile`, computed from its saves by `benchmark sample` on import and by
+`benchmark metrics samples --update` for the samples already there; `benchmark metrics samples` reports a campaign
+without one, or whose profile counts a different number of saves than are listed. Where a save records each setting
+is in [campaign settings](../docs/game-data-notes/campaign-settings.md).
+
+| Field | Meaning |
+| --- | --- |
+| `player_faction` | The human player's faction template name, such as `ResistCouncil`. |
+| `difficulty` | The difficulty preset, such as `Normal`. |
+| `custom_difficulty` | Whether difficulty modifiers were customized beyond the preset. |
+| `scenario` | `master/scenario` template names, such as `FullScenario/2026Scenario`. |
+| `mods` | Whether mods were used at any time. |
+| `alien_progression_speed`, `research_speed` | The speed settings as multipliers; 1.0 is 100%. |
+| `first_save`, `last_save` | The game dates of the earliest and latest saves. |
+| `saves` | The number of save files. |
+| `longest_gap_days` | The longest stretch of game days between two consecutive saves. |
+| `non_standard` | Why the campaign is not a standard game; empty when it is. |
+
+A setting no save carries is `null`, and a setting the saves disagree on is `null` too. `non_standard` names each
+setting that departs from a standard game (`STANDARD` in
+[`profile.py`](../src/tinarrative/benchmarking/profile.py); the faction set is checked there as `factions` without
+being a profile field), as `<field>`, `<field> changes` or `<field> unknown`: an unknown setting never reads as
+standard.
 
 ## Themes
 
