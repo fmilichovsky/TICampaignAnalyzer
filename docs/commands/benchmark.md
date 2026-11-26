@@ -440,6 +440,12 @@ failed.
 
 `--state` reads a state explored on the calibration page; the other flags override it.
 
+The readout's Coverage section counts, per sample campaign, the occurrences of each event type and of each measure (a
+row carrying a share on it), and labels each one `thin` or `covered`. A campaign that is a `prefix_of` another is not
+one of the counted campaigns. **Thin** means it occurs in one campaign only, or fewer than 5 times in total; with two
+independent campaigns from one player that is a reason to treat a finding on it as provisional, not to wait for more
+samples. The counts do not depend on the state or its filters. The JSON readout carries the same under `coverage`.
+
 `--base TYPE=LEVEL` shows what changing an event type's base level would do. Events whose level a context rule
 decides keep it. `--base` applies even to types that `--type` leaves out of the count. The readout's state lists the switched
 base levels against the code's.
