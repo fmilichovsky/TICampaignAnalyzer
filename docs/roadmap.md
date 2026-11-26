@@ -128,7 +128,7 @@ Target: agents that judge event kinds, base levels and scalings against the samp
 - [x] Sample profile in `samples.json` (#646).
 - [ ] Calibration registry script (#647).
 - [x] Coverage labels (#648).
-- [ ] Calibration principles (#649).
+- [x] Calibration principles (#649).
 - [ ] Calibration page: a row per scaling (#650).
 - [ ] Kind reasons (#651).
 - [ ] Report views: `--view`, period and tiers (#652).

@@ -2,7 +2,8 @@
 
 Not every state change belongs in a campaign history. Significance lets a reader ask for anything from a concise
 summary to a forensic log. It measures impact, not certainty, and is independent of confidence. What each level
-means to a reader is in the [editorial direction](../editorial-direction.md).
+means to a reader is in the [editorial direction](../editorial-direction.md); how a base level and a scaling are
+judged to deliver it is in the [calibration principles](../calibration-principles.md).
 
 - **One place judges impact.** Analyzers, reconstruction and narrative rules never weigh an event themselves. A
   post-pass assigns significance from the event's kind and context, records the reason, and tunes no threshold to
