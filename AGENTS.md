@@ -31,7 +31,8 @@ before touching the model or pipeline.
 - `src/tinarrative/benchmarking/calibration/` — the share calibration table, its replay and readout; agents read it
   with `benchmark calibrate report` ([command page](docs/commands/benchmark.md#benchmark-calibrate-report)).
 - `scripts/` — standalone utilities, not fit to be part of the main product
-  ([observe_saves.md](scripts/observe_saves.md)).
+  ([observe_saves.md](scripts/observe_saves.md)); `calibration_registry.py` reads the `calibration` issues
+  ([calibration_registry.md](scripts/calibration_registry.md)).
 
 ## Commands
 

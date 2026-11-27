@@ -1,0 +1,10 @@
+[
+  {
+    "number": 710,
+    "title": "Value proposal: lower the war declaration base level",
+    "state": "MERGED",
+    "closedAt": "2026-11-20T10:00:00Z",
+    "url": "https://github.com/example/repo/pull/710",
+    "body": "Calibration: value proposal\nTouches: types=war.declared\n"
+  }
+]

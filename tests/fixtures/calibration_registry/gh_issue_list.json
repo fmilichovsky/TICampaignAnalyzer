@@ -1,0 +1,58 @@
+[
+  {
+    "number": 700,
+    "title": "Calibration reviews",
+    "state": "OPEN",
+    "closedAt": null,
+    "url": "https://github.com/example/repo/issues/700",
+    "body": "Each review is a sub-issue of this one.\n\n```\nCalibration: review\nTouches: types=war.arc\n```\n"
+  },
+  {
+    "number": 701,
+    "title": "Review: wars and their arcs",
+    "state": "OPEN",
+    "closedAt": null,
+    "url": "https://github.com/example/repo/issues/701",
+    "body": "Calibration: review\nTouches: themes=Wars and conflicts; types=war.arc,war.declared\n\nSeed: one theme."
+  },
+  {
+    "number": 702,
+    "title": "Scoring proposal: summed power for war arcs",
+    "state": "OPEN",
+    "closedAt": null,
+    "url": "https://github.com/example/repo/issues/702",
+    "body": "Calibration: scoring proposal\r\nTouches: types=`war.arc`; measures=power\r\n\r\nSummed power is the wrong quantity."
+  },
+  {
+    "number": 703,
+    "title": "Value proposal: alien military assets",
+    "state": "CLOSED",
+    "closedAt": "2026-11-01T10:00:00Z",
+    "url": "https://github.com/example/repo/issues/703",
+    "body": "Calibration: value proposal\nTouches: scalings=fleet\n"
+  },
+  {
+    "number": 704,
+    "title": "Structural finding: technology allowlist",
+    "state": "CLOSED",
+    "closedAt": "2026-01-01T10:00:00Z",
+    "url": "https://github.com/example/repo/issues/704",
+    "body": "Calibration: structural finding\nTouches: types=tech.completed\n"
+  },
+  {
+    "number": 705,
+    "title": "An older item with no lines",
+    "state": "OPEN",
+    "closedAt": null,
+    "url": "https://github.com/example/repo/issues/705",
+    "body": "Written before the registry existed."
+  },
+  {
+    "number": 706,
+    "title": "A finding with a malformed Touches line",
+    "state": "OPEN",
+    "closedAt": null,
+    "url": "https://github.com/example/repo/issues/706",
+    "body": "Calibration: structural finding\nTouches: types=colonization_wave; stakes=power\n"
+  }
+]
