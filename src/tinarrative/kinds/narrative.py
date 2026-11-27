@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from ..diff.render import render_value
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, Scaling, ShareOf, Template
+from ..model.kinds import EventKind, EvidenceRole, Reason, Rule, Scaling, ShareOf, Template, Unexamined
 from ..model.values import Observed
 
 METRIC_SHIFTS_OMITTED = frozenset({"metric_shifts_omitted"})
@@ -19,7 +19,7 @@ def narrative_kind(
     optional: frozenset[str] = frozenset(),
     *,
     base: Significance,
-    reason: str,
+    reason: Reason | Unexamined,
     rule: Rule | None = None,
     share: ShareOf | None = None,
     scaling: Scaling | None = None,

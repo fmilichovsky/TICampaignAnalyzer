@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import re
 from collections import Counter
-from pathlib import Path
 
 import pytest
 
@@ -16,19 +14,18 @@ from tinarrative.kinds import KINDS, attributes, describe_event, kind_for, known
 from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
 from tinarrative.kinds.nations import BAND_SHIFTS
 from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
-from tinarrative.model.kinds import UNEXAMINED, EventKind, EvidenceRole, ShareOf
+from tinarrative.model.kinds import UNEXAMINED, EventKind, EvidenceRole, Reason, ReasonStatus, ShareOf, reason_status
+from tinarrative.model.principles import Principle
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.assets import asset_rules
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
 from tinarrative.narrative.diplomacy import diplomacy_rules
 from tinarrative.narrative.geopolitics import geopolitical_rules
 from tinarrative.narrative.nation_metrics import nation_metric_rules
+from tinarrative.narrative.scalings import SCALINGS
 from tinarrative.narrative.space import space_rules
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
-PRINCIPLES_PAGE = Path(__file__).parents[2] / "docs" / "calibration-principles.md"
-PRINCIPLES = frozenset(re.findall(r"^- \*\*(.+?)\.\*\*", PRINCIPLES_PAGE.read_text(encoding="utf-8"), re.MULTILINE))
-"""The names of the principles on the calibration principles page: a reason cites one."""
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
 PAIRS = sorted(path.name.removesuffix("_before.json") for path in FIXTURE_DIR.glob("*_before.json"))
 KIND = EventKind(
@@ -207,9 +204,28 @@ def test_the_merger_the_cession_and_the_expansion_own_their_constituents() -> No
     assert owners == ["nation.cession", "nation.expansion", "nation.merger"]
 
 
-def test_every_kind_declares_a_reason_without_an_issue_number_or_a_count() -> None:
-    for event_type, kind in KINDS.items():
-        reason = kind.reason
-        assert reason.strip() == reason and reason and "\n" not in reason, event_type
-        assert reason == UNEXAMINED or reason.split(":")[0] in PRINCIPLES, (event_type, reason)
-        assert not re.search(r"#\d|\d", reason), (event_type, reason)
+def test_every_stated_reason_names_a_principle_at_a_revision_it_has_and_says_what_applies_it() -> None:
+    stated = [kind.reason for kind in KINDS.values() if kind.reason is not UNEXAMINED]
+    stated += [spec.reason for spec in SCALINGS.values() if spec.reason is not UNEXAMINED]
+    assert stated
+    # A Reason checks its own text and revision when it is built, so a bad one fails at import.
+    assert all(isinstance(reason, Reason) and reason.principle in Principle for reason in stated)
+
+
+@pytest.mark.parametrize(
+    "because",
+    ["", " churn", "churn\nby nature", "churn, see #651", "churn every 3 months", "Trivial is a role: churn"],
+    ids=["empty", "padded", "two lines", "issue number", "digit", "restated principle"],
+)
+def test_a_reason_rejects_what_does_not_say_what_applies_its_principle(because: str) -> None:
+    with pytest.raises(ValueError):
+        Reason(Principle.TRIVIAL_IS_A_ROLE, because, revision=1)
+
+
+def test_a_reason_is_judged_at_a_revision_its_principle_has() -> None:
+    reason = Reason(Principle.TRIVIAL_IS_A_ROLE, "organization churn", revision=1)
+    assert not reason.stale and reason_status(reason) is ReasonStatus.EXAMINED
+    assert reason_status(UNEXAMINED) is ReasonStatus.UNEXAMINED
+    for revision in (0, Principle.TRIVIAL_IS_A_ROLE.revision + 1):
+        with pytest.raises(ValueError, match="judged at"):
+            Reason(Principle.TRIVIAL_IS_A_ROLE, "organization churn", revision=revision)

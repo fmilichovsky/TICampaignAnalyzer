@@ -25,8 +25,10 @@ from tinarrative.benchmarking.calibration.replay import (
     encode_state,
     load,
     replay,
+    replayed_reason,
     with_scalings,
 )
+from tinarrative.benchmarking.calibration.table import reason_entry
 from tinarrative.model.kinds import UNEXAMINED
 
 READOUT = GOLDEN.parent / "readout"
@@ -308,6 +310,20 @@ def test_the_readout_prints_each_types_reason_beside_its_level_counts() -> None:
     document = render_json(INDEX, TABLES, result, state_hash="")
     text = render_text(INDEX, TABLES, result, state_hash="")
 
-    for event_type, counts in document["level_counts"].items():
-        assert counts["reason"] == INDEX["kinds"].get(event_type, {}).get("reason", UNEXAMINED)
+    statuses = {event_type: counts["reason"]["status"] for event_type, counts in document["level_counts"].items()}
     assert "| Type | Reason | Level | Replay | Baseline | Change |" in text
+    assert {statuses["atomic.other"], statuses["atomic.scatter"], statuses["atomic.plain"]} == {
+        "examined",
+        "stale",
+        "unexamined",
+    }
+
+
+def test_a_reasons_status_is_computed_at_replay_against_the_indexs_principle_revisions() -> None:
+    stored = INDEX["kinds"]["atomic.scatter"]["reason"]
+    principle = stored["principle"]
+    assert stored["status"] == "examined" and stored["revision"] < INDEX["principles"][principle]["revision"]
+    assert replayed_reason(INDEX, "atomic.scatter")["status"] == "stale"
+    current = {**INDEX, "principles": {**INDEX["principles"], principle: {"title": "", "revision": stored["revision"]}}}
+    assert replayed_reason(current, "atomic.scatter")["status"] == "examined"
+    assert replayed_reason(INDEX, "no.such") == reason_entry(UNEXAMINED)

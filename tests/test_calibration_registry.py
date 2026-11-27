@@ -183,3 +183,9 @@ def test_a_gh_failure_is_reported_with_its_exit_code(capsys: pytest.CaptureFixtu
 
     assert main([], run=failing, now=NOW) == EXIT_GH_FAILED
     assert "not logged in" in capsys.readouterr().err
+
+
+def test_a_principle_filter_lists_the_items_standing_on_it(capsys: pytest.CaptureFixture[str]) -> None:
+    assert parse_touches("principles=trivial-is-a-role") == {"principles": ("trivial-is-a-role",)}
+    assert _numbers(_run(capsys, "--principle", "Trivial-Is-A-Role")["items"]) == {703}
+    assert _numbers(_run(capsys, "--principle", "the-ordinary-instance")["items"]) == set()

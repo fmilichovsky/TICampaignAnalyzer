@@ -429,7 +429,10 @@ Replays the share calibration table of the sample campaigns at other scalings an
 events move level, how the narrator package grows or shrinks, which takeover waves lose members, and the events
 nearest each cut-off. It ends with the changed scalings written as scaling registry entries, ready to paste, followed
 by one comment line for each event type moved to another scaling and each type whose base level was switched. The
-level counts carry each type's reason: the calibration principle its kind's base level applies, or `unexamined`.
+level counts carry each type's reason: the calibration principle its kind's base level applies and what applies it
+(`Trivial is a role — organization churn`), marked `(stale r1→r2)` when it was judged under an earlier revision of
+its principle, or `unexamined`. In `--json` the reason is `{"principle", "because", "revision", "status"}`, with
+`status` one of `examined`, `stale` and `unexamined`.
 
 A scaling is a rise share, at which an event rises a level above the level it starts from, and an optional drop
 share, at which it drops one ([ADR-0011](../adr/0011-significance-is-judged-once-and-scaled-by-share.md)).

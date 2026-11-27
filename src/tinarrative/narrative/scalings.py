@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from ..model.events import SCORE_BANDS, SCORE_MAX, SCORE_MIN, Significance
-from ..model.kinds import UNEXAMINED, Measure, Scaling
+from ..model.kinds import UNEXAMINED, Measure, Reason, Scaling, Unexamined
 
 __all__ = [
     "DEFAULT_WIDTH",
@@ -46,15 +46,13 @@ class ScalingSpec:
     """The measure the share is read on; a kind's scaling names the measure its share reads."""
     rise: float
     """The share at which an event rises one level above the level it starts from."""
-    reason: str
-    """Why the rise share sits there, as a game quantity; ``UNEXAMINED`` until a review states one."""
+    reason: Reason | Unexamined
+    """Why the shares sit there, as the game quantity they stand for; ``UNEXAMINED`` until a review states one."""
     drop: float | None = None
     """The share at which an event drops one level; ``None`` keeps the default width (``DEFAULT_WIDTH``)."""
 
     def __post_init__(self) -> None:
         check_shares(self.rise, self.drop)
-        if not self.reason:
-            raise ValueError("a scaling states a reason, or UNEXAMINED")
 
 
 def check_shares(rise: float, drop: float | None) -> None:

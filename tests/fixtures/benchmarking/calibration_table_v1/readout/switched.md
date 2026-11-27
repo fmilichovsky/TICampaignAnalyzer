@@ -38,13 +38,13 @@ Scalings: every scaling at the code's. Kinds: every type on its code scaling. Ba
 | atomic.far | unexamined | minor | 1 | 2 | -1 |
 | atomic.land | unexamined | minor | 2 | 2 | 0 |
 | atomic.near | unexamined | minor | 8 | 8 | 0 |
-| atomic.other | unexamined | major | 1 | 1 | 0 |
+| atomic.other | The ordinary instance — the rise of a regional power | major | 1 | 1 | 0 |
 | atomic.plain | unexamined | trivial | 1 | 1 | 0 |
 | atomic.plain | unexamined | minor | 1 | 1 | 0 |
-| atomic.scatter | unexamined | trivial | 9 | 9 | 0 |
-| atomic.scatter | unexamined | minor | 11 | 11 | 0 |
-| atomic.scatter | unexamined | major | 3 | 3 | 0 |
-| atomic.scatter | unexamined | campaign_defining | 2 | 2 | 0 |
+| atomic.scatter | Trivial is a role — scattered churn (stale r1→r2) | trivial | 9 | 9 | 0 |
+| atomic.scatter | Trivial is a role — scattered churn (stale r1→r2) | minor | 11 | 11 | 0 |
+| atomic.scatter | Trivial is a role — scattered churn (stale r1→r2) | major | 3 | 3 | 0 |
+| atomic.scatter | Trivial is a role — scattered churn (stale r1→r2) | campaign_defining | 2 | 2 | 0 |
 | atomic.spread | unexamined | trivial | 5 | 5 | 0 |
 | atomic.spread | unexamined | minor | 9 | 9 | 0 |
 | atomic.spread | unexamined | major | 5 | 5 | 0 |

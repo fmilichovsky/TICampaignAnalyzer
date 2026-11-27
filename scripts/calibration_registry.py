@@ -18,8 +18,14 @@ from typing import Any
 LABEL = "calibration"
 PARENT_TITLE = "Calibration reviews"
 KINDS = ("review", "value proposal", "scoring proposal", "structural finding")
-GROUPS = ("types", "measures", "scalings", "themes")
-FILTER_OPTIONS = {"types": "type", "measures": "measure", "scalings": "scaling", "themes": "theme"}
+GROUPS = ("types", "measures", "scalings", "themes", "principles")
+FILTER_OPTIONS = {
+    "types": "type",
+    "measures": "measure",
+    "scalings": "scaling",
+    "themes": "theme",
+    "principles": "principle",
+}
 DEFAULT_SINCE_DAYS = 90
 LIST_LIMIT = 1000
 

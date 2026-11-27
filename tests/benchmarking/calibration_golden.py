@@ -27,20 +27,33 @@ from tests.benchmarking.calibration_support import (
     with_oracle,
 )
 from tests.fixtures import FIXTURES_ROOT
-from tinarrative.benchmarking.calibration.table import build_index
+from tinarrative.benchmarking.calibration.table import build_index, reason_entry
+from tinarrative.model.kinds import Reason
+from tinarrative.model.principles import Principle
 
 GOLDEN = FIXTURES_ROOT / "benchmarking" / "calibration_table_v1" / "golden"
 CAMPAIGNS = ("alpha", "beta")
+STALE = Principle.TRIVIAL_IS_A_ROLE
 
 
 def golden_index() -> dict[str, Any]:
-    return build_index(
-        list(CAMPAIGNS),
-        key="golden",
-        extracted_at="2026-01-01T00:00:00+00:00",
-        kinds=synthetic_kinds({name: document["events"] for name, document in golden_tables().items()}),
-        drafts=DRAFTS,
+    """The index of the golden tables. Two hand-built types carry a stated reason, one examined and one stale, so
+    the readouts show every status: the replay finds the second stale, judged at r1 of a principle this index raises
+    to r2 after extraction."""
+    kinds = synthetic_kinds({name: document["events"] for name, document in golden_tables().items()})
+    kinds["atomic.other"] = {
+        **kinds["atomic.other"],
+        "reason": reason_entry(Reason(Principle.THE_ORDINARY_INSTANCE, "the rise of a regional power", revision=1)),
+    }
+    kinds["atomic.scatter"] = {
+        **kinds["atomic.scatter"],
+        "reason": reason_entry(Reason(STALE, "scattered churn", revision=1)),
+    }
+    index = build_index(
+        list(CAMPAIGNS), key="golden", extracted_at="2026-01-01T00:00:00+00:00", kinds=kinds, drafts=DRAFTS
     )
+    index["principles"][STALE.identifier]["revision"] = 2
+    return index
 
 
 def spread() -> list[dict[str, Any]]:

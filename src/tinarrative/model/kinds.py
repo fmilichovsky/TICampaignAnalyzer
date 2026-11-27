@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from enum import StrEnum
+from enum import Enum, StrEnum
 from typing import Final
 
 from .events import Event, Significance
+from .principles import Principle
 
 
 class Rule(StrEnum):
@@ -115,8 +117,57 @@ class EvidenceRole(StrEnum):
 Template = Callable[[Event], str]
 
 
-UNEXAMINED: Final = "unexamined"
-"""The reason of a base level or a scaling that no calibration review has examined yet; a starting state."""
+class Unexamined(Enum):
+    """The marker of a base level or a scaling that no calibration review has examined yet; a starting state."""
+
+    UNEXAMINED = "unexamined"
+
+
+UNEXAMINED: Final = Unexamined.UNEXAMINED
+
+
+class ReasonStatus(StrEnum):
+    EXAMINED = "examined"
+    STALE = "stale"
+    """Judged under an earlier revision of its principle: listed for review, not a fault (ADR-0024)."""
+    UNEXAMINED = "unexamined"
+
+
+_NOT_IN_A_REASON = re.compile(r"[0-9#]")
+
+
+@dataclass(frozen=True)
+class Reason:
+    """Why a base level or a scaling's shares sit where they do: the principle applied, under the revision it was
+    judged at, and ``because``, what applies it in game terms. ``because`` never restates the principle or the level:
+    one line, no digit, no issue number."""
+
+    principle: Principle
+    because: str
+    revision: int
+
+    def __post_init__(self) -> None:
+        if not self.because or self.because != self.because.strip() or "\n" in self.because:
+            raise ValueError(f"a reason under {self.principle.identifier} says what applies it in one line")
+        if _NOT_IN_A_REASON.search(self.because):
+            raise ValueError(f"the reason {self.because!r} holds a digit or an issue number")
+        if self.because.lower().startswith(self.principle.title.lower()):
+            raise ValueError(f"the reason {self.because!r} restates its principle's name")
+        if not 1 <= self.revision <= self.principle.revision:
+            raise ValueError(
+                f"the reason {self.because!r} is judged at r{self.revision}; {self.principle.identifier} is at "
+                f"r{self.principle.revision}"
+            )
+
+    @property
+    def stale(self) -> bool:
+        return self.revision < self.principle.revision
+
+
+def reason_status(reason: Reason | Unexamined) -> ReasonStatus:
+    if not isinstance(reason, Reason):
+        return ReasonStatus.UNEXAMINED
+    return ReasonStatus.STALE if reason.stale else ReasonStatus.EXAMINED
 
 
 @dataclass(frozen=True)
@@ -134,9 +185,8 @@ class EventKind:
     event_type: str
     template: Template
     base: Significance = field(kw_only=True)
-    reason: str = field(kw_only=True)
-    """One line for the base level: the calibration principle it applies, then what applies it ("The ordinary
-    instance: the takeover of a regional power"), or ``UNEXAMINED``. No issue number or count."""
+    reason: Reason | Unexamined = field(kw_only=True)
+    """Why the base level sits there, or ``UNEXAMINED``."""
     evidence: EvidenceRole
     required: frozenset[str]
     optional: frozenset[str] = frozenset()
@@ -161,7 +211,5 @@ class EventKind:
         shared = self.required & self.optional
         if shared:
             raise ValueError(f"kind {self.event_type}: {sorted(shared)} are both required and optional")
-        if not self.reason or self.reason != self.reason.strip() or "\n" in self.reason:
-            raise ValueError(f"kind {self.event_type}: a reason is one non-empty line, or UNEXAMINED")
         if (self.share is None) != (self.scaling is None):
             raise ValueError(f"kind {self.event_type}: a share and a scaling are declared together or not at all")

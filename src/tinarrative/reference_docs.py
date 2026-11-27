@@ -1,11 +1,12 @@
-"""Generated docs: the command pages' synopsis, options and exit codes, and the settings example's values.
-
-``make docs`` rewrites them; ``--check`` fails when one is stale. Everything else stays hand-written.
-"""
+"""Generated docs: the command pages' synopsis, options and exit codes, the settings example's values, and the
+principles module from the calibration principles page (ADR-0024). ``make docs`` rewrites them; ``--check`` fails
+when one is stale. Everything else stays hand-written."""
 
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import sys
 import tomllib
@@ -13,11 +14,14 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from .benchmarking.calibration.principles import PrincipleRecord, citations, compare, load_records, render_lines
 from .cli import EXIT_CODES, build_parser
 from .config import DEFAULT_SETTINGS, SETTING_KEYS
 
 COMMANDS_DIR = Path("docs/commands")
 CONFIG_EXAMPLE = Path("docs/configuration.example.toml")
+PRINCIPLES_PAGE = Path("docs/calibration-principles.md")
+PRINCIPLES_MODULE = Path("src/tinarrative/model/principles.py")
 KINDS = ("synopsis", "options", "exit-codes")
 USAGE_WIDTH = 100
 ROOT = "tinarrative"
@@ -230,6 +234,87 @@ def config_example(text: str) -> str:
     return "\n".join(lines)
 
 
+_PRINCIPLE = re.compile(
+    r"^- \*\*(?P<name>[^*]+?)\.\*\* "
+    r"<!-- principle (?P<identifier>[a-z0-9]+(?:-[a-z0-9]+)*) r(?P<revision>[1-9][0-9]*) -->(?P<rest>.*)$"
+)
+_PRINCIPLE_MARKER = re.compile(r"<!-- principle \S+ r[0-9]+ -->")
+
+
+def principle_records(page: str) -> list[PrincipleRecord]:
+    """Every principle on the page, in page order: a top-level bold bullet carrying its marker. The hash is of its
+    name and wording with whitespace collapsed, so rewrapping keeps it."""
+    lines = page.split("\n")
+    records: list[PrincipleRecord] = []
+    for index, line in enumerate(lines):
+        if not line.startswith("- **"):
+            if _PRINCIPLE_MARKER.search(line):
+                raise DocsError(f"calibration principles: a marker outside a principle's bullet: {line.strip()!r}")
+            continue
+        found = _PRINCIPLE.match(line)
+        if found is None:
+            raise DocsError(
+                f"calibration principles: no principle marker in {line[:60]!r}; "
+                "write - **Name.** <!-- principle <identifier> r<revision> -->"
+            )
+        body = [found["name"], found["rest"]]
+        for following in lines[index + 1 :]:
+            if following and not following[0].isspace():
+                break
+            body.append(following)
+        text = " ".join(" ".join(body).split())
+        record = PrincipleRecord(
+            found["identifier"],
+            found["name"],
+            int(found["revision"]),
+            hashlib.sha256(text.encode("utf-8")).hexdigest()[:16],
+        )
+        if any(seen.identifier == record.identifier for seen in records):
+            raise DocsError(f"calibration principles: the identifier {record.identifier} appears twice")
+        records.append(record)
+    return records
+
+
+_PRINCIPLES_HEAD = '''"""The calibration principles, generated from docs/calibration-principles.md (ADR-0024).
+
+Do not edit: change the page and run ``make docs``.
+"""
+
+from __future__ import annotations
+
+from enum import Enum
+
+
+class Principle(Enum):
+    """A calibration principle: its identifier, its name as the page writes it, its revision and a hash of its text."""
+
+    identifier: str
+    title: str
+    revision: int
+    text_hash: str
+
+    def __init__(self, identifier: str, title: str, revision: int, text_hash: str) -> None:
+        self.identifier = identifier
+        self.title = title
+        self.revision = revision
+        self.text_hash = text_hash
+'''
+
+
+def principles_module(records: Sequence[PrincipleRecord]) -> str:
+    """The source of the generated principles module: one ``Principle`` member per record."""
+    members = [
+        f"\n    {record.identifier.replace('-', '_').upper()} = (\n"
+        f"        {json.dumps(record.identifier)},\n"
+        f"        {json.dumps(record.title, ensure_ascii=False)},\n"
+        f"        {record.revision},\n"
+        f"        {json.dumps(record.text_hash)},\n"
+        "    )\n"
+        for record in records
+    ]
+    return _PRINCIPLES_HEAD + "".join(members)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="make docs", description="Rewrite the generated parts of the docs.")
     parser.add_argument("--check", action="store_true", help="Fail when a file is stale instead of rewriting it.")
@@ -237,14 +322,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         files = generate(COMMANDS_DIR)
         files[CONFIG_EXAMPLE] = config_example(CONFIG_EXAMPLE.read_text(encoding="utf-8"))
+        records = principle_records(PRINCIPLES_PAGE.read_text(encoding="utf-8"))
+        files[PRINCIPLES_MODULE] = principles_module(records)
     except DocsError as error:
         print(f"make docs: {error}", file=sys.stderr)
         return 1
-    stale = [path for path, text in files.items() if path.read_text(encoding="utf-8") != text]
+    stale = [path for path, text in files.items() if not path.is_file() or path.read_text(encoding="utf-8") != text]
     if args.check:
         for path in stale:
             print(f"{path} is stale; run make docs", file=sys.stderr)
         return 1 if stale else 0
+    if PRINCIPLES_MODULE in stale:
+        changes = compare(
+            load_records(PRINCIPLES_MODULE), {record.identifier: record for record in records}, citations()
+        )
+        for line in render_lines(changes):
+            print(line)
     for path in stale:
         path.write_text(files[path], encoding="utf-8", newline="\n")
         print(f"updated {path}")

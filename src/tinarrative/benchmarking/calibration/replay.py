@@ -18,8 +18,9 @@ from typing import Any, Final, Literal, TypedDict
 
 from tinarrative.benchmarking.calibration.drafts import draft_name
 from tinarrative.benchmarking.calibration.table import SCHEMA_VERSION as SCHEMA_VERSION
-from tinarrative.benchmarking.calibration.table import read_campaign, read_index
+from tinarrative.benchmarking.calibration.table import read_campaign, read_index, reason_entry
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Significance
+from tinarrative.model.kinds import UNEXAMINED, ReasonStatus
 from tinarrative.narrative.scalings import check_shares, cut_off, decided_outright, midpoint, own_score, scale
 from tinarrative.narrative.significance import settled_score
 
@@ -291,6 +292,17 @@ def scaling_order(index: Mapping[str, Any], state: ReplayState) -> list[str]:
 
 
 Tables = dict[str, list[dict[str, Any]]]
+
+
+def replayed_reason(index: Mapping[str, Any], event_type: str) -> dict[str, Any]:
+    """The type's reason as the index holds it, its status computed here against the index's principle revisions
+    (ADR-0024): stale when judged under an earlier revision. Unexamined for a type the index does not list."""
+    reason: dict[str, Any] = index["kinds"].get(event_type, {}).get("reason") or reason_entry(UNEXAMINED)
+    if reason["principle"] is None:
+        return {**reason, "status": ReasonStatus.UNEXAMINED.value}
+    current = index["principles"][reason["principle"]]["revision"]
+    status = ReasonStatus.STALE if reason["revision"] < current else ReasonStatus.EXAMINED
+    return {**reason, "status": status.value}
 
 
 def load(directory: Path) -> tuple[dict[str, Any], Tables, Tables]:

@@ -24,10 +24,13 @@ When a standard here can be checked mechanically, a test enforces it and the sta
   goes through `UnknownCollector`. The unknowns registry is machine-written, never edited by hand; after adding a
   field, re-run the unknowns scan on private saves
   (`tests/maintenance/test_committed_registry.py::test_committed_registry_is_valid_canonical_and_fully_unknown`).
-- **A new kind declares its reason.** Every `EventKind` carries a one-line `reason` for its base level: the
-  [calibration principle](docs/calibration-principles.md) it applies, named as the page names it, or `UNEXAMINED`
-  until a `kind-calibration` run. No issue number or count
-  (`tests/kinds/test_registry.py::test_every_kind_declares_a_reason_without_an_issue_number_or_a_count`).
+- **A new kind declares its reason.** Every `EventKind` carries a `reason` for its base level: a `Reason` naming
+  the [calibration principle](docs/calibration-principles.md) it applies at that principle's current revision and,
+  in `because`, what applies it in game terms, or `UNEXAMINED` until a `kind-calibration` run. `because` is one line
+  that never restates the principle or the level, with no digit or issue number
+  (`tests/kinds/test_registry.py::test_every_stated_reason_names_a_principle_at_a_revision_it_has_and_says_what_applies_it`).
+  The principles are generated from the page's markers by `make docs` (ADR-0024); never edit
+  `src/tinarrative/model/principles.py` by hand (`tests/test_reference_docs.py::test_the_principles_module_is_current`).
 - **Comments explain why, not what.** No comment on self-explanatory code; module docstrings of at most three
   lines; no docstring repeats an ADR or cites a save sample; cite it as `ADR-NNNN`.
 

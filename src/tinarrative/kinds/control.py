@@ -6,7 +6,8 @@ from collections.abc import Callable
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Rule, Scaling, ShareOf
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Reason, Rule, Scaling, ShareOf
+from ..model.principles import Principle
 from ..model.values import Unknown
 from .narrative import count, has_role, narrative_kind, role
 from .text import (
@@ -228,7 +229,7 @@ ORGANIZATION_APPEARED = EventKind(
     BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: organization churn",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "organization churn", revision=1),
 )
 ORGANIZATION_DISAPPEARED = EventKind(
     "organization.disappeared",
@@ -236,7 +237,7 @@ ORGANIZATION_DISAPPEARED = EventKind(
     BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: organization churn",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "organization churn", revision=1),
 )
 ORGANIZATION_ASSIGNED_COUNCILOR_CHANGED = EventKind(
     "organization.assigned_councilor_changed",

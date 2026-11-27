@@ -9,7 +9,8 @@ from types import MappingProxyType
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Rule, Scaling, ShareOf
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Reason, Rule, Scaling, ShareOf
+from ..model.principles import Principle
 from ..model.values import Unknown
 from .narrative import has_role, narrative_kind, role
 from .text import (
@@ -344,7 +345,7 @@ BAND_CROSSED = EventKind(
     ),
     optional=frozenset({"causes", "rest_value_share"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: evidence for the band-shift events that cite it",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "evidence for the band-shift events that cite it", revision=1),
 )
 PCGDP_TREND = EventKind(
     "nation.pcgdp_trend",
@@ -363,7 +364,7 @@ PCGDP_TREND = EventKind(
         }
     ),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: evidence for the economic trajectory that cites it",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "evidence for the economic trajectory that cites it", revision=1),
 )
 STATISTIC_SHIFTED = EventKind(
     "nation.statistic_shifted",
@@ -374,7 +375,7 @@ STATISTIC_SHIFTED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: evidence for the readings that cite the shift",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "evidence for the readings that cite the shift", revision=1),
 )
 POPULATION_CHANGED = EventKind(
     "nation.population_changed",
@@ -415,7 +416,7 @@ RANK_CHANGED = EventKind(
     BOOKKEEPING,
     required=frozenset({"metric", "before_rank", "after_rank", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: evidence for the ranking events that cite it",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "evidence for the ranking events that cite it", revision=1),
 )
 
 TERRITORY_GAINED = EventKind(
