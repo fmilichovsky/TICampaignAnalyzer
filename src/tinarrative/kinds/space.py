@@ -208,7 +208,7 @@ FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers; churn", 1),
 )
 FLEET_ORBIT_CHANGED = EventKind(
     "fleet.orbit_changed",
@@ -216,7 +216,7 @@ FLEET_ORBIT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers; churn", 1),
 )
 FLEET_BARYCENTER_CHANGED = EventKind(
     "fleet.barycenter_changed",
@@ -224,7 +224,7 @@ FLEET_BARYCENTER_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers; churn", 1),
 )
 FLEET_PARENT_CHANGED = EventKind(
     "fleet.parent_fleet_changed",
@@ -232,7 +232,7 @@ FLEET_PARENT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "fleet reorganization; churn", 1),
 )
 FLEET_IN_COMBAT_CHANGED = EventKind(
     "fleet.in_combat_changed",
@@ -240,7 +240,7 @@ FLEET_IN_COMBAT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers; churn", 1),
 )
 FLEET_APPEARED = EventKind(
     "fleet.appeared",
@@ -248,7 +248,7 @@ FLEET_APPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers - often merging and splitting; churn", 1),
 )
 FLEET_DISAPPEARED = EventKind(
     "fleet.disappeared",
@@ -256,7 +256,7 @@ FLEET_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers - often merging and splitting; churn", 1),
 )
 FACTION_FLEETS_CHANGED = EventKind(
     "faction.fleets_changed",
@@ -274,7 +274,7 @@ HAB_DOCKED_FLEETS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers; churn", 1),
 )
 SHIP_FLEET_CHANGED = EventKind(
     "ship.fleet_changed",
@@ -282,7 +282,7 @@ SHIP_FLEET_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "regular fleet maneuvers; churn", 1),
 )
 SHIP_LAST_REFIT_CHANGED = EventKind(
     "ship.last_refit_date_changed",
@@ -290,7 +290,7 @@ SHIP_LAST_REFIT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "refit bookkeeping, churn by nature", revision=1),
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "refit bookkeeping, churn by nature", 1),
 )
 SHIP_APPEARED = EventKind(
     "ship.appeared",
@@ -299,7 +299,7 @@ SHIP_APPEARED = EventKind(
     frozenset({"side"}),
     frozenset({"hull"}),
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "ship construction bookkeeping, churn by nature", 1),
 )
 SHIP_DISAPPEARED = EventKind(
     "ship.disappeared",
@@ -308,7 +308,7 @@ SHIP_DISAPPEARED = EventKind(
     frozenset({"side"}),
     frozenset({"hull"}),
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "ship destructions in combat or retirement, churn by nature", 1),
 )
 FLEET_SHIPS_CHANGED = EventKind(
     "fleet.ships_changed",
@@ -317,7 +317,7 @@ FLEET_SHIPS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "ship reorganization between fleets; churn", 1),
 )
 
 HAB_FACTION_CHANGED = EventKind(
@@ -344,15 +344,15 @@ HAB_TIER_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.THE_ORDINARY_INSTANCE, "hab upgrades are regular space economic activity", 1),
 )
 HAB_IN_COMBAT_CHANGED = EventKind(
     "hab.in_combat_changed",
     _trailing("in-combat flag", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
-    reason=UNEXAMINED,
+    base=Significance.TRIVIAL,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "combat events bookkeeping; churn", 1),
 )
 HAB_UNDER_ASSAULT_CHANGED = EventKind(
     "hab.under_assault_changed",
@@ -360,7 +360,7 @@ HAB_UNDER_ASSAULT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "combat events bookkeeping; churn", 1),
 )
 HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     "hab.under_bombardment_changed",
@@ -368,15 +368,17 @@ HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "combat events bookkeeping; churn", 1),
 )
 HAB_CORE_COMPLETED_CHANGED = EventKind(
     "hab.core_completed_changed",
     _trailing("core-completed flag", EntityDomain.FACTION),
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
-    base=Significance.MINOR,
-    reason=UNEXAMINED,
+    base=Significance.TRIVIAL,
+    reason=Reason(
+        Principle.THE_ORDINARY_INSTANCE, "hab core completion ties to an already recorded hab; bookkeeping", 1
+    ),
 )
 HAB_APPEARED = EventKind(
     "hab.appeared",
@@ -387,7 +389,7 @@ HAB_APPEARED = EventKind(
     share=ShareOf.HAB,
     scaling=Scaling.HAB,
     base=Significance.MINOR,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.THE_ORDINARY_INSTANCE, "hab construction is regular space economic activity", 1),
 )
 HAB_DISAPPEARED = EventKind(
     "hab.disappeared",
@@ -395,7 +397,11 @@ HAB_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(
+        Principle.TRIVIAL_IS_A_ROLE,
+        "hab lifecycle - getting dismantled is bookkeeping. Destructions surface through combat",
+        1,
+    ),
 )
 FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     "faction.hab_destruction_recorded",
@@ -404,7 +410,7 @@ FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     frozenset({"hab_type", "space_body", "destroyer", "recorded_on"}),
     frozenset({"hab", "owner"}),
     base=Significance.MINOR,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.THE_ORDINARY_INSTANCE, "hab losses are background events", 1),
 )
 FACTION_COMBAT_RECORDED = EventKind(
     "faction.combat_recorded",
@@ -414,7 +420,7 @@ FACTION_COMBAT_RECORDED = EventKind(
     share=ShareOf.COMBAT,
     scaling=Scaling.BATTLE,
     base=Significance.MINOR,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.THE_ORDINARY_INSTANCE, "most space combat are background events", 1),
 )
 FACTION_COMBAT_ENTRY_REMOVED = EventKind(
     "faction.combat_entry_removed",
@@ -422,7 +428,7 @@ FACTION_COMBAT_ENTRY_REMOVED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on"}),
     base=Significance.TRIVIAL,
-    reason=UNEXAMINED,
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "combat ledger cleanup; bookkeeping", 1),
 )
 
 HAB_ESTABLISHED = EventKind(
