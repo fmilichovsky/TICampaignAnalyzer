@@ -376,7 +376,9 @@ HAB_CORE_COMPLETED_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason=Reason(Principle.THE_ORDINARY_INSTANCE, "hab core completion ties to an already recorded hab; bookkeeping", 1),
+    reason=Reason(
+        Principle.THE_ORDINARY_INSTANCE, "hab core completion ties to an already recorded hab; bookkeeping", 1
+    ),
 )
 HAB_APPEARED = EventKind(
     "hab.appeared",
@@ -395,7 +397,11 @@ HAB_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "hab lifecycle - getting dismantled is bookkeeping. Destructions surface through combat", 1),
+    reason=Reason(
+        Principle.TRIVIAL_IS_A_ROLE,
+        "hab lifecycle - getting dismantled is bookkeeping. Destructions surface through combat",
+        1,
+    ),
 )
 FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     "faction.hab_destruction_recorded",
