@@ -264,7 +264,7 @@ FACTION_FLEETS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the fleet events",
+    reason=UNEXAMINED,
 )
 HAB_DOCKED_FLEETS_CHANGED = EventKind(
     "hab.docked_fleets_changed",
@@ -273,7 +273,7 @@ HAB_DOCKED_FLEETS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the fleet events",
+    reason=UNEXAMINED,
 )
 SHIP_FLEET_CHANGED = EventKind(
     "ship.fleet_changed",
@@ -281,7 +281,7 @@ SHIP_FLEET_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the fleet events",
+    reason=UNEXAMINED,
 )
 SHIP_LAST_REFIT_CHANGED = EventKind(
     "ship.last_refit_date_changed",
@@ -316,7 +316,7 @@ FLEET_SHIPS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the ship events",
+    reason=UNEXAMINED,
 )
 
 HAB_FACTION_CHANGED = EventKind(

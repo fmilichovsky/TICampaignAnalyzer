@@ -263,7 +263,7 @@ COUNCILOR_ORGS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the organization events",
+    reason=UNEXAMINED,
 )
 FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
     "faction.unassigned_orgs_changed",
@@ -272,7 +272,7 @@ FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the organization events",
+    reason=UNEXAMINED,
 )
 
 NATION_CONTROL_CHANGED = EventKind(

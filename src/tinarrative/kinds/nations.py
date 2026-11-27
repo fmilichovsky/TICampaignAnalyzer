@@ -619,7 +619,7 @@ RELEASE = narrative_kind(
     _release,
     required=_INDEPENDENCE,
     base=Significance.TRIVIAL,
-    reason="One judge per fact: a wrapper, it takes the level of the independence event it cites",
+    reason=UNEXAMINED,
     share=ShareOf.INDEPENDENT_NATION,
     scaling=Scaling.POWER,
 )
@@ -628,7 +628,7 @@ BREAKAWAY = narrative_kind(
     _breakaway,
     required=_INDEPENDENCE,
     base=Significance.TRIVIAL,
-    reason="One judge per fact: a wrapper, it takes the level of the independence event it cites",
+    reason=UNEXAMINED,
     share=ShareOf.INDEPENDENT_NATION,
     scaling=Scaling.POWER,
 )
@@ -637,7 +637,7 @@ CLAIMS_DECLARED = narrative_kind(
     _claims_declared,
     required=frozenset({"regions", "metric_shifts"}),
     base=Significance.TRIVIAL,
-    reason="One judge per fact: a wrapper, it takes the level of the claims change it cites",
+    reason=UNEXAMINED,
     share=ShareOf.REGIONS,
     scaling=Scaling.POPULATION,
 )

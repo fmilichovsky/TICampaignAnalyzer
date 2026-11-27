@@ -124,7 +124,7 @@ FACTION_ARMIES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the army events",
+    reason=UNEXAMINED,
 )
 NATION_ARMIES_CHANGED = EventKind(
     "nation.armies_changed",
@@ -133,7 +133,7 @@ NATION_ARMIES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the army events",
+    reason=UNEXAMINED,
 )
 REGION_ARMIES_CHANGED = EventKind(
     "region.armies_changed",
@@ -142,7 +142,7 @@ REGION_ARMIES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: a mirror of the army events",
+    reason=UNEXAMINED,
 )
 
 
