@@ -389,7 +389,7 @@ HAB_APPEARED = EventKind(
     share=ShareOf.HAB,
     scaling=Scaling.HAB,
     base=Significance.MINOR,
-    reason=(Principle.THE_ORDINARY_INSTANCE, "hab construction is regular space economic activity"),
+    reason=Reason(Principle.THE_ORDINARY_INSTANCE, "hab construction is regular space economic activity", 1),
 )
 HAB_DISAPPEARED = EventKind(
     "hab.disappeared",
