@@ -1,5 +1,5 @@
 {
-  "schema_version": 6,
+  "schema_version": 7,
   "key": "golden",
   "hash": "base=atomic.far:trivial,atomic.thing:major",
   "state": {

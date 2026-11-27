@@ -52,7 +52,7 @@ from tinarrative.sequence import (
 )
 from tinarrative.workers import default_jobs
 
-SCHEMA_VERSION: Final = 6
+SCHEMA_VERSION: Final = 7
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -216,7 +216,9 @@ def _row(
       its number of target entities; both ``None`` for an atomic or reconstructed event, which has no roles;
     - ``explained_by``: the ID of the narrative event that explains the event without citing it, ``None`` for an
       event nothing explains (the rules' own tests, see ``explained_by`` above);
-    - ``intervals``: the key, start and end date (the dates of its two saves) of each interval the event spans.
+    - ``intervals``: the key, start and end date (the dates of its two saves) of each interval the event spans;
+    - ``start``, ``start_basis`` and ``end``: a narrative event's start, how the start is known (``record``, ...) and
+      end, by which ``narrate`` files it in a period; all ``None`` for an atomic or reconstructed event.
 
     A renamed entity's names are in the index (``name_history``), not repeated in the rows.
     """
@@ -245,10 +247,18 @@ def _row(
             for key in (event.intervals if narrative else (interval_of(event.id),))
             if key in dates
         ],
+        "start": _date_text(event.start) if narrative else None,
+        "start_basis": None if not narrative or event.start_basis is None else event.start_basis.value,
+        "end": _date_text(event.end) if narrative else None,
         "cited": list(event.constituents) if narrative else [],
         "score": event.score,
         "level": event.significance.value,
     }
+
+
+def _date_text(value: object) -> str | None:
+    """A date as the narrator package writes it; ``None`` for an unknown one."""
+    return value if isinstance(value, str) else None
 
 
 def _roles(event: Event) -> dict[EntityId, str]:

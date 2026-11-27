@@ -1,0 +1,277 @@
+{
+  "schema_version": 7,
+  "key": "views",
+  "hash": "code",
+  "code_state": true,
+  "state": {
+    "rises": {
+      "power": 0.1778279410038923,
+      "population": 0.1778279410038923,
+      "organization": 0.1778279410038923,
+      "hab": 0.2667419115058384,
+      "fleet": 0.1778279410038923,
+      "battle": 0.058683220531284455,
+      "space_loss": 0.1778279410038923,
+      "faction": 2.540399157198461,
+      "nuclear": 0.1778279410038923
+    },
+    "drops": {},
+    "scalings": {},
+    "campaigns": [
+      "c"
+    ],
+    "types": [],
+    "bases": {},
+    "type_bases": {},
+    "focus": null
+  },
+  "periods": [],
+  "views": {
+    "period": {
+      "campaigns": {
+        "c": {
+          "period": "year",
+          "basis": "campaign_span",
+          "span_days": 974,
+          "coarsened": [],
+          "rows": 10,
+          "top_level": {
+            "replay": 2,
+            "code": 2
+          },
+          "periods": [
+            {
+              "key": "2030",
+              "low_resolution": 639,
+              "top_level": {
+                "replay": 0,
+                "code": 0
+              },
+              "grid": {
+                "minor": {
+                  "cited only": {
+                    "replay": 2,
+                    "code": 2
+                  },
+                  "explained": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            },
+            {
+              "key": "2031",
+              "low_resolution": 639,
+              "top_level": {
+                "replay": 0,
+                "code": 0
+              },
+              "grid": {}
+            },
+            {
+              "key": "2032",
+              "low_resolution": 639,
+              "top_level": {
+                "replay": 2,
+                "code": 2
+              },
+              "grid": {
+                "major": {
+                  "top-level": {
+                    "replay": 2,
+                    "code": 2
+                  },
+                  "member": {
+                    "replay": 3,
+                    "code": 3
+                  }
+                },
+                "trivial": {
+                  "below": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tiers": {
+      "types": {
+        "atomic.band": {
+          "top_level": {
+            "replay": 0,
+            "code": 0
+          },
+          "grid": {
+            "minor": {
+              "explained": {
+                "replay": 1,
+                "code": 1
+              }
+            }
+          },
+          "campaigns": {
+            "c": {
+              "2030": {
+                "minor": {
+                  "explained": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "atomic.thing": {
+          "top_level": {
+            "replay": 0,
+            "code": 0
+          },
+          "grid": {
+            "minor": {
+              "cited only": {
+                "replay": 1,
+                "code": 1
+              }
+            }
+          },
+          "campaigns": {
+            "c": {
+              "2030": {
+                "minor": {
+                  "cited only": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "faction.takeover": {
+          "top_level": {
+            "replay": 0,
+            "code": 0
+          },
+          "grid": {
+            "major": {
+              "member": {
+                "replay": 3,
+                "code": 3
+              }
+            }
+          },
+          "campaigns": {
+            "c": {
+              "2032": {
+                "major": {
+                  "member": {
+                    "replay": 3,
+                    "code": 3
+                  }
+                }
+              }
+            }
+          }
+        },
+        "faction.takeover_wave": {
+          "top_level": {
+            "replay": 1,
+            "code": 1
+          },
+          "grid": {
+            "major": {
+              "top-level": {
+                "replay": 1,
+                "code": 1
+              }
+            }
+          },
+          "campaigns": {
+            "c": {
+              "2032": {
+                "major": {
+                  "top-level": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nation.cession": {
+          "top_level": {
+            "replay": 0,
+            "code": 0
+          },
+          "grid": {
+            "minor": {
+              "cited only": {
+                "replay": 1,
+                "code": 1
+              }
+            },
+            "trivial": {
+              "below": {
+                "replay": 1,
+                "code": 1
+              }
+            }
+          },
+          "campaigns": {
+            "c": {
+              "2030": {
+                "minor": {
+                  "cited only": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              },
+              "2032": {
+                "trivial": {
+                  "below": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "nation.expansion": {
+          "top_level": {
+            "replay": 1,
+            "code": 1
+          },
+          "grid": {
+            "major": {
+              "top-level": {
+                "replay": 1,
+                "code": 1
+              }
+            }
+          },
+          "campaigns": {
+            "c": {
+              "2032": {
+                "major": {
+                  "top-level": {
+                    "replay": 1,
+                    "code": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

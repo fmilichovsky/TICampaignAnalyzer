@@ -25,6 +25,7 @@ from .benchmarking.calibration import readout as calibration_readout
 from .benchmarking.calibration import replay as calibration_replay
 from .benchmarking.calibration import server as calibration_server
 from .benchmarking.calibration import timing as calibration_timing
+from .benchmarking.calibration import views as calibration_views
 from .benchmarking.calibration.table import CalibrationTableError
 from .benchmarking.manifest import MANIFEST, sample_files, sha256_file, update_samples, verify_samples
 from .benchmarking.samples import SampleImportError, import_sample_campaign
@@ -242,15 +243,15 @@ EXIT_CODES: dict[str, ExitCodes] = {
         (EXIT_OUTPUT_ERROR, "the runtime JSON cannot be written."),
     ),
     "benchmark calibrate report": (
-        (EXIT_SUCCESS, "the readout was printed."),
+        (EXIT_SUCCESS, "the readout or the views were printed."),
         (
             EXIT_USAGE_ERROR,
             f"usage error, a sample that does not match {MANIFEST}, an unknown scaling, campaign or type, a "
             "share that is not a positive number or a drop share at or above its rise share, a scaling on another "
             "measure than its type's, a base level that is not a level, an invalid --state (a link with ref= was "
-            "made before scalings), a scaling or switched type given twice, a table at "
-            "another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old "
-            "table stays).",
+            "made before scalings), a scaling or switched type given twice, an unknown or repeated view, an unknown "
+            "period key, --period or --periods without --view, a table at another schema version (run with "
+            "--rebuild), or a failed extraction (status.js says failed; the old table stays).",
         ),
         (EXIT_INPUT_ERROR, f"--samples is not a directory or its {MANIFEST} cannot be read."),
         (EXIT_OUTPUT_ERROR, "--out cannot be written."),
@@ -1132,11 +1133,33 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
             types=cast("list[str] | None", args.type) or [],
             bases=cast("list[str] | None", args.base) or [],
         )
-        result = calibration_replay.replay(index, tables, state, drafts)
+        views = calibration_views.parse_views(cast("list[str] | None", args.view) or [])
+        periods = cast("list[str] | None", args.periods) or []
+        if not views and (args.period is not None or periods):
+            raise calibration_views.ViewError("--period and --periods choose the periods of a --view")
+        state_hash = calibration_replay.encode_state(state, index)
+        if views:
+            document = calibration_views.views_document(
+                index,
+                tables,
+                drafts,
+                state,
+                views=views,
+                period=cast("str | None", args.period),
+                periods=periods,
+                state_hash=state_hash,
+            )
+        else:
+            result = calibration_replay.replay(index, tables, state, drafts)
     except (calibration_replay.ReplayError, CalibrationTableError) as error:
         print(f"{command}: {error}", file=sys.stderr)
         return EXIT_USAGE_ERROR
-    state_hash = calibration_replay.encode_state(state, index)
+    if views:
+        if args.format == "json":
+            sys.stdout.write(json.dumps(document, indent=2) + "\n")
+        else:
+            sys.stdout.write(calibration_views.render_views(document))
+        return EXIT_SUCCESS
     if args.format == "json":
         document = calibration_readout.render_json(index, tables, result, state_hash=state_hash, drafts=drafts)
         sys.stdout.write(json.dumps(document, indent=2) + "\n")
@@ -2666,6 +2689,26 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
     )
     report.add_argument(
         "--state", metavar="HASH", help="A calibration page's URL hash; the other flags override what it sets."
+    )
+    report.add_argument(
+        "--view",
+        action="append",
+        metavar="VIEW",
+        help=(
+            f"Print these views of the narrator package instead of the readout ({', '.join(calibration_views.VIEWS)}); "
+            "comma-separated, repeatable."
+        ),
+    )
+    report.add_argument(
+        "--period",
+        choices=PERIODS,
+        help="The periods of a view, as narrate tells them (default: from each campaign's span, as narrate).",
+    )
+    report.add_argument(
+        "--periods",
+        action="append",
+        metavar="KEY",
+        help="Print only these periods of a view, such as 2031 or 2031-H1; comma-separated, repeatable (default: all).",
     )
     _add_format_argument(report)
     report.set_defaults(handler=_run_benchmark_calibrate)
