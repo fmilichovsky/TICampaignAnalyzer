@@ -226,9 +226,9 @@ def meta(index: Mapping[str, Any], drafts: Tables) -> dict[str, Any]:
 def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
     """The state the page's controls give, as ``StateResult`` writes it; keys left out keep the code's.
 
-    Raises ``ReplayStateError`` for a value of the wrong shape, an unknown scaling, measure, campaign, draft or type,
-    a share that is not a positive number, a drop share not below its rise share, a type reassigned across measures
-    or a base that is not a level. The filter's types are checked by ``replay``.
+    Raises ``ReplayStateError`` for a value of the wrong shape, an unknown scaling, campaign, draft or type, a focus
+    naming no scaling of the state, a share that is not a positive number, a drop share not below its rise share, a
+    type reassigned across measures or a base that is not a level. The filter's types are checked by ``replay``.
     """
     if not isinstance(values, dict):
         raise ReplayStateError("the state is not an object")
@@ -273,19 +273,22 @@ def state_from_values(values: Any, index: Mapping[str, Any]) -> ReplayState:
             )
         type_bases[event_type] = level
     focus = values.get("focus")
-    if focus is not None and focus not in index["measures"]:
-        raise ReplayStateError(f"unknown focus measure {focus!r}")
+    if focus is not None and not isinstance(focus, str):
+        raise ReplayStateError(f"the focus names a scaling, not {focus!r}")
     state = ReplayState(
         rises=default.rises,
         drops=default.drops,
         campaigns=tuple(name for name in index["campaigns"] if name in campaigns),
         types=tuple(sorted(_names(values.get("types", []), "types"))),
-        focus=focus,
         bases=bases,
     )
     state = calibration.with_scalings(state, index, reassigned)
     state = calibration.with_shares(state, index, rises=shares["rises"], drops=shares["drops"])
-    return replace(state, type_bases=calibration.switched_types(replace(state, type_bases=type_bases), index))
+    if focus is not None and focus not in state.rises:
+        raise ReplayStateError(f"unknown focus scaling {focus!r} (known: {', '.join(state.rises)})")
+    return replace(
+        state, focus=focus, type_bases=calibration.switched_types(replace(state, type_bases=type_bases), index)
+    )
 
 
 def bind(calibration_page: Calibration, port: int = DEFAULT_PORT) -> ThreadingHTTPServer:

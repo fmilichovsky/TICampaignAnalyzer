@@ -41,25 +41,41 @@
 </header>
 
 <main class="layout" id="layout" aria-busy="true">
-  <section class="column column-left" aria-label="The focused measure">
-    <div class="chips" id="chips" role="group" aria-label="Focused measure"></div>
+  <section class="column column-left" aria-label="The focused scaling">
+    <div class="chips" id="chips" role="group" aria-label="Focused scaling"></div>
 
     <div class="dial" id="dial">
     <div class="control">
       <div class="control-row">
-        <label class="control-label" for="ref-value">Rise share</label>
-        <input class="ref-value" id="ref-value" type="text" inputmode="decimal" spellcheck="false" autocomplete="off"
-               aria-describedby="ref-error">
-        <button type="button" class="quiet-button" id="ref-code">Code's</button>
-        <span class="control-window" id="ref-window"></span>
+        <span class="share-field">
+          <label class="control-label edge-label edge-drop" for="drop-value">Drop share</label>
+          <input class="share-value" id="drop-value" type="text" inputmode="decimal" spellcheck="false" autocomplete="off"
+                 aria-describedby="share-error drop-note">
+          <button type="button" class="quiet-button" id="drop-code"></button>
+        </span>
+        <span class="share-field">
+          <label class="control-label edge-label edge-rise" for="rise-value">Rise share</label>
+          <input class="share-value" id="rise-value" type="text" inputmode="decimal" spellcheck="false" autocomplete="off"
+                 aria-describedby="share-error">
+          <button type="button" class="quiet-button" id="rise-code">Code's</button>
+        </span>
+        <span class="control-window" id="share-window"></span>
         <span class="control-type">
           <label class="control-label" for="type-filter">Type</label>
           <select class="type-filter" id="type-filter"></select>
         </span>
       </div>
-      <p class="ref-error" id="ref-error" aria-live="polite"></p>
+      <p class="visually-hidden" id="shift-note">Shift with an arrow key moves both cut-offs; the window keeps its width.</p>
+      <p class="visually-hidden" id="drop-note">Leave the drop share empty for the default width, the rise share ÷ 316.</p>
+      <p class="share-error" id="share-error" aria-live="polite"></p>
       <div class="slider-track">
-        <input class="slider" id="ref-slider" type="range" aria-label="Rise share, log scale">
+        <div class="slider-pair">
+          <span class="slider-band" id="slider-band" aria-hidden="true" title="Drag to move both cut-offs; the window keeps its width"></span>
+          <input class="slider slider-drop" id="drop-slider" type="range" aria-label="Drop share, log scale"
+                 aria-describedby="shift-note" aria-keyshortcuts="Shift+ArrowLeft Shift+ArrowRight">
+          <input class="slider slider-rise" id="rise-slider" type="range" aria-label="Rise share, log scale"
+                 aria-describedby="shift-note" aria-keyshortcuts="Shift+ArrowLeft Shift+ArrowRight">
+        </div>
       </div>
     </div>
 
@@ -69,7 +85,7 @@
         <span class="legend-item"><i class="swatch swatch-drop"></i>Drops a level</span>
         <span class="legend-item"><i class="swatch swatch-keep"></i>Keeps its level</span>
         <span class="legend-item"><i class="swatch swatch-rise"></i>Rises a level</span>
-        <span class="legend-item"><i class="swatch swatch-cut"></i>Cut-off</span>
+        <span class="legend-item"><i class="swatch swatch-cut swatch-cut-drop"></i><i class="swatch swatch-cut"></i>Cut-offs</span>
         <span class="legend-spacer"></span>
         <span class="legend-readout" id="chart-readout"></span>
       </figcaption>
@@ -92,12 +108,36 @@
       <div class="draft-panels" id="draft-panels" aria-label="Draft shares" hidden></div>
     </section>
 
-    <section class="references" aria-labelledby="references-title">
-      <h2 class="section-title" id="references-title">Rise shares</h2>
-      <table class="reference-table">
-        <thead><tr><th scope="col">Measure</th><th scope="col" class="num">Rise share</th><th scope="col" class="num">Code's</th><th scope="col" class="num">Shares</th></tr></thead>
-        <tbody id="references"></tbody>
+    <section class="scalings" aria-labelledby="scalings-title">
+      <div class="section-head">
+        <h2 class="section-title" id="scalings-title">Scalings</h2>
+        <span class="section-note" id="scalings-note"></span>
+      </div>
+      <table class="reference-table scaling-table">
+        <thead><tr>
+          <th scope="col">Scaling</th>
+          <th scope="col">Measure</th>
+          <th scope="col" class="num" title="The share at which an event rises one level from where it starts">Rise share</th>
+          <th scope="col" class="num" title="The share at which an event drops one level; default is the rise share ÷ 316">Drop share</th>
+          <th scope="col" class="num">Code's</th>
+          <th scope="col" class="num" title="The event types whose share this scaling reads">Kinds</th>
+        </tr></thead>
+        <tbody id="scalings"></tbody>
       </table>
+      <div class="section-head kinds-head">
+        <h3 class="subsection-title" id="kinds-title"></h3>
+        <span class="section-note" id="kinds-note"></span>
+      </div>
+      <div class="kinds-scroll">
+        <table class="reference-table kind-table" aria-labelledby="kinds-title">
+          <thead><tr>
+            <th scope="col">Type</th>
+            <th scope="col" class="num" title="The type's events with a share on this measure, in the campaigns shown">Events</th>
+            <th scope="col" title="The scaling the type's share is read by: its code's, another on this measure, or its own split off">Scaling</th>
+          </tr></thead>
+          <tbody id="kinds"></tbody>
+        </table>
+      </div>
       <h3 class="subsection-title">Drafts</h3>
       <ul class="drafts" id="drafts"></ul>
     </section>

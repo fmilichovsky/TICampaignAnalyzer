@@ -302,14 +302,18 @@ tinarrative benchmark calibrate open [--samples PATH] [--out PATH] [--rebuild] [
 ```
 <!-- end generated -->
 
-Serves the share calibration page on `127.0.0.1` and opens it: a page for choosing the rise shares of the starting
-scalings against the sample campaigns. Slide a measure's rise share to see which events change significance level,
-how the narrator package and the takeover waves change, and which events sit nearest each cut-off; open an event to
-see why it has its level. Base levels, under Rise shares, switches an event type's base level, as `report --base`
-does; the event inspector switches the type of the event it shows, and says when a context rule decided the event's
-level, so the switch passes it by. The page's URL hash holds the explored state, which `report --state` reads. The
-page slides only the rise share of each measure's starting scaling; drop shares and split-off or joined scalings
-come from `report` flags or a hash, and the page keeps them.
+Serves the share calibration page on `127.0.0.1` and opens it: a page for choosing the scalings against the sample
+campaigns. Focus a scaling and slide its two cut-offs on the chart's share axis, the drop share and the rise share,
+to see which events change significance level, how the narrator package and the takeover waves change, and which
+events sit nearest each cut-off; open an event to see why it has its level. Left alone, the drop share keeps the
+default width and follows the rise share; slid or typed, it is the scaling's own, and its slider snaps back to the
+default width. Drag the band between the two thumbs, or press Shift with an arrow key on either thumb, to move both
+cut-offs together: the window keeps its width. Scalings, under the cut-offs, lists a row per scaling with its measure, rise and drop shares, the
+code's, and how many kinds read it; under it, each kind on the focused scaling's measure has a select that splits it
+off into a scaling of its own (a copy of the one it reads), joins it back, or joins it to another scaling on that
+measure, as `report --scaling` does. Base levels switches an event type's base level, as `report --base` does; the
+event inspector switches the type of the event it shows, and says when a context rule decided the event's level, so
+the switch passes it by. The page's URL hash holds the explored state, which `report --state` reads.
 
 The command replays the table in Python for every change on the page; the page only draws the answer
 ([ADR-0022](../adr/0022-the-calibration-table-is-replayed-once-in-python.md)). It keeps serving until it is
@@ -501,7 +505,7 @@ A draft share is a share tried on the events of existing narrative types before 
 scored beside the real events and never enter their counts, totals, moves or cut-offs, so a draft changes no real
 panel or readout section.
 
-On the page, each draft with a candidate on the focused measure has a panel under the cut-offs, marked `draft #N`
+On the page, each draft read by the focused scaling has a panel under the cut-offs, marked `draft #N`
 with its issue; two drafts on the same measure sit side by side. A panel holds:
 
 - a base selector: the level the draft's rows start from. `own` marks the draft's own base. A row marked `ruled` is

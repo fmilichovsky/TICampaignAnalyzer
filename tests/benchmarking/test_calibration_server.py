@@ -173,6 +173,76 @@ def test_an_invalid_state_answers_the_error_and_the_code_state(calibration: serv
     assert (answer["hash"], answer["is_code"]) == ("", True)
 
 
+def split_on_the_page(values: dict[str, Any], event_type: str) -> dict[str, Any]:
+    """``values`` with ``event_type`` split off as the page splits it: its own scaling, a copy of the one it reads."""
+    own = INDEX["kinds"][event_type]["scaling"]
+    rises = {**values["rises"], event_type: values["rises"][own]}
+    drops = {**values["drops"], **({event_type: values["drops"][own]} if own in values["drops"] else {})}
+    return {**values, "rises": rises, "drops": drops, "scalings": {**values["scalings"], event_type: event_type}}
+
+
+def test_a_page_state_with_a_drop_share_and_a_split_kind_reads_back_through_its_hash_and_the_report(
+    calibration: server.Calibration,
+) -> None:
+    _, code = ask(calibration, {"hash": ""})
+    split = split_on_the_page(code["state"], "faction.takeover")
+    asked = {
+        **split,
+        "drops": {**split["drops"], "faction.takeover": 0.0002},
+        "scalings": {**split["scalings"], "faction.takeover_wave": "faction.takeover"},
+        "focus": "faction.takeover",
+    }
+
+    _, answer = ask(calibration, {"state": asked})
+    _, again = ask(calibration, {"hash": answer["hash"]})
+
+    assert "error" not in answer
+    assert answer["hash"] == (
+        "drop=faction.takeover:0.0002"
+        "&scaling=faction.takeover:faction.takeover,faction.takeover_wave:faction.takeover&focus=faction.takeover"
+    )
+    assert again == answer
+    # The report given the copied hash reads the same paragraph and snippet as the page shows.
+    result = replay(INDEX, TABLES, decode_state(answer["hash"], INDEX), DRAFTS)
+    assert answer["paragraph"] == readout.shared_paragraph(INDEX, result)
+    assert answer["snippet"] == readout.snippet(INDEX, result)
+    assert "faction.takeover" in answer["snippet"]
+
+
+def test_a_split_kind_joined_back_leaves_the_code_state_and_its_joined_kinds_follow(
+    calibration: server.Calibration,
+) -> None:
+    _, code = ask(calibration, {"hash": ""})
+    split = split_on_the_page(code["state"], "faction.takeover")
+    _, joined = ask(
+        calibration, {"state": {**split, "scalings": {**split["scalings"], "nation.cession": "faction.takeover"}}}
+    )
+    # The page joins the split kind back and moves the kinds joined to its scaling with it; the split shares go.
+    back = {
+        **joined["state"],
+        "rises": {name: share for name, share in joined["state"]["rises"].items() if name != "faction.takeover"},
+        "drops": {name: share for name, share in joined["state"]["drops"].items() if name != "faction.takeover"},
+        "scalings": {},
+    }
+
+    _, answer = ask(calibration, {"state": back})
+
+    assert joined["hash"] == "scaling=faction.takeover:faction.takeover,nation.cession:faction.takeover"
+    assert (answer["hash"], answer["is_code"]) == ("", True)
+    assert answer["state"]["scalings"] == {}
+
+
+def test_a_focus_names_a_scaling_and_one_no_longer_split_is_refused(calibration: server.Calibration) -> None:
+    _, code = ask(calibration, {"hash": ""})
+    split = split_on_the_page(code["state"], "faction.takeover")
+
+    _, focused = ask(calibration, {"state": {**split, "focus": "faction.takeover"}})
+    _, stale = ask(calibration, {"state": {**code["state"], "focus": "faction.takeover"}})
+
+    assert focused["hash"] == "scaling=faction.takeover:faction.takeover&focus=faction.takeover"
+    assert "unknown focus scaling 'faction.takeover'" in stale["error"]
+
+
 def without_row_columns(answer: dict[str, Any]) -> dict[str, Any]:
     """A full answer as a summary answer is meant to read: no per-campaign event and draft-row columns, no readout."""
     campaigns = {

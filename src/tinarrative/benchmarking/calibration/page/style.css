@@ -284,7 +284,7 @@ button:disabled { cursor: default; }
 
 section + section, .control + .chart, .dial + section { margin-top: 22px; }
 
-/* The dial: the reference control and the chart. Where the window is tall enough to leave room under it, it stays
+/* The dial: the cut-off controls and the chart. Where the window is tall enough to leave room under it, it stays
    under the header bar while the column scrolls; a rule marks its edge once the column runs beneath it. */
 .dial { background: var(--ground); }
 @media (min-width: 721px) and (min-height: 700px) {
@@ -332,7 +332,7 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .link-button:hover, .type-button:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .type-button { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
-/* --- Measure chips and the reference control --- */
+/* --- Scaling chips and the cut-off controls --- */
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -353,6 +353,8 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .chip-value { font-variant-numeric: tabular-nums; color: var(--ink-3); font-weight: 400; }
 .chip[aria-pressed="true"] .chip-value { color: var(--ink); }
 .chip-changed .chip-value, .chip-changed[aria-pressed="true"] .chip-value { color: var(--rise-ink); font-weight: 600; }
+/* A split scaling is named by its type, set as the page sets type IDs. */
+.chip-split .chip-name { font-size: 12px; }
 /* A figure stacked on a hidden bold copy of the widest figure it can show: the slot keeps that width whatever the
    figure, its weight included. */
 .slot { display: inline-grid; justify-items: start; font-variant-numeric: tabular-nums; }
@@ -365,13 +367,21 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .chip-small[aria-pressed="true"] { border-color: var(--rise); color: var(--rise-ink); }
 
 .control { margin-top: 14px; }
-/* The row wraps the type filter onto its own line before anything in it would squeeze or overlap; the share
-   window holds slots as wide as its widest figures, so where it wraps depends on the width, never on the slider. */
-.control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+/* The row wraps the type filter onto its own line before anything in it would squeeze or overlap; the width
+   readout holds slots as wide as its widest figures, so where it wraps depends on the width, never on a slider.
+   The drop share sits left of the rise share, as the two thumbs and the two lines on the chart do. */
+.control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; min-width: 0; }
+.share-field { display: inline-flex; flex: none; align-items: center; gap: 6px; }
 .control-label { flex: none; color: var(--ink-2); }
+/* Each field is keyed to its thumb and its line on the chart by a short rule in their colour. */
+.edge-label { display: inline-flex; align-items: center; gap: 6px; }
+.edge-label::before { content: ""; width: 3px; height: 13px; border-radius: 1px; }
+.edge-drop::before { background: var(--drop); }
+.edge-rise::before { background: var(--rise); }
 .control-window { color: var(--ink-3); font-size: 12px; white-space: nowrap; }
+.control-window-own { color: var(--ink); }
 .control-type { display: flex; flex: 1 1 12rem; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; }
-.ref-value {
+.share-value {
   width: 12ch;
   height: 28px;
   padding: 0 7px;
@@ -381,9 +391,10 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.ref-value[aria-invalid="true"] { border-color: var(--rise); }
-.ref-error { min-height: 0; margin: 0; color: var(--rise-ink); font-size: 12px; }
-.ref-error:empty { display: none; }
+.share-value::placeholder { color: var(--ink-3); font-weight: 400; }
+.share-value[aria-invalid="true"] { border-color: var(--rise); }
+.share-error { min-height: 0; margin: 6px 0 0; color: var(--rise-ink); font-size: 12px; }
+.share-error:empty { display: none; }
 .type-filter {
   flex: 0 1 17rem;
   min-width: 5rem;
@@ -397,17 +408,38 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .type-filter-on { border-color: var(--ink); font-weight: 600; }
 
 .slider-track { margin-top: 12px; }
+/* Two range inputs on one track: only their thumbs take the pointer, so each cut-off is dragged by its own thumb and
+   stepped by its own keys; between them the window's band takes it and moves both. */
+.slider-pair { position: relative; height: 20px; }
+.slider-pair::before { content: ""; position: absolute; left: 7px; right: 7px; top: 9px; height: 2px; background: var(--rule-strong); }
+/* The band is the window: it takes the pointer between the thumbs, over the thumbs' full height. */
+.slider-band {
+  position: absolute;
+  top: 8px;
+  height: 4px;
+  border-radius: 1px;
+  background: var(--ink-3);
+  cursor: grab;
+  touch-action: none;
+  transition: background-color 150ms ease-out;
+}
+.slider-band::before { content: ""; position: absolute; inset: -8px 0; }
+.slider-band:hover, .slider-band-held { background: var(--ink-2); }
+.slider-band-held { cursor: grabbing; }
 .slider {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 20px;
   margin: 0;
   background: transparent;
+  pointer-events: none;
   -webkit-appearance: none;
   appearance: none;
 }
-.slider::-webkit-slider-runnable-track { height: 2px; background: var(--rule-strong); }
-.slider::-moz-range-track { height: 2px; background: var(--rule-strong); }
+.slider::-webkit-slider-runnable-track { height: 2px; background: transparent; }
+.slider::-moz-range-track { height: 2px; background: transparent; }
 .slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
@@ -415,14 +447,28 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
   margin-top: -9px;
   border: 0;
   border-radius: 2px;
-  background: var(--ink);
-  box-shadow: 0 1px 2px rgba(16, 24, 36, 0.3);
+  background: var(--rise);
+  box-shadow: inset 0 0 0 1px rgba(16, 24, 36, 0.18), 0 1px 2px rgba(16, 24, 36, 0.3);
   cursor: grab;
+  pointer-events: auto;
 }
-.slider::-moz-range-thumb { width: 14px; height: 20px; border: 0; border-radius: 2px; background: var(--ink); cursor: grab; }
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 20px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--rise);
+  box-shadow: inset 0 0 0 1px rgba(16, 24, 36, 0.18), 0 1px 2px rgba(16, 24, 36, 0.3);
+  cursor: grab;
+  pointer-events: auto;
+}
+.slider-drop::-webkit-slider-thumb { background: var(--drop); }
+.slider-drop::-moz-range-thumb { background: var(--drop); }
+.slider-rise { z-index: 1; }
 .slider:active::-webkit-slider-thumb { cursor: grabbing; }
 .slider:focus-visible { outline: none; }
 .slider:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
+.slider:focus-visible::-moz-range-thumb { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 /* --- The window chart --- */
 
@@ -439,9 +485,15 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .chart-svg .bar-rise { fill: var(--rise); }
 .chart-svg .bar-other { opacity: 0.32; }
 .chart-svg .bar-focus { fill: none; stroke: var(--ink); stroke-width: 1; }
-.chart-svg .cut { stroke: var(--rise); stroke-width: 1; shape-rendering: crispEdges; }
-.chart-svg .ref-line { stroke: var(--ink); stroke-width: 1.5; }
-.chart-svg .ref-text { fill: var(--ink); font-size: 11px; font-weight: 600; }
+.chart-svg .cut { stroke: var(--rise); stroke-width: 1; stroke-opacity: 0.7; shape-rendering: crispEdges; }
+.chart-svg .cut-drop { stroke: var(--drop); }
+/* The window's two cut-offs, the ones the thumbs set: heavier than the further ones, each in its side's colour. */
+.chart-svg .edge { stroke-width: 1.5; }
+.chart-svg .edge-drop { stroke: var(--drop); }
+.chart-svg .edge-rise { stroke: var(--rise); }
+.chart-svg .edge-text { font-size: 11px; font-weight: 600; }
+.chart-svg .edge-text-drop { fill: var(--drop-ink); }
+.chart-svg .edge-text-rise { fill: var(--rise-ink); }
 .chart-svg .code-line { stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart-svg .code-text { fill: var(--ink-3); font-size: 10px; }
 .chart-svg .pointer-line { stroke: var(--ink-3); stroke-width: 0.75; stroke-dasharray: 2 2; pointer-events: none; }
@@ -455,6 +507,7 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .swatch-keep { background: var(--keep); }
 .swatch-rise { background: var(--rise); }
 .swatch-cut { width: 2px; height: 12px; background: var(--rise); }
+.swatch-cut-drop { margin-right: -2px; background: var(--drop); }
 
 /* --- Cut-offs, set like a tide table --- */
 
@@ -620,7 +673,7 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .count-base:hover { background: var(--surface); }
 .count-divider { margin: 0; padding: 12px 0 4px; border-bottom: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; }
 
-/* --- References and drafts --- */
+/* --- Scalings, their kinds, and the drafts --- */
 
 .reference-table { width: 100%; margin-top: 8px; border-collapse: collapse; }
 .reference-table th, .reference-table td { height: 25px; padding: 0 8px 0 0; border-bottom: 1px solid var(--rule); text-align: left; font-weight: 400; }
@@ -629,7 +682,43 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
 .reference-table tbody tr { color: var(--ink-2); }
 .reference-table tr.focused { color: var(--ink); }
 .reference-table tr.focused th { font-weight: 600; }
-.reference-table tr.changed .ref-current { color: var(--rise-ink); font-weight: 600; }
+.scaling-name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.scaling-table .scaling-measure, .scaling-table .scaling-code { color: var(--ink-3); font-size: 12px; }
+.scaling-table td.moved { color: var(--rise-ink); font-weight: 600; }
+.scaling-table tr.changed .link-button { color: var(--rise-ink); }
+.scaling-default { color: var(--ink-3); font-size: 12px; }
+.badge-split { border-color: var(--rise); color: var(--rise-ink); cursor: default; }
+
+/* The kinds on the focused scaling's measure: a fixed list per measure, scrolling inside a fixed height, the
+   focused scaling's kinds in ink and the others muted, a reassigned kind in the rise ink. */
+.kinds-head { margin: 18px 0 0; }
+.kinds-head .subsection-title { margin: 0; }
+.kinds-scroll {
+  max-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-bottom: 1px solid var(--rule-strong);
+}
+.kind-table { margin-top: 4px; }
+.kind-table thead th { position: sticky; top: 0; z-index: 1; background: var(--ground); box-shadow: inset 0 -1px 0 var(--rule-strong); border-bottom: 0; }
+.kind-table tbody tr:last-child th, .kind-table tbody tr:last-child td { border-bottom: 0; }
+.kind-table th[scope="row"] { max-width: 0; width: 100%; }
+.kind-table .type-button { display: block; max-width: 100%; color: inherit; }
+.kind-table .type-button[aria-pressed="true"] { font-weight: 600; }
+.kind-table .num { min-width: 6ch; }
+.kind-table tr.focused th { font-weight: 400; }
+.kind-table tr.changed .type-button { color: var(--rise-ink); font-weight: 600; }
+.kind-cell { padding-left: 10px !important; }
+.kind-scaling {
+  width: 14rem;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  background: var(--surface);
+  font-size: 12px;
+}
+.kind-table tr.changed .kind-scaling { border-color: var(--rise); color: var(--rise-ink); font-weight: 600; }
 .drafts { margin: 0; padding: 0; list-style: none; }
 .draft-line {
   display: flex;
@@ -1063,18 +1152,21 @@ section + section, .control + .chart, .dial + section { margin-top: 22px; }
   *, *::before, *::after { transition-duration: 0ms !important; }
 }
 
-/* --- One column, by importance: the focused measure and its cut-offs, totals, members, level counts, references. --- */
+/* --- One column, by importance: the focused scaling and its cut-offs, totals, members, level counts, scalings. --- */
 
 @media (max-width: 1100px) {
   .layout { display: flex; flex-direction: column; align-items: stretch; padding: 18px 20px 40px; }
   .column { display: contents; }
   .chips { order: 1; }
-  .control { order: 2; }
-  .chart { order: 3; }
+  .dial { order: 2; }
   .cutoffs { order: 4; }
   .totals { order: 5; margin-top: 30px; }
   .members { order: 6; }
   .counts { order: 7; }
-  .references { order: 8; margin-top: 30px; }
+  .scalings { order: 8; margin-top: 30px; }
   .bases { order: 9; margin-top: 30px; }
+}
+/* In one column the page has the same gutter on both sides, so the sticky dial reaches it on both. */
+@media (min-width: 721px) and (min-height: 700px) and (max-width: 1100px) {
+  .dial { margin-right: -20px; padding-right: 20px; }
 }

@@ -3,8 +3,9 @@
 // A classic script served by that command. index.js and status.js are loaded by index.html; the campaign tables are
 // injected here. The server replays the table: this page holds no scoring, no state codec and no readout wording,
 // and the hash is an opaque string the server gives it (ADR-0022). The layout is built once and then updated in
-// place, so the slider keeps its focus and nothing in the left column changes size while a rise share slides. The
-// slider sets the rise share of the focus measure's starting scaling; the page holds no other scaling control.
+// place, so a slider keeps its focus and nothing in the left column changes size while a share slides. The page is
+// built around scalings: one is in focus, its two cut-offs (the drop and the rise share) slide on the chart's axis,
+// and a kind can be split off its scaling or joined to another on the same measure.
 (function () {
   "use strict";
 
@@ -28,6 +29,10 @@
   const STATUS_POLL = 500;
   const STATUS_GRACE = 20000;
   const SLIDER_STEP = 0.01;
+  // The narrowest window the sliders leave between the drop and the rise share, in decades; the fields allow any.
+  const MIN_GAP = 0.2;
+  // How far Shift with an arrow key moves the whole window, in decades.
+  const SHIFT_STEP = 0.05;
   const CHART_HEIGHT = 270;
   const CHART_MARGIN = { top: 22, right: 12, bottom: 26, left: 40 };
   const BIN = 0.1;
@@ -314,6 +319,12 @@
     baseRows: new Map(),
     basesShow: "all",
     basesFind: "",
+    measuredBy: {},
+    chipsLayout: "",
+    scalingsLayout: "",
+    scalingRows: new Map(),
+    kindsLayout: "",
+    kindRows: new Map(),
 
     init(index, tables, drafts) {
       this.index = index;
@@ -452,7 +463,8 @@
       return Object.assign({}, result, { moves: unfiltered.moves, campaigns });
     },
 
-    // Everything the rise share does not change: row positions, the types each measure shares, the chart domains.
+    // Everything the shares do not change: row positions, the types each measure shares (in all and per campaign),
+    // the chart domains.
     prepare() {
       const types = new Set();
       const shares = {};
@@ -462,6 +474,7 @@
       }
       for (const [name, rows] of Object.entries(this.tables)) {
         const positions = new Map();
+        const measured = {};
         rows.forEach((row, position) => {
           positions.set(row.id, position);
           types.add(row.type);
@@ -469,9 +482,12 @@
             const counts = this.measuredTypes[share.measure];
             if (!counts) continue;
             counts.set(row.type, (counts.get(row.type) || 0) + 1);
+            const own = measured[share.measure] || (measured[share.measure] = new Map());
+            own.set(row.type, (own.get(row.type) || 0) + 1);
             if (share.share > 0) shares[share.measure].push(share.share);
           }
         });
+        this.measuredBy[name] = measured;
         this.positions[name] = positions;
         const counts = new Map();
         for (const row of rows) {
@@ -488,8 +504,12 @@
       const events = (type) => Object.values(this.typeCounts).reduce((sum, counts) => sum + ((counts.get(type) || {}).events || 0), 0);
       this.baseOrder = Object.keys(this.index.kinds).sort((a, b) => events(b) - events(a) || (a < b ? -1 : 1));
       for (const measure of this.measures) {
-        // Around the code scaling's midpoint, from below its drop share to above its rise share.
-        const code = Math.log10(this.codeRise(measure)) - Math.log10(this.index.constants.default_width) / 2;
+        // Around the midpoint of the measure's starting scaling, from below its drop share to above its rise share. A
+        // scaling split off later starts as a copy, so the measure's domain serves every scaling on it.
+        const start = this.index.scalings[measure] || Object.values(this.index.scalings).find((spec) => spec.measure === measure);
+        const rise = start ? start.rise : 1;
+        const drop = start && start.drop !== null ? start.drop : rise / this.index.constants.default_width;
+        const code = (Math.log10(rise) + Math.log10(drop)) / 2;
         let low = code - 1.75;
         let high = code + 1.75;
         for (const share of shares[measure]) {
@@ -501,8 +521,114 @@
       }
     },
 
+    // --- Scalings ------------------------------------------------------------------------------------------
+    //
+    // The state names each scaling's rise share (and any drop share) and the types reassigned from their kind's
+    // scaling: a type mapped to its own name is split off, one mapped to another scaling is joined to it. A starting
+    // scaling is named after its measure; a split one after its type.
+
+    // The focused scaling: the state's, else the index's first.
     get focus() {
-      return this.state.focus || this.measures[0];
+      const focus = this.state.focus;
+      return focus && this.state.rises[focus] !== undefined ? focus : Object.keys(this.index.scalings)[0];
+    },
+
+    get focusMeasure() {
+      return this.measureOf(this.focus);
+    },
+
+    // Every scaling of the state, the index's first, in the server's order.
+    scalingNames() {
+      return Object.keys(this.state.rises);
+    },
+
+    // The index's scaling of a name, or for a split one the code scaling it starts as a copy of.
+    codeScaling(name) {
+      return this.index.scalings[name] || this.index.scalings[this.index.kinds[name].scaling];
+    },
+
+    isSplit(name) {
+      return !this.index.scalings[name];
+    },
+
+    measureOf(name) {
+      return this.codeScaling(name).measure;
+    },
+
+    scalingLabel(name) {
+      return this.isSplit(name) ? name : this.index.measures[this.measureOf(name)].label;
+    },
+
+    // The scaling a type's share is read by in the state, or null for an unscaled type.
+    typeScaling(type) {
+      const kind = this.index.kinds[type];
+      if (this.state.scalings && this.state.scalings[type]) return this.state.scalings[type];
+      return kind ? kind.scaling : null;
+    },
+
+    // The scaling that reads a row's share on a measure: its type's when it reads that measure; a hand-built table may
+    // hold a type its index does not, which reads the measure's starting scaling.
+    shareScaling(type, measure) {
+      const name = this.typeScaling(type);
+      if (name && this.measureOf(name) === measure) return name;
+      return this.index.kinds[type] ? null : this.index.scalings[measure] ? measure : null;
+    },
+
+    // The types the focused scaling reads, with their events that carry a share on its measure in the whole table.
+    focusTypes() {
+      const focus = this.focus;
+      const measure = this.measureOf(focus);
+      return new Map([...this.measuredTypes[measure]].filter(([type]) => this.shareScaling(type, measure) === focus));
+    },
+
+    // The kinds whose code scaling reads a measure, most measured events first.
+    kindsReading(measure) {
+      const counts = this.measuredTypes[measure];
+      return Object.keys(this.index.kinds)
+        .filter((type) => this.index.kinds[type].scaling && this.measureOf(this.index.kinds[type].scaling) === measure)
+        .sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0) || (a < b ? -1 : 1));
+    },
+
+    codeRise(name) {
+      return this.codeScaling(name).rise;
+    },
+
+    // The code's drop share of a scaling, or null for the default width.
+    codeDrop(name) {
+      return this.codeScaling(name).drop;
+    },
+
+    // A scaling's window in the state: an event keeps its starting level between the drop share and the rise share.
+    sharesOf(name) {
+      const rise = this.state.rises[name];
+      const drop = this.state.drops ? this.state.drops[name] : undefined;
+      return [drop === undefined ? rise / this.index.constants.default_width : drop, rise];
+    },
+
+    hasDrop(name) {
+      return Boolean(this.state.drops) && this.state.drops[name] !== undefined;
+    },
+
+    // A scaling differs from the code's: a split one always does, since it is a new scaling.
+    scalingChanged(name) {
+      if (this.isSplit(name)) return true;
+      const drop = this.hasDrop(name) ? this.state.drops[name] : null;
+      return this.state.rises[name] !== this.codeRise(name) || drop !== this.codeDrop(name);
+    },
+
+    // The types each scaling reads in the state.
+    kindsOf() {
+      const kinds = new Map(this.scalingNames().map((name) => [name, []]));
+      for (const type of Object.keys(this.index.kinds)) {
+        const name = this.typeScaling(type);
+        if (name && kinds.has(name)) kinds.get(name).push(type);
+      }
+      return kinds;
+    },
+
+    // A focus as the state holds it: none for the index's first scaling, which is the page's default.
+    focusValue(name) {
+      return name === Object.keys(this.index.scalings)[0] ? null : name;
     },
 
     // --- Building the fixed layout ------------------------------------------------------------------------
@@ -527,35 +653,14 @@
         );
       }
       $("reset").addEventListener("click", () => {
-        // A state of the focus alone: every key left out is the code's.
-        this.ask({ state: { focus: this.state.focus } }, { resort: true, layout: true });
+        // A state of the focus alone: every key left out is the code's. A split scaling goes, so its code one stays.
+        const focus = this.isSplit(this.focus) ? this.index.kinds[this.focus].scaling : this.focus;
+        this.ask({ state: { focus: this.focusValue(focus) } }, { resort: true, layout: true });
       });
       $("copy").addEventListener("click", () => this.copy());
 
-      const chips = $("chips");
-      for (const measure of this.measures) {
-        const spec = this.index.measures[measure];
-        chips.append(
-          el(
-            "button",
-            {
-              type: "button",
-              class: "chip",
-              "data-measure": measure,
-              title: spec.description,
-              onclick: () => this.setFocus(measure),
-            },
-            el("span", { class: "chip-name", text: spec.label }),
-            el("span", { class: "chip-value" }),
-          ),
-        );
-      }
-
-      const slider = $("ref-slider");
-      slider.step = String(SLIDER_STEP);
-      slider.addEventListener("pointerdown", () => {
-        this.dragging = true;
-      });
+      // The two cut-offs of the focused scaling: a slider each on the chart's share axis, the rise share's above the
+      // drop share's, and a field each for an exact value.
       const release = () => {
         if (!this.dragging) return;
         this.dragging = false;
@@ -563,43 +668,75 @@
       };
       window.addEventListener("pointerup", release);
       window.addEventListener("pointercancel", release);
-      slider.addEventListener("input", () => {
-        this.setReference(this.sliderReference(Number(slider.value)), { from: "slider" });
-        if (this.dragging) this.drag();
-      });
-      slider.addEventListener("keydown", () => {
-        this.dragging = false;
-      });
-      slider.addEventListener("change", () => {
-        if (!this.dragging) this.settle();
-      });
+      for (const edge of ["drop", "rise"]) {
+        const slider = $(`${edge}-slider`);
+        slider.step = String(SLIDER_STEP);
+        slider.addEventListener("pointerdown", () => {
+          this.dragging = true;
+        });
+        slider.addEventListener("input", () => {
+          this.slide(edge, Number(slider.value));
+          if (this.dragging) this.drag();
+        });
+        slider.addEventListener("keydown", (event) => {
+          this.dragging = false;
+          // Shift with an arrow key moves the whole window, as dragging the band between the thumbs does.
+          const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[event.key];
+          if (!event.shiftKey || !step) return;
+          event.preventDefault();
+          this.shiftWindow(this.windowHold(), step * SHIFT_STEP);
+          this.settle();
+        });
+        slider.addEventListener("change", () => {
+          if (!this.dragging) this.settle();
+        });
 
-      const value = $("ref-value");
-      const commit = () => {
-        const text = value.value.trim();
-        const number = /^(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(text) ? Number(text) : NaN;
-        if (!Number.isFinite(number) || number <= 0) {
-          value.setAttribute("aria-invalid", "true");
-          $("ref-error").textContent = `Enter a positive share, such as ${fmt(this.codeRise(this.focus))}.`;
-          return;
-        }
-        value.removeAttribute("aria-invalid");
-        $("ref-error").textContent = "";
-        this.setReference(number, { from: "field" });
-        this.settle();
-      };
-      value.addEventListener("change", commit);
-      value.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") commit();
-        if (event.key === "Escape") {
-          value.value = String(this.state.rises[this.focus]);
-          value.removeAttribute("aria-invalid");
-          $("ref-error").textContent = "";
-        }
+        const value = $(`${edge}-value`);
+        const commit = () => this.commitField(edge);
+        value.addEventListener("change", commit);
+        value.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") commit();
+          if (event.key === "Escape") {
+            this.fillField(edge, true);
+            this.clearFieldError();
+          }
+        });
+      }
+      // The band between the thumbs is the window itself: dragging it moves both cut-offs by the same factor, so the
+      // window keeps its width (to the three figures each share is written with).
+      const band = $("slider-band");
+      band.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        band.setPointerCapture(event.pointerId);
+        const track = band.parentElement.getBoundingClientRect().width - 14;
+        const hold = this.windowHold();
+        this.bandDrag = Object.assign(hold, { x: event.clientX, perPixel: (hold.domain.high - hold.domain.low) / track, shift: 0 });
+        this.dragging = true;
+        band.classList.add("slider-band-held");
       });
-      $("ref-code").addEventListener("click", () => {
-        this.setReference(this.codeRise(this.focus), { from: "code" });
-        this.settle();
+      band.addEventListener("pointermove", (event) => {
+        const hold = this.bandDrag;
+        if (!hold || !this.dragging) return;
+        const shift = Math.round(((event.clientX - hold.x) * hold.perPixel) / SLIDER_STEP) * SLIDER_STEP;
+        if (shift === hold.shift) return;
+        hold.shift = shift;
+        this.shiftWindow(hold, shift);
+        this.drag();
+      });
+      const letGo = () => {
+        this.bandDrag = null;
+        band.classList.remove("slider-band-held");
+      };
+      band.addEventListener("pointerup", letGo);
+      band.addEventListener("pointercancel", letGo);
+      band.addEventListener("lostpointercapture", letGo);
+
+      $("rise-code").addEventListener("click", () => {
+        this.setShares({ rise: this.codeRise(this.focus) }, { from: "code" });
+      });
+      $("drop-code").addEventListener("click", () => {
+        this.setShares({ drop: this.codeDrop(this.focus) }, { from: "code" });
       });
 
       $("type-filter").addEventListener("change", (event) => {
@@ -663,7 +800,7 @@
 
       this.buildChart();
       this.buildTides();
-      this.buildReferences();
+      this.buildDrafts();
       this.buildBases();
       Inspector.init();
     },
@@ -702,7 +839,7 @@
       });
     },
 
-    // The rise share control and the chart stay under the header bar while the column scrolls, so the cut-offs or
+    // The cut-off controls and the chart stay under the header bar while the column scrolls, so the cut-offs or
     // the drafts below can be read with the slider in reach. The bar's height (it wraps on narrow screens) sets
     // where they stick, and a rule marks the edge only once the column runs under them.
     buildDial() {
@@ -774,26 +911,9 @@
       }
     },
 
-    buildReferences() {
-      const body = $("references");
-      for (const measure of this.measures) {
-        const spec = this.index.measures[measure];
-        const measured = [...this.measuredTypes[measure].values()].reduce((sum, count) => sum + count, 0);
-        body.append(
-          el(
-            "tr",
-            { "data-measure": measure },
-            el(
-              "th",
-              { scope: "row" },
-              el("button", { type: "button", class: "link-button", text: spec.label, title: spec.description, onclick: () => this.setFocus(measure) }),
-            ),
-            el("td", { class: "num ref-current" }),
-            el("td", { class: "num", text: fmt(this.codeRise(measure)), title: String(this.codeRise(measure)) }),
-            el("td", { class: "num", text: String(measured) }),
-          ),
-        );
-      }
+    // The Scalings and Kinds rows follow the state's scalings, so they are built as a split or a join changes them;
+    // the draft lines are fixed.
+    buildDrafts() {
       const drafts = this.index.drafts;
       const list = $("drafts");
       if (drafts.length === 0) {
@@ -816,25 +936,148 @@
 
     // --- State changes ------------------------------------------------------------------------------------
 
-    sliderReference(position) {
-      const code = this.codeRise(this.focus);
-      if (Math.abs(position - Math.log10(code)) < SLIDER_STEP / 2) return code;
-      return Number(Math.pow(10, position).toPrecision(3));
+    // A slider position (log10 of a share) as the share it sets, to three figures. The rise share snaps to the code's;
+    // the drop share snaps to the default width, where it follows the rise share again, and to the code's own drop
+    // share. A slider stops MIN_GAP short of the other cut-off; an own drop share stays put while the rise share moves.
+    slide(edge, position) {
+      const name = this.focus;
+      const [drop, rise] = this.sharesOf(name);
+      const near = (share) => share !== null && Math.abs(position - Math.log10(share)) < SLIDER_STEP / 2;
+      const round = (log) => Number(Math.pow(10, log).toPrecision(3));
+      let value;
+      let clamped = false;
+      if (edge === "rise") {
+        value = near(this.codeRise(name)) ? this.codeRise(name) : round(position);
+        if (this.hasDrop(name) && Math.log10(value) - Math.log10(drop) < MIN_GAP) {
+          value = round(Math.log10(drop) + MIN_GAP);
+          clamped = true;
+        }
+      } else {
+        value = near(rise / this.index.constants.default_width) ? null : near(this.codeDrop(name)) ? this.codeDrop(name) : round(position);
+        if (value !== null && Math.log10(rise) - Math.log10(value) < MIN_GAP) {
+          value = round(Math.log10(rise) - MIN_GAP);
+          clamped = true;
+        }
+      }
+      this.setShares({ [edge]: value }, { from: "slider", edge, clamped });
     },
 
-    // A slider moves its own readout at once; the views follow by summary answers while it drags (drag), and the
-    // full replay is asked when it is let go (settle).
-    setReference(value, { from }) {
-      this.state.rises = Object.assign({}, this.state.rises, { [this.focus]: value });
-      // A drop share the new rise share would pass is dropped: the scaling keeps the default width.
-      if (this.state.drops && this.state.drops[this.focus] >= value) {
-        this.state.drops = Object.assign({}, this.state.drops);
-        delete this.state.drops[this.focus];
+    // The focused scaling's window as a shift starts from: both cut-offs in log share, whether the drop share is its
+    // own, and the measure's slider domain.
+    windowHold() {
+      const [drop, rise] = this.sharesOf(this.focus);
+      return { drop: Math.log10(drop), rise: Math.log10(rise), own: this.hasDrop(this.focus), domain: this.domains[this.focusMeasure] };
+    },
+
+    // Move both cut-offs `shift` decades from where a hold started, stopping where the rise share (or an own drop
+    // share) would leave the domain. A default-width drop share follows the rise share by itself, so only an own one
+    // is moved too: it is the rounded rise share over the window's starting width, to four figures rather than the
+    // sliders' three, so the width does not drift as the window moves.
+    shiftWindow(hold, shift) {
+      const { domain } = hold;
+      const lowest = hold.own ? hold.drop : hold.rise;
+      const by = Math.max(domain.low - lowest, Math.min(domain.high - hold.rise, shift));
+      const rise = Number(Math.pow(10, hold.rise + by).toPrecision(3));
+      const change = { rise };
+      if (hold.own) change.drop = Number((rise / Math.pow(10, hold.rise - hold.drop)).toPrecision(4));
+      this.setShares(change, { from: "slider", edge: "band" });
+    },
+
+    // Try a rise share and a drop share (null for the default width) on the focused scaling. A slider moves its own
+    // readout at once; the views follow by summary answers while it drags (drag), and the full replay is asked when
+    // it is let go (settle). A field or a code's button asks for the full replay at once.
+    setShares(change, options) {
+      const name = this.focus;
+      if (change.rise !== undefined) this.state.rises = Object.assign({}, this.state.rises, { [name]: change.rise });
+      if (change.drop !== undefined || (this.hasDrop(name) && this.state.drops[name] >= this.state.rises[name])) {
+        // A drop share the rise share would pass goes too: the scaling keeps the default width.
+        const drops = Object.assign({}, this.state.drops);
+        if (change.drop === null || change.drop === undefined) delete drops[name];
+        else drops[name] = change.drop;
+        this.state.drops = drops;
       }
-      if (from === "slider") {
-        this.renderControl({ from });
+      if (options.from === "slider") {
+        this.renderControl(options);
         this.followChart();
-      } else this.update({ resort: true, from });
+      } else this.update({ resort: true, from: options.from });
+    },
+
+    // A field's value, checked against the other cut-off before it is tried; an empty drop share is the default width.
+    commitField(edge) {
+      const field = $(`${edge}-value`);
+      const text = field.value.trim();
+      const name = this.focus;
+      const [drop, rise] = this.sharesOf(name);
+      if (edge === "drop" && (text === "" || text.toLowerCase() === "default")) {
+        this.clearFieldError();
+        if (this.hasDrop(name)) this.setShares({ drop: null }, { from: "field" });
+        else this.fillField(edge, true);
+        return;
+      }
+      const number = /^(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$/.test(text) ? Number(text) : NaN;
+      let problem = "";
+      if (!(Number.isFinite(number) && number > 0)) {
+        problem =
+          edge === "rise"
+            ? `Enter a positive rise share, such as ${fmt(this.codeRise(name))}.`
+            : `Enter a positive drop share below ${fmt(rise)}, or leave it empty for the default width.`;
+      } else if (edge === "drop" && number >= rise) {
+        problem = `The drop share must be below the rise share, ${fmt(rise)}.`;
+      } else if (edge === "rise" && this.hasDrop(name) && number <= drop) {
+        problem = `The rise share must be above the drop share, ${fmt(drop)}; empty the drop share to keep the default width.`;
+      }
+      if (problem) {
+        field.setAttribute("aria-invalid", "true");
+        $("share-error").textContent = problem;
+        return;
+      }
+      this.clearFieldError();
+      this.setShares({ [edge]: number }, { from: "field" });
+    },
+
+    // A field shows the state's share; an empty drop share field shows the default width's share as its placeholder.
+    fillField(edge, force) {
+      const field = $(`${edge}-value`);
+      const name = this.focus;
+      const [drop, rise] = this.sharesOf(name);
+      if (edge === "drop") field.placeholder = fmt(drop);
+      if (!force && document.activeElement === field) return;
+      field.value = edge === "rise" ? String(rise) : this.hasDrop(name) ? String(drop) : "";
+    },
+
+    clearFieldError() {
+      for (const edge of ["drop", "rise"]) $(`${edge}-value`).removeAttribute("aria-invalid");
+      $("share-error").textContent = "";
+    },
+
+    // Move a type onto another scaling of its measure. Its own name splits it off, as a copy of the scaling it reads
+    // now; its kind's scaling joins it back; any other joins it to that one. A split scaling it leaves goes, and the
+    // types joined to that scaling follow the type to where it goes.
+    assign(type, target) {
+      const current = this.typeScaling(type);
+      if (target === current) return;
+      const next = Object.assign({}, this.state.scalings);
+      const rises = Object.assign({}, this.state.rises);
+      const drops = Object.assign({}, this.state.drops);
+      const place = (eventType, name) => {
+        if (name === this.index.kinds[eventType].scaling) delete next[eventType];
+        else next[eventType] = name;
+      };
+      if (target === type) {
+        rises[type] = rises[current];
+        if (drops[current] !== undefined) drops[type] = drops[current];
+      }
+      place(type, target);
+      if (current === type) {
+        for (const [other, name] of Object.entries(next)) if (name === type && other !== type) place(other, target);
+        delete rises[type];
+        delete drops[type];
+        if (this.focus === type) this.state.focus = this.focusValue(target);
+      }
+      this.state.scalings = next;
+      this.state.rises = rises;
+      this.state.drops = drops;
+      this.update({ resort: true, layout: true });
     },
 
     // The chart draws its window, bars and lines from the controls' state and the table's shares, so it follows the
@@ -847,10 +1090,9 @@
       });
     },
 
-    setFocus(measure) {
-      this.state.focus = measure === this.measures[0] ? null : measure;
-      $("ref-error").textContent = "";
-      $("ref-value").removeAttribute("aria-invalid");
+    setFocus(name) {
+      this.state.focus = this.focusValue(name);
+      this.clearFieldError();
       this.update({ resort: true, layout: true });
     },
 
@@ -910,7 +1152,9 @@
       this.renderTides();
       this.renderDrafts();
       this.renderCounts(options);
-      this.renderReferences();
+      this.renderScalings();
+      this.renderKinds();
+      this.renderDraftLines();
       this.renderBases();
       this.renderTotals();
       this.renderMembers();
@@ -919,7 +1163,7 @@
       Inspector.refresh();
     },
 
-    // What a drag answer redraws: the views that follow the rise share, without re-sorting and without the URL hash,
+    // What a drag answer redraws: the views that follow the shares, without re-sorting and without the URL hash,
     // the event lists, the base-level rows, the members, the drawer and the readout.
     renderDrag() {
       this.renderControl({ from: "slider" });
@@ -948,44 +1192,109 @@
       }
     },
 
-    renderControl(options) {
+    // One chip per scaling of the state, in its order: the starting scalings by their measure, a split one by its
+    // type. The strip is rebuilt only when a split or a join changes the scalings.
+    renderChips() {
+      const names = this.scalingNames();
+      const chips = $("chips");
+      if (this.chipsLayout !== names.join("|")) {
+        this.chipsLayout = names.join("|");
+        chips.replaceChildren(
+          ...names.map((name) => {
+            const measure = this.index.measures[this.measureOf(name)];
+            const code = this.index.kinds[name] ? this.index.kinds[name].scaling : null;
+            return el(
+              "button",
+              {
+                type: "button",
+                class: `chip${this.isSplit(name) ? " chip-split" : ""}`,
+                "data-scaling": name,
+                title: this.isSplit(name) ? `${name}'s own scaling, split off ${code} on ${measure.label}` : measure.description,
+                onclick: () => this.setFocus(name),
+              },
+              el("span", { class: "chip-name", text: this.scalingLabel(name) }),
+              el("span", { class: "chip-value" }),
+            );
+          }),
+        );
+      }
       const focus = this.focus;
-      for (const chip of document.querySelectorAll("#chips .chip")) {
-        const measure = chip.dataset.measure;
-        const value = this.state.rises[measure];
-        const changed = value !== this.codeRise(measure);
-        chip.setAttribute("aria-pressed", String(measure === focus));
-        chip.classList.toggle("chip-changed", changed);
-        setSlot(chip.querySelector(".chip-value"), fmt(value), this.widestCut(measure, 1));
+      for (const chip of chips.querySelectorAll(".chip")) {
+        const name = chip.dataset.scaling;
+        chip.setAttribute("aria-pressed", String(name === focus));
+        chip.classList.toggle("chip-changed", this.scalingChanged(name));
+        setSlot(chip.querySelector(".chip-value"), fmt(this.state.rises[name]), this.widestCut(name, 1));
       }
-      const rise = this.state.rises[focus];
-      const code = this.codeRise(focus);
-      const domain = this.domains[focus];
-      const slider = $("ref-slider");
-      slider.min = String(domain.low);
-      slider.max = String(domain.high);
-      if (options.from !== "slider") slider.value = String(Math.log10(rise));
-      slider.setAttribute("aria-valuetext", `${fmt(rise)} (code's ${fmt(code)})`);
-      const field = $("ref-value");
-      if (options.from !== "field" && document.activeElement !== field) field.value = String(rise);
-      else if (options.from === "field") field.value = String(rise);
-      $("ref-code").disabled = rise === code;
-      $("ref-code").title = `Set ${this.index.measures[focus].label} back to the code's ${code}`;
-      const [drop] = this.windowShares();
-      const range = $("ref-window");
-      if (!range.querySelector(".slot")) {
-        range.replaceChildren("keeps ", el("span", { class: "slot slot-end" }), " – ", el("span", { class: "slot" }));
+    },
+
+    renderControl(options) {
+      this.renderChips();
+      const focus = this.focus;
+      const [drop, rise] = this.sharesOf(focus);
+      const domain = this.domains[this.measureOf(focus)];
+      const span = domain.high - domain.low;
+      const at = (share) => Math.max(0, Math.min(1, (Math.log10(share) - domain.low) / span));
+      for (const [edge, share] of [["drop", drop], ["rise", rise]]) {
+        const slider = $(`${edge}-slider`);
+        slider.min = String(domain.low);
+        slider.max = String(domain.high);
+        // The slider under the pointer keeps its own position, unless it was stopped short of the other cut-off.
+        if (options.from !== "slider" || options.edge !== edge || options.clamped) slider.value = String(Math.log10(share));
+        this.fillField(edge, options.from === "field" || options.from === "code");
       }
-      const [low, high] = range.querySelectorAll(".slot");
-      setSlot(low, fmt(drop), this.widestCut(focus, -1));
-      setSlot(high, fmt(rise), this.widestCut(focus, 1));
+      const codeRise = this.codeRise(focus);
+      const codeDrop = this.codeDrop(focus);
+      const label = this.scalingLabel(focus);
+      $("rise-slider").setAttribute("aria-valuetext", `${fmt(rise)} (code's ${fmt(codeRise)})`);
+      $("drop-slider").setAttribute("aria-valuetext", this.hasDrop(focus) ? fmt(drop) : `${fmt(drop)}, the default width`);
+      $("rise-code").disabled = rise === codeRise;
+      $("rise-code").title = `Set the rise share of ${label} back to the code's ${codeRise}`;
+      const dropCode = $("drop-code");
+      dropCode.textContent = codeDrop === null ? "Default width" : "Code's";
+      dropCode.disabled = this.hasDrop(focus) ? this.state.drops[focus] === codeDrop : codeDrop === null;
+      dropCode.title =
+        codeDrop === null
+          ? `Drop the own drop share of ${label}: it falls back to the rise share ÷ ${fmt(this.index.constants.default_width)}`
+          : `Set the drop share of ${label} back to the code's ${codeDrop}`;
+      // The stretch of the track between the two thumbs is the window, as the band behind the chart's bars is.
+      const band = $("slider-band");
+      band.style.left = `calc(7px + (100% - 14px) * ${at(drop)})`;
+      band.style.width = `calc((100% - 14px) * ${at(rise) - at(drop)})`;
+
+      // How wide the window is, and how fast a score moves inside a level for it.
+      const readout = $("share-window");
+      if (!readout.querySelector(".slot")) {
+        readout.replaceChildren(
+          el("span", { class: "slot" }),
+          " ",
+          el("span", { class: "slot slot-end" }),
+          "× wide · ",
+          el("span", { class: "slot slot-end" }),
+          " points per tenfold",
+        );
+      }
+      const [kind, ratio, points] = readout.querySelectorAll(".slot");
+      const levelPoints = this.levelPoints();
+      setSlot(ratio, fmt(rise / drop), widestFigure(0, 4));
+      setSlot(points, fmt(levelPoints / Math.log10(rise / drop)), "88.8");
+      readout.classList.toggle("control-window-own", this.hasDrop(focus));
+      setSlot(kind, this.hasDrop(focus) ? "Own width" : "Default width", "Default width");
+      readout.title = this.hasDrop(focus)
+        ? `An own drop share: the window is ${fmt(rise / drop)} times wide, so a score moves ${fmt(levelPoints / Math.log10(rise / drop))} points for each tenfold share`
+        : `The default width: the drop share is the rise share ÷ ${fmt(this.index.constants.default_width)}`;
       if (options.layout || !this.typeOptions) this.renderTypeFilter();
+    },
+
+    // The points a level spans: how far a score moves between the drop and the rise share.
+    levelPoints() {
+      const [low, high] = this.index.constants.level_bands.minor;
+      return high - low + 1;
     },
 
     renderTypeFilter() {
       const select = $("type-filter");
       const focus = this.focus;
-      const measured = [...this.measuredTypes[focus].keys()].sort();
+      const measured = [...this.focusTypes().keys()].sort();
       const measuredSet = new Set(measured);
       const others = this.allTypes.filter((type) => !measuredSet.has(type));
       select.replaceChildren(el("option", { value: "", text: "All types" }));
@@ -993,7 +1302,7 @@
         select.append(el("option", { value: "__several", text: `${this.state.types.length} types (from the link)` }));
       }
       if (measured.length > 0) {
-        select.append(el("optgroup", { label: `Measured by ${this.index.measures[focus].label}` }, ...measured.map((type) => el("option", { value: type, text: type }))));
+        select.append(el("optgroup", { label: `Read by ${this.scalingLabel(focus)}` }, ...measured.map((type) => el("option", { value: type, text: type }))));
       }
       select.append(el("optgroup", { label: "Other types" }, ...others.map((type) => el("option", { value: type, text: type }))));
       select.value = this.state.types.length > 1 ? "__several" : this.state.types[0] || "";
@@ -1001,41 +1310,39 @@
       this.typeOptions = true;
     },
 
-    // The rise share of a measure's starting scaling in the code.
-    codeRise(measure) {
-      return this.index.scalings[measure].rise;
+    // The widest figure a cut-off `step` levels out can show while a scaling's shares slide over its measure's
+    // domain: step 1 is the rise share, step -1 the drop share (down to the default width's below the domain), each
+    // further step one default width out.
+    widestCut(name, step) {
+      const domain = this.domains[this.measureOf(name)];
+      const width = Math.log10(this.index.constants.default_width);
+      if (step < 0) return widestFigure(domain.low + step * width, domain.high + (step + 1) * width);
+      return widestFigure(domain.low + (step - 1) * width, domain.high + (step - 1) * width);
     },
 
-    // The widest figure a cut-off `step` levels out can show while the measure's rise share slides over its
-    // domain: step 1 is the rise share itself, step -1 the default drop share, each further step one width out.
-    widestCut(measure, step) {
-      const domain = this.domains[measure];
-      const shift = (step > 0 ? step - 1 : step) * Math.log10(this.index.constants.default_width);
-      return widestFigure(domain.low + shift, domain.high + shift);
-    },
-
-    // The focus scaling's window: an event keeps its starting level between the drop share and the rise share.
+    // The focused scaling's window: an event keeps its starting level between the drop share and the rise share.
     windowShares() {
-      const rise = this.state.rises[this.focus];
-      const drop = this.state.drops ? this.state.drops[this.focus] : undefined;
-      return [drop === undefined ? rise / this.index.constants.default_width : drop, rise];
+      return this.sharesOf(this.focus);
     },
 
     // --- The window chart -----------------------------------------------------------------------------------
 
     chartData() {
+      // The shares the focused scaling reads: its measure's, of the types that use it.
       const focus = this.focus;
-      const key = `${focus}|${this.state.campaigns.join(",")}|${this.state.types.join(",")}`;
+      const measure = this.measureOf(focus);
+      const assigned = JSON.stringify(this.state.scalings || {});
+      const key = `${focus}|${assigned}|${this.state.campaigns.join(",")}|${this.state.types.join(",")}`;
       if (this.chartModel && this.chartModel.key === key) return this.chartModel;
-      const domain = this.domains[focus];
+      const domain = this.domains[measure];
       const count = Math.round((domain.high - domain.low) / BIN);
       const bins = Array.from({ length: count }, (_, i) => ({ low: domain.low + i * BIN, items: [] }));
       const types = new Set(this.state.types);
       let unshared = 0;
       for (const name of this.state.campaigns) {
         this.tables[name].forEach((row, position) => {
-          const share = row.shares.find((item) => item.measure === focus);
-          if (!share) return;
+          const share = row.shares.find((item) => item.measure === measure);
+          if (!share || this.shareScaling(row.type, measure) !== focus) return;
           if (!(share.share > 0)) {
             unshared += 1;
             return;
@@ -1067,9 +1374,10 @@
       const x = (log) => plotLeft + ((log - model.domain.low) / span) * (plotRight - plotLeft);
       const yMax = niceMax(model.max);
       const y = (count) => plotBottom - (count / yMax) * (plotBottom - plotTop);
-      const rise = this.state.rises[this.focus];
-      const code = this.codeRise(this.focus);
+      const focus = this.focus;
       const [lowCut, highCut] = this.windowShares();
+      const codeHigh = this.codeRise(focus);
+      const codeLow = this.codeDrop(focus) === null ? codeHigh / this.index.constants.default_width : this.codeDrop(focus);
       const filtered = this.state.types.length > 0;
 
       chart.setAttribute("viewBox", `0 0 ${width} ${height}`);
@@ -1134,26 +1442,36 @@
         nodes.push(label);
       }
 
-      // The cut-offs of the current state, placed by their offset from the window's midpoint: exact for the answer's
-      // own state, and they keep pace with the window while the slider is ahead of the last answer.
+      // The further cut-offs of the current state, each one window out, placed by their offset from the window's
+      // midpoint: exact for the answer's own state, and they keep pace with the window while a slider is ahead of the
+      // last answer. The two that bound the window are drawn from the controls' state below.
       const centre = (Math.log10(lowCut) + Math.log10(highCut)) / 2;
-      for (const cutoff of this.result.cutoffs[this.focus] || []) {
+      for (const cutoff of this.result.cutoffs[focus] || []) {
+        if (Math.abs(cutoff.step) === 1) continue;
         const at = x(centre + cutoff.offset);
         if (at < plotLeft || at > plotRight) continue;
-        nodes.push(svg("line", { class: "cut", x1: at, x2: at, y1: plotTop - 4, y2: plotBottom }));
+        nodes.push(svg("line", { class: `cut cut-${cutoff.step < 0 ? "drop" : "rise"}`, x1: at, x2: at, y1: plotTop, y2: plotBottom }));
       }
 
-      // The code's rise share and the current one.
-      const codeAt = x(Math.log10(code));
-      if (codeAt >= plotLeft && codeAt <= plotRight && code !== rise) {
-        nodes.push(svg("line", { class: "code-line", x1: codeAt, x2: codeAt, y1: plotTop, y2: plotBottom }));
-        nodes.push(svg("text", { class: "code-text", x: codeAt + 4, y: plotTop + 10, "text-anchor": "start" }, "code's"));
+      // The code's cut-offs where the state has moved them, dashed.
+      for (const [code, now] of [[codeLow, lowCut], [codeHigh, highCut]]) {
+        const at = x(Math.log10(code));
+        if (at < plotLeft || at > plotRight || code === now) continue;
+        nodes.push(svg("line", { class: "code-line", x1: at, x2: at, y1: plotTop, y2: plotBottom }));
+        nodes.push(svg("text", { class: "code-text", x: at + 4, y: plotTop + 10, "text-anchor": "start" }, "code's"));
       }
-      const refAt = x(Math.log10(rise));
-      if (refAt >= plotLeft && refAt <= plotRight) {
-        nodes.push(svg("line", { class: "ref-line", x1: refAt, x2: refAt, y1: plotTop - 4, y2: plotBottom }));
-        const anchor = refAt < plotLeft + 40 ? "start" : refAt > plotRight - 40 ? "end" : "middle";
-        nodes.push(svg("text", { class: "ref-text", x: refAt, y: plotTop - 8, "text-anchor": anchor }, fmt(rise)));
+
+      // The window's two cut-offs, each named by its share above the plot: the drop share's reads leftwards from its
+      // line, the rise share's rightwards, so the two figures never meet.
+      for (const [edge, share] of [["drop", lowCut], ["rise", highCut]]) {
+        const at = x(Math.log10(share));
+        if (at < plotLeft || at > plotRight) continue;
+        nodes.push(svg("line", { class: `edge edge-${edge}`, x1: at, x2: at, y1: plotTop - 6, y2: plotBottom }));
+        const outward = edge === "drop" ? at - 4 >= plotLeft + 24 : at + 4 <= plotRight - 24;
+        const toLeft = edge === "drop" ? outward : !outward;
+        nodes.push(
+          svg("text", { class: `edge-text edge-text-${edge}`, x: toLeft ? at - 4 : at + 4, y: plotTop - 8, "text-anchor": toLeft ? "end" : "start" }, fmt(share)),
+        );
       }
 
       // The pointer's share.
@@ -1164,10 +1482,10 @@
       chart.replaceChildren(...nodes);
       chart.setAttribute(
         "aria-label",
-        `Share distribution of ${this.index.measures[this.focus].label}: ${plural(
+        `Share distribution of the ${this.scalingLabel(focus)} scaling: ${plural(
           model.bins.reduce((sum, bin) => sum + bin.items.length, 0),
           "measured event",
-        )}, rise share ${fmt(rise)}, drop share ${fmt(lowCut)}. Arrow keys step through the bars.`,
+        )}, drop share ${fmt(lowCut)}, rise share ${fmt(highCut)}. Arrow keys step through the bars.`,
       );
       this.chartGeometry = { plotLeft, plotRight, binWidth, x, y, span };
     },
@@ -1273,7 +1591,7 @@
           }),
         );
       } else {
-        const drafts = this.view === "drafts" && this.index.drafts.some((draft) => draft.measures.includes(this.focus));
+        const drafts = this.view === "drafts" && this.focusDrafts().length > 0;
         const note = drafts ? "Not counted in any real panel" : "Five events on each side of each cut-off";
         chips.replaceChildren(el("span", { class: "section-note", text: note }));
       }
@@ -1398,7 +1716,7 @@
         level: neighbour.level,
         decidedBy: neighbour.decided_by,
         share: neighbour.share,
-        measure: this.focus,
+        measure: this.focusMeasure,
         score: neighbour.score,
       };
     },
@@ -1415,8 +1733,8 @@
     //
     // One row per event type: the levels its events hold now, a band under the stretch that rose or dropped into
     // each level, and the exact changes beside it. Measured types come first, by their measured events or, if chosen,
-    // by how many of their events change level; types that move without a share on the focused measure follow.
-    // Rows only change place when the rise share settles, never while it slides.
+    // by how many of their events change level; types that move without being read by the focused scaling follow.
+    // Rows only change place when a share settles, never while it slides.
 
     setCountOrder(order) {
       if (order === this.countOrder) return;
@@ -1460,12 +1778,13 @@
     renderCounts({ resort } = {}) {
       const focus = this.focus;
       const list = $("counts");
-      const measured = this.measuredTypes[focus];
-      if (this.countsLayout !== focus) {
-        this.countsLayout = focus;
+      const measured = this.focusTypes();
+      const layout = `${focus}|${[...measured.keys()].join(",")}`;
+      if (this.countsLayout !== layout) {
+        this.countsLayout = layout;
         this.countRows.clear();
         this.countExtras = [];
-        // The static order: by the type's measured rows in the whole table, which the rise share never changes.
+        // The static order: by the type's measured rows in the whole table, which no share changes.
         const types = [...measured.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
         this.countStatic = types.map(([type]) => type);
         list.replaceChildren(...types.map(([type]) => this.countRow(type)));
@@ -1486,7 +1805,7 @@
         }
         this.countExtras = extras;
         for (const stale of list.querySelectorAll(".count-divider")) stale.remove();
-        if (extras.length) list.append(el("p", { class: "count-divider", text: `Moving without a ${focus} share` }));
+        if (extras.length) list.append(el("p", { class: "count-divider", text: `Moving, not read by ${this.scalingLabel(focus)}` }));
         for (const type of extras) list.append(this.countRows.has(type) ? this.countRows.get(type).row : this.countRow(type));
       }
 
@@ -1531,7 +1850,7 @@
       const via = shown.reduce((sum, move) => sum + move.via_cited, 0);
       $("counts-note").textContent = shown.length
         ? `${plural(shown.length, "change")} · ${plural(this.result.totals.events_moved, "event")}${via ? `, ${via} via a cited event` : ""}`
-        : "Nothing moves at these rise shares";
+        : "Nothing moves at these shares";
     },
 
     countRow(type) {
@@ -1678,17 +1997,165 @@
 
     // --- Rise shares and drafts --------------------------------------------------------------------------------
 
-    renderReferences() {
-      for (const row of document.querySelectorAll("#references tr")) {
-        const measure = row.dataset.measure;
-        const value = this.state.rises[measure];
-        const changed = value !== this.codeRise(measure);
-        const cell = row.querySelector(".ref-current");
-        cell.textContent = fmt(value);
-        cell.title = String(value);
-        row.classList.toggle("changed", changed);
-        row.classList.toggle("focused", measure === this.focus);
+    // A row per scaling of the state: its name, its measure, its rise and drop shares against the code's, and how
+    // many kinds read it. The rows are rebuilt only when a split or a join changes the scalings.
+    renderScalings() {
+      const names = this.scalingNames();
+      const body = $("scalings");
+      if (this.scalingsLayout !== names.join("|")) {
+        this.scalingsLayout = names.join("|");
+        this.scalingRows.clear();
+        body.replaceChildren(
+          ...names.map((name) => {
+            const measure = this.measureOf(name);
+            const spec = this.index.measures[measure];
+            const code = this.codeScaling(name);
+            const cells = {
+              rise: el("td", { class: "num scaling-share" }),
+              drop: el("td", { class: "num scaling-share" }),
+              kinds: el("td", { class: "num" }),
+            };
+            const codeText = `${fmt(code.rise)} / ${code.drop === null ? "default" : fmt(code.drop)}`;
+            const row = el(
+              "tr",
+              { "data-scaling": name },
+              el(
+                "th",
+                { scope: "row" },
+                el(
+                  "span",
+                  { class: "scaling-name" },
+                  el("button", {
+                    type: "button",
+                    class: "link-button",
+                    text: name,
+                    title: `Focus ${name}`,
+                    onclick: () => this.setFocus(name),
+                  }),
+                  this.isSplit(name) ? el("span", { class: "badge badge-split", text: "split", title: `Split off ${this.index.kinds[name].scaling}; it started as a copy of it` }) : null,
+                ),
+              ),
+              el("td", { class: "scaling-measure", text: spec.label, title: spec.description }),
+              cells.rise,
+              cells.drop,
+              el("td", {
+                class: "num scaling-code",
+                text: codeText,
+                title: this.isSplit(name) ? `The code's ${this.index.kinds[name].scaling}, which this split scaling copied` : `Rise ${code.rise}, drop ${code.drop === null ? "the default width" : code.drop}`,
+              }),
+              cells.kinds,
+            );
+            this.scalingRows.set(name, { row, cells });
+            return row;
+          }),
+        );
       }
+      const kinds = this.kindsOf();
+      let changed = 0;
+      for (const [name, { row, cells }] of this.scalingRows) {
+        const [drop, rise] = this.sharesOf(name);
+        const code = this.codeScaling(name);
+        cells.rise.textContent = fmt(rise);
+        cells.rise.title = String(rise);
+        cells.rise.classList.toggle("moved", rise !== code.rise);
+        const own = this.hasDrop(name);
+        cells.drop.replaceChildren(own ? fmt(drop) : el("span", { class: "scaling-default", text: "default" }));
+        cells.drop.title = own ? String(drop) : `The default width: the rise share ÷ ${fmt(this.index.constants.default_width)}, ${fmt(drop)}`;
+        cells.drop.classList.toggle("moved", (own ? drop : null) !== code.drop);
+        const count = (kinds.get(name) || []).length;
+        cells.kinds.textContent = String(count);
+        cells.kinds.title = (kinds.get(name) || []).join("\n") || "No kind reads it";
+        const isChanged = this.scalingChanged(name);
+        if (isChanged) changed += 1;
+        row.classList.toggle("changed", isChanged);
+        row.classList.toggle("focused", name === this.focus);
+      }
+      const split = names.filter((name) => this.isSplit(name)).length;
+      const joined = Object.entries(this.state.scalings || {}).filter(([type, name]) => name !== type).length;
+      const parts = [];
+      if (split) parts.push(plural(split, "split scaling"));
+      if (joined) parts.push(`${joined} joined`);
+      if (changed - split > 0) parts.push(`${changed - split} tried`);
+      $("scalings-note").textContent = parts.length ? parts.join(" · ") : "Every scaling at the code's";
+    },
+
+    // The kinds on the focused scaling's measure, in a fixed order per measure: each one's events with a share there
+    // and the scaling that reads it. Its select splits it off (its own name), joins it back (its kind's scaling) or
+    // joins it to another scaling on the measure. The kinds of the focused scaling stand out; the others stay listed,
+    // so a split or a join never moves a row.
+    renderKinds() {
+      const focus = this.focus;
+      const measure = this.measureOf(focus);
+      const types = this.kindsReading(measure);
+      const body = $("kinds");
+      if (this.kindsLayout !== measure) {
+        this.kindsLayout = measure;
+        this.kindRows.clear();
+        body.replaceChildren(
+          ...types.map((type) => {
+            const name = el("button", { type: "button", class: "type-button", text: type, onclick: () => this.setType(type) });
+            const events = el("td", { class: "num" });
+            const select = el("select", {
+              class: "kind-scaling",
+              "aria-label": `Scaling of ${type}`,
+              onchange: (event) => this.assign(type, event.target.value),
+            });
+            const row = el("tr", { "data-type": type }, el("th", { scope: "row" }, name), events, el("td", { class: "kind-cell" }, select));
+            this.kindRows.set(type, { row, name, events, select, options: "" });
+            return row;
+          }),
+        );
+      }
+      const names = this.scalingNames().filter((name) => this.measureOf(name) === measure);
+      const label = this.index.measures[measure].label;
+      let onFocus = 0;
+      for (const [type, parts] of this.kindRows) {
+        const current = this.typeScaling(type);
+        const code = this.index.kinds[type].scaling;
+        // Every scaling on the measure, and the kind's own when it is not split off yet.
+        const choices = [...names];
+        if (!choices.includes(type)) choices.push(type);
+        const key = `${choices.join("|")}>${current}`;
+        if (parts.options !== key) {
+          parts.options = key;
+          parts.select.replaceChildren(
+            ...choices.map((name) =>
+              el("option", {
+                value: name,
+                text:
+                  name === type
+                    ? current === type
+                      ? "its own (split off)"
+                      : "split off into its own"
+                    : name === code
+                      ? `${name} (code's)`
+                      : this.isSplit(name)
+                        ? `${name} (split)`
+                        : name,
+              }),
+            ),
+          );
+          parts.select.value = current;
+        }
+        let events = 0;
+        for (const campaign of this.state.campaigns) {
+          const counts = this.measuredBy[campaign][measure];
+          events += counts ? counts.get(type) || 0 : 0;
+        }
+        parts.events.textContent = events ? String(events) : "–";
+        const on = current === focus;
+        if (on) onFocus += 1;
+        parts.row.classList.toggle("focused", on);
+        parts.row.classList.toggle("changed", current !== code);
+        const chosen = this.state.types.length === 1 && this.state.types[0] === type;
+        parts.name.setAttribute("aria-pressed", String(chosen));
+        parts.name.title = chosen ? "Show every type" : `Filter by ${type}`;
+      }
+      $("kinds-title").textContent = `Kinds on ${label}`;
+      $("kinds-note").textContent = `${onFocus} of ${plural(types.length, "kind")} read by ${focus}`;
+    },
+
+    renderDraftLines() {
       for (const line of document.querySelectorAll("#drafts .draft-line[data-draft]")) {
         const draft = this.index.drafts.find((item) => item.name === line.dataset.draft);
         const base = this.state.bases[draft.name];
@@ -1840,10 +2307,16 @@
 
     // --- Draft shares -----------------------------------------------------------------------------------------
     //
-    // Each draft with a candidate on the focused measure gets a panel: its base selector, its rows' levels at that
+    // Each draft read by the focused scaling gets a panel: its base selector, its rows' levels at that
     // base against its own, how many rows a cited event or the kind's context rule decides, and its own rows nearest
     // the two cut-offs the tides show. Its rows never enter the real panels. A panel's size is fixed per focus,
-    // campaigns and types, so nothing grows while a rise share slides.
+    // campaigns and types, so nothing grows while a share slides.
+
+    // The drafts whose share on the focused scaling's measure that scaling reads.
+    focusDrafts() {
+      const focus = this.focus;
+      return this.index.drafts.filter((draft) => Object.values(draft.scalings || {}).includes(focus));
+    },
 
     draftRowsOn(draft, measure) {
       const types = new Set(this.state.types);
@@ -1873,7 +2346,7 @@
     },
 
     // Under the chart sits one of two readings of the same cut-offs: the real events nearest them, or the drafts on
-    // the focused measure. A measure no draft shares shows the real ones and keeps the chosen view for the next.
+    // the focused scaling. A scaling no draft is read by shows the real ones and keeps the chosen view for the next.
     renderView(count) {
       const drafts = this.view === "drafts" && count > 0;
       $("view-switch").hidden = count === 0;
@@ -1889,10 +2362,10 @@
 
     renderDrafts() {
       const focus = this.focus;
-      const drafts = this.index.drafts.filter((draft) => draft.measures.includes(focus));
+      const drafts = this.focusDrafts();
       if (!this.renderView(drafts.length)) return;
       const sizes = drafts.map((draft) => {
-        const rows = this.draftRowsOn(draft, focus);
+        const rows = this.draftRowsOn(draft, this.focusMeasure);
         return { draft, rows, slots: Math.min(this.index.constants.neighbours, rows.filter((item) => item.measured).length) };
       });
       const key = `${focus}|${this.state.campaigns.join(",")}|${this.state.types.join(",")}|${sizes.map((item) => `${item.draft.name}:${item.slots}`).join(",")}`;
@@ -2044,7 +2517,7 @@
         level: neighbour.level,
         decidedBy: neighbour.decided_by,
         share: neighbour.share,
-        measure: this.focus,
+        measure: this.focusMeasure,
         score: neighbour.score,
         badges,
         opens: shadowed,
@@ -2117,7 +2590,7 @@
     eventItem(campaign, position, result) {
       const row = this.tables[campaign][position];
       const event = result.campaigns[campaign] ? result.campaigns[campaign].events[position] : null;
-      const share = row.shares.find((item) => item.measure === this.focus) || row.shares[0] || null;
+      const share = row.shares.find((item) => item.measure === this.focusMeasure) || row.shares[0] || null;
       return {
         campaign,
         row,
@@ -2375,7 +2848,7 @@
 
   // --- The event inspector: one drawer for the event a row opened. -------------------------------------------
   //
-  // Page state only, never in the hash. The parts that the rise share cannot change are built once per event; level,
+  // Page state only, never in the hash. The parts that no share can change are built once per event; level,
   // score, decided-by and the cited rows are refilled in place on every render, so focus inside the drawer survives
   // the slider. Cited and decided-by rows swap the drawer to that event, and Back walks the chain.
 
@@ -2669,7 +3142,7 @@
       else if (decidedBy !== row.id) parts.decided.replaceChildren(el("span", { class: "ins-entity-id", text: decidedBy }));
 
       for (const item of parts.shareRows) {
-        const focused = item.measure === App.focus;
+        const focused = item.measure === App.focusMeasure && App.shareScaling(row.type, item.measure) === App.focus;
         item.tr.classList.toggle("focused", focused);
         item.compare.hidden = !focused;
         if (focused) item.compare.textContent = this.compareText(item.share);
