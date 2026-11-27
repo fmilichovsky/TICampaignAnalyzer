@@ -18,6 +18,7 @@ from tinarrative.benchmarking.calibration.drafts import (
     validate_drafts,
 )
 from tinarrative.benchmarking.calibration.progress import CampaignProgress, ExtractionProgress, ProgressSnapshot
+from tinarrative.benchmarking.calibration.stats import percentiles
 from tinarrative.benchmarking.manifest import decompress_samples, extractable_campaigns, raw_sizes
 from tinarrative.kinds.describe import describe_event
 from tinarrative.kinds.registry import kind_for
@@ -31,7 +32,7 @@ from tinarrative.model.events import (
     Role,
     Significance,
 )
-from tinarrative.model.kinds import Reason, Unexamined, reason_status
+from tinarrative.model.kinds import Measure, Reason, Unexamined, reason_status
 from tinarrative.model.principles import Principle
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.aggregation import interval_shares
@@ -40,6 +41,7 @@ from tinarrative.narrative.geopolitics import TERRITORY_GAINED, readings
 from tinarrative.narrative.measures import MEASURES
 from tinarrative.narrative.nation_metrics import BAND_CROSSED, band_explainers, explainer_of
 from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, ScalingSpec
+from tinarrative.narrative.shares import SaveShares
 from tinarrative.narrative.significance import IntervalShares, decide, score_event
 from tinarrative.narrative.situation import SituationReport
 from tinarrative.sequence import (
@@ -54,7 +56,7 @@ from tinarrative.sequence import (
 )
 from tinarrative.workers import default_jobs
 
-SCHEMA_VERSION: Final = 8
+SCHEMA_VERSION: Final = 9
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -121,7 +123,45 @@ def extract_campaign(
         for event in narrative
         if event.event_type in draft.event_types
     ]
-    return {"events": rows, "drafts": shadows, "names": name_history(situations(intervals))}
+    return {
+        "events": rows,
+        "drafts": shadows,
+        "names": name_history(situations(intervals)),
+        "world": world_quantities(save_shares(intervals)),
+    }
+
+
+WORLD_MEASURES: Final = (
+    Measure.POWER,
+    Measure.POPULATION,
+    Measure.ORGANIZATION,
+    Measure.HAB,
+    Measure.FLEET,
+    Measure.FACTION,
+)
+"""The measures whose entities have shares at a save; a battle's or an arc's share is read from an event."""
+
+
+def world_quantities(saves: Sequence[SaveShares]) -> dict[str, dict[str, Any]]:
+    """How each measure's shares are spread over the entities of the campaign's first save and of its last, and how
+    far an entity in both moved (its last share over its first, where the first is above 0): percentiles of each,
+    under ``first``, ``last`` and ``moved``. Empty for a campaign of no save; a measure no entity has a share on is
+    left out."""
+    if not saves:
+        return {}
+    first, last = saves[0], saves[-1]
+    found: dict[str, dict[str, Any]] = {}
+    for measure in WORLD_MEASURES:
+        before, after = first.of(measure), last.of(measure)
+        moved = [after[entity] / share for entity, share in before.items() if share > 0 and entity in after]
+        entry = {
+            "first": percentiles(list(before.values())),
+            "last": percentiles(list(after.values())),
+            "moved": percentiles(moved),
+        }
+        if any(entry.values()):
+            found[measure.value] = entry
+    return found
 
 
 def _surveyed(progress: CampaignProgress) -> Callable[[Path], None]:
@@ -366,12 +406,14 @@ def build_index(
     kinds: Mapping[str, Mapping[str, Any]],
     drafts: Sequence[DraftShare] | None = None,
     names: Mapping[str, Mapping[str, Any]] | None = None,
+    world: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """The ``index.js`` document: what the rows cannot say about themselves, from the registry, the rules and the
     draft shares (``drafts``, by default the declared ones).
 
     ``kinds`` is the ``type_kinds`` map of the types the campaigns' rows hold; ``names`` is each campaign's
-    ``name_history``. ``scalings`` holds every declared scaling, then each draft's own, in draft order.
+    ``name_history``, ``world`` its ``world_quantities``.
+    ``scalings`` holds every declared scaling, then each draft's own, in draft order.
     """
     chosen = declared_drafts(drafts)
     scalings = {scaling.value: _scaling(spec) for scaling, spec in SCALINGS.items()}
@@ -409,6 +451,7 @@ def build_index(
         "scalings": scalings,
         "kinds": {event_type: dict(kind) for event_type, kind in kinds.items()},
         "names": {campaign: dict(history) for campaign, history in (names or {}).items()},
+        "world": {campaign: dict(found) for campaign, found in (world or {}).items()},
         "drafts": [
             {
                 "name": draft.name,
@@ -486,6 +529,7 @@ def extract_all(
     names: list[str] = []
     types: set[str] = set()
     histories: dict[str, Mapping[str, Any]] = {}
+    worlds: dict[str, Mapping[str, Any]] = {}
     campaigns = extractable_campaigns(samples)
     sizes = {name: raw_sizes(samples, name, files) for name, files in campaigns.items()}
     workers_by_campaign = {
@@ -504,10 +548,13 @@ def extract_all(
         campaign.phase("done")
         names.append(name)
         histories[name] = document["names"]
+        worlds[name] = document["world"]
         types.update(row["type"] for row in document["events"])
     write_index(
         directory,
-        build_index(names, key=key, extracted_at=stamp, kinds=type_kinds(types), drafts=chosen, names=histories),
+        build_index(
+            names, key=key, extracted_at=stamp, kinds=type_kinds(types), drafts=chosen, names=histories, world=worlds
+        ),
     )
     return names
 

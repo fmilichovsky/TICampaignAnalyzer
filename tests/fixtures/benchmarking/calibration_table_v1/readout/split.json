@@ -1,5 +1,5 @@
 {
-  "schema_version": 8,
+  "schema_version": 9,
   "key": "golden",
   "hash": "rise=atomic.near:0.5623413251903492&drop=atomic.near:0.01778279410038923&scaling=atomic.far:atomic.near,atomic.near:atomic.near",
   "state": {

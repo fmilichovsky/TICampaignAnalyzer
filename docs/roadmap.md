@@ -134,7 +134,7 @@ Target: agents that judge event kinds, base levels and scalings against the samp
 - [x] Report views: `--view`, period and tiers (#652).
 - [x] Reasons: a principle, a revision and a stale state (#711).
 - [x] Events view (#653).
-- [ ] Distribution view (#654).
+- [x] Distribution view (#654).
 - [ ] Must-tell lists and the must-tell view (#655).
 - [ ] Theme view and `--theme` (#656).
 - [ ] Crowding view (#657).

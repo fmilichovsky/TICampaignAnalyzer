@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Final, NamedTuple
 
 from tinarrative.benchmarking.calibration.coverage import Tables
+from tinarrative.benchmarking.calibration.distribution import distribution_view, render_distribution
 from tinarrative.benchmarking.calibration.readout import reason_text
 from tinarrative.benchmarking.calibration.replay import (
     LEVELS,
@@ -35,7 +36,9 @@ from tinarrative.narrator.chapters import (
     span_period,
 )
 
-VIEWS: Final = ("period", "tiers", "events")
+VIEWS: Final = ("period", "tiers", "events", "distribution")
+PERIOD_VIEWS: Final = ("period", "tiers", "events")
+"""The views that count events per period; ``--periods`` filters these."""
 """The views ``--view`` takes, in the order they print."""
 TIERS: Final = ("top-level", "member", "cited only", "explained", "below")
 LOW_RESOLUTION_DAYS: Final = 365
@@ -247,11 +250,15 @@ def views_document(
     periods: Sequence[str] = (),
     settings: NarratorSettings | None = None,
     state_hash: str = "",
+    non_standard: Mapping[str, Sequence[str]] | None = None,
+    include_non_standard: bool = False,
 ) -> dict[str, Any]:
     """The JSON document of ``views`` at ``state`` against the code's state on the same campaigns and types.
 
     ``periods`` (comma-separated, repeatable keys) filters the periods printed; a campaign's headline still counts
-    its full window. ``ViewError`` for a period key no enabled campaign has.
+    its full window. ``ViewError`` for a period key no enabled campaign has. ``non_standard`` is each campaign's
+    non-standard marks from its profile; the distribution view leaves a marked campaign out unless
+    ``include_non_standard``.
     """
     tried = replace(state, types=(), focus=None)
     code = replace(default_state(index), campaigns=state.campaigns)
@@ -262,7 +269,10 @@ def views_document(
     counted = {
         name: _counted(index, tables[name], result, baseline, name, campaign_periods(tables[name], period, settings))
         for name in state.campaigns
+        if any(view in views for view in PERIOD_VIEWS)
     }
+    if keys and not counted:
+        raise ViewError("--periods filters the period, tiers and events views; the distribution view has no periods")
     known = {key for _, found in counted.values() for key in found.keys}
     unknown = [key for key in keys if key not in known]
     if unknown:
@@ -289,6 +299,15 @@ def views_document(
         document["views"]["tiers"] = {"types": _tiers_view(counted, types, chosen)}
     if "events" in views:
         document["views"]["events"] = _events_view(index, tables, state, result, baseline, counted, types, chosen)
+    if "distribution" in views:
+        document["views"]["distribution"] = distribution_view(
+            index,
+            tables,
+            drafts,
+            state,
+            non_standard=non_standard or {},
+            include_non_standard=include_non_standard,
+        )
     return document
 
 
@@ -523,6 +542,8 @@ def render_views(document: Mapping[str, Any]) -> str:
         lines += ["", *_tiers_text(views["tiers"]["types"], document["periods"])]
     if "events" in views:
         lines += ["", *_events_text(views["events"])]
+    if "distribution" in views:
+        lines += ["", *render_distribution(views["distribution"])]
     return "\n".join(lines) + "\n"
 
 

@@ -311,6 +311,8 @@ def test_views_replace_the_readout_in_text_and_json(paths: tuple[Path, Path]) ->
         (["--period", "year"], "choose the periods of a --view"),
         (["--periods", "2031"], "choose the periods of a --view"),
         (["--view", "period", "--periods", "1999"], "unknown period"),
+        (["--view", "period", "--include-non-standard"], "belongs to the distribution view"),
+        (["--view", "distribution", "--periods", "2031"], "no periods"),
     ],
 )
 def test_invalid_view_flags_are_usage_errors(paths: tuple[Path, Path], flags: list[str], message: str) -> None:
@@ -318,3 +320,20 @@ def test_invalid_view_flags_are_usage_errors(paths: tuple[Path, Path], flags: li
 
     assert code == cli.EXIT_USAGE_ERROR
     assert message in stderr
+
+
+def test_the_distribution_view_leaves_a_non_standard_sample_out_unless_asked_for(paths: tuple[Path, Path]) -> None:
+    samples, _ = paths
+    manifest = json.loads((samples / "samples.json").read_text(encoding="utf-8"))
+    name = next(iter(manifest["campaigns"]))
+    entry = manifest["campaigns"][name]
+    entry["profile"] = {**(entry.get("profile") or {}), "non_standard": ["research_speed"]}
+    (samples / "samples.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    left = report_json(paths, "--view", "distribution", "--campaign", name)["views"]["distribution"]
+    kept = report_json(paths, "--view", "distribution", "--campaign", name, "--include-non-standard")["views"][
+        "distribution"
+    ]
+
+    assert left["campaigns"] == [] and left["left_out"] == {name: ["research_speed"]}
+    assert kept["campaigns"] == [name] and kept["left_out"] == {name: ["research_speed"]}

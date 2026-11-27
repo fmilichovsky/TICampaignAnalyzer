@@ -27,7 +27,14 @@ from .benchmarking.calibration import server as calibration_server
 from .benchmarking.calibration import timing as calibration_timing
 from .benchmarking.calibration import views as calibration_views
 from .benchmarking.calibration.table import CalibrationTableError
-from .benchmarking.manifest import MANIFEST, sample_files, sha256_file, update_samples, verify_samples
+from .benchmarking.manifest import (
+    MANIFEST,
+    non_standard_marks,
+    sample_files,
+    sha256_file,
+    update_samples,
+    verify_samples,
+)
 from .benchmarking.samples import SampleImportError, import_sample_campaign
 from .campaign_analysis import (
     CampaignAnalysis,
@@ -1137,6 +1144,8 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
         periods = cast("list[str] | None", args.periods) or []
         if not views and (args.period is not None or periods):
             raise calibration_views.ViewError("--period and --periods choose the periods of a --view")
+        if args.include_non_standard and "distribution" not in views:
+            raise calibration_views.ViewError("--include-non-standard belongs to the distribution view")
         state_hash = calibration_replay.encode_state(state, index)
         if views:
             document = calibration_views.views_document(
@@ -1148,6 +1157,8 @@ def _run_benchmark_calibrate(args: argparse.Namespace) -> int:
                 period=cast("str | None", args.period),
                 periods=periods,
                 state_hash=state_hash,
+                non_standard=non_standard_marks(samples),
+                include_non_standard=bool(args.include_non_standard),
             )
         else:
             result = calibration_replay.replay(index, tables, state, drafts)
@@ -2709,6 +2720,11 @@ def _add_benchmark_parser(subcommands: Subcommands) -> None:
         action="append",
         metavar="KEY",
         help="Print only these periods of a view, such as 2031 or 2031-H1; comma-separated, repeatable (default: all).",
+    )
+    report.add_argument(
+        "--include-non-standard",
+        action="store_true",
+        help="Keep the samples whose profile is marked non-standard in the distribution view (default: left out).",
     )
     _add_format_argument(report)
     report.set_defaults(handler=_run_benchmark_calibrate)

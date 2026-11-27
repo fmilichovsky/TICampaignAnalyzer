@@ -232,7 +232,11 @@ def snippet(index: Mapping[str, Any], result: Replay) -> str:
 
 def reason_text(index: Mapping[str, Any], event_type: str) -> str:
     """``<principle> — <because>``, with `` (stale r1→r2)`` when stale, or ``unexamined``."""
-    reason = replayed_reason(index, event_type)
+    return restated_text(index, replayed_reason(index, event_type))
+
+
+def restated_text(index: Mapping[str, Any], reason: Mapping[str, Any]) -> str:
+    """``reason_text`` of a reason already restated by ``replay.restated_reason``."""
     if reason["status"] == ReasonStatus.UNEXAMINED:
         return ReasonStatus.UNEXAMINED.value
     principle = index["principles"][reason["principle"]]

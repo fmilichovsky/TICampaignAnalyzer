@@ -1,0 +1,27 @@
+state  the code's state
+
+distribution view - the shares of each kind, per scaling
+left out (non-standard sample; --include-non-standard keeps it): odd (scenario)
+
+scaling power - Nation power - rise 0.178 - drop 0.000562
+  reason: unexamined
+  the kinds' median shares span x1.11
+  world quantity - std (share of the world total, over the entities of a save)
+                  p10        p25        p50        p75        p90
+    first         0.0044      0.008       0.02     0.0725      0.149   n=4
+    last           0.049      0.107     0.205^     0.302^     0.361^   n=2
+    moved x          0.6       0.75          1        1.5        1.8   n=3
+
+  nation.cession - base major - median 0.0158 (x0.0891 of rise) lands on major - 1 at rise, 1 at drop of 5
+  std
+                  p10        p25        p50        p75        p90
+    first       0.00026v   0.000635    0.00126    0.00189    0.00226   n=2
+    last           25.2^      62.9^       126^       188^       226^   n=2
+    all          0.00101    0.00251     0.0158        0.1       151^   n=5
+
+  nation.expansion - base major - median 0.0176 (x0.0987 of rise) lands on major - 1 at rise, 0 at drop of 4
+  std
+                  p10        p25        p50        p75        p90
+    first       0.000631   0.000631   0.000631   0.000631   0.000631   n=1
+    last            100^       100^       100^       100^       100^   n=1
+    all          0.00344    0.00766     0.0176        25^        70^   n=4
