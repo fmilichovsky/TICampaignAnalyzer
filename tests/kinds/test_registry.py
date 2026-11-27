@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -14,7 +16,7 @@ from tinarrative.kinds import KINDS, attributes, describe_event, kind_for, known
 from tinarrative.kinds.campaign import INTERSTATE_WARS_CHANGED, NOTIFICATION_ENTRY, NOTIFICATION_UNKNOWN_TEMPLATE
 from tinarrative.kinds.nations import BAND_SHIFTS
 from tinarrative.kinds.registry import FAMILIES, PREFIX_KINDS
-from tinarrative.model.kinds import EventKind, EvidenceRole, ShareOf
+from tinarrative.model.kinds import UNEXAMINED, EventKind, EvidenceRole, ShareOf
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.assets import asset_rules
 from tinarrative.narrative.catalogue import NARRATIVE_RULES
@@ -24,6 +26,9 @@ from tinarrative.narrative.nation_metrics import nation_metric_rules
 from tinarrative.narrative.space import space_rules
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
 
+PRINCIPLES_PAGE = Path(__file__).parents[2] / "docs" / "calibration-principles.md"
+PRINCIPLES = frozenset(re.findall(r"^- \*\*(.+?)\.\*\*", PRINCIPLES_PAGE.read_text(encoding="utf-8"), re.MULTILINE))
+"""The names of the principles on the calibration principles page: a reason cites one."""
 FIXTURE_DIR = FIXTURES_ROOT / "io" / "terra_invicta_json_v1"
 PAIRS = sorted(path.name.removesuffix("_before.json") for path in FIXTURE_DIR.glob("*_before.json"))
 KIND = EventKind(
@@ -33,6 +38,7 @@ KIND = EventKind(
     required=frozenset({"before", "after"}),
     optional=frozenset({"note"}),
     base=None,
+    reason=UNEXAMINED,
 )
 
 
@@ -199,3 +205,11 @@ def test_the_merger_the_cession_and_the_expansion_own_their_constituents() -> No
     owners = sorted(event_type for event_type, kind in KINDS.items() if kind.exclusive_constituents)
 
     assert owners == ["nation.cession", "nation.expansion", "nation.merger"]
+
+
+def test_every_kind_declares_a_reason_without_an_issue_number_or_a_count() -> None:
+    for event_type, kind in KINDS.items():
+        reason = kind.reason
+        assert reason.strip() == reason and reason and "\n" not in reason, event_type
+        assert reason == UNEXAMINED or reason.split(":")[0] in PRINCIPLES, (event_type, reason)
+        assert not re.search(r"#\d|\d", reason), (event_type, reason)

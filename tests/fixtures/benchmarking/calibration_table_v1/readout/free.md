@@ -29,10 +29,10 @@ Scalings: every scaling at the code's. Kinds: every type on its code scaling. Ba
 
 ## Level counts
 
-| Type | Level | Replay | Baseline | Change |
-| --- | --- | --- | --- | --- |
-| atomic.thing | minor | 1 | 1 | 0 |
-| atomic.thing | major | 2 | 2 | 0 |
+| Type | Reason | Level | Replay | Baseline | Change |
+| --- | --- | --- | --- | --- | --- |
+| atomic.thing | unexamined | minor | 1 | 1 | 0 |
+| atomic.thing | unexamined | major | 2 | 2 | 0 |
 
 ## Coverage
 

@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, Scaling, ShareOf
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Rule, Scaling, ShareOf
 from ..model.values import Unknown
 from .narrative import count, has_role, narrative_kind, role
 from .text import (
@@ -111,15 +111,26 @@ CONTROL_POINT_CONTROLLER_CHANGED = EventKind(
     share=ShareOf.CONTROL_POINT,
     scaling=Scaling.POWER,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 CONTROL_POINT_NATION_CHANGED = EventKind(
-    "control_point.nation_changed", plain("nation"), BOOKKEEPING, TRANSITION, base=Significance.MINOR
+    "control_point.nation_changed", plain("nation"), BOOKKEEPING, TRANSITION, base=Significance.MINOR, reason=UNEXAMINED
 )
 CONTROL_POINT_APPEARED = EventKind(
-    "control_point.appeared", _control_point_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.MINOR
+    "control_point.appeared",
+    _control_point_presence,
+    BOOKKEEPING,
+    frozenset({"side"}),
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 CONTROL_POINT_DISAPPEARED = EventKind(
-    "control_point.disappeared", _control_point_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.MINOR
+    "control_point.disappeared",
+    _control_point_presence,
+    BOOKKEEPING,
+    frozenset({"side"}),
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 CONTROL_POINT_LOSS_RECORDED = EventKind(
     "control_point.loss_recorded",
@@ -128,6 +139,7 @@ CONTROL_POINT_LOSS_RECORDED = EventKind(
     required=frozenset({"recorded_on"}),
     optional=frozenset({"previous_recorded_on"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 FACTION_CONTROL_POINTS_CHANGED = EventKind(
     "faction.control_points_changed",
@@ -136,6 +148,7 @@ FACTION_CONTROL_POINTS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NATION_CONTROL_POINTS_CHANGED = EventKind(
     "nation.control_points_changed",
@@ -144,6 +157,7 @@ NATION_CONTROL_POINTS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 COUNCILOR_FACTION_CHANGED = EventKind(
@@ -154,12 +168,23 @@ COUNCILOR_FACTION_CHANGED = EventKind(
     share=ShareOf.LEFT_FACTION,
     scaling=Scaling.FACTION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 COUNCILOR_STATUS_CHANGED = EventKind(
-    "councilor.status_changed", _councilor_field("status"), EVIDENCE, TRANSITION, base=Significance.MINOR
+    "councilor.status_changed",
+    _councilor_field("status"),
+    EVIDENCE,
+    TRANSITION,
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 COUNCILOR_LOCATION_CHANGED = EventKind(
-    "councilor.location_changed", _councilor_field("location"), EVIDENCE, TRANSITION, base=Significance.TRIVIAL
+    "councilor.location_changed",
+    _councilor_field("location"),
+    EVIDENCE,
+    TRANSITION,
+    base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 COUNCILOR_DETAINING_FACTION_CHANGED = EventKind(
     "councilor.detaining_faction_changed",
@@ -167,6 +192,7 @@ COUNCILOR_DETAINING_FACTION_CHANGED = EventKind(
     EVIDENCE,
     TRANSITION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 COUNCILOR_APPEARED = EventKind(
     "councilor.appeared",
@@ -175,6 +201,7 @@ COUNCILOR_APPEARED = EventKind(
     frozenset({"side"}),
     rule=Rule.COUNCILOR_PRESENCE,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 COUNCILOR_DISAPPEARED = EventKind(
     "councilor.disappeared",
@@ -183,6 +210,7 @@ COUNCILOR_DISAPPEARED = EventKind(
     frozenset({"side"}),
     rule=Rule.COUNCILOR_PRESENCE,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 FACTION_COUNCILORS_CHANGED = EventKind(
     "faction.councilors_changed",
@@ -191,13 +219,24 @@ FACTION_COUNCILORS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 ORGANIZATION_APPEARED = EventKind(
-    "organization.appeared", _organization_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.TRIVIAL
+    "organization.appeared",
+    _organization_presence,
+    BOOKKEEPING,
+    frozenset({"side"}),
+    base=Significance.TRIVIAL,
+    reason="Trivial is a role: organization churn",
 )
 ORGANIZATION_DISAPPEARED = EventKind(
-    "organization.disappeared", _organization_presence, BOOKKEEPING, frozenset({"side"}), base=Significance.TRIVIAL
+    "organization.disappeared",
+    _organization_presence,
+    BOOKKEEPING,
+    frozenset({"side"}),
+    base=Significance.TRIVIAL,
+    reason="Trivial is a role: organization churn",
 )
 ORGANIZATION_ASSIGNED_COUNCILOR_CHANGED = EventKind(
     "organization.assigned_councilor_changed",
@@ -207,9 +246,15 @@ ORGANIZATION_ASSIGNED_COUNCILOR_CHANGED = EventKind(
     share=ShareOf.ORGANIZATION,
     scaling=Scaling.ORGANIZATION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 ORGANIZATION_FACTION_ORBIT_CHANGED = EventKind(
-    "organization.faction_orbit_changed", plain("faction orbit"), BOOKKEEPING, TRANSITION, base=Significance.MINOR
+    "organization.faction_orbit_changed",
+    plain("faction orbit"),
+    BOOKKEEPING,
+    TRANSITION,
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 COUNCILOR_ORGS_CHANGED = EventKind(
     "councilor.orgs_changed",
@@ -218,6 +263,7 @@ COUNCILOR_ORGS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
     "faction.unassigned_orgs_changed",
@@ -226,6 +272,7 @@ FACTION_UNASSIGNED_ORGS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 
 NATION_CONTROL_CHANGED = EventKind(
@@ -252,6 +299,7 @@ NATION_CONTROL_CHANGED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 
 
@@ -288,6 +336,7 @@ TAKEOVER = narrative_kind(
     # Takeovers sharing an anchor interval: the derived order, else both ambiguous.
     optional=frozenset({"succeeds", "succeeded_by", "ambiguous", "alternatives"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.TARGETS,
     scaling=Scaling.POWER,
 )
@@ -296,6 +345,7 @@ TAKEOVER_WAVE = narrative_kind(
     _takeover_wave,
     required=frozenset({"nations", "count"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.TARGETS,
     scaling=Scaling.POWER,
     digests_members=True,

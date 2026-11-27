@@ -174,10 +174,11 @@ def test_the_kinds_map_holds_each_types_code_base_level_rule_and_scaling() -> No
 
     assert ruled.rule is not None and plain.rule is None and scaled.scaling is not None
     assert kinds == {
-        ruled.event_type: {"base": ruled.base.value, "rule": ruled.rule.value, "scaling": None},
-        plain.event_type: {"base": plain.base.value, "rule": None, "scaling": None},
+        ruled.event_type: {"base": ruled.base.value, "reason": ruled.reason, "rule": ruled.rule.value, "scaling": None},
+        plain.event_type: {"base": plain.base.value, "reason": plain.reason, "rule": None, "scaling": None},
         scaled.event_type: {
             "base": scaled.base.value,
+            "reason": scaled.reason,
             "rule": None if scaled.rule is None else scaled.rule.value,
             "scaling": scaled.scaling.value,
         },

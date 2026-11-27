@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Scaling, ShareOf, Template
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Scaling, ShareOf, Template
 from ..model.values import Unknown
 from .narrative import narrative_kind, role
 from .text import attribute_label, attribute_text, list_changed, plain, region_count, subject_label, transition_label
@@ -55,9 +55,15 @@ APPEARED = EventKind(
     frozenset({"side"}),
     optional=frozenset({"started_on"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 DISAPPEARED = EventKind(
-    "war.disappeared", _presence("disappeared"), EVIDENCE, frozenset({"side"}), base=Significance.MAJOR
+    "war.disappeared",
+    _presence("disappeared"),
+    EVIDENCE,
+    frozenset({"side"}),
+    base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 ALLIANCE_CHANGED = EventKind(
     "war.alliance_changed",
@@ -65,6 +71,7 @@ ALLIANCE_CHANGED = EventKind(
     EVIDENCE,
     frozenset({"side", "member", "transition"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 ATTACKER_CHANGED = EventKind(
     "war.attacker_changed",
@@ -72,6 +79,7 @@ ATTACKER_CHANGED = EventKind(
     BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 DEFENDER_CHANGED = EventKind(
     "war.defender_changed",
@@ -79,6 +87,7 @@ DEFENDER_CHANGED = EventKind(
     BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 LAST_FIGHTING_CHANGED = EventKind(
     "war.last_fighting_changed",
@@ -86,6 +95,7 @@ LAST_FIGHTING_CHANGED = EventKind(
     EVIDENCE,
     required=frozenset({"transition", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 ATTACKING_ALLIANCE_CHANGED = EventKind(
     "war.attacking_alliance_changed",
@@ -94,6 +104,7 @@ ATTACKING_ALLIANCE_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 DEFENDING_ALLIANCE_CHANGED = EventKind(
     "war.defending_alliance_changed",
@@ -102,6 +113,7 @@ DEFENDING_ALLIANCE_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NATION_WARS_CHANGED = EventKind(
     "nation.wars_changed",
@@ -110,6 +122,7 @@ NATION_WARS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 
@@ -138,6 +151,7 @@ ARC = narrative_kind(
         }
     ),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.WAR_SIDES,
     scaling=Scaling.POWER,
 )

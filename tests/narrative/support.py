@@ -25,7 +25,7 @@ from tinarrative.model.events import (
     Significance,
 )
 from tinarrative.model.evidence import Evidence, SourceLocation
-from tinarrative.model.kinds import EventKind, Scaling
+from tinarrative.model.kinds import UNEXAMINED, EventKind, Scaling
 from tinarrative.model.values import FrozenMap, Observed, Unknown, number
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, NarrativeRule, aggregate
 from tinarrative.narrative.chronology import qualified_id
@@ -46,7 +46,7 @@ UNKNOWN = Unknown()
 
 def narrative_fixture_kind(event_type: str, base: Significance = Significance.TRIVIAL) -> EventKind:
     """A throwaway narrative-event kind without attributes, scored from ``base``."""
-    return narrative_kind(event_type, lambda event: event.id, frozenset(), base=base)
+    return narrative_kind(event_type, lambda event: event.id, frozenset(), base=base, reason=UNEXAMINED)
 
 
 TEST_CITING = narrative_fixture_kind("test.citing")

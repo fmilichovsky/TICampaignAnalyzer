@@ -9,7 +9,7 @@ from types import MappingProxyType
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, Scaling, ShareOf
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Rule, Scaling, ShareOf
 from ..model.values import Unknown
 from .narrative import has_role, narrative_kind, role
 from .text import (
@@ -196,9 +196,15 @@ REGION_NATION_CHANGED = EventKind(
     share=ShareOf.TERRITORY,
     scaling=Scaling.POPULATION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 CAPITAL_CHANGED = EventKind(
-    "nation.capital_changed", plain("capital"), BOOKKEEPING, required=TRANSITION, base=Significance.MINOR
+    "nation.capital_changed",
+    plain("capital"),
+    BOOKKEEPING,
+    required=TRANSITION,
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 RELATION_CHANGED = EventKind(
     "nation.relation_changed",
@@ -210,6 +216,7 @@ RELATION_CHANGED = EventKind(
     share=ShareOf.BELLIGERENTS,
     scaling=Scaling.POWER,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 BREAKAWAY_PARENT_CHANGED = EventKind(
     "nation.breakaway_parent_changed",
@@ -217,6 +224,7 @@ BREAKAWAY_PARENT_CHANGED = EventKind(
     BOOKKEEPING,
     required=TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 EXECUTIVE_CHANGE_RECORDED = EventKind(
     "nation.executive_change_recorded",
@@ -228,6 +236,7 @@ EXECUTIVE_CHANGE_RECORDED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 APPEARED = EventKind(
     "nation.appeared",
@@ -237,6 +246,7 @@ APPEARED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.CAMPAIGN_DEFINING,
+    reason=UNEXAMINED,
 )
 DISAPPEARED = EventKind(
     "nation.disappeared",
@@ -246,6 +256,7 @@ DISAPPEARED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.CAMPAIGN_DEFINING,
+    reason=UNEXAMINED,
 )
 CLAIMS_CHANGED = EventKind(
     "nation.claims_changed",
@@ -257,6 +268,7 @@ CLAIMS_CHANGED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HOSTILE_CLAIMS_CHANGED = EventKind(
     "nation.hostile_claims_changed",
@@ -265,8 +277,11 @@ HOSTILE_CLAIMS_CHANGED = EventKind(
     required=frozenset(),
     optional=TRANSITION | {"added", "removed", "added_owners"},
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
-RENAMED = EventKind("nation.renamed", _renamed, EVIDENCE, required=TRANSITION, base=Significance.MAJOR)
+RENAMED = EventKind(
+    "nation.renamed", _renamed, EVIDENCE, required=TRANSITION, base=Significance.MAJOR, reason=UNEXAMINED
+)
 UNREST_ATTEMPTS_CHANGED = EventKind(
     "nation.unrest_attempts_changed",
     _unrest_attempts_changed,
@@ -274,6 +289,7 @@ UNREST_ATTEMPTS_CHANGED = EventKind(
     required=frozenset({"before", "after"}),
     optional=frozenset({"transition", "faction"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NEW_GOVERNMENT_RECORDED = EventKind(
     "nation.new_government_recorded",
@@ -281,12 +297,23 @@ NEW_GOVERNMENT_RECORDED = EventKind(
     BOOKKEEPING,
     required=TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NUCLEAR_PROGRAM_CHANGED = EventKind(
-    "nation.nuclear_program_changed", plain("nuclear program"), EVIDENCE, required=TRANSITION, base=Significance.MINOR
+    "nation.nuclear_program_changed",
+    plain("nuclear program"),
+    EVIDENCE,
+    required=TRANSITION,
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 POLICY_CHANGED = EventKind(
-    "nation.policy_changed", _policy_changed, BOOKKEEPING, required=TRANSITION | {"policy"}, base=Significance.MINOR
+    "nation.policy_changed",
+    _policy_changed,
+    BOOKKEEPING,
+    required=TRANSITION | {"policy"},
+    base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 LIST_FIELDS = ("regions", "breakaways", "allies", "rivals")
@@ -301,6 +328,7 @@ def _list_changed_kind(field: str) -> EventKind:
         required=frozenset({"transition"}),
         optional=frozenset({"member", "before", "after"}),
         base=Significance.MINOR,
+        reason=UNEXAMINED,
     )
 
 
@@ -316,6 +344,7 @@ BAND_CROSSED = EventKind(
     ),
     optional=frozenset({"causes", "rest_value_share"}),
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: evidence for the band-shift events that cite it",
 )
 PCGDP_TREND = EventKind(
     "nation.pcgdp_trend",
@@ -334,6 +363,7 @@ PCGDP_TREND = EventKind(
         }
     ),
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: evidence for the economic trajectory that cites it",
 )
 STATISTIC_SHIFTED = EventKind(
     "nation.statistic_shifted",
@@ -344,6 +374,7 @@ STATISTIC_SHIFTED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: evidence for the readings that cite the shift",
 )
 POPULATION_CHANGED = EventKind(
     "nation.population_changed",
@@ -354,6 +385,7 @@ POPULATION_CHANGED = EventKind(
     ),
     rule=Rule.POPULATION_CHANGED,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 SPACE_ASSETS_CHANGED = EventKind(
     "nation.space_assets_changed",
@@ -375,6 +407,7 @@ SPACE_ASSETS_CHANGED = EventKind(
     ),
     rule=Rule.SPACE_ASSETS_CHANGED,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 RANK_CHANGED = EventKind(
     "nation.rank_changed",
@@ -382,6 +415,7 @@ RANK_CHANGED = EventKind(
     BOOKKEEPING,
     required=frozenset({"metric", "before_rank", "after_rank", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: evidence for the ranking events that cite it",
 )
 
 TERRITORY_GAINED = EventKind(
@@ -392,6 +426,7 @@ TERRITORY_GAINED = EventKind(
     share=ShareOf.TERRITORY,
     scaling=Scaling.POPULATION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 TERRITORY_LOST = EventKind(
     "nation.territory_lost",
@@ -401,6 +436,7 @@ TERRITORY_LOST = EventKind(
     share=ShareOf.TERRITORY,
     scaling=Scaling.POPULATION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 INDEPENDENCE = EventKind(
     "nation.independence",
@@ -412,6 +448,7 @@ INDEPENDENCE = EventKind(
     share=ShareOf.TERRITORY,
     scaling=Scaling.POPULATION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 UNIFICATION = EventKind(
     "nation.unification",
@@ -422,6 +459,7 @@ UNIFICATION = EventKind(
     share=ShareOf.TERRITORY,
     scaling=Scaling.POPULATION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 ANNEXATION = EventKind(
     "nation.annexation",
@@ -432,6 +470,7 @@ ANNEXATION = EventKind(
     share=ShareOf.TERRITORY,
     scaling=Scaling.POPULATION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 
 # --- Narrative events ---------------------------------------------------------------------------------------------
@@ -546,6 +585,7 @@ EXPANSION = narrative_kind(
     _expansion,
     required=frozenset({"losers", "regions", "region_count", "mode", "metric_shifts"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.REGIONS,
     scaling=Scaling.POPULATION,
     exclusive_constituents=True,
@@ -555,6 +595,7 @@ CESSION = narrative_kind(
     _cession,
     required=frozenset({"regions", "region_count", "allied", "shared_federation", "metric_shifts"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.REGIONS,
     scaling=Scaling.POPULATION,
     exclusive_constituents=True,
@@ -566,6 +607,7 @@ MERGER = narrative_kind(
         {"absorbed", "regions", "region_count", "unifying_faction", "bases", "executive_since", "metric_shifts"}
     ),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.TARGETS,
     scaling=Scaling.POWER,
     exclusive_constituents=True,
@@ -577,6 +619,7 @@ RELEASE = narrative_kind(
     _release,
     required=_INDEPENDENCE,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
     share=ShareOf.INDEPENDENT_NATION,
     scaling=Scaling.POWER,
 )
@@ -585,6 +628,7 @@ BREAKAWAY = narrative_kind(
     _breakaway,
     required=_INDEPENDENCE,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
     share=ShareOf.INDEPENDENT_NATION,
     scaling=Scaling.POWER,
 )
@@ -593,6 +637,7 @@ CLAIMS_DECLARED = narrative_kind(
     _claims_declared,
     required=frozenset({"regions", "metric_shifts"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
     share=ShareOf.REGIONS,
     scaling=Scaling.POPULATION,
 )
@@ -605,6 +650,7 @@ BAND_SHIFTS: Mapping[str, EventKind] = MappingProxyType(
             _band_shift,
             required=_BAND_SHIFT,
             base=Significance.MINOR,
+            reason=UNEXAMINED,
             rule=Rule.BAND_SHIFT,
             share=ShareOf.ACTOR,
             scaling=Scaling.POWER,
@@ -626,6 +672,7 @@ POPULATION_COLLAPSE = narrative_kind(
     _population_collapse,
     required=SHIFTED | {"before", "after", "residual", "relative_change", "nuked_regions", "nuclear_strikes", "causes"},
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     rule=Rule.COLLAPSE_AFTER_STRIKES,
 )
 ECONOMIC_TRAJECTORY = narrative_kind(
@@ -644,6 +691,7 @@ ECONOMIC_TRAJECTORY = narrative_kind(
         }
     ),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.ACTOR,
     scaling=Scaling.POWER,
 )
@@ -662,6 +710,7 @@ DIPLOMATIC_REALIGNMENT = narrative_kind(
         "strength_rank",
     },
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.ACTOR,
     scaling=Scaling.POWER,
 )
@@ -671,6 +720,7 @@ NUCLEAR_ARMAMENT = narrative_kind(
     _nuclear_arsenal("armed with nuclear weapons"),
     required=_ARSENAL,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.NUCLEAR_ARC,
     scaling=Scaling.NUCLEAR,
 )
@@ -679,6 +729,7 @@ NUCLEAR_BUILDUP = narrative_kind(
     _nuclear_arsenal("built up its nuclear arsenal"),
     required=_ARSENAL,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.NUCLEAR_ARC,
     scaling=Scaling.NUCLEAR,
 )
@@ -687,6 +738,7 @@ NUCLEAR_DISARMAMENT = narrative_kind(
     _nuclear_arsenal("dismantled its nuclear arsenal"),
     required=_ARSENAL,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.NUCLEAR_ARC,
     scaling=Scaling.NUCLEAR,
 )
@@ -700,6 +752,7 @@ SPACE_PROGRAM_GROWTH = narrative_kind(
     )
     | {"entered_top"},
     base=Significance.MINOR,
+    reason=UNEXAMINED,
     rule=Rule.ENTERED_TOP,
 )
 SPACE_DEFENCES_ESTABLISHED = narrative_kind(
@@ -707,12 +760,14 @@ SPACE_DEFENCES_ESTABLISHED = narrative_kind(
     _space_defences_established,
     required=frozenset({"regions"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 RANKING_CHANGED = narrative_kind(
     "world.ranking_changed",
     _ranking_changed,
     required=frozenset({"metric", "top", "entrants", "leavers"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 
 KINDS = (

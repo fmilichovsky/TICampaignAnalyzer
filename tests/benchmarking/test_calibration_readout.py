@@ -27,6 +27,7 @@ from tinarrative.benchmarking.calibration.replay import (
     replay,
     with_scalings,
 )
+from tinarrative.model.kinds import UNEXAMINED
 
 READOUT = GOLDEN.parent / "readout"
 INDEX, TABLES, DRAFTS = load(GOLDEN)
@@ -300,3 +301,13 @@ def test_scaling_flags_split_and_join_types_and_a_split_copies_its_code_scalings
     assert state.rises["atomic.near"] == 0.3
     assert override_state(CODE, INDEX, scalings=["atomic.near=atomic.near"]).rises["atomic.near"] == POWER
     assert override_state(state, INDEX, scalings=["atomic.near=power", "atomic.far=power"]) == CODE
+
+
+def test_the_readout_prints_each_types_reason_beside_its_level_counts() -> None:
+    result = replay(INDEX, TABLES, CODE)
+    document = render_json(INDEX, TABLES, result, state_hash="")
+    text = render_text(INDEX, TABLES, result, state_hash="")
+
+    for event_type, counts in document["level_counts"].items():
+        assert counts["reason"] == INDEX["kinds"].get(event_type, {}).get("reason", UNEXAMINED)
+    assert "| Type | Reason | Level | Replay | Baseline | Change |" in text

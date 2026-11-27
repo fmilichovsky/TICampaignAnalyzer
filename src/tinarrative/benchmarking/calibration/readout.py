@@ -27,6 +27,7 @@ from tinarrative.benchmarking.calibration.replay import (
     with_scalings,
     with_shares,
 )
+from tinarrative.model.kinds import UNEXAMINED
 
 TOP_MOVES: Final = 5
 """The What moves rows the shared paragraph names."""
@@ -228,6 +229,11 @@ def snippet(index: Mapping[str, Any], result: Replay) -> str:
     return "\n".join(lines) if lines else "# Every scaling, kind's scaling and base level is the code's."
 
 
+def _reason(index: Mapping[str, Any], event_type: str) -> str:
+    """The reason of the type's base level, as its kind declares it: a principle, or ``unexamined``."""
+    return str(index["kinds"].get(event_type, {}).get("reason", UNEXAMINED)).replace("|", "\\|")
+
+
 def _constant(name: str) -> str:
     return name.replace(".", "_").replace("-", "_").upper()
 
@@ -325,13 +331,14 @@ def render_text(
     ]
     counts = level_counts(result, levels)
     rows = [
-        f"| {event_type} | {level} | {replayed} | {baseline} | {_signed(replayed - baseline)} |"
+        f"| {event_type} | {_reason(index, event_type)} | {level} | {replayed} | {baseline} | "
+        f"{_signed(replayed - baseline)} |"
         for event_type, by_type in counts.items()
         for level in levels
         for replayed, baseline in [(by_type["replay"][level], by_type["baseline"][level])]
         if replayed or baseline
     ]
-    lines += _table(["Type", "Level", "Replay", "Baseline", "Change"], rows, "No events.")
+    lines += _table(["Type", "Reason", "Level", "Replay", "Baseline", "Change"], rows, "No events.")
     lines += ["", "## Coverage", ""]
     lines += _coverage_text(index, tables)
     lines += ["", "## What moves", ""]
@@ -547,7 +554,10 @@ def render_json(
         "state": result["state"],
         "totals": result["totals"],
         "moves": result["moves"],
-        "level_counts": level_counts(result, levels),
+        "level_counts": {
+            event_type: {**counts, "reason": _reason(index, event_type)}
+            for event_type, counts in level_counts(result, levels).items()
+        },
         "coverage": coverage(index, tables),
         "members": [
             {"campaign": name, **member}

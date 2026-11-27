@@ -69,7 +69,8 @@
         "minor": 2,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.land": {
       "replay": {
@@ -83,7 +84,8 @@
         "minor": 2,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.near": {
       "replay": {
@@ -97,7 +99,8 @@
         "minor": 8,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.other": {
       "replay": {
@@ -111,7 +114,8 @@
         "minor": 0,
         "major": 1,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.plain": {
       "replay": {
@@ -125,7 +129,8 @@
         "minor": 1,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.scatter": {
       "replay": {
@@ -139,7 +144,8 @@
         "minor": 11,
         "major": 3,
         "campaign_defining": 2
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.spread": {
       "replay": {
@@ -153,7 +159,8 @@
         "minor": 9,
         "major": 5,
         "campaign_defining": 4
-      }
+      },
+      "reason": "unexamined"
     },
     "atomic.thing": {
       "replay": {
@@ -167,7 +174,8 @@
         "minor": 4,
         "major": 2,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "campaign.first_milestone": {
       "replay": {
@@ -181,7 +189,8 @@
         "minor": 1,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "faction.takeover": {
       "replay": {
@@ -195,7 +204,8 @@
         "minor": 0,
         "major": 10,
         "campaign_defining": 1
-      }
+      },
+      "reason": "unexamined"
     },
     "faction.takeover_wave": {
       "replay": {
@@ -209,7 +219,8 @@
         "minor": 0,
         "major": 3,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "nation.cession": {
       "replay": {
@@ -223,7 +234,8 @@
         "minor": 1,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     },
     "nation.expansion": {
       "replay": {
@@ -237,7 +249,8 @@
         "minor": 1,
         "major": 0,
         "campaign_defining": 0
-      }
+      },
+      "reason": "unexamined"
     }
   },
   "coverage": {

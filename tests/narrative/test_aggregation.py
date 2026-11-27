@@ -22,7 +22,7 @@ from tinarrative.kinds.narrative import narrative_kind
 from tinarrative.kinds.space import FLEET_BUILDUP
 from tinarrative.model.entities import EntityRef
 from tinarrative.model.events import Confidence, DateBasis, Event, EventSource, EventStatus, Role, Significance
-from tinarrative.model.kinds import EventKind
+from tinarrative.model.kinds import UNEXAMINED, EventKind
 from tinarrative.model.values import Unknown
 from tinarrative.narrative.aggregation import Join, NarrativeBuilder, aggregate, days_between, present_in
 from tinarrative.narrative.situation import SituationReport
@@ -35,7 +35,9 @@ GERMANY = nation("1", "Germany")
 FRANCE = nation("2", "France")
 RULE = GroupRule("changes", "nation.changed")
 CHANGED_ARC = narrative_fixture_kind("nation.changed.arc")
-SCORED_ARC = narrative_kind("nation.scored.arc", lambda event: event.id, frozenset(), base=Significance.MAJOR)
+SCORED_ARC = narrative_kind(
+    "nation.scored.arc", lambda event: event.id, frozenset(), base=Significance.MAJOR, reason=UNEXAMINED
+)
 
 
 def changed(key: str, subject: EntityRef = GERMANY, **overrides: object) -> Event:

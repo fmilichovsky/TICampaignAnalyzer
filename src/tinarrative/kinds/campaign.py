@@ -5,7 +5,7 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole
 from ..model.plain import is_plain, plain_timestamp
 from ..model.values import Unknown
 from .narrative import narrative_kind, role
@@ -122,6 +122,7 @@ GLOBAL_VALUES_APPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 GLOBAL_VALUES_DISAPPEARED = EventKind(
     "campaign.global_values_disappeared",
@@ -129,6 +130,7 @@ GLOBAL_VALUES_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 # Campaign-wide firsts, nuclear use and climate stages are what a history reports.
 GLOBAL_MILESTONE_RECORDED = EventKind(
@@ -137,6 +139,7 @@ GLOBAL_MILESTONE_RECORDED = EventKind(
     EvidenceRole.EVIDENCE,
     required=frozenset({"milestone", "faction"}),
     base=Significance.CAMPAIGN_DEFINING,
+    reason=UNEXAMINED,
 )
 GLOBAL_MILESTONE_CHANGED = EventKind(
     "campaign.global_milestone_changed",
@@ -144,6 +147,7 @@ GLOBAL_MILESTONE_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"milestone", "transition", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NUCLEAR_STRIKES_CHANGED = EventKind(
     "campaign.nuclear_strikes_changed",
@@ -151,6 +155,7 @@ NUCLEAR_STRIKES_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     base=Significance.CAMPAIGN_DEFINING,
+    reason="Campaign-defining by consequence: the use of nuclear weapons shakes the world whoever it happens to",
 )
 SEA_LEVEL_RISE_TRIGGERED = EventKind(
     "campaign.sea_level_rise_triggered",
@@ -158,6 +163,7 @@ SEA_LEVEL_RISE_TRIGGERED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"stage", "transition", "before", "after"}),
     base=Significance.CAMPAIGN_DEFINING,
+    reason=UNEXAMINED,
 )
 # A once-per-campaign narrative event.
 NARRATIVE_EVENT_TRIGGERED = EventKind(
@@ -167,6 +173,7 @@ NARRATIVE_EVENT_TRIGGERED = EventKind(
     required=frozenset({"narrative_event", "scope"}),
     optional=frozenset({"targets"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 GLOBAL_VALUE_CHANGED = EventKind(
     "campaign.global_value_changed",
@@ -175,6 +182,7 @@ GLOBAL_VALUE_CHANGED = EventKind(
     required=frozenset({"field"}),
     optional=frozenset({"transition", "before", "after", "added", "removed", "changed"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 INTERSTATE_WARS_CHANGED = EventKind(
     "campaign.interstate_wars_changed",
@@ -183,6 +191,7 @@ INTERSTATE_WARS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 _BEFORE_ENTRY = frozenset(
@@ -204,6 +213,7 @@ NOTIFICATION_ENTRY = EventKind(
         {"template", "summary", "outcome", "subject", "alien_related", "news_feed_factions", "summary_log_factions"}
     ),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NOTIFICATION_UNKNOWN_TEMPLATE = EventKind(
     "notification.unknown_template",
@@ -211,6 +221,7 @@ NOTIFICATION_UNKNOWN_TEMPLATE = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NOTIFICATION_QUEUE_APPEARED = EventKind(
     "notification.queue_appeared",
@@ -218,6 +229,7 @@ NOTIFICATION_QUEUE_APPEARED = EventKind(
     EvidenceRole.EVIDENCE,
     required=frozenset({"side"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NOTIFICATION_QUEUE_DISAPPEARED = EventKind(
     "notification.queue_disappeared",
@@ -225,6 +237,7 @@ NOTIFICATION_QUEUE_DISAPPEARED = EventKind(
     EvidenceRole.EVIDENCE,
     required=frozenset({"side"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NOTIFICATION_QUEUE_VALUE_CHANGED = EventKind(
     "notification.queue_value_changed",
@@ -233,6 +246,7 @@ NOTIFICATION_QUEUE_VALUE_CHANGED = EventKind(
     required=frozenset({"field"}),
     optional=GLOBAL_VALUE_CHANGED.optional,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 NOTIFICATION_ENTRY_REMOVED = EventKind(
     "notification.entry_removed",
@@ -240,6 +254,7 @@ NOTIFICATION_ENTRY_REMOVED = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"},
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: the pruning of the notification log, churn by nature",
 )
 NOTIFICATION_ENTRY_CHANGED = EventKind(
     "notification.entry_changed",
@@ -247,6 +262,7 @@ NOTIFICATION_ENTRY_CHANGED = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"} | _BEFORE_ENTRY,
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: the notification log's own churn",
 )
 
 
@@ -259,6 +275,7 @@ FIRST_MILESTONE = narrative_kind(
     _first_milestone,
     required=frozenset({"milestone", "faction"}),
     base=Significance.CAMPAIGN_DEFINING,
+    reason=UNEXAMINED,
 )
 
 KINDS = (

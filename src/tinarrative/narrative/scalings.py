@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from ..model.events import SCORE_BANDS, SCORE_MAX, SCORE_MIN, Significance
-from ..model.kinds import Measure, Scaling
+from ..model.kinds import UNEXAMINED, Measure, Scaling
 
 __all__ = [
     "DEFAULT_WIDTH",
@@ -30,8 +30,6 @@ __all__ = [
     "scale",
 ]
 
-UNEXAMINED: Final = "unexamined"
-"""The reason of a scaling no review has examined yet."""
 DEFAULT_WIDTH: Final = 10**2.5
 """The rise share over the drop share of a scaling that declares no drop share: ×316."""
 STARTING_RISE: Final = 10**1.25
