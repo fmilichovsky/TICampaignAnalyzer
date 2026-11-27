@@ -51,6 +51,16 @@ A higher-level event that groups related atomic events into one episode a reader
 takeover or a war's arc.
 _Avoid_: aggregate, summary event, development
 
+**Reading**:
+A narrative event kind that judges something its constituents do not, such as the combined share of several
+nations, and so declares a base level and a scaling of its own.
+_Avoid_: interpretation, judging kind
+
+**Wrapper**:
+A narrative event kind that retells the event it cites with something attached, such as a cause: a trivial base,
+no scaling, and the level of what it cites.
+_Avoid_: decorator, annotation
+
 **Constituent**:
 An event a narrative event cites as part of what it tells: an atomic event, or a smaller narrative event. A
 narrative event that includes a smaller one cites it whole, never that one's own constituents.
