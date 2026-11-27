@@ -1,5 +1,5 @@
 {
-  "schema_version": 7,
+  "schema_version": 8,
   "key": "golden",
   "hash": "",
   "state": {
@@ -52,7 +52,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "atomic.land": {
       "replay": {
@@ -67,7 +72,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "atomic.near": {
       "replay": {
@@ -82,7 +92,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "atomic.other": {
       "replay": {
@@ -97,7 +112,12 @@
         "major": 1,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": "the-ordinary-instance",
+        "because": "the rise of a regional power",
+        "revision": 1,
+        "status": "examined"
+      }
     },
     "atomic.plain": {
       "replay": {
@@ -112,7 +132,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "atomic.scatter": {
       "replay": {
@@ -127,7 +152,12 @@
         "major": 3,
         "campaign_defining": 2
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": "trivial-is-a-role",
+        "because": "scattered churn",
+        "revision": 1,
+        "status": "stale"
+      }
     },
     "atomic.spread": {
       "replay": {
@@ -142,7 +172,12 @@
         "major": 5,
         "campaign_defining": 4
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "atomic.thing": {
       "replay": {
@@ -157,7 +192,12 @@
         "major": 2,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "campaign.first_milestone": {
       "replay": {
@@ -172,7 +212,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "faction.takeover": {
       "replay": {
@@ -187,7 +232,12 @@
         "major": 10,
         "campaign_defining": 1
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "faction.takeover_wave": {
       "replay": {
@@ -202,7 +252,12 @@
         "major": 3,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "nation.cession": {
       "replay": {
@@ -217,7 +272,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     },
     "nation.expansion": {
       "replay": {
@@ -232,7 +292,12 @@
         "major": 0,
         "campaign_defining": 0
       },
-      "reason": "unexamined"
+      "reason": {
+        "principle": null,
+        "because": null,
+        "revision": null,
+        "status": "unexamined"
+      }
     }
   },
   "coverage": {

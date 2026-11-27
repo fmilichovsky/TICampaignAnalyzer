@@ -31,6 +31,8 @@ from tinarrative.model.events import (
     Role,
     Significance,
 )
+from tinarrative.model.kinds import Reason, Unexamined, reason_status
+from tinarrative.model.principles import Principle
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates, rule_layers
 from tinarrative.narrative.aggregation import interval_shares
 from tinarrative.narrative.chronology import interval_of
@@ -52,7 +54,7 @@ from tinarrative.sequence import (
 )
 from tinarrative.workers import default_jobs
 
-SCHEMA_VERSION: Final = 7
+SCHEMA_VERSION: Final = 8
 CAMPAIGN_PREFIX: Final = 'window.TI_CALIBRATION.campaigns["'
 INDEX_PREFIX: Final = "window.TI_CALIBRATION.index = "
 STATUS_PREFIX: Final = "window.TI_CALIBRATION.status = "
@@ -330,11 +332,30 @@ def type_kinds(types: Iterable[str]) -> dict[str, dict[str, Any]]:
             raise CalibrationTableError(f"event type {event_type} is declared by no kind")
         kinds[event_type] = {
             "base": kind.base.value,
-            "reason": kind.reason,
+            "reason": reason_entry(kind.reason),
             "rule": None if kind.rule is None else kind.rule.value,
             "scaling": None if kind.scaling is None else kind.scaling.value,
         }
     return kinds
+
+
+def reason_entry(reason: Reason | Unexamined) -> dict[str, Any]:
+    """A reason as the index holds it: its principle's identifier, what applies it, the revision it was judged under
+    and its status against the code's principle revisions; all but the status ``None`` when unexamined. A replay
+    recomputes the status against the index's ``principles`` (``replay.replayed_reason``)."""
+    if not isinstance(reason, Reason):
+        return {"principle": None, "because": None, "revision": None, "status": reason_status(reason).value}
+    return {
+        "principle": reason.principle.identifier,
+        "because": reason.because,
+        "revision": reason.revision,
+        "status": reason_status(reason).value,
+    }
+
+
+def principle_entries() -> dict[str, dict[str, Any]]:
+    """The index's ``principles``: each principle's title and current revision, by identifier."""
+    return {principle.identifier: {"title": principle.title, "revision": principle.revision} for principle in Principle}
 
 
 def build_index(
@@ -384,6 +405,7 @@ def build_index(
         "measures": {
             measure.value: {"label": spec.label, "description": spec.description} for measure, spec in MEASURES.items()
         },
+        "principles": principle_entries(),
         "scalings": scalings,
         "kinds": {event_type: dict(kind) for event_type, kind in kinds.items()},
         "names": {campaign: dict(history) for campaign, history in (names or {}).items()},
@@ -402,7 +424,7 @@ def build_index(
 
 
 def _scaling(spec: ScalingSpec) -> dict[str, Any]:
-    return {"measure": spec.measure.value, "rise": spec.rise, "drop": spec.drop, "reason": spec.reason}
+    return {"measure": spec.measure.value, "rise": spec.rise, "drop": spec.drop, "reason": reason_entry(spec.reason)}
 
 
 def write_campaign(directory: Path, name: str, document: Mapping[str, Any]) -> Path:

@@ -106,12 +106,10 @@ def test_a_trivial_base_scales_from_trivial_and_cannot_drop_below_it() -> None:
     assert own_score(trivial, (scale(1e-12, 0.1),)) == SCORE_MIN
 
 
-def test_a_scaling_checks_its_shares_and_its_reason() -> None:
+def test_a_scaling_checks_its_shares() -> None:
     with pytest.raises(ValueError, match="rise share"):
         ScalingSpec(Measure.POWER, rise=0.0, reason=UNEXAMINED)
     with pytest.raises(ValueError, match="drop share"):
         ScalingSpec(Measure.POWER, rise=0.1, reason=UNEXAMINED, drop=0.2)
-    with pytest.raises(ValueError, match="reason"):
-        ScalingSpec(Measure.POWER, rise=0.1, reason="")
     with pytest.raises(ValueError, match="one level"):
         cut_off(0, 0.1)

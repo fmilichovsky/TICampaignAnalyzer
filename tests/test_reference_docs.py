@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tinarrative import cli
-from tinarrative.reference_docs import DocsError, config_example, generate
+from tinarrative.reference_docs import DocsError, config_example, generate, principle_records, principles_module
 
 COMMANDS = Path(__file__).resolve().parents[1] / "docs" / "commands"
 
@@ -94,3 +94,38 @@ def test_a_broken_settings_example_fails(change: tuple[str, str], message: str) 
     assert change[0] in text
     with pytest.raises(DocsError, match=message):
         config_example(text.replace(change[0], change[1], 1))
+
+
+PRINCIPLES_PAGE = Path(__file__).resolve().parents[1] / "docs" / "calibration-principles.md"
+PRINCIPLES_MODULE = Path(__file__).resolve().parents[1] / "src" / "tinarrative" / "model" / "principles.py"
+
+
+def test_the_principles_module_is_current() -> None:
+    generated = principles_module(principle_records(PRINCIPLES_PAGE.read_text(encoding="utf-8")))
+    assert generated == PRINCIPLES_MODULE.read_text(encoding="utf-8"), "stale principles module; run make docs"
+
+
+def test_a_principle_record_carries_its_marker_and_a_hash_of_its_text() -> None:
+    page = "## A\n\n- **Both ways.** <!-- principle both-ways r2 -->\n  It rises\n  and drops.\n\nAfter.\n"
+    (record,) = principle_records(page)
+    assert (record.identifier, record.title, record.revision) == ("both-ways", "Both ways", 2)
+    rewrapped = "## A\n\n- **Both ways.** <!-- principle both-ways r2 --> It rises and\n  drops.\n"
+    assert principle_records(rewrapped)[0].text_hash == record.text_hash
+    reworded = page.replace("drops", "falls")
+    assert principle_records(reworded)[0].text_hash != record.text_hash
+
+
+@pytest.mark.parametrize(
+    ("page", "message"),
+    [
+        ("- **Both ways.** It rises.\n", "no principle marker"),
+        ("- **Both ways.** <!-- principle both-ways r0 -->\n", "no principle marker"),
+        ("- **Both ways.** <!-- principle Both_Ways r1 -->\n", "no principle marker"),
+        ("- **A.** <!-- principle a r1 -->\n- **B.** <!-- principle a r1 -->\n", "appears twice"),
+        ("Text <!-- principle a r1 -->\n", "outside a principle"),
+    ],
+    ids=["no marker", "revision zero", "malformed identifier", "repeated identifier", "stray marker"],
+)
+def test_a_broken_principle_marker_fails(page: str, message: str) -> None:
+    with pytest.raises(DocsError, match=message):
+        principle_records(page)

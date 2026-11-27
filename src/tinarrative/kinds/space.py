@@ -6,7 +6,8 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Scaling, ShareOf, Template
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Reason, Scaling, ShareOf, Template
+from ..model.principles import Principle
 from ..model.values import FrozenMap, Observed, Unknown
 from .narrative import count as _count
 from .narrative import narrative_kind, role
@@ -289,7 +290,7 @@ SHIP_LAST_REFIT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: refit bookkeeping, churn by nature",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "refit bookkeeping, churn by nature", revision=1),
 )
 SHIP_APPEARED = EventKind(
     "ship.appeared",

@@ -24,6 +24,7 @@ from tinarrative.benchmarking.calibration.table import (
     name_history,
     read_campaign,
     read_index,
+    reason_entry,
     type_kinds,
     write_campaign,
 )
@@ -31,6 +32,8 @@ from tinarrative.benchmarking.manifest import MANIFEST, extractable_campaigns, p
 from tinarrative.kinds import KINDS
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SIGNIFICANCE_ORDER, Role
+from tinarrative.model.kinds import Reason
+from tinarrative.model.principles import Principle
 from tinarrative.narrative import NARRATIVE_RULES, default_member_gates
 from tinarrative.narrative.measures import MEASURES
 from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, UNEXAMINED
@@ -100,6 +103,7 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
         "member_gates",
         "constants",
         "measures",
+        "principles",
         "scalings",
         "kinds",
         "drafts",
@@ -110,7 +114,9 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
     assert {name: spec["measure"] for name, spec in index["scalings"].items()} == {
         scaling.value: spec.measure.value for scaling, spec in SCALINGS.items()
     }
-    assert all(spec["drop"] is None and spec["reason"] == UNEXAMINED for spec in index["scalings"].values())
+    assert all(
+        spec["drop"] is None and spec["reason"] == reason_entry(UNEXAMINED) for spec in index["scalings"].values()
+    )
     assert {gate["member_type"] for gate in index["member_gates"]} == {
         gate.member_type for gate in default_member_gates().values()
     }
@@ -174,17 +180,43 @@ def test_the_kinds_map_holds_each_types_code_base_level_rule_and_scaling() -> No
 
     assert ruled.rule is not None and plain.rule is None and scaled.scaling is not None
     assert kinds == {
-        ruled.event_type: {"base": ruled.base.value, "reason": ruled.reason, "rule": ruled.rule.value, "scaling": None},
-        plain.event_type: {"base": plain.base.value, "reason": plain.reason, "rule": None, "scaling": None},
+        ruled.event_type: {
+            "base": ruled.base.value,
+            "reason": reason_entry(ruled.reason),
+            "rule": ruled.rule.value,
+            "scaling": None,
+        },
+        plain.event_type: {
+            "base": plain.base.value,
+            "reason": reason_entry(plain.reason),
+            "rule": None,
+            "scaling": None,
+        },
         scaled.event_type: {
             "base": scaled.base.value,
-            "reason": scaled.reason,
+            "reason": reason_entry(scaled.reason),
             "rule": None if scaled.rule is None else scaled.rule.value,
             "scaling": scaled.scaling.value,
         },
     }
     with pytest.raises(CalibrationTableError, match="no.such"):
         type_kinds(["no.such"])
+
+
+def test_a_reason_entry_holds_its_principle_what_applies_it_its_revision_and_its_status() -> None:
+    stated = KINDS["organization.appeared"].reason
+    assert isinstance(stated, Reason)
+    assert reason_entry(stated) == {
+        "principle": stated.principle.identifier,
+        "because": stated.because,
+        "revision": stated.revision,
+        "status": "stale" if stated.stale else "examined",
+    }
+    assert reason_entry(UNEXAMINED) == {"principle": None, "because": None, "revision": None, "status": "unexamined"}
+    principles = build_index([], key="k", extracted_at="", kinds={})["principles"]
+    assert principles == {
+        principle.identifier: {"title": principle.title, "revision": principle.revision} for principle in Principle
+    }
 
 
 def test_a_narrative_row_without_a_share_keeps_its_own_base_when_cited_events_raise_its_level() -> None:

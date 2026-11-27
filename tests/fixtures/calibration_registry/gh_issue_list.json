@@ -29,7 +29,7 @@
     "state": "CLOSED",
     "closedAt": "2026-11-01T10:00:00Z",
     "url": "https://github.com/example/repo/issues/703",
-    "body": "Calibration: value proposal\nTouches: scalings=fleet\n"
+    "body": "Calibration: value proposal\nTouches: scalings=fleet; principles=trivial-is-a-role\n"
   },
   {
     "number": 704,

@@ -5,8 +5,9 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Reason
 from ..model.plain import is_plain, plain_timestamp
+from ..model.principles import Principle
 from ..model.values import Unknown
 from .narrative import narrative_kind, role
 from .text import (
@@ -155,7 +156,11 @@ NUCLEAR_STRIKES_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     base=Significance.CAMPAIGN_DEFINING,
-    reason="Campaign-defining by consequence: the use of nuclear weapons shakes the world whoever it happens to",
+    reason=Reason(
+        Principle.CAMPAIGN_DEFINING_BY_CONSEQUENCE,
+        "the use of nuclear weapons shakes the world whoever it happens to",
+        revision=1,
+    ),
 )
 SEA_LEVEL_RISE_TRIGGERED = EventKind(
     "campaign.sea_level_rise_triggered",
@@ -254,7 +259,7 @@ NOTIFICATION_ENTRY_REMOVED = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"},
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: the pruning of the notification log, churn by nature",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "the pruning of the notification log, churn by nature", revision=1),
 )
 NOTIFICATION_ENTRY_CHANGED = EventKind(
     "notification.entry_changed",
@@ -262,7 +267,7 @@ NOTIFICATION_ENTRY_CHANGED = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"} | _BEFORE_ENTRY,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: the notification log's own churn",
+    reason=Reason(Principle.TRIVIAL_IS_A_ROLE, "the notification log's own churn", revision=1),
 )
 
 

@@ -1,0 +1,69 @@
+name: Principle changes
+
+# On a pull request that changes the calibration principles page, compares the principles generated at base with
+# those at head and keeps one comment up to date: each principle whose revision rose, with the kinds and scalings it
+# made stale; each whose text changed while its revision did not; each added or removed. No table is built.
+# Informational: a stale reason never fails the check (ADR-0024).
+
+on:
+  pull_request:
+    paths:
+      - docs/calibration-principles.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: principle-changes-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .bench/base-src
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install head
+        run: python -m pip install --quiet .
+      # The base module is imported from its file, apart from the installed head package; a base without one has no
+      # principles, so every head principle is listed as added.
+      - name: Compare
+        run: >-
+          python -m tinarrative.benchmarking.calibration.principles
+          --base .bench/base-src/src/tinarrative/model/principles.py
+          --base-label "$BASE_REF ${BASE_SHA::7}"
+          --head-label "$HEAD_REF ${HEAD_SHA::7}"
+          --out .bench/principles.md
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      - name: Summary
+        run: cat .bench/principles.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: principle-changes
+          path: .bench/principles.md
+          retention-days: 14
+
+  post-comment:
+    needs: compare
+    permissions:
+      actions: read
+      pull-requests: write
+    uses: ./.github/workflows/post-metrics-comment.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      benchmark_name: 'Principle changes'
+      artifact_name: principle-changes
+      report_path: principles.md
+      comment_marker: '<!-- principle-changes -->'

@@ -43,7 +43,8 @@ test:
 
 check: format lint typecheck test
 
-# Rewrite the generated regions of docs/commands/ from the CLI parser.
+# Rewrite the generated regions of docs/commands/ from the CLI parser, the settings example's values, and the
+# principles module from docs/calibration-principles.md; prints the reasons a raised principle revision made stale.
 docs:
 	$(PYTHON) -m tinarrative.reference_docs
 

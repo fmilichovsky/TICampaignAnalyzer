@@ -14,7 +14,7 @@ block:
 
 ```text
 Calibration: value proposal
-Touches: types=war.arc,war.declared; measures=power; scalings=power; themes=Wars
+Touches: types=war.arc,war.declared; measures=power; scalings=power; themes=Wars; principles=both-ways
 ```
 
 - **`Calibration:`** names the item's kind, exactly one of `review`, `value proposal`, `scoring proposal` or
@@ -23,7 +23,10 @@ Touches: types=war.arc,war.declared; measures=power; scalings=power; themes=Wars
   - `types=`: event types, as the catalog spells them (`war.arc`);
   - `measures=`: measures (`power`, `fleet`);
   - `scalings=`: scalings, including a split-off one named only in the calibration state;
-  - `themes=`: theme names, exactly as `benchmarks/themes.toml` spells them (`Wars`).
+  - `themes=`: theme names, exactly as `benchmarks/themes.toml` spells them (`Wars`);
+  - `principles=`: [calibration principle](../docs/calibration-principles.md) identifiers, as the marker beside each
+    principle spells them, without a revision (`trivial-is-a-role`). A change to a principle lists the open items
+    standing on it with `--principle`.
 
   Any group may be absent, but a Touches line has at least one. Values may be wrapped in backticks. A review's
   Touches line is its scope.
@@ -46,6 +49,7 @@ It needs Python 3.11 or later and an authenticated `gh`; it uses the standard li
 python scripts/calibration_registry.py                         # everything open, and closed in the last 90 days
 python scripts/calibration_registry.py --type war.arc          # what touches war arcs
 python scripts/calibration_registry.py --theme Wars --measure power --json
+python scripts/calibration_registry.py --principle trivial-is-a-role   # what stands on a principle
 python scripts/calibration_registry.py --since 365             # a year of closed items
 ```
 
@@ -57,7 +61,7 @@ It prints three sections:
 - **No Touches line or Calibration line**: members missing a line or carrying a malformed one, with the problem, so
   they get fixed. They are listed whatever the filter.
 
-`--type`, `--measure`, `--scaling` and `--theme` each repeat or take comma-separated values, and ignore case. An
+`--type`, `--measure`, `--scaling`, `--theme` and `--principle` each repeat or take comma-separated values, and ignore case. An
 item matches when any of its Touches groups overlaps its filter. `--json` prints the same sections for agents.
 `--repo OWNER/NAME` reads another repository than the one `gh` infers.
 
