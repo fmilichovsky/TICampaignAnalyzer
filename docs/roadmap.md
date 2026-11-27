@@ -142,7 +142,7 @@ Target: agents that judge event kinds, base levels and scalings against the samp
 - [ ] Sample admission: coverage delta and as-found report (#660).
 - [ ] Markdown evidence block (#661).
 - [ ] Calibration evidence CI job (#662).
-- [ ] Calibration reviews parent and the first registry members (#663).
+- [x] Calibration reviews parent and the first registry members (#663).
 - [ ] `kind-calibration` skill (#664).
 - [ ] `calibration-review` skill (#665).
 - [ ] `recollection-dissection` skill (#666).
