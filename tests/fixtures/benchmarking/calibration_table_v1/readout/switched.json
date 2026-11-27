@@ -505,6 +505,7 @@
     {
       "campaign": "alpha",
       "id": "atomic",
+      "label": "atomic",
       "type": "atomic.thing",
       "shares": [
         {
@@ -515,11 +516,13 @@
       "score": 65,
       "level": "major",
       "code_level": "minor",
-      "decided_by": "atomic"
+      "decided_by": "atomic",
+      "decided_by_label": "atomic"
     },
     {
       "campaign": "alpha",
       "id": "far-low",
+      "label": "far-low",
       "type": "atomic.far",
       "shares": [
         {
@@ -530,11 +533,13 @@
       "score": 0,
       "level": "trivial",
       "code_level": "minor",
-      "decided_by": "far-low"
+      "decided_by": "far-low",
+      "decided_by_label": "far-low"
     },
     {
       "campaign": "beta",
       "id": "atomic",
+      "label": "atomic",
       "type": "atomic.thing",
       "shares": [
         {
@@ -545,7 +550,8 @@
       "score": 65,
       "level": "major",
       "code_level": "minor",
-      "decided_by": "atomic"
+      "decided_by": "atomic",
+      "decided_by_label": "atomic"
     }
   ],
   "cutoffs": {
@@ -1449,6 +1455,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               },
               {
@@ -1461,6 +1468,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1473,6 +1481,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               }
             ]
@@ -1493,6 +1502,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               },
               {
@@ -1505,6 +1515,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1517,6 +1528,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               }
             ]
@@ -1536,6 +1548,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               },
               {
@@ -1548,6 +1561,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1560,6 +1574,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               }
             ],
@@ -1580,6 +1595,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               },
               {
@@ -1592,6 +1608,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1604,6 +1621,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               }
             ],
@@ -1624,6 +1642,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               },
               {
@@ -1636,6 +1655,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1648,6 +1668,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               }
             ],
@@ -1671,6 +1692,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ]
@@ -1691,6 +1713,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ]
@@ -1710,6 +1733,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ],
@@ -1730,6 +1754,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ],
@@ -1750,6 +1775,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ],
@@ -1805,6 +1831,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ]
@@ -1825,6 +1852,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ]
@@ -1844,6 +1872,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ],
@@ -1864,6 +1893,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ],
@@ -1884,6 +1914,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ],

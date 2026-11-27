@@ -492,7 +492,7 @@ tinarrative benchmark calibrate report --state 'rise=power:0.05'
 | `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
 | `--base TYPE=LEVEL` | Try a base level on an event type; comma-separated, repeatable (default: the code's). |
 | `--state HASH` | A calibration page's URL hash; the other flags override what it sets. |
-| `--view VIEW` | Print these views of the narrator package instead of the readout (period, tiers); comma-separated, repeatable. |
+| `--view VIEW` | Print these views of the narrator package instead of the readout (period, tiers, events); comma-separated, repeatable. |
 | `--period year\|half\|quarter` | The periods of a view, as narrate tells them (default: from each campaign's span, as narrate). |
 | `--periods KEY` | Print only these periods of a view, such as 2031 or 2031-H1; comma-separated, repeatable (default: all). |
 | `--format text\|json` | Report format (default text). |
@@ -512,7 +512,8 @@ tinarrative benchmark calibrate report --state 'rise=power:0.05'
 `--view` prints views of the narrator package in place of the readout, so a review never counts events by hand. It
 is comma-separated and repeatable: `--view period,tiers`. Every view is at the replayed state, each count followed by
 its change against the code's state (`61 -6`) wherever the two differ; at the code's state no count has one. The
-views are count grids: they list no events and cut nothing. `--format json` carries the same counts, a cell as
+`period` and `tiers` views are count grids: they list no events and cut nothing; the `events` view lists them, and
+its text caps each period's list and prints a count of what it cut. `--format json` carries the same counts, a cell as
 `{"replay": n, "code": m}`, and leaves out the cells that are 0 at both states.
 
 **Periods** are the ones `narrate` tells the campaign in, each event in the period `narrate` puts it in:
@@ -540,6 +541,7 @@ counted. `--type` counts only the named types.
 | --- | --- |
 | `period` | Per campaign, the top-level count, then per period a headline and a level by tier grid. |
 | `tiers` | Per event type, over the enabled campaigns and the printed periods, the top-level count and a level by tier grid. JSON adds each type's grid per campaign and period. |
+| `events` | The top-level events behind a count, per campaign and period, filtered by `--campaign`, `--type` and `--periods`. |
 
 ```sh
 # The package's shape if diplomatic realignments were minor events.
@@ -549,6 +551,32 @@ tinarrative benchmark calibrate report --campaign resist-long --view period --ba
 tinarrative benchmark calibrate report --view tiers --periods 2031 \
   --type nation.diplomatic_realignment,nation.band_crossed
 ```
+
+### The events view
+
+`--view events` lists the top-level events at the replayed state, and those that were top-level at the code's state
+and no longer are (marked `no longer top-level`; `newly top-level` for the reverse). Each event shows its label, type,
+level (with `(code: major)` where the tried state changed it), score, how many events it cites, and a digest of its
+members. Every event says what set its level, in `decided by`:
+
+| Decided by | Meaning |
+| --- | --- |
+| `own share` | Its own share, with the scaling it reads and the scaling's rise and drop shares. |
+| `context rule` | A context rule (named), which decides outright at trivial, or the only thing the event has to go by. |
+| `cited event` | A cited event's score, named. |
+| `its base level` | Nothing to scale: the base level stands. |
+
+An event or constituent outside the period it is printed under carries `@date`, its own date: a group's members often
+fall in an earlier period than the group. Events are named by their labels, never bare ids; `--format json` carries
+both. The reasons of the listed types are printed first: the calibration principle each type's base level applies and
+what applies it, marked `(stale r1→r2)` or `unexamined`.
+
+```sh
+tinarrative benchmark calibrate report --view events --campaign resist-long --periods 2031 --type faction.takeover
+```
+
+The `moved` list of the JSON readout and the draft share rows carry the labels of their events beside the ids; the
+draft rows of the text readout show the labels.
 
 The period view of a small test campaign `c` with a base level lowered, so one top-level event drops below:
 

@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Final, NamedTuple
 
 from tinarrative.benchmarking.calibration.coverage import Tables
+from tinarrative.benchmarking.calibration.readout import reason_text
 from tinarrative.benchmarking.calibration.replay import (
     LEVELS,
     SCHEMA_VERSION,
@@ -20,8 +21,11 @@ from tinarrative.benchmarking.calibration.replay import (
     ReplayState,
     default_state,
     replay,
+    replayed_reason,
+    type_scaling,
 )
 from tinarrative.config import NarratorSettings
+from tinarrative.narrative.scalings import decided_outright
 from tinarrative.narrator.chapters import (
     PERIODS,
     filing_position,
@@ -31,7 +35,7 @@ from tinarrative.narrator.chapters import (
     span_period,
 )
 
-VIEWS: Final = ("period", "tiers")
+VIEWS: Final = ("period", "tiers", "events")
 """The views ``--view`` takes, in the order they print."""
 TIERS: Final = ("top-level", "member", "cited only", "explained", "below")
 LOW_RESOLUTION_DAYS: Final = 365
@@ -39,6 +43,10 @@ LOW_RESOLUTION_DAYS: Final = 365
 _LEVEL_NAMES: Final = {"campaign_defining": "defining"}
 """Level names shortened to fit the grid's first column."""
 _WIDTH: Final = 14
+EVENTS_CAP: Final = 15
+"""Events the text lists per campaign period before it prints a count of the cut ones; JSON carries all."""
+MEMBERS_SHOWN: Final = 3
+"""Member labels the text digest names."""
 
 Cell = dict[str, int]
 """A count at the replayed state and at the code's: ``{"replay": n, "code": m}``."""
@@ -279,12 +287,15 @@ def views_document(
         }
     if "tiers" in views:
         document["views"]["tiers"] = {"types": _tiers_view(counted, types, chosen)}
+    if "events" in views:
+        document["views"]["events"] = _events_view(index, tables, state, result, baseline, counted, types, chosen)
     return document
 
 
 class _Placed(NamedTuple):
     """A row's type, its period, and its level and tier at the replayed state and at the code's."""
 
+    id: str
     type: str
     period: str
     replayed: tuple[str, str] | None
@@ -305,7 +316,7 @@ def _counted(
     now = row_tiers(index, rows, result["campaigns"][name])
     then = now if baseline is result else row_tiers(index, rows, baseline["campaigns"][name])
     placed: _Counted = [
-        _Placed(row["type"], found.of_row(row), replayed, coded)
+        _Placed(row["id"], row["type"], found.of_row(row), replayed, coded)
         for row, replayed, coded in zip(rows, now, then, strict=True)
     ]
     return placed, found
@@ -386,6 +397,116 @@ def _tiers_view(
     return found
 
 
+def _when(row: Mapping[str, Any]) -> str | None:
+    """The date an event is at, for the ``@date`` marker: its own, else its start, else its last interval's end."""
+    found = row["date"] or row["start"] or (row["intervals"][-1]["end"] if row["intervals"] else None)
+    return None if found is None else str(found)[:10]
+
+
+class _Named(NamedTuple):
+    """Resolves a row id to a name and, outside the printed period, a date."""
+
+    labels: Mapping[str, str]
+    periods: Mapping[str, str]
+    dates: Mapping[str, str | None]
+
+    def ref(self, identifier: str, period: str) -> dict[str, Any]:
+        entry: dict[str, Any] = {"id": identifier, "label": self.labels.get(identifier, identifier)}
+        if self.periods.get(identifier, period) != period:
+            entry["at"] = self.dates.get(identifier)
+        return entry
+
+
+def _decided(
+    index: Mapping[str, Any], state: ReplayState, row: Mapping[str, Any], by: str, named: _Named, period: str
+) -> dict[str, Any]:
+    """What set the row's level: a cited event, a context rule that names trivial, its own share (with its scaling
+    and shares) or, with nothing to scale, its base level."""
+    if by != row["id"]:
+        return {"kind": "cited", **named.ref(by, period)}
+    if row["rule"] is not None and (decided_outright(True, int(row["base"])) or not row["shares"]):
+        return {"kind": "rule", "rule": row["rule"]}
+    if not row["shares"]:
+        return {"kind": "base"}
+    scaling = type_scaling(index, state, row["type"])
+    found: dict[str, Any] = {"kind": "share", "scaling": scaling, "shares": row["shares"]}
+    if scaling is not None and scaling in state.rises:
+        found["rise"] = state.rises[scaling]
+        found["drop"] = state.drops.get(scaling)
+    return found
+
+
+def _events_view(
+    index: Mapping[str, Any],
+    tables: Tables,
+    state: ReplayState,
+    result: Replay,
+    baseline: Replay,
+    counted: Mapping[str, tuple[_Counted, CampaignPeriods]],
+    types: frozenset[str],
+    chosen: frozenset[str],
+) -> dict[str, Any]:
+    """The top-level events of the replayed or the code's state, per campaign and period, each with what set its
+    level; the reason of every type listed."""
+    tried = replace(state, types=(), focus=None)
+    campaigns: dict[str, Any] = {}
+    listed: set[str] = set()
+    for name, (placed, found) in counted.items():
+        rows = {row["id"]: row for row in tables[name]}
+        named = _Named(
+            {identifier: row["label"] for identifier, row in rows.items()},
+            {item.id: item.period for item in placed},
+            {identifier: _when(row) for identifier, row in rows.items()},
+        )
+        now = {event["id"]: event for event in result["campaigns"][name]["events"]}
+        then = {event["id"]: event for event in baseline["campaigns"][name]["events"]}
+        members = {member["id"]: member for member in result["campaigns"][name]["members"]}
+        printed: dict[str, list[dict[str, Any]]] = {}
+        for item in placed:
+            tops = (item.replayed and item.replayed[1] == "top-level", item.coded and item.coded[1] == "top-level")
+            if not any(tops) or (types and item.type not in types) or (chosen and item.period not in chosen):
+                continue
+            row, event = rows[item.id], now[item.id]
+            group = members.get(item.id)
+            kept = [named.ref(each, item.period) for each in (group["kept"] if group else ())]
+            lost = [named.ref(each, item.period) for each in (group["lost"] if group else ())]
+            listed.add(item.type)
+            printed.setdefault(item.period, []).append(
+                {
+                    **named.ref(item.id, item.period),
+                    "type": item.type,
+                    "level": event["level"],
+                    "code_level": then[item.id]["level"],
+                    "top_level": {"replay": bool(tops[0]), "code": bool(tops[1])},
+                    "score": event["score"],
+                    "decided_by": _decided(index, tried, row, event["decided_by"], named, item.period),
+                    "members": {"kept": kept, "lost": lost},
+                    "cited": len(row["cited"]),
+                }
+            )
+        for entries in printed.values():
+            entries.sort(key=lambda entry: (-entry["score"], entry["id"]))
+        campaigns[name] = {
+            "period": found.period,
+            "periods": [{"key": key, "events": printed[key]} for key in found.keys if key in printed],
+        }
+    return {
+        "reasons": {event_type: _reason(index, event_type) for event_type in sorted(listed)},
+        "campaigns": campaigns,
+    }
+
+
+def _reason(index: Mapping[str, Any], event_type: str) -> dict[str, Any]:
+    """The type's principle, what applies it and its status, as ``replayed_reason`` reads them from the index."""
+    reason = replayed_reason(index, event_type)
+    return {
+        "principle": reason["principle"],
+        "because": reason["because"],
+        "status": reason["status"],
+        "text": reason_text(index, event_type),
+    }
+
+
 # --- Text ------------------------------------------------------------------------------------------------------
 
 
@@ -400,6 +521,8 @@ def render_views(document: Mapping[str, Any]) -> str:
             lines += ["", *_period_text(name, campaign)]
     if "tiers" in views:
         lines += ["", *_tiers_text(views["tiers"]["types"], document["periods"])]
+    if "events" in views:
+        lines += ["", *_events_text(views["events"])]
     return "\n".join(lines) + "\n"
 
 
@@ -428,6 +551,66 @@ def _tiers_text(types: Mapping[str, Any], periods: Sequence[str]) -> list[str]:
     for event_type, entry in types.items():
         lines += ["", f"{event_type}   top-level {_cell(entry['top_level'])}", *_grid_text(entry["grid"])]
     return lines
+
+
+def _events_text(view: Mapping[str, Any]) -> list[str]:
+    lines = ["events view - the top-level events"]
+    if not view["reasons"]:
+        return [*lines, "", "no events"]
+    lines += ["", "reasons"]
+    lines += [f"  {event_type}   {reason['text']}" for event_type, reason in view["reasons"].items()]
+    for name, campaign in view["campaigns"].items():
+        for entry in campaign["periods"]:
+            events = entry["events"]
+            lines += ["", f"{name} - {entry['key']} - {len(events)} top-level events"]
+            for event in events[:EVENTS_CAP]:
+                lines += _event_text(event)
+            if len(events) > EVENTS_CAP:
+                lines.append(f"  ... {len(events) - EVENTS_CAP} more cut; --format json lists all")
+    return lines
+
+
+def _event_text(event: Mapping[str, Any]) -> list[str]:
+    level = _LEVEL_NAMES.get(event["level"], event["level"])
+    if event["code_level"] != event["level"]:
+        level += f" (code: {_LEVEL_NAMES.get(event['code_level'], event['code_level'])})"
+    flag = "" if event["top_level"]["replay"] else "   no longer top-level"
+    if not event["top_level"]["code"]:
+        flag = "   newly top-level"
+    lines = [
+        f"  {event['label']}{_at(event)}",
+        f"    {event['type']} - {level} - score {event['score']} - cited {event['cited']}{flag}",
+        f"    decided by {_decided_text(event['decided_by'])}",
+    ]
+    members = event["members"]
+    if members["kept"] or members["lost"]:
+        names = [f"{item['label']}{_at(item)}" for item in members["kept"][:MEMBERS_SHOWN]]
+        rest = len(members["kept"]) - MEMBERS_SHOWN
+        digest = f"{len(members['kept'])} members: {', '.join(names)}" + (f", +{rest} more" if rest > 0 else "")
+        if members["lost"]:
+            digest += f"; lost {len(members['lost'])}"
+        lines.append(f"    {digest}")
+    return lines
+
+
+def _at(entry: Mapping[str, Any]) -> str:
+    return f" @{entry['at']}" if entry.get("at") else ""
+
+
+def _decided_text(decided: Mapping[str, Any]) -> str:
+    if decided["kind"] == "cited":
+        return f"cited event {decided['label']}{_at(decided)}"
+    if decided["kind"] == "rule":
+        return f"context rule {decided['rule']}"
+    if decided["kind"] == "base":
+        return "its base level"
+    shares = ", ".join(f"{item['measure']} {item['share']:.3g}" for item in decided["shares"])
+    scaling = decided["scaling"]
+    text = f"own share {shares}" + ("" if scaling is None else f" on scaling {scaling}")
+    if "rise" in decided:
+        drop = "" if decided["drop"] is None else f", drop {decided['drop']:.3g}"
+        text += f" (rise {decided['rise']:.3g}{drop})"
+    return text
 
 
 def _grid_text(grid: Grid) -> list[str]:
