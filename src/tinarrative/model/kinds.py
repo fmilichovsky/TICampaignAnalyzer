@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Final
 
 from .events import Event, Significance
 
@@ -114,21 +115,28 @@ class EvidenceRole(StrEnum):
 Template = Callable[[Event], str]
 
 
+UNEXAMINED: Final = "unexamined"
+"""The reason of a base level or a scaling that no calibration review has examined yet; a starting state."""
+
+
 @dataclass(frozen=True)
 class EventKind:
     """The single declaration of one event type.
 
-    A ``narrative`` kind is one a narrative rule builds. Every kind declares its ``base`` level; a narrative rule
-    chooses none. An emitter always passes every ``required`` attribute, its value possibly ``Unknown``; an
-    attribute whose presence depends on the save is ``optional``. A narrative-event kind that ``digests_members``
-    groups the narrative events it cites as its members: the listing tells such a member as a digest under it. A
-    narrative-event kind with ``exclusive_constituents`` cites them as its own: no narrative event of another kind
-    may cite them (ADR-0002).
+    A ``narrative`` kind is one a narrative rule builds. Every kind declares its ``base`` level and the ``reason``
+    for it; a narrative rule chooses neither. An emitter always passes every ``required`` attribute, its value
+    possibly ``Unknown``; an attribute whose presence depends on the save is ``optional``. A narrative-event kind
+    that ``digests_members`` groups the narrative events it cites as its members: the listing tells such a member
+    as a digest under it. A narrative-event kind with ``exclusive_constituents`` cites them as its own: no
+    narrative event of another kind may cite them (ADR-0002).
     """
 
     event_type: str
     template: Template
     base: Significance = field(kw_only=True)
+    reason: str = field(kw_only=True)
+    """One line for the base level: the calibration principle it applies, then what applies it ("The ordinary
+    instance: the takeover of a regional power"), or ``UNEXAMINED``. No issue number or count."""
     evidence: EvidenceRole
     required: frozenset[str]
     optional: frozenset[str] = frozenset()
@@ -153,5 +161,7 @@ class EventKind:
         shared = self.required & self.optional
         if shared:
             raise ValueError(f"kind {self.event_type}: {sorted(shared)} are both required and optional")
+        if not self.reason or self.reason != self.reason.strip() or "\n" in self.reason:
+            raise ValueError(f"kind {self.event_type}: a reason is one non-empty line, or UNEXAMINED")
         if (self.share is None) != (self.scaling is None):
             raise ValueError(f"kind {self.event_type}: a share and a scaling are declared together or not at all")

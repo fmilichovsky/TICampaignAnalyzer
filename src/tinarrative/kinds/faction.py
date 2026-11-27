@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..model.events import Event, Significance
-from ..model.kinds import EventKind, EvidenceRole
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole
 from .text import attribute_label, attribute_text, subject_label
 
 
@@ -24,6 +24,7 @@ TRANSACTION_RECORDED = EventKind(
     EvidenceRole.EVIDENCE,
     required=frozenset({"label", "resource", "amount", "recorded_on"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 KINDS = (TRANSACTION_RECORDED,)

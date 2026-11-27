@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..model.entities import EntityDomain, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Scaling, ShareOf
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Scaling, ShareOf
 from .narrative import count, narrative_kind, role
 from .text import attribute_label, list_changed, plain, subject_label
 
@@ -36,8 +36,12 @@ def _renamed(event: Event) -> str:
     return f"{subject_label(event)} renamed: {attribute_label(event, 'before')} -> {attribute_label(event, 'after')}"
 
 
-APPEARED = EventKind("federation.appeared", _appeared, EVIDENCE, frozenset({"side"}), base=Significance.MAJOR)
-DISAPPEARED = EventKind("federation.disappeared", _disappeared, EVIDENCE, frozenset({"side"}), base=Significance.MAJOR)
+APPEARED = EventKind(
+    "federation.appeared", _appeared, EVIDENCE, frozenset({"side"}), base=Significance.MAJOR, reason=UNEXAMINED
+)
+DISAPPEARED = EventKind(
+    "federation.disappeared", _disappeared, EVIDENCE, frozenset({"side"}), base=Significance.MAJOR, reason=UNEXAMINED
+)
 MEMBERS_CHANGED = EventKind(
     "federation.members_changed",
     _members_changed,
@@ -45,6 +49,7 @@ MEMBERS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 RENAMED = EventKind(
     "federation.renamed",
@@ -53,6 +58,7 @@ RENAMED = EventKind(
     required=frozenset({"transition", "before", "after"}),
     optional=frozenset({"federation_name_before", "federation_name_after"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 NATION_FEDERATION_CHANGED = EventKind(
     "nation.federation_changed",
@@ -62,6 +68,7 @@ NATION_FEDERATION_CHANGED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 
 
@@ -89,6 +96,7 @@ LIFECYCLE = narrative_kind(
     _lifecycle,
     required=frozenset({"members_initial", "member_changes", "members_final", "metric_shifts"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.MEMBERS,
     scaling=Scaling.POWER,
 )

@@ -32,31 +32,31 @@ Scalings: every scaling at the code's. Kinds: every type on its code scaling. Ba
 
 ## Level counts
 
-| Type | Level | Replay | Baseline | Change |
-| --- | --- | --- | --- | --- |
-| atomic.far | trivial | 1 | 0 | +1 |
-| atomic.far | minor | 1 | 2 | -1 |
-| atomic.land | minor | 2 | 2 | 0 |
-| atomic.near | minor | 8 | 8 | 0 |
-| atomic.other | major | 1 | 1 | 0 |
-| atomic.plain | trivial | 1 | 1 | 0 |
-| atomic.plain | minor | 1 | 1 | 0 |
-| atomic.scatter | trivial | 9 | 9 | 0 |
-| atomic.scatter | minor | 11 | 11 | 0 |
-| atomic.scatter | major | 3 | 3 | 0 |
-| atomic.scatter | campaign_defining | 2 | 2 | 0 |
-| atomic.spread | trivial | 5 | 5 | 0 |
-| atomic.spread | minor | 9 | 9 | 0 |
-| atomic.spread | major | 5 | 5 | 0 |
-| atomic.spread | campaign_defining | 4 | 4 | 0 |
-| atomic.thing | minor | 2 | 4 | -2 |
-| atomic.thing | major | 4 | 2 | +2 |
-| campaign.first_milestone | minor | 1 | 1 | 0 |
-| faction.takeover | major | 10 | 10 | 0 |
-| faction.takeover | campaign_defining | 1 | 1 | 0 |
-| faction.takeover_wave | major | 3 | 3 | 0 |
-| nation.cession | minor | 1 | 1 | 0 |
-| nation.expansion | minor | 1 | 1 | 0 |
+| Type | Reason | Level | Replay | Baseline | Change |
+| --- | --- | --- | --- | --- | --- |
+| atomic.far | unexamined | trivial | 1 | 0 | +1 |
+| atomic.far | unexamined | minor | 1 | 2 | -1 |
+| atomic.land | unexamined | minor | 2 | 2 | 0 |
+| atomic.near | unexamined | minor | 8 | 8 | 0 |
+| atomic.other | unexamined | major | 1 | 1 | 0 |
+| atomic.plain | unexamined | trivial | 1 | 1 | 0 |
+| atomic.plain | unexamined | minor | 1 | 1 | 0 |
+| atomic.scatter | unexamined | trivial | 9 | 9 | 0 |
+| atomic.scatter | unexamined | minor | 11 | 11 | 0 |
+| atomic.scatter | unexamined | major | 3 | 3 | 0 |
+| atomic.scatter | unexamined | campaign_defining | 2 | 2 | 0 |
+| atomic.spread | unexamined | trivial | 5 | 5 | 0 |
+| atomic.spread | unexamined | minor | 9 | 9 | 0 |
+| atomic.spread | unexamined | major | 5 | 5 | 0 |
+| atomic.spread | unexamined | campaign_defining | 4 | 4 | 0 |
+| atomic.thing | unexamined | minor | 2 | 4 | -2 |
+| atomic.thing | unexamined | major | 4 | 2 | +2 |
+| campaign.first_milestone | unexamined | minor | 1 | 1 | 0 |
+| faction.takeover | unexamined | major | 10 | 10 | 0 |
+| faction.takeover | unexamined | campaign_defining | 1 | 1 | 0 |
+| faction.takeover_wave | unexamined | major | 3 | 3 | 0 |
+| nation.cession | unexamined | minor | 1 | 1 | 0 |
+| nation.expansion | unexamined | minor | 1 | 1 | 0 |
 
 ## Coverage
 

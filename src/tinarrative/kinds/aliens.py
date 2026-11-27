@@ -6,7 +6,7 @@ None is narrator evidence: no narrative event cites them yet.
 from __future__ import annotations
 
 from ..model.events import Event, Significance
-from ..model.kinds import EventKind, EvidenceRole
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole
 from ..model.values import Unknown
 from .text import TRANSITION, attribute_text, plain, subject_label, transition_label
 
@@ -27,6 +27,7 @@ CRASHDOWN_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"crashdown_time"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 LANDING_CHANGED = EventKind(
     "region.landing_changed",
@@ -34,6 +35,7 @@ LANDING_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 ALIEN_FACILITY_CHANGED = EventKind(
     "region.alien_facility_changed",
@@ -41,6 +43,7 @@ ALIEN_FACILITY_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 XENOFORMING_CHANGED = EventKind(
     "region.xenoforming_changed",
@@ -48,6 +51,7 @@ XENOFORMING_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 KINDS = (CRASHDOWN_CHANGED, LANDING_CHANGED, ALIEN_FACILITY_CHANGED, XENOFORMING_CHANGED)

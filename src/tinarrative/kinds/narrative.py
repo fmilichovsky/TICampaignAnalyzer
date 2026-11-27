@@ -19,6 +19,7 @@ def narrative_kind(
     optional: frozenset[str] = frozenset(),
     *,
     base: Significance,
+    reason: str,
     rule: Rule | None = None,
     share: ShareOf | None = None,
     scaling: Scaling | None = None,
@@ -42,6 +43,7 @@ def narrative_kind(
         digests_members=digests_members,
         exclusive_constituents=exclusive_constituents,
         base=base,
+        reason=reason,
     )
 
 

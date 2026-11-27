@@ -44,7 +44,7 @@ from tinarrative.model.events import (
     Significance,
     SignificanceBasis,
 )
-from tinarrative.model.kinds import EventKind, EvidenceRole, Measure, Rule, Scaling, ShareOf
+from tinarrative.model.kinds import UNEXAMINED, EventKind, EvidenceRole, Measure, Rule, Scaling, ShareOf
 from tinarrative.model.snapshot import SaveSnapshot
 from tinarrative.model.values import Observed, Unknown, UnknownReason
 from tinarrative.narrative import assign_significance, significance_of
@@ -565,6 +565,7 @@ def test_a_context_rule_that_names_trivial_decides_outright() -> None:
         EvidenceRole.EVIDENCE,
         frozenset({"side"}),
         base=Significance.MINOR,
+        reason=UNEXAMINED,
         rule=Rule.COUNCILOR_PRESENCE,
         share=ShareOf.NATION,
         scaling=Scaling.POWER,
@@ -583,11 +584,23 @@ def test_a_context_rule_that_names_trivial_decides_outright() -> None:
 def test_a_kind_declares_a_scaling_exactly_with_a_share() -> None:
     with pytest.raises(ValueError, match="declared together"):
         EventKind(
-            "x.y", lambda event: "", EvidenceRole.EVIDENCE, frozenset(), base=Significance.MINOR, share=ShareOf.NATION
+            "x.y",
+            lambda event: "",
+            EvidenceRole.EVIDENCE,
+            frozenset(),
+            base=Significance.MINOR,
+            reason=UNEXAMINED,
+            share=ShareOf.NATION,
         )
     with pytest.raises(ValueError, match="declared together"):
         EventKind(
-            "x.y", lambda event: "", EvidenceRole.EVIDENCE, frozenset(), base=Significance.MINOR, scaling=Scaling.POWER
+            "x.y",
+            lambda event: "",
+            EvidenceRole.EVIDENCE,
+            frozenset(),
+            base=Significance.MINOR,
+            reason=UNEXAMINED,
+            scaling=Scaling.POWER,
         )
 
 

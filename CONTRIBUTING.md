@@ -24,6 +24,10 @@ When a standard here can be checked mechanically, a test enforces it and the sta
   goes through `UnknownCollector`. The unknowns registry is machine-written, never edited by hand; after adding a
   field, re-run the unknowns scan on private saves
   (`tests/maintenance/test_committed_registry.py::test_committed_registry_is_valid_canonical_and_fully_unknown`).
+- **A new kind declares its reason.** Every `EventKind` carries a one-line `reason` for its base level: the
+  [calibration principle](docs/calibration-principles.md) it applies, named as the page names it, or `UNEXAMINED`
+  until a `kind-calibration` run. No issue number or count
+  (`tests/kinds/test_registry.py::test_every_kind_declares_a_reason_without_an_issue_number_or_a_count`).
 - **Comments explain why, not what.** No comment on self-explanatory code; module docstrings of at most three
   lines; no docstring repeats an ADR or cites a save sample; cite it as `ADR-NNNN`.
 

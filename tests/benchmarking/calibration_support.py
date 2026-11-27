@@ -16,7 +16,7 @@ from tinarrative.benchmarking.calibration.replay import default_state, replay
 from tinarrative.benchmarking.calibration.table import build_index, layers, type_kinds
 from tinarrative.kinds.registry import kind_for
 from tinarrative.model.events import SCORE_BANDS, Significance
-from tinarrative.model.kinds import Measure, ShareOf
+from tinarrative.model.kinds import UNEXAMINED, Measure, ShareOf
 from tinarrative.narrative.scalings import midpoint
 from tinarrative.narrative.significance import SHARE_IMPLEMENTATIONS, ShareReading
 
@@ -160,7 +160,7 @@ def synthetic_kinds(tables: Mapping[str, Sequence[dict[str, Any]]]) -> dict[str,
         free = next((item for item in own if item["rule"] is None), own[0])
         rule = next((item["rule"] for item in own if item["rule"] is not None), None)
         scaling = next((item["shares"][0]["measure"] for item in own if item["shares"]), None)
-        synthetic[event_type] = {"base": level_of[free["base"]], "rule": rule, "scaling": scaling}
+        synthetic[event_type] = {"base": level_of[free["base"]], "reason": UNEXAMINED, "rule": rule, "scaling": scaling}
     for event_type, kind in declared.items():
         # A hand-built row may carry a share on a type its kind does not scale: it reads the measure's starting one.
         measures = {share["measure"] for item in every if item["type"] == event_type for share in item["shares"]}

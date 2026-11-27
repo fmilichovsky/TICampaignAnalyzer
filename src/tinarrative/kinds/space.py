@@ -6,7 +6,7 @@ from __future__ import annotations
 from ..diff.render import render_value
 from ..model.entities import EntityDomain, EntityId, EntityRef
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Scaling, ShareOf, Template
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Scaling, ShareOf, Template
 from ..model.values import FrozenMap, Observed, Unknown
 from .narrative import count as _count
 from .narrative import narrative_kind, role
@@ -199,6 +199,7 @@ FLEET_FACTION_CHANGED = EventKind(
     share=ShareOf.FLEET,
     scaling=Scaling.FLEET,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     "fleet.docked_location_changed",
@@ -206,6 +207,7 @@ FLEET_DOCKED_LOCATION_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_ORBIT_CHANGED = EventKind(
     "fleet.orbit_changed",
@@ -213,6 +215,7 @@ FLEET_ORBIT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_BARYCENTER_CHANGED = EventKind(
     "fleet.barycenter_changed",
@@ -220,6 +223,7 @@ FLEET_BARYCENTER_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_PARENT_CHANGED = EventKind(
     "fleet.parent_fleet_changed",
@@ -227,6 +231,7 @@ FLEET_PARENT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_IN_COMBAT_CHANGED = EventKind(
     "fleet.in_combat_changed",
@@ -234,6 +239,7 @@ FLEET_IN_COMBAT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_APPEARED = EventKind(
     "fleet.appeared",
@@ -241,6 +247,7 @@ FLEET_APPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_DISAPPEARED = EventKind(
     "fleet.disappeared",
@@ -248,6 +255,7 @@ FLEET_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FACTION_FLEETS_CHANGED = EventKind(
     "faction.fleets_changed",
@@ -256,6 +264,7 @@ FACTION_FLEETS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 HAB_DOCKED_FLEETS_CHANGED = EventKind(
     "hab.docked_fleets_changed",
@@ -264,9 +273,15 @@ HAB_DOCKED_FLEETS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 SHIP_FLEET_CHANGED = EventKind(
-    "ship.fleet_changed", plain("fleet"), EvidenceRole.BOOKKEEPING, TRANSITION, base=Significance.TRIVIAL
+    "ship.fleet_changed",
+    plain("fleet"),
+    EvidenceRole.BOOKKEEPING,
+    TRANSITION,
+    base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 SHIP_LAST_REFIT_CHANGED = EventKind(
     "ship.last_refit_date_changed",
@@ -274,6 +289,7 @@ SHIP_LAST_REFIT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: refit bookkeeping, churn by nature",
 )
 SHIP_APPEARED = EventKind(
     "ship.appeared",
@@ -282,6 +298,7 @@ SHIP_APPEARED = EventKind(
     frozenset({"side"}),
     frozenset({"hull"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 SHIP_DISAPPEARED = EventKind(
     "ship.disappeared",
@@ -290,6 +307,7 @@ SHIP_DISAPPEARED = EventKind(
     frozenset({"side"}),
     frozenset({"hull"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FLEET_SHIPS_CHANGED = EventKind(
     "fleet.ships_changed",
@@ -298,6 +316,7 @@ FLEET_SHIPS_CHANGED = EventKind(
     frozenset({"transition"}),
     _LIST_OPTIONAL,
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 
 HAB_FACTION_CHANGED = EventKind(
@@ -308,6 +327,7 @@ HAB_FACTION_CHANGED = EventKind(
     share=ShareOf.HAB,
     scaling=Scaling.HAB,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_TYPE_CHANGED = EventKind(
     "hab.type_changed",
@@ -315,6 +335,7 @@ HAB_TYPE_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_TIER_CHANGED = EventKind(
     "hab.tier_changed",
@@ -322,6 +343,7 @@ HAB_TIER_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_IN_COMBAT_CHANGED = EventKind(
     "hab.in_combat_changed",
@@ -329,6 +351,7 @@ HAB_IN_COMBAT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_UNDER_ASSAULT_CHANGED = EventKind(
     "hab.under_assault_changed",
@@ -336,6 +359,7 @@ HAB_UNDER_ASSAULT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     "hab.under_bombardment_changed",
@@ -343,6 +367,7 @@ HAB_UNDER_BOMBARDMENT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_CORE_COMPLETED_CHANGED = EventKind(
     "hab.core_completed_changed",
@@ -350,6 +375,7 @@ HAB_CORE_COMPLETED_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_APPEARED = EventKind(
     "hab.appeared",
@@ -360,6 +386,7 @@ HAB_APPEARED = EventKind(
     share=ShareOf.HAB,
     scaling=Scaling.HAB,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HAB_DISAPPEARED = EventKind(
     "hab.disappeared",
@@ -367,6 +394,7 @@ HAB_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     "faction.hab_destruction_recorded",
@@ -375,6 +403,7 @@ FACTION_HAB_DESTRUCTION_RECORDED = EventKind(
     frozenset({"hab_type", "space_body", "destroyer", "recorded_on"}),
     frozenset({"hab", "owner"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 FACTION_COMBAT_RECORDED = EventKind(
     "faction.combat_recorded",
@@ -384,6 +413,7 @@ FACTION_COMBAT_RECORDED = EventKind(
     share=ShareOf.COMBAT,
     scaling=Scaling.BATTLE,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 FACTION_COMBAT_ENTRY_REMOVED = EventKind(
     "faction.combat_entry_removed",
@@ -391,10 +421,16 @@ FACTION_COMBAT_ENTRY_REMOVED = EventKind(
     EvidenceRole.BOOKKEEPING,
     frozenset({"sides", "winner", "hab_faction", "attack_count", "surprising", "recorded_on"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 
 HAB_ESTABLISHED = EventKind(
-    "hab.established", _hab_established, EvidenceRole.EVIDENCE, frozenset({"faction", "body"}), base=Significance.MAJOR
+    "hab.established",
+    _hab_established,
+    EvidenceRole.EVIDENCE,
+    frozenset({"faction", "body"}),
+    base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 FACTION_FIRST_HAB_ON_BODY = EventKind(
     "faction.first_hab_on_body",
@@ -404,6 +440,7 @@ FACTION_FIRST_HAB_ON_BODY = EventKind(
     share=ShareOf.HAB,
     scaling=Scaling.HAB,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 HAB_DESTROYED = EventKind(
     "hab.destroyed",
@@ -414,6 +451,7 @@ HAB_DESTROYED = EventKind(
     share=ShareOf.HAB,
     scaling=Scaling.HAB,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 FACTION_SPACE_LOSSES = EventKind(
     "faction.space_losses",
@@ -423,6 +461,7 @@ FACTION_SPACE_LOSSES = EventKind(
     share=ShareOf.SPACE_LOSSES,
     scaling=Scaling.SPACE_LOSS,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 
 
@@ -491,6 +530,7 @@ SPACE_CAMPAIGN = narrative_kind(
         }
     ),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
     share=ShareOf.SPACE_CAMPAIGN,
     scaling=Scaling.SPACE_LOSS,
 )
@@ -499,6 +539,7 @@ COLONISATION_WAVE = narrative_kind(
     _colonisation_wave,
     required=frozenset({"bodies", "hab_count", "first_of_any_faction"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.COLONY,
     scaling=Scaling.HAB,
 )
@@ -507,6 +548,7 @@ FLEET_BUILDUP = narrative_kind(
     _fleet_buildup,
     required=frozenset({"hull", "count"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
     share=ShareOf.NEW_SHIPS,
     scaling=Scaling.FLEET,
 )

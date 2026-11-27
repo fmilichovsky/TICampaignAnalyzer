@@ -311,8 +311,8 @@ def layers() -> dict[str, int]:
 
 
 def type_kinds(types: Iterable[str]) -> dict[str, dict[str, Any]]:
-    """The ``kinds`` map of the index: each distinct type's code base level, context rule and scaling (``None`` for
-    none), sorted by type; ``CalibrationTableError`` for a type no kind declares."""
+    """The ``kinds`` map of the index: each distinct type's code base level, its reason, context rule and scaling
+    (``None`` for none), sorted by type; ``CalibrationTableError`` for a type no kind declares."""
     kinds: dict[str, dict[str, Any]] = {}
     for event_type in sorted(set(types)):
         kind = kind_for(event_type)
@@ -320,6 +320,7 @@ def type_kinds(types: Iterable[str]) -> dict[str, dict[str, Any]]:
             raise CalibrationTableError(f"event type {event_type} is declared by no kind")
         kinds[event_type] = {
             "base": kind.base.value,
+            "reason": kind.reason,
             "rule": None if kind.rule is None else kind.rule.value,
             "scaling": None if kind.scaling is None else kind.scaling.value,
         }
