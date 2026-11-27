@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
 import pytest
 
-from tests.benchmarking.calibration_support import check_parity, check_rows
-from tests.fixtures import fixture_path
+from tests.benchmarking.calibration_support import check_parity, check_rows, saves
 from tinarrative.benchmarking.calibration import drafts
 from tinarrative.benchmarking.calibration.drafts import DraftShare, DraftShareError, draft_name, validate_drafts
 from tinarrative.benchmarking.calibration.replay import default_state, replay
@@ -19,7 +17,6 @@ from tinarrative.model.events import Event, Role, Significance
 from tinarrative.model.kinds import Measure, ShareOf
 from tinarrative.narrative.significance import SHARE_IMPLEMENTATIONS, ShareReading
 
-SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
 CLAIMS, CESSION = "nation.claims_declared", "nation.cession"
 REGIONS = SHARE_IMPLEMENTATIONS[ShareOf.REGIONS]
 
@@ -45,10 +42,6 @@ TERRITORY = DraftShare(
 """Three candidates on two types: the listed regions' population, which the kinds use, and the location's power
 (which no region has) and population."""
 CESSION_ONLY = DraftShare(name="cession-only", label="Cession", issue=2, event_types=(CESSION,), readings=(REGIONS,))
-
-
-def saves() -> list[Path]:
-    return [fixture_path("io", "terra_invicta_json_v1", name) for name in SEQUENCE]
 
 
 @pytest.fixture(scope="module")

@@ -292,3 +292,29 @@ def test_an_unwritable_out_is_an_output_error(paths: tuple[Path, Path], tmp_path
 
     assert code == cli.EXIT_OUTPUT_ERROR
     assert stderr
+
+
+def test_views_replace_the_readout_in_text_and_json(paths: tuple[Path, Path]) -> None:
+    code, stdout, stderr = report(paths, "--view", "period,tiers", "--period", "quarter")
+
+    assert code == cli.EXIT_SUCCESS, stderr
+    assert stdout.strip() and "# Share calibration readout" not in stdout
+    document = report_json(paths, "--view", "tiers", "--view", "period", "--period", "quarter")
+    assert set(document["views"]) == {"period", "tiers"}
+    assert {campaign["period"] for campaign in document["views"]["period"]["campaigns"].values()} == {"quarter"}
+
+
+@pytest.mark.parametrize(
+    ("flags", "message"),
+    [
+        (["--view", "shape"], "shape"),
+        (["--period", "year"], "choose the periods of a --view"),
+        (["--periods", "2031"], "choose the periods of a --view"),
+        (["--view", "period", "--periods", "1999"], "unknown period"),
+    ],
+)
+def test_invalid_view_flags_are_usage_errors(paths: tuple[Path, Path], flags: list[str], message: str) -> None:
+    code, _, stderr = report(paths, *flags)
+
+    assert code == cli.EXIT_USAGE_ERROR
+    assert message in stderr

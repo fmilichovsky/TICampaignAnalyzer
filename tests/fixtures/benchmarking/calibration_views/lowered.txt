@@ -1,0 +1,45 @@
+state  #lowered (delta against the code's state)
+
+period view - c - by year (span 2.7 years, narrate default)
+campaign  top-level 1 -1 - rows 10
+
+2030   top-level 0   low resolution: saves 639 days apart, no density conclusion
+                 top-level        member    cited only     explained         below
+  minor                  0             0          0 -2          0 -1          1 +1
+
+2031   top-level 0   low resolution: saves 639 days apart, no density conclusion
+  no events
+
+2032   top-level 1 -1   low resolution: saves 639 days apart, no density conclusion
+                 top-level        member    cited only     explained         below
+  major               1 -1             3             0             0             0
+  minor                  0             0             0             0          1 +1
+  trivial                0             0             0             0             1
+
+tiers view - every enabled campaign - every period
+
+atomic.band   top-level 0
+                 top-level        member    cited only     explained         below
+  minor                  0             0             0          0 -1             0
+
+atomic.thing   top-level 0
+                 top-level        member    cited only     explained         below
+  minor                  0             0          0 -1             0             0
+
+faction.takeover   top-level 0
+                 top-level        member    cited only     explained         below
+  major                  0             3             0             0             0
+
+faction.takeover_wave   top-level 1
+                 top-level        member    cited only     explained         below
+  major                  1             0             0             0             0
+
+nation.cession   top-level 0
+                 top-level        member    cited only     explained         below
+  minor                  0             0          0 -1             0          1 +1
+  trivial                0             0             0             0             1
+
+nation.expansion   top-level 0 -1
+                 top-level        member    cited only     explained         below
+  major               0 -1             0             0             0             0
+  minor                  0             0             0             0          1 +1

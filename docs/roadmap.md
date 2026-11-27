@@ -131,7 +131,7 @@ Target: agents that judge event kinds, base levels and scalings against the samp
 - [x] Calibration principles (#649).
 - [x] Calibration page: a row per scaling (#650).
 - [ ] Kind reasons (#651).
-- [ ] Report views: `--view`, period and tiers (#652).
+- [x] Report views: `--view`, period and tiers (#652).
 - [ ] Events view (#653).
 - [ ] Distribution view (#654).
 - [ ] Must-tell lists and the must-tell view (#655).

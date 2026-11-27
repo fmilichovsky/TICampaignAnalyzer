@@ -10,6 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from tests.fixtures import fixture_path
 from tinarrative.benchmarking.calibration import server
 from tinarrative.benchmarking.calibration.drafts import ROW_PREFIX, DraftShare, draft_row_id
 from tinarrative.benchmarking.calibration.replay import default_state, replay
@@ -19,6 +20,15 @@ from tinarrative.model.events import SCORE_BANDS, Significance
 from tinarrative.model.kinds import Measure, ShareOf
 from tinarrative.narrative.scalings import midpoint
 from tinarrative.narrative.significance import SHARE_IMPLEMENTATIONS, ShareReading
+
+SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
+"""The synthetic politics saves, a quarter apart."""
+
+
+def saves() -> list[Path]:
+    """The ``SEQUENCE`` fixture saves, in order."""
+    return [fixture_path("io", "terra_invicta_json_v1", name) for name in SEQUENCE]
+
 
 ROW_FIELDS = {
     "id",
@@ -34,6 +44,9 @@ ROW_FIELDS = {
     "targets",
     "explained_by",
     "intervals",
+    "start",
+    "start_basis",
+    "end",
     "cited",
     "score",
     "level",
@@ -139,6 +152,9 @@ def row(
         "targets": None,
         "explained_by": None,
         "intervals": [],
+        "start": None,
+        "start_basis": None,
+        "end": None,
         "cited": list(cited),
         "score": base(level),
         "level": level,

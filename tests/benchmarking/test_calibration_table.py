@@ -10,8 +10,7 @@ from pathlib import Path
 import pytest
 
 from tests.benchmark_support import synthetic_samples
-from tests.benchmarking.calibration_support import check_rows
-from tests.fixtures import fixture_path
+from tests.benchmarking.calibration_support import SEQUENCE, check_rows, saves
 from tests.narrative.support import atomic, faction, nation, situation, unification
 from tinarrative.benchmarking.calibration.progress import ProgressSnapshot
 from tinarrative.benchmarking.calibration.table import (
@@ -37,12 +36,6 @@ from tinarrative.narrative.measures import MEASURES
 from tinarrative.narrative.scalings import DEFAULT_WIDTH, SCALINGS, UNEXAMINED
 from tinarrative.narrative.significance import decide
 from tinarrative.sequence import narrative_events, plan_sequence, run_sequence, survey
-
-SEQUENCE = ("politics_before.json", "politics_after.json", "politics_reverted.json")
-
-
-def saves() -> list[Path]:
-    return [fixture_path("io", "terra_invicta_json_v1", name) for name in SEQUENCE]
 
 
 @pytest.fixture(scope="module")

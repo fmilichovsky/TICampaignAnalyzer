@@ -1,0 +1,43 @@
+state  the code's state
+
+period view - c - by year (span 2.7 years, narrate default)
+campaign  top-level 2 - rows 10
+
+2030   top-level 0   low resolution: saves 639 days apart, no density conclusion
+                 top-level        member    cited only     explained         below
+  minor                  0             0             2             1             0
+
+2031   top-level 0   low resolution: saves 639 days apart, no density conclusion
+  no events
+
+2032   top-level 2   low resolution: saves 639 days apart, no density conclusion
+                 top-level        member    cited only     explained         below
+  major                  2             3             0             0             0
+  trivial                0             0             0             0             1
+
+tiers view - every enabled campaign - every period
+
+atomic.band   top-level 0
+                 top-level        member    cited only     explained         below
+  minor                  0             0             0             1             0
+
+atomic.thing   top-level 0
+                 top-level        member    cited only     explained         below
+  minor                  0             0             1             0             0
+
+faction.takeover   top-level 0
+                 top-level        member    cited only     explained         below
+  major                  0             3             0             0             0
+
+faction.takeover_wave   top-level 1
+                 top-level        member    cited only     explained         below
+  major                  1             0             0             0             0
+
+nation.cession   top-level 0
+                 top-level        member    cited only     explained         below
+  minor                  0             0             1             0             0
+  trivial                0             0             0             0             1
+
+nation.expansion   top-level 1
+                 top-level        member    cited only     explained         below
+  major                  1             0             0             0             0

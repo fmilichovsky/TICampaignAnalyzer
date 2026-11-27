@@ -152,15 +152,66 @@ def period_label(date: str, period: str) -> str:
     return f"{moment.year:04d}-Q{(moment.month - 1) // 3 + 1}"
 
 
+def period_bounds(label: str) -> tuple[datetime, datetime]:
+    """The first moment of a ``period_label`` and the first moment after it."""
+    year, _, part = label.partition("-")
+    number = int(year)
+    if not part:
+        return datetime(number, 1, 1), datetime(number + 1, 1, 1)
+    months = 6 if part[0] == "H" else 3
+    first = (int(part[1:]) - 1) * months + 1
+    after = first + months
+    return datetime(number, first, 1), datetime(number + after // 13, (after - 1) % 12 + 1, 1)
+
+
 def derive_period(package: Mapping[str, Any], settings: NarratorSettings) -> str:
-    """Quarter for a campaign spanning ``quarter_span_days`` or fewer, half up to ``half_span_days``, else year."""
+    """The ``span_period`` of the package's first and last save."""
     saves = package["saves"]
-    span = (datetime.fromisoformat(saves[-1]["date"]) - datetime.fromisoformat(saves[0]["date"])).days
+    return span_period(saves[0]["date"], saves[-1]["date"], settings)
+
+
+def span_period(first: str, last: str, settings: NarratorSettings) -> str:
+    """Quarter for a campaign spanning ``quarter_span_days`` or fewer, half up to ``half_span_days``, else year."""
+    span = (datetime.fromisoformat(last) - datetime.fromisoformat(first)).days
     if span <= settings.quarter_span_days:
         return "quarter"
     if span <= settings.half_span_days:
         return "half"
     return "year"
+
+
+def interval_granularity(intervals: Sequence[Mapping[str, Any]], period: str, *, requested: bool) -> list[str]:
+    """The period each interval is told by: ``period``, coarsened where its saves are too sparse for it unless the
+    period was ``requested``. ``intervals`` are in order, each with its ``not_before`` and closing ``date``; an
+    interval belongs to the period of its closing save, labelled ``period_label(date, granularity)``."""
+    granularity = [period] * len(intervals)
+    if requested:
+        return granularity
+    # Calendar periods nest, so coarsened labels stay contiguous and never overlap.
+    while coarsened := [(each, label) for each, label in sparse_periods(intervals, granularity) if each != "year"]:
+        parents: set[tuple[str, str]] = set()
+        for each, label in coarsened:
+            coarser = PERIODS[PERIODS.index(each) - 1]
+            parents.update(
+                (coarser, period_label(interval["date"], coarser))
+                for interval, current in zip(intervals, granularity, strict=True)
+                if current == each and period_label(interval["date"], each) == label
+            )
+        for position, interval in enumerate(intervals):
+            for coarser, label in parents:
+                finer = PERIODS.index(granularity[position]) > PERIODS.index(coarser)
+                if finer and period_label(interval["date"], coarser) == label:
+                    granularity[position] = coarser
+    return granularity
+
+
+def sparse_periods(intervals: Sequence[Mapping[str, Any]], granularity: Sequence[str]) -> list[tuple[str, str]]:
+    """The ``(period, label)`` pairs whose intervals are longer than ``LONGEST_DAYS`` of the period, by median."""
+    lengths: dict[tuple[str, str], list[int]] = {}
+    for interval, period in zip(intervals, granularity, strict=True):
+        days = (datetime.fromisoformat(interval["date"]) - datetime.fromisoformat(interval["not_before"])).days
+        lengths.setdefault((period, period_label(interval["date"], period)), []).append(days)
+    return [key for key, days in lengths.items() if statistics.median(days) > LONGEST_DAYS[key[0]]]
 
 
 def base_options(
@@ -223,6 +274,50 @@ def plan_chapters(
     return planner.finish(chapters)
 
 
+def filing_position(
+    event: Mapping[str, Any],
+    intervals: Sequence[Mapping[str, Any]],
+    interval_position: Mapping[str, int] | None = None,
+) -> int:
+    """The position in ``intervals`` a narrative event is told at, by the prompt's period rule: a recorded
+    ``start`` files by start, otherwise by the interval by which the event was known (its ``end``), else by its first
+    of ``intervals`` keys. ``interval_position`` maps each key to its position; built from ``intervals`` when
+    ``None``."""
+    positions = interval_position or {interval["key"]: position for position, interval in enumerate(intervals)}
+    start, end = event.get("start"), event.get("end")
+    if isinstance(start, str) and (event.get("start_basis") == "record" or not isinstance(end, str)):
+        position = 0
+        for candidate, interval in enumerate(intervals):
+            if interval["not_before"] <= start:
+                position = candidate
+        return position
+    if isinstance(end, str):
+        for candidate, interval in enumerate(intervals):
+            if interval["date"] >= end:
+                return candidate
+        return len(intervals) - 1
+    keys = [key for key in event.get("intervals") or () if key in positions]
+    return positions[keys[0]] if keys else 0
+
+
+def event_periods(
+    package: Mapping[str, Any], options: Mapping[str, str], settings: NarratorSettings, *, requested: bool = False
+) -> dict[str, str]:
+    """The period each event of the package is told in, by ID, as ``plan_chapters`` files it: an atomic event in
+    its interval's, a narrative event by ``filing_position``."""
+    planner = _Planner(validate(dict(package)), options, settings, None, requested)
+    found = {
+        event["id"]: label
+        for interval, label in zip(planner.intervals, planner.periods, strict=True)
+        for event in planner._atomic(interval)
+    }
+    found.update(
+        (event["id"], planner.periods[start])
+        for event, start in zip(planner.package["narrative"], planner.starts, strict=True)
+    )
+    return found
+
+
 class _Planner:
     def __init__(
         self,
@@ -243,46 +338,19 @@ class _Planner:
         self.intervals: list[dict[str, Any]] = package["intervals"]
         self.save_position = {save["key"]: position for position, save in enumerate(package["saves"])}
         interval_position = {interval["key"]: position for position, interval in enumerate(self.intervals)}
-        self.starts = [self._start_position(event, interval_position) for event in package["narrative"]]
+        self.starts = [filing_position(event, self.intervals, interval_position) for event in package["narrative"]]
         self.events: dict[str, Mapping[str, Any]] = {event["id"]: event for event in package["narrative"]}
         for interval in self.intervals:
             for event in self._atomic(interval):
                 self.events.setdefault(event["id"], event)
         self.base = self.options.get("period", "year")
         self.requested = requested
-        self.granularity = [self.base] * len(self.intervals)
-        self.sparse = tuple(label for _, label in self._sparse()) if requested else ()
-        if not requested:
-            self._coarsen()
+        self.granularity = interval_granularity(self.intervals, self.base, requested=requested)
+        self.sparse = tuple(label for _, label in sparse_periods(self.intervals, self.granularity)) if requested else ()
         self.periods = [
             period_label(interval["date"], period)
             for interval, period in zip(self.intervals, self.granularity, strict=True)
         ]
-
-    def _sparse(self) -> list[tuple[str, str]]:
-        """An interval belongs to the period of its closing save."""
-        lengths: dict[tuple[str, str], list[int]] = {}
-        for interval, period in zip(self.intervals, self.granularity, strict=True):
-            days = (datetime.fromisoformat(interval["date"]) - datetime.fromisoformat(interval["not_before"])).days
-            lengths.setdefault((period, period_label(interval["date"], period)), []).append(days)
-        return [key for key, days in lengths.items() if statistics.median(days) > LONGEST_DAYS[key[0]]]
-
-    def _coarsen(self) -> None:
-        """Calendar periods nest, so coarsened labels stay contiguous and never overlap."""
-        while coarsened := [(period, label) for period, label in self._sparse() if period != "year"]:
-            parents: set[tuple[str, str]] = set()
-            for period, label in coarsened:
-                coarser = PERIODS[PERIODS.index(period) - 1]
-                parents.update(
-                    (coarser, period_label(interval["date"], coarser))
-                    for interval, current in zip(self.intervals, self.granularity, strict=True)
-                    if current == period and period_label(interval["date"], period) == label
-                )
-            for position, interval in enumerate(self.intervals):
-                for coarser, label in parents:
-                    finer = PERIODS.index(self.granularity[position]) > PERIODS.index(coarser)
-                    if finer and period_label(interval["date"], coarser) == label:
-                        self.granularity[position] = coarser
 
     def _period(self, chapter: Chapter) -> str:
         return self.granularity[chapter.first]
@@ -291,24 +359,6 @@ class _Planner:
         if self.requested:
             return "requested"
         return "campaign_span" if self._period(chapter) == self.base else "save_spacing"
-
-    def _start_position(self, event: Mapping[str, Any], interval_position: Mapping[str, int]) -> int:
-        """Follows the prompt's period rule: a recorded start files by start, otherwise by the interval by which the
-        narrative event was known."""
-        start, end = event.get("start"), event.get("end")
-        if isinstance(start, str) and (event.get("start_basis") == "record" or not isinstance(end, str)):
-            position = 0
-            for candidate, interval in enumerate(self.intervals):
-                if interval["not_before"] <= start:
-                    position = candidate
-            return position
-        if isinstance(end, str):
-            for candidate, interval in enumerate(self.intervals):
-                if interval["date"] >= end:
-                    return candidate
-            return len(self.intervals) - 1
-        keys = [key for key in event.get("intervals") or () if key in interval_position]
-        return interval_position[keys[0]] if keys else 0
 
     @staticmethod
     def _atomic(interval: Mapping[str, Any]) -> list[Mapping[str, Any]]:

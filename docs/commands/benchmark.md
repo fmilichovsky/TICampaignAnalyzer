@@ -420,6 +420,7 @@ tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
                                        [--rise SCALING=VALUE] [--drop SCALING=VALUE]
                                        [--scaling TYPE=SCALING] [--campaign NAME]
                                        [--type EVENT_TYPE] [--base TYPE=LEVEL] [--state HASH]
+                                       [--view VIEW] [--period {year,half,quarter}] [--periods KEY]
                                        [--format {text,json}]
 ```
 <!-- end generated -->
@@ -487,17 +488,81 @@ tinarrative benchmark calibrate report --state 'rise=power:0.05'
 | `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
 | `--base TYPE=LEVEL` | Try a base level on an event type; comma-separated, repeatable (default: the code's). |
 | `--state HASH` | A calibration page's URL hash; the other flags override what it sets. |
+| `--view VIEW` | Print these views of the narrator package instead of the readout (period, tiers); comma-separated, repeatable. |
+| `--period year\|half\|quarter` | The periods of a view, as narrate tells them (default: from each campaign's span, as narrate). |
+| `--periods KEY` | Print only these periods of a view, such as 2031 or 2031-H1; comma-separated, repeatable (default: all). |
 | `--format text\|json` | Report format (default text). |
 <!-- end generated -->
 
 <!-- generated: exit-codes benchmark calibrate report -->
 | Code | When |
 | --- | --- |
-| 0 | The readout was printed. |
-| 2 | Usage error, a sample that does not match samples.json, an unknown scaling, campaign or type, a share that is not a positive number or a drop share at or above its rise share, a scaling on another measure than its type's, a base level that is not a level, an invalid --state (a link with ref= was made before scalings), a scaling or switched type given twice, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
+| 0 | The readout or the views were printed. |
+| 2 | Usage error, a sample that does not match samples.json, an unknown scaling, campaign or type, a share that is not a positive number or a drop share at or above its rise share, a scaling on another measure than its type's, a base level that is not a level, an invalid --state (a link with ref= was made before scalings), a scaling or switched type given twice, an unknown or repeated view, an unknown period key, --period or --periods without --view, a table at another schema version (run with --rebuild), or a failed extraction (status.js says failed; the old table stays). |
 | 4 | --samples is not a directory or its samples.json cannot be read. |
 | 9 | --out cannot be written. |
 <!-- end generated -->
+
+### Views
+
+`--view` prints views of the narrator package in place of the readout, so a review never counts events by hand. It
+is comma-separated and repeatable: `--view period,tiers`. Every view is at the replayed state, each count followed by
+its change against the code's state (`61 -6`) wherever the two differ; at the code's state no count has one. The
+views are count grids: they list no events and cut nothing. `--format json` carries the same counts, a cell as
+`{"replay": n, "code": m}`, and leaves out the cells that are 0 at both states.
+
+**Periods** are the ones `narrate` tells the campaign in, each event in the period `narrate` puts it in:
+`--period year|half|quarter`, else the period the campaign's span gives. Every period from the first save to the
+last prints, one without events too. `--periods 2031,2042` prints only those periods; the campaign line still
+counts the whole campaign.
+
+A period inside a gap of more than a year between two saves is marked **low resolution**. Draw no conclusion about
+event density from it: the saves did not see when its events happened.
+
+Each counted event sits in one of five **tiers**, the first that holds:
+
+| Tier | Events |
+| --- | --- |
+| top-level | Narrative events at major or above that are no group's member. |
+| member | The members a group in the package keeps. |
+| cited only | Events a top-level event is built from, directly or further down. |
+| explained | Events a top-level event or member explains without citing them, such as a band crossing. |
+| below | Any other narrative event. |
+
+Atomic events count only when the package uses them, as cited only or explained; a group that falls apart is not
+counted. `--type` counts only the named types.
+
+| View | Prints |
+| --- | --- |
+| `period` | Per campaign, the top-level count, then per period a headline and a level by tier grid. |
+| `tiers` | Per event type, over the enabled campaigns and the printed periods, the top-level count and a level by tier grid. JSON adds each type's grid per campaign and period. |
+
+```sh
+# The package's shape if diplomatic realignments were minor events.
+tinarrative benchmark calibrate report --campaign resist-long --view period --base nation.diplomatic_realignment=minor
+
+# Where two types sit in 2031, per tier.
+tinarrative benchmark calibrate report --view tiers --periods 2031 \
+  --type nation.diplomatic_realignment,nation.band_crossed
+```
+
+The period view of a small test campaign `c` with a base level lowered, so one top-level event drops below:
+
+```
+state  #lowered (delta against the code's state)
+
+period view - c - by year (span 2.7 years, narrate default)
+campaign  top-level 1 -1 - rows 10
+
+2031   top-level 0   low resolution: saves 639 days apart, no density conclusion
+  no events
+
+2032   top-level 1 -1   low resolution: saves 639 days apart, no density conclusion
+                 top-level        member    cited only     explained         below
+  major               1 -1             3             0             0             0
+  minor                  0             0             0             0          1 +1
+  trivial                0             0             0             0             1
+```
 
 ### Draft shares
 
