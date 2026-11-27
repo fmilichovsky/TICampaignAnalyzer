@@ -51,9 +51,10 @@ proposals, scoring proposals and structural findings; the principles say which o
   above it decides the reading's level, and the reading's own base and share decide nothing. Compare the bases,
   and where the cited kind is scaled, the shares it reads as well. A wrapper is not an exception: it makes no
   judgement of its own, so there is nothing to outrank.
-- **No uncited major.** An atomic kind at major or above that no narrative rule cites is reported as a finding.
-  The history tells developments, so an episode worth recalling should be read by some rule: either a rule is
-  missing or the level is too high.
+- **No uncited major.** An atomic event that lands at major or above and that no narrative event cites is
+  reported as a finding. This is judged per event, not per kind. The history tells developments, so an episode
+  worth recalling should be read by some rule: either a rule is missing or the level is too high. A kind that no
+  rule ever reads needs no separate check, since its first event at major shows up the same way.
 - **Campaign-defining by consequence.** An event is campaign-defining when later developments cannot be understood
   without it. It is a base level only for a kind that shakes the world whoever it happens to, such as the use of
   nuclear weapons. Every other kind has to rise to it by its share, and by novelty once that has a lever, because
