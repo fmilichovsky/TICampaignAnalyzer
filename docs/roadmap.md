@@ -126,7 +126,7 @@ Target: agents that judge event kinds, base levels and scalings against the samp
 - [x] Calibration table: roles, explained events, interval dates and name history (#644).
 - [x] Themes file (#645).
 - [x] Sample profile in `samples.json` (#646).
-- [ ] Calibration registry script (#647).
+- [x] Calibration registry script (#647).
 - [x] Coverage labels (#648).
 - [ ] Calibration principles (#649).
 - [ ] Calibration page: a row per scaling (#650).
