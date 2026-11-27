@@ -54,7 +54,8 @@ class ReplayState:
     name is split off into a scaling of its own, starting as a copy of its code scaling; one mapped to another
     scaling on the same measure is joined to it. ``types`` empty means every type. ``bases`` empty means each draft's
     own base. ``type_bases`` holds the switched types; a type absent, or at the code's base level (the index's
-    ``kinds``), keeps the code's. ``focus`` is the page's focused measure; the output does not depend on it.
+    ``kinds``), keeps the code's. ``focus`` is the page's focused scaling, one of ``rises`` (a starting scaling is
+    named after its measure); the output does not depend on it.
     """
 
     rises: Mapping[str, float]
@@ -778,7 +779,6 @@ def _with_bases(index: Mapping[str, Any], state: ReplayState) -> ReplayState:
 
 
 def _validate(index: Mapping[str, Any], campaigns: Collection[str], known: frozenset[str], state: ReplayState) -> None:
-    measures = list(index["measures"])
     split = sorted(name for event_type, name in state.scalings.items() if name == event_type)
     names = [*index["scalings"], *split]
     if sorted(state.rises) != sorted(names):
@@ -799,8 +799,8 @@ def _validate(index: Mapping[str, Any], campaigns: Collection[str], known: froze
     unknown = sorted(set(state.types) - known)
     if unknown:
         raise ReplayStateError(f"unknown event type(s) in the filter: {', '.join(unknown)}")
-    if state.focus is not None and state.focus not in measures:
-        raise ReplayStateError(f"unknown focus measure {state.focus!r}")
+    if state.focus is not None and state.focus not in state.rises:
+        raise ReplayStateError(f"unknown focus scaling {state.focus!r} (known: {', '.join(names)})")
     names = [draft["name"] for draft in index["drafts"]]
     if sorted(state.bases) != sorted(names):
         raise ReplayStateError(f"the state needs a base for exactly the draft shares {', '.join(names) or '(none)'}")
@@ -1318,7 +1318,7 @@ def encode_state(state: ReplayState, index: Mapping[str, Any]) -> str:
     scaling's against the code scaling it copies), ``scaling=<type>:<scaling>,...`` (sorted; a type named as its own
     scaling is split off), ``campaigns=<name>,...`` (index order; empty for none), ``types=<type>,...`` (sorted),
     ``base=<name>:<level>,...`` (the switched drafts in index order, then the switched event types sorted) and
-    ``focus=<measure>``. A draft name is a slug and an event type holds a dot, so the two never meet. A number is
+    ``focus=<scaling>``. A draft name is a slug and an event type holds a dot, so the two never meet. A number is
     written by ``number_text``.
     """
     default = default_state(index)
@@ -1416,13 +1416,12 @@ def decode_state(text: str, index: Mapping[str, Any]) -> ReplayState:
             drafts, type_bases = _decode_bases(value, index)
             bases.update(drafts)
         else:
-            if value not in index["measures"]:
-                raise ReplayStateError(f"unknown focus measure {value!r} in the state hash")
             focus = value
-    state = ReplayState(
-        rises=default.rises, drops=default.drops, campaigns=campaigns, types=types, focus=focus, bases=bases
-    )
+    state = ReplayState(rises=default.rises, drops=default.drops, campaigns=campaigns, types=types, bases=bases)
     state = with_shares(with_scalings(state, index, scalings), index, rises=rises, drops=drops)
+    if focus is not None and focus not in state.rises:
+        raise ReplayStateError(f"unknown focus scaling {focus!r} in the state hash (known: {', '.join(state.rises)})")
+    state = replace(state, focus=focus)
     return replace(state, type_bases=switched_types(replace(state, type_bases=type_bases), index))
 
 
