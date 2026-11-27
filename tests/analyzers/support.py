@@ -14,7 +14,7 @@ from tinarrative.model.changes import StateDiff
 from tinarrative.model.entities import EntityDomain, EntityId, EntityRef, IdentityConfidence
 from tinarrative.model.events import Event, Significance
 from tinarrative.model.evidence import SourceLocation
-from tinarrative.model.kinds import EventKind, EvidenceRole
+from tinarrative.model.kinds import UNEXAMINED, EventKind, EvidenceRole
 from tinarrative.model.records import RecordEntry, RecordKind, RecordSet
 from tinarrative.model.snapshot import EntityState, SaveSnapshot
 from tinarrative.model.values import Observed, Unknown
@@ -62,6 +62,7 @@ def fixture_kind(event_type: str) -> EventKind:
         EvidenceRole.BOOKKEEPING,
         frozenset(),
         base=Significance.MINOR,
+        reason=UNEXAMINED,
     )
 
 

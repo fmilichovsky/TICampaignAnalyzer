@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Rule
 from ..model.values import Unknown
 from .narrative import has_role, narrative_kind, role
 from .text import attribute_label, attribute_text, plain, subject_label, transition_label
@@ -50,6 +50,7 @@ TECHNOLOGY_COMPLETED = EventKind(
     optional=frozenset({"side", "transition", "before", "after", "completions"}),
     rule=Rule.COMPLETION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 TECHNOLOGY_FINISHED_CHANGED = EventKind(
     "technology.finished_changed",
@@ -58,6 +59,7 @@ TECHNOLOGY_FINISHED_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"before", "after"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 TECHNOLOGY_APPEARED = EventKind(
     "technology.appeared",
@@ -65,6 +67,7 @@ TECHNOLOGY_APPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side", "finished"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 TECHNOLOGY_DISAPPEARED = EventKind(
     "technology.disappeared",
@@ -72,6 +75,7 @@ TECHNOLOGY_DISAPPEARED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"side", "finished"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 RESEARCH_FINISHED_TECHS_CHANGED = EventKind(
     "research.finished_techs_changed",
@@ -80,6 +84,7 @@ RESEARCH_FINISHED_TECHS_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason=UNEXAMINED,
 )
 FACTION_PROJECT_COMPLETED = EventKind(
     "faction.project_completed",
@@ -89,6 +94,7 @@ FACTION_PROJECT_COMPLETED = EventKind(
     optional=frozenset({"completions"}),
     rule=Rule.COMPLETION,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 FACTION_FINISHED_PROJECT_NAMES_CHANGED = EventKind(
     "faction.finished_project_names_changed",
@@ -97,6 +103,7 @@ FACTION_FINISHED_PROJECT_NAMES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after", "count"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 
@@ -109,7 +116,8 @@ MILESTONE = narrative_kind(
     "technology.milestone",
     _milestone,
     required=frozenset({"template", "rationale"}),
-    base=Significance.MINOR,  # Only the fallback: a rule builds this kind for curated names, whose tier sets the level.
+    base=Significance.MINOR,
+    reason=UNEXAMINED,  # Only the fallback: a rule builds this kind for curated names, whose tier sets the level.
     rule=Rule.MILESTONE_TIER,
 )
 

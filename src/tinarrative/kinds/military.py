@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from ..model.entities import EntityDomain
 from ..model.events import Event, Role, Significance
-from ..model.kinds import EventKind, EvidenceRole, Rule, Scaling, ShareOf
+from ..model.kinds import UNEXAMINED, EventKind, EvidenceRole, Rule, Scaling, ShareOf
 from .narrative import count, narrative_kind, role
 from .text import TRANSITION, attribute_label, contextual, list_changed, subject_label, transition_label
 
@@ -40,6 +40,7 @@ REGION_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 FACTION_CHANGED = EventKind(
     "army.faction_changed",
@@ -48,6 +49,7 @@ FACTION_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 DESTROYED_CHANGED = EventKind(
     "army.destroyed_changed",
@@ -56,6 +58,7 @@ DESTROYED_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
 )
 STRENGTH_CHANGED = EventKind(
     "army.strength_changed",
@@ -64,6 +67,7 @@ STRENGTH_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 TYPE_CHANGED = EventKind(
     "army.type_changed",
@@ -72,6 +76,7 @@ TYPE_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 DEPLOYMENT_TYPE_CHANGED = EventKind(
     "army.deployment_type_changed",
@@ -80,6 +85,7 @@ DEPLOYMENT_TYPE_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 HOME_REGION_CHANGED = EventKind(
     "army.home_region_changed",
@@ -88,6 +94,7 @@ HOME_REGION_CHANGED = EventKind(
     required=TRANSITION,
     optional=frozenset({"home_nation"}),
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 APPEARED = EventKind(
     "army.appeared",
@@ -97,6 +104,7 @@ APPEARED = EventKind(
     optional=frozenset({"deployment_type", "megafauna", "home_nation"}),
     rule=Rule.ARMY_PRESENCE,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 DISAPPEARED = EventKind(
     "army.disappeared",
@@ -106,6 +114,7 @@ DISAPPEARED = EventKind(
     optional=frozenset({"deployment_type", "megafauna", "home_nation"}),
     rule=Rule.ARMY_PRESENCE,
     base=Significance.MINOR,
+    reason=UNEXAMINED,
 )
 
 FACTION_ARMIES_CHANGED = EventKind(
@@ -115,6 +124,7 @@ FACTION_ARMIES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: a mirror of the army events",
 )
 NATION_ARMIES_CHANGED = EventKind(
     "nation.armies_changed",
@@ -123,6 +133,7 @@ NATION_ARMIES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: a mirror of the army events",
 )
 REGION_ARMIES_CHANGED = EventKind(
     "region.armies_changed",
@@ -131,6 +142,7 @@ REGION_ARMIES_CHANGED = EventKind(
     required=frozenset({"transition"}),
     optional=frozenset({"member", "before", "after"}),
     base=Significance.TRIVIAL,
+    reason="Trivial is a role: a mirror of the army events",
 )
 
 
@@ -154,6 +166,7 @@ MILITARY_BUILDUP = narrative_kind(
     _army_count("built up"),
     required=_ARMY_COUNT,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.ACTOR,
     scaling=Scaling.POWER,
 )
@@ -162,6 +175,7 @@ DEMOBILIZATION = narrative_kind(
     _army_count("demobilized"),
     required=_ARMY_COUNT,
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.ACTOR,
     scaling=Scaling.POWER,
 )
@@ -170,6 +184,7 @@ NAVY_ESTABLISHED = narrative_kind(
     _navy_established,
     required=frozenset({"navies", "gdp_rank", "strength_rank"}),
     base=Significance.MAJOR,
+    reason=UNEXAMINED,
     share=ShareOf.ACTOR,
     scaling=Scaling.POWER,
 )
