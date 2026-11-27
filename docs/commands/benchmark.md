@@ -421,7 +421,7 @@ tinarrative benchmark calibrate report [--samples PATH] [--out PATH] [--rebuild]
                                        [--scaling TYPE=SCALING] [--campaign NAME]
                                        [--type EVENT_TYPE] [--base TYPE=LEVEL] [--state HASH]
                                        [--view VIEW] [--period {year,half,quarter}] [--periods KEY]
-                                       [--format {text,json}]
+                                       [--include-non-standard] [--format {text,json}]
 ```
 <!-- end generated -->
 
@@ -492,9 +492,10 @@ tinarrative benchmark calibrate report --state 'rise=power:0.05'
 | `--type EVENT_TYPE` | Count only these event types; comma-separated, repeatable (default: every type). |
 | `--base TYPE=LEVEL` | Try a base level on an event type; comma-separated, repeatable (default: the code's). |
 | `--state HASH` | A calibration page's URL hash; the other flags override what it sets. |
-| `--view VIEW` | Print these views of the narrator package instead of the readout (period, tiers, events); comma-separated, repeatable. |
+| `--view VIEW` | Print these views of the narrator package instead of the readout (period, tiers, events, distribution); comma-separated, repeatable. |
 | `--period year\|half\|quarter` | The periods of a view, as narrate tells them (default: from each campaign's span, as narrate). |
 | `--periods KEY` | Print only these periods of a view, such as 2031 or 2031-H1; comma-separated, repeatable (default: all). |
+| `--include-non-standard` | Keep the samples whose profile is marked non-standard in the distribution view (default: left out). |
 | `--format text\|json` | Report format (default text). |
 <!-- end generated -->
 
@@ -542,6 +543,7 @@ counted. `--type` counts only the named types.
 | `period` | Per campaign, the top-level count, then per period a headline and a level by tier grid. |
 | `tiers` | Per event type, over the enabled campaigns and the printed periods, the top-level count and a level by tier grid. JSON adds each type's grid per campaign and period. |
 | `events` | The top-level events behind a count, per campaign and period, filtered by `--campaign`, `--type` and `--periods`. |
+| `distribution` | Per scaling, how each kind's shares are spread, per campaign: see [The distribution view](#the-distribution-view). |
 
 ```sh
 # The package's shape if diplomatic realignments were minor events.
@@ -594,6 +596,31 @@ campaign  top-level 1 -1 - rows 10
   major               1 -1             3             0             0             0
   minor                  0             0             0             0          1 +1
   trivial                0             0             0             0             1
+```
+
+### The distribution view
+
+`--view distribution` prints how each kind's shares are spread. It reads no periods (`--period` and `--periods` do not apply). It is per **scaling**, at the replayed
+state's rise and drop shares, filtered by `--campaign` and `--type`:
+
+- the scaling's measure, its rise and drop share, and its **reason**, the game quantity its shares stand for, with
+  its status: `(stale r1→r2)` or `unexamined`;
+- the **world quantity** of its measure, per campaign: the percentiles of the shares over all entities at the
+  campaign's first save and at its last, and of how far an entity in both moved (`moved x`). These are shares of the world total, not raw game numbers;
+- each **kind** that reads the scaling, and each [draft share](#draft-shares) that does, with the percentiles
+  p10, p25, p50, p75 and p90 of its shares per campaign: of its events in the campaign's first interval (`first`),
+  its last (`last`) and all of them (`all`). A percentile at or above the rise share is marked `^`, at or below the
+  drop share `v`;
+- per kind, a readout line: the pooled median share, how many times the rise share it is, and the level it lands on
+  from the kind's base, with how many pooled shares sit at the rise and at the drop share. It is a readout, never a
+  validation;
+- per scaling, how far the kinds' median shares span, as a factor.
+
+A sample whose profile in `samples.json` is marked non-standard (`non_standard`) is left out of the view, named at its
+top; `--include-non-standard` keeps it. The flag belongs to this view alone.
+
+```sh
+tinarrative benchmark calibrate report --view distribution --type war.arc,federation.lifecycle
 ```
 
 ### Draft shares

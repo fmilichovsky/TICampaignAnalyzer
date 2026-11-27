@@ -123,6 +123,17 @@ def extractable_campaigns(samples: Path) -> dict[str, list[Path]]:
     return {name: files for name, files in sample_files(samples).items() if name not in prefixes}
 
 
+def non_standard_marks(samples: Path) -> dict[str, list[str]]:
+    """The settings each campaign's profile in ``samples.json`` marks non-standard, by campaign; a standard campaign
+    is not listed."""
+    manifest = json.loads((samples / MANIFEST).read_text(encoding="utf-8"))
+    return {
+        name: list(marks)
+        for name, entry in manifest["campaigns"].items()
+        if (marks := (entry.get("profile") or {}).get("non_standard"))
+    }
+
+
 def raw_sizes(samples: Path, campaign: str, files: Iterable[Path]) -> dict[str, int]:
     """The decompressed size of each of ``files`` of ``campaign``, by decompressed name, as the manifest lists it; a
     file it lists without one counts as its compressed size."""

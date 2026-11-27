@@ -297,7 +297,11 @@ Tables = dict[str, list[dict[str, Any]]]
 def replayed_reason(index: Mapping[str, Any], event_type: str) -> dict[str, Any]:
     """The type's reason as the index holds it, its status computed here against the index's principle revisions
     (ADR-0024): stale when judged under an earlier revision. Unexamined for a type the index does not list."""
-    reason: dict[str, Any] = index["kinds"].get(event_type, {}).get("reason") or reason_entry(UNEXAMINED)
+    return restated_reason(index, index["kinds"].get(event_type, {}).get("reason") or reason_entry(UNEXAMINED))
+
+
+def restated_reason(index: Mapping[str, Any], reason: Mapping[str, Any]) -> dict[str, Any]:
+    """``reason`` (an index entry, of a kind or a scaling) with its status computed against the index's principles."""
     if reason["principle"] is None:
         return {**reason, "status": ReasonStatus.UNEXAMINED.value}
     current = index["principles"][reason["principle"]]["revision"]

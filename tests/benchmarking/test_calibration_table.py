@@ -95,6 +95,7 @@ def test_the_index_carries_the_registry_the_rules_and_the_caller_key() -> None:
 
     assert set(index) == {
         "names",
+        "world",
         "schema_version",
         "campaigns",
         "key",
