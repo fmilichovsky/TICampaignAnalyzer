@@ -344,7 +344,7 @@ BAND_CROSSED = EventKind(
     ),
     optional=frozenset({"causes", "rest_value_share"}),
     base=Significance.TRIVIAL,
-    reason="Evidence for the band-shift events that cite it",
+    reason="Trivial is a role: evidence for the band-shift events that cite it",
 )
 PCGDP_TREND = EventKind(
     "nation.pcgdp_trend",
@@ -363,7 +363,7 @@ PCGDP_TREND = EventKind(
         }
     ),
     base=Significance.TRIVIAL,
-    reason="Evidence for the economic trajectory that cites it",
+    reason="Trivial is a role: evidence for the economic trajectory that cites it",
 )
 STATISTIC_SHIFTED = EventKind(
     "nation.statistic_shifted",
@@ -374,7 +374,7 @@ STATISTIC_SHIFTED = EventKind(
     share=ShareOf.NATION,
     scaling=Scaling.POWER,
     base=Significance.TRIVIAL,
-    reason="Evidence for the readings that cite the shift",
+    reason="Trivial is a role: evidence for the readings that cite the shift",
 )
 POPULATION_CHANGED = EventKind(
     "nation.population_changed",
@@ -415,7 +415,7 @@ RANK_CHANGED = EventKind(
     BOOKKEEPING,
     required=frozenset({"metric", "before_rank", "after_rank", "before", "after"}),
     base=Significance.TRIVIAL,
-    reason="Evidence for the ranking events that cite it",
+    reason="Trivial is a role: evidence for the ranking events that cite it",
 )
 
 TERRITORY_GAINED = EventKind(
