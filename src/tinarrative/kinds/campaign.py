@@ -155,7 +155,7 @@ NUCLEAR_STRIKES_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     required=frozenset({"transition", "before", "after"}),
     base=Significance.CAMPAIGN_DEFINING,
-    reason="Campaign-defining by consequence: the use of nuclear weapons shakes the world whoever it happens to",
+    reason="The use of nuclear weapons shakes the world whoever it happens to",
 )
 SEA_LEVEL_RISE_TRIGGERED = EventKind(
     "campaign.sea_level_rise_triggered",
@@ -254,7 +254,7 @@ NOTIFICATION_ENTRY_REMOVED = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"},
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: the pruning of the notification log, churn by nature",
+    reason="The pruning of the notification log, churn by nature",
 )
 NOTIFICATION_ENTRY_CHANGED = EventKind(
     "notification.entry_changed",
@@ -262,7 +262,7 @@ NOTIFICATION_ENTRY_CHANGED = EventKind(
     EvidenceRole.EVIDENCE,
     required=NOTIFICATION_ENTRY.required | {"logged_on"} | _BEFORE_ENTRY,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: the notification log's own churn",
+    reason="The notification log's own churn",
 )
 
 

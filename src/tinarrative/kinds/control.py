@@ -228,7 +228,7 @@ ORGANIZATION_APPEARED = EventKind(
     BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: organization churn",
+    reason="Organization churn",
 )
 ORGANIZATION_DISAPPEARED = EventKind(
     "organization.disappeared",
@@ -236,7 +236,7 @@ ORGANIZATION_DISAPPEARED = EventKind(
     BOOKKEEPING,
     frozenset({"side"}),
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: organization churn",
+    reason="Organization churn",
 )
 ORGANIZATION_ASSIGNED_COUNCILOR_CHANGED = EventKind(
     "organization.assigned_councilor_changed",

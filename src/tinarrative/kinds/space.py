@@ -289,7 +289,7 @@ SHIP_LAST_REFIT_CHANGED = EventKind(
     EvidenceRole.BOOKKEEPING,
     TRANSITION,
     base=Significance.TRIVIAL,
-    reason="Trivial is a role: refit bookkeeping, churn by nature",
+    reason="Refit bookkeeping, churn by nature",
 )
 SHIP_APPEARED = EventKind(
     "ship.appeared",
