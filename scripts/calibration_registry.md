@@ -34,8 +34,9 @@ A line inside a fenced code block, like the example above, is never read as the 
 
 The long-lived parent issue titled exactly
 [**Calibration reviews**](https://github.com/fmilichovsky/TICampaignAnalyzer/issues/705) holds every review as a
-sub-issue. Each proposal and finding a review raises is a sub-issue of that review. Items that predate the framework
-stay outside any review; the script finds them by the label.
+sub-issue. Each scoring proposal and structural finding a review raises is a sub-issue of that review. A value
+proposal is a PR, which cannot be a sub-issue: it links its review in its body, and the review lists it. Items that
+predate the framework stay outside any review; the script finds them by the label.
 
 ## Running the script
 
