@@ -230,7 +230,7 @@ def snippet(index: Mapping[str, Any], result: Replay) -> str:
     return "\n".join(lines) if lines else "# Every scaling, kind's scaling and base level is the code's."
 
 
-def _reason_text(index: Mapping[str, Any], event_type: str) -> str:
+def reason_text(index: Mapping[str, Any], event_type: str) -> str:
     """``<principle> — <because>``, with `` (stale r1→r2)`` when stale, or ``unexamined``."""
     reason = replayed_reason(index, event_type)
     if reason["status"] == ReasonStatus.UNEXAMINED:
@@ -239,6 +239,10 @@ def _reason_text(index: Mapping[str, Any], event_type: str) -> str:
     text = f"{principle['title']} — {reason['because']}"
     if reason["status"] == ReasonStatus.STALE:
         text += f" (stale r{reason['revision']}→r{principle['revision']})"
+    return text
+
+
+def _cell_text(text: str) -> str:
     return text.replace("|", "\\|")
 
 
@@ -339,7 +343,7 @@ def render_text(
     ]
     counts = level_counts(result, levels)
     rows = [
-        f"| {event_type} | {_reason_text(index, event_type)} | {level} | {replayed} | {baseline} | "
+        f"| {event_type} | {_cell_text(reason_text(index, event_type))} | {level} | {replayed} | {baseline} | "
         f"{_signed(replayed - baseline)} |"
         for event_type, by_type in counts.items()
         for level in levels
@@ -483,6 +487,7 @@ def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) ->
         for row in drafts.get(name, ())
         if not types or row["type"] in types
     }
+    labels = {(name, row["id"]): row["label"] for name in result["state"]["campaigns"] for row in drafts.get(name, ())}
     summaries = []
     for draft in index["drafts"]:
         name = draft["name"]
@@ -506,8 +511,12 @@ def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) ->
                             "step": cutoff["step"],
                             "offset": cutoff["offset"],
                             "share": cutoff["share"],
-                            "below": [_draft_neighbour(entry, ruled) for entry in cutoff["drafts"][name]["below"]],
-                            "above": [_draft_neighbour(entry, ruled) for entry in cutoff["drafts"][name]["above"]],
+                            "below": [
+                                _draft_neighbour(entry, ruled, labels) for entry in cutoff["drafts"][name]["below"]
+                            ],
+                            "above": [
+                                _draft_neighbour(entry, ruled, labels) for entry in cutoff["drafts"][name]["above"]
+                            ],
                         }
                         for cutoff in result["cutoffs"][scaling]
                     ]
@@ -518,14 +527,17 @@ def draft_summaries(index: Mapping[str, Any], result: Replay, drafts: Tables) ->
     return summaries
 
 
-def _draft_neighbour(item: Neighbour, ruled: Mapping[tuple[str, str], bool]) -> dict[str, Any]:
-    return {**_neighbour(item), "ruled": ruled.get((item["campaign"], item["id"]), False)}
+def _draft_neighbour(
+    item: Neighbour, ruled: Mapping[tuple[str, str], bool], labels: Mapping[tuple[str, str], str]
+) -> dict[str, Any]:
+    key = (item["campaign"], item["id"])
+    return {**_neighbour(item), "label": labels.get(key, item["id"]), "ruled": ruled.get(key, False)}
 
 
 def _draft_neighbour_row(side: str, item: Mapping[str, Any]) -> str:
     decided = "own" if item["decisive"] else f"`{item['decided_by']}`"
     return (
-        f"| {side} | {item['campaign']} | `{item['id']}` | {item['share']:.3g} | {item['score']} | {item['level']} "
+        f"| {side} | {item['campaign']} | {item['label']} | {item['share']:.3g} | {item['score']} | {item['level']} "
         f"| {item['code_level']} | {decided} | {'yes' if item['ruled'] else 'no'} |"
     )
 
@@ -539,6 +551,7 @@ def render_json(
     types = set(result["state"]["types"])
     moved: list[dict[str, Any]] = []
     for name, campaign in result["campaigns"].items():
+        labels = {row["id"]: row["label"] for row in tables[name]}
         fallen = {member["id"] for member in campaign["members"] if member["verdict"] == "falls_apart"}
         for row, event in zip(tables[name], campaign["events"], strict=True):
             if event["level"] == row["level"] or event["id"] in fallen or (types and row["type"] not in types):
@@ -547,12 +560,14 @@ def render_json(
                 {
                     "campaign": name,
                     "id": event["id"],
+                    "label": row["label"],
                     "type": row["type"],
                     "shares": row["shares"],
                     "score": event["score"],
                     "level": event["level"],
                     "code_level": row["level"],
                     "decided_by": event["decided_by"],
+                    "decided_by_label": labels.get(event["decided_by"], event["decided_by"]),
                 }
             )
     return {

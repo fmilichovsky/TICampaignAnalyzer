@@ -327,3 +327,29 @@ def test_a_reasons_status_is_computed_at_replay_against_the_indexs_principle_rev
     current = {**INDEX, "principles": {**INDEX["principles"], principle: {"title": "", "revision": stored["revision"]}}}
     assert replayed_reason(current, "atomic.scatter")["status"] == "examined"
     assert replayed_reason(INDEX, "no.such") == reason_entry(UNEXAMINED)
+
+
+def test_moved_events_and_draft_rows_carry_labels_and_the_draft_text_prints_them_instead_of_ids() -> None:
+    def named(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [{**row, "label": f"Label of {row['id']}"} for row in rows]
+
+    tables = {name: named(rows) for name, rows in TABLES.items()}
+    drafts = {name: named(rows) for name, rows in DRAFTS.items()}
+    state = STATES["lower"]
+    result = replay(INDEX, tables, state, drafts)
+    document = render_json(INDEX, tables, result, state_hash="", drafts=drafts)
+    text = render_text(INDEX, tables, result, state_hash="", drafts=drafts)
+
+    assert document["moved"]
+    assert all(item["label"] == f"Label of {item['id']}" for item in document["moved"])
+    assert all(item["decided_by_label"] == f"Label of {item['decided_by']}" for item in document["moved"])
+    entries = [
+        entry
+        for item in document["drafts"]
+        for cutoffs in item["cutoffs"].values()
+        for cutoff in cutoffs
+        for entry in [*cutoff["below"], *cutoff["above"]]
+    ]
+    assert entries and all(entry["label"] == f"Label of {entry['id']}" for entry in entries)
+    assert f"| Label of {entries[0]['id']} |" in text
+    assert f"`{entries[0]['id']}`" not in text.split("## Draft shares")[1]

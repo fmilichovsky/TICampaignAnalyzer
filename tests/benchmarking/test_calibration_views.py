@@ -244,3 +244,110 @@ def test_views_parse_comma_separated_and_repeated_flags_and_reject_unknown_ones(
         parse_views(["shape"])
     with pytest.raises(ViewError, match="twice"):
         parse_views(["period", "period"])
+
+
+def events_table() -> list[dict[str, Any]]:
+    """A top-level event its own power share decides, one a cited event decides, one a context rule decides and a
+    group whose members fall in another period than it."""
+    group = members("kept", [0.0] * GATE["minimum"])
+    rows = [
+        row("evidence", "atomic.thing"),
+        row("own", FIRST, tier="narrative", level="major", shares=power(0)),
+        row("strong", FIRST, tier="narrative", level="campaign_defining"),
+        row("lifted", SECOND, tier="narrative", level="major", cited=("strong",)),
+        row("ruled", FIRST, tier="narrative", level="trivial", rule="actor_is_player"),
+        *group,
+    ]
+    return spaced(rows, [1, 3, 3, 3, 3, *([1] * (len(group) - 1)), 3])
+
+
+def events_of(document: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {
+        event["id"]: event
+        for campaign in document["views"]["events"]["campaigns"].values()
+        for entry in campaign["periods"]
+        for event in entry["events"]
+    }
+
+
+def test_the_events_view_says_what_set_each_events_level_and_dates_what_falls_outside_the_period() -> None:
+    tables = {"c": events_table()}
+    index = index_of(tables)
+    document = views_document(index, tables, None, default_state(index), views=("events",), settings=SETTINGS)
+    found = events_of(document)
+
+    assert found["own"]["decided_by"]["kind"] == "share"
+    assert found["own"]["decided_by"]["scaling"] == "power"
+    assert found["lifted"]["decided_by"] == {"kind": "cited", "id": "strong", "label": "strong"}
+    assert found["lifted"]["cited"] == 1
+    group = found["kept-group"]
+    assert len(group["members"]["kept"]) == GATE["minimum"]
+    # The members closed in the first period; the group is told in the third.
+    assert all(item["at"] == SAVES[1][:10] for item in group["members"]["kept"])
+    text = render_views(document)
+    assert f"@{SAVES[1][:10]}" in text and "decided by cited event strong" in text
+
+
+def test_a_context_rule_that_names_trivial_decides_outright() -> None:
+    rows = [row("ruled", FIRST, tier="narrative", level="trivial", rule="rule.named")]
+    tables = {"c": spaced(rows, [1])}
+    index = index_of(tables)
+    state = replace(default_state(index), type_bases={FIRST: "major"})
+    document = views_document(index, tables, None, state, views=("events",), settings=SETTINGS)
+
+    assert events_of(document) == {}
+    assert document["views"]["events"]["reasons"] == {}
+
+
+def test_the_events_view_shows_the_code_level_beside_the_tried_one_and_filters() -> None:
+    tables = {"c": events_table()}
+    index = index_of(tables)
+    lowered = override_state(default_state(index), index, bases=[f"{FIRST}=minor"])
+    document = views_document(index, tables, None, lowered, views=("events",), settings=SETTINGS)
+    found = events_of(document)
+
+    assert (found["own"]["level"], found["own"]["code_level"]) == ("minor", "major")
+    assert found["own"]["top_level"] == {"replay": False, "code": True}
+    assert "(code: major)" in render_views(document) and "no longer top-level" in render_views(document)
+    only = views_document(
+        index, tables, None, replace(default_state(index), types=(FIRST,)), views=("events",), settings=SETTINGS
+    )
+    assert {event["type"] for event in events_of(only).values()} == {FIRST}
+    third = views_document(
+        index, tables, None, default_state(index), views=("events",), periods=["2030"], settings=SETTINGS
+    )
+    assert all(entry["key"] == "2030" for entry in third["views"]["events"]["campaigns"]["c"]["periods"])
+
+
+def test_the_events_view_cuts_long_lists_in_text_and_not_in_json() -> None:
+    rows = [row(f"e{n}", FIRST, tier="narrative", level="major", shares=power(n)) for n in range(20)]
+    tables = {"c": spaced(rows, [3] * 20)}
+    index = index_of(tables)
+    document = views_document(index, tables, None, default_state(index), views=("events",), settings=SETTINGS)
+
+    assert len(events_of(document)) == 20
+    assert "... 5 more cut" in render_views(document)
+
+
+@pytest.mark.parametrize("status", ["examined", "stale", "unexamined"])
+def test_the_events_view_reads_each_types_reason_from_the_index(status: str) -> None:
+    tables = {"c": events_table()}
+    index = index_of(tables)
+    principle = next(iter(index["principles"]))
+    reason = {"principle": principle, "because": "a role", "revision": index["principles"][principle]["revision"]}
+    if status == "stale":
+        reason["revision"] -= 1
+    kind = {**index["kinds"][FIRST], "reason": {**reason, "status": "examined"}}
+    if status == "unexamined":
+        kind["reason"] = {"principle": None, "because": None, "revision": None, "status": "unexamined"}
+    index = {**index, "kinds": {**index["kinds"], FIRST: kind}}
+    document = views_document(index, tables, None, default_state(index), views=("events",), settings=SETTINGS)
+
+    found = document["views"]["events"]["reasons"][FIRST]
+    assert found["status"] == status
+    title = index["principles"][principle]["title"]
+    if status == "unexamined":
+        assert found["text"] == "unexamined"
+    else:
+        assert found["text"].startswith(f"{title} — a role")
+        assert ("(stale r" in found["text"]) is (status == "stale")

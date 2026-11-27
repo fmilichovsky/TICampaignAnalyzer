@@ -1385,6 +1385,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               },
               {
@@ -1397,6 +1398,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1409,6 +1411,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               }
             ]
@@ -1429,6 +1432,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               },
               {
@@ -1441,6 +1445,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1453,6 +1458,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               }
             ]
@@ -1472,6 +1478,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               },
               {
@@ -1484,6 +1491,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1496,6 +1504,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               }
             ],
@@ -1516,6 +1525,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               },
               {
@@ -1528,6 +1538,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1540,6 +1551,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               }
             ],
@@ -1560,6 +1572,7 @@
                 "code_level": "major",
                 "decided_by": "draft:held:grow",
                 "decisive": true,
+                "label": "draft:held:grow",
                 "ruled": true
               },
               {
@@ -1572,6 +1585,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               },
               {
@@ -1584,6 +1598,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:deal",
                 "ruled": false
               }
             ],
@@ -1607,6 +1622,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ]
@@ -1627,6 +1643,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ]
@@ -1646,6 +1663,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ],
@@ -1666,6 +1684,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ],
@@ -1686,6 +1705,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:held:arc",
                 "ruled": false
               }
             ],
@@ -1741,6 +1761,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ]
@@ -1761,6 +1782,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ]
@@ -1780,6 +1802,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ],
@@ -1800,6 +1823,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ],
@@ -1820,6 +1844,7 @@
                 "code_level": "minor",
                 "decided_by": "land",
                 "decisive": false,
+                "label": "draft:moved:deal",
                 "ruled": false
               }
             ],

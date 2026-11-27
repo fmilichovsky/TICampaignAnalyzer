@@ -274,41 +274,41 @@ Drop 2 levels at share 1.78e-06:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| above | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
-| above | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
-| above | alpha | `draft:held:grow` | 0.0158 | 64 | major | major | own | yes |
+| above | alpha | draft:held:deal | 0.001 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:held:arc | 0.00398 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:held:grow | 0.0158 | 64 | major | major | own | yes |
 
 Drop share at share 0.000562:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| above | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
-| above | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
-| above | alpha | `draft:held:grow` | 0.0158 | 64 | major | major | own | yes |
+| above | alpha | draft:held:deal | 0.001 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:held:arc | 0.00398 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:held:grow | 0.0158 | 64 | major | major | own | yes |
 
 Rise share at share 0.178:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:held:grow` | 0.0158 | 64 | major | major | own | yes |
-| below | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
-| below | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:grow | 0.0158 | 64 | major | major | own | yes |
+| below | alpha | draft:held:arc | 0.00398 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:deal | 0.001 | 47 | minor | minor | `land` | no |
 
 Rise 2 levels at share 56.2:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:held:grow` | 0.0158 | 64 | major | major | own | yes |
-| below | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
-| below | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:grow | 0.0158 | 64 | major | major | own | yes |
+| below | alpha | draft:held:arc | 0.00398 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:deal | 0.001 | 47 | minor | minor | `land` | no |
 
 Rise 3 levels at share 1.78e+04:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:held:grow` | 0.0158 | 64 | major | major | own | yes |
-| below | alpha | `draft:held:arc` | 0.00398 | 47 | minor | minor | `land` | no |
-| below | alpha | `draft:held:deal` | 0.001 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:grow | 0.0158 | 64 | major | major | own | yes |
+| below | alpha | draft:held:arc | 0.00398 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:deal | 0.001 | 47 | minor | minor | `land` | no |
 
 ### held on population
 
@@ -316,31 +316,31 @@ Drop 2 levels at share 1.78e-06:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| above | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:held:arc | 0.02 | 47 | minor | minor | `land` | no |
 
 Drop share at share 0.000562:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| above | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:held:arc | 0.02 | 47 | minor | minor | `land` | no |
 
 Rise share at share 0.178:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:arc | 0.02 | 47 | minor | minor | `land` | no |
 
 Rise 2 levels at share 56.2:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:arc | 0.02 | 47 | minor | minor | `land` | no |
 
 Rise 3 levels at share 1.78e+04:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:held:arc` | 0.02 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:held:arc | 0.02 | 47 | minor | minor | `land` | no |
 
 ### moved on population
 
@@ -348,31 +348,31 @@ Drop 2 levels at share 1.78e-06:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| above | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:moved:deal | 0.158 | 47 | minor | minor | `land` | no |
 
 Drop share at share 0.000562:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| above | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
+| above | alpha | draft:moved:deal | 0.158 | 47 | minor | minor | `land` | no |
 
 Rise share at share 0.178:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:moved:deal | 0.158 | 47 | minor | minor | `land` | no |
 
 Rise 2 levels at share 56.2:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:moved:deal | 0.158 | 47 | minor | minor | `land` | no |
 
 Rise 3 levels at share 1.78e+04:
 
 | Side | Campaign | Event | Share | Score | Level | Own base level | Decided by | Ruled |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| below | alpha | `draft:moved:deal` | 0.158 | 47 | minor | minor | `land` | no |
+| below | alpha | draft:moved:deal | 0.158 | 47 | minor | minor | `land` | no |
 
 ## Snippet
 
