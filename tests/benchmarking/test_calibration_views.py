@@ -32,6 +32,7 @@ from tinarrative.benchmarking.calibration.readout import override_state
 from tinarrative.benchmarking.calibration.replay import default_state, replay
 from tinarrative.benchmarking.calibration.table import build_index, extract_campaign
 from tinarrative.benchmarking.calibration.views import (
+    EVENTS_CAP,
     TIERS,
     ViewError,
     campaign_periods,
@@ -288,15 +289,14 @@ def test_the_events_view_says_what_set_each_events_level_and_dates_what_falls_ou
     assert f"@{SAVES[1][:10]}" in text and "decided by cited event strong" in text
 
 
-def test_a_context_rule_that_names_trivial_decides_outright() -> None:
-    rows = [row("ruled", FIRST, tier="narrative", level="trivial", rule="rule.named")]
-    tables = {"c": spaced(rows, [1])}
+def test_a_top_level_event_a_context_rule_decides_names_the_rule() -> None:
+    rows = [row("ruled", SECOND, tier="narrative", level="major", rule="rule.named")]
+    tables = {"c": spaced(rows, [3])}
     index = index_of(tables)
-    state = replace(default_state(index), type_bases={FIRST: "major"})
-    document = views_document(index, tables, None, state, views=("events",), settings=SETTINGS)
+    document = views_document(index, tables, None, default_state(index), views=("events",), settings=SETTINGS)
 
-    assert events_of(document) == {}
-    assert document["views"]["events"]["reasons"] == {}
+    assert events_of(document)["ruled"]["decided_by"] == {"kind": "rule", "rule": "rule.named"}
+    assert "decided by context rule rule.named" in render_views(document)
 
 
 def test_the_events_view_shows_the_code_level_beside_the_tried_one_and_filters() -> None:
@@ -313,20 +313,23 @@ def test_the_events_view_shows_the_code_level_beside_the_tried_one_and_filters()
         index, tables, None, replace(default_state(index), types=(FIRST,)), views=("events",), settings=SETTINGS
     )
     assert {event["type"] for event in events_of(only).values()} == {FIRST}
-    third = views_document(
+    only_2030 = views_document(
         index, tables, None, default_state(index), views=("events",), periods=["2030"], settings=SETTINGS
     )
-    assert all(entry["key"] == "2030" for entry in third["views"]["events"]["campaigns"]["c"]["periods"])
+    assert all(entry["key"] == "2030" for entry in only_2030["views"]["events"]["campaigns"]["c"]["periods"])
 
 
 def test_the_events_view_cuts_long_lists_in_text_and_not_in_json() -> None:
-    rows = [row(f"e{n}", FIRST, tier="narrative", level="major", shares=power(n)) for n in range(20)]
-    tables = {"c": spaced(rows, [3] * 20)}
+    total = EVENTS_CAP + 5
+    rows = [row(f"e{n}", FIRST, tier="narrative", level="major", shares=power(n)) for n in range(total)]
+    tables = {"c": spaced(rows, [3] * total)}
     index = index_of(tables)
     document = views_document(index, tables, None, default_state(index), views=("events",), settings=SETTINGS)
 
-    assert len(events_of(document)) == 20
-    assert "... 5 more cut" in render_views(document)
+    text = render_views(document)
+    assert len(events_of(document)) == total
+    assert sum(1 for line in text.splitlines() if line.startswith("    decided by")) == EVENTS_CAP
+    assert "5 more cut" in text
 
 
 @pytest.mark.parametrize("status", ["examined", "stale", "unexamined"])

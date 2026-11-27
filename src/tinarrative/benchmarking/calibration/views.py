@@ -606,7 +606,7 @@ def _decided_text(decided: Mapping[str, Any]) -> str:
         return "its base level"
     shares = ", ".join(f"{item['measure']} {item['share']:.3g}" for item in decided["shares"])
     scaling = decided["scaling"]
-    text = f"own share {shares} on scaling {scaling}"
+    text = f"own share {shares}" + ("" if scaling is None else f" on scaling {scaling}")
     if "rise" in decided:
         drop = "" if decided["drop"] is None else f", drop {decided['drop']:.3g}"
         text += f" (rise {decided['rise']:.3g}{drop})"
