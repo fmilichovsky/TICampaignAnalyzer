@@ -193,7 +193,16 @@ _Avoid_: editorial stance (a stance is a councilor's public outlook), editorial 
 **Calibration principles**:
 The rules a calibration review applies to judge whether a base level, a scaling and the spread of levels in a
 narrator package deliver what the editorial direction says each level means.
-_Avoid_: rules of thumb, calibration rules, guidelines
+Each principle carries a _revision_, raised when a reason judged under the old text could now be wrong; a
+clarification that changes no verdict keeps it.
+_Avoid_: rules of thumb, calibration rules, guidelines, version (the page as a whole has none)
+
+**Reason**:
+Why an event kind's base level, or a scaling's shares, sit where they do: the one calibration principle applied
+and what applies it in game terms ("organization churn" under *Trivial is a role*). It never restates the
+principle or the level. A kind or scaling no review has judged has no reason yet and is _unexamined_. A reason
+judged under an earlier revision of its principle is _stale_: possibly outdated, waiting for a review, not a fault.
+_Avoid_: justification, rationale, reason line (the reason is no longer a single line naming its principle)
 
 **Sample campaign**:
 A real campaign kept in the repository as consecutive whole saves, which the benchmarks measure and a calibration
